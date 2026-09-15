@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App, Button, Input, Modal, Popconfirm, Select, Spin, Tag } from "antd";
+import { App, Button, Input, Modal, Popconfirm, Select, Tag } from "antd";
 import { ArrowLeft, BookOpen, Download, Import, Pause, Plus, RefreshCw, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -39,9 +39,15 @@ export default function ScriptPracticeWorkspace() {
     const [busy, setBusy] = useState(false);
     const [streamStatus, setStreamStatus] = useState<"idle" | "connecting" | "waiting_first_token" | "streaming">("idle");
     const [publicProgress, setPublicProgress] = useState("");
-    const [starting, setStarting] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [pendingConfirmation, setPendingConfirmation] = useState<{ artifactId: string; artifactType: string; runId: string } | null>(null);
+    const [confirmationOpen, setConfirmationOpen] = useState(false);
+    const [regenerateOpen, setRegenerateOpen] = useState(false);
+    const [regenerateFeedback, setRegenerateFeedback] = useState("");
+    const [regenerating, setRegenerating] = useState(false);
+    const [adaptationParametersOpen, setAdaptationParametersOpen] = useState(false);
+    const [savingAdaptationParameters, setSavingAdaptationParameters] = useState(false);
+    const [adaptationParameters, setAdaptationParameters] = useState({ targetDurationSeconds: 180, shotCount: 18, shotStyle: "混合景别", viewpoint: "第一人称" });
     const abortRef = useRef<AbortController | undefined>(undefined);
     const seenEventKeys = useRef(new Set<string>());
     const previewRawRef = useRef("");
@@ -57,6 +63,8 @@ export default function ScriptPracticeWorkspace() {
         setRunId("");
         setRunError("");
         setPublicProgress("");
+        setPendingConfirmation(null);
+        setConfirmationOpen(false);
         setChatSessionId("");
         setSessionTitle("");
         setSessionMenuOpen(false);
@@ -80,7 +88,8 @@ export default function ScriptPracticeWorkspace() {
         setRunId(activeRun?.id || "");
         setRunError(activeRun?.errorMessage || "");
         const waiting = result.items.find((item) => item.status === "awaiting_review");
-        if (waiting) setPendingConfirmation((current) => current || { artifactId: waiting.id, artifactType: waiting.type, runId: activeRun?.id || "" });
+        setPendingConfirmation(waiting ? { artifactId: waiting.id, artifactType: waiting.type, runId: activeRun?.id || "" } : null);
+        setConfirmationOpen(Boolean(waiting));
         setSelectedKey((current) => (result.items.some((item) => item.key === current) ? current : result.items[0]?.key || ""));
         return activeRun;
     }, []);
@@ -149,7 +158,6 @@ export default function ScriptPracticeWorkspace() {
                 const reader = response.body.getReader(),
                     decoder = new TextDecoder();
                 let buffer = "";
-                let receivedEvent = false;
                 setStreamStatus("waiting_first_token");
                 while (true) {
                     const { done, value } = await reader.read();
@@ -165,7 +173,6 @@ export default function ScriptPracticeWorkspace() {
                         const eventKey = `${event.runId || currentRunId}:${event.sequence ?? chunk}`;
                         if (seenEventKeys.current.has(eventKey)) continue;
                         seenEventKeys.current.add(eventKey);
-                        receivedEvent = true;
                         if (event.type === "artifact_delta" || event.type === "assistant_delta") setStreamStatus("streaming");
                         if (event.type === "assistant_delta") {
                             const delta = String(event.data.delta || "");
@@ -213,8 +220,9 @@ export default function ScriptPracticeWorkspace() {
                                     previewRawRef.current = "";
                                     setPreview("");
                                 }
-                                if (["creative_positioning", "short_story", "adaptation_strategy", "review_report"].includes(String(event.data.artifactType))) {
+                                if (["creative_positioning", "short_story", "adaptation_strategy", "episode_scripts", "review_report", "director_plan", "text_storyboard", "asset_prompts"].includes(String(event.data.artifactType))) {
                                     setPendingConfirmation({ artifactId: String(event.data.artifactId || ""), artifactType: String(event.data.artifactType), runId: currentRunId });
+                                    setConfirmationOpen(true);
                                 }
                             }
                         }
@@ -247,17 +255,6 @@ export default function ScriptPracticeWorkspace() {
             message.error(error instanceof Error ? error.message : fallback);
         }
     };
-    const start = async (runType: string, input: Record<string, unknown>) => {
-        if (!selectedId || busy || starting) return;
-        setStarting(true);
-        setRunError("");
-        try {
-            const run = await practiceScriptsApi.createRun(selectedId, { runType, clientRequestId: crypto.randomUUID(), input });
-            setRunId(run.id);
-        } finally {
-            setStarting(false);
-        }
-    };
     const send = async () => {
         const text = draft.trim();
         if (!text || !selectedId || busy) return;
@@ -266,7 +263,10 @@ export default function ScriptPracticeWorkspace() {
         const session = chatSessionId ? { id: chatSessionId } : await practiceScriptsApi.createChatSession(selectedId, "剧本创作");
         setChatSessionId(session.id);
         const run = await practiceScriptsApi.sendChat(selectedId, session.id, text, crypto.randomUUID());
-        if (run.confirmation) setPendingConfirmation(null);
+        if (run.confirmation) {
+            setPendingConfirmation(null);
+            setConfirmationOpen(false);
+        }
         setRunId(run.nextRun?.id || run.id);
     };
     const loadConversationPreview = async (projectId: string) => {
@@ -280,17 +280,69 @@ export default function ScriptPracticeWorkspace() {
             // Conversation artifacts are optional; keep the live stream as fallback.
         }
     };
+    const regenerateCurrentArtifact = async () => {
+        const pending = pendingConfirmation;
+        const feedback = regenerateFeedback.trim();
+        if (!selectedId || !pending || !feedback || regenerating) return;
+        const runTypeByArtifact: Record<string, string> = {
+            creative_positioning: "project_planning",
+            short_story: "short_story",
+            adaptation_strategy: "adaptation_bundle",
+            review_report: "script_review",
+            director_plan: "director_plan",
+            text_storyboard: "text_storyboard",
+            asset_prompts: "asset_prompts",
+        };
+        const runType = runTypeByArtifact[pending.artifactType];
+        if (!runType) return;
+        setRegenerating(true);
+        try {
+            const run = await practiceScriptsApi.createRun(selectedId, {
+                runType,
+                chatSessionId: chatSessionId || undefined,
+                clientRequestId: crypto.randomUUID(),
+                input: { regeneration: { artifactId: pending.artifactId, stageKey: pending.artifactType, feedback } },
+            });
+            setRegenerateOpen(false);
+            setRegenerateFeedback("");
+            setPendingConfirmation(null);
+            setConfirmationOpen(false);
+            setRunId(run.id);
+        } finally {
+            setRegenerating(false);
+        }
+    };
     const confirmCurrentArtifact = async () => {
+        if (!selectedId || !pendingConfirmation || confirming) return;
+        if (pendingConfirmation.artifactType === "adaptation_strategy" && !adaptationParametersOpen) {
+            setAdaptationParametersOpen(true);
+            return;
+        }
+        await confirmPendingArtifact();
+    };
+    const confirmPendingArtifact = async () => {
         if (!selectedId || !pendingConfirmation || confirming) return;
         setConfirming(true);
         try {
             const result = await practiceScriptsApi.confirmArtifact(selectedId, pendingConfirmation.artifactId, pendingConfirmation.artifactType, pendingConfirmation.runId, chatSessionId);
             const nextRun = result && typeof result === "object" && "nextRun" in result ? (result as { nextRun?: { id?: string } }).nextRun : undefined;
             setPendingConfirmation(null);
+            setConfirmationOpen(false);
             await loadTree(selectedId);
             if (nextRun?.id) setRunId(nextRun.id);
         } finally {
             setConfirming(false);
+        }
+    };
+    const confirmAdaptationWithParameters = async () => {
+        if (!selectedId || !pendingConfirmation || pendingConfirmation.artifactType !== "adaptation_strategy" || savingAdaptationParameters) return;
+        setSavingAdaptationParameters(true);
+        try {
+            await practiceScriptsApi.update(selectedId, { projectParameters: adaptationParameters });
+            setAdaptationParametersOpen(false);
+            await confirmPendingArtifact();
+        } finally {
+            setSavingAdaptationParameters(false);
         }
     };
     const renameCurrentSession = async () => {
@@ -339,7 +391,6 @@ export default function ScriptPracticeWorkspace() {
         return !currentItem || currentItem.status === "not_started" ? conversationPreview : "";
     }, [artifact, conversationPreview, preview, selectedKey, tree]);
     const artifactStatus = typeof artifact?.status === "string" ? artifact.status : "";
-    const artifactId = typeof artifact?.id === "string" ? artifact.id : "";
     return (
         <main className="flex h-full min-h-0 flex-col bg-background text-foreground" data-script-practice-workspace>
             <header className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -396,9 +447,14 @@ export default function ScriptPracticeWorkspace() {
                             {busy ? (
                                 <Tag color="processing">SSE 写作中</Tag>
                             ) : artifactStatus === "awaiting_review" ? (
-                                <Button size="small" type="primary" loading={confirming} disabled={confirming} onClick={() => void runAction(confirmCurrentArtifact, "确认当前阶段失败")}>
-                                    确认当前阶段
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button size="small" disabled={confirming} onClick={() => setRegenerateOpen(true)}>
+                                        重新生成
+                                    </Button>
+                                    <Button size="small" type="primary" loading={confirming} disabled={confirming} onClick={() => void runAction(confirmCurrentArtifact, "确认当前阶段失败")}>
+                                        {pendingConfirmation?.artifactType === "creative_positioning" ? "确认这个方向" : "确认"}
+                                    </Button>
+                                </div>
                             ) : null}
                         </div>
                         {visible ? (
@@ -522,9 +578,85 @@ export default function ScriptPracticeWorkspace() {
                     </div>
                 </aside>
             </div>
-            <Modal title="确认进入下一步" open={Boolean(pendingConfirmation)} onCancel={() => setPendingConfirmation(null)} onOk={() => void runAction(confirmCurrentArtifact, "确认并进入下一步失败")} okText="确认下一步" confirmLoading={confirming}>
-                <p>这一阶段的创作成果已经完成。确认后，剧本 Agent 会继续推进到下一阶段。</p>
+            <Modal
+                title={pendingConfirmation?.artifactType === "creative_positioning" ? "确认这个方向" : "确认当前成果"}
+                open={Boolean(pendingConfirmation) && confirmationOpen && !regenerateOpen}
+                onCancel={() => setConfirmationOpen(false)}
+                onOk={() => void runAction(confirmCurrentArtifact, "确认并进入下一步失败")}
+                okText="确认"
+                confirmLoading={confirming}
+            >
+                <p>这一阶段的成果已经完成。确认后，剧本 Agent 才会进入下一阶段。</p>
             </Modal>
+            <Modal
+                title="确认改编参数"
+                open={adaptationParametersOpen}
+                onCancel={() => setAdaptationParametersOpen(false)}
+                onOk={() => void runAction(confirmAdaptationWithParameters, "保存改编参数失败")}
+                okText="保存并确认"
+                confirmLoading={savingAdaptationParameters || confirming}
+            >
+                <p className="mb-3 text-sm text-muted-foreground">确认成片规格后，Agent 才会继续生成分集剧本。</p>
+                <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                        成片时长
+                        <Select
+                            className="mt-1 w-full"
+                            value={adaptationParameters.targetDurationSeconds}
+                            options={[
+                                { value: 60, label: "60 秒" },
+                                { value: 90, label: "90 秒" },
+                                { value: 180, label: "2–3 分钟" },
+                            ]}
+                            onChange={(value) => setAdaptationParameters((current) => ({ ...current, targetDurationSeconds: value }))}
+                        />
+                    </label>
+                    <label className="text-sm">
+                        镜头数量
+                        <Select
+                            className="mt-1 w-full"
+                            value={adaptationParameters.shotCount}
+                            options={[
+                                { value: 8, label: "8 镜头" },
+                                { value: 12, label: "12 镜头" },
+                                { value: 18, label: "18 镜头" },
+                                { value: 24, label: "24 镜头" },
+                            ]}
+                            onChange={(value) => setAdaptationParameters((current) => ({ ...current, shotCount: value }))}
+                        />
+                    </label>
+                    <label className="text-sm">
+                        镜头风格
+                        <Select
+                            className="mt-1 w-full"
+                            value={adaptationParameters.shotStyle}
+                            options={["混合景别", "自拍为主", "电影感", "快节奏剪辑"].map((value) => ({ value, label: value }))}
+                            onChange={(value) => setAdaptationParameters((current) => ({ ...current, shotStyle: value }))}
+                        />
+                    </label>
+                    <label className="text-sm">
+                        叙事视角
+                        <Select
+                            className="mt-1 w-full"
+                            value={adaptationParameters.viewpoint}
+                            options={["第一人称", "第三人称", "混合视角"].map((value) => ({ value, label: value }))}
+                            onChange={(value) => setAdaptationParameters((current) => ({ ...current, viewpoint: value }))}
+                        />
+                    </label>
+                </div>
+            </Modal>
+            <Modal
+                title="告诉 Agent 怎么改"
+                open={regenerateOpen}
+                onCancel={() => setRegenerateOpen(false)}
+                onOk={() => void runAction(regenerateCurrentArtifact, "重新生成当前阶段失败")}
+                okText="重新生成"
+                confirmLoading={regenerating}
+                okButtonProps={{ disabled: !regenerateFeedback.trim() }}
+            >
+                <p className="mb-2 text-sm text-muted-foreground">写下修改意见，Agent 会结合当前项目和本阶段成果重新生成。</p>
+                <Input.TextArea value={regenerateFeedback} onChange={(event) => setRegenerateFeedback(event.target.value)} placeholder="例如：增加陶艺体验，减少内心独白，突出过山车和大摆锤。" autoSize={{ minRows: 4, maxRows: 8 }} />
+            </Modal>{" "}
         </main>
     );
 }

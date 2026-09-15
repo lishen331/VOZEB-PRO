@@ -25,7 +25,7 @@ export async function confirmScriptArtifactAndStartNext(scope: PracticeTenantSco
         });
         if (!confirmed) return null;
         const nextRun = confirmed.nextRunType
-            ? await new ScriptAgentRunService(repository).create(scope, {
+            ? await new ScriptAgentRunService(repository).createAfterConfirmation(scope, {
                   projectId: input.projectId,
                   runType: confirmed.nextRunType as ScriptRunType,
                   clientRequestId: `confirm:${confirmed.confirmation.id}`,

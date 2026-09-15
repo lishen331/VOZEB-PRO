@@ -164,3 +164,81 @@ describe("ScriptAgentRunService", () => {
         expect(repository.createRunItem).toHaveBeenCalledWith(scope, "project-a", expect.objectContaining({ itemKey: "2", attemptNo: 1, status: "queued" }));
     });
 });
+
+describe("ScriptAgentRunService regeneration", () => {
+    it("allows regenerating the awaiting current artifact with user feedback", async () => {
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([{ id: "artifact-a", artifact_type: "short_story", status: "awaiting_review" }]),
+            createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "short_story", lastEventSequence: 0 }),
+            createRunItem: vi.fn().mockResolvedValue({ id: "item-a" }),
+            appendRunEvent: vi.fn(),
+        };
+        await expect(
+            new ScriptAgentRunService(repository as never, () => "id-a").create(scope, {
+                projectId: "project-a",
+                runType: "short_story",
+                clientRequestId: "regenerate-a",
+                configSnapshot: { regeneration: { artifactId: "artifact-a", stageKey: "short_story", feedback: "增加陶艺体验" } },
+            }),
+        ).resolves.toMatchObject({ runType: "short_story" });
+    });
+
+    it("rejects regeneration for a different or already confirmed artifact", async () => {
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([{ id: "artifact-a", artifact_type: "short_story", status: "confirmed" }]),
+            createRun: vi.fn(),
+            appendRunEvent: vi.fn(),
+        };
+        await expect(
+            new ScriptAgentRunService(repository as never).create(scope, {
+                projectId: "project-a",
+                runType: "short_story",
+                clientRequestId: "regenerate-b",
+                configSnapshot: { regeneration: { artifactId: "artifact-a", stageKey: "short_story", feedback: "修改" } },
+            }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(repository.createRun).not.toHaveBeenCalled();
+    });
+
+    it("rejects regeneration when the run type does not match the artifact stage", async () => {
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([{ id: "artifact-a", artifact_type: "short_story", status: "awaiting_review" }]),
+            createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "project_planning", lastEventSequence: 0 }),
+            createRunItem: vi.fn(),
+            appendRunEvent: vi.fn(),
+        };
+        await expect(
+            new ScriptAgentRunService(repository as never).create(scope, {
+                projectId: "project-a",
+                runType: "project_planning",
+                clientRequestId: "regenerate-c",
+                configSnapshot: { regeneration: { artifactId: "artifact-a", stageKey: "short_story", feedback: "修改" } },
+            }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(repository.createRun).not.toHaveBeenCalled();
+    });
+});
+
+describe("ScriptAgentRunService confirmation-triggered stages", () => {
+    it("allows the automatic next stage only when created by a user confirmation", async () => {
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([
+                { artifact_type: "creative_positioning", status: "confirmed" },
+                { artifact_type: "short_story", status: "confirmed" },
+                { artifact_type: "adaptation_strategy", status: "confirmed" },
+                { artifact_type: "episode_scripts", status: "confirmed" },
+            ]),
+            createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "script_review", lastEventSequence: 0 }),
+            createRunItem: vi.fn().mockResolvedValue({ id: "item-a" }),
+            appendRunEvent: vi.fn(),
+        };
+        await expect(
+            new ScriptAgentRunService(repository as never, () => "id-a").createAfterConfirmation(scope, {
+                projectId: "project-a",
+                runType: "script_review",
+                clientRequestId: "confirmed-next",
+                configSnapshot: { confirmedStageKey: "episode_scripts" },
+            }),
+        ).resolves.toMatchObject({ runType: "script_review" });
+    });
+});

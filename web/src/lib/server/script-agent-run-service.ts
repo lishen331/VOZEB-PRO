@@ -11,8 +11,8 @@ const PREREQUISITE: Partial<Record<ScriptRunType, Prerequisite>> = {
     episode_scripts: { confirmed: ["adaptation_strategy"] },
     script_review: { all: ["episode_scripts"] },
     director_plan: { confirmed: ["review_report"] },
-    text_storyboard: { all: ["review_report", "director_plan"], confirmed: ["review_report"] },
-    asset_prompts: { all: ["text_storyboard"] },
+    text_storyboard: { all: ["review_report", "director_plan"], confirmed: ["review_report", "director_plan"] },
+    asset_prompts: { all: ["text_storyboard"], confirmed: ["text_storyboard"] },
 };
 export class ScriptAgentRunService {
     constructor(
@@ -21,6 +21,35 @@ export class ScriptAgentRunService {
     ) {}
 
     async create(scope: PracticeTenantScope, input: { projectId: string; chatSessionId?: string; runType: ScriptRunType; stageKey?: string; clientRequestId: string; configSnapshot?: Record<string, unknown> }) {
+        return this.createInternal(scope, input, false);
+    }
+
+    async createAfterConfirmation(scope: PracticeTenantScope, input: { projectId: string; chatSessionId?: string; runType: ScriptRunType; stageKey?: string; clientRequestId: string; configSnapshot?: Record<string, unknown> }) {
+        return this.createInternal(scope, input, true);
+    }
+
+    private async createInternal(
+        scope: PracticeTenantScope,
+        input: { projectId: string; chatSessionId?: string; runType: ScriptRunType; stageKey?: string; clientRequestId: string; configSnapshot?: Record<string, unknown> },
+        trustedConfirmation: boolean,
+    ) {
+        const regeneration = input.configSnapshot?.regeneration;
+        if (regeneration && typeof regeneration === "object" && "listLatestArtifacts" in this.repository) {
+            const artifacts = await this.repository.listLatestArtifacts(scope, input.projectId);
+            const requestedArtifactId = typeof (regeneration as Record<string, unknown>).artifactId === "string" ? String((regeneration as Record<string, unknown>).artifactId) : "";
+            const requestedStage = typeof (regeneration as Record<string, unknown>).stageKey === "string" ? String((regeneration as Record<string, unknown>).stageKey) : "";
+            const current = artifacts.find((row: Record<string, unknown>) => String(row.id) === requestedArtifactId);
+            const stageRunTypes: Record<string, ScriptRunType> = {
+                creative_positioning: "project_planning",
+                short_story: "short_story",
+                adaptation_strategy: "adaptation_bundle",
+                review_report: "script_review",
+                director_plan: "director_plan",
+                text_storyboard: "text_storyboard",
+                asset_prompts: "asset_prompts",
+            };
+            if (!current || String(current.artifact_type) !== requestedStage || current.status !== "awaiting_review" || stageRunTypes[requestedStage] !== input.runType) throw new ScriptAgentRunError("当前阶段已确认或成果不存在，无法重新生成", 409);
+        }
         const required = PREREQUISITE[input.runType];
         if (required && "listLatestArtifacts" in this.repository) {
             const artifacts = await this.repository.listLatestArtifacts(scope, input.projectId);
@@ -29,11 +58,12 @@ export class ScriptAgentRunService {
             const anySatisfied = !required.any?.length || required.any.some((type) => available.has(type));
             const allSatisfied = !required.all?.length || required.all.every((type) => available.has(type));
             const confirmedSatisfied = !required.confirmed?.length || required.confirmed.every((group) => group.split("|").some((type) => confirmed.has(type)));
+            const isRegeneration = Boolean(regeneration && typeof regeneration === "object");
             const expected = nextShortFilmRunType(artifacts);
             const isWorkflowStage = ["short_story", "novel_outlines", "adaptation_bundle", "episode_scripts", "director_plan"].includes(input.runType);
             const automaticStage = ["script_review", "text_storyboard", "asset_prompts"].includes(input.runType);
             const directAutomaticCall = automaticStage;
-            if (!anySatisfied || !allSatisfied || !confirmedSatisfied || (isWorkflowStage && available.has("creative_positioning") && expected && input.runType !== expected) || directAutomaticCall)
+            if (!trustedConfirmation && !isRegeneration && (!anySatisfied || !allSatisfied || !confirmedSatisfied || (isWorkflowStage && available.has("creative_positioning") && expected && input.runType !== expected) || directAutomaticCall))
                 throw new ScriptAgentRunError("请按工作目录顺序完成当前步骤", 409);
         }
         const run = await this.repository.createRun(scope, {

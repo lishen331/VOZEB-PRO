@@ -104,24 +104,24 @@ describe("screenwriter run sequences", () => {
     it("runs supervision inside episode writing and final text deliverables inside directing", async () => {
         expect(scriptRunSequence("conversation")).toEqual(["conversation"]);
         expect(scriptRunSequence("conversation", "project_planning")).toEqual(["conversation", "project_planning"]);
-        expect(scriptRunSequence("episode_scripts")).toEqual(["episode_scripts", "script_review"]);
-        expect(scriptRunSequence("director_plan")).toEqual(["director_plan", "text_storyboard", "asset_prompts"]);
+        expect(scriptRunSequence("episode_scripts")).toEqual(["episode_scripts"]);
+        expect(scriptRunSequence("director_plan")).toEqual(["director_plan"]);
         expect(scriptRunSequence("short_story")).toEqual(["short_story"]);
         expect(completedRunTypesForArtifacts(["creative_positioning", "director_plan", "text_storyboard"])).toEqual(["project_planning", "director_plan", "text_storyboard"]);
         expect(completedRunTypesForArtifacts(["episode_scripts", "review_report"])).toEqual(["episode_scripts", "script_review"]);
         const execute = vi.fn(async (_scope, task) => ({ artifactId: `artifact-${task.runType}` }));
         await expect(executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "director_plan", input: {}, origin: "https://local", cookie: "session" })).resolves.toMatchObject({
+            artifactId: "artifact-director_plan",
+        });
+        expect(execute.mock.calls.map((call) => call[1].runType)).toEqual(["director_plan"]);
+        execute.mockClear();
+        await executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "text_storyboard", input: {}, origin: "https://local", cookie: "session" });
+        expect(execute.mock.calls.map((call) => call[1].runType)).toEqual(["text_storyboard"]);
+        execute.mockClear();
+        await expect(executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "asset_prompts", input: {}, origin: "https://local", cookie: "session" })).resolves.toMatchObject({
             artifactId: "artifact-asset_prompts",
         });
-        expect(execute.mock.calls.map((call) => call[1].runType)).toEqual(["director_plan", "text_storyboard", "asset_prompts"]);
-        execute.mockClear();
-        await executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "director_plan", input: {}, origin: "https://local", cookie: "session" }, ["director_plan", "text_storyboard"]);
         expect(execute.mock.calls.map((call) => call[1].runType)).toEqual(["asset_prompts"]);
-        execute.mockClear();
-        await expect(
-            executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "director_plan", input: {}, origin: "https://local", cookie: "session" }, ["director_plan", "text_storyboard", "asset_prompts"]),
-        ).resolves.toBeUndefined();
-        expect(execute).not.toHaveBeenCalled();
     });
 });
 

@@ -22,6 +22,7 @@ export async function PATCH(request: Request, context: Context) {
                 ...(typeof parsed.data.logline === "string" ? { logline: parsed.data.logline.trim() } : {}),
                 ...(typeof parsed.data.synopsis === "string" ? { synopsis: parsed.data.synopsis.trim() } : {}),
                 ...(parsed.data.status === "draft" || parsed.data.status === "writing" || parsed.data.status === "completed" ? { status: parsed.data.status } : {}),
+                ...(parsed.data.projectParameters && typeof parsed.data.projectParameters === "object" && !Array.isArray(parsed.data.projectParameters) ? { projectParameters: parsed.data.projectParameters as Record<string, unknown> } : {}),
             }),
         );
     });

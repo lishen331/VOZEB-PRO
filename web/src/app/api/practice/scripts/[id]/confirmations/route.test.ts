@@ -10,7 +10,7 @@ vi.mock("@/lib/server/database/script-agent-repository", () => ({
 }));
 vi.mock("@/lib/server/script-agent-run-service", () => ({
     ScriptAgentRunService: class {
-        create = mocks.create;
+        createAfterConfirmation = mocks.create;
     },
 }));
 import { POST } from "./route";

@@ -18,11 +18,11 @@ const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: Script
     novel_chapters: { agent: "novel_writer", artifact: "chapter_outlines", key: "selected", confirmation: false },
     chapter_analysis: { agent: "chapter_analyst", artifact: "chapter_outlines", key: "events", confirmation: false },
     adaptation_bundle: { agent: "adaptation_planner", artifact: "adaptation_strategy", key: "main", confirmation: true },
-    episode_scripts: { agent: "script_writer", artifact: "episode_scripts", key: "all", confirmation: false },
+    episode_scripts: { agent: "script_writer", artifact: "episode_scripts", key: "all", confirmation: true },
     script_review: { agent: "script_supervisor", artifact: "review_report", key: "main", confirmation: true },
-    director_plan: { agent: "director_planner", artifact: "director_plan", key: "main", confirmation: false },
-    text_storyboard: { agent: "storyboard_writer", artifact: "text_storyboard", key: "all", confirmation: false },
-    asset_prompts: { agent: "asset_prompt_writer", artifact: "asset_prompts", key: "library", confirmation: false },
+    director_plan: { agent: "director_planner", artifact: "director_plan", key: "main", confirmation: true },
+    text_storyboard: { agent: "storyboard_writer", artifact: "text_storyboard", key: "all", confirmation: true },
+    asset_prompts: { agent: "asset_prompt_writer", artifact: "asset_prompts", key: "library", confirmation: true },
 };
 export type ScriptExecutionInput = { projectId: string; runId: string; chatSessionId?: string; runType: ScriptRunType; input: Record<string, unknown>; origin: string; cookie: string; signal?: AbortSignal };
 type Deps = {
@@ -45,8 +45,8 @@ type Deps = {
 };
 export function scriptRunSequence(runType: ScriptRunType, nextRunType?: ScriptRunType): ScriptRunType[] {
     if (runType === "conversation") return nextRunType ? ["conversation", nextRunType] : ["conversation"];
-    if (runType === "episode_scripts") return ["episode_scripts", "script_review"];
-    if (runType === "director_plan") return ["director_plan", "text_storyboard", "asset_prompts"];
+    if (runType === "episode_scripts") return ["episode_scripts"];
+    if (runType === "director_plan") return ["director_plan"];
     return [runType];
 }
 
@@ -59,9 +59,9 @@ export function nextShortFilmRunType(artifacts: Array<{ artifact_type?: unknown;
     if (!saved.has("episode_scripts")) return "episode_scripts" as const;
     if (!saved.has("review_report")) return "script_review" as const;
     if (!confirmed.has("review_report")) return "script_review" as const;
-    if (!saved.has("director_plan")) return "director_plan" as const;
-    if (!saved.has("text_storyboard")) return "text_storyboard" as const;
-    if (!saved.has("asset_prompts")) return "asset_prompts" as const;
+    if (!saved.has("director_plan") || !confirmed.has("director_plan")) return "director_plan" as const;
+    if (!saved.has("text_storyboard") || !confirmed.has("text_storyboard")) return "text_storyboard" as const;
+    if (!saved.has("asset_prompts") || !confirmed.has("asset_prompts")) return "asset_prompts" as const;
     return undefined;
 }
 
@@ -134,6 +134,7 @@ export class ScriptAgentExecutor {
                           },
                       }
                     : {}),
+                ...(task.input.regeneration && typeof task.input.regeneration === "object" ? { regeneration: task.input.regeneration } : {}),
                 ...(chatHistory.length ? { chatHistory: chatHistory.map(publicChatMessage) } : {}),
             },
         };

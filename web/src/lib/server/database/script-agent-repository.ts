@@ -1,4 +1,3 @@
-import type { JsonValue } from "./repository-types";
 import type { QueryExecutor } from "./postgres";
 import type { PracticeTenantScope } from "../practice-tenant-scope";
 import type { ScriptAgentKey, ScriptRunEventType, ScriptRunItemStatus, ScriptRunStatus, ScriptRunType } from "../script-agent-domain";
@@ -449,7 +448,15 @@ function mapProfile(row: Record<string, unknown>): ScriptAgentProfileRecord {
 
 function nextRunTypeAfterConfirmation(stageKey: string, artifacts: Array<Record<string, unknown>>) {
     const expected = nextRunTypeFromArtifacts(artifacts);
-    const allowed: Record<string, string | undefined> = { creative_positioning: "short_story", short_story: "adaptation_bundle", adaptation_strategy: "episode_scripts", review_report: "director_plan" };
+    const allowed: Record<string, string | undefined> = {
+        creative_positioning: "short_story",
+        short_story: "adaptation_bundle",
+        adaptation_strategy: "episode_scripts",
+        episode_scripts: "script_review",
+        review_report: "director_plan",
+        director_plan: "text_storyboard",
+        text_storyboard: "asset_prompts",
+    };
     const mapped = allowed[stageKey];
     return mapped === expected ? expected : undefined;
 }

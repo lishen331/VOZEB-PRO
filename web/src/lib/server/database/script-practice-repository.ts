@@ -7,7 +7,7 @@ import { isoValue, jsonParam, jsonValue, normalizePage, normalizePageSize, optio
 
 export type ScriptProjectListInput = { page?: number; pageSize?: number; keyword?: string; status?: ScriptProjectStatus };
 export type ScriptProjectCreateInput = Omit<ScriptPracticeProject, "userId" | "createdAt" | "updatedAt">;
-export type ScriptProjectPatch = Partial<Pick<ScriptPracticeProject, "title" | "genre" | "logline" | "synopsis" | "status" | "sourceType" | "currentVersionId">>;
+export type ScriptProjectPatch = Partial<Pick<ScriptPracticeProject, "title" | "genre" | "logline" | "synopsis" | "status" | "sourceType" | "currentVersionId" | "projectParameters">>;
 export type ScriptAgentOperationRecord = {
     id: string;
     projectId: string;
@@ -84,9 +84,13 @@ export class ScriptPracticeRepository {
         if (patch.status !== undefined) add("status", patch.status);
         if (patch.sourceType !== undefined) add("source_type", patch.sourceType);
         if (patch.currentVersionId !== undefined) add("current_version_id", patch.currentVersionId || null);
+        if (patch.projectParameters !== undefined) add("project_parameters", JSON.stringify(patch.projectParameters || {}));
         if (!assignments.length) return this.getScriptProject(id, ownerUserId);
         assignments.push("updated_at = now()");
-        const result = await this.db.query(`UPDATE practice_script_projects SET ${assignments.join(", ")} WHERE id = $1 AND owner_user_id = $2 RETURNING *`, values);
+        const result = await this.db.query(
+            `UPDATE practice_script_projects SET ${assignments.map((assignment) => (assignment.startsWith("project_parameters =") ? assignment + "::jsonb" : assignment)).join(", ")} WHERE id = $1 AND owner_user_id = $2 RETURNING *`,
+            values,
+        );
         return result.rows[0] ? mapProject(result.rows[0]) : null;
     }
 

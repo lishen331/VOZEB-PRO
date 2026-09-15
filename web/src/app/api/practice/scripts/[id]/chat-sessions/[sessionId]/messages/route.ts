@@ -6,8 +6,9 @@ import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";
 import { ScriptAgentRepository } from "@/lib/server/database/script-agent-repository";
 import { postgresQuery } from "@/lib/server/database/postgres";
 import { ScriptAgentRunService } from "@/lib/server/script-agent-run-service";
-import { nextShortFilmRunType } from "@/lib/server/script-agent-executor";
 import { confirmScriptArtifactAndStartNext } from "@/lib/server/script-agent-confirmation-service";
+import { nextShortFilmRunType } from "@/lib/server/script-agent-executor";
+
 type Context = { params: Promise<{ id: string; sessionId: string }> };
 export async function GET(request: Request, context: Context) {
     const user = await getCurrentUser(request);
@@ -34,7 +35,9 @@ export async function POST(request: Request, context: Context) {
     if (!saved) return reply(409, null, "剧本对话已变化，请刷新后重试");
     const artifacts = await repository.listLatestArtifacts(scope, id);
     const confirmation = isNaturalConfirmation(content);
-    const pending = artifacts.find((row) => row.status === "awaiting_review" && ["creative_positioning", "short_story", "adaptation_strategy", "review_report"].includes(String(row.artifact_type)));
+    const pending = artifacts.find(
+        (row) => row.status === "awaiting_review" && ["creative_positioning", "short_story", "adaptation_strategy", "episode_scripts", "review_report", "director_plan", "text_storyboard", "asset_prompts"].includes(String(row.artifact_type)),
+    );
     if (confirmation && pending) {
         const progressed = await confirmScriptArtifactAndStartNext(scope, {
             projectId: id,
