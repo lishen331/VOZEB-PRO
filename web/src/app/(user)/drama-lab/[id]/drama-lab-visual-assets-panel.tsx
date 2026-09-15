@@ -31,7 +31,7 @@ import { DramaLabUiFeature } from "./drama-lab-ui-feature";
 
 type AssetKind = "characters" | "scenes" | "props";
 type VisualAsset = Character | Scene | Prop;
-type EditorState = { kind: AssetKind; asset?: VisualAsset; creating?: boolean };
+type EditorState = { kind: AssetKind; asset?: VisualAsset; creating?: boolean; draftCreated?: boolean };
 type ProjectUpdate = Partial<Project> | ((current: Project) => Partial<Project>);
 
 const EMPTY_PROFILE: DramaLabAssetProfile = { visualIdentity: "", styling: "", colorPalette: "", consistencyRules: "" };
@@ -473,6 +473,28 @@ export function DramaLabVisualAssetsPanel({
         }
     };
 
+    const closeEditor = async () => {
+        if (!editor?.asset) return setEditor(undefined);
+        const close = async () => {
+            if (editor.creating && editor.draftCreated && editor.asset?.id) {
+                const draftId = editor.asset.id;
+                const cleaned = await replaceAssetsFor(editor.kind, (current) => current.filter((asset) => asset.id !== draftId));
+                if (!cleaned) return;
+            }
+            setEditor(undefined);
+        };
+        if (busyKey.startsWith("asset:")) {
+            Modal.confirm({
+                title: "图片仍在生成",
+                content: "关闭后将清理尚未保存的临时资产。确定关闭吗？",
+                okText: "关闭并清理",
+                cancelText: "继续生成",
+                onOk: close,
+            });
+            return;
+        }
+        await close();
+    };
     const saveEditor = async () => {
         if (!editor?.asset) return;
         const name = assetName(editor.asset).trim();
@@ -839,7 +861,7 @@ export function DramaLabVisualAssetsPanel({
                 busy={busyKey.startsWith("upload:") || busyKey.startsWith("upload-primary:") || busyKey.startsWith("asset:")}
                 busyAction={busyKey.startsWith("ai:") ? (busyKey.split(":")[1] as "describe" | "prompt" | "anchor" | "stages") : undefined}
                 uploadInputRef={uploadInputRef}
-                onClose={() => setEditor(undefined)}
+                onClose={() => void closeEditor()}
                 onChange={(asset) => setEditor((current) => (current ? { ...current, asset } : current))}
                 onSave={() => void saveEditor()}
                 onUpload={() => uploadInputRef.current?.click()}
@@ -857,7 +879,7 @@ export function DramaLabVisualAssetsPanel({
                         target = createAsset(kind, { ...target, id: `${kind}-${nanoid()}`, name: target.name || "未命名资产", description: target.description || "" });
                         const saved = await onSave({ [kind]: [...(project[kind] as VisualAsset[]), target] } as Partial<Project>);
                         if (!saved) return;
-                        setEditor((current) => (current ? { ...current, asset: target } : current));
+                        setEditor((current) => (current ? { ...current, asset: target, creating: true, draftCreated: true } : current));
                     }
                     await generateAssetReference(target, editor.kind, options);
                 }}
