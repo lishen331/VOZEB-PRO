@@ -211,6 +211,7 @@ export type LogicalModelCapabilityProfile = {
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
+    supportsAudioGeneration?: boolean;
     maxReferenceImages?: number;
     aspectRatios?: string[];
     resolutions?: string[];

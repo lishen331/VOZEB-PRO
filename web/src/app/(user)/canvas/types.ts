@@ -1,5 +1,5 @@
 import type { CanvasImageLayerBox, CanvasImageLayerKind } from "@/lib/canvas-image-decomposition";
-import type { CreativeVideoReferenceMode, VideoReferenceRole } from "@/lib/video-reference-contract";
+import type { CanvasVideoGenerationMode, CreativeVideoReferenceMode, VideoReferenceRole } from "@/lib/video-reference-contract";
 
 export type Position = {
     x: number;
@@ -125,6 +125,7 @@ export type CanvasNodeMetadata = {
     generateAudio?: string;
     watermark?: string;
     videoReferenceMode?: CreativeVideoReferenceMode;
+    videoGenerationMode?: CanvasVideoGenerationMode;
     videoFirstFrame?: CanvasVideoFrameSelection;
     videoLastFrame?: CanvasVideoFrameSelection;
     videoReferences?: CanvasVideoReferenceSnapshot[];

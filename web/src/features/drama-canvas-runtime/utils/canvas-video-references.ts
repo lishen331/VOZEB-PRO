@@ -1,4 +1,4 @@
-import { normalizeVideoReferenceRole, type CreativeVideoReferenceMode, type VideoReferenceRole } from "@/lib/video-reference-contract";
+import { normalizeVideoReferenceRole, canvasVideoGenerationModes, type CanvasVideoGenerationMode, type CreativeVideoReferenceMode, type VideoReferenceRole } from "@/lib/video-reference-contract";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
@@ -46,6 +46,28 @@ export function canvasVideoReferenceModePatch(mode: CreativeVideoReferenceMode):
     if (mode === "reference") return { videoReferenceMode: mode, videoFirstFrame: undefined, videoLastFrame: undefined };
     if (mode === "first_frame") return { videoReferenceMode: mode, videoLastFrame: undefined };
     return { videoReferenceMode: mode };
+}
+
+export function mapVideoGenerationModeToReferenceMode(mode: CanvasVideoGenerationMode): CreativeVideoReferenceMode {
+    if (mode === "first_last") return "first_last";
+    return "reference";
+}
+
+export function normalizeCanvasVideoGenerationMode(value: unknown): CanvasVideoGenerationMode {
+    return typeof value === "string" && (canvasVideoGenerationModes as readonly string[]).includes(value) ? (value as CanvasVideoGenerationMode) : "omni_reference";
+}
+
+export function canvasVideoGenerationModeLabel(value: unknown): string {
+    const mode = normalizeCanvasVideoGenerationMode(value);
+    if (mode === "text_to_video") return "文生视频";
+    if (mode === "omni_reference") return "全能参考";
+    if (mode === "image_to_video") return "图生视频";
+    if (mode === "first_last") return "首尾帧";
+    return "图片参考";
+}
+
+export function canvasVideoGenerationModePatch(mode: CanvasVideoGenerationMode): Partial<CanvasNodeMetadata> {
+    return { videoGenerationMode: mode, ...canvasVideoReferenceModePatch(mapVideoGenerationModeToReferenceMode(mode)) };
 }
 
 export function canvasVideoFrameSelection(reference: CanvasResourceReference): CanvasVideoFrameSelection | null {

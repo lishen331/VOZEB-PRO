@@ -222,6 +222,7 @@ export function CreativeGenerationPreferences({
     compact = false,
     showCount = true,
     videoReferenceContent,
+    videoModeContent,
     onOpenChange,
     onCapabilityChange,
     onChange,
@@ -242,6 +243,7 @@ export function CreativeGenerationPreferences({
     compact?: boolean;
     showCount?: boolean;
     videoReferenceContent?: ReactNode;
+    videoModeContent?: ReactNode;
     onOpenChange?: (open: boolean) => void;
     onCapabilityChange?: (capability: MediaCapability) => void;
     onChange: (patch: CreativeGenerationPreferencePatch) => void;
@@ -334,6 +336,7 @@ export function CreativeGenerationPreferences({
                         compact={compact}
                         showCount={showCount}
                         videoReferenceContent={videoReferenceContent}
+                        videoModeContent={videoModeContent}
                         onChange={onChange}
                     />
                 </div>
@@ -363,6 +366,7 @@ function PreferencePanel({
     compact,
     showCount,
     videoReferenceContent,
+    videoModeContent,
     onChange,
 }: {
     capability: MediaCapability;
@@ -372,6 +376,7 @@ function PreferencePanel({
     compact: boolean;
     showCount: boolean;
     videoReferenceContent?: ReactNode;
+    videoModeContent?: ReactNode;
     onChange: (patch: CreativeGenerationPreferencePatch) => void;
 }) {
     const ratios = generationRatioOptions(capability, capabilityProfile);
@@ -383,15 +388,10 @@ function PreferencePanel({
     const standardRatios = ratios.filter((ratio) => !parseCustomDimensions(ratio.value));
     const highResolutionRatios = ratios.filter((ratio) => parseCustomDimensions(ratio.value));
     const [customEditorOpen, setCustomEditorOpen] = useState(Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize));
-    const [section, setSection] = useState<"canvas" | "output">("canvas");
 
     useEffect(() => {
         setCustomEditorOpen(Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize));
     }, [capability, selectedSize]);
-
-    useEffect(() => {
-        setSection("canvas");
-    }, [capability]);
 
     if (capability === "audio") {
         return (
@@ -782,7 +782,7 @@ export function normalizeGenerationCount(value: string | number) {
     return Number.isSafeInteger(count) && count > 0 ? count : 0;
 }
 
-function CompactOptionGroup<T extends string | number>({
+export function CompactOptionGroup<T extends string | number>({
     label,
     ariaLabel,
     value,
