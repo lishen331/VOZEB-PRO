@@ -343,6 +343,7 @@ export async function parseImagePayloadOrPoll(
     pollBaseUrl = mediaBaseUrl,
     singleStep = false,
     billingContext?: SchoolComputeBillingContext,
+    headers?: Headers,
 ): Promise<ImageTaskResult> {
     const payloadError = readImagePayloadError(payload);
     if (payloadError) throw new ImageUpstreamTerminalError(payloadError);
@@ -350,7 +351,17 @@ export async function parseImagePayloadOrPoll(
     if (images.length) return imageTaskResultFromMedia(images);
 
     const taskId = readImageTaskId(payload, config.advancedConfig?.taskIdField);
-    if (!taskId) throw new GenerationSubmissionUncertainError("图片接口没有返回图片或任务 ID，创建结果待确认");
+    if (!taskId) {
+        // 同步生图上游已成功（可能已扣费），但响应体既无图也无 task ID。
+        // 用中转在响应头回显的请求 ID 兜底，作为"可查询上游身份"落库，
+        // 让节点转入 needs_review 而非直接 Uncertain 冻结——后续可凭此 ID 向中转按 request_id 追回结果，避免钱花了图丢了。
+        const headerRequestId = readUpstreamRequestIdFromHeaders(headers, config);
+        if (headerRequestId) {
+            const upstream = { id: headerRequestId, mediaBaseUrl, pollBaseUrl };
+            return { dataUrl: "", needsReview: { upstream, reason: "图片接口未在响应体返回结果，已保留上游请求 ID 以便按 ID 追回" } };
+        }
+        throw new GenerationSubmissionUncertainError("图片接口没有返回图片或任务 ID，创建结果待确认");
+    }
     const explicitPollUrl = readImagePollUrl(config, payload, mediaBaseUrl, pollBaseUrl);
     const upstream = { id: taskId, mediaBaseUrl, pollBaseUrl, explicitPollUrl: explicitPollUrl || undefined };
     if (!imageTaskPollUrls(config, pollBaseUrl, taskId, explicitPollUrl).length) {
