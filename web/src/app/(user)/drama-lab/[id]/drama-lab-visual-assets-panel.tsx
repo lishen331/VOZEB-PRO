@@ -1221,7 +1221,7 @@ function AssetEditorModal({
                                 <div className="flex min-h-24 flex-wrap gap-2">
                                     {references.map((reference, index) => (
                                         <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
-                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-full !object-contain" />
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-16 !object-contain" />
                                             <button
                                                 type="button"
                                                 aria-label={`移除参考图 图${index + 1}`}
