@@ -375,4 +375,21 @@
     html.dark .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner::before {
         border-color: #f8fafc;
     }
+
+    .canvas-edge-flow {
+        stroke-dasharray: 26 300;
+        animation: canvasEdgeFlow 2.8s linear infinite;
+    }
+
+    @keyframes canvasEdgeFlow {
+        to {
+            stroke-dashoffset: -326;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-edge-flow {
+            animation: none;
+        }
+    }
 }

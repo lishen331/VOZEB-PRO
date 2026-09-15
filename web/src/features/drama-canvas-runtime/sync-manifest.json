@@ -249,7 +249,7 @@
         },
         {
             "path": "components/canvas-surface.tsx",
-            "sha256": "5b018181a3394f7a4a33de99f178839310c3fc8ecb3345dfd52c3d6ab2809159"
+            "sha256": "7a12a10562867ab475aa3ecdce684b8ab9be5a4b8d4dd936cf332bc047a0ca61"
         },
         {
             "path": "components/canvas-toolbar.tsx",
@@ -373,7 +373,7 @@
         },
         {
             "path": "utils/canvas-surface-geometry.ts",
-            "sha256": "ce58350302efb1f108c5fd8c2c2bb605ee588aab638aa9ccdc187beb99973b6d"
+            "sha256": "dc6dfdeb0c64d27e3ec9ae8ef85c2efe1cf1ec57dd20562c83f6562030e4c556"
         },
         {
             "path": "utils/canvas-video-references.ts",

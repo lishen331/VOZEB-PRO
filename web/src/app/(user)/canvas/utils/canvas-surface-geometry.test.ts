@@ -23,43 +23,28 @@ describe("canvas surface geometry", () => {
         expect(edgePath(source, target)).toBe("M 340 200 C 420 200, 420 320, 500 320");
     });
 
-    it("routes backward connections through a clear vertical gap", () => {
+    it("routes backward connections as smooth bezier curves", () => {
         const lowerTarget = { ...target, position: { x: 320, y: 280 }, width: 340, height: 240 };
         const shorterSource = { ...source, position: { x: 0, y: 0 }, width: 340, height: 210 };
         const path = edgePath(shorterSource, lowerTarget);
 
-        expect(path).toContain(" Q ");
-        expect(path).toContain("245");
-        expect(path).not.toContain(" C ");
+        expect(path).toContain(" C ");
+        expect(path).toBe("M 340 105 C 487.5 105, 172.5 400, 320 400");
     });
 
-    it("routes backward connections outside overlapping node bounds", () => {
+    it("routes overlapping backward connections as smooth bezier curves", () => {
         const from = { ...source, position: { x: 0, y: 0 }, width: 340, height: 240 };
         const to = { ...target, position: { x: 280, y: 80 }, width: 340, height: 240 };
         const path = edgePath(from, to);
 
-        expect(path).toContain("-32");
-        expect(path).toContain(" Q ");
-    });
-
-    it("routes around a node blocking the default connection path", () => {
-        const blocker = { ...source, id: "blocker", position: { x: 390, y: 170 }, width: 60, height: 210 };
-        const path = edgePath(source, target, [source, blocker, target]);
-
-        expect(path).toContain("88");
-        expect(path).not.toContain(" C ");
-    });
-
-    it("falls back to the stable route when every detour is blocked", () => {
-        const blocker = { ...source, id: "blocker", position: { x: -1000, y: -1000 }, width: 3000, height: 3000 };
-
-        expect(edgePath(source, target, [blocker])).toBe(edgePath(source, target));
+        expect(path).toContain(" C ");
+        expect(path).toBe("M 340 120 C 400 120, 220 200, 280 200");
     });
 
     it("builds previews in the direction of the active handle", () => {
         expect(previewPath({ x: 0, y: 20 }, { x: 100, y: 60 }, "source")).toBe("M 0 20 C 50 20, 50 60, 100 60");
         expect(previewPath({ x: 100, y: 60 }, { x: 0, y: 20 }, "target")).toBe("M 100 60 C 50 60, 50 20, 0 20");
-        expect(previewPath({ x: 100, y: 60 }, { x: 160, y: 20 }, "target")).toContain(" Q ");
+        expect(previewPath({ x: 100, y: 60 }, { x: 160, y: 20 }, "target")).toContain(" C ");
     });
 
     it("targets node bodies and nearby handles without selecting the origin", () => {

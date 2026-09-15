@@ -789,6 +789,13 @@ export function CanvasSurface({
             <div data-canvas-world-viewport className="pointer-events-none absolute inset-0 overflow-visible" style={{ contain: "layout style", isolation: "isolate", backgroundColor: "transparent" }}>
                 <div ref={worldLayerRef} className="absolute inset-0 overflow-visible" style={worldStyle}>
                     <svg className="absolute left-0 top-0 h-full w-full overflow-visible" style={{ pointerEvents: "none" }} aria-hidden="true">
+                        <defs>
+                            <linearGradient id="canvasEdgeFlow" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="800" y2="0">
+                                <stop offset="0%" stopColor="#3b82f6" />
+                                <stop offset="50%" stopColor="#06b6d4" />
+                                <stop offset="100%" stopColor="#10b981" />
+                            </linearGradient>
+                        </defs>
                         {flowConnections.map((item) => {
                             const from = nodesById.get(item.fromNodeId);
                             const to = nodesById.get(item.toNodeId);
@@ -814,6 +821,7 @@ export function CanvasSurface({
                                         }}
                                     />
                                     <path d={path} fill="none" stroke={active ? theme.node.activeStroke : theme.node.muted} strokeWidth={active ? 3 : 2} strokeOpacity={active ? 1 : 0.8} strokeLinecap="round" style={{ pointerEvents: "none" }} />
+                                    {active ? <path d={path} fill="none" stroke="url(#canvasEdgeFlow)" strokeWidth={3} strokeLinecap="round" className="canvas-edge-flow" style={{ pointerEvents: "none" }} /> : null}
                                 </g>
                             );
                         })}
