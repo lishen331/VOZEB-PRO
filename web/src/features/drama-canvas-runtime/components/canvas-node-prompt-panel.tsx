@@ -149,7 +149,10 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                     <button
                                         type="button"
                                         className="ml-0.5 grid size-4 shrink-0 place-items-center rounded-full opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
-                                        onClick={(event) => { event.stopPropagation(); onRemoveReference(reference.nodeId); }}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onRemoveReference(reference.nodeId);
+                                        }}
                                         onMouseDown={stopCanvasInteraction}
                                         onPointerDown={stopCanvasInteraction}
                                         aria-label={`取消引用 ${reference.label}`}
