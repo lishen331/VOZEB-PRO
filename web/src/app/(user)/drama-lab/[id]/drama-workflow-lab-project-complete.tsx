@@ -6537,10 +6537,11 @@ function StoryboardWorkbenchCard({
 
 function UniversalMentionEditor({ value, references, wrap, placeholder, onChange, onBlur }: { value: string; references: Array<{ label: string; url: string }>; wrap: boolean; placeholder: string; onChange: (value: string) => void; onBlur: () => void }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const mirrorRef = useRef<HTMLDivElement>(null);
     const parts = value.split(/(@图片[1-9]\d*)/g);
     return (
         <div className="relative min-h-[132px] overflow-visible rounded-md border border-border bg-background focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-universal-mention-editor>
-            <div className={cn("pointer-events-none absolute inset-0 z-10 overflow-visible whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.5715]", !wrap && "whitespace-pre")} aria-hidden="true">
+            <div ref={mirrorRef} className={cn("pointer-events-none absolute inset-0 z-10 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.5715]", !wrap && "whitespace-pre")} aria-hidden="true">
                 {value ? (
                     parts.map((part, index) => {
                         const match = part.match(/^@图片(\d+)$/);
@@ -6571,6 +6572,13 @@ function UniversalMentionEditor({ value, references, wrap, placeholder, onChange
                 wrap={wrap ? "soft" : "off"}
                 aria-label="全能模式片段描述"
                 className="relative z-20 block min-h-[132px] w-full resize-y border-0 bg-transparent px-3 py-2 text-sm leading-[1.5715] text-transparent caret-foreground outline-none selection:bg-primary/20"
+                style={{ color: "transparent", WebkitTextFillColor: "transparent" }}
+                onScroll={(event) => {
+                    if (mirrorRef.current) {
+                        mirrorRef.current.scrollTop = event.currentTarget.scrollTop;
+                        mirrorRef.current.scrollLeft = event.currentTarget.scrollLeft;
+                    }
+                }}
                 onChange={(event) => onChange(event.target.value)}
                 onBlur={onBlur}
             />
