@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { DRAMA_LAB_SHOT_FOCUS, focusDramaLabShot } from "@/lib/drama-lab-shot-focus";
 import { DramaLabShotAssetPicker } from "./drama-lab-shot-asset-picker";
@@ -54,6 +54,7 @@ import {
     Link2,
 } from "lucide-react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Asset } from "@/lib/library-asset-contract";
 import type { CreativeReview } from "@/lib/creative-agent-contract";
@@ -6538,6 +6539,7 @@ function StoryboardWorkbenchCard({
 function UniversalMentionEditor({ value, references, wrap, placeholder, onChange, onBlur }: { value: string; references: Array<{ label: string; url: string }>; wrap: boolean; placeholder: string; onChange: (value: string) => void; onBlur: () => void }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const mirrorRef = useRef<HTMLDivElement>(null);
+    const [hoveredReference, setHoveredReference] = useState<{ reference: { label: string; url: string }; rect: DOMRect }>();
     const parts = value.split(/(@图片[1-9]\d*)/g);
     return (
         <div className="relative min-h-[132px] overflow-visible rounded-md border border-border bg-background focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-universal-mention-editor>
@@ -6548,16 +6550,13 @@ function UniversalMentionEditor({ value, references, wrap, placeholder, onChange
                         if (!match) return <span key={`${part}-${index}`}>{part}</span>;
                         const reference = references[Number(match[1]) - 1];
                         return (
-                            <span key={`${part}-${index}`} className="group pointer-events-auto relative inline-block">
+                            <span
+                                key={`${part}-${index}`}
+                                className="group pointer-events-auto relative inline-block"
+                                onMouseEnter={(event) => reference && setHoveredReference({ reference, rect: event.currentTarget.getBoundingClientRect() })}
+                                onMouseLeave={() => setHoveredReference(undefined)}
+                            >
                                 <span className={cn("rounded bg-sky-100 px-0.5 font-medium text-sky-700", !reference && "bg-red-100 text-red-700")}>{part}</span>
-                                {reference ? (
-                                    <span className="invisible absolute left-0 top-full z-[60] mt-2 w-44 rounded-lg border border-border bg-popover p-2 text-popover-foreground opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
-                                        <img src={reference.url} alt={reference.label} className="h-28 w-full rounded object-contain" />
-                                        <span className="mt-1 block truncate text-xs">
-                                            {part} · {reference.label}
-                                        </span>
-                                    </span>
-                                ) : null}
                             </span>
                         );
                     })
