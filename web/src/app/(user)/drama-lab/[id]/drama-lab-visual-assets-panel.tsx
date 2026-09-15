@@ -27,6 +27,7 @@ import type { Character, DramaLabAssetProfile, DramaLabAssetReference, Episode, 
 
 import { DramaLabAssetLibraryPicker } from "./drama-lab-asset-library-picker";
 import { DramaLabAssetDetailFields } from "./drama-lab-asset-detail-fields";
+import { DramaLabUiFeature } from "./drama-lab-ui-feature";
 
 type AssetKind = "characters" | "scenes" | "props";
 type VisualAsset = Character | Scene | Prop;
@@ -79,7 +80,9 @@ export function DramaLabVisualAssetsPanel({
     const selectAssetWorkflowTask = (tasks: DramaLabTaskView[]) => {
         const candidates = tasks.filter((task) => task.projectId === project.id && task.workflowMode === "assets" && (!episode?.id || !task.episodeId || task.episodeId === episode.id)).sort((left, right) => right.updatedAt - left.updatedAt);
         const latest = candidates[0];
-        if (latest) setAssetWorkflowTask(latest);
+        if (latest) {
+            setAssetWorkflowTask((current) => (current?.id === latest.id && current.status === latest.status && current.progress === latest.progress && current.updatedAt === latest.updatedAt ? current : latest));
+        }
     };
 
     const loadAssetWorkflowTask = async () => {
