@@ -20,7 +20,7 @@ import { imagePreviewUrl } from "@/lib/media-image-url";
 import { createImageGenerationTask, waitForImageGenerationTask, type ImageGenerationResult } from "@/services/api/image";
 import { createLibraryAsset } from "@/services/api/library-assets";
 import { uploadImage } from "@/services/image-storage";
-import { useEffectiveConfig } from "@/stores/use-config-store";
+import { selectableModelsByCapability, useEffectiveConfig } from "@/stores/use-config-store";
 
 import type { Character, DramaLabAssetProfile, DramaLabAssetReference, Episode, Project, Prop, Scene, Shot } from "./drama-workflow-lab-project-complete";
 
@@ -750,7 +750,7 @@ export function DramaLabVisualAssetsPanel({
                 onAddPrimaryToReferences={() => void addActivePrimaryToReferences()}
                 onAiAction={(action) => void runAssetAiAction(action)}
                 defaultModel={config.imageModel || config.model || "auto"}
-                availableModels={config.imageModels}
+                availableModels={selectableModelsByCapability(config, "image")}
                 onGenerate={async (options) => {
                     if (!activeAsset || !editor) return;
                     let target = activeAsset;
