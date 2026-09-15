@@ -130,7 +130,10 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                         <button
                                             type="button"
                                             className="ml-0.5 grid size-4 shrink-0 place-items-center rounded-full hover:bg-black/10"
-                                            onClick={(event) => { event.stopPropagation(); onRemoveReference(reference.nodeId); }}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onRemoveReference(reference.nodeId);
+                                            }}
                                             onMouseDown={stopCanvasInteraction}
                                             onPointerDown={stopCanvasInteraction}
                                             aria-label={`取消引用 ${reference.label}`}
@@ -321,7 +324,10 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                 <button
                                                     type="button"
                                                     className="ml-0.5 grid size-4 shrink-0 place-items-center rounded-full hover:bg-black/10"
-                                                    onClick={(event) => { event.stopPropagation(); onRemoveReference(reference.nodeId); }}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        onRemoveReference(reference.nodeId);
+                                                    }}
                                                     onMouseDown={stopCanvasInteraction}
                                                     onPointerDown={stopCanvasInteraction}
                                                     aria-label={`取消引用 ${reference.label}`}

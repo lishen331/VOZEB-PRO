@@ -33,9 +33,7 @@ export function edgePath(from: CanvasNodeData, to: CanvasNodeData, obstacles: Ca
         // Prefer a smooth detour bezier over an orthogonal polyline — pick the
         // shorter arc (above or below), verify it clears all obstacles, and
         // only fall back to the rounded polyline when both arcs still clip a node.
-        const detours = [routeAbove, routeBelow]
-            .map((routeY) => detourBezier(start, end, routeY, forwardDistance))
-            .sort((a, b) => a.length - b.length);
+        const detours = [routeAbove, routeBelow].map((routeY) => detourBezier(start, end, routeY, forwardDistance)).sort((a, b) => a.length - b.length);
         for (const detour of detours) {
             if (curveIsClear(detour.curve, blockingNodes)) return detour.curve.path;
         }
