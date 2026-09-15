@@ -2,9 +2,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
-import { canvasResourceMentionAtCursor, CanvasResourceMentionText } from "./canvas-resource-mention-textarea";
+import { canvasResourceMentionAtCursor, canvasResourceMentionMenuZIndex, CanvasResourceMentionText } from "./canvas-resource-mention-textarea";
 
 describe("Canvas resource mention preview", () => {
+    it("renders the mention menu above an expanded editor modal", () => {
+        expect(canvasResourceMentionMenuZIndex("1000")).toBe(1001);
+        expect(canvasResourceMentionMenuZIndex()).toBe(120);
+    });
+
     it("opens mentions after existing Chinese prompt text and punctuation", () => {
         const afterText = "生成一张海报@图";
         const afterPunctuation = "保持人物一致，@视";

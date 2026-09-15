@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App, Button, Input, Modal, Popconfirm, Select, Tag } from "antd";
+import { App, Button, Input, InputNumber, Modal, Popconfirm, Select, Tag } from "antd";
 import { ArrowLeft, BookOpen, Download, Import, Pause, Plus, RefreshCw, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { adaptationParameterValidation } from "@/lib/script-practice-adaptation-parameters";
 import type { ScriptPracticeProject } from "@/lib/script-practice-types";
 import { practiceScriptsApi } from "@/services/api/practice-scripts";
 
@@ -42,10 +43,8 @@ export default function ScriptPracticeWorkspace() {
     const [confirming, setConfirming] = useState(false);
     const [pendingConfirmation, setPendingConfirmation] = useState<{ artifactId: string; artifactType: string; runId: string } | null>(null);
     const [confirmationOpen, setConfirmationOpen] = useState(false);
-    const [regenerateOpen, setRegenerateOpen] = useState(false);
     const [regenerateFeedback, setRegenerateFeedback] = useState("");
     const [regenerating, setRegenerating] = useState(false);
-    const [adaptationParametersOpen, setAdaptationParametersOpen] = useState(false);
     const [savingAdaptationParameters, setSavingAdaptationParameters] = useState(false);
     const [adaptationParameters, setAdaptationParameters] = useState({ targetDurationSeconds: 180, shotCount: 18, shotStyle: "混合景别", viewpoint: "第一人称" });
     const abortRef = useRef<AbortController | undefined>(undefined);
@@ -99,6 +98,19 @@ export default function ScriptPracticeWorkspace() {
     useEffect(() => {
         if (selectedId) void loadTree(selectedId).catch((e) => message.error(e.message));
     }, [selectedId, loadTree, message]);
+    useEffect(() => {
+        const parameters = projects.find((item) => item.id === selectedId)?.projectParameters;
+        if (!parameters) return;
+        const targetDurationSeconds = Number(parameters.targetDurationSeconds);
+        const shotCount = Number(parameters.shotCount);
+        if (!Number.isSafeInteger(targetDurationSeconds) || !Number.isSafeInteger(shotCount)) return;
+        setAdaptationParameters({
+            targetDurationSeconds,
+            shotCount,
+            shotStyle: typeof parameters.shotStyle === "string" ? parameters.shotStyle : "混合景别",
+            viewpoint: typeof parameters.viewpoint === "string" ? parameters.viewpoint : "第一人称",
+        });
+    }, [projects, selectedId]);
     useEffect(() => {
         if (!selectedId) {
             setMessages([]);
@@ -258,6 +270,11 @@ export default function ScriptPracticeWorkspace() {
     const send = async () => {
         const text = draft.trim();
         if (!text || !selectedId || busy) return;
+        if (pendingConfirmation) {
+            setConfirmationOpen(true);
+            message.info("请先在当前成果面板确认或重新生成");
+            return;
+        }
         setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", content: text }]);
         setDraft("");
         const session = chatSessionId ? { id: chatSessionId } : await practiceScriptsApi.createChatSession(selectedId, "剧本创作");
@@ -283,11 +300,12 @@ export default function ScriptPracticeWorkspace() {
     const regenerateCurrentArtifact = async () => {
         const pending = pendingConfirmation;
         const feedback = regenerateFeedback.trim();
-        if (!selectedId || !pending || !feedback || regenerating) return;
+        if (!selectedId || !pending || !feedback || regenerating || confirming || savingAdaptationParameters) return;
         const runTypeByArtifact: Record<string, string> = {
             creative_positioning: "project_planning",
             short_story: "short_story",
             adaptation_strategy: "adaptation_bundle",
+            episode_scripts: "episode_scripts",
             review_report: "script_review",
             director_plan: "director_plan",
             text_storyboard: "text_storyboard",
@@ -303,7 +321,6 @@ export default function ScriptPracticeWorkspace() {
                 clientRequestId: crypto.randomUUID(),
                 input: { regeneration: { artifactId: pending.artifactId, stageKey: pending.artifactType, feedback } },
             });
-            setRegenerateOpen(false);
             setRegenerateFeedback("");
             setPendingConfirmation(null);
             setConfirmationOpen(false);
@@ -314,10 +331,7 @@ export default function ScriptPracticeWorkspace() {
     };
     const confirmCurrentArtifact = async () => {
         if (!selectedId || !pendingConfirmation || confirming) return;
-        if (pendingConfirmation.artifactType === "adaptation_strategy" && !adaptationParametersOpen) {
-            setAdaptationParametersOpen(true);
-            return;
-        }
+        if (pendingConfirmation.artifactType === "adaptation_strategy") return confirmAdaptationWithParameters();
         await confirmPendingArtifact();
     };
     const confirmPendingArtifact = async () => {
@@ -336,10 +350,15 @@ export default function ScriptPracticeWorkspace() {
     };
     const confirmAdaptationWithParameters = async () => {
         if (!selectedId || !pendingConfirmation || pendingConfirmation.artifactType !== "adaptation_strategy" || savingAdaptationParameters) return;
+        const validation = adaptationParameterValidation(adaptationParameters);
+        if (!validation.valid) {
+            message.error(validation.message);
+            return;
+        }
         setSavingAdaptationParameters(true);
         try {
-            await practiceScriptsApi.update(selectedId, { projectParameters: adaptationParameters });
-            setAdaptationParametersOpen(false);
+            const project = await practiceScriptsApi.update(selectedId, { projectParameters: adaptationParameters });
+            setProjects((current) => current.map((item) => (item.id === selectedId ? project : item)));
             await confirmPendingArtifact();
         } finally {
             setSavingAdaptationParameters(false);
@@ -391,6 +410,8 @@ export default function ScriptPracticeWorkspace() {
         return !currentItem || currentItem.status === "not_started" ? conversationPreview : "";
     }, [artifact, conversationPreview, preview, selectedKey, tree]);
     const artifactStatus = typeof artifact?.status === "string" ? artifact.status : "";
+    const adaptationParameterValidationResult = adaptationParameterValidation(adaptationParameters);
+    const confirmationActionBusy = regenerating || confirming || savingAdaptationParameters;
     return (
         <main className="flex h-full min-h-0 flex-col bg-background text-foreground" data-script-practice-workspace>
             <header className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -448,10 +469,10 @@ export default function ScriptPracticeWorkspace() {
                                 <Tag color="processing">SSE 写作中</Tag>
                             ) : artifactStatus === "awaiting_review" ? (
                                 <div className="flex gap-2">
-                                    <Button size="small" disabled={confirming} onClick={() => setRegenerateOpen(true)}>
+                                    <Button size="small" disabled={confirmationActionBusy} onClick={() => setConfirmationOpen(true)}>
                                         重新生成
                                     </Button>
-                                    <Button size="small" type="primary" loading={confirming} disabled={confirming} onClick={() => void runAction(confirmCurrentArtifact, "确认当前阶段失败")}>
+                                    <Button size="small" type="primary" loading={confirming} disabled={confirmationActionBusy} onClick={() => void runAction(confirmCurrentArtifact, "确认当前阶段失败")}>
                                         {pendingConfirmation?.artifactType === "creative_positioning" ? "确认这个方向" : "确认"}
                                     </Button>
                                 </div>
@@ -537,7 +558,13 @@ export default function ScriptPracticeWorkspace() {
                         ) : null}
                         {publicProgress ? <div className="mb-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">{publicProgress}</div> : null}
                         {runError ? <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">上次执行失败：{runError}</div> : null}
-                        <Input.TextArea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="和统筹 Agent 讨论故事、要求修改或继续下一阶段……" autoSize={{ minRows: 3, maxRows: 7 }} />
+                        <Input.TextArea
+                            value={draft}
+                            disabled={Boolean(pendingConfirmation)}
+                            onChange={(e) => setDraft(e.target.value)}
+                            placeholder={pendingConfirmation ? "请在当前成果面板填写修改意见，或确认进入下一阶段。" : "和统筹 Agent 讨论故事、要求修改或继续下一阶段……"}
+                            autoSize={{ minRows: 3, maxRows: 7 }}
+                        />
                         <div className="mt-2 flex justify-between">
                             {busy ? (
                                 <Button
@@ -571,7 +598,7 @@ export default function ScriptPracticeWorkspace() {
                                     重试失败项
                                 </Button>
                             )}
-                            <Button type="primary" icon={<Send className="size-4" />} loading={busy} disabled={!draft.trim() || !selectedId} onClick={() => void runAction(send, "发送消息失败")}>
+                            <Button type="primary" icon={<Send className="size-4" />} loading={busy} disabled={!draft.trim() || !selectedId || Boolean(pendingConfirmation)} onClick={() => void runAction(send, "发送消息失败")}>
                                 发送
                             </Button>
                         </div>
@@ -579,84 +606,80 @@ export default function ScriptPracticeWorkspace() {
                 </aside>
             </div>
             <Modal
-                title={pendingConfirmation?.artifactType === "creative_positioning" ? "确认这个方向" : "确认当前成果"}
-                open={Boolean(pendingConfirmation) && confirmationOpen && !regenerateOpen}
+                title={pendingConfirmation?.artifactType === "adaptation_strategy" ? "确认改编参数" : pendingConfirmation?.artifactType === "creative_positioning" ? "确认这个方向" : "确认当前成果"}
+                open={Boolean(pendingConfirmation) && confirmationOpen}
                 onCancel={() => setConfirmationOpen(false)}
-                onOk={() => void runAction(confirmCurrentArtifact, "确认并进入下一步失败")}
-                okText="确认"
-                confirmLoading={confirming}
+                footer={[
+                    <Button key="cancel" onClick={() => setConfirmationOpen(false)}>
+                        取消
+                    </Button>,
+                    <Button key="regenerate" loading={regenerating} disabled={!regenerateFeedback.trim() || confirmationActionBusy} onClick={() => void runAction(regenerateCurrentArtifact, "重新生成当前阶段失败")}>
+                        重新生成
+                    </Button>,
+                    <Button
+                        key="confirm"
+                        type="primary"
+                        loading={confirming || savingAdaptationParameters}
+                        disabled={confirmationActionBusy || (pendingConfirmation?.artifactType === "adaptation_strategy" && !adaptationParameterValidationResult.valid)}
+                        onClick={() => void runAction(confirmCurrentArtifact, "确认并进入下一步失败")}
+                    >
+                        {pendingConfirmation?.artifactType === "creative_positioning" ? "确认这个方向" : pendingConfirmation?.artifactType === "adaptation_strategy" ? "保存并确认" : "确认"}
+                    </Button>,
+                ]}
             >
-                <p>这一阶段的成果已经完成。确认后，剧本 Agent 才会进入下一阶段。</p>
-            </Modal>
-            <Modal
-                title="确认改编参数"
-                open={adaptationParametersOpen}
-                onCancel={() => setAdaptationParametersOpen(false)}
-                onOk={() => void runAction(confirmAdaptationWithParameters, "保存改编参数失败")}
-                okText="保存并确认"
-                confirmLoading={savingAdaptationParameters || confirming}
-            >
-                <p className="mb-3 text-sm text-muted-foreground">确认成片规格后，Agent 才会继续生成分集剧本。</p>
-                <div className="grid grid-cols-2 gap-3">
-                    <label className="text-sm">
-                        成片时长
-                        <Select
-                            className="mt-1 w-full"
-                            value={adaptationParameters.targetDurationSeconds}
-                            options={[
-                                { value: 60, label: "60 秒" },
-                                { value: 90, label: "90 秒" },
-                                { value: 180, label: "2–3 分钟" },
-                            ]}
-                            onChange={(value) => setAdaptationParameters((current) => ({ ...current, targetDurationSeconds: value }))}
-                        />
-                    </label>
-                    <label className="text-sm">
-                        镜头数量
-                        <Select
-                            className="mt-1 w-full"
-                            value={adaptationParameters.shotCount}
-                            options={[
-                                { value: 8, label: "8 镜头" },
-                                { value: 12, label: "12 镜头" },
-                                { value: 18, label: "18 镜头" },
-                                { value: 24, label: "24 镜头" },
-                            ]}
-                            onChange={(value) => setAdaptationParameters((current) => ({ ...current, shotCount: value }))}
-                        />
-                    </label>
-                    <label className="text-sm">
-                        镜头风格
-                        <Select
-                            className="mt-1 w-full"
-                            value={adaptationParameters.shotStyle}
-                            options={["混合景别", "自拍为主", "电影感", "快节奏剪辑"].map((value) => ({ value, label: value }))}
-                            onChange={(value) => setAdaptationParameters((current) => ({ ...current, shotStyle: value }))}
-                        />
-                    </label>
-                    <label className="text-sm">
-                        叙事视角
-                        <Select
-                            className="mt-1 w-full"
-                            value={adaptationParameters.viewpoint}
-                            options={["第一人称", "第三人称", "混合视角"].map((value) => ({ value, label: value }))}
-                            onChange={(value) => setAdaptationParameters((current) => ({ ...current, viewpoint: value }))}
-                        />
-                    </label>
-                </div>
-            </Modal>
-            <Modal
-                title="告诉 Agent 怎么改"
-                open={regenerateOpen}
-                onCancel={() => setRegenerateOpen(false)}
-                onOk={() => void runAction(regenerateCurrentArtifact, "重新生成当前阶段失败")}
-                okText="重新生成"
-                confirmLoading={regenerating}
-                okButtonProps={{ disabled: !regenerateFeedback.trim() }}
-            >
-                <p className="mb-2 text-sm text-muted-foreground">写下修改意见，Agent 会结合当前项目和本阶段成果重新生成。</p>
+                <p className="mb-3 text-sm text-muted-foreground">
+                    {pendingConfirmation?.artifactType === "adaptation_strategy"
+                        ? "填写成片规格后，确认继续生成分集剧本；也可以直接写修改意见重新生成当前方案。"
+                        : "这一阶段的成果已经完成。确认后，剧本 Agent 才会进入下一阶段；如需调整，请在下方说明后重新生成。"}
+                </p>
+                {pendingConfirmation?.artifactType === "adaptation_strategy" ? (
+                    <div className="grid grid-cols-2 gap-3">
+                        <label className="text-sm">
+                            成片时长
+                            <InputNumber
+                                className="mt-1 w-full"
+                                value={adaptationParameters.targetDurationSeconds}
+                                min={1}
+                                max={180}
+                                precision={0}
+                                addonAfter="秒"
+                                onChange={(value) => setAdaptationParameters((current) => ({ ...current, targetDurationSeconds: Number(value) || 0 }))}
+                            />
+                        </label>
+                        <label className="text-sm">
+                            镜头数量
+                            <InputNumber className="mt-1 w-full" value={adaptationParameters.shotCount} min={1} precision={0} addonAfter="镜" onChange={(value) => setAdaptationParameters((current) => ({ ...current, shotCount: Number(value) || 0 }))} />
+                        </label>
+                        <label className="text-sm">
+                            镜头风格
+                            <Select
+                                className="mt-1 w-full"
+                                value={adaptationParameters.shotStyle}
+                                options={["混合景别", "自拍为主", "电影感", "快节奏剪辑"].map((value) => ({ value, label: value }))}
+                                onChange={(value) => setAdaptationParameters((current) => ({ ...current, shotStyle: value }))}
+                            />
+                        </label>
+                        <label className="text-sm">
+                            叙事视角
+                            <Select
+                                className="mt-1 w-full"
+                                value={adaptationParameters.viewpoint}
+                                options={["第一人称", "第三人称", "混合视角"].map((value) => ({ value, label: value }))}
+                                onChange={(value) => setAdaptationParameters((current) => ({ ...current, viewpoint: value }))}
+                            />
+                        </label>
+                    </div>
+                ) : null}
+                {pendingConfirmation?.artifactType === "adaptation_strategy" ? (
+                    <p className={`mt-3 text-xs ${adaptationParameterValidationResult.valid ? "text-muted-foreground" : "text-destructive"}`}>
+                        {adaptationParameterValidationResult.valid
+                            ? `单镜约 ${adaptationParameterValidationResult.secondsPerShot?.toFixed(1)} 秒；当前时长可拆 ${adaptationParameterValidationResult.minShotCount}–${adaptationParameterValidationResult.maxShotCount} 镜。`
+                            : adaptationParameterValidationResult.message}
+                    </p>
+                ) : null}
+                <p className="mb-2 mt-4 text-sm font-medium">需要调整吗？</p>
                 <Input.TextArea value={regenerateFeedback} onChange={(event) => setRegenerateFeedback(event.target.value)} placeholder="例如：增加陶艺体验，减少内心独白，突出过山车和大摆锤。" autoSize={{ minRows: 4, maxRows: 8 }} />
-            </Modal>{" "}
+            </Modal>
         </main>
     );
 }

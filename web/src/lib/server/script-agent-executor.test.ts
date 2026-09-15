@@ -53,7 +53,7 @@ describe("screenwriter carrier execution", () => {
         const callModel = vi.fn().mockResolvedValue({ content: "策划结果" });
         const deps = {
             resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
-            getProject: vi.fn().mockResolvedValue({ carrier_type: "vlog", project_parameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验", purpose: "place_seeding", viewpoint: "first_person", companions: "friends" } }),
+            getProject: vi.fn().mockResolvedValue({ carrier_type: "vlog", project_parameters: { targetDurationSeconds: 180, shotCount: 24, brandGoal: "记录真实体验", purpose: "place_seeding", viewpoint: "first_person", companions: "friends" } }),
             callModel,
             listArtifacts: vi.fn().mockResolvedValue([]),
             saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
@@ -62,9 +62,10 @@ describe("screenwriter carrier execution", () => {
         await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-vlog", runType: "project_planning", input: {}, origin: "https://local", cookie: "session" });
         expect(callModel.mock.calls[0]?.[0].task.input.projectContext).toEqual({
             carrierType: "vlog",
-            projectParameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验", purpose: "place_seeding", viewpoint: "first_person", companions: "friends" },
+            projectParameters: { targetDurationSeconds: 180, shotCount: 24, brandGoal: "记录真实体验", purpose: "place_seeding", viewpoint: "first_person", companions: "friends" },
         });
         expect(callModel.mock.calls[0]?.[0].task.input.carrierInstructions).toContain("第一人称");
+        expect(callModel.mock.calls[0]?.[0].task.input.carrierInstructions).toContain("24 镜");
         expect(callModel.mock.calls[0]?.[0].task.input.qualityChecklist).toEqual(expect.arrayContaining(["起承转合", "修辞自然", "总时长不超过目标"]));
         expect(deps.resolveProfile).toHaveBeenCalledWith("novel_planner", expect.arrayContaining(["carrier-vlog", "specialty-three-minute", "purpose-place-seeding", "viewpoint-first-person", "relationship-friends"]));
     });

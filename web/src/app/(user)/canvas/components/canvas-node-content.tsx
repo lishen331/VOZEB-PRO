@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, ListChecks, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
@@ -242,6 +243,10 @@ export function UnknownNodeContent({ theme }: Pick<NodeContentRendererProps, "th
 
 export function TextContent({ node, theme, isEditingContent, textareaRef, mentionReferences, onContentChange, onStopEditing, onGenerateImage }: NodeContentRendererProps) {
     const fontSize = node.metadata?.fontSize || 14;
+    const [expanded, setExpanded] = useState(false);
+    const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
+    const content = node.metadata?.content || "";
+    const characterCount = content.replace(/\s/g, "").length;
     const textStyle = {
         fontSize: `${fontSize}px`,
         lineHeight: `${Math.round(fontSize * 1.65)}px`,
@@ -249,31 +254,52 @@ export function TextContent({ node, theme, isEditingContent, textareaRef, mentio
         boxSizing: "border-box",
     } as React.CSSProperties;
     const textClassName = "thin-scrollbar block h-full w-full overflow-y-auto whitespace-pre-wrap break-words border-none bg-transparent pl-4 pr-14 pt-0 pb-4 m-0 font-mono outline-none select-text appearance-none";
+    const stop = (event: React.SyntheticEvent) => event.stopPropagation();
+    const toolbarButtonClassName = "inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium opacity-85 backdrop-blur-md transition hover:scale-[1.02] hover:opacity-100";
+    const toolbarButtonStyle = { background: `${theme.toolbar.panel}dd`, borderColor: theme.node.stroke, color: theme.node.text };
 
     return (
         <div className="flex h-full w-full flex-col overflow-hidden pt-8">
-            <button
-                type="button"
-                className="absolute right-3 top-3 z-20 inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium opacity-85 backdrop-blur-md transition hover:scale-[1.02] hover:opacity-100"
-                style={{ background: `${theme.toolbar.panel}dd`, borderColor: theme.node.stroke, color: theme.node.text }}
-                onClick={(event) => {
-                    event.stopPropagation();
-                    onGenerateImage?.(node);
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-                title="用文本生图"
-                aria-label="用文本生图"
-            >
-                <ImageIcon className="size-3.5" />
-                生图
-            </button>
+            <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+                <button
+                    type="button"
+                    className={toolbarButtonClassName}
+                    style={toolbarButtonStyle}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setExpanded(true);
+                    }}
+                    onMouseDown={stop}
+                    onPointerDown={stop}
+                    title="放大阅读 / 编辑"
+                    aria-label="放大阅读或编辑文字"
+                >
+                    <Maximize2 className="size-3.5" />
+                    放大
+                </button>
+                <button
+                    type="button"
+                    className={toolbarButtonClassName}
+                    style={toolbarButtonStyle}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onGenerateImage?.(node);
+                    }}
+                    onMouseDown={stop}
+                    onPointerDown={stop}
+                    title="用文本生图"
+                    aria-label="用文本生图"
+                >
+                    <ImageIcon className="size-3.5" />
+                    生图
+                </button>
+            </div>
             {isEditingContent ? (
                 <CanvasResourceMentionTextarea
                     ref={textareaRef}
                     className={`${textClassName} resize-none`}
                     style={textStyle}
-                    value={node.metadata?.content || ""}
+                    value={content}
                     references={mentionReferences}
                     highlightLabels
                     onChange={(value) => onContentChange(node.id, value)}
@@ -287,9 +313,60 @@ export function TextContent({ node, theme, isEditingContent, textareaRef, mentio
                 />
             ) : (
                 <div className={textClassName} style={textStyle} onWheel={(event) => event.stopPropagation()}>
-                    {node.metadata?.content ? <CanvasResourceMentionText value={node.metadata.content} references={mentionReferences} /> : <span style={{ color: theme.node.placeholder }}>点击编辑文字</span>}
+                    {content ? <CanvasResourceMentionText value={content} references={mentionReferences} /> : <span style={{ color: theme.node.placeholder }}>点击编辑文字</span>}
                 </div>
             )}
+
+            <div className="contents" onClick={stop} onDoubleClick={stop} onMouseDown={stop} onPointerDown={stop} onWheel={stop} onContextMenu={stop}>
+                <Modal
+                    className="canvas-prompt-editor-modal"
+                    open={expanded}
+                    title="编辑文字"
+                    centered
+                    destroyOnHidden
+                    mask={{ closable: false }}
+                    width="min(860px, calc(100vw - 24px))"
+                    onCancel={() => setExpanded(false)}
+                    afterOpenChange={(open) => {
+                        if (!open) return;
+                        requestAnimationFrame(() => {
+                            const textarea = expandedEditorRef.current;
+                            textarea?.focus();
+                            textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+                        });
+                    }}
+                    styles={{
+                        container: { background: theme.node.panel, border: `1px solid ${theme.toolbar.border}`, color: theme.node.text },
+                        header: { background: theme.node.panel, marginBottom: 0, paddingBottom: 8 },
+                        title: { color: theme.node.text },
+                        body: { background: theme.node.panel, padding: "4px 12px 12px" },
+                    }}
+                    footer={null}
+                >
+                    <div className="min-w-0 overflow-hidden rounded-xl border" style={{ borderColor: theme.node.stroke }}>
+                        <CanvasResourceMentionTextarea
+                            ref={expandedEditorRef}
+                            autoFocus={expanded}
+                            value={content}
+                            references={mentionReferences}
+                            highlightLabels
+                            onChange={(value) => onContentChange(node.id, value)}
+                            aria-label="文字编辑器"
+                            className="thin-scrollbar h-[min(62vh,34rem)] min-h-64 w-full resize-none overflow-y-auto overscroll-contain border-0 px-4 py-3 outline-none"
+                            style={{ background: theme.node.fill, color: theme.node.text, fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.65)}px` }}
+                            placeholder="请输入文字内容"
+                        />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="text-xs" style={{ color: theme.node.placeholder }}>
+                            字数 {characterCount}
+                        </span>
+                        <Button icon={<Minimize2 className="size-4" />} onClick={() => setExpanded(false)} aria-label="收起">
+                            收起
+                        </Button>
+                    </div>
+                </Modal>
+            </div>
         </div>
     );
 }

@@ -43,6 +43,7 @@ export class ScriptAgentRunService {
                 creative_positioning: "project_planning",
                 short_story: "short_story",
                 adaptation_strategy: "adaptation_bundle",
+                episode_scripts: "episode_scripts",
                 review_report: "script_review",
                 director_plan: "director_plan",
                 text_storyboard: "text_storyboard",

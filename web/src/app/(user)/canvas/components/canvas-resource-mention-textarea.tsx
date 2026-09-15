@@ -16,6 +16,11 @@ export function canvasResourceMentionAtCursor(value: string, cursor: number): Me
     return mentionAtCursor(value, cursor);
 }
 
+export function canvasResourceMentionMenuZIndex(modalZIndex?: string) {
+    const parsed = Number.parseInt(modalZIndex || "", 10);
+    return Number.isFinite(parsed) ? parsed + 1 : 120;
+}
+
 type Props = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & {
     value: string;
     references: CanvasResourceReference[];
@@ -231,7 +236,10 @@ function MentionMenu({
 }) {
     const selectedRef = useRef(false);
     const rect = textarea.getBoundingClientRect();
-    const boundary = textarea.closest(".ant-modal-content")?.getBoundingClientRect() || { left: 8, top: 8, right: window.innerWidth - 8, bottom: window.innerHeight - 8 };
+    const modalContent = textarea.closest(".ant-modal-content");
+    const modalWrap = textarea.closest<HTMLElement>(".ant-modal-wrap");
+    const boundary = modalContent?.getBoundingClientRect() || { left: 8, top: 8, right: window.innerWidth - 8, bottom: window.innerHeight - 8 };
+    const zIndex = canvasResourceMentionMenuZIndex(modalWrap ? window.getComputedStyle(modalWrap).zIndex : undefined);
     const menuWidth = 256;
     const maxMenuHeight = 224;
     const gap = 6;
@@ -251,8 +259,8 @@ function MentionMenu({
     return createPortal(
         <div
             data-canvas-resource-mention-menu="true"
-            className="fixed z-[120] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
-            style={{ left, top, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+            className="fixed max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+            style={{ left, top, zIndex, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
             onPointerDown={stopCanvasInteraction}
             onMouseDown={stopCanvasInteraction}
             onClick={(event) => event.stopPropagation()}

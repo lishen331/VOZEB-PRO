@@ -9,6 +9,7 @@ import { normalizeScriptCarrier } from "./script-agent-domain";
 import { normalizePromptAssets, normalizeScriptShots } from "./script-agent-tools-v2";
 import { deriveShortFilmSkillIds, inferShortFilmSkillInput } from "./script-agent-skills";
 import { ScriptAgentRepository } from "./database/script-agent-repository";
+import { adaptationParameterValidation } from "@/lib/script-practice-adaptation-parameters";
 
 const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: ScriptArtifactType; key: string; confirmation: boolean }> = {
     conversation: { agent: "orchestrator", artifact: "conversation", key: "latest", confirmation: false },
@@ -111,8 +112,10 @@ export class ScriptAgentExecutor {
         await this.deps.appendEvent(scope, task.projectId, task.runId, "progress", { phase: publicPhase(task.runType), label: publicPhaseLabel(task.runType) }, this.id());
         await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已开始处理当前任务。` }, this.id());
         const projectContext = project ? { carrierType: normalizeScriptCarrier(project.carrier_type), projectParameters: project.project_parameters && typeof project.project_parameters === "object" ? project.project_parameters : {} } : undefined;
+        const adaptationConstraint = adaptationParameterValidation({ targetDurationSeconds: Number(projectParameters.targetDurationSeconds), shotCount: Number(projectParameters.shotCount) });
         const carrierInstructions =
             "创作检查：起承转合、至少一次因果转折、自然修辞（比喻/排比/对比）、总时长不超过目标。" +
+            (adaptationConstraint.valid ? `分镜约束：完整成片拆为 ${Number(projectParameters.shotCount)} 镜，每镜约 ${adaptationConstraint.secondsPerShot?.toFixed(1)} 秒。` : "") +
             (projectContext?.carrierType === "vlog" ? "Vlog 形式：优先第一人称、口播、自拍或跟拍、自然同期声和真实环境细节。" : projectContext?.carrierType === "tvc" ? "TVC 形式：突出品牌目标、产品卖点、情绪记忆点、行动号召和片尾品牌信息。" : "");
         const chatHistory = task.chatSessionId && this.deps.listChatMessages ? await this.deps.listChatMessages(scope, task.projectId, task.chatSessionId) : [];
         const enrichedTask = {

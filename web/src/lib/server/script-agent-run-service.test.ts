@@ -183,6 +183,23 @@ describe("ScriptAgentRunService regeneration", () => {
         ).resolves.toMatchObject({ runType: "short_story" });
     });
 
+    it("allows regenerating awaiting episode scripts with user feedback", async () => {
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([{ id: "artifact-a", artifact_type: "episode_scripts", status: "awaiting_review" }]),
+            createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "episode_scripts", lastEventSequence: 0 }),
+            createRunItem: vi.fn().mockResolvedValue({ id: "item-a" }),
+            appendRunEvent: vi.fn(),
+        };
+        await expect(
+            new ScriptAgentRunService(repository as never, () => "id-a").create(scope, {
+                projectId: "project-a",
+                runType: "episode_scripts",
+                clientRequestId: "regenerate-episode-a",
+                configSnapshot: { regeneration: { artifactId: "artifact-a", stageKey: "episode_scripts", feedback: "加快第二幕节奏" } },
+            }),
+        ).resolves.toMatchObject({ runType: "episode_scripts" });
+    });
+
     it("rejects regeneration for a different or already confirmed artifact", async () => {
         const repository = {
             listLatestArtifacts: vi.fn().mockResolvedValue([{ id: "artifact-a", artifact_type: "short_story", status: "confirmed" }]),

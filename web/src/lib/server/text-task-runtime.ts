@@ -29,6 +29,7 @@ const TASK_ID_KEYS = ["task_id", "taskId", "id", "job_id", "jobId", "request_id"
 const TASK_STATUS_KEYS = ["status", "state", "task_status", "taskStatus"];
 const FAILED_TASK_STATUSES = new Set(["failed", "failure", "error", "cancelled", "canceled", "expired"]);
 const PENDING_TASK_STATUSES = new Set(["", "pending", "queued", "running", "processing", "in_progress", "created", "submitted"]);
+const TEXT_STREAM_PARTIAL_FLUSH_MS = 500;
 
 export type TextTaskStep = { state: "pending"; status: string; upstreamTaskId: string; createPath: string } | { state: "completed" } | { state: "failed"; error: string } | { state: "needs_review"; error: string };
 
@@ -46,6 +47,10 @@ type ChatCompletionPayload = {
     error?: { message?: string };
     code?: number;
     msg?: string;
+};
+type ChatCompletionStreamChunk = {
+    choices?: Array<{ delta?: { content?: string | Array<{ type?: string; text?: string }> }; message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
+    error?: { message?: string };
 };
 type GeminiPart = {
     text?: string;
@@ -250,16 +255,25 @@ async function runOpenAiChatCompletionTask(task: TextTask, origin: string, cooki
     const config = task.config;
     const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol), task.executionProfile, task.billingContext);
     headers.set("content-type", "application/json");
+    headers.set("accept", "text/event-stream");
     const response = await submissionFetch(config, taskUrl(config, protocol.path, origin), {
         method: "POST",
         headers,
-        body: JSON.stringify({ model: config.model, messages: toChatMessages(withSystemMessage(config, task.messages)), ...(config.maxOutputTokens ? { max_tokens: config.maxOutputTokens } : {}) }),
+        body: JSON.stringify({ model: config.model, messages: toChatMessages(withSystemMessage(config, task.messages)), stream: true, ...(config.maxOutputTokens ? { max_tokens: config.maxOutputTokens } : {}) }),
         cache: "no-store",
     });
     if (!response.ok) {
         const message = await readFetchError(response, "文本生成失败");
         throw new GenerationSubmissionSafeFailure(message, response.status);
     }
+    // 渐进式流式：上游返回 SSE 时边收边写入 task.result.content，前端轮询即可增量刷新。
+    if (isEventStream(response)) {
+        const streamed = await consumeChatCompletionStream(task, response);
+        if (streamed.content.trim()) return { content: streamed.content, ...readBilling(response.headers) };
+        await refundChargedTextResponse(task, response.headers);
+        throw new GenerationSubmissionSafeFailure(streamed.error || "文本模型没有返回有效内容");
+    }
+    // 回退：渠道忽略 stream:true 直接返回 JSON（系统代理会缓冲后原样返回）。
     const payload = await parseTextSubmissionJson<ChatCompletionPayload>(task, response);
     try {
         validateChatCompletionPayload(payload);
@@ -475,6 +489,74 @@ function readChatContent(content?: string | Array<{ type?: string; text?: string
     if (typeof content === "string") return content;
     if (!Array.isArray(content)) return "";
     return content.map((item) => item.text || "").join("");
+}
+
+function isEventStream(response: Response) {
+    return /text\/event-stream/i.test(response.headers.get("content-type") || "");
+}
+
+async function consumeChatCompletionStream(task: TextTask, response: Response): Promise<{ content: string; error?: string }> {
+    const reader = response.body?.getReader();
+    if (!reader) return { content: "", error: "文本流式响应为空" };
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let content = "";
+    let flushed = "";
+    let lastFlushAt = 0;
+    let streamError = "";
+    const processBlock = (block: string) => {
+        for (const line of block.split("\n")) {
+            const trimmed = line.trimStart();
+            if (!trimmed.startsWith("data:")) continue;
+            const data = trimmed.slice(5).trim();
+            if (!data || data === "[DONE]") continue;
+            let chunk: ChatCompletionStreamChunk;
+            try {
+                chunk = JSON.parse(data) as ChatCompletionStreamChunk;
+            } catch {
+                continue;
+            }
+            if (chunk.error?.message && !streamError) streamError = chunk.error.message;
+            content += chatCompletionStreamDelta(chunk);
+        }
+    };
+    const flushPartial = async (force: boolean) => {
+        if (!content || content === flushed) return;
+        const now = Date.now();
+        if (!force && now - lastFlushAt < TEXT_STREAM_PARTIAL_FLUSH_MS) return;
+        lastFlushAt = now;
+        flushed = content;
+        await updateTextTask(task.id, { result: { content } }).catch(() => undefined);
+    };
+    try {
+        for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            buffer = buffer.replace(/\r\n/g, "\n");
+            const boundary = buffer.lastIndexOf("\n\n");
+            if (boundary !== -1) {
+                processBlock(buffer.slice(0, boundary));
+                buffer = buffer.slice(boundary + 2);
+            }
+            await flushPartial(false);
+        }
+        if (buffer.trim()) processBlock(buffer);
+    } catch (error) {
+        if (!streamError) streamError = isTextRequestTimeout(error) ? "文本模型响应超时" : toSafeGenerationErrorMessage(error, "文本流式响应中断");
+    } finally {
+        try {
+            reader.releaseLock();
+        } catch {
+            // reader 已释放
+        }
+    }
+    await flushPartial(true);
+    return { content, error: streamError || undefined };
+}
+
+function chatCompletionStreamDelta(chunk: ChatCompletionStreamChunk) {
+    return chunk.choices?.map((choice) => readChatContent(choice.delta?.content) || readChatContent(choice.message?.content)).join("") || "";
 }
 
 function parseGeminiContent(payload: GeminiPayload) {

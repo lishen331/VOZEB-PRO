@@ -46,10 +46,9 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const hasTextContent = node.type === CanvasNodeType.Text && Boolean(node.metadata?.content?.trim());
     const hasImageContent = isCanvasImageNodeType(node.type) && Boolean(node.metadata?.content);
     const isPanorama = node.type === CanvasNodeType.Panorama;
-    const isEditingExistingContent = hasTextContent || hasImageContent;
     const imageReferenceRoles = mentionReferences.filter((reference) => reference.kind === "image");
     const referenceRoleImages = imageReferenceRoles.length ? imageReferenceRoles : hasImageContent ? [{ nodeId: node.id, kind: "image" as const, label: "\u56fe\u7247 1", title: node.title || "\u5f53\u524d\u56fe\u7247" }] : [];
-    const [prompt, setPrompt] = useState(isEditingExistingContent ? "" : node.metadata?.prompt || "");
+    const [prompt, setPrompt] = useState(canvasNodePrompt(node));
     const [expanded, setExpanded] = useState(false);
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
     const credits = requestCreditCost({
@@ -65,19 +64,18 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     });
 
     useEffect(() => {
-        setPrompt(isEditingExistingContent ? "" : node.metadata?.prompt || "");
-    }, [isEditingExistingContent, node.id]);
+        if (node.metadata?.upstreamPrompt?.trim()) setPrompt(node.metadata.upstreamPrompt);
+    }, [node.id, node.metadata?.upstreamPrompt]);
 
     const updatePrompt = (value: string) => {
         setPrompt(value);
-        if (!isEditingExistingContent) onPromptChange(node.id, value);
+        if (shouldPersistCanvasNodePrompt(node)) onPromptChange(node.id, value);
     };
 
     const submit = () => {
         const text = prompt.trim();
         if (!text || isRunning) return false;
         onGenerate(node.id, mode, text);
-        setPrompt("");
         return true;
     };
 
@@ -127,7 +125,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
 
             <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                 <div className="canvas-composer-tools flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <CanvasPromptLibrary onSelect={updatePrompt} />
+                    <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                     {mode === "image" ? (
                         <>
                             <ModelPicker
@@ -275,6 +273,21 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             </div>
         </div>
     );
+}
+
+export function canvasNodePrompt(node: CanvasNodeData) {
+    return node.metadata?.upstreamPrompt?.trim() || node.metadata?.prompt || "";
+}
+
+export function shouldPersistCanvasNodePrompt(node: CanvasNodeData) {
+    return node.type !== CanvasNodeType.Config;
+}
+
+export function appendCanvasLibraryPrompt(currentPrompt: string, selectedPrompt: string) {
+    const selected = selectedPrompt.trim();
+    if (!selected) return currentPrompt;
+    const current = currentPrompt.trimEnd();
+    return current ? `${current}\n\n${selected}` : selected;
 }
 
 function defaultMode(type: CanvasNodeData["type"]): CanvasNodeGenerationMode {

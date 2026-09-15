@@ -83,4 +83,17 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("waiting_first_token");
         expect(treeSource).toContain("WORKFLOW_ORDER");
     });
+
+    it("keeps stage confirmation, feedback, and regeneration in one review surface", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/scripts/script-practice-workspace.tsx"), "utf8");
+        expect(source).toContain('title={pendingConfirmation?.artifactType === "adaptation_strategy" ? "确认改编参数"');
+        expect(source).toContain("重新生成");
+        expect(source).toContain("disabled={!regenerateFeedback.trim() || confirmationActionBusy}");
+        expect(source).toContain("InputNumber");
+        expect(source).toContain("adaptationParameterValidation");
+        expect(source).not.toContain("regenerateOpen");
+        expect(source).not.toContain("adaptationParametersOpen");
+        expect(source).toContain("请先在当前成果面板确认或重新生成");
+        expect(source).toContain("const confirmationActionBusy = regenerating || confirming || savingAdaptationParameters;");
+    });
 });

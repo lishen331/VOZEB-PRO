@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto";
 import { createScriptPracticeRepository } from "./database/script-practice-repository";
 import { normalizeScriptDocument, parseFdx, parseFountain } from "@/lib/script-practice-contract";
 import type { ScriptDocument, ScriptSourceType } from "@/lib/script-practice-types";
+import { normalizeProjectAdaptationParameters } from "@/lib/script-practice-adaptation-parameters";
 
 export async function createScriptProject(
     ownerUserId: string,
     input: { title: string; sourceType: ScriptSourceType; idea?: string; schoolId?: string; mode?: "short_story" | "long_novel"; carrierType?: string; projectParameters?: Record<string, unknown> },
 ) {
     const document = normalizeScriptDocument({ blocks: input.idea ? [{ type: "action", text: input.idea }] : [] });
-    return persistScriptProject(ownerUserId, input, document, "user");
+    return persistScriptProject(ownerUserId, { ...input, ...(input.projectParameters ? { projectParameters: normalizeProjectAdaptationParameters(input.projectParameters) } : {}) }, document, "user");
 }
 
 export async function listScriptProjects(ownerUserId: string, input: { page?: number; pageSize?: number; keyword?: string; status?: "draft" | "writing" | "completed" } = {}) {
@@ -29,7 +30,10 @@ export async function getScriptProjectDetail(ownerUserId: string, projectId: str
 }
 
 export async function updateScriptProject(ownerUserId: string, projectId: string, patch: import("./database/script-practice-repository").ScriptProjectPatch) {
-    const project = await createScriptPracticeRepository().updateScriptProject(projectId, ownerUserId, patch);
+    const project = await createScriptPracticeRepository().updateScriptProject(projectId, ownerUserId, {
+        ...patch,
+        ...(patch.projectParameters ? { projectParameters: normalizeProjectAdaptationParameters(patch.projectParameters) } : {}),
+    });
     if (!project) throw new ScriptPracticeServiceError("剧本项目不存在", 404);
     return project;
 }
