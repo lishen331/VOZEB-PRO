@@ -30,6 +30,15 @@ export function edgePath(from: CanvasNodeData, to: CanvasNodeData, obstacles: Ca
 
         const routeAbove = Math.min(from.position.y, to.position.y, ...blockingNodes.map((node) => node.position.y)) - HANDLE_CLEARANCE;
         const routeBelow = Math.max(from.position.y + from.height, to.position.y + to.height, ...blockingNodes.map((node) => node.position.y + node.height)) + HANDLE_CLEARANCE;
+        // Prefer a smooth detour bezier over an orthogonal polyline — pick the
+        // shorter arc (above or below), verify it clears all obstacles, and
+        // only fall back to the rounded polyline when both arcs still clip a node.
+        const detours = [routeAbove, routeBelow]
+            .map((routeY) => detourBezier(start, end, routeY, forwardDistance))
+            .sort((a, b) => a.length - b.length);
+        for (const detour of detours) {
+            if (curveIsClear(detour.curve, blockingNodes)) return detour.curve.path;
+        }
         const startPortX = start.x + HANDLE_CLEARANCE;
         const endPortX = end.x - HANDLE_CLEARANCE;
         const candidates = [routeAbove, routeBelow].map((routeY) => [start, { x: startPortX, y: start.y }, { x: startPortX, y: routeY }, { x: endPortX, y: routeY }, { x: endPortX, y: end.y }, end]);
@@ -135,6 +144,18 @@ function forwardCurve(start: Position, end: Position, direction: 1 | -1, forward
     const controlStart = { x: start.x + direction * curvature, y: start.y };
     const controlEnd = { x: end.x - direction * curvature, y: end.y };
     return { path: `M ${format(start.x)} ${format(start.y)} C ${format(controlStart.x)} ${format(controlStart.y)}, ${format(controlEnd.x)} ${format(controlEnd.y)}, ${format(end.x)} ${format(end.y)}`, start, controlStart, controlEnd, end };
+}
+
+// Builds a bezier that arcs through routeY to detour around a blocking node.
+// The control points are pulled vertically to routeY so the curve bows
+// smoothly above or below the obstacle instead of taking a rectangular detour.
+function detourBezier(start: Position, end: Position, routeY: number, forwardDistance: number) {
+    const curvature = Math.min(Math.max(forwardDistance * 0.5, 80), 300);
+    const controlStart = { x: start.x + curvature, y: routeY };
+    const controlEnd = { x: end.x - curvature, y: routeY };
+    const curve = { path: `M ${format(start.x)} ${format(start.y)} C ${format(controlStart.x)} ${format(controlStart.y)}, ${format(controlEnd.x)} ${format(controlEnd.y)}, ${format(end.x)} ${format(end.y)}`, start, controlStart, controlEnd, end };
+    const length = Math.abs(routeY - start.y) + Math.abs(routeY - end.y) + forwardDistance;
+    return { curve, length };
 }
 
 function gapRoutePoints(start: Position, end: Position, routeY: number) {
