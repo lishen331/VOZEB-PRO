@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button, Popover, Select } from "antd";
 import { AudioLines, ChevronDown, ImageIcon, Lightbulb, Maximize2, Sparkles, Video } from "lucide-react";
