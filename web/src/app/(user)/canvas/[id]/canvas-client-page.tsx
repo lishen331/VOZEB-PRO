@@ -412,6 +412,10 @@ function VozebProCanvasPage() {
                                     setNodeImageSettingsOpen(open);
                                     if (open) setToolbarNodeId(null);
                                 }}
+                                onRemoveReference={(sourceNodeId) => {
+                                    const conn = connectionsRef.current.find((c) => c.fromNodeId === sourceNodeId && c.toNodeId === panelNode.id);
+                                    if (conn) deleteConnection(conn.id);
+                                }}
                             />
                         )
                     }
