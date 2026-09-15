@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { FileText, Image as ImageIcon, LoaderCircle, Maximize2, Minimize2, Music2, Square, Video } from "lucide-react";
+import { FileText, Image as ImageIcon, LoaderCircle, Maximize2, Minimize2, Music2, Square, Video, X } from "lucide-react";
 import { Button, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
@@ -18,7 +18,7 @@ import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
 import { CanvasCameraControl } from "./canvas-camera-control";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasGenerationMode, type CanvasNodeData } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
-import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasVideoConfigPatch } from "../utils/canvas-node-config";
+import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasImageConfigPatch, canvasVideoConfigPatch } from "../utils/canvas-node-config";
 import { canvasModelConfigPatch } from "../utils/canvas-model-capabilities";
 import { PANORAMA_IMAGE_SIZE } from "../utils/canvas-panorama";
 
@@ -35,9 +35,10 @@ type CanvasNodePromptPanelProps = {
     onStop: (nodeId: string) => void;
     mentionReferences?: CanvasResourceReference[];
     onImageSettingsOpenChange?: (open: boolean) => void;
+    onRemoveReference?: (sourceNodeId: string) => void;
 };
 
-export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], onImageSettingsOpenChange }: CanvasNodePromptPanelProps) {
+export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], onImageSettingsOpenChange, onRemoveReference }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
@@ -49,7 +50,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const isEditingExistingContent = hasTextContent || hasImageContent;
     const imageReferenceRoles = mentionReferences.filter((reference) => reference.kind === "image");
     const referenceRoleImages = imageReferenceRoles.length ? imageReferenceRoles : hasImageContent ? [{ nodeId: node.id, kind: "image" as const, label: "\u56fe\u7247 1", title: node.title || "\u5f53\u524d\u56fe\u7247" }] : [];
-    const textReferences = mentionReferences.filter((reference) => reference.active);
+    const textReferences = mentionReferences.filter((reference) => reference.active && reference.nodeId !== node.id);
     const [prompt, setPrompt] = useState(isEditingExistingContent ? "" : node.metadata?.prompt || "");
     const [expanded, setExpanded] = useState(false);
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
@@ -127,22 +128,36 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             </div>
 
             {textReferences.length ? (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="引用的连接文本">
+                <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="引用的连接节点">
                     {textReferences.map((reference, index) => {
                         const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
                         return (
-                            <Tooltip key={reference.id} title={reference.text || reference.title} placement="top">
-                                <span
-                                    data-canvas-resource-reference={reference.nodeId}
-                                    className="relative grid size-9 place-items-center rounded-lg border"
-                                    style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
-                                >
+                            <span
+                                key={reference.id}
+                                data-canvas-resource-reference={reference.nodeId}
+                                className="group relative inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium"
+                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                            >
+                                <span className="relative shrink-0">
                                     <Icon className="size-4" aria-hidden />
-                                    <span className="absolute -left-1 -top-1 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4" style={{ background: "#2f80ff", color: "#fff" }}>
+                                    <span className="absolute -left-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full px-0.5 text-[10px] font-semibold leading-4" style={{ background: "#2f80ff", color: "#fff" }}>
                                         {index + 1}
                                     </span>
                                 </span>
-                            </Tooltip>
+                                <span className="truncate max-w-[6rem]">{reference.label}</span>
+                                {onRemoveReference ? (
+                                    <button
+                                        type="button"
+                                        className="ml-0.5 grid size-4 shrink-0 place-items-center rounded-full opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
+                                        onClick={(event) => { event.stopPropagation(); onRemoveReference(reference.nodeId); }}
+                                        onMouseDown={stopCanvasInteraction}
+                                        onPointerDown={stopCanvasInteraction}
+                                        aria-label={`取消引用 ${reference.label}`}
+                                    >
+                                        <X className="size-3" aria-hidden />
+                                    </button>
+                                ) : null}
+                            </span>
                         );
                     })}
                 </div>
@@ -168,7 +183,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 config={config}
                                 placement="topLeft"
                                 buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
-                                onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
+                                onConfigChange={(key, value) => onConfigChange(node.id, canvasImageConfigPatch(key, value))}
                                 onOpenChange={onImageSettingsOpenChange}
                                 fixedSizeLabel={isPanorama ? "全景 2:1" : undefined}
                             />

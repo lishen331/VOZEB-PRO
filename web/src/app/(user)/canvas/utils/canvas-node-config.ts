@@ -8,6 +8,8 @@ export function buildCanvasNodeConfig(globalConfig: AiConfig, node: CanvasNodeDa
         model,
         quality: node.metadata?.quality || globalConfig.quality || defaultConfig.quality,
         size: node.metadata?.size || globalConfig.size || defaultConfig.size,
+        imageResolution: node.metadata?.resolution || globalConfig.imageResolution || defaultConfig.imageResolution,
+        imageBackground: node.metadata?.background || globalConfig.imageBackground || defaultConfig.imageBackground,
         videoSeconds: node.metadata?.seconds || globalConfig.videoSeconds || defaultConfig.videoSeconds,
         vquality: node.metadata?.vquality || globalConfig.vquality || defaultConfig.vquality,
         videoGenerateAudio: node.metadata?.generateAudio || globalConfig.videoGenerateAudio || defaultConfig.videoGenerateAudio,
@@ -37,6 +39,13 @@ export function canvasVideoConfigPatch(key: keyof AiConfig, value: string) {
     if (key === "videoSeconds") return { seconds: value };
     if (key === "videoGenerateAudio") return { generateAudio: value };
     if (key === "videoWatermark") return { watermark: value };
+    return { [key]: value };
+}
+
+export function canvasImageConfigPatch(key: keyof AiConfig, value: string) {
+    if (key === "imageResolution") return { resolution: value };
+    if (key === "imageBackground") return { background: value };
+    if (key === "count") return { count: Number(value) || 1 };
     return { [key]: value };
 }
 

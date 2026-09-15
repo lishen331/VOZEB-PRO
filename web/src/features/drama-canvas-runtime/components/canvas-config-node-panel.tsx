@@ -15,7 +15,7 @@ import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
 import { CanvasCameraControl } from "./canvas-camera-control";
 import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
-import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasVideoConfigPatch, resolveCanvasGenerationModel } from "../utils/canvas-node-config";
+import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasImageConfigPatch, canvasVideoConfigPatch, resolveCanvasGenerationModel } from "../utils/canvas-node-config";
 import { canvasModelConfigPatch } from "../utils/canvas-model-capabilities";
 
 type CanvasConfigNodePanelProps = {
@@ -160,7 +160,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
                         config={config}
                         placement="topRight"
                         buttonClassName="canvas-compact-control !h-9 !w-full !justify-start !rounded-none !border-0 !bg-transparent !px-2.5 !shadow-none"
-                        onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
+                        onConfigChange={(key, value) => onConfigChange(node.id, canvasImageConfigPatch(key, value))}
                     />
                 ) : mode === "audio" ? (
                     <CanvasAudioSettingsPopover
