@@ -1075,6 +1075,11 @@ function AssetEditorModal({
     const promptReferences = generationReferences(references);
 
     const historyReferences = references.filter((reference) => reference.role === "history");
+    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const files = Array.from(event.dataTransfer.files || []);
+        if (files.length) onUploadFile(files);
+    };
     const handlePromptChange = (value: string, selectionStart: number) => {
         const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
         const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
@@ -1327,11 +1332,7 @@ function AssetEditorModal({
             </Modal>
         );
     }
-    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        const files = Array.from(event.dataTransfer.files || []);
-        if (files.length) onUploadFile(files);
-    };    const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
+    const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
     if (editor.kind === "scenes") {
         return (
             <Modal
