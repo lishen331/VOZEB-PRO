@@ -6541,7 +6541,7 @@ function UniversalMentionEditor({ value, references, wrap, placeholder, onChange
     const parts = value.split(/(@图片[1-9]\d*)/g);
     return (
         <div className="relative min-h-[132px] overflow-visible rounded-md border border-border bg-background focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-universal-mention-editor>
-            <div ref={mirrorRef} className={cn("pointer-events-none absolute inset-0 z-10 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.5715]", !wrap && "whitespace-pre")} aria-hidden="true">
+            <div ref={mirrorRef} className={cn("pointer-events-none absolute inset-0 z-30 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.5715]", !wrap && "whitespace-pre")} aria-hidden="true">
                 {value ? (
                     parts.map((part, index) => {
                         const match = part.match(/^@图片(\d+)$/);
@@ -6577,6 +6577,28 @@ function UniversalMentionEditor({ value, references, wrap, placeholder, onChange
                     if (mirrorRef.current) {
                         mirrorRef.current.scrollTop = event.currentTarget.scrollTop;
                         mirrorRef.current.scrollLeft = event.currentTarget.scrollLeft;
+                    }
+                }}
+                onKeyDown={(event) => {
+                    if (event.key !== "Backspace" && event.key !== "Delete") return;
+                    const textarea = event.currentTarget;
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const value = textarea.value;
+                    if (start !== end) return;
+                    const tokenPattern = /@图片\d+/g;
+                    for (const match of value.matchAll(tokenPattern)) {
+                        const tokenStart = match.index ?? -1;
+                        const tokenEnd = tokenStart + match[0].length;
+                        const touchesToken = event.key === "Backspace" ? start > tokenStart && start <= tokenEnd : start >= tokenStart && start < tokenEnd;
+                        if (!touchesToken) continue;
+                        event.preventDefault();
+                        const next = value.slice(0, tokenStart) + value.slice(tokenEnd);
+                        onChange(next);
+                        requestAnimationFrame(() => {
+                            textarea.setSelectionRange(tokenStart, tokenStart);
+                        });
+                        break;
                     }
                 }}
                 onChange={(event) => onChange(event.target.value)}
