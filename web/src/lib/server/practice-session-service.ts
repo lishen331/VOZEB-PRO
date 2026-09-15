@@ -269,7 +269,14 @@ export async function listPracticeSessionsForUser(actor: PracticeActor, input: {
     const pageSize = Math.min(100, positive(input.pageSize, 12));
     const store = (deps.store as PracticeSessionListStore | undefined) || defaultPracticeSessionStore();
     const records = await store.list(scope, { page, pageSize, module: input.module });
-    return { sessions: await Promise.all(records.items.map(async (item) => publicSession(await synchronizePracticeSessionLifecycle(store, item)))), total: records.total, page, pageSize };
+    const results = await Promise.allSettled(records.items.map(async (item) => publicSession(await synchronizePracticeSessionLifecycle(store, item))));
+    const sessions = results.flatMap((r) => {
+        if (r.status === "fulfilled") return [r.value];
+        // Log per-session failures (e.g. missing schoolId on legacy rows) but don't crash the list.
+        console.warn("[practice-session] skipped session during list:", r.reason instanceof Error ? r.reason.message : r.reason);
+        return [];
+    });
+    return { sessions, total: records.total, page, pageSize };
 }
 
 export async function retryPracticeSessionForUser(

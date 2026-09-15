@@ -1,10 +1,10 @@
 "use client";
 
-import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
+import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
 import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table, Image as AntImage } from "antd";
 import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X, CheckSquare } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { DramaLabAssetLibraryPicker } from "../drama-lab-asset-library-picker";
 import type { Asset } from "@/lib/library-asset-contract";
 import styleGroups from "@/lib/drama-lab-style-options.json";
@@ -175,9 +175,11 @@ async function readBatchImportFile(projectId: string, file: File) {
     return payload.data.sourceText;
 }
 
-export default function ProjectOutlinePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-    const params = use(paramsPromise);
-    const projectId = encodeURIComponent(params.id);
+export default function ProjectOutlinePage() {
+    // useParams() is safe in Client Components; avoids React error #441 caused by
+    // calling use() outside a Suspense boundary when Next.js passes params as a Promise.
+    const routeParams = useParams<{ id: string }>();
+    const projectId = encodeURIComponent(routeParams.id ?? "");
     useEffect(() => {
         void loadPublicSession();
     }, []);

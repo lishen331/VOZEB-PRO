@@ -229,6 +229,7 @@ export function AuthForm({
                         }}
                         placeholder={isRegister ? "设置登录用户名" : educationLogin ? "请输入用户名或邮箱" : "输入用户名或已绑定邮箱"}
                         autoComplete="username"
+                        name="username"
                         disabled={submitting || disabled}
                         required
                     />
@@ -304,6 +305,7 @@ export function AuthForm({
                         }}
                         placeholder={isRegister ? "至少 8 位" : "请输入密码"}
                         autoComplete={isRegister ? "new-password" : "current-password"}
+                        name="password"
                         disabled={submitting || disabled}
                         required
                     />

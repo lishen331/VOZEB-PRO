@@ -135,11 +135,22 @@ export class ScriptAgentRepository {
     }
 
     async updateRunItem(scope: PracticeTenantScope, projectId: string, runId: string, itemId: string, patch: { status: ScriptRunItemStatus; artifactId?: string; errorCode?: string; errorMessage?: string }) {
+        // Use EXISTS subquery instead of UPDATE…FROM to avoid "started_at is ambiguous"
+        // when practice_script_run_items and practice_script_runs share the same column names.
         const result = await this.db.query(
-            `UPDATE practice_script_run_items i SET status = $6, artifact_id = $7, error_code = $8, error_message = $9,
-                 started_at = CASE WHEN $6 = 'running' THEN now() ELSE i.started_at END,
+            `UPDATE practice_script_run_items AS i
+             SET status       = $6,
+                 artifact_id  = $7,
+                 error_code   = $8,
+                 error_message = $9,
+                 started_at = CASE WHEN $6 = 'running'                         THEN now() ELSE i.started_at END,
                  completed_at = CASE WHEN $6 IN ('success', 'failed', 'stopped') THEN now() ELSE i.completed_at END
-             FROM practice_script_runs r WHERE i.run_id = r.id AND i.id = $1 AND r.id = $2 AND r.school_id = $3 AND r.owner_user_id = $4 AND r.project_id = $5 RETURNING i.*`,
+             WHERE i.id = $1 AND i.run_id = $2
+               AND EXISTS (
+                   SELECT 1 FROM practice_script_runs
+                   WHERE id = $2 AND school_id = $3 AND owner_user_id = $4 AND project_id = $5
+               )
+             RETURNING i.*`,
             [itemId, runId, scope.schoolId, scope.ownerUserId, projectId, patch.status, patch.artifactId || null, patch.errorCode || null, patch.errorMessage || null],
         );
         return result.rows[0] ? mapItem(result.rows[0]) : null;

@@ -83,6 +83,7 @@ type CanvasSurfaceProps = {
     onDrop: (event: ReactDragEvent<Element>) => void;
     onSizeChange?: (size: { width: number; height: number }) => void;
     onDragStateChange?: (dragging: boolean) => void;
+    onDisplayViewportChange?: (viewport: ViewportTransform) => void;
     overlay?: ReactNode;
 };
 
@@ -139,6 +140,7 @@ export function CanvasSurface({
     onDrop,
     onSizeChange,
     onDragStateChange,
+    onDisplayViewportChange,
     overlay,
 }: CanvasSurfaceProps) {
     const themeName = useThemeStore((state) => state.theme);
@@ -300,8 +302,9 @@ export function CanvasSurface({
             viewportDirtyRef.current = true;
             displayViewportRef.current = next;
             applyViewportStyles(next);
+            onDisplayViewportChange?.(next);
         },
-        [applyViewportStyles],
+        [applyViewportStyles, onDisplayViewportChange],
     );
 
     const commitViewport = useCallback(() => {

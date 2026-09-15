@@ -141,15 +141,35 @@ export class ScriptAgentExecutor {
                 ...(chatHistory.length ? { chatHistory: chatHistory.map(publicChatMessage) } : {}),
             },
         };
-        const structured = await this.deps.callModel({
-            profile,
-            task: enrichedTask,
-            responseSchema: responseSchemaFor(task.runType),
-            onDelta: async (delta) => {
-                await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta }, this.id());
-            },
-        });
-        assertStructuredResult(task.runType, structured);
+        // BUG-02: wrap the model call + schema check in a single retry.
+        // requestStructuredText already has an internal json→repair chain, but when
+        // all internal attempts fail we get here with a structurally-invalid result.
+        // One explicit outer retry with a corrective hint covers the residual cases.
+        let structured: Record<string, unknown>;
+        try {
+            structured = await this.deps.callModel({
+                profile,
+                task: enrichedTask,
+                responseSchema: responseSchemaFor(task.runType),
+                onDelta: async (delta) => {
+                    await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta }, this.id());
+                },
+            });
+            assertStructuredResult(task.runType, structured);
+        } catch (firstError) {
+            if (!isStructureValidationError(firstError)) throw firstError;
+            await this.deps.appendEvent(scope, task.projectId, task.runId, "progress", { phase: "retrying", label: "结构校验失败，自动重试中…" }, this.id());
+            const correctionHint = `上一轮输出未通过结构校验（原因：${firstError instanceof Error ? firstError.message : "结构不完整"}）。请严格按照 Schema 重新输出，不要解释、不要 Markdown，只返回一个完整的 JSON 对象。`;
+            structured = await this.deps.callModel({
+                profile,
+                task: { ...enrichedTask, input: { ...enrichedTask.input, _correctionHint: correctionHint } },
+                responseSchema: responseSchemaFor(task.runType),
+                onDelta: async (delta) => {
+                    await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta }, this.id());
+                },
+            });
+            assertStructuredResult(task.runType, structured);
+        }
         await this.deps.appendEvent(scope, task.projectId, task.runId, "progress", { phase: "saving", label: publicSaveLabel(task.runType) }, this.id());
         if (task.runType === "text_storyboard" && project) assertStoryboardDuration(structured, project.project_parameters);
         await materializeStructuredRows(this.deps, scope, task, structured);
@@ -263,6 +283,20 @@ export function validateScriptAgentArguments(runType: ScriptRunType, argumentsTe
     } catch {
         return false;
     }
+}
+
+/** True for errors thrown by assertStructuredResult (schema / content failures). */
+function isStructureValidationError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    return (
+        error.message.includes("结构化内容") ||
+        error.message.includes("缺少当前阶段正文") ||
+        error.message.includes("章节结构不完整") ||
+        error.message.includes("分集结构不完整") ||
+        error.message.includes("文字分镜结构不完整") ||
+        error.message.includes("资产提示词结构不完整") ||
+        error.message.includes("缺少完整小说体故事")
+    );
 }
 
 function assertStructuredResult(runType: ScriptRunType, value: Record<string, unknown>) {
