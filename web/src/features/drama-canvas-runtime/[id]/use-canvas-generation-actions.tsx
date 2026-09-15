@@ -22,7 +22,7 @@ import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type 
 import { applyCameraPrompt } from "../utils/canvas-camera";
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
 import { buildPanoramaPrompt } from "../utils/canvas-panorama";
-import { canvasVideoReferenceMetadata, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
+import { canvasVideoReferenceMetadata, normalizeCanvasVideoGenerationMode, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
 
 import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_NEEDS_REVIEW, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
 import { classifyCanvasVideoTaskFailure } from "./canvas-video-task-recovery";
@@ -344,11 +344,13 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 }
 
                 if (mode === "video") {
+                    const isTextToVideo = normalizeCanvasVideoGenerationMode(sourceNode?.metadata?.videoGenerationMode) === "text_to_video";
+                    const emptyContext = { referenceImages: [], referenceVideos: [], referenceAudios: [] };
                     const videoReferences = resolveCanvasVideoGenerationReferences({
                         metadata: sourceNode?.metadata,
-                        context: generationContext,
-                        availableInputs: buildNodeGenerationInputs(nodeId, nodesRef.current, connectionsRef.current),
-                        sourceImage: sourceNode && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
+                        context: isTextToVideo ? emptyContext : generationContext,
+                        availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(nodeId, nodesRef.current, connectionsRef.current),
+                        sourceImage: !isTextToVideo && sourceNode && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                     });
                     const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
                     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
@@ -685,13 +687,15 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 }
                 if (node.type === CanvasNodeType.Video) {
                     if (!context) throw new Error("��Ƶ�����������Ѷ�ʧ���޷���������");
+                    const isTextToVideo = normalizeCanvasVideoGenerationMode(sourceNode.metadata?.videoGenerationMode) === "text_to_video";
+                    const emptyContext = { referenceImages: [], referenceVideos: [], referenceAudios: [] };
                     const videoReferences =
                         restoreCanvasVideoGenerationReferences(node.metadata) ||
                         resolveCanvasVideoGenerationReferences({
                             metadata: sourceNode.metadata,
-                            context,
-                            availableInputs: buildNodeGenerationInputs(sourceNode.id, nodesRef.current, connectionsRef.current),
-                            sourceImage: isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
+                            context: isTextToVideo ? emptyContext : context,
+                            availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(sourceNode.id, nodesRef.current, connectionsRef.current),
+                            sourceImage: !isTextToVideo && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                         });
                     const task = await createServerVideoGenerationTask(generationConfig, prompt, videoReferences.images, videoReferences.videos, videoReferences.audios, {
                         signal: controller.signal,

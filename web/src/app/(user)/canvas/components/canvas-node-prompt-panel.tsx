@@ -107,15 +107,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                             const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
                             const hasPreview = !!reference.previewUrl;
                             return (
-                                <div
-                                    key={reference.id}
-                                    data-canvas-resource-reference={reference.nodeId}
-                                    className="group relative flex w-16 flex-col items-center gap-1"
-                                >
-                                    <div
-                                        className="relative size-16 overflow-hidden rounded-lg border"
-                                        style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}
-                                    >
+                                <div key={reference.id} data-canvas-resource-reference={reference.nodeId} className="group relative flex w-16 flex-col items-center gap-1">
+                                    <div className="relative size-16 overflow-hidden rounded-lg border" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
                                         {reference.kind === "image" && hasPreview ? (
                                             <img src={imagePreviewUrl(reference.previewUrl!, 128)} alt="" className="size-full object-cover" />
                                         ) : reference.kind === "video" && hasPreview ? (
@@ -130,7 +123,10 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                 type="button"
                                                 className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full border backdrop-blur"
                                                 style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
-                                                onClick={(event) => { event.stopPropagation(); onRemoveReference(reference.nodeId); }}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    onRemoveReference(reference.nodeId);
+                                                }}
                                                 onMouseDown={stopCanvasInteraction}
                                                 onPointerDown={stopCanvasInteraction}
                                                 aria-label={`取消引用 ${reference.label}`}
@@ -139,7 +135,9 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                             </button>
                                         ) : null}
                                     </div>
-                                    <span className="w-full truncate text-center text-[11px] leading-tight" style={{ color: theme.toolbar.item }}>{reference.label}</span>
+                                    <span className="w-full truncate text-center text-[11px] leading-tight" style={{ color: theme.toolbar.item }}>
+                                        {reference.label}
+                                    </span>
                                 </div>
                             );
                         })}
@@ -306,15 +304,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                     const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
                                     const hasPreview = !!reference.previewUrl;
                                     return (
-                                        <div
-                                            key={reference.id}
-                                            data-canvas-resource-reference={reference.nodeId}
-                                            className="group relative flex w-16 flex-col items-center gap-1"
-                                        >
-                                            <div
-                                                className="relative size-16 overflow-hidden rounded-lg border"
-                                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}
-                                            >
+                                        <div key={reference.id} data-canvas-resource-reference={reference.nodeId} className="group relative flex w-16 flex-col items-center gap-1">
+                                            <div className="relative size-16 overflow-hidden rounded-lg border" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
                                                 {reference.kind === "image" && hasPreview ? (
                                                     <img src={imagePreviewUrl(reference.previewUrl!, 128)} alt="" className="size-full object-cover" />
                                                 ) : reference.kind === "video" && hasPreview ? (
@@ -329,7 +320,10 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                         type="button"
                                                         className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full border backdrop-blur"
                                                         style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
-                                                        onClick={(event) => { event.stopPropagation(); onRemoveReference(reference.nodeId); }}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            onRemoveReference(reference.nodeId);
+                                                        }}
                                                         onMouseDown={stopCanvasInteraction}
                                                         onPointerDown={stopCanvasInteraction}
                                                         aria-label={`取消引用 ${reference.label}`}
@@ -338,7 +332,9 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                     </button>
                                                 ) : null}
                                             </div>
-                                            <span className="w-full truncate text-center text-[11px] leading-tight" style={{ color: theme.toolbar.item }}>{reference.label}</span>
+                                            <span className="w-full truncate text-center text-[11px] leading-tight" style={{ color: theme.toolbar.item }}>
+                                                {reference.label}
+                                            </span>
                                         </div>
                                     );
                                 })}

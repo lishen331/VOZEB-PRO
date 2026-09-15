@@ -45,7 +45,7 @@
         },
         {
             "path": "[id]/use-canvas-generation-actions.tsx",
-            "sha256": "f6782fed253a6dad6e9469b5c83a0602a37119ee729181dca5a158eb751058ff"
+            "sha256": "fe4f499bc77357e86266f8096ef1a6fa864507920d96e3d62013b22b8742e478"
         },
         {
             "path": "[id]/use-canvas-image-layer-actions.tsx",
@@ -264,8 +264,12 @@
             "sha256": "de467a026cef62b1c868f3a2c38d03d4a46e76cd3fcc0f85ac37aad112bcca68"
         },
         {
+            "path": "components/canvas-video-mode-selector.tsx",
+            "sha256": "5eccb684cc79980158c20eb9b148f32eccf2ac67914bf9d88613c4a22be01609"
+        },
+        {
             "path": "components/canvas-video-settings-popover.tsx",
-            "sha256": "ebf5f8a72c196d7eab8e4cc33a991a0cbe290e8865bdcf28093996699f155c46"
+            "sha256": "0f7af88ad7ca60c5b9762e96c66fc37179f00cba95a62ac5813ef11e85bb58a1"
         },
         {
             "path": "components/canvas-zoom-controls.tsx",
@@ -297,7 +301,7 @@
         },
         {
             "path": "types.ts",
-            "sha256": "64cd8fc7f12dfc3ca9c2746474c8ffbf017ff6a0bd50141a158ab29d814e3ce1"
+            "sha256": "d90a65a6f60de9ed17248695e8aec74c48065081f9f9b60e3e470b6eeb0e94fa"
         },
         {
             "path": "use-canvas-local-agent-bridge.ts",
@@ -373,7 +377,7 @@
         },
         {
             "path": "utils/canvas-video-references.ts",
-            "sha256": "78fe0fdd5b2d60e763f709d5d897c731615851959e47c1a1f5f9aaafea337379"
+            "sha256": "af6bf7b8402a4717718e0d2207ea7b0cbf7df199ab841d0bb5269e9fb606f509"
         }
     ]
 }

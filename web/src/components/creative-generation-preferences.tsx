@@ -795,13 +795,13 @@ export function CompactOptionGroup<T extends string | number>({
     ariaLabel: string;
     value: T;
     options: readonly { value: T; label: string; shortLabel?: string }[];
-    columns?: 2 | 3 | 4;
+    columns?: 2 | 3 | 4 | 5;
     onChange: (value: T) => void;
 }) {
     return (
         <div className="grid gap-1.5">
             <p className="text-[11px] font-medium text-[#7b8591] dark:text-[#98a2ae]">{label}</p>
-            <div className={cn("grid gap-1", columns === 2 ? "grid-cols-2" : columns === 3 ? "grid-cols-3" : "grid-cols-4")} role="group" aria-label={ariaLabel}>
+            <div className={cn("grid gap-1", columns === 2 ? "grid-cols-2" : columns === 3 ? "grid-cols-3" : columns === 5 ? "grid-cols-5" : "grid-cols-4")} role="group" aria-label={ariaLabel}>
                 {options.map((option) => (
                     <button
                         key={option.value}
