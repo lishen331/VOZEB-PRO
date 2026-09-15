@@ -138,7 +138,7 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
                 {isPanorama ? (
                     <PracticePanoramaViewer url={imageUrl} title="场景 360° 全景">
                         <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg bg-muted/20">
-                            <Image src={imageUrl} alt="练习结果，点击查看 360° 全景" preview={false} className="!absolute inset-0 !h-full !w-full !object-contain" />
+                            <img src={imageUrl} alt="练习结果，点击查看 360° 全景" className="absolute inset-0 h-full w-full object-contain" />
                         </div>
                     </PracticePanoramaViewer>
                 ) : (

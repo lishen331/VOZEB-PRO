@@ -114,13 +114,20 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             await expect(rolePage.getByRole("button", { name: "生成分镜视频", exact: true })).toBeDisabled();
             await rolePage.getByLabel("分镜图（必需）", { exact: true }).setInputFiles({ name: "video.png", mimeType: "image/png", buffer: ONE_PIXEL_PNG });
             await rolePage.getByLabel("视频提示词", { exact: true }).fill("缓慢推进");
+            await expect(rolePage.getByRole("switch", { name: "启用台词音频", exact: true })).toBeChecked();
+            await expect(rolePage.locator("audio").first()).toBeVisible();
             await expect(rolePage.getByRole("button", { name: "生成分镜视频", exact: true })).toBeEnabled();
-            await rolePage.getByRole("switch").check();
-            await expect(rolePage.getByRole("button", { name: "生成分镜视频", exact: true })).toBeDisabled();
-            await rolePage.getByRole("switch").uncheck();
-            const videoSubmit = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/sessions") && request.method() === "POST");
+            await rolePage.getByRole("combobox", { name: "配音音色", exact: true }).click();
+            await rolePage.getByText("不使用音频", { exact: true }).click();
+            await expect(rolePage.getByRole("switch", { name: "启用台词音频", exact: true })).not.toBeChecked();
+            const videoWithAudioSubmit = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/sessions") && request.method() === "POST");
+            await rolePage.getByRole("combobox", { name: "配音音色", exact: true }).click();
+            await rolePage.getByText("默认台词音色", { exact: true }).click();
+            await expect(rolePage.locator("audio").first()).toBeVisible();
             await rolePage.getByRole("button", { name: "生成分镜视频", exact: true }).click();
-            expect((await videoSubmit).postDataJSON().input.audioEnabled).toBe(false);
+            const videoWithAudioBody = (await videoWithAudioSubmit).postDataJSON();
+            expect(videoWithAudioBody.input.audioEnabled).toBe(true);
+            expect(videoWithAudioBody.references).toEqual(expect.arrayContaining([expect.objectContaining({ type: "asset", inputKey: "audio" })]));
 
             await rolePage.goto("/practice/dubbing", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成配音", { exact: true })).toBeVisible();
@@ -141,7 +148,7 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             await rolePage.goto("/practice/storyboard-video");
             await rolePage.getByRole("switch", { name: "启用台词音频", exact: true }).check();
             await expect(rolePage.getByRole("link", { name: "去配音", exact: true })).toHaveAttribute("href", "/practice/dubbing");
-            await rolePage.getByRole("combobox", { name: "配音来源", exact: true }).click();
+            await rolePage.getByRole("combobox", { name: "配音音色", exact: true }).click();
             await rolePage.getByText("引用历史配音", { exact: true }).click();
             await rolePage.getByRole("combobox", { name: "历史配音", exact: true }).click();
             await expect(rolePage.getByText(/dubbing ·/).last()).toBeVisible();
