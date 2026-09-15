@@ -109,6 +109,7 @@ export type AiConfig = {
     size: string;
     count: string;
     canvasImageCount: string;
+    imageBackground: string;
     modelPointCosts: Record<string, number>;
     generationPointMultipliers: GenerationPointMultipliers;
     generationConcurrency: GenerationConcurrencySettings;
@@ -190,6 +191,7 @@ export const defaultConfig: AiConfig = {
     size: "1:1",
     count: "1",
     canvasImageCount: "1",
+    imageBackground: "auto",
     modelPointCosts: {},
     generationPointMultipliers: {
         imageQuality: { auto: 1, low: 1, medium: 1, high: 1 },

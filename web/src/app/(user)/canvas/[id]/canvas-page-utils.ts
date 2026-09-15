@@ -190,6 +190,7 @@ export function buildImageGenerationMetadata(type: CanvasImageGenerationType, co
         size: config.size,
         quality: config.quality,
         count,
+        ...(config.imageBackground === "transparent" ? { imageOutputBackground: "transparent" as const } : {}),
         references: references.map(referenceUrl).filter((url): url is string => Boolean(url)),
     };
 }

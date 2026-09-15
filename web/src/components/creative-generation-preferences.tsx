@@ -18,6 +18,7 @@ export type MediaCapability = "image" | "video" | "audio";
 export type CreativeGenerationPreferencePatch = {
     size?: string;
     quality?: string;
+    background?: string;
     count?: number;
     seconds?: number;
     generateAudio?: boolean;
@@ -56,10 +57,50 @@ const videoRatios = [
     { value: "9:16", label: "9:16", width: 14, height: 24 },
 ] as const;
 
+const IMAGE_PANEL_RATIOS = [
+    { value: "1:1", label: "1:1", width: 18, height: 18 },
+    { value: "1:2", label: "1:2", width: 12, height: 24 },
+    { value: "2:1", label: "2:1", width: 24, height: 12 },
+    { value: "9:16", label: "9:16", width: 14, height: 24 },
+    { value: "16:9", label: "16:9", width: 24, height: 14 },
+    { value: "3:4", label: "3:4", width: 16, height: 21 },
+    { value: "4:3", label: "4:3", width: 21, height: 16 },
+    { value: "3:2", label: "3:2", width: 23, height: 15 },
+    { value: "2:3", label: "2:3", width: 15, height: 23 },
+    { value: "5:4", label: "5:4", width: 20, height: 16 },
+    { value: "4:5", label: "4:5", width: 16, height: 20 },
+    { value: "21:9", label: "21:9", width: 26, height: 11 },
+    { value: "9:21", label: "9:21", width: 11, height: 26 },
+] as const;
+
+const imagePaintQualityOptions = [
+    { value: "low", label: "低画质", shortLabel: "低" },
+    { value: "medium", label: "标准画质", shortLabel: "标准" },
+    { value: "high", label: "高画质", shortLabel: "高" },
+] as const;
+
+const imageResolutionOptions = [
+    { value: "low", label: "1K" },
+    { value: "medium", label: "2K" },
+    { value: "high", label: "4K" },
+] as const;
+
+const imageBackgroundOptions = [
+    { value: "auto", label: "自动" },
+    { value: "keep", label: "保留背景" },
+    { value: "transparent", label: "透明背景" },
+] as const;
+
+const imageCountOptions = [
+    { value: 1, label: "1张" },
+    { value: 2, label: "2张" },
+    { value: 4, label: "4张" },
+] as const;
+
 const imageQualityOptions = [
     { value: "auto", label: "智能画质", shortLabel: "智能" },
     { value: "high", label: "高画质", shortLabel: "高" },
-    { value: "medium", label: "中画质", shortLabel: "中" },
+    { value: "medium", label: "标准画质", shortLabel: "标准" },
     { value: "low", label: "低画质", shortLabel: "低" },
 ] as const;
 
@@ -361,6 +402,75 @@ function PreferencePanel({
         );
     }
 
+    if (capability === "image") {
+        const selectedBackground = preferences.image?.background || "auto";
+        return (
+            <div className={cn("grid min-w-0", compact ? "gap-2" : "gap-2.5")}>
+                <CompactOptionGroup label="画质" ariaLabel="选择图片画质" value={selectedQuality} options={imagePaintQualityOptions} columns={3} onChange={(quality) => onChange({ quality })} />
+                <CompactOptionGroup label="清晰度" ariaLabel="选择图片清晰度" value={selectedQuality} options={imageResolutionOptions} columns={3} onChange={(quality) => onChange({ quality })} />
+                <CompactOptionGroup label="背景" ariaLabel="选择图片背景" value={selectedBackground} options={imageBackgroundOptions} columns={3} onChange={(background) => onChange({ background })} />
+                {fixedSizeLabel ? (
+                    <div className="flex h-9 items-center justify-between rounded-lg bg-[#f5f6f7] px-3 text-[11px] dark:bg-[#24282e]">
+                        <span className="font-medium text-[#7b8591] dark:text-[#98a2ae]">尺寸</span>
+                        <span className="text-[#20242a] dark:text-white">{fixedSizeLabel}</span>
+                    </div>
+                ) : (
+                    <div className="grid min-w-0 gap-1.5">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[11px] font-medium text-[#7b8591] dark:text-[#98a2ae]">比例</p>
+                            <span className="text-[10px] text-[#a0a8b2] dark:text-[#707b88]">{selectedSize === "auto" ? "智能" : formatSizeLabel(selectedSize, "image")}</span>
+                        </div>
+                        <div className="grid min-w-0 grid-cols-5 gap-1">
+                            {IMAGE_PANEL_RATIOS.map((ratio) => (
+                                <button
+                                    key={ratio.value}
+                                    type="button"
+                                    className={cn(
+                                        "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1 text-[11px] transition",
+                                        compact ? "h-8" : "h-9",
+                                        selectedSize === ratio.value
+                                            ? "bg-[#eaf1f5] font-medium text-[#315d78] dark:bg-[#2a3b46] dark:text-[#a8c8dc]"
+                                            : "bg-[#f5f6f7] text-[#687481] hover:bg-[#edf0f2] hover:text-[#20242a] dark:bg-[#24282e] dark:text-[#a6afb9] dark:hover:bg-[#30363e] dark:hover:text-white",
+                                    )}
+                                    onClick={() => onChange({ size: ratio.value })}
+                                    aria-label={`选择图片比例 ${ratio.label}`}
+                                    aria-pressed={selectedSize === ratio.value}
+                                >
+                                    <span className="grid h-4 w-5 shrink-0 place-items-center">
+                                        <span className="rounded-[2px] border-[1.5px] border-current" style={{ width: ratio.width * 0.64, height: ratio.height * 0.64 }} />
+                                    </span>
+                                    <span>{ratio.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                <div className="grid gap-1.5">
+                    <p className="text-[11px] font-medium text-[#7b8591] dark:text-[#98a2ae]">生成数量</p>
+                    <div className="grid grid-cols-3 gap-1" role="group" aria-label="选择图片生成数量">
+                        {imageCountOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                className={cn(
+                                    "h-8 min-w-0 rounded-lg px-1 text-[11px] transition",
+                                    selectedCount === option.value
+                                        ? "bg-[#eaf1f5] font-medium text-[#315d78] dark:bg-[#2a3b46] dark:text-[#a8c8dc]"
+                                        : "bg-[#f5f6f7] text-[#687481] hover:bg-[#edf0f2] hover:text-[#20242a] dark:bg-[#24282e] dark:text-[#a6afb9] dark:hover:bg-[#30363e] dark:hover:text-white",
+                                )}
+                                onClick={() => onChange({ count: option.value })}
+                                aria-label={`选择图片生成数量 ${option.label}`}
+                                aria-pressed={selectedCount === option.value}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={cn("grid min-w-0", compact ? "gap-2" : "gap-2.5")}>
             <div className={cn("grid grid-cols-2 gap-1 bg-[#f1f3f5] dark:bg-[#252a31]", compact ? "rounded-lg p-0.5" : "rounded-xl p-1")} role="tablist" aria-label="生成参数分组">
@@ -421,7 +531,7 @@ function PreferencePanel({
                                                 : "bg-[#f5f6f7] text-[#687481] hover:bg-[#edf0f2] hover:text-[#20242a] dark:bg-[#24282e] dark:text-[#a6afb9] dark:hover:bg-[#30363e] dark:hover:text-white",
                                         )}
                                         onClick={() => onChange({ size: ratio.value })}
-                                        aria-label={`选择${capability === "image" ? "图片" : "视频"}比例 ${ratio.label}`}
+                                        aria-label={`选择视频比例 ${ratio.label}`}
                                         aria-pressed={selectedSize === ratio.value}
                                     >
                                         <span className="grid h-4 w-5 shrink-0 place-items-center">
@@ -447,7 +557,7 @@ function PreferencePanel({
                                                         : "bg-[#f5f6f7] text-[#687481] hover:bg-[#edf0f2] hover:text-[#20242a] dark:bg-[#24282e] dark:text-[#a6afb9] dark:hover:bg-[#30363e] dark:hover:text-white",
                                                 )}
                                                 onClick={() => onChange({ size: ratio.value })}
-                                                aria-label={`选择${capability === "image" ? "图片" : "视频"}尺寸 ${ratio.label}`}
+                                                aria-label={`选择视频尺寸 ${ratio.label}`}
                                                 aria-pressed={selectedSize === ratio.value}
                                             >
                                                 <span className="grid h-4 w-5 shrink-0 place-items-center">
@@ -468,7 +578,7 @@ function PreferencePanel({
                                         : "border-[#d8dde2] text-[#687481] hover:border-[#b8c3cc] hover:bg-[#f7f8f9] hover:text-[#20242a] dark:border-[#414953] dark:text-[#a6afb9] dark:hover:bg-[#24282e] dark:hover:text-white",
                                 )}
                                 onClick={() => setCustomEditorOpen(true)}
-                                aria-label={`打开${capability === "image" ? "图片" : "视频"}自定义像素尺寸`}
+                                aria-label="打开视频自定义像素尺寸"
                                 aria-pressed={customEditorOpen || (Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize))}
                             >
                                 <Maximize2 className="size-3.5" />
@@ -733,7 +843,7 @@ export function generationPreferenceSummary(capability: MediaCapability, prefere
     const sizeLabel = size === "auto" ? "智能比例" : formatSizeLabel(size, capability);
     const qualityLabel = capability === "image" ? imageQualityOptions.find((item) => item.value === quality)?.label || quality : videoQualityLabel(quality);
     const referenceLabel = capability === "video" ? videoReferenceModeOptions.find((item) => item.value === (preferences.video?.referenceMode || "reference"))?.label : undefined;
-    if (capability === "image") return size === "auto" && quality === "auto" ? `智能参数${countLabel}` : `${sizeLabel} · ${qualityLabel}${countLabel}`;
+    if (capability === "image") return size === "auto" && quality === "auto" ? "智能参数" : size === "auto" && quality === "medium" ? `标准${countLabel}` : `${sizeLabel} · ${qualityLabel}${countLabel}`;
     const parameterLabel = size === "auto" && quality === "auto" ? "智能参数" : `${sizeLabel} · ${qualityLabel}`;
     const audioLabel = (preferences.video?.generateAudio ?? true) ? "有声" : "无声";
     const watermarkLabel = (preferences.video?.watermark ?? false) ? "带水印" : "无水印";
