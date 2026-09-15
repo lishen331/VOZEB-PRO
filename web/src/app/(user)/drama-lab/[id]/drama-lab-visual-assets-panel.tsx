@@ -56,6 +56,7 @@ export function DramaLabVisualAssetsPanel({
     onLocateShot: (episodeId: string, shotId: string) => void;
     onOpenCanvasHref: (assetType: "character" | "scene" | "prop", assetId: string) => string;
     messageApi: MessageInstance;
+    featureModules?: Record<string, boolean>;
 }) {
     const config = useEffectiveConfig();
     const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +103,7 @@ export function DramaLabVisualAssetsPanel({
         };
         window.addEventListener("drama-lab-task-updated", onTaskUpdated);
         return () => window.removeEventListener("drama-lab-task-updated", onTaskUpdated);
-    }, [episode?.id, onReload, project.id]);
+    }, [episode?.id, project.id]);
     const activeAsset = editor?.asset;
 
     const assetShots = useMemo(() => {
