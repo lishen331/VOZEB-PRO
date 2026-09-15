@@ -388,6 +388,7 @@ function PreferencePanel({
     const standardRatios = ratios.filter((ratio) => !parseCustomDimensions(ratio.value));
     const highResolutionRatios = ratios.filter((ratio) => parseCustomDimensions(ratio.value));
     const [customEditorOpen, setCustomEditorOpen] = useState(Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize));
+    const [section, setSection] = useState<"canvas" | "output">("canvas");
 
     useEffect(() => {
         setCustomEditorOpen(Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize));
