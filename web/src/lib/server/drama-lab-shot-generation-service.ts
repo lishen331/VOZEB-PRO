@@ -1,4 +1,4 @@
-import { validateDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal-video";
+import { normalizeDramaLabUniversalVideoPrompt, validateDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal-video";
 import { resolveDramaLabStylePrompt, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotFrameSource, DramaShotFrameType, DramaShotGenerationHistory, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
@@ -167,7 +167,7 @@ function prepareUniversalVideo(project: DramaProject, { episode, shot }: ShotCon
     if (!references.length) throw new DramaLabShotGenerationError("全能模式至少需要一张已绑定资产或分镜参考图");
     const limit = positiveReferenceLimit(options.maxReferenceImages);
     if (limit && references.length > limit) throw new DramaLabShotGenerationError(`当前视频模型最多接受 ${limit} 张参考图，但本镜需要 ${references.length} 张；不能截断导致图片编号错位`);
-    const visiblePrompt = shot.universalSegmentText?.trim() || "";
+    const visiblePrompt = normalizeDramaLabUniversalVideoPrompt(shot.universalSegmentText?.trim() || "", shot.duration);
     try {
         validateDramaLabUniversalVideoPrompt(visiblePrompt, shot.duration, references.length);
     } catch (error) {
