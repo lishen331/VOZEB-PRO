@@ -15,6 +15,31 @@ import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
 
+// Edge-glow pointer tracking (ported from the react-bits BorderGlow pattern,
+// minus its mesh-gradient border swap which would fight the card's real
+// border/boxShadow selection styling). Only ever invoked while `hovered` is
+// true, and writes CSS vars directly via setProperty rather than React state
+// so a moving pointer never triggers a re-render.
+function edgeProximity(width: number, height: number, x: number, y: number) {
+    const cx = width / 2;
+    const cy = height / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    let kx = Infinity;
+    let ky = Infinity;
+    if (dx !== 0) kx = cx / Math.abs(dx);
+    if (dy !== 0) ky = cy / Math.abs(dy);
+    return Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
+}
+
+function cursorAngle(width: number, height: number, x: number, y: number) {
+    const dx = x - width / 2;
+    const dy = y - height / 2;
+    if (dx === 0 && dy === 0) return 0;
+    const degrees = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+    return degrees < 0 ? degrees + 360 : degrees;
+}
+
 function isInteractiveTarget(target: EventTarget | null, event?: Pick<MouseEvent, "clientY">) {
     if (!(target instanceof Element)) return false;
     const video = target.closest("video");
@@ -142,6 +167,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isBatchChild = data.type === CanvasNodeType.Image && Boolean(data.metadata?.batchRootId);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
     const imageBorderColor = isActive ? selectionBlue : isRelated && !isBatchChild ? theme.node.muted : theme.node.stroke;
+    const isGenerating = data.metadata?.status === "loading";
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const clickStartRef = useRef<{ x: number; y: number } | null>(null);
     const resizeRef = useRef({
@@ -419,7 +445,15 @@ export const CanvasNode = React.memo(function CanvasNode({
             onContextMenu={(event) => onContextMenu(event, data.id)}
         >
             <div
-                className={`relative h-full w-full overflow-visible ${isConfig ? "rounded-2xl border" : "rounded-3xl border-2"}`}
+                className={[
+                    "relative h-full w-full overflow-visible",
+                    isConfig ? "rounded-2xl border" : "rounded-3xl border-2",
+                    hovered ? "canvas-node-glow-active" : "",
+                    isConnectionTarget ? "canvas-node-target-pulse" : "",
+                    isGenerating ? "canvas-node-generating-ring" : "",
+                ]
+                    .filter(Boolean)
+                    .join(" ")}
                 style={{
                     background: nodeBackground,
                     borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
@@ -432,6 +466,14 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onPointerDown={(event) => {
                     rememberNodePointer(event);
                     if (event.pointerType !== "mouse") onMouseDown(event, data.id);
+                }}
+                onPointerMove={(event) => {
+                    if (!hovered) return;
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    event.currentTarget.style.setProperty("--edge-proximity", `${(edgeProximity(rect.width, rect.height, x, y) * 100).toFixed(2)}`);
+                    event.currentTarget.style.setProperty("--cursor-angle", `${cursorAngle(rect.width, rect.height, x, y).toFixed(2)}deg`);
                 }}
             >
                 <div
@@ -469,6 +511,8 @@ export const CanvasNode = React.memo(function CanvasNode({
                         onSetBatchPrimary={() => onSetBatchPrimary?.(data)}
                     />
                 </div>
+
+                <span className="canvas-node-glow-edge" aria-hidden="true" />
 
                 {showImageInfo && hasImageContent ? <ImageInfoBar node={data} /> : null}
                 {resourceLabel ? <ResourceLabelBadge reference={resourceLabel} /> : null}

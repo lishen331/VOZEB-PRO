@@ -1,0 +1,93 @@
+/* Canvas node card glow interactions.
+ *
+ * Three independent states, each cheap in its own way because they have very
+ * different concurrency profiles:
+ *   1. Hover edge-light — at most one card is hovered at a time, driven by a
+ *      pointermove handler writing CSS vars directly to the DOM (no React
+ *      state). Colors follow the canvas's existing blue/cyan/green flow
+ *      accent (see .canvas-edge-flow in global-canvas-controls.css).
+ *   2. Connection drop-target pulse — at most one card at a time, plain
+ *      keyframe animation, no JS involved.
+ *   3. Generating ring — potentially many cards concurrently (every node
+ *      mid-generation), kept to a single conic-gradient sweep with no
+ *      mix-blend-mode / layered gradients so N concurrent generations stay
+ *      cheap.
+ */
+@layer utilities {
+    .canvas-node-glow-edge {
+        position: absolute;
+        inset: -18px;
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    /* Gated behind the parent's .canvas-node-glow-active class (only present
+       while the card is hovered) so an idle card's glow span costs nothing —
+       no mask-image/box-shadow layers to composite when the class is absent. */
+    .canvas-node-glow-active .canvas-node-glow-edge {
+        opacity: calc((var(--edge-proximity, 0) - 55) / 45);
+        mask-image: conic-gradient(from var(--cursor-angle, 0deg) at center, black 2.5%, transparent 12%, transparent 88%, black 97.5%);
+        transition: opacity 0.2s ease-out;
+    }
+
+    .canvas-node-glow-active .canvas-node-glow-edge::before {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: inherit;
+        box-shadow:
+            inset 0 0 0 1px rgb(59 130 246 / 90%),
+            inset 0 0 6px 0 rgb(6 182 212 / 55%),
+            inset 0 0 16px 2px rgb(16 185 129 / 35%),
+            0 0 6px 0 rgb(59 130 246 / 55%),
+            0 0 16px 2px rgb(6 182 212 / 40%),
+            0 0 28px 3px rgb(16 185 129 / 25%);
+    }
+
+    .canvas-node-target-pulse {
+        animation: canvasNodeTargetPulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes canvasNodeTargetPulse {
+        0%,
+        100% {
+            box-shadow: 0 0 0 1px #2f80ff55, 0 0 0 0 #2f80ff33;
+        }
+        50% {
+            box-shadow: 0 0 0 1px #2f80ffaa, 0 0 18px 4px #2f80ff40;
+        }
+    }
+
+    .canvas-node-generating-ring::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        border-radius: inherit;
+        padding: 2px;
+        z-index: 1;
+        pointer-events: none;
+        background: conic-gradient(from 0deg, #3b82f6, #06b6d4, #10b981, #3b82f6);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        animation: canvasNodeGeneratingSpin 2.2s linear infinite;
+        opacity: 0.75;
+    }
+
+    @keyframes canvasNodeGeneratingSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-glow-edge {
+            transition: none;
+        }
+        .canvas-node-target-pulse,
+        .canvas-node-generating-ring::before {
+            animation: none;
+        }
+    }
+}

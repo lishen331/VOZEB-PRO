@@ -225,7 +225,7 @@
         },
         {
             "path": "components/canvas-node.tsx",
-            "sha256": "088264b032637d22e791b0426b62bfc9f07db44b398d1adcf88707eee3063e9b"
+            "sha256": "ba89e2cc14792b5f1c86b32769a5bf40d8c5727671265015207bed1bd601bdf0"
         },
         {
             "path": "components/canvas-panorama-surface.tsx",
@@ -333,7 +333,7 @@
         },
         {
             "path": "utils/canvas-image-data.ts",
-            "sha256": "07a2864f3446435e0c804a5cfbd356413fcc7ac4d5b9a535cde28c498c6cd3d7"
+            "sha256": "8dc0dc36b484b9cab641664dfd7f985be557ba9158d44bec2e7e74b7f8145ba2"
         },
         {
             "path": "utils/canvas-media-download.ts",
