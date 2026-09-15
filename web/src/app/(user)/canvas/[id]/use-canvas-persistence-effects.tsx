@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from "react";
 
 import { isGenerationTaskNeedsReviewError } from "@/services/api/generation-task-state";
 import { isImageGenerationTaskDeferredError } from "@/services/api/image";
@@ -223,9 +223,49 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
         };
     }, [loadProject, message, projectId, router, userId]);
 
+    // Memoised resumable-task keys: a stable comma-joined string of node IDs
+    // for each task type. The key only changes when the set of loading nodes
+    // with unstarted tasks actually shifts, so the resume effects below do NOT
+    // re-run on every streaming token update (which would hammer `nodes`).
+    // The effects read from nodesRef.current to get the actual node objects;
+    // nodesRef is kept current by the useLayoutEffect at the bottom of this
+    // hook, which runs synchronously before any useEffect in the same commit.
+    const resumableImageKey = useMemo(
+        () =>
+            nodes
+                .filter((n) => isCanvasImageNodeType(n.type) && n.metadata?.status === NODE_STATUS_LOADING && n.metadata?.imageTask)
+                .map((n) => n.id)
+                .join(","),
+        [nodes],
+    );
+    const resumableVideoKey = useMemo(
+        () =>
+            nodes
+                .filter((n) => n.type === CanvasNodeType.Video && n.metadata?.status === NODE_STATUS_LOADING && n.metadata?.videoTask)
+                .map((n) => n.id)
+                .join(","),
+        [nodes],
+    );
+    const resumableTextKey = useMemo(
+        () =>
+            nodes
+                .filter((n) => n.type === CanvasNodeType.Text && n.metadata?.status === NODE_STATUS_LOADING && n.metadata?.textTask)
+                .map((n) => n.id)
+                .join(","),
+        [nodes],
+    );
+    const resumableAudioKey = useMemo(
+        () =>
+            nodes
+                .filter((n) => n.type === CanvasNodeType.Audio && n.metadata?.status === NODE_STATUS_LOADING && n.metadata?.audioTask)
+                .map((n) => n.id)
+                .join(","),
+        [nodes],
+    );
+
     useEffect(() => {
         if (!projectLoaded) return;
-        const resumable = nodes.filter((node) => isCanvasImageNodeType(node.type) && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.imageTask && !generationRequestsRef.current.has(node.id));
+        const resumable = nodesRef.current.filter((node) => isCanvasImageNodeType(node.type) && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.imageTask && !generationRequestsRef.current.has(node.id));
         resumable.forEach((node) => {
             const task = node.metadata?.imageTask;
             if (!task || resumingImageTaskIdsRef.current.has(node.id)) return;
@@ -256,11 +296,11 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
                     setRunningNodeId((current) => (current === node.id ? null : current));
                 });
         });
-    }, [completeImageTask, effectiveConfig, finishGenerationRequest, message, nodes, projectLoaded, startGenerationRequest]);
+    }, [completeImageTask, effectiveConfig, finishGenerationRequest, message, resumableImageKey, projectLoaded, startGenerationRequest]);
 
     useEffect(() => {
         if (!projectLoaded) return;
-        const resumable = nodes.filter((node) => node.type === CanvasNodeType.Video && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.videoTask && !generationRequestsRef.current.has(node.id));
+        const resumable = nodesRef.current.filter((node) => node.type === CanvasNodeType.Video && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.videoTask && !generationRequestsRef.current.has(node.id));
         resumable.forEach((node) => {
             const task = node.metadata?.videoTask;
             if (!task || resumingVideoTaskIdsRef.current.has(node.id)) return;
@@ -291,11 +331,11 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
                     setRunningNodeId((current) => (current === node.id ? null : current));
                 });
         });
-    }, [completeVideoTask, deferVideoTask, effectiveConfig, finishGenerationRequest, message, nodes, projectLoaded, startGenerationRequest, videoRetryNonce]);
+    }, [completeVideoTask, deferVideoTask, effectiveConfig, finishGenerationRequest, message, resumableVideoKey, projectLoaded, startGenerationRequest, videoRetryNonce]);
 
     useEffect(() => {
         if (!projectLoaded) return;
-        const resumable = nodes.filter((node) => node.type === CanvasNodeType.Text && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.textTask && !generationRequestsRef.current.has(node.id));
+        const resumable = nodesRef.current.filter((node) => node.type === CanvasNodeType.Text && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.textTask && !generationRequestsRef.current.has(node.id));
         resumable.forEach((node) => {
             const task = node.metadata?.textTask;
             if (!task || resumingTextTaskIdsRef.current.has(node.id)) return;
@@ -320,11 +360,11 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
                     setRunningNodeId((current) => (current === node.id ? null : current));
                 });
         });
-    }, [completeTextTask, effectiveConfig, finishGenerationRequest, message, nodes, projectLoaded, startGenerationRequest]);
+    }, [completeTextTask, effectiveConfig, finishGenerationRequest, message, resumableTextKey, projectLoaded, startGenerationRequest]);
 
     useEffect(() => {
         if (!projectLoaded) return;
-        const resumable = nodes.filter((node) => node.type === CanvasNodeType.Audio && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.audioTask && !generationRequestsRef.current.has(node.id));
+        const resumable = nodesRef.current.filter((node) => node.type === CanvasNodeType.Audio && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.audioTask && !generationRequestsRef.current.has(node.id));
         resumable.forEach((node) => {
             const task = node.metadata?.audioTask;
             if (!task || resumingAudioTaskIdsRef.current.has(node.id)) return;
@@ -349,7 +389,7 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
                     setRunningNodeId((current) => (current === node.id ? null : current));
                 });
         });
-    }, [completeAudioTask, effectiveConfig, finishGenerationRequest, message, nodes, projectLoaded, startGenerationRequest]);
+    }, [completeAudioTask, effectiveConfig, finishGenerationRequest, message, resumableAudioKey, projectLoaded, startGenerationRequest]);
 
     useEffect(() => {
         if (!projectLoaded || applyingHistoryRef.current) return;

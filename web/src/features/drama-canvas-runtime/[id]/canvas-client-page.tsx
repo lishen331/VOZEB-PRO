@@ -83,6 +83,7 @@ function VozebProCanvasPage() {
         createProject,
         updateProject,
         projectSaveState,
+        retryProjectSave,
         renameProject,
         deleteProjects,
         currentProject,
@@ -170,6 +171,7 @@ function VozebProCanvasPage() {
         connectionsRef,
         selectedNodeIdsRef,
         viewportRef,
+        displayViewportRef,
         generateNodeRef,
         agentCloseTimerRef,
         autoOpenedAgentRef,
@@ -333,6 +335,7 @@ function VozebProCanvasPage() {
                     onFinishTitleEditing={finishTitleEditing}
                     onCancelTitleEditing={() => setTitleEditing(false)}
                     saveState={projectSaveState}
+                    onRetrySave={() => retryProjectSave(projectId)}
                     canUndo={historyState.canUndo}
                     canRedo={historyState.canRedo}
                     onWorkbench={() => {
@@ -506,6 +509,7 @@ function VozebProCanvasPage() {
                         nodeDraggingRef.current = dragging;
                         setIsNodeDragging(dragging);
                     }}
+                    onDisplayViewportChange={(next) => { displayViewportRef.current = next; }}
                     overlay={
                         <>
                             {pendingConnectionCreate ? <ConnectionCreateMenu pending={pendingConnectionCreate} onCreate={(type) => createConnectedNode(type, pendingConnectionCreate)} onClose={cancelPendingConnectionCreate} /> : null}

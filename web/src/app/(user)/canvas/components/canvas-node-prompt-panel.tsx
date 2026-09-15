@@ -63,9 +63,15 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
         videoSeconds: config.videoSeconds,
     });
 
+    // Sync the textarea whenever the stored prompt changes from outside this
+    // panel: undo/redo reverts node.metadata.prompt; a completed generation
+    // writes node.metadata.upstreamPrompt. Both paths need to reflect in the
+    // editor immediately. setPrompt is idempotent so this is safe even if it
+    // fires during streaming (the value won't change then anyway).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
-        if (node.metadata?.upstreamPrompt?.trim()) setPrompt(node.metadata.upstreamPrompt);
-    }, [node.id, node.metadata?.upstreamPrompt]);
+        setPrompt(canvasNodePrompt(node));
+    }, [node.id, node.metadata?.upstreamPrompt, node.metadata?.prompt]);
 
     const updatePrompt = (value: string) => {
         setPrompt(value);
