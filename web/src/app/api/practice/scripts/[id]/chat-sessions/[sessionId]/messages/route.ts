@@ -31,13 +31,14 @@ export async function POST(request: Request, context: Context) {
     const repository = new ScriptAgentRepository({ query: postgresQuery });
     const clientRequestId = typeof parsed.data.clientRequestId === "string" && parsed.data.clientRequestId.trim() ? parsed.data.clientRequestId.trim() : randomUUID();
     if (!(await repository.getChatSession(scope, id, sessionId))) return reply(404, null, "剧本对话不存在");
-    const saved = await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content, clientRequestId });
-    if (!saved) return reply(409, null, "剧本对话已变化，请刷新后重试");
     const artifacts = await repository.listLatestArtifacts(scope, id);
     const confirmation = isNaturalConfirmation(content);
     const pending = artifacts.find(
         (row) => row.status === "awaiting_review" && ["creative_positioning", "short_story", "adaptation_strategy", "episode_scripts", "review_report", "director_plan", "text_storyboard", "asset_prompts"].includes(String(row.artifact_type)),
     );
+    if (pending && !confirmation) return reply(409, null, "请先确认当前阶段，或点击重新生成并填写修改意见");
+    const saved = await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content, clientRequestId });
+    if (!saved) return reply(409, null, "剧本对话已变化，请刷新后重试");
     if (confirmation && pending) {
         const progressed = await confirmScriptArtifactAndStartNext(scope, {
             projectId: id,
