@@ -6539,18 +6539,18 @@ function UniversalMentionEditor({ value, references, wrap, placeholder, onChange
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const parts = value.split(/(@图片[1-9]\d*)/g);
     return (
-        <div className="group relative min-h-[132px] overflow-hidden rounded-md border border-border bg-background focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-universal-mention-editor>
-            <div className={cn("pointer-events-none absolute inset-0 z-10 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.5715]", !wrap && "whitespace-pre")} aria-hidden="true">
+        <div className="relative min-h-[132px] overflow-visible rounded-md border border-border bg-background focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-universal-mention-editor>
+            <div className={cn("pointer-events-none absolute inset-0 z-10 overflow-visible whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.5715]", !wrap && "whitespace-pre")} aria-hidden="true">
                 {value ? (
                     parts.map((part, index) => {
                         const match = part.match(/^@图片(\d+)$/);
                         if (!match) return <span key={`${part}-${index}`}>{part}</span>;
                         const reference = references[Number(match[1]) - 1];
                         return (
-                            <span key={`${part}-${index}`} className="pointer-events-auto relative inline-block">
+                            <span key={`${part}-${index}`} className="group pointer-events-auto relative inline-block">
                                 <span className={cn("rounded bg-sky-100 px-0.5 font-medium text-sky-700", !reference && "bg-red-100 text-red-700")}>{part}</span>
                                 {reference ? (
-                                    <span className="invisible absolute left-1/2 top-full z-50 mt-2 w-44 -translate-x-1/2 rounded-lg border border-border bg-popover p-2 text-popover-foreground opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
+                                    <span className="invisible absolute left-0 top-full z-[60] mt-2 w-44 rounded-lg border border-border bg-popover p-2 text-popover-foreground opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
                                         <img src={reference.url} alt={reference.label} className="h-28 w-full rounded object-contain" />
                                         <span className="mt-1 block truncate text-xs">
                                             {part} · {reference.label}
