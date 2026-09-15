@@ -1919,7 +1919,16 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                         />
                     )}
                     {activeStep === "storyboard" && (
-                        <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onCheckpoint={applyStoryboardCheckpoint} onShotSynced={updateProjectShotFromSync} messageApi={messageApi} />
+                        <StoryboardPanel
+                            project={project}
+                            episode={activeEpisode}
+                            onSave={saveProject}
+                            onReload={loadProject}
+                            onCheckpoint={applyStoryboardCheckpoint}
+                            onShotSynced={updateProjectShotFromSync}
+                            messageApi={messageApi}
+                            featureModules={featureModules}
+                        />
                     )}
                     {activeStep === "export" && <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />}
                 </div>
@@ -4384,6 +4393,7 @@ function StoryboardPanel({
     onCheckpoint,
     onShotSynced,
     messageApi,
+    featureModules,
 }: {
     project: Project;
     episode?: Episode;
@@ -4392,6 +4402,7 @@ function StoryboardPanel({
     onCheckpoint: (episodeId: string, shots: unknown[]) => void;
     onShotSynced: (episodeId: string, shotId: string, shot: unknown) => void;
     messageApi: ReturnType<typeof message.useMessage>[0];
+    featureModules?: Record<string, boolean>;
 }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
