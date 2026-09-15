@@ -107,11 +107,14 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
     const analyzeScript = async () => {
         if (!episode.script.trim()) return message.warning("请先填写剧本内容");
         setAnalyzing(true);
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 4 * 60_000);
         try {
             const response = await fetch("/api/drama/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ requestId: `drama-content:${project.id}:${episode.id}:${nanoid()}`, phase: "content", script: episode.script, summary: project.summary, style: project.style, videoModel: config.videoModel || config.model }),
+                signal: controller.signal,
             });
             syncUserPointsFromHeaders(response.headers, "system");
             const payload = (await response.json().catch(() => ({}))) as { data?: DramaContentAnalysis; msg?: string };
@@ -121,8 +124,9 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
             setStage("review");
             message.success(`已提取 ${payload.data.characters.length} 个角色、${payload.data.scenes.length} 个场景和 ${payload.data.shots.length} 个待审核镜头`);
         } catch (error) {
-            message.error(error instanceof Error ? error.message : "AI 剧本解析失败");
+            message.error(error instanceof DOMException && error.name === "AbortError" ? "AI 整理超时，请检查文本模型渠道后重试" : error instanceof Error ? error.message : "AI 剧本解析失败");
         } finally {
+            window.clearTimeout(timeout);
             setAnalyzing(false);
         }
     };
