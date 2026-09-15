@@ -181,7 +181,7 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
     if (!response.ok) throw imageSubmissionResponseError(response.status, await readFetchError(response, "图片生成失败"));
     const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-    const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+    const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
     if (allowProtocolFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
         await refundChargedImageResponse(task, response.headers);
         return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
@@ -220,7 +220,7 @@ async function runGlobalAiOpcImageTask(task: ImageTask, origin: string, publicOr
     if (!response.ok) throw imageSubmissionResponseError(response.status, await readFetchError(response, "图片生成失败"));
     const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-    return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+    return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
 }
 
 export async function runOpenAiJsonImageEditTask(
@@ -262,7 +262,7 @@ export async function runOpenAiJsonImageEditTask(
         }
         const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
         const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-        const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+        const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
         if (allowProtocolFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
             await refundChargedImageResponse(task, response.headers);
             return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, "b64_json", singleStep, "base64");
@@ -301,7 +301,7 @@ export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, orig
         }
         const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
         const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-        return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+        return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
     }
 
     headers.set("content-type", "application/json");
@@ -326,7 +326,7 @@ export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, orig
     }
     const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-    return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+    return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
 }
 
 export async function runOpenAiResponsesImageTask(task: ImageTask, origin: string, cookie: string, singleStep = false, billingVariant = "responses"): Promise<ImageTaskRunResult> {
@@ -348,7 +348,7 @@ export async function runOpenAiResponsesImageTask(task: ImageTask, origin: strin
         }
         const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
         const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-        return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+        return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
     }
 
     throw new GenerationSubmissionSafeFailure(lastError || "图片生成失败");
