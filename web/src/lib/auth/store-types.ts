@@ -173,6 +173,7 @@ export type SystemChannelAdvancedConfig = {
     operationConfigs?: Partial<Record<LogicalModelCapability, SystemChannelModelConfig>>;
     workflowConfigs?: Record<string, RunningHubWorkflowConfig>;
     streaming?: SystemChannelStreamingConfig;
+    requestIdHeader?: string;
     contextWindowTokens?: number;
 };
 
