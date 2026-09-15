@@ -166,9 +166,9 @@ export async function POST(request: Request) {
                         globalPreset
                             ? {
                                   ...channel.advancedConfig!,
-                                  supportsReferenceImage: Boolean(globalPreset.supportsReferenceImage),
-                                  supportsReferenceVideo: Boolean(globalPreset.supportsReferenceVideo),
-                                  supportsReferenceAudio: Boolean(globalPreset.supportsReferenceAudio),
+                                  supportsReferenceImage: globalPreset.supportsReferenceImage ?? channel.advancedConfig?.supportsReferenceImage ?? false,
+                                  supportsReferenceVideo: globalPreset.supportsReferenceVideo ?? channel.advancedConfig?.supportsReferenceVideo ?? false,
+                                  supportsReferenceAudio: globalPreset.supportsReferenceAudio ?? channel.advancedConfig?.supportsReferenceAudio ?? false,
                               }
                             : channel.advancedConfig,
                         references,
@@ -289,9 +289,9 @@ export async function POST(request: Request) {
                             globalPreset
                                 ? {
                                       ...channel.advancedConfig!,
-                                      supportsReferenceImage: Boolean(globalPreset.supportsReferenceImage),
-                                      supportsReferenceVideo: Boolean(globalPreset.supportsReferenceVideo),
-                                      supportsReferenceAudio: Boolean(globalPreset.supportsReferenceAudio),
+                                      supportsReferenceImage: globalPreset.supportsReferenceImage ?? channel.advancedConfig?.supportsReferenceImage ?? false,
+                                      supportsReferenceVideo: globalPreset.supportsReferenceVideo ?? channel.advancedConfig?.supportsReferenceVideo ?? false,
+                                      supportsReferenceAudio: globalPreset.supportsReferenceAudio ?? channel.advancedConfig?.supportsReferenceAudio ?? false,
                                   }
                                 : channel.advancedConfig,
                             references,
