@@ -25,6 +25,14 @@ export type DramaLabTaskView = {
     shotId?: string;
     progress: number | null;
     currentStep?: string;
+    workflowMode?: "assets" | "storyboard_extract" | "storyboard" | "video";
+    workflowChildren?: Array<{
+        key: string;
+        status: "pending" | "running" | "success" | "error" | "cancelled";
+        output?: Record<string, unknown>;
+        error?: string;
+        updatedAt: number;
+    }>;
     error?: string;
     canCancel: boolean;
     canRetry: boolean;
@@ -204,6 +212,19 @@ export function normalizeDramaLabTask(record: StoredGenerationTaskRecord): Drama
         shotId,
         progress,
         currentStep: firstText(payload.currentStep, workflow.steps && currentWorkflowStep(workflow), storyBatch.status, record.executionPhase),
+        workflowMode: object(workflow.options).mode && typeof object(workflow.options).mode === "string" ? (object(workflow.options).mode as DramaLabTaskView["workflowMode"]) : undefined,
+        workflowChildren: Array.isArray(workflow.children)
+            ? workflow.children
+                  .filter((child): child is Record<string, unknown> => Boolean(child) && typeof child === "object")
+                  .map((child) => ({
+                      key: typeof child.key === "string" ? child.key : "",
+                      status: (child.status === "running" || child.status === "success" || child.status === "error" || child.status === "cancelled" ? child.status : "pending") as "pending" | "running" | "success" | "error" | "cancelled",
+                      output: child.output && typeof child.output === "object" && !Array.isArray(child.output) ? (child.output as Record<string, unknown>) : undefined,
+                      error: typeof child.error === "string" ? child.error : undefined,
+                      updatedAt: typeof child.updatedAt === "number" ? child.updatedAt : record.updatedAt,
+                  }))
+                  .filter((child) => child.key.startsWith("assets:"))
+            : undefined,
         error,
         canCancel: isActiveStatus(status, record.executionPhase),
         canRetry: record.type === "render" && isRetryableWorkflowStatus(status),

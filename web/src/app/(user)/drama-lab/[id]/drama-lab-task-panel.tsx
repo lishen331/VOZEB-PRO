@@ -35,10 +35,12 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
             if (silent) setRefreshing(true);
             else setLoading(true);
             try {
-                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=visible`, { cache: "no-store" });
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=all`, { cache: "no-store" });
                 const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { tasks?: DramaLabTaskView[] } };
                 if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "Task status could not be loaded");
-                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks.filter(isTaskVisible) : []);
+                const allTasks = Array.isArray(payload.data?.tasks) ? payload.data.tasks : [];
+                setTasks(allTasks.filter(isTaskVisible));
+                if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("drama-lab-task-updated", { detail: { projectId, tasks: allTasks } }));
                 setHasLoadedOnce(true);
                 setError(undefined);
             } catch (reason) {

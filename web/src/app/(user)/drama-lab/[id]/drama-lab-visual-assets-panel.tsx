@@ -4,9 +4,9 @@ import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 
-import { Button, Checkbox, Image, Input, Modal, Tabs, Tooltip } from "antd";
+import { Button, Checkbox, Image, Input, Modal, Progress, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
-import { Check, Download, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Search, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
+import { Check, CheckCircle2, CircleAlert, Download, ImagePlus, LibraryBig, LoaderCircle, MapPin, Package, PanelsTopLeft, Plus, Search, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { TextAreaRef } from "antd/es/input/TextArea";
@@ -16,6 +16,7 @@ import type { ReferenceImage } from "@/types/image";
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
 import { addPrimaryToGenerationReferences, createAssetGeneratedPrimary, generationReferences } from "@/lib/drama-lab-asset-editor-images";
 import type { Asset } from "@/lib/library-asset-contract";
+import type { DramaLabTaskView } from "@/lib/server/drama-lab-task-service";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { createImageGenerationTask, waitForImageGenerationTask, type ImageGenerationResult } from "@/services/api/image";
 import { createLibraryAsset } from "@/services/api/library-assets";
@@ -67,17 +68,42 @@ export function DramaLabVisualAssetsPanel({
     const historyAsset = (project[kind] as VisualAsset[]).find((asset) => asset.id === historyAssetId);
     const [impactModalAsset, setImpactModalAsset] = useState<VisualAsset>();
     const [previewImage, setPreviewImage] = useState<{ url: string; alt: string }>();
+    const [assetWorkflowTask, setAssetWorkflowTask] = useState<DramaLabTaskView>();
 
     const definition = ASSET_META[kind];
-    const activeAsset = editor?.asset;
+    const assetWorkflowRunning = Boolean(assetWorkflowTask && ["pending", "running"].includes(assetWorkflowTask.status));
+    const assetWorkflowGuidance = getAssetWorkflowGuidance(assetWorkflowTask, project);
+    const assetWorkflowUpdates = getAssetWorkflowUpdates(assetWorkflowTask);
+
+    const selectAssetWorkflowTask = (tasks: DramaLabTaskView[]) => {
+        const candidates = tasks.filter((task) => task.projectId === project.id && task.workflowMode === "assets" && (!episode?.id || !task.episodeId || task.episodeId === episode.id)).sort((left, right) => right.updatedAt - left.updatedAt);
+        const latest = candidates[0];
+        if (latest) setAssetWorkflowTask(latest);
+    };
+
+    const loadAssetWorkflowTask = async () => {
+        try {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/tasks?status=all`, { cache: "no-store" });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: { tasks?: DramaLabTaskView[] } };
+            if (response.ok && payload.code === 0) selectAssetWorkflowTask(Array.isArray(payload.data?.tasks) ? payload.data.tasks : []);
+        } catch {
+            // The task sidebar remains the source of truth if this optional guidance read fails.
+        }
+    };
 
     useEffect(() => {
-        if (!busyKey.startsWith("extract:")) return;
-        const timer = window.setInterval(() => {
-            void onReload();
-        }, 1500);
-        return () => window.clearInterval(timer);
-    }, [busyKey, onReload]);
+        void loadAssetWorkflowTask();
+        const onTaskUpdated = (event: Event) => {
+            const detail = (event as CustomEvent<{ projectId?: string; tasks?: DramaLabTaskView[] }>).detail;
+            if (detail?.projectId === project.id && Array.isArray(detail.tasks)) {
+                selectAssetWorkflowTask(detail.tasks);
+                if (detail.tasks.some((task) => task.projectId === project.id && task.workflowMode === "assets" && task.status === "success")) void onReload();
+            }
+        };
+        window.addEventListener("drama-lab-task-updated", onTaskUpdated);
+        return () => window.removeEventListener("drama-lab-task-updated", onTaskUpdated);
+    }, [episode?.id, onReload, project.id]);
+    const activeAsset = editor?.asset;
 
     const assetShots = useMemo(() => {
         const grouped = new Map<string, Shot[]>();
@@ -184,6 +210,10 @@ export function DramaLabVisualAssetsPanel({
     };
 
     const startAssetWorkflow = async () => {
+        if (assetWorkflowRunning) {
+            messageApi.info("资产正在准备中，请等待 Agent 完成当前任务");
+            return;
+        }
         if (!episode?.script.trim()) {
             messageApi.warning("请先填写当前集剧本");
             return;
@@ -196,8 +226,9 @@ export function DramaLabVisualAssetsPanel({
                 headers: { "Content-Type": "application/json", "x-vozeb-pro-client-request-id": requestId },
                 body: JSON.stringify({ episodeId: episode.id, mode: "assets", scope: "current", requestId }),
             });
-            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: unknown };
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: DramaLabTaskView & { mode?: string } };
             if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "资产提取任务创建失败");
+            if (payload.data) setAssetWorkflowTask({ ...payload.data, workflowMode: payload.data.workflowMode || (payload.data.mode as DramaLabTaskView["workflowMode"]) });
             if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("drama-lab-task-created", { detail: { projectId: project.id } }));
             messageApi.info("资产提取任务已创建，正在提取角色、场景与道具");
         } catch (error) {
@@ -489,21 +520,74 @@ export function DramaLabVisualAssetsPanel({
 
     return (
         <div className="mx-auto max-w-6xl" data-drama-lab-visual-assets>
+            {assetWorkflowGuidance ? (
+                <section className="mb-4 overflow-hidden rounded-lg border border-primary/20 bg-primary/[0.04]" aria-label="资产提取进度" data-asset-workflow-guidance>
+                    <div className="flex items-start gap-3">
+                        {assetWorkflowGuidance.done ? (
+                            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+                        ) : assetWorkflowGuidance.failed ? (
+                            <CircleAlert className="mt-0.5 size-5 shrink-0 text-destructive" />
+                        ) : (
+                            <LoaderCircle className="mt-0.5 size-5 shrink-0 animate-spin text-primary" />
+                        )}
+                        <div className="min-w-0 flex-1 p-4 pb-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="text-sm font-semibold">{assetWorkflowGuidance.title}</h2>
+                                <span className="text-xs text-muted-foreground">{assetWorkflowGuidance.status}</span>
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">{assetWorkflowGuidance.detail}</p>
+                            {assetWorkflowGuidance.progress !== undefined ? (
+                                <Progress className="mt-3" percent={assetWorkflowGuidance.progress ?? 0} showInfo={false} size="small" status={assetWorkflowGuidance.failed ? "exception" : assetWorkflowGuidance.done ? "success" : "active"} />
+                            ) : null}
+                            <p className="mt-2 text-xs text-muted-foreground">{assetWorkflowGuidance.hint}</p>
+                        </div>
+                    </div>
+                    {!assetWorkflowGuidance.done && !assetWorkflowGuidance.failed ? (
+                        <div className="border-t border-primary/10 px-4 py-3" data-asset-workflow-live-output aria-live="polite">
+                            <div className="grid gap-2 sm:grid-cols-3">
+                                {assetWorkflowUpdates.map((update) => {
+                                    const Icon = ASSET_META[update.kind].icon;
+                                    return (
+                                        <button
+                                            key={update.kind}
+                                            type="button"
+                                            className={`flex min-h-16 items-center gap-3 rounded-md border bg-background/70 px-3 text-left transition-colors hover:border-primary/60 ${update.status === "running" ? "border-primary/50 animate-pulse" : "border-border"}`}
+                                            onClick={() => setKind(update.kind)}
+                                            aria-label={`查看${ASSET_META[update.kind].label}提取结果`}
+                                        >
+                                            <Icon className="size-4 shrink-0 text-primary" />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-sm font-medium">{ASSET_META[update.kind].label}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">{update.detail}</span>
+                                            </span>
+                                            {update.status === "running" ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" /> : update.status === "success" ? <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" /> : null}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-3 flex min-h-8 items-center gap-2 rounded-md bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                                <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" />
+                                <span>{assetWorkflowUpdates.find((update) => update.status === "success")?.detail || "Agent 正在读取剧本，识别结果会逐项显示在这里"}</span>
+                            </div>
+                        </div>
+                    ) : null}
+                </section>
+            ) : null}
             <Tabs
                 activeKey={kind}
                 onChange={(value) => setKind(value as AssetKind)}
                 tabBarExtraContent={
                     <div className="flex items-center gap-2">
-                        <Button type="primary" icon={<Sparkles className="size-3.5" />} loading={busyKey === "extract:all"} disabled={busyKey.startsWith("extract:")} onClick={() => void extractAllFromScript()}>
+                        <Button type="primary" icon={<Sparkles className="size-3.5" />} loading={busyKey === "extract:all"} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => void extractAllFromScript()}>
                             一键提取
                         </Button>
-                        <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} disabled={busyKey.startsWith("extract:")} onClick={() => void extractFromScript()}>
+                        <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => void extractFromScript()}>
                             提取{definition.label}
                         </Button>
-                        <Button icon={<LibraryBig className="size-3.5" />} disabled={busyKey.startsWith("extract:")} onClick={() => setLibraryOpen(true)}>
+                        <Button icon={<LibraryBig className="size-3.5" />} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => setLibraryOpen(true)}>
                             从素材库添加
                         </Button>
-                        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={busyKey.startsWith("extract:")} onClick={addAsset}>
+                        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={addAsset}>
                             新增{definition.label}
                         </Button>
                     </div>
@@ -729,7 +813,9 @@ export function DramaLabVisualAssetsPanel({
                                     })}
                                 </div>
                             ) : (
-                                <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">暂未提取{ASSET_META[assetKind].label}，可先从剧本提取或手动新增</div>
+                                <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+                                    {assetWorkflowGuidance && !assetWorkflowGuidance.done && !assetWorkflowGuidance.failed ? "Agent 正在处理，识别到的资产会实时出现在这里" : `暂未提取${ASSET_META[assetKind].label}，可先从剧本提取或手动新增`}
+                                </div>
                             )}
                         </div>
                     ),
@@ -1691,6 +1777,49 @@ async function saveToLibrary(asset: VisualAsset, kind: AssetKind, label: string,
     } catch (error) {
         messageApi.error(error instanceof Error ? error.message : "加入素材库失败");
     }
+}
+
+function getAssetWorkflowGuidance(task: DramaLabTaskView | undefined, project: Project) {
+    if (!task || task.workflowMode !== "assets") return undefined;
+    const counts = `${project.characters.length} 个角色、${project.scenes.length} 个场景、${project.props.length} 个道具`;
+    if (task.status === "success") return { title: "Agent 已完成资产拆解", status: "提取完成", detail: `已识别 ${counts}，资产卡片已经整理到下方。`, hint: "你可以继续补充参考图，或进入下一步分镜工作台。", progress: 100, done: true, failed: false };
+    if (task.status === "error" || task.status === "cancelled")
+        return {
+            title: "资产提取没有完成",
+            status: task.status === "cancelled" ? "已取消" : "提取失败",
+            detail: task.error || "Agent 未能完成角色、场景与道具的拆解。",
+            hint: "可以重新点击“一键提取”，已有资产不会被覆盖。",
+            progress: task.progress ?? 0,
+            done: false,
+            failed: true,
+        };
+    const currentStep = task.currentStep === "assets" ? "正在拆解角色、场景与道具" : "Agent 正在阅读剧本";
+    return {
+        title: currentStep,
+        status: (task.progress ?? 0) > 0 ? `已完成 ${task.progress}%` : "任务已创建",
+        detail: "Agent 正在理解当前集剧本，并为角色、场景与道具建立资产卡片。",
+        hint: "任务完成后会自动出现在这里，请不要重复点击提取。",
+        progress: task.progress ?? 0,
+        done: false,
+        failed: false,
+    };
+}
+
+function getAssetWorkflowUpdates(task: DramaLabTaskView | undefined) {
+    const kinds: Array<{ kind: AssetKind; assetType: "character" | "scene" | "prop" }> = [
+        { kind: "characters", assetType: "character" },
+        { kind: "scenes", assetType: "scene" },
+        { kind: "props", assetType: "prop" },
+    ];
+    return kinds.map(({ kind, assetType }) => {
+        const child = task?.workflowChildren?.find((item) => item.key.endsWith(`:${assetType}`));
+        const names = Array.isArray(child?.output?.assetNames) ? child.output.assetNames.filter((value): value is string => typeof value === "string" && Boolean(value.trim())) : [];
+        const added = typeof child?.output?.added === "number" ? child.output.added : names.length;
+        if (child?.status === "success") return { kind, status: "success" as const, detail: names.length ? `已识别 ${names.slice(0, 2).join("、")}${names.length > 2 ? "等" : ""}` : `已识别 ${added} 个${ASSET_META[kind].label}` };
+        if (child?.status === "error" || child?.status === "cancelled") return { kind, status: "error" as const, detail: child.error || `${ASSET_META[kind].label}提取失败` };
+        if (child?.status === "running") return { kind, status: "running" as const, detail: `正在识别${ASSET_META[kind].label}` };
+        return { kind, status: "pending" as const, detail: "等待 Agent 处理" };
+    });
 }
 
 function currentAssetPrompt(asset: VisualAsset, kind: AssetKind, layout: "single" | "four_view") {

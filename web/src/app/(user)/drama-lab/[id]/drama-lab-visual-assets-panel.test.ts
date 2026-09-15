@@ -44,6 +44,20 @@ describe("extraction detail wiring", () => {
         expect(source).toContain("加入素材库");
     });
 });
+describe("drama lab visual asset extraction guidance", () => {
+    it("shows an agent-led progress state while the persistent assets workflow is running", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain("assetWorkflowGuidance");
+        expect(source).toContain("资产提取进度");
+        expect(source).toContain("Agent 正在阅读剧本");
+        expect(source).toContain("正在拆解角色、场景与道具");
+        expect(source).toContain("任务完成后会自动出现在这里");
+        expect(source).toContain("data-asset-workflow-live-output");
+        expect(source).toContain("workflowChildren");
+        expect(source).toContain("animate-pulse");
+    });
+});
+
 describe("drama lab visual asset extraction actions", () => {
     it("offers one-click extraction before the type-specific action", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");

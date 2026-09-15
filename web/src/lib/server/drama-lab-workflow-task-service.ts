@@ -328,7 +328,16 @@ async function executeAssetsStep(task: DramaLabWorkflowTask, step: DramaLabWorkf
     await updateChild(task.id, child.id, { status: "running" });
     const result = await extractDramaLabAssets({ userId: input.userId, origin: input.origin || "", cookie: input.cookie || "", requestId: `${task.id}:${unit.episodeId}:${unit.assetType}`, project, episodeId: unit.episodeId, assetType: unit.assetType });
     const saved = await appendAssets(ownerUserId, project, unit.assetType, result.assets);
-    await updateChild(task.id, child.id, { status: "success", output: { episodeId: unit.episodeId, assetType: unit.assetType, added: result.assets.length, projectUpdatedAt: saved.updatedAt } });
+    await updateChild(task.id, child.id, {
+        status: "success",
+        output: {
+            episodeId: unit.episodeId,
+            assetType: unit.assetType,
+            added: result.assets.length,
+            assetNames: result.assets.map((asset) => asset.name).filter((name): name is string => Boolean(name?.trim())),
+            projectUpdatedAt: saved.updatedAt,
+        },
+    });
     await patchStep(task.id, step.key, (current) => ({ inputSnapshot: { ...current.inputSnapshot, cursor: cursor + 1 }, outputRefs: [...current.outputRefs, { episodeId: unit.episodeId, assetType: unit.assetType, added: result.assets.length }] }));
     return cursor + 1 < units.length ? "pending" : "success";
 }
