@@ -342,7 +342,7 @@ export const CanvasNode = React.memo(function CanvasNode({
         const usableTop = Math.max(surfaceRect.top, viewportTop);
         const usableBottom = Math.min(surfaceRect.bottom, viewportBottom, toolbarRect ? toolbarRect.top - 16 : surfaceRect.bottom);
         const availableWidth = Math.max(0, usableRight - usableLeft);
-        const renderedScale = Math.max(scale, 0.01);
+        const renderedScale = Math.max(nodeRect.width / (nodeElement.offsetWidth || 1), 0.01);
         const nextMaxWidth = availableWidth > 0 ? availableWidth / renderedScale : undefined;
         const currentOffset = panelOffsetXRef.current * renderedScale;
         const centeredPanelLeft = panelRect.left - currentOffset;
@@ -362,7 +362,7 @@ export const CanvasNode = React.memo(function CanvasNode({
         if (nextMaxWidth) setPanelMaxWidth((current) => (current !== undefined && Math.abs(current - nextMaxWidth) < 0.1 ? current : nextMaxWidth));
         panelOffsetXRef.current = nextOffsetX;
         setPanelOffsetX((current) => (Math.abs(current - nextOffsetX) < 0.1 ? current : nextOffsetX));
-    }, [scale, showPanel]);
+    }, [showPanel]);
 
     useLayoutEffect(() => {
         if (!showPanel || !panelRef.current) return;
@@ -381,7 +381,7 @@ export const CanvasNode = React.memo(function CanvasNode({
             visualViewport?.removeEventListener("resize", updatePanelPlacement);
             visualViewport?.removeEventListener("scroll", updatePanelPlacement);
         };
-    }, [showPanel, data.id, data.position.x, data.position.y, scale, updatePanelPlacement]);
+    }, [showPanel, data.id, data.position.x, data.position.y, updatePanelPlacement]);
 
     useEffect(() => {
         return () => {
