@@ -24,6 +24,7 @@ type PinchState = { startDistance: number; startZoom: number; world: Position };
 type WheelFrame = { clientX: number; clientY: number; deltaY: number };
 
 const CANVAS_EDGE_LOD_THRESHOLD = 256;
+const VIEWPORT_QUERY_PADDING_RATIO = 0.35;
 
 type CanvasSurfaceProps = {
     containerRef?: RefObject<HTMLDivElement | null>;
@@ -201,8 +202,14 @@ export function CanvasSurface({
     const nodeSpatialIndexRef = useRef(nodeSpatialIndex);
     nodeSpatialIndexRef.current = nodeSpatialIndex;
     const viewBounds = useMemo(() => {
-        const paddingX = surfaceSize.width / displayViewport.k;
-        const paddingY = surfaceSize.height / displayViewport.k;
+        // Extra render margin around the viewport, as a fraction of it. Kept small
+        // (rather than a full viewport's worth on each side) because every node,
+        // image, video, and connection inside this window mounts real DOM — at
+        // 1.0 the render window is ~9x the visible area, which is the difference
+        // between "a few dozen nodes visible" and "a few hundred nodes mounted"
+        // once a canvas has 100+ image/video cards.
+        const paddingX = (surfaceSize.width / displayViewport.k) * VIEWPORT_QUERY_PADDING_RATIO;
+        const paddingY = (surfaceSize.height / displayViewport.k) * VIEWPORT_QUERY_PADDING_RATIO;
         return {
             left: -displayViewport.x / displayViewport.k - paddingX,
             top: -displayViewport.y / displayViewport.k - paddingY,
@@ -226,25 +233,37 @@ export function CanvasSurface({
             return Math.min(start.x, end.x) < viewBounds.right && Math.max(start.x, end.x) > viewBounds.left && Math.min(start.y, end.y) < viewBounds.bottom && Math.max(start.y, end.y) > viewBounds.top;
         });
     }, [connections, denseEdgeLod, hiddenNodeIds, nodesById, renderedNodeIds, viewBounds]);
-    const connectionPaths = useMemo(() => {
+    // Connections render in the SVG layer beneath all nodes, so they never need
+    // to route around intermediate nodes — the nodes float above the line
+    // visually. Passing no obstacles means edgePath always produces a clean
+    // bezier instead of the ugly orthogonal detour that obstacle-avoidance was
+    // generating.
+    //
+    // basePaths only depends on nodes/connections/viewBounds, not on drag state.
+    // Recomputing every connection's path on every drag frame (the old single
+    // useMemo keyed on getDisplayNode) meant dragging one node re-ran edgePath()
+    // for every visible connection, every animation frame.
+    const basePaths = useMemo(() => {
         const paths = new Map<string, string>();
         flowConnections.forEach((item) => {
-            const from = getDisplayNode(item.fromNodeId);
-            const to = getDisplayNode(item.toNodeId);
-            if (!from || !to) return;
-            if (denseEdgeLod) {
-                paths.set(item.id, edgePath(from, to));
-                return;
-            }
-            // Connections render in the SVG layer beneath all nodes, so they
-            // never need to route around intermediate nodes — the nodes float
-            // above the line visually. Passing no obstacles means edgePath
-            // always produces a clean bezier instead of the ugly orthogonal
-            // detour that obstacle-avoidance was generating.
-            paths.set(item.id, edgePath(from, to));
+            const from = nodesById.get(item.fromNodeId);
+            const to = nodesById.get(item.toNodeId);
+            if (from && to) paths.set(item.id, edgePath(from, to));
         });
         return paths;
-    }, [denseEdgeLod, flowConnections, getDisplayNode, nodeSpatialIndex]);
+    }, [flowConnections, nodesById]);
+    const draggedNodeIds = useMemo(() => new Set(Object.keys(localTransforms)), [localTransforms]);
+    const connectionPaths = useMemo(() => {
+        if (draggedNodeIds.size === 0) return basePaths;
+        const paths = new Map(basePaths);
+        flowConnections.forEach((item) => {
+            if (!draggedNodeIds.has(item.fromNodeId) && !draggedNodeIds.has(item.toNodeId)) return;
+            const from = getDisplayNode(item.fromNodeId);
+            const to = getDisplayNode(item.toNodeId);
+            if (from && to) paths.set(item.id, edgePath(from, to));
+        });
+        return paths;
+    }, [basePaths, draggedNodeIds, flowConnections, getDisplayNode]);
 
     useEffect(() => {
         if (interactionRef.current?.kind === "drag" || resizingNodeIdRef.current) return;

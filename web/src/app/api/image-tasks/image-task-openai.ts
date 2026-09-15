@@ -392,9 +392,17 @@ export async function buildJsonImageEditBodies(
     includeCompatibilityFields = true,
 ) {
     const referenceContext = { ownerUserId: task.userId, taskId: task.id };
-    const images = (
-        await Promise.all(task.references.map((reference) => (publicUrlReferenceMode ? publicImageReferenceRequestUrl(reference, origin, publicOrigin, referenceContext) : Promise.resolve(jsonImageReferenceRequestUrl(reference, origin)))))
-    ).filter(Boolean);
+    const resolvedReferenceUrls = await Promise.all(
+        task.references.map((reference) => (publicUrlReferenceMode ? publicImageReferenceRequestUrl(reference, origin, publicOrigin, referenceContext) : Promise.resolve(jsonImageReferenceRequestUrl(reference, origin)))),
+    );
+    const images = resolvedReferenceUrls.filter(Boolean);
+    // 参考图必须全部解析出可用 URL 才能提交:上游是凭 URL 回来取图的，少一张就等于模型少看一张脸，
+    // 人物一致性会崩。jsonImageReferenceRequestUrl 在无可用候选时返回空串，历史实现直接被 filter 静默丢弃，
+    // 导致"用户传 3 张、上游只收到 2 张"且全程无报错。这里改为提交前显式失败，避免静默降级。
+    if (images.length !== task.references.length) {
+        const missingIndexes = resolvedReferenceUrls.flatMap((url, index) => (url ? [] : [index + 1]));
+        throw new GenerationSubmissionSafeFailure(`参考图未全部就绪(第 ${missingIndexes.join("、")} 张缺少可用图片地址)，请重新上传参考图后再生成`);
+    }
     const mask = task.mask ? (publicUrlReferenceMode ? await publicImageReferenceRequestUrl(task.mask, origin, publicOrigin, referenceContext) : jsonImageReferenceRequestUrl(task.mask, origin)) : "";
     const prompt =
         task.upstreamPrompt || withSystemPrompt(task.config, withImageOutputInstructions(task.config, imageUrlObjectOnlyMode ? buildSub2ApiImageEditPrompt(task.prompt, task.references) : buildImageReferencePromptText(task.prompt, task.references)));

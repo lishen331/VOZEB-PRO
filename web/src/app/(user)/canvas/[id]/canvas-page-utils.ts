@@ -461,11 +461,11 @@ export function isAudioFile(file: File) {
     return file.type.startsWith("audio/") || /\.(mp3|wav)$/i.test(file.name);
 }
 
-export function isHiddenBatchChild(node: CanvasNodeData, nodes: CanvasNodeData[], collapsingBatchIds?: Set<string>) {
+export function isHiddenBatchChild(node: CanvasNodeData, nodes: CanvasNodeData[] | Map<string, CanvasNodeData>, collapsingBatchIds?: Set<string>) {
     if (isAgentInternalNode(node)) return true;
     const rootId = node.metadata?.batchRootId;
     if (!rootId) return false;
-    const root = nodes.find((item) => item.id === rootId);
+    const root = Array.isArray(nodes) ? nodes.find((item) => item.id === rootId) : nodes.get(rootId);
     if (root && collapsingBatchIds?.has(rootId)) return false;
     return Boolean(root && !root.metadata?.imageBatchExpanded);
 }

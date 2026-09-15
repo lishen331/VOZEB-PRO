@@ -9,7 +9,7 @@
     "files": [
         {
             "path": "[id]/canvas-client-page.tsx",
-            "sha256": "204e0719ff20b8357bc8b031233f9090e0e7b921b85060903e6bec63155572d7"
+            "sha256": "85fbb2d13f3ae524f9ed05b8171a56509acac4dcf278aad958f85b3ebb174599"
         },
         {
             "path": "[id]/canvas-generation-review.ts",
@@ -33,7 +33,7 @@
         },
         {
             "path": "[id]/canvas-page-utils.ts",
-            "sha256": "452a7a40ebf15130cb2330df7e70e01a860aeeb896ca276ff9836c84bc14e599"
+            "sha256": "1c671dfa633ccba188bdaf70059df8d877c37b8dabb7085322c9b81ef6db6b47"
         },
         {
             "path": "[id]/canvas-video-task-recovery.ts",
@@ -189,7 +189,7 @@
         },
         {
             "path": "components/canvas-node-content.tsx",
-            "sha256": "731c09933833d83ba983e9362c64948186e1d68be6bbdb4b96b22c7c5c55d997"
+            "sha256": "0eb4798547a38f398e7314a652e735e53c07603ed44af511a805b3274d585826"
         },
         {
             "path": "components/canvas-node-crop-dialog.tsx",
@@ -249,7 +249,7 @@
         },
         {
             "path": "components/canvas-surface.tsx",
-            "sha256": "7a12a10562867ab475aa3ecdce684b8ab9be5a4b8d4dd936cf332bc047a0ca61"
+            "sha256": "2b8145b29eb353ed39096d52db274f94ece6c90956503bc6f8a66b66fa9e0708"
         },
         {
             "path": "components/canvas-toolbar.tsx",

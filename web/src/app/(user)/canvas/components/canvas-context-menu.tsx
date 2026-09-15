@@ -2,13 +2,13 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Ungroup } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { ContextMenuState } from "../types";
 
-export function CanvasNodeContextMenu({ menu, onClose, onDuplicate, onDelete }: { menu: ContextMenuState; onClose: () => void; onDuplicate: () => void; onDelete: () => void }) {
+export function CanvasNodeContextMenu({ menu, onClose, onDuplicate, onDelete, onDissolveGroup }: { menu: ContextMenuState; onClose: () => void; onDuplicate: () => void; onDelete: () => void; onDissolveGroup?: () => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const menuRef = useRef<HTMLDivElement>(null);
     const [position, setPosition] = useState({ x: menu.x, y: menu.y });
@@ -41,6 +41,7 @@ export function CanvasNodeContextMenu({ menu, onClose, onDuplicate, onDelete }: 
             onPointerDown={(event) => event.stopPropagation()}
         >
             {menu.type === "node" ? <MenuButton icon={<Plus className="size-4" />} label="复制" onClick={onDuplicate} /> : null}
+            {menu.type === "node" && onDissolveGroup ? <MenuButton icon={<Ungroup className="size-4" />} label="解组" onClick={onDissolveGroup} /> : null}
             <MenuButton icon={<Trash2 className="size-4" />} label="删除" onClick={onDelete} danger />
         </div>
     );

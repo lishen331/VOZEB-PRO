@@ -1,7 +1,7 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Segmented, Switch } from "antd";
-import { CircleDot, Download, Eraser, FolderOpen, Globe2, Grid2x2, Hand, Image as ImageIcon, Info, Moon, MousePointer2, Music2, Palette, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video, Workflow } from "lucide-react";
+import { CircleDot, Download, Eraser, FolderOpen, Globe2, Grid2x2, Hand, Image as ImageIcon, Info, Layers, Moon, MousePointer2, Music2, Palette, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Ungroup, Upload, Video, Workflow } from "lucide-react";
 
 import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -12,6 +12,8 @@ export function CanvasToolbar({
     selectedCount,
     selectedMediaCount,
     selectedMediaDownloadPending,
+    canGroupSelection,
+    selectedGroupCount,
     canUndo,
     canRedo,
     agentOpen,
@@ -28,6 +30,8 @@ export function CanvasToolbar({
     onRedo,
     onUpload,
     onDownloadSelectedMedia,
+    onGroupNodes,
+    onDissolveGroup,
     onDelete,
     onClear,
     onInteractionModeChange,
@@ -39,6 +43,8 @@ export function CanvasToolbar({
     selectedCount: number;
     selectedMediaCount: number;
     selectedMediaDownloadPending: boolean;
+    canGroupSelection: boolean;
+    selectedGroupCount: number;
     canUndo: boolean;
     canRedo: boolean;
     agentOpen?: boolean;
@@ -55,6 +61,8 @@ export function CanvasToolbar({
     onRedo: () => void;
     onUpload: () => void;
     onDownloadSelectedMedia: () => void;
+    onGroupNodes: () => void;
+    onDissolveGroup: () => void;
     onDelete: () => void;
     onClear: () => void;
     onInteractionModeChange: (mode: CanvasInteractionMode) => void;
@@ -177,6 +185,21 @@ export function CanvasToolbar({
                         >
                             <span aria-hidden="true">{formatBatchDownloadCount(selectedMediaCount)}</span>
                         </Button>
+                    </>
+                ) : null}
+                {canGroupSelection || selectedGroupCount > 0 ? (
+                    <>
+                        <Divider theme={theme} />
+                        {canGroupSelection ? (
+                            <ToolbarButton id="tool-group" label="合并分镜组" hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onGroupNodes}>
+                                <Layers className="size-4.5" />
+                            </ToolbarButton>
+                        ) : null}
+                        {selectedGroupCount > 0 ? (
+                            <ToolbarButton id="tool-ungroup" label="解组" hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onDissolveGroup}>
+                                <Ungroup className="size-4.5" />
+                            </ToolbarButton>
+                        ) : null}
                     </>
                 ) : null}
                 {selectedCount ? (
@@ -352,6 +375,8 @@ function toolLabel(id: string) {
     if (id === "tool-assets") return "资产";
     if (id === "tool-auto-layout") return "一键整理画布";
     if (id === "tool-style") return "画布外观";
+    if (id === "tool-group") return "合并分镜组 · Ctrl+Alt+G";
+    if (id === "tool-ungroup") return "解组 · Ctrl+Alt+G";
     if (id === "tool-delete") return "删除选中";
     if (id === "tool-clear") return "清空画布";
     return "";

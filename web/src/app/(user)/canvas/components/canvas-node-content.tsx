@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
 import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -13,6 +13,7 @@ import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canv
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
+import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-group";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
 export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -43,6 +44,9 @@ export type NodeContentRendererProps = {
 export function NodeContent(props: NodeContentRendererProps) {
     if (props.node.type === CanvasNodeType.Config && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.isBatchRoot) return <ImageNodeContent {...props} />;
+    // A group is a container, not a generation target — it must never fall into
+    // the status branches below even if a stray status lands on its metadata.
+    if (props.node.type === CanvasNodeType.Group) return <GroupNodeContent {...props} />;
     if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
     if (props.node.metadata?.status === "needs_review") return <ReviewContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
@@ -62,6 +66,7 @@ export const nodeContentRenderers = {
     [CanvasNodeType.Brief]: BriefNodeContent,
     [CanvasNodeType.Task]: TaskNodeContent,
     [CanvasNodeType.BrandKit]: BrandKitNodeContent,
+    [CanvasNodeType.Group]: GroupNodeContent,
 } satisfies Record<CanvasNodeType, (props: NodeContentRendererProps) => ReactNode>;
 
 export function BriefNodeContent({ node, theme }: NodeContentRendererProps) {
@@ -167,6 +172,53 @@ export function BrandKitNodeContent({ node, theme }: NodeContentRendererProps) {
         </div>
     );
 }
+
+export function GroupNodeContent({ node, theme, previewScale, scale }: NodeContentRendererProps) {
+    const snapshots = node.metadata?.groupMemberSnapshots || [];
+    const memberIds = node.metadata?.groupMemberIds || [];
+    const cells = memberIds.length ? memberIds.map((id) => snapshots.find((item) => item.id === id) || { id, content: "", width: 0, height: 0 }) : snapshots;
+    const columns = canvasGroupColumns(cells.length);
+    const rows = canvasGroupRows(cells.length);
+    const cellWidth = Math.max(1, Math.round((node.width - CANVAS_GROUP_CELL_INSET) / columns));
+    const previewWidth = canvasImagePreviewWidthForTier(cellWidth, canvasImageZoomTier(previewScale ?? scale ?? 1));
+
+    return (
+        <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl" style={{ background: theme.node.fill, color: theme.node.text }}>
+            <div className="flex shrink-0 items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${theme.node.stroke}` }}>
+                <Layers className="size-3.5 shrink-0" style={{ color: theme.node.activeStroke }} />
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold">{node.metadata?.groupLabel || node.title || "分镜组"}</span>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: theme.node.subtleSurface, color: theme.node.subtleText }}>
+                    {cells.length} 张
+                </span>
+            </div>
+            {cells.length ? (
+                <div className="grid min-h-0 flex-1 gap-1 p-2" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+                    {cells.map((cell, index) => (
+                        <div key={cell.id} className="relative overflow-hidden rounded-lg" style={{ background: theme.node.subtleSurface }}>
+                            {cell.content ? (
+                                <img src={imagePreviewUrl(cell.content, previewWidth)} alt="" draggable={false} loading="eager" decoding="async" className="pointer-events-none size-full select-none object-cover" />
+                            ) : (
+                                <span className="grid size-full place-items-center" style={{ color: theme.node.placeholder }}>
+                                    <ImageIcon className="size-4" aria-hidden />
+                                </span>
+                            )}
+                            <span className="absolute left-1 top-1 rounded px-1 text-[9px] font-semibold leading-4 text-white" style={{ background: "rgba(15,23,42,.55)" }}>
+                                {index + 1}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="flex min-h-0 flex-1 items-center justify-center text-xs" style={{ color: theme.node.placeholder }}>
+                    空分镜组
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** Grid padding (2*8) plus inter-cell gaps budgeted at the widest supported column count. */
+const CANVAS_GROUP_CELL_INSET = 24;
 
 export function LoadingContent({ theme }: Pick<NodeContentRendererProps, "theme">) {
     return (
@@ -436,7 +488,24 @@ export function EmptyImageContent({ theme, isBatchRoot, batchCount, batchExpande
     return content;
 }
 
+// 只有真正进入视口才挂载 <video>，离开视口整体卸载以释放解码器和缓冲区。
+// 100+ 图片 / 50+ 视频同屏时，浏览器同时活跃的 media element 有硬上限
+// (Chrome 约 75-100)，裸挂所有视频节点会撞到这个上限造成静默失效或卡顿。
+function useElementOnScreen(ref: React.RefObject<Element | null>, rootMargin = "300px") {
+    const [onScreen, setOnScreen] = useState(false);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting), { rootMargin });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [ref, rootMargin]);
+    return onScreen;
+}
+
 export function VideoNodeContent({ node, theme }: NodeContentRendererProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const onScreen = useElementOnScreen(containerRef);
     if (!node.metadata?.content)
         return (
             <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.placeholder }}>
@@ -444,7 +513,17 @@ export function VideoNodeContent({ node, theme }: NodeContentRendererProps) {
                 <span className="text-sm">空视频节点</span>
             </div>
         );
-    return <video src={node.metadata.content} controls className="h-full w-full rounded-[18px] bg-black object-contain" data-canvas-video data-canvas-no-zoom />;
+    return (
+        <div ref={containerRef} className="h-full w-full">
+            {onScreen ? (
+                <video src={node.metadata.content} controls muted playsInline preload="metadata" className="h-full w-full rounded-[18px] bg-black object-contain" data-canvas-video data-canvas-no-zoom />
+            ) : (
+                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-black/90">
+                    <Video className="size-7 opacity-40" style={{ color: theme.node.placeholder }} />
+                </div>
+            )}
+        </div>
+    );
 }
 
 export function PanoramaNodeContent({ node, theme }: NodeContentRendererProps) {
@@ -529,7 +608,7 @@ export function ImageContent({
                     src={imagePreviewUrl(node.metadata!.content!, previewWidth)}
                     alt={node.title}
                     draggable={false}
-                    loading="eager"
+                    loading="lazy"
                     decoding="async"
                     onLoad={(event) => reportDimensions(event.currentTarget)}
                     onDragStart={(event) => event.preventDefault()}
