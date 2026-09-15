@@ -213,7 +213,7 @@
         },
         {
             "path": "components/canvas-node-prompt-panel.tsx",
-            "sha256": "2a07849ee3e498482b19d6eb20c9523ed0d90a24d6e182b3b1a6d583d4f7afe4"
+            "sha256": "f71e8a26930ffcb3e2e45d20f0617dbc66ad0c0aedf82d4738b0189f15c233eb"
         },
         {
             "path": "components/canvas-node-split-dialog.tsx",
