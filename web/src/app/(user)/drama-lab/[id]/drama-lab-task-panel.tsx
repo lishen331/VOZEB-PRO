@@ -64,13 +64,13 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     // Poll only while there is useful work to track. A task-created event
     // performs the first read when an action starts from another panel.
     useEffect(() => {
-        if (!hasLoadedOnce) return undefined;
+        if (!hasLoadedOnce || activeCount === 0) return undefined;
         const timer = window.setInterval(() => {
             if (document.visibilityState === "hidden") return;
             void load(true);
         }, 2_000);
         return () => window.clearInterval(timer);
-    }, [hasLoadedOnce, load]);
+    }, [hasLoadedOnce, activeCount, load]);
 
     useEffect(() => {
         const onTaskCreated = (event: Event) => {

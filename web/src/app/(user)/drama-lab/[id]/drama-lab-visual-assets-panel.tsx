@@ -71,6 +71,7 @@ export function DramaLabVisualAssetsPanel({
     const [impactModalAsset, setImpactModalAsset] = useState<VisualAsset>();
     const [previewImage, setPreviewImage] = useState<{ url: string; alt: string }>();
     const [assetWorkflowTask, setAssetWorkflowTask] = useState<DramaLabTaskView>();
+    const reloadedAssetTaskIdsRef = useRef<Set<string>>(new Set());
 
     const definition = ASSET_META[kind];
     const assetWorkflowRunning = Boolean(assetWorkflowTask && ["pending", "running"].includes(assetWorkflowTask.status));
@@ -101,7 +102,15 @@ export function DramaLabVisualAssetsPanel({
             const detail = (event as CustomEvent<{ projectId?: string; tasks?: DramaLabTaskView[] }>).detail;
             if (detail?.projectId === project.id && Array.isArray(detail.tasks)) {
                 selectAssetWorkflowTask(detail.tasks);
-                if (detail.tasks.some((task) => task.projectId === project.id && task.workflowMode === "assets" && task.status === "success")) void onReload();
+                // Reload once per asset task that newly reaches success. A completed asset task
+                // stays in the server task list, so reacting to its mere presence would reload the
+                // project on every poll tick and make the asset list flicker indefinitely.
+                const successfulAssetTasks = detail.tasks.filter((task) => task.projectId === project.id && task.workflowMode === "assets" && task.status === "success");
+                const hasNewSuccess = successfulAssetTasks.some((task) => !reloadedAssetTaskIdsRef.current.has(task.id));
+                if (hasNewSuccess) {
+                    for (const task of successfulAssetTasks) reloadedAssetTaskIdsRef.current.add(task.id);
+                    void onReload();
+                }
             }
         };
         window.addEventListener("drama-lab-task-updated", onTaskUpdated);
