@@ -53,7 +53,7 @@ export function DramaLabVisualAssetsPanel({
     project: Project;
     episode?: Episode;
     onSave: (updates: ProjectUpdate) => Promise<boolean>;
-    onReload: () => Promise<void>;
+    onReload: (options?: { silent?: boolean }) => Promise<void>;
     onLocateShot: (episodeId: string, shotId: string) => void;
     onOpenCanvasHref: (assetType: "character" | "scene" | "prop", assetId: string) => string;
     messageApi: MessageInstance;
@@ -109,7 +109,11 @@ export function DramaLabVisualAssetsPanel({
                 const hasNewSuccess = successfulAssetTasks.some((task) => !reloadedAssetTaskIdsRef.current.has(task.id));
                 if (hasNewSuccess) {
                     for (const task of successfulAssetTasks) reloadedAssetTaskIdsRef.current.add(task.id);
-                    void onReload();
+                    // Reload silently. A non-silent reload flips the parent into its full-screen
+                    // <Spin/> branch, which unmounts this panel and destroys reloadedAssetTaskIdsRef;
+                    // the remounted panel then treats the same completed task as new on the next
+                    // poll and reloads again — an endless flicker/remount storm that can OOM the tab.
+                    void onReload({ silent: true });
                 }
             }
         };
