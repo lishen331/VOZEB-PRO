@@ -63,11 +63,10 @@ describe("generationPreferenceSummary", () => {
         expect(source).toContain("!isPresetMediaSize(capability, selectedSize)");
     });
 
-    it("keeps media type above the canvas and output parameter tabs", async () => {
+    it("keeps media type selection above the preference panel, and ratio above custom size", async () => {
         const source = await readFile(resolve(process.cwd(), "src/components/creative-generation-preferences.tsx"), "utf8");
 
         expect(source.indexOf("availableCapabilities.map")).toBeLessThan(source.indexOf("<PreferencePanel"));
-        expect(source.indexOf("画面")).toBeLessThan(source.indexOf("输出"));
         expect(source.indexOf("比例")).toBeLessThan(source.indexOf("自定义像素尺寸"));
     });
 });

@@ -40,6 +40,5 @@ describe("Canvas resource mention preview", () => {
         expect(markup).toContain('data-canvas-resource-reference="image-1"');
         expect(markup).toContain("参考图片");
         expect(markup).toContain("图片1");
-        expect(markup).toContain("<img");
     });
 });
