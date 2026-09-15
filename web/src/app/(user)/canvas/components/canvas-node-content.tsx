@@ -12,6 +12,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
+import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
 export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -19,6 +20,8 @@ export type NodeContentRendererProps = {
     node: CanvasNodeData;
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     scale?: number;
+    /** Ratcheted zoom tier used for image resolution. Falls back to `scale`. */
+    previewScale?: number;
     isEditingContent: boolean;
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     isBatchRoot: boolean;
@@ -402,6 +405,7 @@ export function ImageNodeContent(props: NodeContentRendererProps) {
         <ImageContent
             node={props.node}
             scale={props.scale}
+            previewScale={props.previewScale}
             isBatchRoot={props.isBatchRoot}
             batchCount={props.batchCount}
             batchExpanded={props.batchExpanded}
@@ -477,6 +481,7 @@ export function AudioNodeContent({ node, theme }: NodeContentRendererProps) {
 export function ImageContent({
     node,
     scale = 1,
+    previewScale,
     isBatchRoot,
     batchCount,
     batchExpanded,
@@ -488,6 +493,7 @@ export function ImageContent({
 }: {
     node: CanvasNodeData;
     scale?: number;
+    previewScale?: number;
     isBatchRoot: boolean;
     batchCount: number;
     batchExpanded: boolean;
@@ -501,7 +507,7 @@ export function ImageContent({
     const theme = canvasThemes[colorTheme];
     const isBatchChild = Boolean(node.metadata?.batchRootId);
     const imageRef = useRef<HTMLImageElement>(null);
-    const previewWidth = canvasImagePreviewWidth(node.width, scale, node.metadata?.naturalWidth);
+    const previewWidth = canvasImagePreviewWidthForTier(node.width, canvasImageZoomTier(previewScale ?? scale), node.metadata?.naturalWidth);
     const reportDimensions = useCallback(
         (image: HTMLImageElement) => {
             if (node.metadata?.naturalWidth && node.metadata?.naturalHeight) return;
@@ -523,7 +529,7 @@ export function ImageContent({
                     src={imagePreviewUrl(node.metadata!.content!, previewWidth)}
                     alt={node.title}
                     draggable={false}
-                    loading="lazy"
+                    loading="eager"
                     decoding="async"
                     onLoad={(event) => reportDimensions(event.currentTarget)}
                     onDragStart={(event) => event.preventDefault()}
@@ -568,8 +574,7 @@ export function ImageContent({
 }
 
 export function canvasImagePreviewWidth(nodeWidth: number, scale: number, naturalWidth?: number) {
-    const screenWidth = Math.max(1, Math.ceil(nodeWidth * Math.max(scale, 0.01) * (globalThis.devicePixelRatio || 1)));
-    return naturalWidth && naturalWidth > 0 ? Math.min(screenWidth, naturalWidth) : screenWidth;
+    return canvasImagePreviewWidthForTier(nodeWidth, canvasImageZoomTier(scale), naturalWidth);
 }
 
 export function ImageInfoBar({ node }: { node: CanvasNodeData }) {

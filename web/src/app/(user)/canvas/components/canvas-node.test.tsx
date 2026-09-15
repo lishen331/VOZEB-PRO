@@ -72,7 +72,7 @@ describe("CanvasNode image border", () => {
         expect(markup).toContain("rounded-3xl border-2");
         expect(markup).toContain("overflow-hidden rounded-3xl");
         expect(markup).toContain("/api/reference-assets/permanent/generated-image.png?format=webp&amp;width=320");
-        expect(markup).toContain('loading="lazy"');
+        expect(markup).toContain('loading="eager"');
         expect(markup).toContain('decoding="async"');
     });
 
