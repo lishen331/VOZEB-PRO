@@ -27,6 +27,14 @@ export type CanvasNodeGenerationMode = CanvasGenerationMode;
 
 const stopCanvasInteraction = (event: SyntheticEvent) => event.stopPropagation();
 
+/**
+ * Composer toolbar widths. Only the parameter selector claims the leftover row
+ * space; every secondary control sizes to its own label. Giving them all `flex-1`
+ * split the row evenly and clipped labels like 镜头关闭 mid-word.
+ */
+const COMPOSER_PRIMARY_BUTTON_CLASS = "canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3";
+const COMPOSER_COMPACT_BUTTON_CLASS = "canvas-composer-settings !h-10 !w-auto !max-w-[11rem] !flex-none !shrink-0 !justify-start !rounded-full !px-3";
+
 type CanvasNodePromptPanelProps = {
     node: CanvasNodeData;
     isRunning: boolean;
@@ -180,36 +188,33 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     {mode === "image" ? (
                         <>
                             <ModelPicker
-                                className="min-w-[9rem] flex-1"
                                 config={config}
                                 value={config.model}
                                 onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))}
                                 capability="image"
                                 onMissingConfig={() => openConfigDialog(true)}
                             />
-                            {referenceRoleImages.length ? (
-                                <CanvasImageReferenceRolesPopover references={referenceRoleImages} roles={node.metadata?.imageReferenceRoles} onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })} />
-                            ) : null}
                             <CanvasImageSettingsPopover
                                 config={config}
                                 placement="topLeft"
-                                buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
+                                buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS}
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasImageConfigPatch(key, value))}
                                 onOpenChange={onImageSettingsOpenChange}
                                 fixedSizeLabel={isPanorama ? "全景 2:1" : undefined}
                             />
-                            {!isPanorama ? (
-                                <CanvasCameraControl
-                                    value={node.metadata?.cameraControl}
-                                    onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })}
-                                    buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
+                            {referenceRoleImages.length ? (
+                                <CanvasImageReferenceRolesPopover
+                                    references={referenceRoleImages}
+                                    roles={node.metadata?.imageReferenceRoles}
+                                    onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })}
+                                    buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS}
                                 />
                             ) : null}
+                            {!isPanorama ? <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS} /> : null}
                         </>
                     ) : mode === "video" ? (
                         <>
                             <ModelPicker
-                                className="min-w-[9rem] flex-1"
                                 config={config}
                                 value={config.model}
                                 onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))}
@@ -220,27 +225,19 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 config={config}
                                 metadata={node.metadata}
                                 references={mentionReferences}
-                                buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
+                                buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS}
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasVideoConfigPatch(key, value))}
                                 onMetadataChange={(patch) => onConfigChange(node.id, patch)}
                             />
-                            <CanvasCameraControl
-                                value={node.metadata?.cameraControl}
-                                onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })}
-                                buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
-                            />
+                            <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS} />
                         </>
                     ) : mode === "audio" ? (
                         <>
-                            <ModelPicker className="min-w-[9rem] flex-1" config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
-                            <CanvasAudioSettingsPopover
-                                config={config}
-                                buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
-                                onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))}
-                            />
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
+                            <CanvasAudioSettingsPopover config={config} buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS} onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))} />
                         </>
                     ) : (
-                        <ModelPicker className="min-w-[9rem] flex-1" config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                        <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
                     )}
                 </div>
                 <Button

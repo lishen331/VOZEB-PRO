@@ -18,9 +18,12 @@ type CanvasImageReferenceRolesPopoverProps = {
     references: readonly CanvasImageReference[];
     roles?: ImageReferenceRoles;
     onChange: (roles: ImageReferenceRoles) => void;
+    buttonClassName?: string;
 };
 
-export function CanvasImageReferenceRolesPopover({ references, roles, onChange }: CanvasImageReferenceRolesPopoverProps) {
+const REFERENCE_ROLES_TRIGGER_CLASS = "canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3";
+
+export function CanvasImageReferenceRolesPopover({ references, roles, onChange, buttonClassName = REFERENCE_ROLES_TRIGGER_CLASS }: CanvasImageReferenceRolesPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const current = normalizeImageReferenceRoles(roles);
     const roleEntries = Object.entries(IMAGE_REFERENCE_ROLE_LABELS) as Array<[ImageReferenceRole, string]>;
@@ -60,7 +63,7 @@ export function CanvasImageReferenceRolesPopover({ references, roles, onChange }
                 </div>
             )}
         >
-            <Button type="text" data-canvas-no-drag className="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3" style={{ color: theme.node.muted }} aria-label="设置参考图用途">
+            <Button type="text" data-canvas-no-drag className={buttonClassName} style={{ color: theme.node.muted }} aria-label="设置参考图用途">
                 <Tag className="mr-1.5 size-3.5" />
                 <span className="truncate text-xs">参考图用途</span>
             </Button>
