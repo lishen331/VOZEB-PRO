@@ -86,6 +86,19 @@ const imageResolutionOptions = [
     { value: "high", label: "4K" },
 ] as const;
 
+/**
+ * Upstream derives the requested pixel tier from image *quality*, not from the
+ * separate `imageResolution` field (see image-task-openai.ts / route.ts). Mirror
+ * that mapping here so the 清晰度 row can never contradict what is generated —
+ * picking 标准 must read 2K, not 1K.
+ */
+export function imageResolutionFromQuality(quality?: string) {
+    const normalized = (quality || "").trim().toLowerCase();
+    if (normalized === "high") return "high";
+    if (normalized === "low") return "low";
+    return "medium";
+}
+
 const imageBackgroundOptions = [
     { value: "auto", label: "自动" },
     { value: "keep", label: "保留背景" },
@@ -113,8 +126,8 @@ const videoQualityOptions = [
 ] as const;
 
 const videoDurationOptions = [
-    { value: 5, label: "5 秒" },
-    { value: 10, label: "10 秒" },
+    { value: 4, label: "4 秒" },
+    { value: 15, label: "15 秒" },
 ] as const;
 
 const generationCountOptions = [
@@ -159,6 +172,20 @@ export function generationResolutionOptions(capability: MediaCapability, profile
         });
     const smart = defaults.find((option) => option.value === "auto")!;
     return [smart, ...configured.filter((option, index, options) => options.findIndex((item) => normalizeResolution(item.value) === normalizeResolution(option.value)) === index)];
+}
+
+const preferredDefaultDurationSeconds = 5;
+
+/** Keeps 5 秒 as the default when the model allows it, instead of snapping to the range floor. */
+function defaultDurationSeconds(options: readonly { value: number }[], profile?: CreativeModelCapabilityProfile) {
+    const values = options.map((option) => option.value);
+    if (!values.length) return preferredDefaultDurationSeconds;
+    if (profile?.durationSeconds?.length) {
+        return values.reduce((best, candidate) => (Math.abs(candidate - preferredDefaultDurationSeconds) < Math.abs(best - preferredDefaultDurationSeconds) ? candidate : best));
+    }
+    const min = profile?.minDurationSeconds ?? values[0];
+    const max = profile?.maxDurationSeconds ?? values[values.length - 1];
+    return Math.min(Math.max(preferredDefaultDurationSeconds, min), max);
 }
 
 function generationDurationOptions(profile?: CreativeModelCapabilityProfile) {
@@ -405,11 +432,14 @@ function PreferencePanel({
 
     if (capability === "image") {
         const selectedBackground = preferences.image?.background || "auto";
-        const selectedResolution = preferences.image?.resolution || "medium";
+        const selectedResolution = imageResolutionFromQuality(selectedQuality);
         return (
             <div className={cn("grid min-w-0", compact ? "gap-2" : "gap-2.5")}>
                 <CompactOptionGroup label="画质" ariaLabel="选择图片画质" value={selectedQuality} options={imagePaintQualityOptions} columns={3} onChange={(quality) => onChange({ quality })} />
-                <CompactOptionGroup label="清晰度" ariaLabel="选择图片清晰度" value={selectedResolution} options={imageResolutionOptions} columns={3} onChange={(resolution) => onChange({ resolution })} />
+                {/* Writes `quality`, not `resolution`: the pixel tier upstream honours
+                    is derived from quality, so routing clicks here keeps both rows in
+                    sync instead of writing a field that never leaves the browser. */}
+                <CompactOptionGroup label="清晰度" ariaLabel="选择图片清晰度" value={selectedResolution} options={imageResolutionOptions} columns={3} onChange={(resolution) => onChange({ quality: resolution, resolution })} />
                 <CompactOptionGroup label="背景" ariaLabel="选择图片背景" value={selectedBackground} options={imageBackgroundOptions} columns={3} onChange={(background) => onChange({ background })} />
                 {fixedSizeLabel ? (
                     <div className="flex h-9 items-center justify-between rounded-lg bg-[#f5f6f7] px-3 text-[11px] dark:bg-[#24282e]">
@@ -582,7 +612,7 @@ function PreferencePanel({
                 label="视频时长"
                 ariaLabel="拖动调整视频时长"
                 suffix="秒"
-                value={preferences.video?.seconds || durationOptions[0]?.value || capabilityProfile?.minDurationSeconds || 5}
+                value={preferences.video?.seconds || defaultDurationSeconds(durationOptions, capabilityProfile)}
                 min={capabilityProfile?.minDurationSeconds ?? durationOptions[0]?.value ?? 1}
                 max={capabilityProfile?.maxDurationSeconds ?? durationOptions[durationOptions.length - 1]?.value ?? 10}
                 snapValues={capabilityProfile?.durationSeconds?.length ? durationOptions.map((o) => o.value) : undefined}
