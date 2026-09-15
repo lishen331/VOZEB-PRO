@@ -101,6 +101,50 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             onWheel={(event) => event.stopPropagation()}
         >
             <div className="relative rounded-xl border" style={{ background: theme.node.fill, borderColor: theme.node.stroke }}>
+                {textReferences.length ? (
+                    <div className="flex flex-wrap items-start gap-2 px-3 pt-3" aria-label="引用的连接节点">
+                        {textReferences.map((reference) => {
+                            const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
+                            const hasPreview = !!reference.previewUrl;
+                            return (
+                                <div
+                                    key={reference.id}
+                                    data-canvas-resource-reference={reference.nodeId}
+                                    className="group relative flex w-16 flex-col items-center gap-1"
+                                >
+                                    <div
+                                        className="relative size-16 overflow-hidden rounded-lg border"
+                                        style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}
+                                    >
+                                        {reference.kind === "image" && hasPreview ? (
+                                            <img src={imagePreviewUrl(reference.previewUrl!, 128)} alt="" className="size-full object-cover" />
+                                        ) : reference.kind === "video" && hasPreview ? (
+                                            <video src={reference.previewUrl} muted playsInline preload="metadata" className="size-full object-cover" />
+                                        ) : (
+                                            <span className="grid size-full place-items-center" style={{ color: theme.toolbar.item }}>
+                                                <Icon className="size-6" aria-hidden />
+                                            </span>
+                                        )}
+                                        {onRemoveReference ? (
+                                            <button
+                                                type="button"
+                                                className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full border backdrop-blur"
+                                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                                                onClick={(event) => { event.stopPropagation(); onRemoveReference(reference.nodeId); }}
+                                                onMouseDown={stopCanvasInteraction}
+                                                onPointerDown={stopCanvasInteraction}
+                                                aria-label={`取消引用 ${reference.label}`}
+                                            >
+                                                <X className="size-3" aria-hidden />
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                    <span className="w-full truncate text-center text-[11px] leading-tight" style={{ color: theme.toolbar.item }}>{reference.label}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : null}
                 <CanvasResourceMentionTextarea
                     autoFocus
                     value={prompt}
@@ -113,44 +157,6 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     style={{ color: theme.node.text }}
                     placeholder={promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
                 />
-                {textReferences.length ? (
-                    <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2" aria-label="引用的连接节点">
-                        {textReferences.map((reference, index) => {
-                            const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
-                            return (
-                                <span
-                                    key={reference.id}
-                                    data-canvas-resource-reference={reference.nodeId}
-                                    className="group relative inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium"
-                                    style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
-                                >
-                                    <span className="relative shrink-0">
-                                        <Icon className="size-4" aria-hidden />
-                                        <span className="absolute -left-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full px-0.5 text-[10px] font-semibold leading-4" style={{ background: "#2f80ff", color: "#fff" }}>
-                                            {index + 1}
-                                        </span>
-                                    </span>
-                                    <span className="truncate max-w-[6rem]">{reference.label}</span>
-                                    {onRemoveReference ? (
-                                        <button
-                                            type="button"
-                                            className="ml-0.5 grid size-4 shrink-0 place-items-center rounded-full hover:bg-black/10"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                onRemoveReference(reference.nodeId);
-                                            }}
-                                            onMouseDown={stopCanvasInteraction}
-                                            onPointerDown={stopCanvasInteraction}
-                                            aria-label={`取消引用 ${reference.label}`}
-                                        >
-                                            <X className="size-3" aria-hidden />
-                                        </button>
-                                    ) : null}
-                                </span>
-                            );
-                        })}
-                    </div>
-                ) : null}
                 <Tooltip title="放大提示词输入" placement="top">
                     <button
                         type="button"
@@ -294,6 +300,50 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     footer={null}
                 >
                     <div data-canvas-prompt-editor="expanded" className="min-w-0 overflow-hidden rounded-xl border" style={{ borderColor: theme.node.stroke, background: theme.node.fill }}>
+                        {textReferences.length ? (
+                            <div className="flex flex-wrap items-start gap-2 px-4 pt-3" aria-label="引用的连接节点">
+                                {textReferences.map((reference) => {
+                                    const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
+                                    const hasPreview = !!reference.previewUrl;
+                                    return (
+                                        <div
+                                            key={reference.id}
+                                            data-canvas-resource-reference={reference.nodeId}
+                                            className="group relative flex w-16 flex-col items-center gap-1"
+                                        >
+                                            <div
+                                                className="relative size-16 overflow-hidden rounded-lg border"
+                                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}
+                                            >
+                                                {reference.kind === "image" && hasPreview ? (
+                                                    <img src={imagePreviewUrl(reference.previewUrl!, 128)} alt="" className="size-full object-cover" />
+                                                ) : reference.kind === "video" && hasPreview ? (
+                                                    <video src={reference.previewUrl} muted playsInline preload="metadata" className="size-full object-cover" />
+                                                ) : (
+                                                    <span className="grid size-full place-items-center" style={{ color: theme.toolbar.item }}>
+                                                        <Icon className="size-6" aria-hidden />
+                                                    </span>
+                                                )}
+                                                {onRemoveReference ? (
+                                                    <button
+                                                        type="button"
+                                                        className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full border backdrop-blur"
+                                                        style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                                                        onClick={(event) => { event.stopPropagation(); onRemoveReference(reference.nodeId); }}
+                                                        onMouseDown={stopCanvasInteraction}
+                                                        onPointerDown={stopCanvasInteraction}
+                                                        aria-label={`取消引用 ${reference.label}`}
+                                                    >
+                                                        <X className="size-3" aria-hidden />
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                            <span className="w-full truncate text-center text-[11px] leading-tight" style={{ color: theme.toolbar.item }}>{reference.label}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : null}
                         <CanvasResourceMentionTextarea
                             ref={expandedEditorRef}
                             autoFocus={expanded}
@@ -307,44 +357,6 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                             style={{ color: theme.node.text }}
                             placeholder={promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
                         />
-                        {textReferences.length ? (
-                            <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3" aria-label="引用的连接节点">
-                                {textReferences.map((reference, index) => {
-                                    const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
-                                    return (
-                                        <span
-                                            key={reference.id}
-                                            data-canvas-resource-reference={reference.nodeId}
-                                            className="group relative inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium"
-                                            style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
-                                        >
-                                            <span className="relative shrink-0">
-                                                <Icon className="size-4" aria-hidden />
-                                                <span className="absolute -left-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full px-0.5 text-[10px] font-semibold leading-4" style={{ background: "#2f80ff", color: "#fff" }}>
-                                                    {index + 1}
-                                                </span>
-                                            </span>
-                                            <span className="truncate max-w-[6rem]">{reference.label}</span>
-                                            {onRemoveReference ? (
-                                                <button
-                                                    type="button"
-                                                    className="ml-0.5 grid size-4 shrink-0 place-items-center rounded-full hover:bg-black/10"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        onRemoveReference(reference.nodeId);
-                                                    }}
-                                                    onMouseDown={stopCanvasInteraction}
-                                                    onPointerDown={stopCanvasInteraction}
-                                                    aria-label={`取消引用 ${reference.label}`}
-                                                >
-                                                    <X className="size-3" aria-hidden />
-                                                </button>
-                                            ) : null}
-                                        </span>
-                                    );
-                                })}
-                            </div>
-                        ) : null}
                     </div>
                     <div className="mt-3 flex items-center justify-end gap-2">
                         <Button icon={<Minimize2 className="size-4" />} onClick={() => setExpanded(false)} aria-label="收起提示词输入">
