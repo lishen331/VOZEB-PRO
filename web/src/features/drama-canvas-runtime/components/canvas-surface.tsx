@@ -236,13 +236,12 @@ export function CanvasSurface({
                 paths.set(item.id, edgePath(from, to));
                 return;
             }
-            const obstacleBounds = {
-                left: Math.min(from.position.x, to.position.x) - 64,
-                top: Math.min(from.position.y, to.position.y) - 64,
-                right: Math.max(from.position.x + from.width, to.position.x + to.width) + 64,
-                bottom: Math.max(from.position.y + from.height, to.position.y + to.height) + 64,
-            } satisfies CanvasBounds;
-            paths.set(item.id, edgePath(from, to, nodeSpatialIndex.query(obstacleBounds)));
+            // Connections render in the SVG layer beneath all nodes, so they
+            // never need to route around intermediate nodes — the nodes float
+            // above the line visually. Passing no obstacles means edgePath
+            // always produces a clean bezier instead of the ugly orthogonal
+            // detour that obstacle-avoidance was generating.
+            paths.set(item.id, edgePath(from, to));
         });
         return paths;
     }, [denseEdgeLod, flowConnections, getDisplayNode, nodeSpatialIndex]);
