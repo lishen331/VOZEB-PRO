@@ -580,7 +580,7 @@ function PreferencePanel({
                                         : "border-[#d8dde2] text-[#687481] hover:border-[#b8c3cc] hover:bg-[#f7f8f9] hover:text-[#20242a] dark:border-[#414953] dark:text-[#a6afb9] dark:hover:bg-[#24282e] dark:hover:text-white",
                                 )}
                                 onClick={() => setCustomEditorOpen(true)}
-                                aria-label={`打开${capability === "image" ? "图片" : "视频"}自定义像素尺寸`}
+                                aria-label="打开视频自定义像素尺寸"
                                 aria-pressed={customEditorOpen || (Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize))}
                             >
                                 <Maximize2 className="size-3.5" />
@@ -845,7 +845,12 @@ export function generationPreferenceSummary(capability: MediaCapability, prefere
     const sizeLabel = size === "auto" ? "智能比例" : formatSizeLabel(size, capability);
     const qualityLabel = capability === "image" ? imageQualityOptions.find((item) => item.value === quality)?.label || quality : videoQualityLabel(quality);
     const referenceLabel = capability === "video" ? videoReferenceModeOptions.find((item) => item.value === (preferences.video?.referenceMode || "reference"))?.label : undefined;
-    if (capability === "image") return size === "auto" && quality === "auto" ? "智能参数" : size === "auto" && quality === "medium" ? `标准${countLabel}` : `${sizeLabel} · ${qualityLabel}${countLabel}`;
+    if (capability === "image") {
+        const resolution = preferences.image?.resolution || "medium";
+        const resolutionLabel = ({ low: "1K", medium: "2K", high: "4K" } as Record<string, string>)[resolution] || "2K";
+        if (size === "auto" && quality === "auto" && resolution === "medium") return `标准${countLabel}`;
+        return `${sizeLabel} · ${qualityLabel} · ${resolutionLabel}${countLabel}`;
+    }
     const parameterLabel = size === "auto" && quality === "auto" ? "智能参数" : `${sizeLabel} · ${qualityLabel}`;
     const audioLabel = (preferences.video?.generateAudio ?? true) ? "有声" : "无声";
     const watermarkLabel = (preferences.video?.watermark ?? false) ? "带水印" : "无水印";
