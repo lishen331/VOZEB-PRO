@@ -6103,7 +6103,7 @@ function StoryboardWorkbenchCard({
         try {
             const optimizedPrompt = await optimizePrompt({ requestId: `drama-lab-universal-${shot.id}-${Date.now()}`, prompt: source, mode: "video" });
             const normalizedPrompt = normalizeDramaLabUniversalVideoPrompt(optimizedPrompt, shot.duration);
-            onUpdate({ universalSegmentText: normalizedPrompt });
+            onUpdate({ universalSegmentText: optimizedPrompt });
             setUniversalPromptValue(normalizedPrompt);
             setPromptDraft((current) => ({ ...current, universalPrompt: normalizedPrompt }));
             message.success(action.startsWith("generate") ? (force ? "全能提示词已无参考图生成" : "全能提示词已生成") : force ? "全能提示词已无参考图润色" : "全能提示词已润色");

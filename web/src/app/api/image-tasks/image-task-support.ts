@@ -53,6 +53,7 @@ import {
     IMAGE_BASE64_KEYS,
     IMAGE_CONTAINER_KEYS,
     IMAGE_TASK_ID_KEYS,
+    UPSTREAM_REQUEST_ID_HEADERS,
     IMAGE_STATUS_KEYS,
     IMAGE_POLL_URL_KEYS,
     type ImageEditReferenceMode,
@@ -505,6 +506,20 @@ export function readImagePayloadError(payload: ImageApiResponse) {
 
 export function readImageTaskId(payload: ImageApiResponse, configuredPath?: string) {
     return configuredPath ? readProviderString(payload, configuredPath, []) : findStringByKeys(payload, IMAGE_TASK_ID_KEYS);
+}
+
+// 同步生图响应体没有 task ID，但中转会在响应头里回显请求 ID（内部代理已转存为 x-vozeb-pro-* 头）。
+// 当 body 拿不到 ID 时用它兜底，作为"可查询上游身份"，避免上游已扣费却本地丢结果、永久冻结。
+// 头名默认走转存后的 x-vozeb-pro-upstream-request-id，可由渠道 advancedConfig.requestIdHeader 覆盖（兼容多中转/上游池）。
+export function readUpstreamRequestIdFromHeaders(headers?: Headers, config?: ImageTaskConfig): string {
+    if (!headers) return "";
+    const configured = config?.advancedConfig?.requestIdHeader?.trim();
+    const names = configured ? [configured] : UPSTREAM_REQUEST_ID_HEADERS;
+    for (const name of names) {
+        const value = headers.get(name)?.trim();
+        if (value) return value;
+    }
+    return "";
 }
 
 export function readImageTaskStatus(payload: ImageApiResponse) {
