@@ -91,6 +91,7 @@ export function DramaLabVisualAssetsPanel({
         }
     };
 
+<<<<<<< HEAD
     useEffect(() => {
         void loadAssetWorkflowTask();
         const onTaskUpdated = (event: Event) => {
@@ -105,6 +106,8 @@ export function DramaLabVisualAssetsPanel({
     }, [episode?.id, onReload, project.id]);
     const activeAsset = editor?.asset;
 
+=======
+>>>>>>> c1a136f3 (fix(drama-lab): stop asset panel refresh flicker)
     const assetShots = useMemo(() => {
         const grouped = new Map<string, Shot[]>();
         for (const shot of project.shots) {
