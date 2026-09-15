@@ -24,7 +24,7 @@ type PinchState = { startDistance: number; startZoom: number; world: Position };
 type WheelFrame = { clientX: number; clientY: number; deltaY: number };
 
 const CANVAS_EDGE_LOD_THRESHOLD = 256;
-const VIEWPORT_QUERY_PADDING_RATIO = 0.35;
+const VIEWPORT_QUERY_PADDING_RATIO = 0.75;
 
 type CanvasSurfaceProps = {
     containerRef?: RefObject<HTMLDivElement | null>;
