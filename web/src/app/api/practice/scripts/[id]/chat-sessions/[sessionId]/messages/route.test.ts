@@ -49,6 +49,15 @@ describe("script chat natural confirmation", () => {
         expect(mocks.create).not.toHaveBeenCalled();
     });
 
+    it("recognizes the direction-confirmation phrase used by the workspace", async () => {
+        const response = await POST(new Request("http://localhost/api/practice/scripts/project-a/chat-sessions/session-a/messages", { method: "POST", body: JSON.stringify({ content: "是的，按这个方向继续。", clientRequestId: "request-direction" }) }), {
+            params: Promise.resolve({ id: "project-a", sessionId: "session-a" }),
+        });
+        expect(response.status).toBe(200);
+        expect(mocks.confirm).toHaveBeenCalledOnce();
+        expect(mocks.create).not.toHaveBeenCalled();
+    });
+
     it("does not treat ordinary creative language as confirmation", async () => {
         const response = await POST(new Request("http://localhost/api/practice/scripts/project-a/chat-sessions/session-a/messages", { method: "POST", body: JSON.stringify({ content: "我想重点介绍好玩的游乐设施", clientRequestId: "request-d" }) }), {
             params: Promise.resolve({ id: "project-a", sessionId: "session-a" }),
