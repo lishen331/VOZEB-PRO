@@ -102,19 +102,7 @@ export function DramaLabVisualAssetsPanel({
             const detail = (event as CustomEvent<{ projectId?: string; tasks?: DramaLabTaskView[] }>).detail;
             if (detail?.projectId === project.id && Array.isArray(detail.tasks)) {
                 selectAssetWorkflowTask(detail.tasks);
-                // Reload once per asset task that newly reaches success. A completed asset task
-                // stays in the server task list, so reacting to its mere presence would reload the
-                // project on every poll tick and make the asset list flicker indefinitely.
-                const successfulAssetTasks = detail.tasks.filter((task) => task.projectId === project.id && task.workflowMode === "assets" && task.status === "success");
-                const hasNewSuccess = successfulAssetTasks.some((task) => !reloadedAssetTaskIdsRef.current.has(task.id));
-                if (hasNewSuccess) {
-                    for (const task of successfulAssetTasks) reloadedAssetTaskIdsRef.current.add(task.id);
-                    // Reload silently. A non-silent reload flips the parent into its full-screen
-                    // <Spin/> branch, which unmounts this panel and destroys reloadedAssetTaskIdsRef;
-                    // the remounted panel then treats the same completed task as new on the next
-                    // poll and reloads again — an endless flicker/remount storm that can OOM the tab.
-                    void onReload({ silent: true });
-                }
+                // Task panel owns polling; keep this panel stable and do not reload the parent here.
             }
         };
         window.addEventListener("drama-lab-task-updated", onTaskUpdated);
