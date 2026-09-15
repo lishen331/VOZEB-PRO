@@ -4,11 +4,12 @@ import { CompactOptionGroup } from "@/components/creative-generation-preferences
 import { canvasVideoGenerationModes, type CanvasVideoGenerationMode } from "@/lib/video-reference-contract";
 
 import type { CanvasNodeMetadata } from "../types";
-import { canvasVideoGenerationModeLabel, canvasVideoGenerationModePatch, normalizeCanvasVideoGenerationMode } from "../utils/canvas-video-references";
+import { canvasVideoGenerationModeHint, canvasVideoGenerationModeLabel, canvasVideoGenerationModePatch, normalizeCanvasVideoGenerationMode } from "../utils/canvas-video-references";
 
-const videoGenerationModeOptions: readonly { value: CanvasVideoGenerationMode; label: string }[] = canvasVideoGenerationModes.map((mode) => ({
+const videoGenerationModeOptions: readonly { value: CanvasVideoGenerationMode; label: string; tooltip: string }[] = canvasVideoGenerationModes.map((mode) => ({
     value: mode,
     label: canvasVideoGenerationModeLabel(mode),
+    tooltip: canvasVideoGenerationModeHint(mode),
 }));
 
 export function CanvasVideoModeSelector({ metadata, onChange }: { metadata?: CanvasNodeMetadata; onChange: (patch: Partial<CanvasNodeMetadata>) => void }) {

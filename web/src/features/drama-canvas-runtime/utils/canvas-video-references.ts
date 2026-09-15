@@ -66,6 +66,15 @@ export function canvasVideoGenerationModeLabel(value: unknown): string {
     return "图片参考";
 }
 
+export function canvasVideoGenerationModeHint(value: unknown): string {
+    const mode = normalizeCanvasVideoGenerationMode(value);
+    if (mode === "text_to_video") return "无需连接节点，纯文本生成";
+    if (mode === "omni_reference") return "可连接任意数量的图片/视频/音频节点作为参考";
+    if (mode === "image_to_video") return "需连接图片节点（至少 1 个）作为首帧来源";
+    if (mode === "first_last") return "需连接图片节点（1~2 个）：第 1 张为首帧、第 2 张为尾帧";
+    return "需连接图片节点（1 个或多个）作为参考";
+}
+
 export function canvasVideoGenerationModePatch(mode: CanvasVideoGenerationMode): Partial<CanvasNodeMetadata> {
     return { videoGenerationMode: mode, ...canvasVideoReferenceModePatch(mapVideoGenerationModeToReferenceMode(mode)) };
 }

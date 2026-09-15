@@ -1,6 +1,6 @@
 "use client";
 
-import { InputNumber, Space, Switch } from "antd";
+import { InputNumber, Slider, Space, Switch } from "antd";
 import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -143,6 +143,66 @@ export function normalizePositiveInteger(value: unknown) {
 export function normalizePositiveNumber(value: unknown) {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+export function DurationSliderField({
+    label,
+    ariaLabel,
+    value,
+    suffix,
+    min,
+    max,
+    snapValues,
+    onChange,
+}: {
+    label: string;
+    ariaLabel: string;
+    value: number;
+    suffix: string;
+    min: number;
+    max: number;
+    snapValues?: number[];
+    onChange: (value: number) => void;
+}) {
+    const snap = snapValues && snapValues.length > 1;
+    const marks = snap ? Object.fromEntries(snapValues.map((v) => [v, ""])) : undefined;
+    const snapNearest = (v: number) => {
+        if (!snap) return v;
+        return snapValues.reduce((best, candidate) => (Math.abs(candidate - v) < Math.abs(best - v) ? candidate : best));
+    };
+
+    return (
+        <div className="grid gap-1.5">
+            <p className="text-[11px] font-medium text-[#7b8591] dark:text-[#98a2ae]">{label}</p>
+            <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+                <Slider
+                    min={min}
+                    max={max}
+                    step={snap ? null : 1}
+                    marks={marks}
+                    value={value}
+                    onChange={(v) => onChange(snapNearest(v))}
+                    tooltip={{ formatter: (v) => `${v} ${suffix}` }}
+                    aria-label={ariaLabel}
+                />
+                <Space.Compact className="min-w-0">
+                    <InputNumber
+                        aria-label={ariaLabel}
+                        controls={false}
+                        min={min}
+                        max={max}
+                        value={value}
+                        onChange={(v) => {
+                            const normalized = normalizePositiveInteger(v);
+                            if (normalized) onChange(snapNearest(normalized));
+                        }}
+                        className="w-14"
+                    />
+                    <Space.Addon>{suffix}</Space.Addon>
+                </Space.Compact>
+            </div>
+        </div>
+    );
 }
 
 function OptionButton({ selected, label, ariaLabel, onClick }: { selected: boolean; label: string; ariaLabel: string; onClick: () => void }) {

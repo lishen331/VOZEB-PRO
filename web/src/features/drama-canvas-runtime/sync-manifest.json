@@ -265,7 +265,7 @@
         },
         {
             "path": "components/canvas-video-mode-selector.tsx",
-            "sha256": "5eccb684cc79980158c20eb9b148f32eccf2ac67914bf9d88613c4a22be01609"
+            "sha256": "2445ae1dfec28749bb976093b8c02be05613a46782e52d7b02b360a26001c5d6"
         },
         {
             "path": "components/canvas-video-settings-popover.tsx",
@@ -377,7 +377,7 @@
         },
         {
             "path": "utils/canvas-video-references.ts",
-            "sha256": "af6bf7b8402a4717718e0d2207ea7b0cbf7df199ab841d0bb5269e9fb606f509"
+            "sha256": "693a4536e242aedc470a5254145a922a41d280e3f1eb80e6280c50449507fd3f"
         }
     ]
 }

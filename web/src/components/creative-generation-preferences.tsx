@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Button, Popover, Select } from "antd";
+import { Button, Popover, Select, Tooltip } from "antd";
 import { AudioLines, ChevronDown, ImageIcon, Lightbulb, Maximize2, Sparkles, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 import { creativeComposerPopoverOverflow, creativeComposerPopoverPanelMaxHeight, type CreativeComposerPopoverPlacement } from "./creative-composer-popover";
 import { creativeComposerToolButtonClass } from "./creative-composer-styles";
-import { PositiveNumberField, SuggestedPositiveIntegerField, SwitchPreference, VideoQualityField } from "./creative-generation-preference-fields";
+import { DurationSliderField, PositiveNumberField, SwitchPreference, VideoQualityField } from "./creative-generation-preference-fields";
 
 export type MediaCapability = "image" | "video" | "audio";
 
@@ -578,15 +578,14 @@ function PreferencePanel({
                 </div>
             )}
             <VideoQualityField value={selectedQuality} options={qualityOptions} allowCustom={!capabilityProfile?.resolutions?.length} onChange={(quality) => onChange({ quality })} />
-            <SuggestedPositiveIntegerField
-                label="时长"
-                ariaLabel="输入视频时长"
-                value={preferences.video?.seconds || durationOptions[0]?.value || capabilityProfile?.minDurationSeconds || 5}
+            <DurationSliderField
+                label="视频时长"
+                ariaLabel="拖动调整视频时长"
                 suffix="秒"
-                options={durationOptions}
-                allowCustom={!capabilityProfile?.durationSeconds?.length}
-                min={capabilityProfile?.minDurationSeconds}
-                max={capabilityProfile?.maxDurationSeconds}
+                value={preferences.video?.seconds || durationOptions[0]?.value || capabilityProfile?.minDurationSeconds || 5}
+                min={capabilityProfile?.minDurationSeconds ?? durationOptions[0]?.value ?? 1}
+                max={capabilityProfile?.maxDurationSeconds ?? durationOptions[durationOptions.length - 1]?.value ?? 10}
+                snapValues={capabilityProfile?.durationSeconds?.length ? durationOptions.map((o) => o.value) : undefined}
                 onChange={(seconds) => onChange({ seconds })}
             />
             {capabilityProfile?.supportsAudioGeneration === true ? <SwitchPreference label="生成声音" checked={preferences.video?.generateAudio ?? true} onChange={(generateAudio) => onChange({ generateAudio })} /> : null}
@@ -749,7 +748,7 @@ export function CompactOptionGroup<T extends string | number>({
     label: string;
     ariaLabel: string;
     value: T;
-    options: readonly { value: T; label: string; shortLabel?: string }[];
+    options: readonly { value: T; label: string; shortLabel?: string; tooltip?: ReactNode }[];
     columns?: 2 | 3 | 4 | 5;
     onChange: (value: T) => void;
 }) {
@@ -757,23 +756,32 @@ export function CompactOptionGroup<T extends string | number>({
         <div className="grid gap-1.5">
             <p className="text-[11px] font-medium text-[#7b8591] dark:text-[#98a2ae]">{label}</p>
             <div className={cn("grid gap-1", columns === 2 ? "grid-cols-2" : columns === 3 ? "grid-cols-3" : columns === 5 ? "grid-cols-5" : "grid-cols-4")} role="group" aria-label={ariaLabel}>
-                {options.map((option) => (
-                    <button
-                        key={option.value}
-                        type="button"
-                        className={cn(
-                            "h-8 min-w-0 rounded-lg px-1 text-[11px] transition",
-                            value === option.value
-                                ? "bg-[#eaf1f5] font-medium text-[#315d78] dark:bg-[#2a3b46] dark:text-[#a8c8dc]"
-                                : "bg-[#f5f6f7] text-[#687481] hover:bg-[#edf0f2] hover:text-[#20242a] dark:bg-[#24282e] dark:text-[#a6afb9] dark:hover:bg-[#30363e] dark:hover:text-white",
-                        )}
-                        onClick={() => onChange(option.value)}
-                        aria-label={`${ariaLabel} ${option.label}`}
-                        aria-pressed={value === option.value}
-                    >
-                        {option.shortLabel || option.label}
-                    </button>
-                ))}
+                {options.map((option) => {
+                    const btn = (
+                        <button
+                            key={option.value}
+                            type="button"
+                            className={cn(
+                                "h-8 min-w-0 rounded-lg px-1 text-[11px] transition",
+                                value === option.value
+                                    ? "bg-[#eaf1f5] font-medium text-[#315d78] dark:bg-[#2a3b46] dark:text-[#a8c8dc]"
+                                    : "bg-[#f5f6f7] text-[#687481] hover:bg-[#edf0f2] hover:text-[#20242a] dark:bg-[#24282e] dark:text-[#a6afb9] dark:hover:bg-[#30363e] dark:hover:text-white",
+                            )}
+                            onClick={() => onChange(option.value)}
+                            aria-label={`${ariaLabel} ${option.label}`}
+                            aria-pressed={value === option.value}
+                        >
+                            {option.shortLabel || option.label}
+                        </button>
+                    );
+                    return option.tooltip ? (
+                        <Tooltip key={option.value} title={option.tooltip}>
+                            {btn}
+                        </Tooltip>
+                    ) : (
+                        btn
+                    );
+                })}
             </div>
         </div>
     );

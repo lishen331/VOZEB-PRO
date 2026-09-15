@@ -102,26 +102,26 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
         >
             <div className="relative rounded-xl border" style={{ background: theme.node.fill, borderColor: theme.node.stroke }}>
                 {textReferences.length ? (
-                    <div className="flex flex-wrap items-start gap-2 px-3 pt-3" aria-label="引用的连接节点">
+                    <div className="flex flex-wrap items-start gap-1.5 px-3 pt-2" aria-label="引用的连接节点">
                         {textReferences.map((reference) => {
                             const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
                             const hasPreview = !!reference.previewUrl;
                             return (
-                                <div key={reference.id} data-canvas-resource-reference={reference.nodeId} className="group relative flex w-16 flex-col items-center gap-1">
-                                    <div className="relative size-16 overflow-hidden rounded-lg border" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
+                                <div key={reference.id} data-canvas-resource-reference={reference.nodeId} className="group relative flex w-12 flex-col items-center gap-0.5">
+                                    <div className="relative size-12 overflow-hidden rounded-lg border" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
                                         {reference.kind === "image" && hasPreview ? (
-                                            <img src={imagePreviewUrl(reference.previewUrl!, 128)} alt="" className="size-full object-cover" />
+                                            <img src={imagePreviewUrl(reference.previewUrl!, 96)} alt="" className="size-full object-cover" />
                                         ) : reference.kind === "video" && hasPreview ? (
                                             <video src={reference.previewUrl} muted playsInline preload="metadata" className="size-full object-cover" />
                                         ) : (
                                             <span className="grid size-full place-items-center" style={{ color: theme.toolbar.item }}>
-                                                <Icon className="size-6" aria-hidden />
+                                                <Icon className="size-5" aria-hidden />
                                             </span>
                                         )}
                                         {onRemoveReference ? (
                                             <button
                                                 type="button"
-                                                className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full border backdrop-blur"
+                                                className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border backdrop-blur"
                                                 style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                                                 onClick={(event) => {
                                                     event.stopPropagation();
@@ -131,11 +131,11 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                 onPointerDown={stopCanvasInteraction}
                                                 aria-label={`取消引用 ${reference.label}`}
                                             >
-                                                <X className="size-3" aria-hidden />
+                                                <X className="size-2.5" aria-hidden />
                                             </button>
                                         ) : null}
                                     </div>
-                                    <span className="w-full truncate text-center text-[11px] leading-tight" style={{ color: theme.toolbar.item }}>
+                                    <span className="w-full truncate text-center text-[10px] leading-tight" style={{ color: theme.toolbar.item }}>
                                         {reference.label}
                                     </span>
                                 </div>
@@ -304,21 +304,21 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                     const Icon = reference.kind === "audio" ? Music2 : reference.kind === "video" ? Video : reference.kind === "image" ? ImageIcon : FileText;
                                     const hasPreview = !!reference.previewUrl;
                                     return (
-                                        <div key={reference.id} data-canvas-resource-reference={reference.nodeId} className="group relative flex w-16 flex-col items-center gap-1">
-                                            <div className="relative size-16 overflow-hidden rounded-lg border" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
+                                        <div key={reference.id} data-canvas-resource-reference={reference.nodeId} className="group relative flex w-12 flex-col items-center gap-0.5">
+                                            <div className="relative size-12 overflow-hidden rounded-lg border" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
                                                 {reference.kind === "image" && hasPreview ? (
-                                                    <img src={imagePreviewUrl(reference.previewUrl!, 128)} alt="" className="size-full object-cover" />
+                                                    <img src={imagePreviewUrl(reference.previewUrl!, 96)} alt="" className="size-full object-cover" />
                                                 ) : reference.kind === "video" && hasPreview ? (
                                                     <video src={reference.previewUrl} muted playsInline preload="metadata" className="size-full object-cover" />
                                                 ) : (
                                                     <span className="grid size-full place-items-center" style={{ color: theme.toolbar.item }}>
-                                                        <Icon className="size-6" aria-hidden />
+                                                        <Icon className="size-5" aria-hidden />
                                                     </span>
                                                 )}
                                                 {onRemoveReference ? (
                                                     <button
                                                         type="button"
-                                                        className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full border backdrop-blur"
+                                                        className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border backdrop-blur"
                                                         style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                                                         onClick={(event) => {
                                                             event.stopPropagation();
@@ -328,11 +328,11 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                         onPointerDown={stopCanvasInteraction}
                                                         aria-label={`取消引用 ${reference.label}`}
                                                     >
-                                                        <X className="size-3" aria-hidden />
+                                                        <X className="size-2.5" aria-hidden />
                                                     </button>
                                                 ) : null}
                                             </div>
-                                            <span className="w-full truncate text-center text-[11px] leading-tight" style={{ color: theme.toolbar.item }}>
+                                            <span className="w-full truncate text-center text-[10px] leading-tight" style={{ color: theme.toolbar.item }}>
                                                 {reference.label}
                                             </span>
                                         </div>
