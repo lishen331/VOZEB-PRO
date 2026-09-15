@@ -86,3 +86,4 @@ scripts/capture-readme-screenshots.mjs
 /canvas-reference-role-*.png
 /login.yml
 /tests/setup-playwright.sh
+.claude/worktrees/
