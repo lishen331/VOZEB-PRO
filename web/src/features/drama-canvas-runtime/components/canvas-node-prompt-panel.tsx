@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { LoaderCircle, Maximize2, Minimize2, Square } from "lucide-react";
+import { FileText, LoaderCircle, Maximize2, Minimize2, Square } from "lucide-react";
 import { Button, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
@@ -49,6 +49,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const isEditingExistingContent = hasTextContent || hasImageContent;
     const imageReferenceRoles = mentionReferences.filter((reference) => reference.kind === "image");
     const referenceRoleImages = imageReferenceRoles.length ? imageReferenceRoles : hasImageContent ? [{ nodeId: node.id, kind: "image" as const, label: "\u56fe\u7247 1", title: node.title || "\u5f53\u524d\u56fe\u7247" }] : [];
+    const textReferences = mentionReferences.filter((reference) => reference.kind === "text" && reference.active);
     const [prompt, setPrompt] = useState(isEditingExistingContent ? "" : node.metadata?.prompt || "");
     const [expanded, setExpanded] = useState(false);
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
@@ -124,6 +125,25 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     </button>
                 </Tooltip>
             </div>
+
+            {textReferences.length ? (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="引用的连接文本">
+                    {textReferences.map((reference, index) => (
+                        <Tooltip key={reference.id} title={reference.text || reference.title} placement="top">
+                            <span
+                                data-canvas-resource-reference={reference.nodeId}
+                                className="relative grid size-9 place-items-center rounded-lg border"
+                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                            >
+                                <FileText className="size-4" aria-hidden />
+                                <span className="absolute -left-1 -top-1 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4" style={{ background: "#2f80ff", color: "#fff" }}>
+                                    {index + 1}
+                                </span>
+                            </span>
+                        </Tooltip>
+                    ))}
+                </div>
+            ) : null}
 
             <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                 <div className="canvas-composer-tools flex min-w-0 flex-1 flex-wrap items-center gap-2">
