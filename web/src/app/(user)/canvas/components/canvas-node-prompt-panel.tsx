@@ -187,13 +187,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                     {mode === "image" ? (
                         <>
-                            <ModelPicker
-                                config={config}
-                                value={config.model}
-                                onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))}
-                                capability="image"
-                                onMissingConfig={() => openConfigDialog(true)}
-                            />
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))} capability="image" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasImageSettingsPopover
                                 config={config}
                                 placement="topLeft"
@@ -214,13 +208,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </>
                     ) : mode === "video" ? (
                         <>
-                            <ModelPicker
-                                config={config}
-                                value={config.model}
-                                onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))}
-                                capability="video"
-                                onMissingConfig={() => openConfigDialog(true)}
-                            />
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))} capability="video" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasVideoSettingsPopover
                                 config={config}
                                 metadata={node.metadata}

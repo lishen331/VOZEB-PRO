@@ -4,17 +4,8 @@
     "target": "src/features/drama-canvas-runtime",
     "sourceCommit": "b59c3f2719f62a10d1d8c29d2e4a64fba1d5178f",
     "syncedAt": "2026-08-25T16:19:10.409Z",
-    "exclusions": [
-        "tests",
-        "ordinary canvas project list",
-        "ordinary canvas project list components"
-    ],
-    "adapterPatches": [
-        "dedicated Drama Lab persistence API",
-        "episode shot deep-link focus",
-        "disable ordinary Canvas project navigation",
-        "return workbench navigation to Drama Lab"
-    ],
+    "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
+    "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
         {
             "path": "[id]/canvas-client-page.tsx",
