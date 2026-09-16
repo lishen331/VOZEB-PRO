@@ -86,7 +86,7 @@ export async function POST(request: Request) {
             throw error;
         }
         const configs = sanitizeConfigs(body.config, settings, executionProfile, trustedContext);
-        const messages = sanitizeMessages(body.messages);
+        const messages = sanitizeMessages(body.messages, resolveInternalOrigin(new URL(request.url).origin));
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
         const hasHealthy = await hasHealthyRuntimeCandidate(configs, "text");
         if (!hasHealthy) return NextResponse.json({ error: "当前文本模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
@@ -132,17 +132,26 @@ function sanitizeConfigs(
         .filter((config): config is typeof config & { channelId: string } => typeof config.channelId === "string");
 }
 
-function sanitizeMessages(messages?: AiTextMessage[]) {
+function sanitizeMessages(messages: AiTextMessage[] | undefined, origin: string) {
     if (!Array.isArray(messages)) return [];
     return messages
-        .map((message) => ({ role: message.role === "system" || message.role === "assistant" ? message.role : ("user" as const), content: sanitizeContent(message.content) }))
+        .map((message) => ({ role: message.role === "system" || message.role === "assistant" ? message.role : ("user" as const), content: sanitizeContent(message.content, origin) }))
         .filter((message) => (Array.isArray(message.content) ? message.content.length > 0 : Boolean(message.content.trim())))
         .slice(0, 20);
 }
 
-function sanitizeContent(content: AiTextMessage["content"]): AiTextMessage["content"] {
+function sanitizeContent(content: AiTextMessage["content"], origin: string): AiTextMessage["content"] {
     if (!Array.isArray(content)) return String(content || "").slice(0, 20_000);
     return content
-        .map((item) => (item.type === "text" ? { type: "text" as const, text: item.text.slice(0, 20_000) } : { type: "image_url" as const, image_url: { url: item.image_url.url } }))
+        .map((item) => (item.type === "text" ? { type: "text" as const, text: item.text.slice(0, 20_000) } : { type: "image_url" as const, image_url: { url: normalizeImageUrl(item.image_url.url, origin) } }))
         .filter((item) => (item.type === "text" ? Boolean(item.text.trim()) : Boolean(item.image_url.url)));
+}
+
+function normalizeImageUrl(value: string, origin: string) {
+    const url = String(value || "").trim();
+    if (url.startsWith("base64:")) {
+        const path = url.slice("base64:".length);
+        if (path.startsWith("/api/")) return `${origin}${path}`;
+    }
+    return url;
 }

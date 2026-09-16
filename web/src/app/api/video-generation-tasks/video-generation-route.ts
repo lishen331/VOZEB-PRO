@@ -166,9 +166,9 @@ export async function POST(request: Request) {
                         globalPreset
                             ? {
                                   ...channel.advancedConfig!,
-                                  supportsReferenceImage: globalPreset.supportsReferenceImage ?? channel.advancedConfig?.supportsReferenceImage ?? false,
-                                  supportsReferenceVideo: globalPreset.supportsReferenceVideo ?? channel.advancedConfig?.supportsReferenceVideo ?? false,
-                                  supportsReferenceAudio: globalPreset.supportsReferenceAudio ?? channel.advancedConfig?.supportsReferenceAudio ?? false,
+                                  supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset.supportsReferenceImage),
+                                  supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset.supportsReferenceVideo),
+                                  supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset.supportsReferenceAudio),
                               }
                             : channel.advancedConfig,
                         references,
@@ -289,9 +289,9 @@ export async function POST(request: Request) {
                             globalPreset
                                 ? {
                                       ...channel.advancedConfig!,
-                                      supportsReferenceImage: globalPreset.supportsReferenceImage ?? channel.advancedConfig?.supportsReferenceImage ?? false,
-                                      supportsReferenceVideo: globalPreset.supportsReferenceVideo ?? channel.advancedConfig?.supportsReferenceVideo ?? false,
-                                      supportsReferenceAudio: globalPreset.supportsReferenceAudio ?? channel.advancedConfig?.supportsReferenceAudio ?? false,
+                                      supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset.supportsReferenceImage),
+                                  supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset.supportsReferenceVideo),
+                                  supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset.supportsReferenceAudio),
                                   }
                                 : channel.advancedConfig,
                             references,
