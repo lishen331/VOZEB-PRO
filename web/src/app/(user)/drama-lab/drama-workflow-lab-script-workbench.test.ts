@@ -10,7 +10,7 @@ describe("drama script workbench", () => {
         expect(source).toContain('name="storyOutline"');
         expect(source).toContain(">故事生成</h2>");
         expect(source).toContain('label: "选择剧本"');
-        expect(source).toContain('title="从剧本库导入"');
+        expect(source).toContain('title="从已有项目中选择剧本"');
         expect(source).toContain("const sourceEpisodes = normalizeEpisodes(source.episodes)");
         expect(source).toContain('const sourceSummary = typeof source.summary === "string" ? source.summary : "";');
         expect(source).toContain("description: sourceSummary,");

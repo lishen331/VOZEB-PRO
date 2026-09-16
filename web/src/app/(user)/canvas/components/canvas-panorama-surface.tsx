@@ -27,9 +27,8 @@ export function CanvasPanoramaSurface({ src, alt }: { src: string; alt: string }
                 mousemove: true,
                 touchmoveTwoFingers: false,
                 moveInertia: false,
-                defaultZoomLvl: 50,
-                minFov: 25,
-                maxFov: 110,
+                defaultZoomLvl: 0,
+                maxFov: 120,
             });
             viewer.addEventListener("ready", handleReady);
             viewer.addEventListener("panorama-error", handleError);

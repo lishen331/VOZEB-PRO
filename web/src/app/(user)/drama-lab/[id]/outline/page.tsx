@@ -1,13 +1,21 @@
 "use client";
 
-import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin, Upload as AntUpload, Steps, Table } from "antd";
-import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
+import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table, Image as AntImage } from "antd";
+import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X, CheckSquare } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { listLibraryAssetPage } from "@/services/api/library-assets";
+import { useRouter, useParams } from "next/navigation";
+import { DramaLabAssetLibraryPicker } from "../drama-lab-asset-library-picker";
 import type { Asset } from "@/lib/library-asset-contract";
 import styleGroups from "@/lib/drama-lab-style-options.json";
+
+import { uploadImage } from "@/services/image-storage";
+import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
+import { useEffectiveConfig } from "@/stores/use-config-store";
+import { loadPublicSession, usePublicSessionStore } from "@/stores/use-public-session-store";
+import { buildResourceImageRequest, createGeneratedPrimaryImage, highlightResourceMentions, insertResourceMention, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
+import type { ReferenceImage } from "@/types/image";
+import type { TextAreaRef } from "antd/es/input/TextArea";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -30,6 +38,7 @@ interface Character {
     imageUrl?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    primaryReferenceId?: string;
     references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
     category?: string;
     tags?: string[];
@@ -45,6 +54,7 @@ interface Scene {
     imageUrl?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    primaryReferenceId?: string;
     references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
     category?: string;
     tags?: string[];
@@ -58,6 +68,7 @@ interface Prop {
     imageUrl?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    primaryReferenceId?: string;
     references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
     category?: string;
     tags?: string[];
@@ -154,23 +165,53 @@ function groupChapters(chapters: Array<{ title: string; content: string }>, perE
     });
 }
 
-export default function ProjectOutlinePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-    const params = use(paramsPromise);
-    const projectId = encodeURIComponent(params.id);
+async function readBatchImportFile(projectId: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("commit", "false");
+    const response = await fetch(`/api/drama-lab/projects/${projectId}/import-novel`, { method: "POST", body: form });
+    const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { sourceText?: string } };
+    if (!response.ok || payload.code !== 0 || typeof payload.data?.sourceText !== "string") throw new Error(payload.msg || "文件解析失败");
+    return payload.data.sourceText;
+}
+
+export default function ProjectOutlinePage() {
+    // useParams() is safe in Client Components; avoids React error #441 caused by
+    // calling use() outside a Suspense boundary when Next.js passes params as a Promise.
+    const routeParams = useParams<{ id: string }>();
+    const projectId = encodeURIComponent(routeParams.id ?? "");
+    useEffect(() => {
+        void loadPublicSession();
+    }, []);
     const router = useRouter();
     const [project, setProject] = useState<Project | null>(null);
+    const projectRef = useRef<Project | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm();
     const autoSaveTimerRef = useRef<number | undefined>(undefined);
+    const imageConfig = useEffectiveConfig();
+    const [resourceEditor, setResourceEditor] = useState<{ kind: "characters" | "scenes" | "props"; asset: Character | Scene | Prop }>();
+    const resourceEditorEnabled = usePublicSessionStore((state) => state.payload?.settings?.featureModules?.["drama-lab-resource-editor"] !== false);
+    const [resourceBusy, setResourceBusy] = useState(false);
+    const resourceFileInput = useRef<HTMLInputElement>(null);
+    const resourcePrimaryFileInput = useRef<HTMLInputElement>(null);
+    const [resourcePreview, setResourcePreview] = useState<{ url: string; title: string }>();
+    const [resourceMentionOpen, setResourceMentionOpen] = useState(false);
+    const resourceDescriptionRef = useRef<TextAreaRef>(null);
+    const resourceMentionMirrorRef = useRef<HTMLDivElement>(null);
+    const resourceMentionRangeRef = useRef({ start: 0, end: 0 });
+    const resourceAutoSaveTimerRef = useRef<number | undefined>(undefined);
+    const resourceSaveQueueRef = useRef(Promise.resolve());
     const [activeTab, setActiveTab] = useState("characters");
+    const [selectedEpisodeIds, setSelectedEpisodeIds] = useState<Set<string>>(new Set());
     const [batchImportOpen, setBatchImportOpen] = useState(false);
     const [batchImportText, setBatchImportText] = useState("");
     const [batchImportTab, setBatchImportTab] = useState<"config" | "preview">("config");
     const [selectedStyle, setSelectedStyle] = useState("");
     const [batchFileName, setBatchFileName] = useState("");
     const [batchRawText, setBatchRawText] = useState("");
-    const [chapterPattern, setChapterPattern] = useState("^\\s*(第[0-9０-９零一二三四五六七八九十百千万]+[章回节][^\\n\\r]*)");
+    const [chapterPattern, setChapterPattern] = useState("^\\s*[▸◆•●\\-]?\\s*(第\\s*[0-9０-９零一二三四五六七八九十百千万]+\\s*[章节回集篇][^\\n\\r]*)");
     const [chaptersPerEpisode, setChaptersPerEpisode] = useState(1);
     const [previewChapters, setPreviewChapters] = useState<Array<{ title: string; content: string }>>([]);
     const [previewEpisodes, setPreviewEpisodes] = useState<Array<{ episodeNumber: number; title: string; script: string; chapterTitles: string[] }>>([]);
@@ -178,10 +219,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [styleSearch, setStyleSearch] = useState("");
     const [resourceImportOpen, setResourceImportOpen] = useState(false);
     const [resourceImportTarget, setResourceImportTarget] = useState("characters");
-    const [libraryAssets, setLibraryAssets] = useState<Asset[]>([]);
     const [libraryKeyword, setLibraryKeyword] = useState("");
-    const [libraryLoading, setLibraryLoading] = useState(false);
-    const [resourceImporting, setResourceImporting] = useState(false);
     const selectedStyleOption = STYLE_GROUPS.flatMap((group) => group.options).find((option) => option.value === selectedStyle || option.label === selectedStyle);
 
     // 加载项目
@@ -210,6 +248,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 defaultVideoMode: proj.defaultVideoMode,
             };
 
+            projectRef.current = projectData;
             setProject(projectData);
             setSelectedStyle(projectData.style || "");
             form.setFieldsValue({
@@ -231,8 +270,9 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     }, [loadProject]);
 
     const persistProject = async (changes: Partial<Project>) => {
-        if (!project) return false;
-        const next = { ...project, ...changes };
+        const currentProject = projectRef.current || project;
+        if (!currentProject) return false;
+        const next = { ...currentProject, ...changes };
         const res = await fetch(`/api/drama-lab/projects/${projectId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -250,6 +290,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             }),
         });
         if (!res.ok) throw new Error("保存失败");
+        projectRef.current = next;
         setProject(next);
         return true;
     };
@@ -311,24 +352,14 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
         }
     };
 
-    const openResourceImport = async (target: string) => {
+    const openResourceImport = (target: string) => {
         setResourceImportTarget(target);
-        setResourceImportOpen(true);
         setLibraryKeyword("");
-        setLibraryLoading(true);
-        try {
-            const type = target === "characters" ? "character" : target === "scenes" ? "scene" : "prop";
-            const result = await listLibraryAssetPage({ page: 1, pageSize: 100, kind: "image", dramaAssetType: type });
-            setLibraryAssets(result.assets);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "素材加载失败");
-        } finally {
-            setLibraryLoading(false);
-        }
+        setResourceImportOpen(true);
     };
 
-    const handleResourceImport = async (asset: Asset) => {
-        if (!project) return;
+    const handleResourceImport = async (asset: Asset): Promise<boolean> => {
+        if (!project) return false;
         const source = asset as unknown as LooseAsset;
         const imageUrl = assetImageUrl(source);
         const common = {
@@ -341,24 +372,142 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             tags: asset.tags || [],
             prompt: typeof asset.metadata?.prompt === "string" ? asset.metadata.prompt : "",
         };
-        setResourceImporting(true);
         try {
             if (resourceImportTarget === "characters") await persistProject({ characters: [...project.characters, { id: `character_${Date.now()}`, name: asset.title, ...common }] });
             else if (resourceImportTarget === "scenes") await persistProject({ scenes: [...project.scenes, { id: `scene_${Date.now()}`, name: asset.title, location: asset.title, time: "", ...common } as Scene] });
             else await persistProject({ props: [...project.props, { id: `prop_${Date.now()}`, name: asset.title, ...common }] });
             message.success(`已导入素材：${asset.title}`);
-            setResourceImportOpen(false);
+            return true;
         } catch (error) {
             message.error(error instanceof Error ? error.message : "素材导入失败");
-        } finally {
-            setResourceImporting(false);
+            return false;
         }
     };
 
-    const filteredLibraryAssets = libraryAssets.filter((asset) => {
-        const keyword = libraryKeyword.trim().toLowerCase();
-        return !keyword || asset.title.toLowerCase().includes(keyword) || asset.tags.some((tag) => tag.toLowerCase().includes(keyword));
-    });
+    const persistResourceAsset = async (kind: "characters" | "scenes" | "props", asset: Character | Scene | Prop, showSuccess: boolean) => {
+        if (!asset.name?.trim()) {
+            if (showSuccess) message.error("请输入名称");
+            return false;
+        }
+        const save = async () => {
+            const currentProject = projectRef.current;
+            if (!currentProject) return false;
+            try {
+                await persistProject({ [kind]: currentProject[kind].map((item) => (item.id === asset.id ? { ...asset, ...(kind === "scenes" ? { location: asset.name } : {}) } : item)) });
+                if (showSuccess) message.success("保存成功");
+                return true;
+            } catch (error) {
+                message.error(error instanceof Error ? error.message : "自动保存失败，请重试");
+                return false;
+            }
+        };
+        const queued = resourceSaveQueueRef.current.then(save, save);
+        resourceSaveQueueRef.current = queued.then(
+            () => undefined,
+            () => undefined,
+        );
+        return queued;
+    };
+
+    const saveResourceEditor = async (showSuccess: boolean) => {
+        if (!resourceEditor) return false;
+        return persistResourceAsset(resourceEditor.kind, resourceEditor.asset, showSuccess);
+    };
+
+    const scheduleResourceAutoSave = (kind: "characters" | "scenes" | "props", asset: Character | Scene | Prop) => {
+        if (resourceAutoSaveTimerRef.current !== undefined) window.clearTimeout(resourceAutoSaveTimerRef.current);
+        resourceAutoSaveTimerRef.current = window.setTimeout(() => void persistResourceAsset(kind, asset, false), 800);
+    };
+
+    const updateResourceAsset = (update: (asset: Character | Scene | Prop) => Character | Scene | Prop, immediate = true) => {
+        setResourceEditor((current) => {
+            if (!current) return current;
+            const nextAsset = update(current.asset);
+            if (immediate) void persistResourceAsset(current.kind, nextAsset, false);
+            else scheduleResourceAutoSave(current.kind, nextAsset);
+            return { ...current, asset: nextAsset };
+        });
+    };
+
+    const uploadResourcePrimaryImage = async (file?: File) => {
+        if (!resourceEditor || !file || !file.type.startsWith("image/")) return;
+        setResourceBusy(true);
+        try {
+            const stored = await uploadImage(file);
+            const url = stored.serverUrl || stored.url;
+            updateResourceAsset((asset) => ({
+                ...asset,
+                imageUrl: url,
+                referenceImageUrl: url,
+                referenceStorageKey: stored.storageKey,
+                references: [...(assetImageUrl(asset) ? [{ id: `history-${Date.now()}`, url: assetImageUrl(asset), role: "history" }] : []), ...(asset.references || []).filter((item) => item.role !== "primary")],
+            }));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "主图替换失败");
+        } finally {
+            setResourceBusy(false);
+            if (resourcePrimaryFileInput.current) resourcePrimaryFileInput.current.value = "";
+        }
+    };
+
+    const uploadResourceReferences = async (files: File[]) => {
+        if (!resourceEditor || !files.length) return;
+        const existing = normalizeResourceGenerationReferences(resourceEditor.asset.references || []);
+        const accepted = files.filter((file) => file.type.startsWith("image/")).slice(0, Math.max(0, 9 - existing.length));
+        if (!accepted.length) {
+            message.warning(existing.length >= 9 ? "最多支持 9 张参考图" : "请选择图片文件");
+            return;
+        }
+        setResourceBusy(true);
+        try {
+            const uploaded = await Promise.all(accepted.map(uploadImage));
+            updateResourceAsset((asset) => ({
+                ...asset,
+                references: [...(asset.references || []), ...uploaded.map((stored, index) => ({ id: `reference-${Date.now()}-${index}`, url: stored.serverUrl || stored.url, storageKey: stored.storageKey, role: "reference" }))],
+            }));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "上传失败");
+        } finally {
+            setResourceBusy(false);
+            if (resourceFileInput.current) resourceFileInput.current.value = "";
+        }
+    };
+
+    const generateResourceImage = async () => {
+        if (!resourceEditor || !project) return;
+        setResourceBusy(true);
+        try {
+            const request = buildResourceImageRequest(resourceEditor.asset.description || "", resourceEditor.asset.references || []);
+            const references: ReferenceImage[] = request.references.map((reference, index) => ({
+                id: reference.id || `reference-${index + 1}`,
+                name: reference.label,
+                type: "image",
+                dataUrl: reference.url || "",
+                url: reference.url,
+                serverUrl: reference.url,
+                storageKey: reference.storageKey,
+            }));
+            const config = { ...imageConfig, model: imageConfig.imageModel || imageConfig.model, count: "1" };
+            const task = await createImageGenerationTask(config, request.prompt, references, undefined, {
+                surface: "drama",
+                projectId: project.id,
+                logSource: "drama",
+                logTitle: `${project.title} · 资源设定图`,
+            });
+            const results = await waitForImageGenerationTask(config, task);
+            const result = results.results?.[0] || results;
+            const url = result?.serverUrl || result?.remoteUrl || result?.dataUrl;
+            if (!url) throw new Error("生成未返回图片地址");
+            updateResourceAsset((asset) => {
+                const generated = createGeneratedPrimaryImage(assetImageUrl(asset), asset.primaryReferenceId, asset.references || [], { url });
+                return { ...asset, imageUrl: url, referenceImageUrl: url, referenceStorageKey: undefined, primaryReferenceId: generated.primaryReferenceId, references: generated.references };
+            });
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "生成失败");
+        } finally {
+            setResourceBusy(false);
+        }
+    };
 
     // 保存项目信息
     const saveProjectInfo = async (silent = false, overrides: Partial<ProjectSettingsFormValues> = {}) => {
@@ -473,6 +622,29 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
         } catch (err) {
             message.error("添加失败");
         }
+    };
+
+    const toggleEpisodeSelection = (id: string) =>
+        setSelectedEpisodeIds((current) => {
+            const next = new Set(current);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+
+    const handleBatchDeleteEpisodes = () => {
+        if (!selectedEpisodeIds.size) return;
+        Modal.confirm({
+            title: "批量删除分集",
+            content: `确定删除选中的 ${selectedEpisodeIds.size} 集吗？`,
+            okText: "删除",
+            cancelText: "取消",
+            onOk: async () => {
+                const updatedEpisodes = project?.episodes.filter((ep) => !selectedEpisodeIds.has(ep.id)) || [];
+                await persistProject({ episodes: updatedEpisodes });
+                setSelectedEpisodeIds(new Set());
+                message.success("批量删除成功");
+            },
+        });
     };
 
     // 删除分集
@@ -598,6 +770,9 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 <Button icon={<Upload className="size-4" />} onClick={() => setBatchImportOpen(true)}>
                                     批量导入剧集
                                 </Button>
+                                <Button danger disabled={!selectedEpisodeIds.size} icon={<Trash2 className="size-4" />} onClick={handleBatchDeleteEpisodes}>
+                                    批量删除
+                                </Button>
                                 <Button type="primary" icon={<Plus className="size-4" />} onClick={handleAddEpisode}>
                                     新增一集
                                 </Button>
@@ -612,6 +787,16 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             {project.episodes.map((ep) => (
                                 <div key={ep.id} className="group cursor-pointer rounded-lg border border-border p-4 transition-all hover:border-primary hover:shadow-md" onClick={() => goToCreate(ep.id)}>
                                     <div className="mb-2 flex items-center justify-between">
+                                        <button
+                                            type="button"
+                                            aria-label={`选择第 ${ep.episodeNumber || ep.number || 0} 集`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleEpisodeSelection(ep.id);
+                                            }}
+                                        >
+                                            <CheckSquare className={selectedEpisodeIds.has(ep.id) ? "size-4 text-primary" : "size-4 text-muted-foreground"} />
+                                        </button>
                                         <span className="text-sm text-muted-foreground">第 {ep.episodeNumber || ep.number || 0} 集</span>
                                         <Button
                                             type="text"
@@ -662,116 +847,55 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                     <Tabs
                         activeKey={activeTab}
                         onChange={setActiveTab}
-                        items={[
-                            {
-                                key: "characters",
-                                label: (
-                                    <span className="flex items-center gap-2">
-                                        <Users className="size-4" />
-                                        角色 ({project.characters.length})
-                                    </span>
-                                ),
-                                children: (
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {project.characters.filter((char) => !libraryKeyword.trim() || char.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).length === 0 ? (
-                                            <div className="col-span-4">
-                                                <Empty description="暂无角色，进入制作页面添加" />
-                                            </div>
-                                        ) : (
-                                            project.characters
-                                                .filter((char) => !libraryKeyword.trim() || char.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
-                                                .map((char) => (
-                                                    <div key={char.id} className="overflow-hidden rounded-lg border border-border">
-                                                        <div className="aspect-video bg-muted">
-                                                            {char.imageUrl ? (
-                                                                <img src={char.imageUrl} alt={char.name} className="size-full object-cover" />
-                                                            ) : (
-                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="p-3">
-                                                            <div className="mb-2 text-sm font-semibold">{char.name}</div>
-                                                            <div className="text-xs text-muted-foreground">{char.description || "暂无描述"}</div>
-                                                        </div>
+                        items={(["characters", "scenes", "props"] as const).map((kind) => ({
+                            key: kind,
+                            label: `${kind === "characters" ? "角色" : kind === "scenes" ? "场景" : "道具"} (${project[kind].length})`,
+                            children: (
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                    {project[kind]
+                                        .filter((asset) => !libraryKeyword.trim() || (asset.name || ("location" in asset ? asset.location : "")).includes(libraryKeyword.trim()))
+                                        .map((asset) => (
+                                            <div key={asset.id} className="group relative h-72 overflow-hidden rounded-lg border border-border" data-outline-resource-card={asset.id}>
+                                                <button type="button" className="flex h-full w-full flex-col text-left" onClick={() => resourceEditorEnabled && setResourceEditor({ kind, asset: { ...asset } })}>
+                                                    <div className="h-40 w-full shrink-0 bg-muted">
+                                                        {assetImageUrl(asset) ? (
+                                                            <div className="size-full" onClick={(event) => event.stopPropagation()} data-outline-resource-preview>
+                                                                <AntImage src={assetImageUrl(asset)} alt={asset.name || "参考图"} width="100%" height="100%" className="!size-full !object-contain" preview={{ src: assetImageUrl(asset) }} />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
+                                                        )}
                                                     </div>
-                                                ))
-                                        )}
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: "scenes",
-                                label: (
-                                    <span className="flex items-center gap-2">
-                                        <MapPin className="size-4" />
-                                        场景 ({project.scenes.length})
-                                    </span>
-                                ),
-                                children: (
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {project.scenes.filter((scene) => !libraryKeyword.trim() || scene.location.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).length === 0 ? (
-                                            <div className="col-span-4">
-                                                <Empty description="暂无场景，进入制作页面添加" />
-                                            </div>
-                                        ) : (
-                                            project.scenes
-                                                .filter((scene) => !libraryKeyword.trim() || scene.location.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
-                                                .map((scene) => (
-                                                    <div key={scene.id} className="overflow-hidden rounded-lg border border-border">
-                                                        <div className="aspect-video bg-muted">
-                                                            {scene.imageUrl ? (
-                                                                <img src={scene.imageUrl} alt={scene.location} className="size-full object-cover" />
-                                                            ) : (
-                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="p-3">
-                                                            <div className="mb-2 text-sm font-semibold">{scene.location}</div>
-                                                            <div className="text-xs text-muted-foreground">{scene.time || "未设置时间"}</div>
-                                                        </div>
+                                                    <div className="overflow-hidden p-3">
+                                                        <div className="mb-2 truncate font-semibold">{asset.name || ("location" in asset ? asset.location : "")}</div>
+                                                        <div className="line-clamp-3 text-xs text-muted-foreground">{asset.description || "暂无描述"}</div>
                                                     </div>
-                                                ))
-                                        )}
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: "props",
-                                label: (
-                                    <span className="flex items-center gap-2">
-                                        <Package className="size-4" />
-                                        道具 ({project.props.length})
-                                    </span>
-                                ),
-                                children: (
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {project.props.filter((prop) => !libraryKeyword.trim() || prop.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).length === 0 ? (
-                                            <div className="col-span-4">
-                                                <Empty description="暂无道具，进入制作页面添加" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-label="删除本剧资源"
+                                                    className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-background opacity-0 group-hover:opacity-100 focus:opacity-100 max-sm:opacity-100"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        Modal.confirm({
+                                                            title: "删除确认",
+                                                            content: `确定删除「${asset.name || "此资源"}」？`,
+                                                            okText: "删除",
+                                                            cancelText: "取消",
+                                                            okButtonProps: { danger: true },
+                                                            onOk: async () => {
+                                                                await persistProject({ [kind]: project[kind].filter((item) => item.id !== asset.id) });
+                                                            },
+                                                        });
+                                                    }}
+                                                >
+                                                    <X className="size-4" />
+                                                </button>
                                             </div>
-                                        ) : (
-                                            project.props
-                                                .filter((prop) => !libraryKeyword.trim() || prop.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
-                                                .map((prop) => (
-                                                    <div key={prop.id} className="overflow-hidden rounded-lg border border-border">
-                                                        <div className="aspect-video bg-muted">
-                                                            {prop.imageUrl ? (
-                                                                <img src={prop.imageUrl} alt={prop.name} className="size-full object-cover" />
-                                                            ) : (
-                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="p-3">
-                                                            <div className="mb-2 text-sm font-semibold">{prop.name}</div>
-                                                            <div className="text-xs text-muted-foreground">{prop.description || "暂无描述"}</div>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                        )}
-                                    </div>
-                                ),
-                            },
-                        ]}
+                                        ))}
+                                </div>
+                            ),
+                        }))}
                     />
                 </Card>
             </main>
@@ -780,34 +904,91 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 <Steps current={batchImportTab === "config" ? 0 : 1} items={[{ title: "导入设置" }, { title: "预览确认" }]} className="mb-5" />
                 {batchImportTab === "config" ? (
                     <div className="grid gap-4">
-                        <AntUpload
+                        <AntUpload.Dragger
                             beforeUpload={(file: File) => {
                                 setBatchFileName(file.name);
-                                const reader = new FileReader();
-                                reader.onload = (event) => setBatchRawText(String(event.target?.result || ""));
-                                reader.readAsText(file, "utf-8");
+                                void readBatchImportFile(projectId, file)
+                                    .then((content) => {
+                                        setBatchRawText(content);
+                                        setBatchImportText(content);
+                                    })
+                                    .catch((error) => message.error(error instanceof Error ? error.message : "文件解析失败"));
                                 return false;
                             }}
                             showUploadList={false}
-                            accept=".txt,.md"
+                            accept=".txt,.md,.markdown,.docx,.doc,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                         >
-                            <Button icon={<Upload className="size-4" />}>选择 TXT/MD 文件</Button>
-                        </AntUpload>
-                        <div className="text-sm text-muted-foreground">{batchFileName || "未选择文件，也可以直接粘贴文本"}</div>
-                        <Input value={chapterPattern} onChange={(event: ChangeEvent<HTMLInputElement>) => setChapterPattern(event.target.value)} addonBefore="章节正则" />
-                        <div className="flex items-center gap-3">
-                            <span className="text-sm">每集章节数</span>
-                            <Select value={chaptersPerEpisode} onChange={setChaptersPerEpisode} options={[1, 2, 3, 4, 5].map((value) => ({ label: String(value), value }))} />
+                            <p className="ant-upload-drag-icon">
+                                <Upload className="mx-auto size-7 text-muted-foreground" />
+                            </p>
+                            <p className="ant-upload-text">点击或拖拽上传 TXT / MD / DOCX / DOC 文件</p>
+                            <p className="ant-upload-hint">支持小说原文或剧本文档，也可以直接在下面粘贴文本。</p>
+                        </AntUpload.Dragger>
+                        <div className="grid gap-3">
+                            <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-left text-sm">章节正则</span>
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <Input className="flex-1" value={chapterPattern} onChange={(event: ChangeEvent<HTMLInputElement>) => setChapterPattern(event.target.value)} />
+                                    <Select
+                                        className="w-52 shrink-0"
+                                        placeholder="常用正则"
+                                        options={[
+                                            { label: "第N集/章（含▸前缀）", value: "^\\s*[▸◆•●\\-]?\\s*(第\\s*[0-9０-９零一二三四五六七八九十百千万]+\\s*[章节回集篇][^\\n\\r]*)" },
+                                            { label: "Markdown标题", value: "^\\s*#+\\s*(第\\s*[0-9０-９零一二三四五六七八九十百千万]+\\s*[章节回集篇][^\\n\\r]*)" },
+                                            { label: "第N章/回/节", value: "^\\s*(第\\s*[0-9０-９零一二三四五六七八九十百千万]+\\s*[章回节][^\\n\\r]*)" },
+                                        ]}
+                                        onChange={(value) => setChapterPattern(value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-left text-sm">每集章节数</span>
+                                <div className="flex items-center">
+                                    <Button size="small" onClick={() => setChaptersPerEpisode((value) => Math.max(1, value - 1))}>
+                                        −
+                                    </Button>
+                                    <span className="grid h-8 w-14 place-items-center border-y border-border text-sm">{chaptersPerEpisode}</span>
+                                    <Button size="small" onClick={() => setChaptersPerEpisode((value) => Math.min(100, value + 1))}>
+                                        ＋
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
-                        <Input.TextArea
-                            rows={8}
-                            value={batchRawText || batchImportText}
-                            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
-                                setBatchRawText(event.target.value);
-                                setBatchImportText(event.target.value);
+                        <div
+                            className="rounded-md border border-dashed border-border p-2"
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                                event.preventDefault();
+                                const file = event.dataTransfer.files?.[0];
+                                if (!file) return;
+                                setBatchFileName(file.name);
+                                void readBatchImportFile(projectId, file)
+                                    .then((content) => {
+                                        setBatchRawText(content);
+                                        setBatchImportText(content);
+                                    })
+                                    .catch((error) => message.error(error instanceof Error ? error.message : "文件解析失败"));
                             }}
-                            placeholder={"第1集 | 雨夜里，主角收到一封神秘来信。\\n第2集 | 他沿着线索来到旧车站。"}
-                        />
+                        >
+                            <Input.TextArea
+                                rows={8}
+                                value={batchRawText || batchImportText}
+                                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                                    setBatchRawText(event.target.value);
+                                    setBatchImportText(event.target.value);
+                                }}
+                                placeholder={"第1章 雨夜里，主角收到一封神秘来信。\n\n第2章 他沿着线索来到旧车站。"}
+                            />
+                        </div>
+                        <div className="rounded-md bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
+                            <div>支持 TXT、MD、DOCX、DOC 小说原文或剧本文档，服务器会自动解析编码与 Word 内容。</div>
+                            <div>也可以直接粘贴文本，或将文件拖到弹窗、文件区、正文输入框。</div>
+                            <div>请输入可匹配章节标题的正则表达式；默认支持“第1章 / 第1集 / 第 一 章”等标题。</div>
+                            <div>
+                                示例：<code className="text-primary">^\s*(第\d+章[^\n]*)</code>、<code className="text-primary">^\s*(第\d+集[^\n]*)</code>
+                            </div>
+                            <div>每集章节数可自由设置；例如设置为 3，则每 3 个识别章节合并为 1 集。</div>
+                        </div>
                         <div className="flex justify-end">
                             <Button type="primary" onClick={() => void handleBatchImport()}>
                                 解析并预览
@@ -894,42 +1075,261 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 </div>
             </Modal>
 
-            <Modal open={resourceImportOpen} title={`从素材库导入${resourceImportTarget === "characters" ? "角色" : resourceImportTarget === "scenes" ? "场景" : "道具"}`} footer={null} onCancel={() => setResourceImportOpen(false)}>
-                {libraryLoading ? (
-                    <div className="flex justify-center py-8">
-                        <Spin />
-                    </div>
-                ) : filteredLibraryAssets.length ? (
-                    <List
-                        dataSource={filteredLibraryAssets}
-                        renderItem={(asset: Asset) => (
-                            <List.Item
-                                actions={[
-                                    <Button key="import" type="link" loading={resourceImporting} onClick={() => void handleResourceImport(asset)}>
-                                        导入
-                                    </Button>,
-                                ]}
-                            >
-                                <List.Item.Meta
-                                    avatar={
-                                        assetImageUrl(asset as unknown as LooseAsset) ? (
-                                            <img src={assetImageUrl(asset as unknown as LooseAsset)} alt={asset.title} className="size-9 rounded object-cover" />
-                                        ) : (
-                                            <div className="grid size-9 place-items-center rounded bg-muted">
-                                                <LibraryBig className="size-4" />
+            <Modal
+                open={Boolean(resourceEditor)}
+                title={`编辑${resourceEditor?.kind === "characters" ? "角色" : resourceEditor?.kind === "scenes" ? "场景" : "道具"}库`}
+                width={560}
+                maskClosable={!resourceBusy}
+                closable={!resourceBusy}
+                onCancel={() => {
+                    if (!resourceBusy) setResourceEditor(undefined);
+                }}
+                footer={
+                    <>
+                        <Button disabled={resourceBusy} onClick={() => setResourceEditor(undefined)}>
+                            取消
+                        </Button>
+                        <Button
+                            type="primary"
+                            loading={resourceBusy}
+                            onClick={async () => {
+                                if (await saveResourceEditor(true)) setResourceEditor(undefined);
+                            }}
+                        >
+                            保存
+                        </Button>
+                    </>
+                }
+            >
+                {resourceEditor ? (
+                    <div className="max-h-[65vh] overflow-y-auto py-3">
+                        <div className="mb-4 grid grid-cols-[3rem_minmax(0,1fr)] gap-4">
+                            <span className="pt-2">主图</span>
+                            <div className="flex min-w-0 gap-2">
+                                <div
+                                    className="group relative flex h-44 min-w-0 flex-1 items-center justify-center overflow-hidden rounded border bg-muted transition-colors hover:border-primary"
+                                    onDragOver={(event) => {
+                                        event.preventDefault();
+                                        event.dataTransfer.dropEffect = "copy";
+                                    }}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        void uploadResourcePrimaryImage(event.dataTransfer.files?.[0]);
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        className="flex size-full items-center justify-center"
+                                        onClick={() => assetImageUrl(resourceEditor.asset) && setResourcePreview({ url: assetImageUrl(resourceEditor.asset) || "", title: "当前主图" })}
+                                    >
+                                        {assetImageUrl(resourceEditor.asset) ? <img src={assetImageUrl(resourceEditor.asset)} alt="主图" className="max-h-full max-w-full object-contain" /> : "暂无主图"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="absolute inset-x-3 bottom-3 rounded-md bg-black/70 px-3 py-2 text-sm text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                                        onClick={() => resourcePrimaryFileInput.current?.click()}
+                                    >
+                                        上传图片 / 替换主图
+                                    </button>
+                                </div>
+                                <div className="max-h-44 w-20 shrink-0 space-y-2 overflow-y-auto pr-1" aria-label="AI 生成历史图">
+                                    {(resourceEditor.asset.references || [])
+                                        .filter((reference) => reference.role === "history" && reference.url)
+                                        .map((reference, index) => (
+                                            <div key={reference.id || `${reference.url}-${index}`} className="group relative h-12 overflow-hidden rounded border">
+                                                <button
+                                                    type="button"
+                                                    className="size-full"
+                                                    aria-label="设为主图"
+                                                    onClick={() => {
+                                                        const result = setResourcePrimaryImage(assetImageUrl(resourceEditor.asset), resourceEditor.asset.references || [], reference);
+                                                        updateResourceAsset((asset) => ({ ...asset, imageUrl: result.primaryUrl, referenceImageUrl: result.primaryUrl, references: result.references }));
+                                                    }}
+                                                >
+                                                    <img src={reference.url} alt={`历史图 ${index + 1}`} className="size-full object-cover" />
+                                                </button>
+                                                <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/45 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                                                    <button type="button" aria-label="放大历史图" className="rounded bg-white px-1.5 text-xs" onClick={() => setResourcePreview({ url: reference.url || "", title: `历史图 ${index + 1}` })}>
+                                                        ⌕
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="删除历史图"
+                                                        className="rounded bg-white px-1.5 text-xs"
+                                                        onClick={() => updateResourceAsset((asset) => ({ ...asset, references: (asset.references || []).filter((item) => item.id !== reference.id) }))}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
                                             </div>
-                                        )
-                                    }
-                                    title={asset.title}
-                                    description={`${asset.kind} · ${asset.note || asset.tags.join("、") || "暂无描述"}`}
-                                />
-                            </List.Item>
-                        )}
-                    />
-                ) : (
-                    <Empty description={libraryKeyword ? "没有匹配的素材" : "素材库暂无内容"} />
-                )}
+                                        ))}
+                                </div>
+                            </div>
+
+                            <span className="pt-2">参考</span>
+                            <div
+                                className="rounded-lg border border-dashed p-2 transition-colors hover:border-primary"
+                                onDragOver={(event) => {
+                                    event.preventDefault();
+                                    event.dataTransfer.dropEffect = "copy";
+                                }}
+                                onDrop={(event) => {
+                                    event.preventDefault();
+                                    void uploadResourceReferences(Array.from(event.dataTransfer.files));
+                                }}
+                            >
+                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>生成图片的参考图</span>
+                                    <span>{normalizeResourceGenerationReferences(resourceEditor.asset.references || []).length} / 9</span>
+                                </div>
+                                <div className="flex min-h-24 gap-2 overflow-x-auto pb-1">
+                                    {normalizeResourceGenerationReferences(resourceEditor.asset.references || []).map((reference, index) => (
+                                        <div key={reference.id} className="group relative h-24 w-20 shrink-0 overflow-hidden rounded border bg-muted">
+                                            <button type="button" className="size-full" aria-label={`预览${reference.label}`} onClick={() => setResourcePreview({ url: reference.url || "", title: reference.label })}>
+                                                <img src={reference.url} alt={reference.label} className="size-full object-cover" />
+                                                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">{reference.label}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                aria-label={`移除${reference.label}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs"
+                                                onClick={() => updateResourceAsset((asset) => ({ ...asset, references: (asset.references || []).filter((item) => item.id !== reference.id) }))}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {normalizeResourceGenerationReferences(resourceEditor.asset.references || []).length < 9 ? (
+                                        <button type="button" className="grid h-24 w-20 shrink-0 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={() => resourceFileInput.current?.click()}>
+                                            <span>
+                                                <b className="block text-xl font-normal">＋</b>拖入或添加
+                                            </span>
+                                        </button>
+                                    ) : null}
+                                </div>
+                                <div className="mt-2 flex justify-end">
+                                    <Button loading={resourceBusy} onClick={() => void generateResourceImage()}>
+                                        AI 生成
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                        <input ref={resourceFileInput} type="file" accept="image/*" multiple hidden onChange={(event) => void uploadResourceReferences(Array.from(event.target.files || []))} />
+                        <input ref={resourcePrimaryFileInput} type="file" accept="image/*" hidden onChange={(event) => void uploadResourcePrimaryImage(event.target.files?.[0])} />
+                        {(["name", "category", "description", "tags"] as const).map((field) => (
+                            <div key={field} className="mb-4 flex items-start gap-4">
+                                <label className="w-12 shrink-0 pt-1" htmlFor={`resource-${field}`}>
+                                    {{ name: "名称", category: "分类", description: "描述", tags: "标签" }[field]}
+                                </label>
+                                {field === "description" ? (
+                                    <div className="relative min-w-0 flex-1">
+                                        {/@图[1-9]/.test(resourceEditor.asset.description || "") ? (
+                                            <div
+                                                ref={resourceMentionMirrorRef}
+                                                aria-hidden
+                                                className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-foreground [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
+                                                dangerouslySetInnerHTML={{ __html: highlightResourceMentions(resourceEditor.asset.description || "") }}
+                                            />
+                                        ) : null}
+                                        <Input.TextArea
+                                            ref={resourceDescriptionRef}
+                                            id={`resource-${field}`}
+                                            disabled={resourceBusy}
+                                            rows={4}
+                                            className={`relative z-[1] !bg-transparent ${/@图[1-9]/.test(resourceEditor.asset.description || "") ? "!text-transparent caret-foreground" : ""}`}
+                                            placeholder="输入文本提示词。只有图片＝图生图；只有文字＝文生图；图片和文字＝文加图生图。输入 @ 可引用上方参考图，例如：保留 @图1 的脸，使用 @图2 的服装。"
+                                            value={resourceEditor.asset.description || ""}
+                                            onScroll={(event) => {
+                                                const mirror = resourceMentionMirrorRef.current;
+                                                if (!mirror) return;
+                                                mirror.scrollTop = event.currentTarget.scrollTop;
+                                                mirror.scrollLeft = event.currentTarget.scrollLeft;
+                                            }}
+                                            onChange={(event) => {
+                                                const value = event.target.value;
+                                                const cursor = event.target.selectionStart ?? value.length;
+                                                const mentionStart = value.lastIndexOf("@", Math.max(0, cursor - 1));
+                                                const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, cursor) : "";
+                                                resourceMentionRangeRef.current = { start: mentionStart >= 0 ? mentionStart : cursor, end: cursor };
+                                                setResourceMentionOpen(mentionStart >= 0 && !/\s/.test(mentionText));
+                                                updateResourceAsset((asset) => ({ ...asset, description: value }), false);
+                                            }}
+                                        />
+                                        {resourceMentionOpen ? (
+                                            <div className="absolute bottom-2 left-2 z-10 w-52 rounded-md border bg-popover p-1 shadow-lg">
+                                                {normalizeResourceGenerationReferences(resourceEditor.asset.references || []).map((reference) => (
+                                                    <button
+                                                        key={reference.id}
+                                                        type="button"
+                                                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                                                        onClick={() => {
+                                                            const current = resourceEditor.asset.description || "";
+                                                            const inserted = insertResourceMention(current, resourceMentionRangeRef.current.start, resourceMentionRangeRef.current.end, reference.label);
+                                                            updateResourceAsset((asset) => ({ ...asset, description: inserted.value }), false);
+                                                            setResourceMentionOpen(false);
+                                                            window.requestAnimationFrame(() => {
+                                                                resourceDescriptionRef.current?.focus();
+                                                                resourceDescriptionRef.current?.resizableTextArea?.textArea.setSelectionRange(inserted.cursor, inserted.cursor);
+                                                            });
+                                                        }}
+                                                    >
+                                                        <img src={reference.url} alt="" className="size-8 rounded object-cover" />
+                                                        <span>@{reference.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : (
+                                    <Input
+                                        id={`resource-${field}`}
+                                        disabled={resourceBusy}
+                                        placeholder={field === "tags" ? "逗号分隔" : field === "category" ? "可选" : ""}
+                                        value={field === "tags" ? resourceEditor.asset.tags?.join(",") : resourceEditor.asset[field]}
+                                        onChange={(event) => updateResourceAsset((asset) => ({ ...asset, [field]: field === "tags" ? event.target.value.split(/[,，]/) : event.target.value }), false)}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
             </Modal>
+            <Modal open={Boolean(resourcePreview)} title={resourcePreview?.title || "图片预览"} footer={null} width={760} onCancel={() => setResourcePreview(undefined)}>
+                {resourcePreview ? (
+                    <div>
+                        <div className="flex max-h-[65vh] items-center justify-center overflow-hidden rounded border bg-muted">
+                            <img src={resourcePreview.url} alt={resourcePreview.title} className="max-h-[65vh] max-w-full object-contain" />
+                        </div>
+                        {resourcePreview.title.startsWith("历史图") ? (
+                            <div className="mt-3 flex justify-end">
+                                <Button
+                                    type="primary"
+                                    onClick={() => {
+                                        const reference = (resourceEditor?.asset.references || []).find((item) => item.url === resourcePreview.url);
+                                        if (!resourceEditor || !reference) return;
+                                        const result = setResourcePrimaryImage(assetImageUrl(resourceEditor.asset), resourceEditor.asset.references || [], reference);
+                                        updateResourceAsset((asset) => ({ ...asset, imageUrl: result.primaryUrl, referenceImageUrl: result.primaryUrl, references: result.references }));
+                                        setResourcePreview(undefined);
+                                    }}
+                                >
+                                    设为主图
+                                </Button>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+            </Modal>
+            {resourceImportOpen ? (
+                <DramaLabAssetLibraryPicker
+                    key={resourceImportTarget}
+                    kind={resourceImportTarget as "characters" | "scenes" | "props"}
+                    label={resourceImportTarget === "characters" ? "角色" : resourceImportTarget === "scenes" ? "场景" : "道具"}
+                    busyKey=""
+                    importedNames={project?.[resourceImportTarget as "characters" | "scenes" | "props"].map((asset) => ("name" in asset ? asset.name : asset.location)).filter((name): name is string => Boolean(name)) || []}
+                    onClose={() => setResourceImportOpen(false)}
+                    onImport={handleResourceImport}
+                />
+            ) : null}
         </div>
     );
 }

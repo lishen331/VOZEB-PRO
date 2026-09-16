@@ -6,12 +6,13 @@ export function listLibraryAssets() {
     return listLibraryAssetPage({ page: 1, pageSize: 100 }).then((data) => data.assets);
 }
 
-export type LibraryAssetPage = { assets: Asset[]; total: number; page: number; pageSize: number };
+export type LibraryAssetPage = { assets: Asset[]; total: number; page: number; pageSize: number; categories?: string[] };
 
-export function listLibraryAssetPage(input: { page: number; pageSize: number; kind?: Asset["kind"]; keyword?: string; dramaAssetType?: DramaLibraryAssetType }, signal?: AbortSignal) {
+export function listLibraryAssetPage(input: { page: number; pageSize: number; kind?: Asset["kind"]; keyword?: string; category?: string; dramaAssetType?: DramaLibraryAssetType }, signal?: AbortSignal) {
     const query = new URLSearchParams({ page: String(input.page), pageSize: String(input.pageSize) });
     if (input.kind) query.set("kind", input.kind);
     if (input.keyword?.trim()) query.set("keyword", input.keyword.trim());
+    if (input.category?.trim()) query.set("category", input.category.trim());
     if (input.dramaAssetType) query.set("dramaAssetType", input.dramaAssetType);
     return request<LibraryAssetPage>(`/api/library-assets?${query}`, { cache: "no-store", signal });
 }

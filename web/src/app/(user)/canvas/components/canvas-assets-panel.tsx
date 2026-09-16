@@ -12,7 +12,7 @@ import { imagePreviewUrl } from "@/lib/media-image-url";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listMyPrompts } from "@/services/api/my-prompts";
 import { ALL_PROMPTS_OPTION, fetchPrompts, promptCategoryLabel, type Prompt } from "@/services/api/prompts";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { useCanvasStore } from "../stores/use-canvas-store";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
@@ -69,7 +69,7 @@ export function CanvasAssetsPanel({
     onClose: () => void;
 }) {
     const screens = Grid.useBreakpoint();
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const userId = useUserStore((state) => state.user?.id || "");
     const projectSummaries = useCanvasStore((state) => state.summaries);
     const project = useCanvasStore((state) => state.projects.find((item) => item.id === projectId));
@@ -317,7 +317,7 @@ export function CanvasAssetsPanel({
 }
 
 function PanelTabButton({ label, count, active, onClick }: { label: string; count?: number; active: boolean; onClick: () => void }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <button
             type="button"
@@ -470,7 +470,7 @@ function PanelFilters({
     filterItems: Array<{ key: string; label: string }>;
     onFilterChange: (value: string) => void;
 }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <div className="sticky top-0 z-10 mb-3 flex gap-1.5 pb-2 pt-3 backdrop-blur-sm">
             <Input
@@ -498,7 +498,7 @@ function PanelFilters({
 }
 
 function PanelScroll({ children }: { children: ReactNode }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <div className="hide-scrollbar h-full min-h-0 overflow-y-auto px-3" style={{ background: theme.node.panel }}>
             {children}
@@ -529,7 +529,7 @@ function LoadMore<T>({ collection, onLoadMore }: { collection: PagedCollection<T
 }
 
 function ThumbnailActionCard({ title, action, actionIcon, onAction, onPreview, children }: { title: string; action: string; actionIcon?: ReactNode; onAction: () => void; onPreview?: () => void; children: ReactNode }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <article className="min-w-0" title={title}>
             {onPreview ? (
@@ -556,7 +556,7 @@ function ThumbnailActionCard({ title, action, actionIcon, onAction, onPreview, c
 }
 
 function MediaKindSwitch({ kind, imageCount, videoCount, onChange }: { kind: CurrentMediaKind; imageCount: number; videoCount: number; onChange: (kind: CurrentMediaKind) => void }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <div className="mx-3 mt-3 grid grid-cols-2 gap-1 rounded-lg border p-1" style={{ borderColor: theme.toolbar.border, background: theme.node.fill }} role="tablist" aria-label="当前资产类型">
             {(["image", "video"] as const).map((value) => {
@@ -592,7 +592,7 @@ function LibraryAssetThumbnail({ asset }: { asset: Asset }) {
 }
 
 function FallbackThumbnail({ icon }: { icon: ReactNode }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <div className="grid size-full place-items-center" style={{ color: theme.node.muted }}>
             {icon}
@@ -601,7 +601,7 @@ function FallbackThumbnail({ icon }: { icon: ReactNode }) {
 }
 
 function PanelEmpty({ icon, text }: { icon: ReactNode; text: string }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <div className="grid min-h-48 place-items-center px-5 text-center">
             <div>
@@ -617,7 +617,7 @@ function PanelEmpty({ icon, text }: { icon: ReactNode; text: string }) {
 }
 
 function PanelError({ message, onRetry }: { message: string; onRetry: () => void }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <div className="grid min-h-48 place-items-center px-5 text-center">
             <div>

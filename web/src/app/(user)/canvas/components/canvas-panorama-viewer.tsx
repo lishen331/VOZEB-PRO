@@ -7,7 +7,7 @@ import { Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { imagePreviewUrl } from "@/lib/media-image-url";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 
 const CanvasPanoramaSurface = dynamic(() => import("./canvas-panorama-surface").then((module) => module.CanvasPanoramaSurface), {
     ssr: false,
@@ -17,7 +17,7 @@ const CanvasPanoramaSurface = dynamic(() => import("./canvas-panorama-surface").
 const stopCanvasInteraction = (event: SyntheticEvent) => event.stopPropagation();
 
 export function CanvasPanoramaViewer({ src, alt }: { src: string; alt: string }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const [open, setOpen] = useState(false);
     const previewSrc = imagePreviewUrl(src, 1920);
 

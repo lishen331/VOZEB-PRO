@@ -23,6 +23,8 @@ export type VideoTask = GenerationTaskContext & {
     requestedDurationSeconds?: number;
     source?: string;
     prompt?: string;
+    references?: import("@/lib/video-reference-contract").VideoGenerationReference[];
+    workflowInput?: Record<string, unknown>;
     attempts?: GenerationAttempt[];
     polling?: { lastAttemptAt?: number; nextAttemptAt?: number };
     result?: { url?: string; remoteUrl?: string; mimeType?: string; durationMs?: number };
@@ -67,7 +69,7 @@ export function transitionVideoTask(
     return transitionStoredGenerationTask<VideoTask>("video", task.id, task.userId, ["running"], patch, GENERATION_TASK_RETENTION_MS, executionPatch);
 }
 
-export function updateVideoTask(id: string, patch: Partial<Pick<VideoTask, "config" | "upstream" | "requestedDurationSeconds" | "attempts" | "result">>) {
+export function updateVideoTask(id: string, patch: Partial<Pick<VideoTask, "config" | "upstream" | "requestedDurationSeconds" | "attempts" | "result" | "references" | "workflowInput">>) {
     return mutateStoredGenerationTask<VideoTask>("video", id, GENERATION_TASK_RETENTION_MS, (task) => ({ ...task, ...patch }));
 }
 

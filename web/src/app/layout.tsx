@@ -9,7 +9,11 @@ import "antd/dist/reset.css";
 import "./globals.css";
 import React from "react";
 
-const themeBootstrapScript = `try{const value=JSON.parse(localStorage.getItem(${JSON.stringify(appStorageKey("theme_store"))})||"{}");const theme=value?.state?.theme==="dark"?"dark":"light";document.documentElement.classList.toggle("dark",theme==="dark");document.documentElement.style.colorScheme=theme}catch{}`;
+// Mirrors the canvas-editor-route + effective-theme logic in app-providers.tsx
+// (CANVAS_EDITOR_ROUTE / useCanvasColorTheme). Duplicated here rather than
+// imported because this runs as an inline pre-hydration script and cannot
+// pull in app code — see the comment on CANVAS_EDITOR_ROUTE.
+const themeBootstrapScript = `try{const value=JSON.parse(localStorage.getItem(${JSON.stringify(appStorageKey("theme_store"))})||"{}");const isCanvas=/^\\/(?:canvas|drama-canvas)\\/[^/]+/.test(location.pathname);const theme=isCanvas?(value?.state?.canvasThemeOverride==="light"?"light":"dark"):(value?.state?.theme==="dark"?"dark":"light");document.documentElement.classList.toggle("dark",theme==="dark");document.documentElement.style.colorScheme=theme}catch{}`;
 
 export const viewport: Viewport = {
     width: "device-width",

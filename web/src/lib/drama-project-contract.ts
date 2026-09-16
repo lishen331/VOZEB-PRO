@@ -96,6 +96,7 @@ export type DramaAssetReference = {
     url: string;
     storageKey?: string;
     source: "upload" | "generated" | "library";
+    role?: "primary" | "history" | "reference";
     label: string;
     width?: number;
     height?: number;
@@ -107,6 +108,12 @@ export type DramaAssetProfile = {
     styling: string;
     colorPalette: string;
     consistencyRules: string;
+    face_shape?: string;
+    facial_features?: string;
+    unique_marks?: string;
+    color_anchors?: { hair: string; eyes: string; skin: string; primary_outfit: string };
+    skin_texture?: string;
+    hair_style?: string;
 };
 
 export type DramaVoiceProfile = {
@@ -116,9 +123,16 @@ export type DramaVoiceProfile = {
 };
 
 /** Optional extraction fields retained by the short-drama lab in project_json. */
+export type DramaAssetGenerationLayout = "single" | "four_view";
+export type DramaAssetStage = { episodeRange: [number, number]; appearance: string };
+
 export type DramaAssetVisualDetails = {
     appearance?: string;
     imagePrompt?: string;
+    polishedPrompt?: string;
+    singleImagePrompt?: string;
+    generationLayout?: DramaAssetGenerationLayout;
+    stages?: DramaAssetStage[];
     role?: string;
     type?: string;
     time?: string;
@@ -299,6 +313,9 @@ export type DramaProject = {
     title: string;
     summary: string;
     style: string;
+    storyStyle?: string;
+    scriptType?: string;
+    scriptEpisodeCount?: number;
     ratio: string;
     status: "active" | "archived";
     creativeConversationId?: string;
@@ -336,6 +353,8 @@ export type DramaProjectSummaryPage = {
 };
 
 export type CreateDramaProjectInput = Pick<DramaProject, "title" | "summary" | "style" | "ratio"> & {
+    storyStyle?: string;
+    scriptType?: string;
     sourceHandoffId?: string;
     initialScript?: string;
     sourceAssets?: DramaSourceAsset[];

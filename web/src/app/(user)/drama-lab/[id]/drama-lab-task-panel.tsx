@@ -25,6 +25,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     const [recheckingId, setRecheckingId] = useState<string>();
     const [retryingId, setRetryingId] = useState<string>();
     const [error, setError] = useState<string>();
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(initialTasks.length > 0);
     const [messageApi, contextHolder] = message.useMessage();
 
     const activeCount = useMemo(() => tasks.filter(isTaskActive).length, [tasks]);
@@ -34,10 +35,13 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
             if (silent) setRefreshing(true);
             else setLoading(true);
             try {
-                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=visible`, { cache: "no-store" });
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=all`, { cache: "no-store" });
                 const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { tasks?: DramaLabTaskView[] } };
                 if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "Task status could not be loaded");
-                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks.filter(isTaskVisible) : []);
+                const allTasks = Array.isArray(payload.data?.tasks) ? payload.data.tasks : [];
+                setTasks(allTasks.filter(isTaskVisible));
+                if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("drama-lab-task-updated", { detail: { projectId, tasks: allTasks } }));
+                setHasLoadedOnce(true);
                 setError(undefined);
             } catch (reason) {
                 setError(reason instanceof Error ? reason.message : "Task status could not be loaded");
@@ -60,13 +64,13 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     // Poll only while there is useful work to track. A task-created event
     // performs the first read when an action starts from another panel.
     useEffect(() => {
-        if (activeCount === 0) return undefined;
+        if (!hasLoadedOnce || activeCount === 0) return undefined;
         const timer = window.setInterval(() => {
             if (document.visibilityState === "hidden") return;
             void load(true);
         }, 2_000);
         return () => window.clearInterval(timer);
-    }, [activeCount, load]);
+    }, [hasLoadedOnce, activeCount, load]);
 
     useEffect(() => {
         const onTaskCreated = (event: Event) => {
@@ -138,7 +142,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     const retryTasks = tasks.filter((task) => !isTaskActive(task) && !isTaskNeedsReview(task) && task.canRetry);
 
     return (
-        <section className={cn("border-b border-border bg-card", className)} data-testid="drama-lab-task-panel">
+        <section className={cn("border-b border-border bg-card", !compact && "flex min-h-0 flex-col", className)} data-testid="drama-lab-task-panel">
             {contextHolder}
             {collapsed ? (
                 <div className="flex items-center justify-center px-1 py-2">
@@ -169,7 +173,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
                 </div>
             )}
             {!collapsed ? (
-                <div id="drama-lab-task-panel-content" className="space-y-2 px-2 pb-2" aria-live="polite">
+                <div id="drama-lab-task-panel-content" className={cn("space-y-2 px-2 pb-2", !compact && "min-h-0 flex-1 overflow-y-auto")} aria-live="polite">
                     {error ? (
                         <Alert
                             type="error"
@@ -223,7 +227,7 @@ function TaskSection({
     return (
         <div className="space-y-1.5" data-testid={`drama-task-section-${title}`}>
             <div className="px-1 text-[11px] font-semibold text-muted-foreground">{title}</div>
-            <div className="max-h-56 space-y-1.5 overflow-y-auto overscroll-contain pr-1">
+            <div className="space-y-1.5">
                 {tasks.map((task) => (
                     <TaskRow
                         key={task.id}

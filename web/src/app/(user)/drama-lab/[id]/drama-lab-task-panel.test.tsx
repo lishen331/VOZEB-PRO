@@ -14,6 +14,7 @@ const base = {
     canCancel: true,
     canRetry: false,
     title: "分镜视频生成",
+    workflowMode: "video" as const,
     createdAt: 1,
     updatedAt: 2,
 };

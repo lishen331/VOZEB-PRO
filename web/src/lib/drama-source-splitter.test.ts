@@ -48,3 +48,13 @@ describe("splitDramaSource", () => {
         expect(splitDramaSource("乙".repeat(13_000), 20_000)).toHaveLength(1);
     });
 });
+
+describe("formatted episode headings", () => {
+    it("recognizes bullet-prefixed numbered episode headings", () => {
+        const source = Array.from({ length: 60 }, (_, index) => `▸ 第${index + 1}集：标题${index + 1}\n本集正文内容。`).join("\n\n");
+        const drafts = splitDramaSource(source);
+        expect(drafts).toHaveLength(60);
+        expect(drafts[0]?.title).toContain("第 1 集");
+        expect(drafts[59]?.title).toContain("第 60 集");
+    });
+});

@@ -6,7 +6,7 @@ import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
@@ -55,18 +55,25 @@ export async function POST(request: Request) {
     }
     const rate = await checkGenerationRateLimit(currentUser.id, request, "text");
     if (!rate.allowed) return NextResponse.json({ error: "文本生成请求过于频繁，请稍后重试" }, { status: 429, headers: rateLimitHeaders(rate) });
+    const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, body.context);
+    try {
+        await validateGenerationContextIpReferences(currentUser.id, body.context);
+    } catch (error) {
+        if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+        throw error;
+    }
+    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+    try {
+        projectProfile = await resolveProjectExecutionProfile(currentUser.id, body.context || {});
+    } catch (error) {
+        const known = projectExecutionProfileError(error);
+        if (known) return NextResponse.json({ error: known.message }, { status: known.status });
+        throw error;
+    }
+    const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
+    if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
-    const response = await withGenerationConcurrencyLimit(currentUser.id, "text", 5 * 60 * 1000, settings.generationConcurrency.text, async () => {
-        const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, body.context);
-        try {
-            await validateGenerationContextIpReferences(currentUser.id, body.context);
-        } catch (error) {
-            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
-            throw error;
-        }
-        const projectProfile = await resolveProjectExecutionProfile(currentUser.id, body.context || {});
-        const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
-        if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
+    const createTask = async () => {
         const executionProfile = practiceRequest ? "open-source-practice" : "production";
         let trustedContext: import("@/lib/server/generation-task-types").GenerationTaskContext;
         try {
@@ -79,7 +86,7 @@ export async function POST(request: Request) {
             throw error;
         }
         const configs = sanitizeConfigs(body.config, settings, executionProfile, trustedContext);
-        const messages = sanitizeMessages(body.messages);
+        const messages = sanitizeMessages(body.messages, resolveInternalOrigin(new URL(request.url).origin));
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
         const hasHealthy = await hasHealthyRuntimeCandidate(configs, "text");
         if (!hasHealthy) return NextResponse.json({ error: "当前文本模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
@@ -90,10 +97,17 @@ export async function POST(request: Request) {
         await linkStoredGenerationTask("text", task.id, trustedContext);
         const cookie = request.headers.get("cookie") || "";
         const origin = resolveInternalOrigin(new URL(request.url).origin);
-        await scheduleGenerationTask("text", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });
+        await scheduleGenerationTask("text", task.id, {
+            executionPhase: practiceRequest ? "queued" : "created",
+            channelId: task.config.channelId,
+            provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
+            nextPollAt: Date.now(),
+            lastUpstreamStatus: practiceRequest ? "queued" : "created",
+        });
         after(() => runGenerationTaskRecoveryBatch({ origin, cookie, limit: 1, taskIds: [task.id] }));
-        return NextResponse.json({ task: publicTask(task) });
-    });
+        return NextResponse.json({ task: publicTask(task), ...(practiceRequest ? { queued: true } : {}) });
+    };
+    const response = practiceRequest ? await createTask() : await withGenerationConcurrencyLimit(currentUser.id, "text", 5 * 60 * 1000, settings.generationConcurrency.text, createTask);
     return response || NextResponse.json({ error: "当前用户文本任务已达到并发上限" }, { status: 429 });
 }
 
@@ -110,7 +124,7 @@ function sanitizeConfigs(
     const requestedModel = config?.model || settings.defaultModels.textModel;
     return resolvePracticeGenerationCandidates(settings, "text", requestedModel, { ...(context || {}), executionProfile })
         .map((resolved) => ({
-            ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {}),
+            ...(context?.workflowKey || context?.workflowCode ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context) : toSystemGenerationChannel(resolved)),
             channelId: resolved.channelId,
             systemPrompt: "",
             executionProfile,
@@ -118,17 +132,26 @@ function sanitizeConfigs(
         .filter((config): config is typeof config & { channelId: string } => typeof config.channelId === "string");
 }
 
-function sanitizeMessages(messages?: AiTextMessage[]) {
+function sanitizeMessages(messages: AiTextMessage[] | undefined, origin: string) {
     if (!Array.isArray(messages)) return [];
     return messages
-        .map((message) => ({ role: message.role === "system" || message.role === "assistant" ? message.role : ("user" as const), content: sanitizeContent(message.content) }))
+        .map((message) => ({ role: message.role === "system" || message.role === "assistant" ? message.role : ("user" as const), content: sanitizeContent(message.content, origin) }))
         .filter((message) => (Array.isArray(message.content) ? message.content.length > 0 : Boolean(message.content.trim())))
         .slice(0, 20);
 }
 
-function sanitizeContent(content: AiTextMessage["content"]): AiTextMessage["content"] {
+function sanitizeContent(content: AiTextMessage["content"], origin: string): AiTextMessage["content"] {
     if (!Array.isArray(content)) return String(content || "").slice(0, 20_000);
     return content
-        .map((item) => (item.type === "text" ? { type: "text" as const, text: item.text.slice(0, 20_000) } : { type: "image_url" as const, image_url: { url: item.image_url.url } }))
+        .map((item) => (item.type === "text" ? { type: "text" as const, text: item.text.slice(0, 20_000) } : { type: "image_url" as const, image_url: { url: normalizeImageUrl(item.image_url.url, origin) } }))
         .filter((item) => (item.type === "text" ? Boolean(item.text.trim()) : Boolean(item.image_url.url)));
+}
+
+function normalizeImageUrl(value: string, origin: string) {
+    const url = String(value || "").trim();
+    if (url.startsWith("base64:")) {
+        const path = url.slice("base64:".length);
+        if (path.startsWith("/api/")) return `${origin}${path}`;
+    }
+    return url;
 }

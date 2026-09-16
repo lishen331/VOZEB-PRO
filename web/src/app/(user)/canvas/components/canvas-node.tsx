@@ -6,7 +6,7 @@ import { BriefcaseBusiness, ChevronRight, CircleCheck, Image as ImageIcon, ListC
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type Position } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
@@ -14,6 +14,31 @@ import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
+
+// Edge-glow pointer tracking (ported from the react-bits BorderGlow pattern,
+// minus its mesh-gradient border swap which would fight the card's real
+// border/boxShadow selection styling). Only ever invoked while `hovered` is
+// true, and writes CSS vars directly via setProperty rather than React state
+// so a moving pointer never triggers a re-render.
+function edgeProximity(width: number, height: number, x: number, y: number) {
+    const cx = width / 2;
+    const cy = height / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    let kx = Infinity;
+    let ky = Infinity;
+    if (dx !== 0) kx = cx / Math.abs(dx);
+    if (dy !== 0) ky = cy / Math.abs(dy);
+    return Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
+}
+
+function cursorAngle(width: number, height: number, x: number, y: number) {
+    const dx = x - width / 2;
+    const dy = y - height / 2;
+    if (dx === 0 && dy === 0) return 0;
+    const degrees = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+    return degrees < 0 ? degrees + 360 : degrees;
+}
 
 function isInteractiveTarget(target: EventTarget | null, event?: Pick<MouseEvent, "clientY">) {
     if (!(target instanceof Element)) return false;
@@ -123,7 +148,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     onViewImage,
     onContextMenu,
 }: CanvasNodeProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const [hovered, setHovered] = useState(false);
     const [isEditingContent, setIsEditingContent] = useState(false);
     const [panelPlacement, setPanelPlacement] = useState<"top" | "bottom">("bottom");
@@ -137,7 +162,12 @@ export const CanvasNode = React.memo(function CanvasNode({
     const hasVideoContent = data.type === CanvasNodeType.Video && Boolean(data.metadata?.content);
     const hasAudioContent = data.type === CanvasNodeType.Audio && Boolean(data.metadata?.content);
     const isConfig = data.type === CanvasNodeType.Config;
-    const nodeBackground = isConfig ? theme.node.panel : hasImageContent || hasVideoContent ? "transparent" : theme.node.fill;
+    const isGenerating = data.metadata?.status === "loading";
+    // While generating, force an opaque fill even for image/video nodes whose
+    // metadata.content still points at the previous render — otherwise a
+    // transparent card lets the canvas's connection lines (drawn beneath the
+    // node layer) show straight through as diagonal streaks across the card.
+    const nodeBackground = isConfig ? theme.node.panel : (hasImageContent || hasVideoContent) && !isGenerating ? "transparent" : theme.node.fill;
     const isBatchRoot = data.type === CanvasNodeType.Image && Boolean(data.metadata?.isBatchRoot) && batchCount > 1;
     const isBatchChild = data.type === CanvasNodeType.Image && Boolean(data.metadata?.batchRootId);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
@@ -342,7 +372,7 @@ export const CanvasNode = React.memo(function CanvasNode({
         const usableTop = Math.max(surfaceRect.top, viewportTop);
         const usableBottom = Math.min(surfaceRect.bottom, viewportBottom, toolbarRect ? toolbarRect.top - 16 : surfaceRect.bottom);
         const availableWidth = Math.max(0, usableRight - usableLeft);
-        const renderedScale = Math.max(scale, 0.01);
+        const renderedScale = Math.max(nodeRect.width / (nodeElement.offsetWidth || 1), 0.01);
         const nextMaxWidth = availableWidth > 0 ? availableWidth / renderedScale : undefined;
         const currentOffset = panelOffsetXRef.current * renderedScale;
         const centeredPanelLeft = panelRect.left - currentOffset;
@@ -362,7 +392,7 @@ export const CanvasNode = React.memo(function CanvasNode({
         if (nextMaxWidth) setPanelMaxWidth((current) => (current !== undefined && Math.abs(current - nextMaxWidth) < 0.1 ? current : nextMaxWidth));
         panelOffsetXRef.current = nextOffsetX;
         setPanelOffsetX((current) => (Math.abs(current - nextOffsetX) < 0.1 ? current : nextOffsetX));
-    }, [scale, showPanel]);
+    }, [showPanel]);
 
     useLayoutEffect(() => {
         if (!showPanel || !panelRef.current) return;
@@ -381,7 +411,7 @@ export const CanvasNode = React.memo(function CanvasNode({
             visualViewport?.removeEventListener("resize", updatePanelPlacement);
             visualViewport?.removeEventListener("scroll", updatePanelPlacement);
         };
-    }, [showPanel, data.id, data.position.x, data.position.y, scale, updatePanelPlacement]);
+    }, [showPanel, data.id, data.position.x, data.position.y, updatePanelPlacement]);
 
     useEffect(() => {
         return () => {
@@ -419,7 +449,15 @@ export const CanvasNode = React.memo(function CanvasNode({
             onContextMenu={(event) => onContextMenu(event, data.id)}
         >
             <div
-                className={`relative h-full w-full overflow-visible ${isConfig ? "rounded-2xl border" : "rounded-3xl border-2"}`}
+                className={[
+                    "relative h-full w-full overflow-visible",
+                    isConfig ? "rounded-2xl border" : "rounded-3xl border-2",
+                    hovered ? "canvas-node-glow-active" : "",
+                    isConnectionTarget ? "canvas-node-target-pulse" : "",
+                    isGenerating ? "canvas-node-generating-ring" : "",
+                ]
+                    .filter(Boolean)
+                    .join(" ")}
                 style={{
                     background: nodeBackground,
                     borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
@@ -432,6 +470,14 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onPointerDown={(event) => {
                     rememberNodePointer(event);
                     if (event.pointerType !== "mouse") onMouseDown(event, data.id);
+                }}
+                onPointerMove={(event) => {
+                    if (!hovered) return;
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    event.currentTarget.style.setProperty("--edge-proximity", `${(edgeProximity(rect.width, rect.height, x, y) * 100).toFixed(2)}`);
+                    event.currentTarget.style.setProperty("--cursor-angle", `${cursorAngle(rect.width, rect.height, x, y).toFixed(2)}deg`);
                 }}
             >
                 <div
@@ -470,6 +516,8 @@ export const CanvasNode = React.memo(function CanvasNode({
                     />
                 </div>
 
+                <span className="canvas-node-glow-edge" aria-hidden="true" />
+
                 {showImageInfo && hasImageContent ? <ImageInfoBar node={data} /> : null}
                 {resourceLabel ? <ResourceLabelBadge reference={resourceLabel} /> : null}
 
@@ -492,7 +540,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     data-canvas-no-drag
                     data-canvas-node-panel
                     data-canvas-node-panel-placement={panelPlacement}
-                    className={`absolute left-1/2 z-[70] w-[500px] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
+                    className={`absolute left-1/2 z-[70] w-[560px] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
                     style={{ marginLeft: panelOffsetX, maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)", maxWidth: panelMaxWidth }}
                 >
                     {renderPanel(data)}

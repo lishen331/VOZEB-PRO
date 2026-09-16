@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import { generationTaskNextPollAt, claimDueGenerationTasks, releaseGenerationTaskLease, renewGenerationTaskLeases, scheduleGenerationTask, type GenerationTaskLease } from "@/lib/server/generation-task-scheduler";
-import { failVideoTaskFromWorker, persistVideoTaskResult, queryVideoTaskUpstream, VideoQueryAuthError } from "@/lib/server/video-task-runtime";
+import { generationTaskNextPollAt, claimDueGenerationTasks, releaseGenerationTaskLease, renewGenerationTaskLeases, scheduleGenerationTask, withGenerationConcurrencyLimit, type GenerationTaskLease } from "@/lib/server/generation-task-scheduler";
+import { createQueuedPracticeVideoTaskUpstreamStep, failVideoTaskFromWorker, persistVideoTaskResult, queryVideoTaskUpstream, VideoQueryAuthError } from "@/lib/server/video-task-runtime";
 import { isVideoProviderMediaUrl } from "@/lib/server/video-provider-response";
 import { getVideoTask, type VideoTask } from "@/lib/server/video-task-store";
 import { createAudioTaskUpstreamStep, markAudioTaskFailed, persistAudioTaskResult, queryAudioTaskUpstreamStep } from "@/lib/server/audio-task-runtime";
@@ -53,6 +53,39 @@ export async function runGenerationTaskRecoveryBatch(input: { origin: string; pu
 
 async function processGenerationTaskLease(lease: GenerationTaskLease, workerId: string, origin: string, publicOrigin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
     if (lease.status === "cancelled" && isCancellationExecutionPhase(lease.executionPhase)) return processCancelledLease(lease, workerId, origin);
+    if (lease.executionProfile === "open-source-practice" && lease.executionPhase === "queued" && ["image", "video", "audio", "text"].includes(lease.type)) {
+        const settings = await getAuthSettings();
+        const limit = Number(settings.generationConcurrency?.[lease.type as "image" | "video" | "audio" | "text"] || 1);
+        const admitted = await withGenerationConcurrencyLimit(
+            lease.userId,
+            lease.type,
+            practiceQueueStaleMs(lease.type),
+            limit,
+            () => processGenerationTaskLeaseCore(lease, workerId, origin, publicOrigin, cookie, userRequested),
+            lease.id,
+            "practice-queue:" + lease.id,
+        );
+        if (admitted === null) {
+            await releaseGenerationTaskLease(lease.type, lease.id, workerId, {
+                executionPhase: "queued",
+                nextPollAt: generationTaskNextPollAt({ now: Date.now() }),
+                lastPollAt: Date.now(),
+                lastUpstreamStatus: "capacity_wait",
+            });
+            return "pending";
+        }
+        return admitted;
+    }
+    return processGenerationTaskLeaseCore(lease, workerId, origin, publicOrigin, cookie, userRequested);
+}
+
+function practiceQueueStaleMs(type: GenerationTaskLease["type"]) {
+    if (type === "video") return 30 * 60_000;
+    if (type === "text") return 5 * 60_000;
+    return 10 * 60_000;
+}
+
+async function processGenerationTaskLeaseCore(lease: GenerationTaskLease, workerId: string, origin: string, publicOrigin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
     if (lease.type === "text") return processTextLease(lease, workerId, origin, cookie, userRequested);
     if (lease.type === "image") return processImageLease(lease, workerId, origin, publicOrigin, cookie, userRequested);
     if (lease.type === "audio") return processAudioLease(lease, workerId, origin, cookie, userRequested);
@@ -945,7 +978,8 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
     if (needsPersistence(lease)) return persistVideoLease(task, lease, workerId, origin, cookie, userRequested);
 
     try {
-        const step = await queryVideoTaskUpstream(task, origin, cookie, cookie ? "" : task.userId);
+        const queuedSubmission = lease.executionPhase === "queued" && !task.upstream.id;
+        const step = queuedSubmission ? await createQueuedPracticeVideoTaskUpstreamStep(task, origin, cookie, cookie ? "" : task.userId) : await queryVideoTaskUpstream(task, origin, cookie, cookie ? "" : task.userId);
         const now = Date.now();
         if (step.state === "failed") {
             await failVideoTaskFromWorker(task, step.error, true);
@@ -975,11 +1009,13 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
             });
             return "needs_review";
         }
+        const latest = queuedSubmission ? (await getVideoTask(task.id)) || task : task;
         await releaseGenerationTaskLease("video", task.id, workerId, {
             executionPhase: "polling",
-            upstreamTaskId: task.upstream.id || lease.upstreamTaskId,
-            queryPath: task.upstream.queryPath || task.config?.advancedConfig?.queryPath,
-            nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt, now }),
+            upstreamTaskId: step.upstreamTaskId || latest.upstream.id || lease.upstreamTaskId,
+            queryPath: latest.upstream.queryPath || latest.config?.advancedConfig?.queryPath,
+            submittedAt: lease.submittedAt || now,
+            nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now, now }),
             lastPollAt: now,
             lastUpstreamStatus: step.status,
         });

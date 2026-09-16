@@ -329,15 +329,27 @@ export function normalizeExtractedDramaLabStoryboardsWithMeta(value: string, pro
             assertAssetReferences(shot, sceneIds, characterIds, propIds, index + 1);
             assertRequestedStoryboardMode(shot, options, index + 1);
         } catch (error) {
-            // A repaired/truncated tail may contain an incomplete object. Keep
-            // the complete prefix; unknown asset IDs must still fail loudly.
+            // During a provider stream the object may already be closed while
+            // optional fields are still missing. Keep a renderable checkpoint
+            // instead of waiting for the whole tool payload. Final parsing
+            // remains authoritative and overwrites this partial row.
             if (error instanceof DramaLabStoryboardExtractionError && /引用了项目中不存在/.test(error.message)) throw error;
-            if (parsed.truncated) continue;
+            if (parsed.truncated) {
+                try {
+                    const partial = parsePartialStoryboard(value, index + 1);
+                    assertAssetReferences(partial, sceneIds, characterIds, propIds, index + 1);
+                    const order = partial.shotNumber > 0 ? partial.shotNumber : index + 1;
+                    byOrder.set(order, toDramaShot(partial, order, project));
+                    continue;
+                } catch {
+                    continue;
+                }
+            }
             throw error;
         }
         const order = shot.shotNumber > 0 ? shot.shotNumber : index + 1;
         if (byOrder.has(order)) duplicateCount += 1;
-        byOrder.set(order, toDramaShot(shot, order));
+        byOrder.set(order, toDramaShot(shot, order, project));
     }
     const shots = [...byOrder.entries()].sort(([a], [b]) => a - b).map(([, shot]) => shot);
     if (!shots.length) throw new DramaLabStoryboardExtractionError("文本模型没有返回可恢复的分镜");
@@ -347,13 +359,38 @@ export function normalizeExtractedDramaLabStoryboardsWithMeta(value: string, pro
     };
 }
 
+function parsePartialStoryboard(value: unknown, order: number): ExtractedStoryboard {
+    const source = object(value) || {};
+    const title = optionalText(firstValue(source, "title", "shot_title")) || `分镜 ${order}`;
+    const description = optionalText(firstValue(source, "description", "shot_description", "action", "result", "outcome")) || title;
+    const duration = durationValue(firstValue(source, "duration", "durationSec", "duration_sec")) || 1;
+    const ids = (field: string, aliases: string[]) => {
+        const raw = firstValue(source, field, ...aliases);
+        return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim()) : [];
+    };
+    const partial = {
+        ...source,
+        title,
+        description,
+        sourceText: optionalText(firstValue(source, "sourceText", "source_text")) || description,
+        duration,
+        dialogue: optionalText(source.dialogue),
+        narration: optionalText(source.narration),
+        shotBoundary: optionalText(firstValue(source, "shotBoundary", "shot_boundary")),
+        characterIds: ids("characterIds", ["character_ids", "characters"]),
+        propIds: ids("propIds", ["prop_ids", "props"]),
+        sceneId: optionalText(firstValue(source, "sceneId", "scene_id")) || undefined,
+    };
+    return parseStoryboard(partial, order);
+}
+
 function assertRequestedStoryboardMode(shot: ExtractedStoryboard, options: DramaLabStoryboardOptions, order: number) {
     if (options.creationMode && shot.creationMode !== options.creationMode) throw new DramaLabStoryboardExtractionError(`第 ${order} 个分镜未按要求返回${options.creationMode === "universal" ? "全能" : "经典"}模式`);
     if (options.creationMode === "universal" && (!shot.universalSegmentText.trim() || !/[\r\n]/.test(shot.universalSegmentText))) throw new DramaLabStoryboardExtractionError(`第 ${order} 个全能分镜缺少多行子分镜提示词`);
     if (options.generateNarration === true && !shot.narration.trim()) throw new DramaLabStoryboardExtractionError(`第 ${order} 个分镜缺少已要求的解说旁白`);
 }
 
-function toDramaShot(shot: ExtractedStoryboard, order: number): DramaShot {
+function toDramaShot(shot: ExtractedStoryboard, order: number, project: DramaProject): DramaShot {
     return {
         id: `shot_${nanoid()}`,
         order,
@@ -365,7 +402,7 @@ function toDramaShot(shot: ExtractedStoryboard, order: number): DramaShot {
         narration: shot.narration,
         utterances: [],
         imagePrompt: shot.imagePrompt || buildImagePrompt(shot),
-        videoPrompt: shot.videoPrompt || buildVideoPrompt(shot),
+        videoPrompt: buildVideoPrompt(shot, project.style, project.ratio),
         cameraMotion: shot.cameraMotion,
         shotType: shot.shotType,
         segmentIndex: shot.segmentIndex,
@@ -428,8 +465,28 @@ function buildImagePrompt(shot: ExtractedStoryboard) {
     return [shot.location, shot.time, shot.shotType, shot.cameraAngle, shot.action, shot.atmosphere, shot.lightingStyle, shot.depthOfField, shot.emotion].filter(Boolean).join("，");
 }
 
-function buildVideoPrompt(shot: ExtractedStoryboard) {
-    return [shot.action, shot.result, shot.cameraMotion, shot.emotion, shot.universalSegmentText].filter(Boolean).join("；");
+function buildVideoPrompt(shot: ExtractedStoryboard, style = "", videoRatio = "") {
+    const parts = [
+        shot.location ? `场景：${shot.location}${shot.time ? `,${shot.time}` : ""}` : "",
+        shot.title ? `镜头标题：${shot.title}` : "",
+        shot.action ? `动作：${shot.action}` : "",
+        shot.dialogue ? `对话：${shot.dialogue}` : "",
+        shot.narration ? `解说旁白：${shot.narration}` : "",
+        shot.result ? `结果：${shot.result}` : "",
+        shot.shotType ? `景别：${shot.shotType}` : "",
+        shot.cameraAngle ? `镜头角度：${shot.cameraAngle}` : "",
+        shot.cameraMotion ? `运镜：${shot.cameraMotion}` : "",
+        shot.atmosphere ? `氛围：${shot.atmosphere}` : "",
+        shot.emotion ? `情绪：${shot.emotion}` : "",
+        shot.emotionIntensity ? `情绪强度：${shot.emotionIntensity}` : "",
+        shot.lightingStyle ? `灯光：${shot.lightingStyle}` : "",
+        shot.depthOfField ? `景深：${shot.depthOfField}` : "",
+        shot.duration ? `时长：${shot.duration}秒` : "",
+        shot.universalSegmentText ? `全能分镜：${shot.universalSegmentText}` : "",
+        style ? `风格：${style}` : "",
+        videoRatio ? `=VideoRatio: ${videoRatio}` : "",
+    ];
+    return parts.filter(Boolean).join("。") || "视频场景";
 }
 
 function parseStoryboard(value: unknown, order: number): ExtractedStoryboard {

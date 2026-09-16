@@ -44,6 +44,7 @@ describe("drama lab novel import", () => {
         const result = previewDramaLabNovelImport({ sourceText: "# 第一章 归来\n她推开门。\n\n## 第二章 真相\n门后没有人。", fileName: "故事.md" });
 
         expect(result.fileName).toBe("故事.md");
+        expect(result.sourceText).toBe("# 第一章 归来\n她推开门。\n\n## 第二章 真相\n门后没有人。");
         expect(result.drafts).toHaveLength(2);
         expect(result.drafts[0]).toMatchObject({ sourceRange: "第一章 归来", title: "第 1 集 · 第一章 归来" });
         expect(result.drafts[0]?.script).toContain("# 第一章 归来");
@@ -75,7 +76,8 @@ describe("drama lab novel import", () => {
     });
 
     it("rejects unsupported files and oversized source before project access", async () => {
-        expect(() => previewDramaLabNovelImport({ sourceText: "正文", fileName: "故事.docx" })).toThrowError(DramaLabNovelImportError);
+        expect(() => previewDramaLabNovelImport({ sourceText: "正文", fileName: "故事.pdf" })).toThrowError(DramaLabNovelImportError);
+        expect(previewDramaLabNovelImport({ sourceText: "正文", fileName: "故事.docx" }).fileName).toBe("故事.docx");
         expect(() => previewDramaLabNovelImport({ sourceText: "甲".repeat(2 * 1024 * 1024), fileName: "故事.txt" })).toThrowError(/2MB/iu);
         expect(mocks.getDramaProjectForUser).not.toHaveBeenCalled();
     });

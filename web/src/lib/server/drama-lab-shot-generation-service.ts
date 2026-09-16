@@ -1,7 +1,9 @@
-﻿import { validateDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal-video";
+import { normalizeDramaLabUniversalVideoPrompt, validateDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal-video";
 import { resolveDramaLabStylePrompt, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotFrameSource, DramaShotFrameType, DramaShotGenerationHistory, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
+import { boundCharacterStageContext } from "@/lib/drama-lab-character-stages";
+import { dramaLabCharacterAnchorLines } from "@/lib/drama-lab-character-anchors";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { DramaProjectStoreError, getDramaProject, updateDramaProject } from "@/lib/server/drama-project-store";
 import type { VideoReferenceRole } from "@/lib/video-reference-contract";
@@ -54,7 +56,7 @@ export async function prepareDramaLabStoryboardImage(project: DramaProject, epis
     const references = shotReferences(project, context.shot);
     return {
         prompt: withDramaLabPromptContract(
-            `${renderDramaLabFrameTemplate(template.template, project)}\n\n${shotGenerationContext(project, context.episode, context.shot)}`,
+            `${renderDramaLabFrameTemplate(template.template, project)}\n\n${shotGenerationContext(project, context.episode, context.shot)}\n\n【经典单图最终提示词】\n${context.shot.polishedPrompt?.trim() || context.shot.imagePrompt?.trim() || context.shot.description || context.shot.sourceText}`,
             "这是关键帧图像生成任务。只呈现当前镜头已绑定的场景、角色和道具；不得加入未绑定角色、未绑定道具、文字、水印或项目外主体。参考图只用于保持已绑定资产的身份、外观、比例和空间关系，不得改变其归属。",
         ),
         references,
@@ -165,7 +167,7 @@ function prepareUniversalVideo(project: DramaProject, { episode, shot }: ShotCon
     if (!references.length) throw new DramaLabShotGenerationError("全能模式至少需要一张已绑定资产或分镜参考图");
     const limit = positiveReferenceLimit(options.maxReferenceImages);
     if (limit && references.length > limit) throw new DramaLabShotGenerationError(`当前视频模型最多接受 ${limit} 张参考图，但本镜需要 ${references.length} 张；不能截断导致图片编号错位`);
-    const visiblePrompt = shot.universalSegmentText?.trim() || "";
+    const visiblePrompt = normalizeDramaLabUniversalVideoPrompt(shot.universalSegmentText?.trim() || "", shot.duration);
     try {
         validateDramaLabUniversalVideoPrompt(visiblePrompt, shot.duration, references.length);
     } catch (error) {
@@ -375,7 +377,8 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
     const scene = project.scenes.find((asset) => asset.id === shot.sceneId);
     const characters = shot.characterIds.flatMap((id) => project.characters.find((asset) => asset.id === id) || []);
     const props = shot.propIds.flatMap((id) => project.props.find((asset) => asset.id === id) || []);
-    const asset = (item: { id: string; name: string; description: string }) => `${item.id} / ${item.name}${item.description ? `：${item.description}` : ""}`;
+    const asset = (item: { name: string; description: string }) => `${item.name}${item.description ? `：${item.description}` : ""}`;
+    const stageContext = boundCharacterStageContext(characters, episode);
     return [
         "【当前项目与镜头上下文】",
         `项目：${project.title}`,
@@ -384,6 +387,7 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
         `风格正文（中文）：${resolveDramaLabStylePrompt(project.style).zh}`,
         `风格正文（英文）：${resolveDramaLabStylePrompt(project.style).en}`,
         `画幅比例：${project.ratio}`,
+        stageContext,
         `分镜：${shot.title}`,
         `镜头内容：${shot.description || shot.sourceText}`,
         shot.shotType ? `景别：${shot.shotType}` : "",
@@ -397,9 +401,9 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
         shot.narration ? `旁白：${shot.narration}` : "",
         shot.cameraMotion ? `运镜：${shot.cameraMotion}` : "",
         shot.continuity?.cameraAngle ? `机位：${shot.continuity.cameraAngle}` : "",
-        shot.imagePrompt ? `用户画面补充：${shot.imagePrompt}` : "",
+        shot.polishedPrompt ? "" : shot.imagePrompt ? `用户画面补充：${shot.imagePrompt}` : "",
         `场景白名单：${scene ? `${asset(scene)}；视觉锚点：${scene.profile?.visualIdentity || "无"}` : "无"}`,
-        `角色白名单：${characters.length ? characters.map((item) => `${asset(item)}；视觉锚点：${item.profile?.visualIdentity || "无"}；造型：${item.profile?.styling || "无"}`).join("；") : "无"}`,
+        `角色白名单：${characters.length ? characters.map((item) => `${asset(item)}；${dramaLabCharacterAnchorLines(item.profile).join("；") || "视觉锚点：无"}`).join("；") : "无"}`,
         `道具白名单：${props.length ? props.map((item) => `${asset(item)}；视觉锚点：${item.profile?.visualIdentity || "无"}`).join("；") : "无"}`,
     ]
         .filter(Boolean)

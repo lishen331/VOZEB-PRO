@@ -34,6 +34,14 @@ export function resolveResultSize(quality: string | undefined, size: string) {
     return resolveRequestSize(QUALITY_BASE[normalizedQuality] ? normalizedQuality : undefined, value);
 }
 
+export function resultTargetSize(workflowCode: string | undefined, executionProfile: string | undefined, config: { outputMode?: string; quality?: string; size?: string }) {
+    // Practice workflows own their output geometry (for example 2:1 panorama,
+    // 9:16 character sheet). The platform-wide image default must not resample
+    // those results after RunningHub has already produced the requested canvas.
+    if (executionProfile === "open-source-practice" || workflowCode === "scene_main_view" || config.outputMode === "layers") return undefined;
+    return resolveResultSize(config.quality, config.size || "auto");
+}
+
 export function imageRequestAspectRatio(size: string) {
     const value = size.trim();
     if (value.toLowerCase() === "auto") return undefined;

@@ -30,8 +30,8 @@ describe("practice projects", () => {
 
         await expect(createPracticeProject(actor, { kind: "canvas", title: "构图练习" })).resolves.toMatchObject({ kind: "canvas", project: { id: "canvas-practice" } });
         await expect(createPracticeProject(actor, { kind: "drama", title: "分镜练习" })).resolves.toMatchObject({ kind: "drama", project: { id: "drama-practice" } });
-        expect(mocks.createCanvas).toHaveBeenCalledWith("student-one", { title: "构图练习" }, { executionProfile: "open-source-practice", practiceSource: { type: "blank" } });
-        expect(mocks.createDrama).toHaveBeenCalledWith("student-one", { title: "分镜练习" }, { executionProfile: "open-source-practice", practiceSource: { type: "blank" } });
+        expect(mocks.createCanvas).toHaveBeenCalledWith("student-one", { title: "构图练习" }, { executionProfile: "open-source-practice", schoolId: "school-one", practiceSource: { type: "blank" } });
+        expect(mocks.createDrama).toHaveBeenCalledWith("student-one", { title: "分镜练习" }, { executionProfile: "open-source-practice", schoolId: "school-one", practiceSource: { type: "blank" } });
     });
 
     it("creates a new practice id each time the same formal source is copied", async () => {
@@ -42,7 +42,7 @@ describe("practice projects", () => {
         const second = await createPracticeProject(actor, { kind: "canvas", title: "第二次", source });
 
         expect(first.project.id).not.toBe(second.project.id);
-        expect(mocks.createCanvas).toHaveBeenNthCalledWith(2, "student-one", { title: "第二次" }, { executionProfile: "open-source-practice", practiceSource: source });
+        expect(mocks.createCanvas).toHaveBeenNthCalledWith(2, "student-one", { title: "第二次" }, { executionProfile: "open-source-practice", schoolId: "school-one", practiceSource: source });
     });
 
     it("passes pinned IP references into the independent practice aggregate", async () => {
@@ -51,13 +51,13 @@ describe("practice projects", () => {
 
         await createPracticeProject(actor, { kind: "canvas", title: "IP 练习", references });
 
-        expect(mocks.createCanvas).toHaveBeenCalledWith("student-one", { title: "IP 练习", ipReferences: references }, { executionProfile: "open-source-practice", practiceSource: { type: "blank" } });
+        expect(mocks.createCanvas).toHaveBeenCalledWith("student-one", { title: "IP 练习", ipReferences: references }, { executionProfile: "open-source-practice", schoolId: "school-one", practiceSource: { type: "blank" } });
     });
 
     it("filters practice projects before provider pagination", async () => {
         await listPracticeProjects(actor, { kind: "canvas", page: 2, pageSize: 8 });
 
-        expect(mocks.listCanvas).toHaveBeenCalledWith("student-one", { page: 2, pageSize: 8, executionProfile: "open-source-practice" });
+        expect(mocks.listCanvas).toHaveBeenCalledWith("student-one", { page: 2, pageSize: 8, executionProfile: "open-source-practice", schoolId: "school-one" });
         expect(mocks.listDrama).not.toHaveBeenCalled();
     });
 });

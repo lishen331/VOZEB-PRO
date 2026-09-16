@@ -1,4 +1,5 @@
 import { getAuthSettings } from "@/lib/auth/store";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { CREATE_AGENT_PROMPT_MAX_LENGTH } from "@/lib/create-agent-prompt";
 import type { CreativeGenerationMode } from "@/lib/creative-runtime-contract";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
@@ -20,18 +21,14 @@ export class PromptOptimizationError extends Error {
     }
 }
 
-export async function optimizeCreativePrompt(input: { origin: string; cookie: string; userId: string; requestId: string; prompt: string; mode: PromptOptimizationMode }) {
+export async function optimizeCreativePrompt(input: { origin: string; cookie: string; userId: string; requestId: string; prompt: string; mode: PromptOptimizationMode; executionProfile?: PracticeExecutionProfile }) {
     const settings = await getAuthSettings();
-    // 优先使用正式生产默认文本模型；没有时回退到无限练习默认文本模型（练习环境常常只配置了练习渠道）
-    const resolved = [
-        { model: settings.defaultModels.textModel, profile: "production" as const },
-        { model: settings.practiceDefaultModels?.textModel, profile: "open-source-practice" as const },
-    ]
+    const resolved = (input.executionProfile === "open-source-practice" ? [{ model: settings.practiceDefaultModels?.textModel, profile: "open-source-practice" as const }] : [{ model: settings.defaultModels.textModel, profile: "production" as const }])
         .filter((item) => Boolean(item.model))
-        .map((item) => ({ model: item.model as string, candidates: resolveLogicalModelCandidates(settings, "text", item.model as string, "", item.profile) }))
+        .map((item) => ({ model: item.model as string, profile: item.profile, candidates: resolveLogicalModelCandidates(settings, "text", item.model as string, "", item.profile) }))
         .find((item) => item.candidates.length);
-    if (!resolved) throw new PromptOptimizationError("后台尚未配置可用的默认文本模型（正式生产或无限练习）", 503);
-    const { model, candidates } = resolved;
+    if (!resolved) throw new PromptOptimizationError("后台尚未配置可用的默认文本模型", 503);
+    const { model, profile, candidates } = resolved;
 
     const rankedCandidates = rankTextPlanningCandidates(candidates);
     if (!rankedCandidates.length) throw new PromptOptimizationError("当前没有可用的文本模型渠道，请检查模型配置或稍后重试", 503);
@@ -53,13 +50,13 @@ export async function optimizeCreativePrompt(input: { origin: string; cookie: st
                     "Content-Type": "application/json",
                     "Idempotency-Key": idempotencyKey,
                     "X-Client-Request-Id": idempotencyKey,
-                    ...systemAiBillingHeaders(model, idempotencyKey, candidate.upstreamModel),
+                    ...systemAiBillingHeaders(model, idempotencyKey, candidate.upstreamModel, profile),
                 },
-                onInvalidResponse: (headers) => refundInvalidResponse(input.userId, model, headers),
+                onInvalidResponse: (headers) => refundInvalidResponse(input.userId, model, headers, profile),
             });
             const optimizedPrompt = parseOptimizedPrompt(call.arguments);
             if (!optimizedPrompt) {
-                await refundInvalidResponse(input.userId, model, call.headers);
+                await refundInvalidResponse(input.userId, model, call.headers, profile);
                 throw new PromptOptimizationError("默认文本模型没有返回有效提示词");
             }
             return optimizedPrompt;
@@ -85,9 +82,10 @@ function parseOptimizedPrompt(value: string) {
     }
 }
 
-async function refundInvalidResponse(userId: string, model: string, headers: Headers) {
+async function refundInvalidResponse(userId: string, model: string, headers: Headers, executionProfile: PracticeExecutionProfile = "production") {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `prompt-optimize-refund:${billing.billingReceiptId}` });
+    if (hasSystemAiCharge(billing) && executionProfile !== "open-source-practice")
+        await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `prompt-optimize-refund:${billing.billingReceiptId}` });
 }
 
 const promptOptimizationTool = {

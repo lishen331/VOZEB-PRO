@@ -3,13 +3,32 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type { IpReference } from "@/lib/ip-library-domain";
-import { PRACTICE_MODULES, buildPracticeSessionInput, editablePracticeTextReducer, practiceSessionPath, publicPracticeResult } from "./practice-module-workbench";
+import { PRACTICE_MODULES, buildPracticeSessionInput, editablePracticeTextReducer, isDiscardablePracticeSessionError, practiceSessionPath, practiceSessionResetPath, publicPracticeResult } from "./practice-module-workbench";
 import { buildStoryboardImageReferences } from "./practice-storyboard-image-panel";
-import { buildStoryboardVideoReferences } from "./practice-storyboard-video-panel";
+import { buildStoryboardVideoReferences, buildStoryboardVideoAudioInput, DEFAULT_STORYBOARD_VIDEO_VOICE, PRACTICE_VIDEO_VOICE_PRESETS } from "./practice-storyboard-video-panel";
 import { normalizePracticeDialogueLines } from "./practice-dubbing-panel";
 import { workflowFieldDefaults, workflowFormFields } from "./practice-panel-types";
 
 describe("practice module workbench contract", () => {
+    it("keeps capability independent from history and resets an invalid session route", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-module-workbench.tsx"), "utf8");
+
+        const moduleRequest = /void\s+practiceApi\s*\.listModules\(\)/.exec(source);
+        const historyRequest = /void\s+practiceApi\s*\.listSessions\(\{ module, pageSize: 24 \}\)/.exec(source);
+        expect(moduleRequest?.index).toBeTypeOf("number");
+        expect(historyRequest?.index).toBeGreaterThan(moduleRequest?.index || 0);
+        expect(source).not.toContain("Promise.allSettled([practiceApi.listModules(), practiceApi.listSessions(");
+        expect(source).not.toContain("void Promise.all([practiceApi.listModules(), practiceApi.listSessions(");
+        expect(source).toContain("if (isDiscardablePracticeSessionError(error)) {");
+        expect(source).toContain("router.replace(practiceSessionResetPath(module, new URLSearchParams(window.location.search)))");
+
+        expect(practiceSessionResetPath("dubbing", new URLSearchParams("sessionId=old&ipId=ip-one&subIpId=sub-one"))).toBe("/practice/dubbing?ipId=ip-one&subIpId=sub-one");
+        expect(practiceSessionResetPath("scene", new URLSearchParams("sessionId=old"))).toBe("/practice/scene");
+        expect(isDiscardablePracticeSessionError(new Error("练习会话不存在"))).toBe(true);
+        expect(isDiscardablePracticeSessionError(new Error("练习会话租户范围缺失"))).toBe(true);
+        expect(isDiscardablePracticeSessionError(new Error("网络暂时不可用"))).toBe(false);
+        expect(isDiscardablePracticeSessionError(new Error("服务器内部错误"))).toBe(false);
+    });
     it("sends only user content, public references and a fresh request id", () => {
         const input = buildPracticeSessionInput("script", "一场雨中的重逢", ["asset-1"]);
         expect(input).toMatchObject({ module: "script", title: "单项练习", input: { prompt: "一场雨中的重逢" }, references: [{ type: "asset", id: "asset-1" }] });
@@ -30,6 +49,12 @@ describe("practice module workbench contract", () => {
         expect(source).toContain("<IpReferencePicker");
     });
 
+    it("renders the panorama result through a native image element so the generated file is visible", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-session-result.tsx"), "utf8");
+        expect(source).toContain('<img src={imageUrl} alt="练习结果，点击查看 360° 全景"');
+        expect(source).not.toContain('<Image src={imageUrl} alt="练习结果，点击查看 360° 全景"');
+    });
+
     it("keeps public result metadata free of task and provider details", () => {
         expect(publicPracticeResult({ status: "success", taskId: "secret-task", model: "secret-model", result: { content: "完成" } })).toEqual({ status: "success", text: "完成" });
         expect(publicPracticeResult({ status: "error", taskId: "secret-task", error: "失败" })).toEqual({ status: "error", error: "失败" });
@@ -46,13 +71,31 @@ describe("practice module workbench contract", () => {
         expect(source).toContain("PracticePropPanel");
     });
 
-    it("maps storyboard assets to the Demo input slots", () => {
+    it("maps storyboard assets to the two wired Demo input slots and drops extras the workflow graph cannot accept", () => {
         expect(buildStoryboardImageReferences("scene", ["character", "prop", "extra"])).toEqual([
             { type: "asset", id: "scene", inputKey: "sceneImage" },
             { type: "asset", id: "character", inputKey: "characterPropImage1" },
             { type: "asset", id: "prop", inputKey: "characterPropImage2" },
-            { type: "asset", id: "extra", inputKey: "characterPropImage3" },
         ]);
+    });
+
+    it("matches the Demo video audio choices and never sends stale audio when disabled", () => {
+        expect(DEFAULT_STORYBOARD_VIDEO_VOICE).toMatchObject({ value: "builtin:default-storyboard-audio.flac", label: "默认台词音色", previewUrl: "/practice-assets/default-storyboard-audio.flac" });
+        expect(PRACTICE_VIDEO_VOICE_PRESETS.map((voice) => voice.label)).toEqual([
+            "默认台词音色",
+            "派蒙 · 女",
+            "胡桃 · 女",
+            "傲娇御姐 · 女",
+            "湖南甜妹 · 女",
+            "知性女解说 · 女",
+            "宣传片女声 · 女",
+            "低沉男声 · 男",
+            "沉稳高管 · 男",
+            "纪录片男声 · 男",
+            "奶声萌娃 · 男",
+        ]);
+        expect(buildStoryboardVideoAudioInput(true, "permanent/audio/dialogue.wav")).toEqual({ audioEnabled: true, audio: "permanent/audio/dialogue.wav" });
+        expect(buildStoryboardVideoAudioInput(false, "permanent/audio/stale.wav")).toEqual({ audioEnabled: false });
     });
 
     it("keeps video audio toggle and dialogue pauses out of workflow slots", () => {

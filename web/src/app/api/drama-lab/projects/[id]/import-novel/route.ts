@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { decodeDramaNovelBytes } from "@/lib/drama-novel-text-decoder";
+import { DramaLabNovelFileError, extractUploadedText } from "@/lib/server/drama-lab-novel-file-parser";
 import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabNovelImportError, importDramaLabNovelForUser } from "@/lib/server/drama-lab-novel-import-service";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
@@ -36,14 +36,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return NextResponse.json({ code: 0, data: result, msg: result.committed ? "小说已导入" : "小说解析完成，请确认导入" });
     } catch (error) {
         if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ code: 403, data: null, msg: error.message }, { status: 403 });
-        if (error instanceof DramaLabNovelImportError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
+        if (error instanceof DramaLabNovelImportError || error instanceof DramaLabNovelFileError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         const status = error instanceof Error && "status" in error && typeof error.status === "number" ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "小说导入失败" }, { status });
     }
 }
 
 async function readNovelImportRequest(request: Request) {
-    const contentType = request.headers.get("content-type")?.toLowerCase() || "";
+    const rawContentType = request.headers.get("content-type") || "";
+    const contentType = rawContentType.toLowerCase();
     if (!contentType.includes("multipart/form-data")) {
         const parsed = await readJsonBodyResult<Record<string, unknown>>(request, MAX_IMPORT_REQUEST_BYTES);
         if (!parsed.ok) return parsed;
@@ -63,7 +64,7 @@ async function readNovelImportRequest(request: Request) {
     let form: FormData;
     try {
         const bytes = await readRequestBodyBytes(request, MAX_IMPORT_REQUEST_BYTES + 256 * 1024);
-        form = await new Request(request.url, { method: "POST", headers: { "content-type": contentType }, body: bytes }).formData();
+        form = await new Request(request.url, { method: "POST", headers: { "content-type": rawContentType }, body: bytes }).formData();
     } catch (error) {
         if (error instanceof RequestBodyTooLargeError) return { ok: false as const, status: error.status, message: "小说文件请求超过大小限制" };
         return { ok: false as const, status: 400, message: "无法读取小说文件" };
@@ -74,7 +75,7 @@ async function readNovelImportRequest(request: Request) {
     let sourceText = typeof sourceTextValue === "string" ? sourceTextValue : "";
     if (file) {
         try {
-            sourceText = decodeDramaNovelBytes(await file.arrayBuffer()).text;
+            sourceText = extractUploadedText(new Uint8Array(await file.arrayBuffer()), file.name);
         } catch (error) {
             return { ok: false as const, status: 415, message: error instanceof Error ? error.message : "无法识别小说文件编码" };
         }

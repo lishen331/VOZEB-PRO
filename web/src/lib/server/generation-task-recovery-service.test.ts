@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     markImageTaskFailed: vi.fn(),
     getVideoTask: vi.fn(),
     queryVideoTaskUpstream: vi.fn(),
+    createQueuedPracticeVideoTaskUpstreamStep: vi.fn(),
     getAudioTask: vi.fn(),
     updateAudioTask: vi.fn(),
     createAudioTaskUpstreamStep: vi.fn(),
@@ -39,6 +40,8 @@ const mocks = vi.hoisted(() => ({
     getAuthSettings: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     advanceDramaLabWorkflow: vi.fn(),
+    withGenerationConcurrencyLimit: vi.fn(),
+    generationCapacityRetryAfterSeconds: vi.fn(),
 }));
 
 vi.mock("@/lib/server/generation-task-scheduler", () => ({
@@ -47,12 +50,19 @@ vi.mock("@/lib/server/generation-task-scheduler", () => ({
     renewGenerationTaskLeases: mocks.renew,
     scheduleGenerationTask: mocks.schedule,
     generationTaskNextPollAt: vi.fn(() => 20_000),
+    withGenerationConcurrencyLimit: mocks.withGenerationConcurrencyLimit,
+    generationCapacityRetryAfterSeconds: mocks.generationCapacityRetryAfterSeconds,
 }));
 vi.mock("@/lib/server/agent-run-executor", () => ({ executeAgentRun: mocks.executeAgentRun }));
 vi.mock("@/lib/server/agent-run-execution", () => ({ processAgentRunReview: mocks.processAgentRunReview }));
 vi.mock("@/lib/server/agent-run-store", () => ({ getAgentRun: mocks.getAgentRun, updateAgentRunById: mocks.updateAgentRunById }));
 vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContext: vi.fn((userId: string) => `worker-context:${userId}`) }));
-vi.mock("@/lib/server/video-task-runtime", () => ({ failVideoTaskFromWorker: mocks.failVideoTaskFromWorker, persistVideoTaskResult: mocks.persistVideoTaskResult, queryVideoTaskUpstream: mocks.queryVideoTaskUpstream }));
+vi.mock("@/lib/server/video-task-runtime", () => ({
+    createQueuedPracticeVideoTaskUpstreamStep: mocks.createQueuedPracticeVideoTaskUpstreamStep,
+    failVideoTaskFromWorker: mocks.failVideoTaskFromWorker,
+    persistVideoTaskResult: mocks.persistVideoTaskResult,
+    queryVideoTaskUpstream: mocks.queryVideoTaskUpstream,
+}));
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
 vi.mock("@/lib/server/audio-task-runtime", () => ({
     createAudioTaskUpstreamStep: mocks.createAudioTaskUpstreamStep,
@@ -94,7 +104,9 @@ describe("generation task recovery service", () => {
         vi.clearAllMocks();
         mocks.release.mockResolvedValue({});
         mocks.renew.mockResolvedValue(1);
-        mocks.getAuthSettings.mockResolvedValue({ dataLifecycle: { maintenanceBatchSize: 20 } });
+        mocks.getAuthSettings.mockResolvedValue({ dataLifecycle: { maintenanceBatchSize: 20 }, generationConcurrency: { image: 1, video: 1, audio: 1, text: 1 } });
+        mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
+        mocks.generationCapacityRetryAfterSeconds.mockResolvedValue(undefined);
         mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
     });
 
@@ -103,6 +115,47 @@ describe("generation task recovery service", () => {
 
         await expect(runGenerationTaskRecoveryBatch({ origin: "http://internal" })).resolves.toEqual({ claimed: 0, pending: 0, resultReady: 0, completed: 0, failed: 0, needsReview: 0, deferred: 0 });
         expect(mocks.release).not.toHaveBeenCalled();
+    });
+
+    it("keeps a queued practice image task queued when image capacity is full", async () => {
+        const task = {
+            id: "queued-practice-image",
+            userId: "user-one",
+            status: "pending",
+            executionProfile: "open-source-practice",
+            config: { channelId: "channel-image", apiFormat: "openai", advancedConfig: { protocol: "runninghub" } },
+        };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, type: "image", status: "pending", executionProfile: "open-source-practice", executionPhase: "queued" }]);
+        mocks.getImageTask.mockResolvedValue(task);
+        mocks.withGenerationConcurrencyLimit.mockResolvedValueOnce(null);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.createImageTaskUpstreamStep).not.toHaveBeenCalled();
+        expect(mocks.release).toHaveBeenCalledWith("image", task.id, "worker-one", expect.objectContaining({ executionPhase: "queued", nextPollAt: expect.any(Number), lastUpstreamStatus: "capacity_wait" }));
+        expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0 });
+    });
+
+    it("submits an admitted queued practice video once before polling its persisted upstream task", async () => {
+        const queued = {
+            id: "queued-practice-video",
+            userId: "user-one",
+            status: "running",
+            executionProfile: "open-source-practice",
+            upstream: { id: "", provider: "generation", model: "video" },
+            config: { channelId: "channel-video", apiFormat: "openai", advancedConfig: { protocol: "runninghub", queryPath: "/openapi/v2/query" } },
+        };
+        const submitted = { ...queued, upstream: { ...queued.upstream, id: "upstream-video" } };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: queued.id, userId: queued.userId, type: "video", status: "running", executionProfile: "open-source-practice", executionPhase: "queued" }]);
+        mocks.getVideoTask.mockResolvedValueOnce(queued).mockResolvedValueOnce(submitted);
+        mocks.createQueuedPracticeVideoTaskUpstreamStep.mockResolvedValue({ state: "pending", status: "submitted", upstreamTaskId: "upstream-video" });
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.createQueuedPracticeVideoTaskUpstreamStep).toHaveBeenCalledOnce();
+        expect(mocks.queryVideoTaskUpstream).not.toHaveBeenCalled();
+        expect(mocks.release).toHaveBeenCalledWith("video", queued.id, "worker-one", expect.objectContaining({ executionPhase: "polling", upstreamTaskId: "upstream-video", lastUpstreamStatus: "submitted" }));
+        expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0 });
     });
 
     it("advances a durable Drama Lab workflow parent from the shared worker", async () => {

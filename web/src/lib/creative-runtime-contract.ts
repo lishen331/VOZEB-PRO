@@ -123,7 +123,7 @@ export type CreativeRunEvent = {
 export type CreativeGenerationMode = "image" | "video" | "audio";
 export type CreativeGenerationPreferences = {
     mode?: CreativeGenerationMode;
-    image?: { size?: string; quality?: string; count?: number };
+    image?: { size?: string; quality?: string; resolution?: string; background?: string; count?: number };
     video?: {
         size?: string;
         quality?: string;
@@ -212,9 +212,15 @@ function normalizeImagePreferences(value: unknown) {
     const size = normalizePreferenceSize(input.size);
     const rawQuality = optionalText(input.quality, 40);
     const quality = isCreativeAutoValue(rawQuality) ? "auto" : rawQuality;
+    const rawResolution = optionalText(input.resolution, 40);
+    const resolution = rawResolution && !isCreativeAutoValue(rawResolution) ? rawResolution : undefined;
     const count = Number(input.count);
     const normalizedCount = Number.isSafeInteger(count) && count > 0 ? count : undefined;
-    return size || quality || normalizedCount ? { ...(size ? { size } : {}), ...(quality ? { quality } : {}), ...(normalizedCount ? { count: normalizedCount } : {}) } : undefined;
+    const backgroundRaw = optionalText(input.background, 20);
+    const background = backgroundRaw === "transparent" || backgroundRaw === "keep" ? backgroundRaw : backgroundRaw ? "auto" : undefined;
+    return size || quality || resolution || normalizedCount || background
+        ? { ...(size ? { size } : {}), ...(quality ? { quality } : {}), ...(resolution ? { resolution } : {}), ...(background ? { background } : {}), ...(normalizedCount ? { count: normalizedCount } : {}) }
+        : undefined;
 }
 
 function normalizeVideoPreferences(value: unknown) {

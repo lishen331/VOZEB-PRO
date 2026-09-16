@@ -50,11 +50,44 @@ import {
     workflowTaskContextForChannel,
     workflowTimeoutMs,
 } from "@/lib/server/runninghub-workflow-runtime";
-import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext; input?: Record<string, unknown> };
+type VideoCapabilityDebugChannel = {
+    logicalModelId?: string;
+    channelId?: string;
+    model?: string;
+    capabilityProfile?: { supportsReferenceImage?: boolean; supportsReferenceVideo?: boolean; supportsReferenceAudio?: boolean };
+    advancedConfig?: { supportsReferenceImage?: boolean; supportsReferenceVideo?: boolean; supportsReferenceAudio?: boolean };
+};
+
+function logVideoCapabilityDecision(
+    channel: VideoCapabilityDebugChannel,
+    globalPreset: { supportsReferenceImage?: boolean; supportsReferenceVideo?: boolean; supportsReferenceAudio?: boolean } | undefined,
+    references: VideoGenerationReference[],
+    resolved: { supportsReferenceImage: boolean; supportsReferenceVideo: boolean; supportsReferenceAudio: boolean },
+) {
+    console.info("[video-capability-debug]", {
+        logicalModelId: channel.logicalModelId,
+        channelId: channel.channelId,
+        upstreamModel: channel.model,
+        bindingSupportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage,
+        bindingSupportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo,
+        bindingSupportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio,
+        channelSupportsReferenceImage: channel.advancedConfig?.supportsReferenceImage,
+        channelSupportsReferenceVideo: channel.advancedConfig?.supportsReferenceVideo,
+        channelSupportsReferenceAudio: channel.advancedConfig?.supportsReferenceAudio,
+        globalPresetSupportsReferenceImage: globalPreset?.supportsReferenceImage,
+        globalPresetSupportsReferenceVideo: globalPreset?.supportsReferenceVideo,
+        globalPresetSupportsReferenceAudio: globalPreset?.supportsReferenceAudio,
+        resolvedSupportsReferenceImage: resolved.supportsReferenceImage,
+        resolvedSupportsReferenceVideo: resolved.supportsReferenceVideo,
+        resolvedSupportsReferenceAudio: resolved.supportsReferenceAudio,
+        referenceTypes: references.map((reference) => reference.type),
+    });
+}
 
 export async function POST(request: Request) {
     const user = await getCurrentUser(request);
@@ -95,10 +128,128 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    const projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+
+    try {
+        projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+    } catch (error) {
+        const known = projectExecutionProfileError(error);
+
+        if (known) return NextResponse.json({ error: known.message }, { status: known.status });
+
+        throw error;
+    }
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
+    if (practiceRequest) {
+        const executionProfile: PracticeExecutionProfile = "open-source-practice";
+        let trustedContext: GenerationTaskContext;
+        try {
+            const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
+            if (!clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "video");
+            const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
+            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
+        const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
+        const channels = resolvePracticeGenerationCandidates(settings, "video", requestedModel, trustedContext)
+            .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
+            .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
+        const prompt = String(body.prompt || "").trim();
+        if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
+        if (!(await hasHealthyRuntimeCandidate(channels, "video"))) return NextResponse.json({ error: "当前视频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
+        trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode, trustedContext) };
+        const publicOrigin = requestPublicOrigin(request);
+        let references: VideoGenerationReference[];
+        try {
+            references = await Promise.all(normalizeVideoGenerationReferences(body.references).map((reference) => signProviderReference(reference, user, publicOrigin)));
+            references = await normalizeVideoProviderImageReferences({ references, userId: user.id, internalOrigin: resolveInternalOrigin(resolvePublicRequestOrigin(request)), publicOrigin });
+        } catch (error) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : "视频参考素材不正确" }, { status: 400 });
+        }
+        const requestedParameters = resolveVideoGenerationParameters(body.config || {}, settings.generationDefaults);
+        let capabilityError: unknown;
+        for (const channel of channels) {
+            const geminiVideo = isGeminiVideoChannel(channel);
+            const parameters = {
+                ...requestedParameters,
+                videoSeconds: geminiVideo
+                    ? normalizeGeminiVideoDuration(requestedParameters.videoSeconds)
+                    : resolveUpstreamVideoDuration(requestedParameters.videoSeconds, settings.generationDefaults.videoSeconds, {
+                          durationRange: channel.advancedConfig?.durationRange,
+                          minDurationSeconds: channel.capabilityProfile?.minDurationSeconds,
+                          maxDurationSeconds: channel.capabilityProfile?.maxDurationSeconds,
+                      }),
+            };
+            try {
+                assertCapabilityConstraints(channel.capabilityProfile, {
+                    capability: "video",
+                    referenceCount: references.filter((reference) => reference.type === "image").length,
+                    durationSeconds: requestedParameters.videoSeconds === -1 ? undefined : requestedParameters.videoSeconds,
+                    aspectRatio: requestedParameters.size,
+                    resolution: requestedParameters.vquality,
+                });
+                const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
+                logVideoCapabilityDecision(channel, globalPreset, references, {
+                    supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset?.supportsReferenceImage),
+                    supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset?.supportsReferenceVideo),
+                    supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset?.supportsReferenceAudio),
+                });
+                if (geminiVideo) assertGeminiVideoReferences(references);
+                else {
+                    assertReferenceCapabilities(
+                        globalPreset
+                            ? {
+                                  ...channel.advancedConfig!,
+                                  supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset.supportsReferenceImage),
+                                  supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset.supportsReferenceVideo),
+                                  supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset.supportsReferenceAudio),
+                              }
+                            : channel.advancedConfig,
+                        references,
+                    );
+                    if (channel.advancedConfig?.protocol !== "yumeng") assertVideoReferenceRoles(channel.advancedConfig, references, globalPreset?.videoReferenceRoles);
+                    if (channel.advancedConfig?.protocol === "vozeb-recommended") assertVozebRecommendedVideoReferences(channel.model, references);
+                    if (channel.advancedConfig?.protocol === "yumeng") assertYumengVideoReferences(channel.model, references);
+                    assertReferenceUrls(channel.advancedConfig, references, Boolean(globalPreset));
+                }
+            } catch (error) {
+                capabilityError = error;
+                continue;
+            }
+            const workflowInput = trustedPractice && body.input && typeof body.input === "object" && !Array.isArray(body.input) ? { ...parameters, ...body.input } : parameters;
+            const task = await createVideoTask({
+                userId: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                title: prompt.slice(0, 36) || "视频生成",
+                config: channel,
+                upstream: { id: "", provider: "generation", model: channel.model, pollPath: geminiVideo ? geminiVideoCreatePath(channel.model) : channel.advancedConfig?.createPath || CREATE_PATHS[0] },
+                requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds,
+                prompt,
+                references,
+                workflowInput,
+                source: mediaTaskSource(body.source, trustedContext, "video-task"),
+                attempts: [],
+                ...trustedContext,
+            });
+            await linkStoredGenerationTask("video", task.id, trustedContext);
+            await scheduleGenerationTask("video", task.id, {
+                executionPhase: "queued",
+                channelId: channel.channelId,
+                provider: channel.advancedConfig?.protocol || channel.apiFormat,
+                queryPath: channel.advancedConfig?.queryPath,
+                nextPollAt: Date.now(),
+                lastUpstreamStatus: "queued",
+            });
+            after(() => runGenerationTaskRecoveryBatch({ origin: resolveInternalOrigin(resolvePublicRequestOrigin(request)), cookie: requestRuntimeCredential(request, user.id), limit: 1, taskIds: [task.id] }));
+            return NextResponse.json({ task: publicTask(task), queued: true });
+        }
+        return NextResponse.json({ error: capabilityError instanceof Error ? capabilityError.message : "当前渠道不支持参考素材" }, { status: 400 });
+    }
     const response = await withGenerationConcurrencyLimit(
         user.id,
         "video",
@@ -169,6 +320,11 @@ export async function POST(request: Request) {
                         resolution: requestedParameters.vquality,
                     });
                     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
+                    logVideoCapabilityDecision(channel, globalPreset, references, {
+                        supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset?.supportsReferenceImage),
+                        supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset?.supportsReferenceVideo),
+                        supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset?.supportsReferenceAudio),
+                    });
                     if (geminiVideo) {
                         assertGeminiVideoReferences(references);
                     } else {
@@ -176,9 +332,9 @@ export async function POST(request: Request) {
                             globalPreset
                                 ? {
                                       ...channel.advancedConfig!,
-                                      supportsReferenceImage: Boolean(globalPreset.supportsReferenceImage),
-                                      supportsReferenceVideo: Boolean(globalPreset.supportsReferenceVideo),
-                                      supportsReferenceAudio: Boolean(globalPreset.supportsReferenceAudio),
+                                      supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset.supportsReferenceImage),
+                                      supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset.supportsReferenceVideo),
+                                      supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset.supportsReferenceAudio),
                                   }
                                 : channel.advancedConfig,
                             references,

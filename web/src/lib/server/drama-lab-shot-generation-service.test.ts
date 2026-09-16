@@ -38,6 +38,19 @@ const project = {
             id: "character-lin",
             name: "林薇",
             description: "红色风衣",
+            profile: {
+                visualIdentity: "",
+                styling: "",
+                colorPalette: "",
+                consistencyRules: "",
+                face_shape: "鹅蛋脸",
+                facial_features: "杏眼",
+                unique_marks: "泪痣",
+                color_anchors: { hair: "#111111", eyes: "#222222", skin: "#F0D0B0", primary_outfit: "#AA0000" },
+                skin_texture: "细腻",
+                hair_style: "黑色短发",
+            },
+            stages: [{ episodeRange: [1, 3] as [number, number], appearance: "本集白色校服造型" }],
             references: [{ id: "character-ref", url: "/api/reference-assets/character.png", source: "upload" as const, label: "林薇主图", createdAt: "2026-08-22T00:00:00.000Z" }],
             primaryReferenceId: "character-ref",
         },
@@ -66,6 +79,7 @@ const project = {
         {
             id: "episode-one",
             title: "第一集",
+            episodeNumber: 1,
             script: "林薇在雨夜车站接起电话。",
             outline: "",
             hook: "",
@@ -100,6 +114,27 @@ const project = {
 };
 
 describe("drama lab shot generation service", () => {
+    it("injects the matching character stage into storyboard image and video prompts", async () => {
+        const image = await prepareDramaLabStoryboardImage(project, "episode-one", "shot-one");
+        const videoProject = structuredClone(project);
+        Object.assign(videoProject.episodes[0].shots[0], { storyboardImageUrl: "/api/reference-assets/storyboard.png" });
+        const video = prepareDramaLabStoryboardVideo(videoProject, "episode-one", "shot-one", { supportsReferenceImages: true });
+        expect(image.prompt).toContain("【本集角色阶段造型】");
+        expect(image.prompt).toContain("林薇：本集白色校服造型");
+        expect(video.prompt).toContain("林薇：本集白色校服造型");
+        expect(image.prompt).toContain("脸型：鹅蛋脸");
+        expect(video.prompt).toContain("发型：黑色短发");
+    });
+    it("uses the saved classic polished prompt and never leaks internal asset ids", async () => {
+        const polishedPrompt = "【主体与动作】林夏独自前行。\n【场景与空间】雨夜站台。\n【景别/机位/构图】中景平视。\n【光线与色调】冷蓝。\n【角色白名单】仅林夏。\n【一致性与禁止项】禁止额外人物。";
+        const value = { ...project, episodes: project.episodes.map((episode) => ({ ...episode, shots: episode.shots.map((shot) => ({ ...shot, polishedPrompt })) })) };
+        const prepared = await prepareDramaLabStoryboardImage(value, "episode-one", "shot-one");
+        expect(prepared.prompt).toContain(polishedPrompt);
+        expect(prepared.prompt).not.toContain("scene-station /");
+        expect(prepared.prompt).not.toContain("character-lin /");
+        expect(prepared.prompt).not.toContain("prop-phone /");
+    });
+
     it("uses universal text with scene, character, prop references without requiring a storyboard image", () => {
         const universalSegmentText = "画面风格和类型: 写实\n生成一个由以下1个分镜组成的视频。\n环境参考 @图片1。\n分镜1： 3秒: 缓推 @图片2 手中的 @图片3，横移后拉回。";
         const value = { ...project, episodes: project.episodes.map((episode) => ({ ...episode, shots: episode.shots.map((shot) => ({ ...shot, creationMode: "universal" as const, universalSegmentText })) })) };
@@ -142,9 +177,9 @@ describe("drama lab shot generation service", () => {
 
         expect(prepared.templateKey).toBe("key_frame_prompt");
         expect(prepared.prompt).toContain("KEY FRAME TEMPLATE");
-        expect(prepared.prompt).toContain("场景白名单：scene-station / 雨夜车站");
-        expect(prepared.prompt).toContain("角色白名单：character-lin / 林薇");
-        expect(prepared.prompt).toContain("道具白名单：prop-phone / 裂屏手机");
+        expect(prepared.prompt).toContain("场景白名单：雨夜车站");
+        expect(prepared.prompt).toContain("角色白名单：林薇");
+        expect(prepared.prompt).toContain("道具白名单：裂屏手机");
         expect(prepared.references.map((item) => item.id)).toEqual(["scene-ref", "character-ref", "prop-ref"]);
     });
 

@@ -37,7 +37,7 @@ export function dramaLabEpisodeCanvasSourceHandoffId(projectId: string, episodeI
     return dramaLabEpisodeCanvasHandoffId(requiredId(projectId, "短剧项目"), requiredId(episodeId, "剧集"));
 }
 
-export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: string, projectIdValue: string, episodeIdValue: string, shotIdValue?: string) {
+export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: string, projectIdValue: string, episodeIdValue: string, shotIdValue?: string, assetTypeValue?: string, assetIdValue?: string) {
     const userId = requiredId(userIdValue, "用户");
     const projectId = requiredId(projectIdValue, "短剧项目");
     const episodeId = requiredId(episodeIdValue, "剧集");
@@ -48,13 +48,19 @@ export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: strin
     const episode = project.episodes.find((item) => item.id === episodeId);
     if (!episode) throw new DramaLabEpisodeCanvasServiceError("剧集不存在或不属于当前短剧项目", 404);
     const shotId = optionalId(shotIdValue);
+    const assetType = optionalAssetType(assetTypeValue);
+    const assetId = optionalId(assetIdValue);
+    if (assetType && !assetId) throw new DramaLabEpisodeCanvasServiceError("资产定位缺少资产 ID", 400);
+    if (assetId && !assetType) throw new DramaLabEpisodeCanvasServiceError("资产定位缺少资产类型", 400);
+    if (assetType && assetId && !project[assetCollection(assetType)].some((item) => item.id === assetId)) throw new DramaLabEpisodeCanvasServiceError("资产不存在或不属于当前短剧项目", 404);
     const shotIndex = shotId ? orderedShots(episode.shots).findIndex((item) => item.id === shotId) : -1;
     if (shotId && shotIndex < 0) throw new DramaLabEpisodeCanvasServiceError("分镜不存在或不属于当前剧集", 404);
 
     const sourceHandoffId = dramaLabEpisodeCanvasSourceHandoffId(project.id, episode.id);
     const projection = projectEpisodeToCanvas(project, episode);
     const title = `${project.title} · ${episode.title}`;
-    const requestedViewport = shotIndex >= 0 ? shotViewport(shotIndex) : projection.viewport;
+    const assetIndex = assetType && assetId ? project[assetCollection(assetType)].findIndex((item) => item.id === assetId) : -1;
+    const requestedViewport = shotIndex >= 0 ? shotViewport(shotIndex) : assetIndex >= 0 ? assetViewport(assetType!, assetIndex) : projection.viewport;
     const canvasProject = await createDramaLabCanvasProjectForUser(ownerUserId, {
         title,
         sourceHandoffId,
@@ -72,12 +78,12 @@ export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: strin
         await deleteDramaLabEpisodeCanvasForUser(ownerUserId, project.id, episode.id);
         throw new DramaLabEpisodeCanvasServiceError("剧集不存在或已被删除，请刷新后重试", 404);
     }
-    const mergeInput = { prefix: `dl:${project.id}:episode:${episode.id}`, title, requestedViewport, locateShot: shotIndex >= 0 };
+    const mergeInput = { prefix: `dl:${project.id}:episode:${episode.id}`, title, requestedViewport, locateShot: shotIndex >= 0 || assetIndex >= 0 };
     const syncedProject = mergeEpisodeProjection(canvasProject, projection, mergeInput);
     const savedProject = await persistEpisodeProjectionWithRetry(ownerUserId, canvasProject, syncedProject, projection, mergeInput);
     return {
         project: savedProject,
-        binding: { dramaProjectId: project.id, episodeId: episode.id, sourceHandoffId, ...(shotId ? { shotId } : {}) },
+        binding: { dramaProjectId: project.id, episodeId: episode.id, sourceHandoffId, ...(shotId ? { shotId } : {}), ...(assetType && assetId ? { assetType, assetId } : {}) },
     };
 }
 
@@ -315,6 +321,19 @@ function optionalId(value: unknown) {
 
 function shotViewport(index: number): CanvasProject["viewport"] {
     return { x: -520, y: 250 - index * 620, k: 0.72 };
+}
+
+function assetViewport(assetType: "character" | "scene" | "prop", index: number): CanvasProject["viewport"] {
+    const x = assetType === "character" ? -1_200 : assetType === "scene" ? -800 : -400;
+    return { x: -x * 0.72 + 240, y: 220 - index * 300 * 0.72, k: 0.72 };
+}
+
+function optionalAssetType(value: unknown): "character" | "scene" | "prop" | undefined {
+    return value === "character" || value === "scene" || value === "prop" ? value : undefined;
+}
+
+function assetCollection(assetType: "character" | "scene" | "prop") {
+    return assetType === "character" ? "characters" : assetType === "scene" ? "scenes" : "props";
 }
 
 function isProjectionNode(node: CanvasNodeData, prefix: string) {

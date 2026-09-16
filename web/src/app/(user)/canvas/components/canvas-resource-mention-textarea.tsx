@@ -8,12 +8,17 @@ import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { mentionAtCursor, type MentionAtCursor } from "@/lib/mention-at-cursor";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { handleMentionNavigation } from "../utils/canvas-mention-navigation";
 
 export function canvasResourceMentionAtCursor(value: string, cursor: number): MentionAtCursor | undefined {
     return mentionAtCursor(value, cursor);
+}
+
+export function canvasResourceMentionMenuZIndex(modalZIndex?: string) {
+    const parsed = Number.parseInt(modalZIndex || "", 10);
+    return Number.isFinite(parsed) ? parsed + 1 : 120;
 }
 
 type Props = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & {
@@ -29,7 +34,7 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
     { value, references, onChange, onSubmit, onKeyDown, className, containerClassName, style, highlightLabels = true, autoFocus, ...props },
     forwardedRef,
 ) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const [mention, setMention] = useState<MentionAtCursor | null>(null);
@@ -105,7 +110,7 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
     const mergedStyle = {
         ...(style || {}),
         color: showOverlay ? "transparent" : style?.color,
-        caretColor: style?.color || theme.node.text,
+        caretColor: theme.node.text,
         ...(showOverlay ? { background: "transparent", backgroundColor: "transparent" } : {}),
     } as CSSProperties;
     const menu = mention && candidates.length && textareaRef.current ? <MentionMenu textarea={textareaRef.current} references={candidates} activeIndex={Math.min(activeIndex, candidates.length - 1)} theme={theme} onSelect={insertReference} /> : null;
@@ -191,27 +196,9 @@ function MentionHighlightText({ value, labels, references, placeholder }: { valu
 }
 
 function ReferenceToken({ reference }: { reference: CanvasResourceReference }) {
-    const preview =
-        reference.kind === "image" && reference.previewUrl ? (
-            <img src={imagePreviewUrl(reference.previewUrl, 64)} alt="" className="size-[1.2em] shrink-0 rounded-sm object-cover" />
-        ) : reference.kind === "video" && reference.previewUrl ? (
-            <video src={reference.previewUrl} muted playsInline preload="metadata" aria-hidden="true" className="size-[1.2em] shrink-0 rounded-sm bg-black object-cover" />
-        ) : (
-            <ReferencePreviewIcon kind={reference.kind} />
-        );
     return (
-        <span data-canvas-resource-reference={reference.nodeId} title={reference.title} className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md bg-[#2f80ff]/12 px-1 py-0.5 align-baseline font-medium text-[#2f80ff] ring-1 ring-[#2f80ff]/24">
-            {preview}
-            <span className="min-w-0 truncate">{reference.label}</span>
-        </span>
-    );
-}
-
-function ReferencePreviewIcon({ kind }: Pick<CanvasResourceReference, "kind">) {
-    const Icon = kind === "audio" ? Music2 : kind === "video" ? Video : kind === "image" ? ImageIcon : FileText;
-    return (
-        <span className="grid size-[1.2em] shrink-0 place-items-center rounded-sm bg-current/10">
-            <Icon className="size-[0.8em]" aria-hidden="true" />
+        <span data-canvas-resource-reference={reference.nodeId} title={reference.title} className="rounded-sm bg-[#2f80ff]/12 text-[#2f80ff] ring-1 ring-[#2f80ff]/24">
+            {reference.label}
         </span>
     );
 }
@@ -231,7 +218,10 @@ function MentionMenu({
 }) {
     const selectedRef = useRef(false);
     const rect = textarea.getBoundingClientRect();
-    const boundary = textarea.closest(".ant-modal-content")?.getBoundingClientRect() || { left: 8, top: 8, right: window.innerWidth - 8, bottom: window.innerHeight - 8 };
+    const modalContent = textarea.closest(".ant-modal-content");
+    const modalWrap = textarea.closest<HTMLElement>(".ant-modal-wrap");
+    const boundary = modalContent?.getBoundingClientRect() || { left: 8, top: 8, right: window.innerWidth - 8, bottom: window.innerHeight - 8 };
+    const zIndex = canvasResourceMentionMenuZIndex(modalWrap ? window.getComputedStyle(modalWrap).zIndex : undefined);
     const menuWidth = 256;
     const maxMenuHeight = 224;
     const gap = 6;
@@ -251,8 +241,8 @@ function MentionMenu({
     return createPortal(
         <div
             data-canvas-resource-mention-menu="true"
-            className="fixed z-[120] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
-            style={{ left, top, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+            className="fixed max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+            style={{ left, top, zIndex, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
             onPointerDown={stopCanvasInteraction}
             onMouseDown={stopCanvasInteraction}
             onClick={(event) => event.stopPropagation()}

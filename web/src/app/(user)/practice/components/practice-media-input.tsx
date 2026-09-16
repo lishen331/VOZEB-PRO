@@ -1,10 +1,30 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ImagePlus, Music2, X } from "lucide-react";
 
-export function PracticeMediaInput({ label, accept = "image/*", url, disabled, onChoose, onRemove }: { label: string; accept?: string; url?: string; disabled?: boolean; onChoose: (file?: File) => void; onRemove?: () => void }) {
+import { browserReadableMediaUrl } from "@/lib/browser-media-url";
+
+export function PracticeMediaInput({
+    label,
+    accept = "image/*",
+    url,
+    disabled,
+    onChoose,
+    onRemove,
+    children,
+}: {
+    label: string;
+    accept?: string;
+    url?: string;
+    disabled?: boolean;
+    onChoose: (file?: File) => void;
+    onRemove?: () => void;
+    children?: ReactNode;
+}) {
     const audio = accept.startsWith("audio");
     const Icon = audio ? Music2 : ImagePlus;
+    const previewUrl = url ? browserReadableMediaUrl(url) : "";
     return (
         <div className="space-y-2 min-w-0">
             <div className="flex items-center justify-between gap-2 text-sm font-medium">
@@ -30,7 +50,7 @@ export function PracticeMediaInput({ label, accept = "image/*", url, disabled, o
                     className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                 />
                 {url && !audio ? (
-                    <img src={url} alt={`已选择的${label}`} className="max-h-44 w-full object-contain" />
+                    <img src={previewUrl} alt={`已选择的${label}`} className="max-h-44 w-full object-contain" />
                 ) : (
                     <>
                         <Icon className="size-6 text-muted-foreground" />
@@ -38,7 +58,8 @@ export function PracticeMediaInput({ label, accept = "image/*", url, disabled, o
                     </>
                 )}
             </label>
-            {url && audio ? <audio controls src={url} className="h-9 w-full" /> : null}
+            {url && audio ? <audio controls src={previewUrl} className="h-9 w-full" /> : null}
+            {children ? <div className="flex flex-wrap gap-2">{children}</div> : null}
         </div>
     );
 }

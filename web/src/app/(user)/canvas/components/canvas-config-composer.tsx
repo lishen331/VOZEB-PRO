@@ -7,7 +7,7 @@ import { FileText, Image as ImageIcon, Music2, Video, X } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { imagePreviewUrl } from "@/lib/media-image-url";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import type { NodeGenerationInput } from "./canvas-node-generation";
 import { handleMentionNavigation } from "../utils/canvas-mention-navigation";
 
@@ -27,7 +27,7 @@ type MentionState = {
 const CONFIG_REFERENCE_PATTERN = /@\[node:([^\]]+)\]/g;
 
 export function CanvasConfigComposer({ value, inputs, onChange, onClose }: CanvasConfigComposerProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const editorRef = useRef<HTMLDivElement>(null);
     const composingRef = useRef(false);
     const [mention, setMention] = useState<MentionState | null>(null);

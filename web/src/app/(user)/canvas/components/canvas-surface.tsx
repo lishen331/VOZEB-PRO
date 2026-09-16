@@ -4,10 +4,10 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, useState } fr
 import type { CSSProperties, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, RefObject } from "react";
 
 import { canvasThemes, type CanvasBackgroundMode, type CanvasTheme } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasNode, type CanvasNodeProps } from "./canvas-node";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type Position, type ViewportTransform } from "../types";
-import { edgePath, expandCanvasDragNodeIds, findConnectionTarget, isBlockedConnectionDrop, isCanvasVideoControlPoint, nodeAnchor, previewPath, samePosition, selectNodesInBounds, worldFromScreen } from "../utils/canvas-surface-geometry";
+import { canvasEdgeHitStrokeWidth, edgePath, expandCanvasDragNodeIds, findConnectionTarget, isBlockedConnectionDrop, isCanvasVideoControlPoint, nodeAnchor, previewPath, samePosition, selectNodesInBounds, worldFromScreen } from "../utils/canvas-surface-geometry";
 import { buildCanvasSpatialIndex, canvasNodeBounds, canvasNodesBounds, type CanvasBounds } from "../utils/canvas-spatial-index";
 
 type CanvasPointerEvent = ReactMouseEvent | ReactPointerEvent;
@@ -24,6 +24,7 @@ type PinchState = { startDistance: number; startZoom: number; world: Position };
 type WheelFrame = { clientX: number; clientY: number; deltaY: number };
 
 const CANVAS_EDGE_LOD_THRESHOLD = 256;
+const VIEWPORT_QUERY_PADDING_RATIO = 0.75;
 
 type CanvasSurfaceProps = {
     containerRef?: RefObject<HTMLDivElement | null>;
@@ -83,6 +84,7 @@ type CanvasSurfaceProps = {
     onDrop: (event: ReactDragEvent<Element>) => void;
     onSizeChange?: (size: { width: number; height: number }) => void;
     onDragStateChange?: (dragging: boolean) => void;
+    onDisplayViewportChange?: (viewport: ViewportTransform) => void;
     overlay?: ReactNode;
 };
 
@@ -139,9 +141,10 @@ export function CanvasSurface({
     onDrop,
     onSizeChange,
     onDragStateChange,
+    onDisplayViewportChange,
     overlay,
 }: CanvasSurfaceProps) {
-    const themeName = useThemeStore((state) => state.theme);
+    const themeName = useCanvasColorTheme().theme;
     const theme = canvasThemes[themeName];
     const surfaceRef = useRef<HTMLDivElement>(null);
     const backgroundLayerRef = useRef<HTMLDivElement>(null);
@@ -199,8 +202,14 @@ export function CanvasSurface({
     const nodeSpatialIndexRef = useRef(nodeSpatialIndex);
     nodeSpatialIndexRef.current = nodeSpatialIndex;
     const viewBounds = useMemo(() => {
-        const paddingX = surfaceSize.width / displayViewport.k;
-        const paddingY = surfaceSize.height / displayViewport.k;
+        // Extra render margin around the viewport, as a fraction of it. Kept small
+        // (rather than a full viewport's worth on each side) because every node,
+        // image, video, and connection inside this window mounts real DOM — at
+        // 1.0 the render window is ~9x the visible area, which is the difference
+        // between "a few dozen nodes visible" and "a few hundred nodes mounted"
+        // once a canvas has 100+ image/video cards.
+        const paddingX = (surfaceSize.width / displayViewport.k) * VIEWPORT_QUERY_PADDING_RATIO;
+        const paddingY = (surfaceSize.height / displayViewport.k) * VIEWPORT_QUERY_PADDING_RATIO;
         return {
             left: -displayViewport.x / displayViewport.k - paddingX,
             top: -displayViewport.y / displayViewport.k - paddingY,
@@ -224,26 +233,37 @@ export function CanvasSurface({
             return Math.min(start.x, end.x) < viewBounds.right && Math.max(start.x, end.x) > viewBounds.left && Math.min(start.y, end.y) < viewBounds.bottom && Math.max(start.y, end.y) > viewBounds.top;
         });
     }, [connections, denseEdgeLod, hiddenNodeIds, nodesById, renderedNodeIds, viewBounds]);
-    const connectionPaths = useMemo(() => {
+    // Connections render in the SVG layer beneath all nodes, so they never need
+    // to route around intermediate nodes — the nodes float above the line
+    // visually. Passing no obstacles means edgePath always produces a clean
+    // bezier instead of the ugly orthogonal detour that obstacle-avoidance was
+    // generating.
+    //
+    // basePaths only depends on nodes/connections/viewBounds, not on drag state.
+    // Recomputing every connection's path on every drag frame (the old single
+    // useMemo keyed on getDisplayNode) meant dragging one node re-ran edgePath()
+    // for every visible connection, every animation frame.
+    const basePaths = useMemo(() => {
         const paths = new Map<string, string>();
         flowConnections.forEach((item) => {
-            const from = getDisplayNode(item.fromNodeId);
-            const to = getDisplayNode(item.toNodeId);
-            if (!from || !to) return;
-            if (denseEdgeLod) {
-                paths.set(item.id, edgePath(from, to));
-                return;
-            }
-            const obstacleBounds = {
-                left: Math.min(from.position.x, to.position.x) - 64,
-                top: Math.min(from.position.y, to.position.y) - 64,
-                right: Math.max(from.position.x + from.width, to.position.x + to.width) + 64,
-                bottom: Math.max(from.position.y + from.height, to.position.y + to.height) + 64,
-            } satisfies CanvasBounds;
-            paths.set(item.id, edgePath(from, to, nodeSpatialIndex.query(obstacleBounds)));
+            const from = nodesById.get(item.fromNodeId);
+            const to = nodesById.get(item.toNodeId);
+            if (from && to) paths.set(item.id, edgePath(from, to));
         });
         return paths;
-    }, [denseEdgeLod, flowConnections, getDisplayNode, nodeSpatialIndex]);
+    }, [flowConnections, nodesById]);
+    const draggedNodeIds = useMemo(() => new Set(Object.keys(localTransforms)), [localTransforms]);
+    const connectionPaths = useMemo(() => {
+        if (draggedNodeIds.size === 0) return basePaths;
+        const paths = new Map(basePaths);
+        flowConnections.forEach((item) => {
+            if (!draggedNodeIds.has(item.fromNodeId) && !draggedNodeIds.has(item.toNodeId)) return;
+            const from = getDisplayNode(item.fromNodeId);
+            const to = getDisplayNode(item.toNodeId);
+            if (from && to) paths.set(item.id, edgePath(from, to));
+        });
+        return paths;
+    }, [basePaths, draggedNodeIds, flowConnections, getDisplayNode]);
 
     useEffect(() => {
         if (interactionRef.current?.kind === "drag" || resizingNodeIdRef.current) return;
@@ -300,8 +320,9 @@ export function CanvasSurface({
             viewportDirtyRef.current = true;
             displayViewportRef.current = next;
             applyViewportStyles(next);
+            onDisplayViewportChange?.(next);
         },
-        [applyViewportStyles],
+        [applyViewportStyles, onDisplayViewportChange],
     );
 
     const commitViewport = useCallback(() => {
@@ -322,8 +343,8 @@ export function CanvasSurface({
                 onViewportCommit(next);
             });
         };
-        const requestIdle = (window as Window & { requestIdleCallback?: (callback: () => void) => number }).requestIdleCallback;
-        viewportCommitHandleRef.current = requestIdle ? requestIdle(commit) : requestAnimationFrame(commit);
+        const requestIdle = (window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number }).requestIdleCallback;
+        viewportCommitHandleRef.current = requestIdle ? requestIdle(commit, { timeout: 500 }) : requestAnimationFrame(commit);
     }, [onViewportCommit]);
 
     useEffect(
@@ -743,7 +764,7 @@ export function CanvasSurface({
         flushFrame();
         commitViewport();
     }, [commitViewport, flushFrame]);
-    const worldStyle: CSSProperties = { transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`, transformOrigin: "0 0" };
+    const worldStyle: CSSProperties = { transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`, transformOrigin: "0 0", willChange: "transform" };
     const canvasStyle: CSSProperties = { background: theme.canvas.backdrop, color: theme.node.text, touchAction: "none", cursor: temporaryPan || interactionMode === "pan" ? "grab" : "default" };
     const gridSize = canvasGridSize(backgroundMode, displayViewport.k);
     const selectionStyle = boxSelection
@@ -787,6 +808,13 @@ export function CanvasSurface({
             <div data-canvas-world-viewport className="pointer-events-none absolute inset-0 overflow-visible" style={{ contain: "layout style", isolation: "isolate", backgroundColor: "transparent" }}>
                 <div ref={worldLayerRef} className="absolute inset-0 overflow-visible" style={worldStyle}>
                     <svg className="absolute left-0 top-0 h-full w-full overflow-visible" style={{ pointerEvents: "none" }} aria-hidden="true">
+                        <defs>
+                            <linearGradient id="canvasEdgeFlow" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="800" y2="0">
+                                <stop offset="0%" stopColor="#3b82f6" />
+                                <stop offset="50%" stopColor="#06b6d4" />
+                                <stop offset="100%" stopColor="#10b981" />
+                            </linearGradient>
+                        </defs>
                         {flowConnections.map((item) => {
                             const from = nodesById.get(item.fromNodeId);
                             const to = nodesById.get(item.toNodeId);
@@ -799,7 +827,7 @@ export function CanvasSurface({
                                         d={path}
                                         fill="none"
                                         stroke="transparent"
-                                        strokeWidth={18}
+                                        strokeWidth={canvasEdgeHitStrokeWidth(displayViewport.k)}
                                         style={{ pointerEvents: "stroke", cursor: "pointer" }}
                                         onClick={(event) => {
                                             event.stopPropagation();
@@ -812,6 +840,7 @@ export function CanvasSurface({
                                         }}
                                     />
                                     <path d={path} fill="none" stroke={active ? theme.node.activeStroke : theme.node.muted} strokeWidth={active ? 3 : 2} strokeOpacity={active ? 1 : 0.8} strokeLinecap="round" style={{ pointerEvents: "none" }} />
+                                    {active ? <path d={path} fill="none" stroke="url(#canvasEdgeFlow)" strokeWidth={3} strokeLinecap="round" className="canvas-edge-flow" style={{ pointerEvents: "none" }} /> : null}
                                 </g>
                             );
                         })}

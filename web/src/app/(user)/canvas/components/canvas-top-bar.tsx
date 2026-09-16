@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "antd";
-import { BookOpen, Bot, LibraryBig, Menu, Redo2, Sparkles, Trash2, Undo2, Upload } from "lucide-react";
+import { BookOpen, AlertTriangle, Bot, LibraryBig, Menu, Redo2, Sparkles, Trash2, Undo2, Upload } from "lucide-react";
 
 import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { canvasThemes } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import type { CanvasProjectSaveState } from "../stores/use-canvas-store";
 
 export function CanvasTopBar({
@@ -19,6 +19,7 @@ export function CanvasTopBar({
     onFinishTitleEditing,
     onCancelTitleEditing,
     saveState,
+    onRetrySave,
     canUndo,
     canRedo,
     onWorkbench,
@@ -41,6 +42,7 @@ export function CanvasTopBar({
     onFinishTitleEditing: () => void;
     onCancelTitleEditing: () => void;
     saveState?: CanvasProjectSaveState;
+    onRetrySave?: () => void;
     canUndo: boolean;
     canRedo: boolean;
     onWorkbench: () => void;
@@ -54,7 +56,7 @@ export function CanvasTopBar({
     compactAgentStatus?: { connected: boolean; enabled: boolean; activity: string };
     onToggleAgent: () => void;
 }) {
-    const colorTheme = useThemeStore((state) => state.theme);
+    const colorTheme = useCanvasColorTheme().theme;
     const theme = canvasThemes[colorTheme];
     const titleRef = useRef<HTMLDivElement>(null);
     const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -137,6 +139,18 @@ export function CanvasTopBar({
                         )}
                         {practice ? <span className="shrink-0 border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">练习</span> : null}
                     </div>
+                    {(saveState?.status === "error" || saveState?.status === "conflict") && onRetrySave ? (
+                        <button
+                            type="button"
+                            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-red-300 bg-red-50 px-2 text-[11px] font-medium text-red-500 transition hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/40"
+                            onClick={onRetrySave}
+                            title={saveState?.message || "保存失败，点击重试"}
+                            aria-label="保存失败，点击重试"
+                        >
+                            <AlertTriangle className="size-3" aria-hidden="true" />
+                            保存失败
+                        </button>
+                    ) : null}
                     <span className="h-4 w-px shrink-0" style={{ background: theme.toolbar.border }} aria-hidden="true" />
                     <button
                         type="button"
@@ -199,7 +213,7 @@ function MenuLabel({ text, shortcut }: { text: string; shortcut: string }) {
 }
 
 function CompactAgentStatus({ status, onClick }: { status: { connected: boolean; enabled: boolean; activity: string }; onClick: () => void }) {
-    const colorTheme = useThemeStore((state) => state.theme);
+    const colorTheme = useCanvasColorTheme().theme;
     const theme = canvasThemes[colorTheme];
     const label = status.connected ? "已连接到本地 Codex" : status.enabled ? status.activity || "连接中" : "正在连接本地 Codex";
     const dotColor = status.connected ? "#22c55e" : status.enabled ? "#f59e0b" : theme.node.muted;

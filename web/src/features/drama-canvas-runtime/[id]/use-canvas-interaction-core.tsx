@@ -54,12 +54,13 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
         connectionsRef,
         selectedNodeIdsRef,
         viewportRef,
+        displayViewportRef,
         generateNodeRef,
     } = state;
 
     const screenToCanvas = useCallback((clientX: number, clientY: number) => {
         const rect = containerRef.current?.getBoundingClientRect();
-        const currentViewport = viewportRef.current;
+        const currentViewport = displayViewportRef.current;
         const localX = clientX - (rect?.left || 0);
         const localY = clientY - (rect?.top || 0);
 

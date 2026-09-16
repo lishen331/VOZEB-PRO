@@ -21,6 +21,12 @@ describe("writeImageGenerationLog", () => {
         expect(asset).not.toHaveProperty("targetSize");
     });
 
+    it("does not add a square target to practice workflow logs", async () => {
+        await writeImageGenerationLog(imageTask({ workflowCode: "storyboard_shot", executionProfile: "open-source-practice" }), "success", [{ dataUrl: "data:image/png;base64,AA==" }], 10);
+
+        expect(mocks.record.mock.calls[0][0].assets[0]).not.toHaveProperty("targetSize");
+    });
+
     it("keeps target-size normalization for ordinary image tasks", async () => {
         await writeImageGenerationLog(imageTask(), "success", [{ dataUrl: "data:image/png;base64,AA==" }], 10);
 
@@ -34,7 +40,7 @@ describe("writeImageGenerationLog", () => {
     });
 });
 
-function imageTask(config: Partial<ImageTask["config"]> = {}): ImageTask {
+function imageTask(config: Partial<ImageTask["config"]> & { workflowCode?: string; executionProfile?: ImageTask["executionProfile"] } = {}): ImageTask {
     return {
         id: "image-one",
         userId: "user-one",
@@ -42,6 +48,8 @@ function imageTask(config: Partial<ImageTask["config"]> = {}): ImageTask {
         displayName: "User",
         kind: "edit",
         source: "canvas",
+        ...(config.workflowCode ? { workflowCode: config.workflowCode } : {}),
+        ...(config.executionProfile ? { executionProfile: config.executionProfile } : {}),
         status: "running",
         createdAt: 1,
         updatedAt: 1,

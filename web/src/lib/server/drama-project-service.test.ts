@@ -35,9 +35,11 @@ const mocks = vi.hoisted(() => {
         listDramaLabCanvasProjectsForUser: vi.fn(),
         validateIpReferences: vi.fn(),
         recordIpReferenceUsage: vi.fn(),
+        requirePracticeAccess: vi.fn(),
     };
 });
 
+vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.requirePracticeAccess }));
 vi.mock("@/lib/server/agent-run-store", () => ({ listAgentRuns: mocks.listAgentRuns }));
 vi.mock("@/lib/server/creative-entity-deletion-store", () => ({
     CreativeEntityDeletionConflict: class CreativeEntityDeletionConflict extends Error {},
@@ -75,7 +77,16 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
 
-import { createDramaProjectForUser, createDramaProjectVersionForUser, deleteDramaAgentConversationForUser, deleteDramaProjectForUser, normalizeProject, restoreDramaProjectVersionForUser, updateDramaProjectForUser } from "./drama-project-service";
+import {
+    createDramaProjectForUser,
+    createDramaProjectVersionForUser,
+    deleteDramaAgentConversationForUser,
+    deleteDramaProjectForUser,
+    getDramaProjectForUser,
+    normalizeProject,
+    restoreDramaProjectVersionForUser,
+    updateDramaProjectForUser,
+} from "./drama-project-service";
 import { DramaProjectStoreError } from "./drama-project-store";
 
 describe("drama project service updates", () => {
@@ -114,6 +125,20 @@ describe("drama project service updates", () => {
         mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
         mocks.listDramaProjectSummaries.mockResolvedValue([]);
         mocks.createDramaProjectVersion.mockResolvedValue({ id: "version-new", projectId: "drama-one", version: 2, reason: "恢复前自动快照", createdAt: new Date().toISOString() });
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "membership-one", role: "student" });
+    });
+
+    it("does not require a school membership for a production drama", async () => {
+        mocks.getDramaProject.mockResolvedValue(project("2026-07-19T08:00:02.000Z", "正式短剧"));
+        await expect(getDramaProjectForUser("user-one", "drama-one")).resolves.toMatchObject({ id: "drama-one" });
+        expect(mocks.requirePracticeAccess).not.toHaveBeenCalled();
+    });
+
+    it("rejects an owned practice drama when the school membership is no longer active", async () => {
+        mocks.getDramaProject.mockResolvedValue({ ...project("2026-07-19T08:00:02.000Z", "练习短剧"), executionProfile: "open-source-practice" });
+        mocks.requirePracticeAccess.mockRejectedValue(Object.assign(new Error("当前账号没有可用学校身份"), { status: 403 }));
+        await expect(getDramaProjectForUser("user-one", "drama-one")).rejects.toMatchObject({ status: 403 });
+        expect(mocks.requirePracticeAccess).toHaveBeenCalledWith({ id: "user-one" });
     });
 
     it("does not let an older client snapshot overwrite the current project", async () => {
@@ -218,14 +243,15 @@ describe("drama project service updates", () => {
                     id: "character-one",
                     name: "主角",
                     description: "",
-                    references: [{ id: "reference-one", url: "/api/reference-assets/hero.png", source: "upload", label: "主角", width: 1080, height: 1920, createdAt: "2026-07-19T08:00:00.000Z" }],
+                    references: [{ id: "reference-one", url: "/api/reference-assets/hero.png", source: "generated", role: "primary", label: "主角", width: 1080, height: 1920, createdAt: "2026-07-19T08:00:00.000Z" }],
+                    primaryReferenceId: "reference-one",
                 },
             ],
         };
 
         const saved = await updateDramaProjectForUser("user-one", current.id, input);
 
-        expect(saved).toMatchObject({ ratio: "1080x1920", characters: [{ references: [{ width: 1080, height: 1920 }] }] });
+        expect(saved).toMatchObject({ ratio: "1080x1920", characters: [{ primaryReferenceId: "reference-one", references: [{ width: 1080, height: 1920, role: "primary", source: "generated" }] }] });
     });
 
     it("persists frame provenance and the next-shot first-frame candidate", () => {
@@ -559,6 +585,17 @@ function canvasPage(sourceHandoffIds: string[], total = sourceHandoffIds.length,
         pageSize: 100,
     };
 }
+
+describe("drama project creation defaults", () => {
+    it("creates no episode until one is explicitly added", async () => {
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
+        mocks.validateIpReferences.mockResolvedValue([]);
+        mocks.createCreativeConversation.mockResolvedValue({ id: "conversation-new" });
+        const created = await createDramaProjectForUser("user-one", { title: "空项目" });
+        expect(created.episodes).toEqual([]);
+        expect(created.activeEpisodeId).toBeUndefined();
+    });
+});
 
 function project(updatedAt: string, title: string): DramaProject {
     return {

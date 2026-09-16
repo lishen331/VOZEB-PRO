@@ -21,3 +21,4 @@ pnpm-lock.yaml
 playwright-report
 public/mediapipe/vision_bundle.js
 public/mediapipe/wasm/vision_wasm_internal.js
+check.json

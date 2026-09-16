@@ -1,8 +1,8 @@
-import { isOfficialWorkflowQueryPath, queryRunningHubTask } from "./runninghub-provider";
+import { isOfficialWorkflowQueryPath, queryRunningHubTask, submitRunningHubTask } from "./runninghub-provider";
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
+import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
-import { finishGenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { isProviderBusinessError, providerQueryPaths, readProviderError, videoPollingPolicy } from "@/lib/server/provider-task-config";
@@ -25,14 +25,49 @@ import { maintenanceWorkerHeaders } from "@/lib/server/maintenance-auth";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { geminiVideoQueryPath, parseGeminiVideoOperation } from "@/lib/server/gemini-video-provider";
-import { workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
+import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
-export type VideoUpstreamStep = { state: "pending"; status: string } | { state: "result_ready"; status: string; resultUrl: string } | { state: "failed"; status: string; error: string };
+export type VideoUpstreamStep = { state: "pending"; status: string; upstreamTaskId?: string } | { state: "result_ready"; status: string; resultUrl: string } | { state: "failed"; status: string; error: string };
 
 export class VideoQueryAuthError extends Error {
     constructor(message: string) {
         super(message);
         this.name = "VideoQueryAuthError";
+    }
+}
+
+export async function createQueuedPracticeVideoTaskUpstreamStep(task: VideoTask, origin: string, cookie = "", workerUserId = ""): Promise<VideoUpstreamStep> {
+    if (task.upstream.id) return queryVideoTaskUpstream(task, origin, cookie, workerUserId);
+    const workflow = workflowConfigForTask(task);
+    if (task.executionProfile !== "open-source-practice" || !workflow || task.config.advancedConfig?.protocol !== "runninghub") return { state: "failed", status: "unsupported", error: "排队视频任务缺少可恢复的 RunningHub 工作流配置" };
+    const started = startGenerationAttempt(task.attempts, { channelId: task.config.channelId, model: generationModelId(task.config), capability: "video" });
+    await updateVideoTask(task.id, { attempts: started.attempts });
+    try {
+        const raw = { ...(task.workflowInput || {}), model: task.config.model, prompt: task.prompt || "" };
+        const result = await submitRunningHubTask({
+            baseUrl: new URL(task.config.baseUrl, origin).href,
+            apiKey: task.config.apiKey,
+            config: task.config.advancedConfig,
+            payload: buildRunningHubWorkflowPayload({
+                config: workflow,
+                businessInput: raw,
+                references: (task.references || []).map((reference) => ({ type: reference.type, url: reference.url, ...(reference.inputKey ? { inputKey: reference.inputKey } : {}) })),
+            }),
+            fetchImpl: (url, init = {}) => {
+                const headers = new Headers(videoProxyHeaders(task, cookie, workerUserId));
+                new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+                return fetchInternalApi(String(url), { ...init, headers });
+            },
+        });
+        const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "succeeded" });
+        const upstream = { ...task.upstream, id: result.taskId, queryPath: workflow.queryPath };
+        await updateVideoTask(task.id, { upstream, attempts });
+        return { state: "pending", status: "submitted", upstreamTaskId: result.taskId };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "RunningHub 视频提交失败";
+        const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "failed", error: message });
+        await updateVideoTask(task.id, { attempts });
+        return { state: "failed", status: "submit_failed", error: message };
     }
 }
 

@@ -2,7 +2,7 @@ import type { LogicalModelCapabilityProfile } from "@/lib/auth/store-types";
 import { isCreativeAutoValue, type CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
 
 export type CreativeMediaCapability = "image" | "video" | "audio";
-export type CreativeModelCapabilityProfile = Pick<LogicalModelCapabilityProfile, "aspectRatios" | "resolutions" | "durationSeconds" | "minDurationSeconds" | "maxDurationSeconds" | "maxBatchSize">;
+export type CreativeModelCapabilityProfile = Pick<LogicalModelCapabilityProfile, "aspectRatios" | "resolutions" | "durationSeconds" | "minDurationSeconds" | "maxDurationSeconds" | "maxBatchSize" | "supportsAudioGeneration">;
 export type CreativeModelCapabilityOption = {
     id: string;
     name: string;
@@ -25,6 +25,7 @@ export function creativeModelProfileForLogicalModel(model: LogicalModelLike | un
         minDurationSeconds: minimum(profiles.map((profile) => profile.minDurationSeconds)),
         maxDurationSeconds: maximum(profiles.map((profile) => profile.maxDurationSeconds)),
         maxBatchSize: maximum(profiles.map((profile) => profile.maxBatchSize)),
+        supportsAudioGeneration: profiles.some((profile) => profile.supportsAudioGeneration) || undefined,
     });
 }
 
@@ -39,6 +40,7 @@ export function creativeSelectedModelProfile(models: readonly CreativeModelCapab
         minDurationSeconds: maximum(profiles.map((profile) => profile.minDurationSeconds)),
         maxDurationSeconds: minimum(profiles.map((profile) => profile.maxDurationSeconds)),
         maxBatchSize: selected.every((model) => model.capabilityProfile?.maxBatchSize) ? selected.reduce((total, model) => total + model.capabilityProfile!.maxBatchSize!, 0) : undefined,
+        supportsAudioGeneration: profiles.some((profile) => profile.supportsAudioGeneration) || undefined,
     });
 }
 

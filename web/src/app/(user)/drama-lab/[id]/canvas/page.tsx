@@ -12,6 +12,8 @@ export default function DramaEpisodeCanvasPage() {
     const projectId = params.id;
     const episodeId = searchParams.get("episodeId") || searchParams.get("episode") || "";
     const shotId = searchParams.get("shotId") || "";
+    const assetType = searchParams.get("assetType") || "";
+    const assetId = searchParams.get("assetId") || "";
     const [error, setError] = useState<string>();
 
     useEffect(() => {
@@ -24,7 +26,7 @@ export default function DramaEpisodeCanvasPage() {
         void fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/episode-canvas`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ episodeId, ...(shotId ? { shotId } : {}) }),
+            body: JSON.stringify({ episodeId, ...(shotId ? { shotId } : {}), ...(assetType ? { assetType } : {}), ...(assetId ? { assetId } : {}) }),
         })
             .then(async (response) => {
                 const data = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { project?: { id?: string } } };
@@ -33,6 +35,8 @@ export default function DramaEpisodeCanvasPage() {
                 const canvasId = data.data.project.id;
                 const targetParams = new URLSearchParams({ dramaProjectId: projectId, episodeId });
                 if (shotId) targetParams.set("shotId", shotId);
+                if (assetType) targetParams.set("assetType", assetType);
+                if (assetId) targetParams.set("assetId", assetId);
                 router.replace(`/drama-canvas/${encodeURIComponent(canvasId)}?${targetParams.toString()}`);
             })
             .catch((cause) => {
@@ -41,7 +45,7 @@ export default function DramaEpisodeCanvasPage() {
         return () => {
             cancelled = true;
         };
-    }, [episodeId, projectId, router, shotId]);
+    }, [assetId, assetType, episodeId, projectId, router, shotId]);
 
     if (error)
         return (

@@ -1,11 +1,19 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { canvasThemes } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { CanvasNode } from "./canvas-node";
 import { NodeContent } from "./canvas-node-content";
+
+// renderToStaticMarkup runs React's SSR path, where useSyncExternalStore reads
+// zustand's getServerSnapshot (bound to the store's one-time initial state,
+// never updated by setState) rather than the live store. useThemeStore.setState
+// in a beforeEach is therefore silently ineffective for anything rendered this
+// way — mock the hook these components actually call instead.
+vi.mock("@/stores/use-theme-store", () => ({
+    useCanvasColorTheme: () => ({ theme: "light" as const, setTheme: () => undefined }),
+}));
 
 const imageNode: CanvasNodeData = {
     id: "generated-image",
@@ -63,8 +71,6 @@ function renderContent(node: CanvasNodeData, theme: (typeof canvasThemes)[keyof 
 }
 
 describe("CanvasNode image border", () => {
-    beforeEach(() => useThemeStore.setState({ theme: "light" }));
-
     it("uses the themed card border for an idle generated image", () => {
         const markup = renderImageNode();
 

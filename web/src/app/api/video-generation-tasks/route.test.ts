@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+    resolveProjectExecutionProfile: vi.fn(),
     after: vi.fn(),
     fetchInternalApi: vi.fn(),
     createVideoTask: vi.fn(),
@@ -66,6 +67,13 @@ vi.mock("@/lib/server/video-task-store", () => ({
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
 vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
+vi.mock("@/lib/server/generation-project-context", () => ({
+    resolveProjectExecutionProfile: mocks.resolveProjectExecutionProfile,
+    projectExecutionProfileError: (error: unknown) =>
+        error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number"
+            ? { status: (error as { status: number }).status, message: error instanceof Error ? error.message : "项目访问权限已失效" }
+            : null,
+}));
 import { POST } from "./route";
 import { resetChannelRuntimeHealth } from "@/lib/server/channel-runtime-health";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
@@ -101,6 +109,7 @@ describe("video generation candidate failover", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.resolveProjectExecutionProfile.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
         mocks.fetchInternalApi.mockReset();
         resetChannelRuntimeHealth();
@@ -118,6 +127,65 @@ describe("video generation candidate failover", () => {
     });
 
     afterEach(() => vi.unstubAllEnvs());
+
+    it("queues a practice video without creating an upstream task or entering the production concurrency gate", async () => {
+        const workflow = {
+            workflowKey: "video-workflow",
+            workflowId: "1",
+            workflowCode: "storyboard_shot_video",
+            version: 1,
+            businessCode: "storyboard-video",
+            capability: "video",
+            enabled: true,
+            createPath: "/task/openapi/create",
+            queryPath: "/openapi/v2/query",
+            taskIdField: "taskId",
+            statusField: "status",
+            resultField: "results",
+            inputMappings: [],
+            outputMappings: [],
+        };
+        mocks.resolveProjectExecutionProfile.mockResolvedValueOnce("open-source-practice");
+        mocks.getAuthSettings.mockResolvedValueOnce({
+            ...settings,
+            systemChannels: [
+                {
+                    id: "practice-video",
+                    name: "练习视频",
+                    baseUrl: "https://runninghub.example",
+                    apiKey: "key",
+                    apiFormat: "openai",
+                    models: ["video-workflow"],
+                    enabled: true,
+                    purpose: "open-source-practice",
+                    advancedConfig: { protocol: "runninghub", workflowConfigs: { video: workflow } },
+                },
+            ],
+            logicalModels: [],
+            defaultModels: { videoModel: "video-workflow" },
+        });
+
+        const response = await POST(request({ model: "video-workflow" }, [], { surface: "drama", projectId: "practice-drama", businessCode: "storyboard-video", workflowCode: "storyboard_shot_video" }));
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ task: { id: "local-task" }, queued: true });
+        expect(mocks.withGenerationConcurrencyLimit).not.toHaveBeenCalled();
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+        expect(mocks.scheduleGenerationTask).toHaveBeenCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "queued", lastUpstreamStatus: "queued" }));
+    });
+
+    it("returns the project access status before task creation", async () => {
+        mocks.resolveProjectExecutionProfile.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
+        const response = await POST(
+            new Request("http://localhost/api/video-generation-tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ config: { model: "video" }, prompt: "练习任务", references: [], context: { surface: "drama", projectId: "practice-drama" } }),
+            }),
+        );
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({ error: "当前账号没有可用的学校身份" });
+    });
 
     it("tries the next binding after explicit route failures", async () => {
         const startedAt = Date.now();

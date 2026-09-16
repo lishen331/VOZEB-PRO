@@ -7,6 +7,7 @@ import { createFreshGenerationTaskContext } from "@/lib/generation-request-conte
 import { resolveImageRequestSize } from "@/lib/image-size";
 import { readImageMeta } from "@/lib/image-utils";
 import { createAudioGenerationTask } from "@/services/api/audio";
+import { isDefinitiveGenerationTaskRequestFailure } from "@/services/api/generation-task-request-error";
 import { isGenerationTaskNeedsReviewError, isGenerationTaskTerminalError } from "@/services/api/generation-task-state";
 import { ImageGenerationTaskTerminalError, isImageGenerationTaskDeferredError } from "@/services/api/image";
 import { createTextGenerationTask } from "@/services/api/text";
@@ -21,7 +22,7 @@ import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type 
 import { applyCameraPrompt } from "../utils/canvas-camera";
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
 import { buildPanoramaPrompt } from "../utils/canvas-panorama";
-import { canvasVideoReferenceMetadata, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
+import { canvasVideoReferenceMetadata, normalizeCanvasVideoGenerationMode, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
 
 import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_NEEDS_REVIEW, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
 import { classifyCanvasVideoTaskFailure } from "./canvas-video-task-recovery";
@@ -343,11 +344,13 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 }
 
                 if (mode === "video") {
+                    const isTextToVideo = normalizeCanvasVideoGenerationMode(sourceNode?.metadata?.videoGenerationMode) === "text_to_video";
+                    const emptyContext = { referenceImages: [], referenceVideos: [], referenceAudios: [] };
                     const videoReferences = resolveCanvasVideoGenerationReferences({
                         metadata: sourceNode?.metadata,
-                        context: generationContext,
-                        availableInputs: buildNodeGenerationInputs(nodeId, nodesRef.current, connectionsRef.current),
-                        sourceImage: sourceNode && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
+                        context: isTextToVideo ? emptyContext : generationContext,
+                        availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(nodeId, nodesRef.current, connectionsRef.current),
+                        sourceImage: !isTextToVideo && sourceNode && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                     });
                     const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
                     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
@@ -579,7 +582,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
                 const errorDetails = error instanceof Error ? error.message : "重新检查任务失败";
-                const terminalFailure = error instanceof ImageGenerationTaskTerminalError || isGenerationTaskTerminalError(error) || (metadata.videoTask ? classifyCanvasVideoTaskFailure(error) === "upstream_failed" : false);
+                const terminalFailure =
+                    error instanceof ImageGenerationTaskTerminalError || isGenerationTaskTerminalError(error) || isDefinitiveGenerationTaskRequestFailure(error) || (metadata.videoTask ? classifyCanvasVideoTaskFailure(error) === "upstream_failed" : false);
                 if (terminalFailure) {
                     setNodes((prev) =>
                         prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined, videoTask: undefined, textTask: undefined, audioTask: undefined } } : item)),
@@ -683,13 +687,15 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 }
                 if (node.type === CanvasNodeType.Video) {
                     if (!context) throw new Error("视频生成上下文已丢失，无法继续重试");
+                    const isTextToVideo = normalizeCanvasVideoGenerationMode(sourceNode.metadata?.videoGenerationMode) === "text_to_video";
+                    const emptyContext = { referenceImages: [], referenceVideos: [], referenceAudios: [] };
                     const videoReferences =
                         restoreCanvasVideoGenerationReferences(node.metadata) ||
                         resolveCanvasVideoGenerationReferences({
                             metadata: sourceNode.metadata,
-                            context,
-                            availableInputs: buildNodeGenerationInputs(sourceNode.id, nodesRef.current, connectionsRef.current),
-                            sourceImage: isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
+                            context: isTextToVideo ? emptyContext : context,
+                            availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(sourceNode.id, nodesRef.current, connectionsRef.current),
+                            sourceImage: !isTextToVideo && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                         });
                     const task = await createServerVideoGenerationTask(generationConfig, prompt, videoReferences.images, videoReferences.videos, videoReferences.audios, {
                         signal: controller.signal,

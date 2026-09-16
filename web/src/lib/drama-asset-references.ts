@@ -6,16 +6,18 @@ type DramaReferenceOwner = Pick<DramaAssetReference, never> & {
     primaryReferenceId?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    imageUrl?: string;
 };
 
 /** Returns normalized candidates so every surface applies the same primary-image rule. */
 export function dramaAssetReferences(asset: DramaReferenceOwner): DramaAssetReference[] {
     const references = (asset.references || []).filter((reference) => reference.url.trim());
-    if (references.length || !asset.referenceImageUrl?.trim()) return references;
+    const legacyUrl = asset.referenceImageUrl?.trim() || asset.imageUrl?.trim();
+    if (references.length || !legacyUrl) return references;
     return [
         {
             id: `${asset.id}-reference-legacy`,
-            url: asset.referenceImageUrl,
+            url: legacyUrl,
             storageKey: asset.referenceStorageKey,
             source: "library",
             label: "原参考图",

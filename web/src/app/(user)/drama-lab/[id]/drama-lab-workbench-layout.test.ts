@@ -12,10 +12,15 @@ describe("production storyboard workbench layout wiring", () => {
     });
     it("uses available card width rather than viewport width for the three-column layout", async () => {
         const source = await readFile(path, "utf8");
-        expect(source).toContain('className="@container/storyboard min-w-0');
+        expect(source).toContain('className="group/storyboard @container/storyboard relative min-w-0');
         expect(source).toContain("@min-[60rem]/storyboard:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)]");
         expect(source).not.toContain("xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)]");
         expect(source).toContain('className="min-w-0 space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}');
+    });
+    it("keeps scene, character, and prop selectors outside card prompt editing", async () => {
+        const source = await readFile("src/app/(user)/drama-lab/[id]/drama-lab-shot-asset-picker.tsx", "utf8");
+        expect(source).toContain('data-no-prompt-editor="true"');
+        expect(source).toContain("event.stopPropagation()");
     });
     it("exposes classic upload via the existing key-frame flow and aligns media above editors", async () => {
         const source = await readFile(path, "utf8");
@@ -24,18 +29,29 @@ describe("production storyboard workbench layout wiring", () => {
         expect(source).toContain("const classicImageUrl = shot.frames?.key?.url || shot.storyboardImageUrl");
         expect(source).toContain('data-storyboard-media="image"');
         expect(source).toContain('data-storyboard-media="video"');
-        expect(source).toContain("查看 / 编辑分镜图提示词");
-        expect(source).toContain("查看 / 编辑视频提示词");
+        expect(source).toContain('aria-label="分镜卡片空白区域"');
+        expect(source).not.toContain(">查看 / 编辑提示词</Button>");
+        expect(source).toContain("全能参考提示词");
         expect(source).toContain("上传{frameLabel[frameType]}");
-        expect(source).toContain("const [promptEditor, setPromptEditor]");
-        expect(source).toContain("function PromptPreview(");
+        expect(source).toContain("const [promptEditorOpen, setPromptEditorOpen]");
+        expect(source).toContain("function StoryboardPromptDialog(");
         expect(source).not.toContain('<details open className="space-y-2">');
         expect(source).toContain('key: { ...(shot.frames?.key || { prompt: "" }), url, status: "success", source: "restored"');
         expect(source).toContain('{classicImageUrl ? "重新生成分镜图" : "生成分镜图"}');
     });
+    it("keeps tail-frame extraction with video actions and allows uploaded video sources", async () => {
+        const source = await readFile(path, "utf8");
+        const imageStart = source.indexOf('aria-label="分镜图操作"');
+        const videoStart = source.indexOf('aria-label="分镜视频操作"');
+        expect(imageStart).toBeGreaterThan(-1);
+        expect(videoStart).toBeGreaterThan(imageStart);
+        expect(source.slice(imageStart, videoStart)).not.toContain("从视频提取尾帧");
+        expect(source.slice(videoStart)).toContain("从视频提取尾帧");
+        expect(source).toContain('shot.videoUrl || (shot.generationTaskId && shot.generationStatus === "success")');
+    });
     it("keeps first-last controls scoped to first-last mode and media controls outside textareas", async () => {
         const source = await readFile(path, "utf8");
-        expect(source).toContain("{isFirstLast\n                            ? ([");
+        expect(source).toContain("{isFirstLast");
         expect(source).toContain("aria-label={`上传${frameLabel[frameType]}`}");
         expect(source).toContain('aria-label="选择分镜图文件"');
         expect(source).toContain("onClick={() => uploadInputRefs.current.key?.click()}");

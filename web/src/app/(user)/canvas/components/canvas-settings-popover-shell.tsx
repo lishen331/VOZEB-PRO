@@ -6,7 +6,7 @@ import { Button } from "antd";
 import { Settings2 } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 
 export type CanvasSettingsPopoverPlacement = "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
 type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -23,7 +23,7 @@ type CanvasSettingsPopoverShellProps = {
 };
 
 export function CanvasSettingsPopoverShell({ label, children, buttonClassName, defaultButtonClassName, icon, placement = "topLeft", onOpenChange, buttonAriaLabel }: CanvasSettingsPopoverShellProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);

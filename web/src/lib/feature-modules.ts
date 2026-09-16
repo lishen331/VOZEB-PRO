@@ -6,6 +6,7 @@ export const FEATURE_MODULE_IDS = [
     "canvas",
     "drama",
     "drama-lab",
+    "drama-lab-resource-editor",
     "practice",
     "works",
     "assets",
@@ -22,6 +23,32 @@ export const FEATURE_MODULE_IDS = [
 
 export type FeatureModuleId = (typeof FEATURE_MODULE_IDS)[number];
 export type FeatureModuleSettings = Record<FeatureModuleId, boolean>;
+
+export const DRAMA_LAB_UI_FEATURES = {
+    projectEntry: "drama-lab-ui-project-entry",
+    novelImport: "drama-lab-ui-novel-import",
+    episodeManagement: "drama-lab-ui-episode-management",
+    storyGeneration: "drama-lab-ui-story-generation",
+    assetPreparation: "drama-lab-ui-asset-preparation",
+    assetExtraction: "drama-lab-ui-asset-extraction",
+    assetReferenceLibrary: "drama-lab-ui-asset-reference-library",
+    assetGeneration: "drama-lab-ui-asset-generation",
+    storyboardCount: "drama-lab-ui-storyboard-count",
+    storyboardDuration: "drama-lab-ui-storyboard-duration",
+    storyboardFirstLast: "drama-lab-ui-storyboard-first-last",
+    storyboardClassic: "drama-lab-ui-storyboard-classic",
+    storyboardUniversal: "drama-lab-ui-storyboard-universal",
+    storyboardVoiceover: "drama-lab-ui-storyboard-voiceover",
+    storyboardExport: "drama-lab-ui-storyboard-export",
+    workbenchAssetSelectors: "drama-lab-ui-workbench-asset-selectors",
+    workbenchImage: "drama-lab-ui-workbench-image",
+    workbenchVideo: "drama-lab-ui-workbench-video",
+    workbenchPromptEditor: "drama-lab-ui-workbench-prompt-editor",
+    workbenchDubbing: "drama-lab-ui-workbench-dubbing",
+    workbenchAudioSplit: "drama-lab-ui-workbench-audio-split",
+} as const;
+export type DramaLabUiFeatureId = (typeof DRAMA_LAB_UI_FEATURES)[keyof typeof DRAMA_LAB_UI_FEATURES];
+export const DEFAULT_DRAMA_LAB_UI_FEATURES: Record<DramaLabUiFeatureId, boolean> = Object.fromEntries(Object.values(DRAMA_LAB_UI_FEATURES).map((id) => [id, true])) as Record<DramaLabUiFeatureId, boolean>;
 export type FeatureModuleGroup = "create" | "projects" | "assets" | "community" | "school" | "support";
 
 export type FeatureModuleDefinition = {
@@ -41,6 +68,7 @@ export const FEATURE_MODULES: readonly FeatureModuleDefinition[] = [
     { id: "canvas", name: "画布", description: "节点式多媒体创作", group: "projects", icon: Maximize2, pathPrefixes: ["/canvas"], routeRoot: "canvas" },
     { id: "drama", name: "短剧", description: "剧本、分镜与成片项目", group: "projects", icon: Clapperboard, pathPrefixes: ["/drama"], routeRoot: "drama" },
     { id: "drama-lab", name: "创作工坊", description: "独立短剧生产工作流", group: "projects", icon: FlaskConical, pathPrefixes: ["/drama-lab"], routeRoot: "drama-lab" },
+    { id: "drama-lab-resource-editor", name: "本剧资源库编辑弹窗", description: "短剧剧本信息页资源卡片编辑入口（仅控制显示）", group: "projects", icon: FlaskConical, pathPrefixes: [] },
     { id: "practice", name: "练习", description: "学校场景下的创作练习", group: "projects", icon: Sparkles, pathPrefixes: ["/practice"], routeRoot: "practice" },
     { id: "works", name: "作品", description: "作品发布、审核与分享", group: "assets", icon: GalleryVerticalEnd, pathPrefixes: ["/works"], routeRoot: "works" },
     { id: "assets", name: "素材", description: "图片、视频、音频和素材库", group: "assets", icon: Images, pathPrefixes: ["/assets"], routeRoot: "assets" },
@@ -64,7 +92,7 @@ export function featureModuleDefinition(id: FeatureModuleId) {
 
 export function normalizeFeatureModuleSettings(value: unknown): FeatureModuleSettings {
     const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-    return Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])) as FeatureModuleSettings;
+    return { ...input, ...Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])) } as FeatureModuleSettings;
 }
 
 export function isFeatureModuleEnabled(settings: Pick<{ featureModules: FeatureModuleSettings }, "featureModules">, id: FeatureModuleId) {
@@ -78,4 +106,8 @@ export function featureModuleForPathname(pathname: string): FeatureModuleId | un
 
 export function featureModuleForNavigationSlug(slug: string): FeatureModuleId | undefined {
     return featureModuleForPathname(`/${slug}`);
+}
+
+export function isDramaLabUiFeatureEnabled(settings: Pick<{ featureModules?: Record<string, boolean> }, "featureModules"> | undefined, id: DramaLabUiFeatureId) {
+    return settings?.featureModules?.[id] !== false;
 }

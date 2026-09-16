@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CanvasNodeType, type CanvasNodeData } from "../types";
-import { edgePath, expandCanvasDragNodeIds, findConnectionTarget, isBlockedConnectionDrop, isCanvasVideoControlPoint, nodeAnchor, previewPath, samePosition, selectNodesInBounds, worldFromScreen } from "./canvas-surface-geometry";
+import { canvasEdgeHitStrokeWidth, edgePath, expandCanvasDragNodeIds, findConnectionTarget, isBlockedConnectionDrop, isCanvasVideoControlPoint, nodeAnchor, previewPath, samePosition, selectNodesInBounds, worldFromScreen } from "./canvas-surface-geometry";
 
 const source: CanvasNodeData = { id: "source", type: CanvasNodeType.Text, title: "来源", position: { x: 100, y: 120 }, width: 240, height: 160, metadata: {} };
 const target: CanvasNodeData = { id: "target", type: CanvasNodeType.Image, title: "目标", position: { x: 500, y: 220 }, width: 300, height: 200, metadata: {} };
@@ -9,6 +9,23 @@ const target: CanvasNodeData = { id: "target", type: CanvasNodeType.Image, title
 describe("canvas surface geometry", () => {
     it("converts screen coordinates through the viewport transform", () => {
         expect(worldFromScreen(330, 250, { x: 80, y: 40, k: 2 }, { left: 10, top: 10 })).toEqual({ x: 120, y: 100 });
+    });
+
+    it("keeps the connection hit target the same width on screen at every zoom", () => {
+        for (const zoom of [0.05, 0.08, 0.25, 0.5, 1, 2, 5]) {
+            expect(canvasEdgeHitStrokeWidth(zoom) * zoom).toBeCloseTo(18);
+        }
+    });
+
+    it("keeps zoomed-out connections right-clickable instead of collapsing to a sub-pixel target", () => {
+        expect(canvasEdgeHitStrokeWidth(0.05)).toBe(360);
+        expect(canvasEdgeHitStrokeWidth(0.08) * 0.08).toBeCloseTo(18);
+    });
+
+    it("falls back to the screen width when the zoom is unusable", () => {
+        expect(canvasEdgeHitStrokeWidth(0)).toBe(18);
+        expect(canvasEdgeHitStrokeWidth(-1)).toBe(18);
+        expect(canvasEdgeHitStrokeWidth(Number.NaN)).toBe(18);
     });
 
     it("keeps the video picture draggable while reserving the native control strip", () => {
@@ -23,43 +40,28 @@ describe("canvas surface geometry", () => {
         expect(edgePath(source, target)).toBe("M 340 200 C 420 200, 420 320, 500 320");
     });
 
-    it("routes backward connections through a clear vertical gap", () => {
+    it("routes backward connections as smooth bezier curves", () => {
         const lowerTarget = { ...target, position: { x: 320, y: 280 }, width: 340, height: 240 };
         const shorterSource = { ...source, position: { x: 0, y: 0 }, width: 340, height: 210 };
         const path = edgePath(shorterSource, lowerTarget);
 
-        expect(path).toContain(" Q ");
-        expect(path).toContain("245");
-        expect(path).not.toContain(" C ");
+        expect(path).toContain(" C ");
+        expect(path).toBe("M 340 105 C 487.5 105, 172.5 400, 320 400");
     });
 
-    it("routes backward connections outside overlapping node bounds", () => {
+    it("routes overlapping backward connections as smooth bezier curves", () => {
         const from = { ...source, position: { x: 0, y: 0 }, width: 340, height: 240 };
         const to = { ...target, position: { x: 280, y: 80 }, width: 340, height: 240 };
         const path = edgePath(from, to);
 
-        expect(path).toContain("-32");
-        expect(path).toContain(" Q ");
-    });
-
-    it("routes around a node blocking the default connection path", () => {
-        const blocker = { ...source, id: "blocker", position: { x: 390, y: 170 }, width: 60, height: 210 };
-        const path = edgePath(source, target, [source, blocker, target]);
-
-        expect(path).toContain("88");
-        expect(path).not.toContain(" C ");
-    });
-
-    it("falls back to the stable route when every detour is blocked", () => {
-        const blocker = { ...source, id: "blocker", position: { x: -1000, y: -1000 }, width: 3000, height: 3000 };
-
-        expect(edgePath(source, target, [blocker])).toBe(edgePath(source, target));
+        expect(path).toContain(" C ");
+        expect(path).toBe("M 340 120 C 400 120, 220 200, 280 200");
     });
 
     it("builds previews in the direction of the active handle", () => {
         expect(previewPath({ x: 0, y: 20 }, { x: 100, y: 60 }, "source")).toBe("M 0 20 C 50 20, 50 60, 100 60");
         expect(previewPath({ x: 100, y: 60 }, { x: 0, y: 20 }, "target")).toBe("M 100 60 C 50 60, 50 20, 0 20");
-        expect(previewPath({ x: 100, y: 60 }, { x: 160, y: 20 }, "target")).toContain(" Q ");
+        expect(previewPath({ x: 100, y: 60 }, { x: 160, y: 20 }, "target")).toContain(" C ");
     });
 
     it("targets node bodies and nearby handles without selecting the origin", () => {

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
 vi.mock("@/lib/server/practice-session-service", () => ({ createPracticeSessionForUser: mocks.createSession, listPracticeSessionsForUser: mocks.listSessions }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: () => "http://internal.test" }));
-vi.mock("@/lib/server/generation-execution-policy", () => ({ trustedPracticeTaskHeaders: () => ({ "x-practice": "trusted" }) }));
+vi.mock("@/lib/server/generation-execution-policy", () => ({ trustedPracticeTaskHeaders: vi.fn((userId: string, schoolId: string, clientRequestId: string) => ({ "x-practice": `${userId}:${schoolId}:${clientRequestId}` })) }));
 
 import { GET, POST } from "./route";
 
@@ -90,6 +90,7 @@ describe("/api/practice/sessions", () => {
             await deps.dispatch({
                 sessionId: "session-one",
                 userId: "teacher-one",
+                schoolId: "school-one",
                 module: "storyboard-image",
                 input: { prompt: "雨夜车站" },
                 references: [reference],
@@ -113,8 +114,9 @@ describe("/api/practice/sessions", () => {
         expect(response.status).toBe(200);
         const [, init] = mocks.fetchInternalApi.mock.calls[0];
         expect(JSON.parse(String(init.body))).toMatchObject({
-            context: { executionProfile: "open-source-practice", projectId: "session-one", clientRequestId: "request-ip", ipReferences: [reference] },
+            context: { executionProfile: "open-source-practice", schoolId: "school-one", projectId: "session-one", clientRequestId: "request-ip", ipReferences: [reference] },
         });
+        expect(init.headers.get("x-practice")).toBe("teacher-one:school-one:request-ip");
         expect(JSON.parse(String(init.body)).references).toEqual([]);
     });
 
@@ -124,6 +126,7 @@ describe("/api/practice/sessions", () => {
             await deps.dispatch({
                 sessionId: "session-one",
                 userId: "teacher-one",
+                schoolId: "school-one",
                 module: "storyboard-video",
                 input: { prompt: "镜头推进", seed: 12 },
                 references: [{ type: "asset", id: "permanent/2026/09/02/images/reference.png", inputKey: "referenceImage" }],
@@ -154,6 +157,7 @@ describe("/api/practice/sessions", () => {
             await deps.dispatch({
                 sessionId: "session-video-audio",
                 userId: "teacher-one",
+                schoolId: "school-one",
                 module: "storyboard-video",
                 input: { prompt: "镜头推进", audioEnabled: true },
                 references: [
@@ -182,5 +186,35 @@ describe("/api/practice/sessions", () => {
             { type: "image", url: "/api/reference-assets/permanent/images/shot.png", inputKey: "image" },
             { type: "audio", url: "/api/reference-assets/permanent/audio/dialogue.wav", inputKey: "audio" },
         ]);
+    });
+
+    it("submits a placeholder task prompt but an explicit empty workflow prompt for prompt-optional workflows", async () => {
+        mocks.fetchInternalApi.mockResolvedValue(new Response(JSON.stringify({ task: { id: "task-multi", type: "image" } }), { status: 200 }));
+        mocks.createSession.mockImplementation(async (_user, _input, deps) => {
+            await deps.dispatch({
+                sessionId: "session-multi",
+                userId: "teacher-one",
+                schoolId: "school-one",
+                module: "character",
+                input: { prompt: "", workflowCode: "character_multi_view", width: 1350 },
+                references: [{ type: "asset", id: "permanent/images/main.png", inputKey: "referenceImage", scope: "generation" }],
+                executionProfile: "open-source-practice",
+                capability: "image",
+                logicalModelId: "practice-image",
+                clientRequestId: "request-multi",
+                projectKind: "canvas",
+            });
+            return { id: "session-multi", module: "character", status: "running", input: {} };
+        });
+
+        const response = await POST(
+            new Request("http://localhost/api/practice/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ module: "character", input: { prompt: "" }, clientRequestId: "request-multi" }) }),
+        );
+        expect(response.status).toBe(200);
+        const [, init] = mocks.fetchInternalApi.mock.calls[0];
+        const body = JSON.parse(String(init.body));
+        expect(body.prompt).toBe("练习任务");
+        expect(body.input).toMatchObject({ prompt: "", workflowCode: "character_multi_view", width: 1350 });
+        expect(body.references).toEqual([{ type: "image", url: "/api/generation-log-assets/permanent/images/main.png", inputKey: "referenceImage" }]);
     });
 });

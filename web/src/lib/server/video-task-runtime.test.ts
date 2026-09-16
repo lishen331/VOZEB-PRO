@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 
 const mocks = vi.hoisted(() => ({
     claim: vi.fn(),
@@ -30,8 +31,9 @@ vi.mock("@/lib/server/video-task-store", () => ({
 }));
 vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaProxyHeaders: vi.fn(() => ({ "x-media-auth": "signed" })) }));
 
-import { persistVideoTaskResult, queryVideoTaskUpstream, refreshVideoTaskFromUpstream } from "./video-task-runtime";
+import { createQueuedPracticeVideoTaskUpstreamStep, persistVideoTaskResult, queryVideoTaskUpstream, refreshVideoTaskFromUpstream } from "./video-task-runtime";
 import type { VideoTask } from "./video-task-store";
+import type { RunningHubWorkflowConfig } from "@/lib/auth/store";
 import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-server.mjs";
 import { readVerifiedSystemAiBusinessRequestId } from "./system-ai-billing";
 
@@ -46,6 +48,74 @@ describe("video task upstream reconciliation", () => {
 
     afterEach(() => {
         vi.unstubAllEnvs();
+    });
+
+    it("submits a queued RunningHub practice video and persists the returned upstream identity", async () => {
+        const workflow: RunningHubWorkflowConfig = {
+            workflowKey: "video-workflow",
+            workflowName: "练习视频",
+            channelId: "channel",
+            workflowId: "workflow-one",
+            workflowCode: "storyboard_shot_video",
+            version: 1,
+            businessCode: "storyboard-video",
+            capability: "video",
+            providerType: "runninghub",
+            enabled: true,
+            createPath: "/task/openapi/create",
+            queryPath: "/openapi/v2/query",
+            taskIdField: "taskId",
+            statusField: "status",
+            resultField: "results",
+            requestTemplate: "{}",
+            inputSchema: [],
+            nodeMappings: [],
+            outputMappings: [],
+        };
+        const task = videoTask({
+            executionProfile: "open-source-practice",
+            businessCode: "storyboard-video",
+            workflowKey: workflow.workflowKey,
+            workflowVersion: workflow.version,
+            workflowCode: workflow.workflowCode,
+            workflowConfigFingerprint: runningHubWorkflowConfigFingerprint(workflow),
+            config: {
+                ...videoTask().config,
+                advancedConfig: {
+                    textModel: "",
+                    imageModel: "",
+                    videoModel: "video-workflow",
+                    requestTemplate: "{}",
+                    durationRange: "",
+                    referenceRule: "",
+                    supportsReferenceImage: true,
+                    supportsReferenceVideo: false,
+                    supportsReferenceAudio: false,
+                    protocol: "runninghub",
+                    createPath: workflow.createPath,
+                    queryPath: workflow.queryPath,
+                    taskIdField: workflow.taskIdField,
+                    statusField: workflow.statusField,
+                    resultField: workflow.resultField,
+                    workflowConfigs: { [workflow.workflowKey]: workflow },
+                },
+            },
+            upstream: { id: "", provider: "generation", model: "video-workflow", pollPath: workflow.createPath },
+            workflowInput: { prompt: "雨夜镜头", width: 1280, height: 720 },
+            references: [],
+            attempts: [],
+        });
+        vi.stubEnv("VOZEB_PRO_MAINTENANCE_TOKEN", "maintenance-token-used-for-tests-0001");
+        vi.stubEnv("VOZEB_PRO_WORKER_TOKEN", "worker-token-used-for-tests-00000002");
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ taskId: "upstream-video" }));
+        mocks.update.mockImplementation(async (_id, patch) => ({ ...task, ...patch }));
+
+        const queuedResult = await createQueuedPracticeVideoTaskUpstreamStep(task, "http://localhost", "", task.userId);
+        expect(queuedResult).toMatchObject({ state: "pending", status: "submitted", upstreamTaskId: "upstream-video" });
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(url).toBe("http://localhost/api/ai/system/channel/task/openapi/create");
+        expect(init.method).toBe("POST");
+        expect(mocks.update).toHaveBeenLastCalledWith(task.id, expect.objectContaining({ upstream: expect.objectContaining({ id: "upstream-video" }) }));
     });
 
     it("uses the official POST contract and root results for RunningHub video", async () => {

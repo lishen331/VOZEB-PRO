@@ -93,7 +93,7 @@ export const navigationTools = [
 
 const practiceNavigationTool = {
     slug: "practice",
-    label: "练习",
+    label: "无限练习",
     description: "免费的创作练习",
     group: "practice",
     icon: Sparkles,

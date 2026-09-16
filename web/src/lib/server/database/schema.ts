@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
     default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb,
+    practice_script_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_module_visibility jsonb NOT NULL DEFAULT '{"canvas":false,"drama":false,"character":true,"scene":true,"prop":true,"storyboard-image":true,"storyboard-video":true,"dubbing":true}'::jsonb,
     agent_skills jsonb NOT NULL DEFAULT '[{"id":"ecommerce-image","name":"电商生图","description":"为商品主图、场景图和详情页视觉生成结构化方案。","instructions":"识别商品卖点、目标人群、平台与画幅。优先规划白底主图、核心卖点场景图、细节特写和详情页横幅；保持商品外观、材质、颜色、Logo 与包装一致。提示词必须写清主体、构图、光线、背景、镜头、商业质感、尺寸比例与禁止变形要求。","enabled":true,"keywords":["电商","商品","主图","详情页","淘宝","京东","亚马逊"]}]'::jsonb,
     feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -112,6 +113,7 @@ ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS generation_cost_control jsonb 
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS data_lifecycle jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_script_settings jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_module_visibility jsonb NOT NULL DEFAULT '{"canvas":false,"drama":false,"character":true,"scene":true,"prop":true,"storyboard-image":true,"storyboard-video":true,"dubbing":true}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb;
 
@@ -307,6 +309,8 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
     CONSTRAINT generation_tasks_status CHECK (status IN ('pending', 'running', 'success', 'error', 'paused', 'cancelled'))
 );
 
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS school_id text;
+CREATE INDEX IF NOT EXISTS vozeb_pro_generation_tasks_school_user_status_idx ON generation_tasks (school_id, user_id, task_type, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS generation_tasks_user_status_idx ON generation_tasks (user_id, task_type, status, updated_at DESC);
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_type;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_type CHECK (task_type IN ('text', 'image', 'video', 'audio', 'agent', 'render'));
@@ -342,21 +346,21 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_adapter_version i
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS business_code text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS task_origin text NOT NULL DEFAULT 'user';
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_phase;
-ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_phase CHECK (execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting', 'cancel_requested', 'cancel_polling', 'needs_review', 'review_pending', 'reviewing', 'review_unavailable', 'completed'));
+ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_phase CHECK (execution_phase IN ('queued', 'created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting', 'cancel_requested', 'cancel_polling', 'needs_review', 'review_pending', 'reviewing', 'review_unavailable', 'completed'));
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_profile;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_task_origin;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_task_origin CHECK (task_origin IN ('user', 'admin-workflow-test'));
 
 DROP INDEX IF EXISTS generation_tasks_user_client_request_idx;
-CREATE UNIQUE INDEX generation_tasks_user_client_request_idx ON generation_tasks (user_id, task_type, client_request_id, COALESCE(attempt_no, 0)) WHERE client_request_id IS NOT NULL AND client_request_id <> '';
+CREATE UNIQUE INDEX generation_tasks_user_client_request_idx ON generation_tasks (school_id, user_id, task_type, client_request_id, COALESCE(attempt_no, 0)) WHERE client_request_id IS NOT NULL AND client_request_id <> '';
 CREATE UNIQUE INDEX IF NOT EXISTS generation_tasks_channel_upstream_idx ON generation_tasks (channel_id, upstream_task_id) WHERE channel_id IS NOT NULL AND channel_id <> '' AND upstream_task_id IS NOT NULL AND upstream_task_id <> '';
 CREATE INDEX IF NOT EXISTS generation_tasks_conversation_idx ON generation_tasks (conversation_id, updated_at DESC) WHERE conversation_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS generation_tasks_run_idx ON generation_tasks (run_id, updated_at DESC) WHERE run_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS generation_tasks_workflow_idx ON generation_tasks (workflow_key, workflow_version, updated_at DESC) WHERE workflow_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS generation_tasks_user_project_idx ON generation_tasks (user_id, project_id, task_type, status) WHERE project_id IS NOT NULL;
 DROP INDEX IF EXISTS generation_tasks_recovery_due_idx;
-CREATE INDEX generation_tasks_recovery_due_idx ON generation_tasks (next_poll_at, lease_until, id) WHERE (status IN ('pending', 'running') AND execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting')) OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')) OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'));
+CREATE INDEX generation_tasks_recovery_due_idx ON generation_tasks (next_poll_at, lease_until, id) WHERE (status IN ('pending', 'running') AND execution_phase IN ('queued', 'created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting')) OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')) OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'));
 
 CREATE TABLE IF NOT EXISTS generation_concurrency_reservations (
     user_id text NOT NULL,
@@ -421,8 +425,10 @@ CREATE TABLE IF NOT EXISTS creative_conversations (
 ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS context_summary text NOT NULL DEFAULT '';
 ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS context_summary_through_sequence integer NOT NULL DEFAULT 0;
 ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'agent';
+ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS school_id text;
 UPDATE creative_conversations SET source = surface WHERE surface IN ('canvas', 'drama') AND source = 'agent';
 
+CREATE INDEX IF NOT EXISTS vozeb_pro_creative_conversations_school_user_updated_idx ON creative_conversations (school_id, user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_user_updated_idx ON creative_conversations (user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_user_source_idx ON creative_conversations (user_id, surface, source, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_project_idx ON creative_conversations (user_id, surface, project_id, updated_at DESC) WHERE project_id IS NOT NULL;
@@ -589,13 +595,15 @@ CREATE TABLE IF NOT EXISTS canvas_projects (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS canvas_projects_user_updated_idx ON canvas_projects (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_canvas_projects_user_updated_idx ON canvas_projects (user_id, updated_at DESC);
+ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
 ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS practice_source_work_id text;
 ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS practice_source_version_id text;
 ALTER TABLE canvas_projects DROP CONSTRAINT IF EXISTS canvas_projects_execution_profile;
 ALTER TABLE canvas_projects ADD CONSTRAINT canvas_projects_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
-CREATE INDEX IF NOT EXISTS canvas_projects_user_profile_updated_idx ON canvas_projects (user_id, execution_profile, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_canvas_projects_school_user_profile_updated_idx ON canvas_projects (school_id, user_id, execution_profile, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_canvas_projects_user_profile_updated_idx ON canvas_projects (user_id, execution_profile, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS library_assets (
     id text PRIMARY KEY,
@@ -612,6 +620,8 @@ ALTER TABLE library_assets ADD CONSTRAINT library_assets_kind CHECK (kind IN ('t
 
 CREATE INDEX IF NOT EXISTS library_assets_user_updated_idx ON library_assets (user_id, updated_at DESC);
 
+ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS school_id text;
+
 CREATE TABLE IF NOT EXISTS drama_projects (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -626,13 +636,17 @@ CREATE TABLE IF NOT EXISTS drama_projects (
     CONSTRAINT drama_projects_status CHECK (status IN ('active', 'archived'))
 );
 
-CREATE INDEX IF NOT EXISTS drama_projects_user_updated_idx ON drama_projects (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_drama_projects_user_updated_idx ON drama_projects (user_id, updated_at DESC);
+ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
 ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS practice_source_work_id text;
 ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS practice_source_version_id text;
 ALTER TABLE drama_projects DROP CONSTRAINT IF EXISTS drama_projects_execution_profile;
 ALTER TABLE drama_projects ADD CONSTRAINT drama_projects_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
-CREATE INDEX IF NOT EXISTS drama_projects_user_profile_updated_idx ON drama_projects (user_id, execution_profile, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_drama_projects_school_user_profile_updated_idx ON drama_projects (school_id, user_id, execution_profile, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_drama_projects_user_profile_updated_idx ON drama_projects (user_id, execution_profile, updated_at DESC);
+
+ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS school_id text;
 
 CREATE TABLE IF NOT EXISTS practice_sessions (
     id text PRIMARY KEY,
@@ -659,6 +673,7 @@ CREATE TABLE IF NOT EXISTS practice_sessions (
     CONSTRAINT practice_sessions_profile CHECK (execution_profile = 'open-source-practice'),
     CONSTRAINT practice_sessions_status CHECK (status IN ('draft', 'queued', 'running', 'success', 'failed', 'cancelled'))
 );
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS mode text;
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS selected_logical_model_id text;
     ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_code text;
@@ -680,8 +695,11 @@ ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAU
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS client_request_id text;
 UPDATE practice_sessions SET client_request_id = id WHERE client_request_id IS NULL;
 ALTER TABLE practice_sessions ALTER COLUMN client_request_id SET NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS practice_sessions_user_request_idx ON practice_sessions (user_id, client_request_id);
+DROP INDEX IF EXISTS practice_sessions_user_request_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS practice_sessions_school_user_request_idx ON practice_sessions (school_id, user_id, client_request_id);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_sessions_school_user_updated_idx ON practice_sessions (school_id, user_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS practice_sessions_user_updated_idx ON practice_sessions (user_id, updated_at DESC, id);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_sessions_school_project_updated_idx ON practice_sessions (school_id, user_id, project_kind, project_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS practice_sessions_project_updated_idx ON practice_sessions (user_id, project_kind, project_id, updated_at DESC, id);
 
 CREATE TABLE IF NOT EXISTS practice_copy_requests (
@@ -1059,6 +1077,7 @@ CREATE TABLE IF NOT EXISTS generation_logs (
     CONSTRAINT generation_logs_status CHECK (status IN ('pending', 'success', 'failed'))
 );
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS conversation_id text REFERENCES creative_conversations(id) ON DELETE SET NULL;
+ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS request_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE generation_logs DROP CONSTRAINT IF EXISTS generation_logs_kind;
 ALTER TABLE generation_logs ADD CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'audio', 'text'));
@@ -1070,6 +1089,7 @@ WHERE conversation.id = log.conversation_id
   AND conversation.source = 'agent'
   AND log.source IN ('image-workbench', 'video-workbench');
 
+CREATE INDEX IF NOT EXISTS vozeb_pro_generation_logs_school_user_created_idx ON generation_logs (school_id, user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_user_created_idx ON generation_logs (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_created_idx ON generation_logs (created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_admin_filter_idx ON generation_logs (kind, source, status, created_at DESC);
@@ -1124,11 +1144,245 @@ ${POSTGRESQL_SCHOOL_COMPUTE_SCHEMA_SQL}
 
 ${POSTGRESQL_IP_LIBRARY_SCHEMA_SQL}
 
-${POSTGRESQL_TRIGGER_SCHEMA_SQL}
-
 ${DRAMA_LAB_SCHEMA_SQL}
 
+CREATE TABLE IF NOT EXISTS practice_script_projects (
+    school_id text,
+    id text PRIMARY KEY,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title text NOT NULL,
+    genre text,
+    logline text,
+    synopsis text,
+    status text NOT NULL DEFAULT 'draft',
+    source_type text NOT NULL DEFAULT 'idea',
+    current_version_id text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS practice_script_versions (
+    school_id text,
+    id text PRIMARY KEY,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    version integer NOT NULL,
+    document_json jsonb NOT NULL,
+    source text NOT NULL,
+    operation text,
+    parent_version_id text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (project_id, version)
+);
+CREATE TABLE IF NOT EXISTS practice_script_entities (
+    school_id text,
+    id text NOT NULL,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type text NOT NULL,
+    name text NOT NULL,
+    description text,
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (project_id, id)
+);
+CREATE TABLE IF NOT EXISTS practice_script_stages (
+    school_id text,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    stage_key text NOT NULL,
+    status text NOT NULL,
+    draft_json jsonb,
+    confirmed_json jsonb,
+    error_message text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (project_id, stage_key)
+);
+CREATE TABLE IF NOT EXISTS practice_script_agent_operations (
+    school_id text,
+    id text PRIMARY KEY,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    document_id text,
+    base_version_id text,
+    operation text NOT NULL,
+    model_snapshot jsonb,
+    skill_snapshot jsonb,
+    workflow_snapshot jsonb,
+    before_patch jsonb,
+    proposed_patch jsonb,
+    after_patch jsonb,
+    status text NOT NULL,
+    error_message text,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_versions ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_entities ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_stages ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_agent_operations ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'short_story';
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS carrier_type text;
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS main_genre text;
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS secondary_genres jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS project_parameters jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS current_stage text NOT NULL DEFAULT 'project_planning';
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS story_revision integer NOT NULL DEFAULT 1;
+UPDATE practice_script_projects AS project
+SET school_id = membership.school_id
+FROM school_memberships AS membership
+WHERE project.school_id IS NULL
+  AND membership.user_id = project.owner_user_id
+  AND membership.status = 'active';
+
+CREATE TABLE IF NOT EXISTS practice_script_artifacts (
+    id text PRIMARY KEY,
+    school_id text NOT NULL,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    artifact_type text NOT NULL,
+    artifact_key text NOT NULL,
+    status text NOT NULL,
+    version integer NOT NULL,
+    content_json jsonb,
+    content_text text,
+    parent_artifact_id text,
+    source_run_id text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (project_id, artifact_type, artifact_key, version)
+);
+CREATE TABLE IF NOT EXISTS practice_script_chapters (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, volume_index integer, chapter_index integer NOT NULL,
+    chapter_title text NOT NULL DEFAULT '', outline_json jsonb, content_text text, summary_text text, status text NOT NULL DEFAULT 'draft',
+    version integer NOT NULL DEFAULT 1, source_run_id text, error_code text, error_message text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (project_id, chapter_index, version)
+);
+CREATE TABLE IF NOT EXISTS practice_script_chapter_events (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, chapter_id text NOT NULL REFERENCES practice_script_chapters(id) ON DELETE CASCADE,
+    event_index integer NOT NULL, event_type text NOT NULL, content text NOT NULL, character_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+    location_ids jsonb NOT NULL DEFAULT '[]'::jsonb, prop_ids jsonb NOT NULL DEFAULT '[]'::jsonb, timeline_key text, foreshadow_key text,
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb, source_run_id text, UNIQUE (chapter_id, event_index)
+);
+CREATE TABLE IF NOT EXISTS practice_script_episodes (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, episode_number integer NOT NULL, title text NOT NULL DEFAULT '',
+    source_chapter_ids jsonb NOT NULL DEFAULT '[]'::jsonb, outline_json jsonb, script_document_json jsonb, status text NOT NULL DEFAULT 'draft',
+    review_status text NOT NULL DEFAULT 'not_started', version integer NOT NULL DEFAULT 1, source_run_id text, error_code text, error_message text,
+    created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), UNIQUE (project_id, episode_number, version)
+);
+CREATE TABLE IF NOT EXISTS practice_script_shots (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, episode_id text NOT NULL REFERENCES practice_script_episodes(id) ON DELETE CASCADE,
+    scene_id text NOT NULL, shot_number integer NOT NULL, visual_description text NOT NULL, shot_size text NOT NULL, camera_angle text NOT NULL,
+    composition text NOT NULL, camera_movement text NOT NULL, character_ids jsonb NOT NULL DEFAULT '[]'::jsonb, action_text text NOT NULL,
+    emotion_text text NOT NULL, dialogue_text text, narration_text text, sound_note text, duration_seconds numeric(10, 2) NOT NULL,
+    continuity_note text, character_asset_ids jsonb NOT NULL DEFAULT '[]'::jsonb, location_asset_id text, prop_asset_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+    status text NOT NULL DEFAULT 'draft', version integer NOT NULL DEFAULT 1, source_run_id text, error_code text, error_message text,
+    UNIQUE (episode_id, scene_id, shot_number, version)
+);
+CREATE TABLE IF NOT EXISTS practice_script_prompt_assets (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, asset_type text NOT NULL, canonical_name text NOT NULL,
+    aliases jsonb NOT NULL DEFAULT '[]'::jsonb, base_description text NOT NULL DEFAULT '', base_prompt text NOT NULL DEFAULT '', variants jsonb NOT NULL DEFAULT '[]'::jsonb,
+    status text NOT NULL DEFAULT 'draft', version integer NOT NULL DEFAULT 1, source_run_id text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (project_id, asset_type, canonical_name, version)
+);
+CREATE TABLE IF NOT EXISTS practice_script_asset_occurrences (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, asset_id text NOT NULL REFERENCES practice_script_prompt_assets(id) ON DELETE CASCADE,
+    chapter_id text, episode_id text, scene_id text, shot_id text, context_note text, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS practice_script_agent_profiles (
+    agent_key text PRIMARY KEY, name text NOT NULL, enabled boolean NOT NULL DEFAULT true, primary_logical_model_id text NOT NULL DEFAULT '',
+    fallback_logical_model_id text NOT NULL DEFAULT '', endpoint_id text, temperature numeric(4, 3), reasoning_mode text NOT NULL DEFAULT 'medium',
+    output_policy jsonb NOT NULL DEFAULT '{}'::jsonb, timeout_config jsonb NOT NULL DEFAULT '{}'::jsonb, batch_config jsonb NOT NULL DEFAULT '{}'::jsonb,
+    tool_allowlist jsonb NOT NULL DEFAULT '[]'::jsonb, skill_bindings jsonb NOT NULL DEFAULT '[]'::jsonb, version integer NOT NULL DEFAULT 1,
+    updated_by text, updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS practice_script_skills (
+    id text PRIMARY KEY, name text NOT NULL, description text NOT NULL DEFAULT '', category text NOT NULL, enabled boolean NOT NULL DEFAULT true,
+    applicable_agents jsonb NOT NULL DEFAULT '[]'::jsonb, current_version integer NOT NULL DEFAULT 1, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS practice_script_skill_versions (
+    skill_id text NOT NULL REFERENCES practice_script_skills(id) ON DELETE CASCADE, version integer NOT NULL, markdown_content text NOT NULL,
+    input_contract jsonb NOT NULL DEFAULT '{}'::jsonb, output_contract jsonb NOT NULL DEFAULT '{}'::jsonb, quality_checklist jsonb NOT NULL DEFAULT '[]'::jsonb,
+    content_hash text NOT NULL, source_url text, source_license text, created_by text, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (skill_id, version)
+);
+CREATE TABLE IF NOT EXISTS practice_script_chat_sessions (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, title text NOT NULL DEFAULT '新对话', status text NOT NULL DEFAULT 'active',
+    created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz
+);
+ALTER TABLE practice_script_chat_sessions ADD COLUMN IF NOT EXISTS is_primary boolean NOT NULL DEFAULT false;
+WITH ranked AS (
+    SELECT id, row_number() OVER (PARTITION BY project_id ORDER BY updated_at DESC, created_at DESC, id DESC) AS rank
+    FROM practice_script_chat_sessions WHERE deleted_at IS NULL
+)
+UPDATE practice_script_chat_sessions AS session SET is_primary = (ranked.rank = 1)
+FROM ranked WHERE session.id = ranked.id;
+CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_practice_script_chat_sessions_primary_idx ON practice_script_chat_sessions (project_id) WHERE is_primary = true AND deleted_at IS NULL;
+CREATE TABLE IF NOT EXISTS practice_script_runs (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, chat_session_id text REFERENCES practice_script_chat_sessions(id) ON DELETE SET NULL,
+    run_type text NOT NULL, stage_key text, status text NOT NULL, client_request_id text NOT NULL, config_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+    progress_json jsonb NOT NULL DEFAULT '{}'::jsonb, started_at timestamptz, completed_at timestamptz, last_event_sequence integer NOT NULL DEFAULT 0,
+    error_code text, error_message text, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE (school_id, owner_user_id, client_request_id)
+);
+CREATE TABLE IF NOT EXISTS practice_script_chat_messages (
+    id text PRIMARY KEY, session_id text NOT NULL REFERENCES practice_script_chat_sessions(id) ON DELETE CASCADE, project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    role text NOT NULL, agent_key text, public_content text NOT NULL, source_run_id text REFERENCES practice_script_runs(id) ON DELETE SET NULL, created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE practice_script_chat_messages ADD COLUMN IF NOT EXISTS client_request_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_practice_script_chat_messages_request_idx ON practice_script_chat_messages (session_id, client_request_id) WHERE client_request_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS practice_script_run_items (
+    id text PRIMARY KEY, run_id text NOT NULL REFERENCES practice_script_runs(id) ON DELETE CASCADE, item_type text NOT NULL, item_key text NOT NULL,
+    status text NOT NULL DEFAULT 'queued', attempt_no integer NOT NULL DEFAULT 0, artifact_id text, error_code text, error_message text,
+    started_at timestamptz, completed_at timestamptz, UNIQUE (run_id, item_type, item_key, attempt_no)
+);
+CREATE TABLE IF NOT EXISTS practice_script_run_events (
+    id text PRIMARY KEY, run_id text NOT NULL REFERENCES practice_script_runs(id) ON DELETE CASCADE, sequence integer NOT NULL,
+    public_event_type text NOT NULL, public_payload jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE (run_id, sequence)
+);
+CREATE TABLE IF NOT EXISTS practice_script_confirmations (
+    id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, stage_key text NOT NULL, artifact_versions jsonb NOT NULL DEFAULT '[]'::jsonb,
+    source_run_id text, confirmed_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_artifacts_scope_idx ON practice_script_artifacts (school_id, owner_user_id, project_id, artifact_type, artifact_key, version DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_chapters_scope_idx ON practice_script_chapters (school_id, owner_user_id, project_id, chapter_index, version DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_episodes_scope_idx ON practice_script_episodes (school_id, owner_user_id, project_id, episode_number, version DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_shots_episode_idx ON practice_script_shots (school_id, owner_user_id, project_id, episode_id, shot_number);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_prompt_assets_scope_idx ON practice_script_prompt_assets (school_id, owner_user_id, project_id, asset_type, canonical_name);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_chat_sessions_scope_idx ON practice_script_chat_sessions (school_id, owner_user_id, project_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_runs_scope_idx ON practice_script_runs (school_id, owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_run_items_run_idx ON practice_script_run_items (run_id, status, item_key);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_run_events_run_sequence_idx ON practice_script_run_events (run_id, sequence);
+
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_projects_school_owner_updated_idx ON practice_script_projects (school_id, owner_user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_versions_school_project_created_idx ON practice_script_versions (school_id, owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_entities_school_project_type_idx ON practice_script_entities (school_id, owner_user_id, project_id, type, name);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_stages_school_project_updated_idx ON practice_script_stages (school_id, owner_user_id, project_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_agent_operations_school_project_created_idx ON practice_script_agent_operations (school_id, owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_projects_owner_updated_idx ON practice_script_projects (owner_user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_versions_project_created_idx ON practice_script_versions (owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_entities_project_type_idx ON practice_script_entities (owner_user_id, project_id, type, name);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_stages_project_updated_idx ON practice_script_stages (owner_user_id, project_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_agent_operations_project_created_idx ON practice_script_agent_operations (owner_user_id, project_id, created_at DESC);
+DROP TRIGGER IF EXISTS practice_script_projects_set_updated_at ON practice_script_projects;
+CREATE TRIGGER practice_script_projects_set_updated_at BEFORE UPDATE ON practice_script_projects FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
+DROP TRIGGER IF EXISTS practice_script_entities_set_updated_at ON practice_script_entities;
+CREATE TRIGGER practice_script_entities_set_updated_at BEFORE UPDATE ON practice_script_entities FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
+DROP TRIGGER IF EXISTS practice_script_stages_set_updated_at ON practice_script_stages;
+CREATE TRIGGER practice_script_stages_set_updated_at BEFORE UPDATE ON practice_script_stages FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
+
+${POSTGRESQL_TRIGGER_SCHEMA_SQL}
+
 INSERT INTO schema_migrations (version)
-VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks'), ('20260820_drama_lab_integration'), ('20260908_official_work_publication')
+VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks'), ('20260820_drama_lab_integration'), ('20260908_official_work_publication'), ('20260911_practice_script_module'), ('20260913_practice_screenwriter_agent')
 ON CONFLICT (version) DO NOTHING;
 `;

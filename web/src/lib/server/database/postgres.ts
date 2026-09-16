@@ -1,6 +1,7 @@
 import { Client, Pool, type QueryResult, type QueryResultRow } from "pg";
 
 import { POSTGRESQL_SCHEMA_SQL } from "@/lib/server/database/schema";
+import { seedBuiltinScriptAgentConfiguration } from "@/lib/server/script-agent-seed";
 
 type DatabaseProvider = "file" | "postgres";
 
@@ -69,6 +70,27 @@ const POSTGRES_TABLES = [
     "drama_projects",
     "drama_project_versions",
     "practice_sessions",
+    "practice_script_projects",
+    "practice_script_versions",
+    "practice_script_entities",
+    "practice_script_stages",
+    "practice_script_agent_operations",
+    "practice_script_artifacts",
+    "practice_script_chapters",
+    "practice_script_chapter_events",
+    "practice_script_episodes",
+    "practice_script_shots",
+    "practice_script_prompt_assets",
+    "practice_script_asset_occurrences",
+    "practice_script_agent_profiles",
+    "practice_script_skills",
+    "practice_script_skill_versions",
+    "practice_script_chat_sessions",
+    "practice_script_chat_messages",
+    "practice_script_runs",
+    "practice_script_run_items",
+    "practice_script_run_events",
+    "practice_script_confirmations",
     "practice_copy_requests",
     "creative_run_events",
     "audit_logs",
@@ -121,6 +143,7 @@ const POSTGRES_TABLES = [
     "drama_lab_prompt_templates",
     "drama_lab_business_scenarios",
     "drama_lab_generation_settings",
+    "drama_lab_story_options",
     "drama_lab_sd2_assets",
     "drama_lab_project_groups",
     "drama_lab_project_members",
@@ -265,9 +288,26 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "drama_projects_user_updated_idx",
     "canvas_projects_user_profile_updated_idx",
     "drama_projects_user_profile_updated_idx",
-    "practice_sessions_user_request_idx",
+    "practice_sessions_school_user_request_idx",
     "practice_sessions_user_updated_idx",
     "practice_sessions_project_updated_idx",
+    "practice_script_projects_owner_updated_idx",
+    "practice_script_versions_project_created_idx",
+    "practice_script_entities_project_type_idx",
+    "practice_script_stages_project_updated_idx",
+    "practice_script_agent_operations_project_created_idx",
+    "practice_script_artifacts_scope_idx",
+    "practice_script_chapters_scope_idx",
+    "practice_script_episodes_scope_idx",
+    "practice_script_shots_episode_idx",
+    "practice_script_prompt_assets_scope_idx",
+    "practice_script_chat_sessions_scope_idx",
+    "practice_script_runs_scope_idx",
+    "practice_script_run_items_run_idx",
+    "practice_script_run_events_run_sequence_idx",
+    "practice_script_projects_set_updated_at",
+    "practice_script_entities_set_updated_at",
+    "practice_script_stages_set_updated_at",
     "practice_copy_requests_project_idx",
     "drama_project_versions_user_created_idx",
     "creative_run_events_run_id_idx",
@@ -404,6 +444,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "drama_lab_prompt_templates_user_key_idx",
     "drama_lab_prompt_templates_global_key_idx",
     "drama_lab_business_scenarios_user_updated_idx",
+    "drama_lab_story_options_user_kind_value_idx",
     "drama_lab_sd2_assets_user_type_idx",
     "drama_lab_project_groups_owner_idx",
     "drama_lab_project_members_group_status_idx",
@@ -623,6 +664,7 @@ export async function initializePostgresSchema() {
         globalForPostgres.__vozebProPostgresSchemaReady = withPostgresTransaction(async (client) => {
             await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [POSTGRES_SCHEMA_LOCK_KEY]);
             await client.query(prefixPostgresSql(POSTGRESQL_SCHEMA_SQL));
+            await seedBuiltinScriptAgentConfiguration(client);
         })
             .then(() => undefined)
             .catch((error) => {

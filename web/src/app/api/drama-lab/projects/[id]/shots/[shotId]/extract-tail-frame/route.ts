@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
+import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { extractDramaLabTailFrame } from "@/lib/server/drama-lab-tail-frame-service";
 import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
@@ -24,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         // stage rather than opening a new image-stage bypass.
         await assertDramaLabStageAllowed(user.id, id, "storyboard_video", { episodeId, resourceType: "shot", resourceId: shotId });
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "短剧项目不存在" }, { status: 404 });
-        const data = await extractDramaLabTailFrame({ userId: user.id, projectOwnerUserId: ownerUserId, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "", project, episodeId, shotId });
+        const data = await extractDramaLabTailFrame({ userId: user.id, projectOwnerUserId: ownerUserId, origin: resolveInternalOrigin(new URL(request.url).origin), cookie: request.headers.get("cookie") || "", project, episodeId, shotId });
         return NextResponse.json({ code: 0, data, msg: "视频尾帧已提取" });
     } catch (error) {
         const status = errorStatus(error);

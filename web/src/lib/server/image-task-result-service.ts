@@ -1,6 +1,6 @@
 import type { ImageTaskMediaResult, ImageTaskResult } from "@/app/api/image-tasks/image-task-types";
 import { directRemoteImageResult, imageReferenceToDataUrl, inlineRemoteImageResult, resolveProxiedMediaSource } from "@/app/api/image-tasks/image-task-support";
-import { resolveResultSize } from "@/app/api/image-tasks/image-task-size";
+import { resultTargetSize } from "@/app/api/image-tasks/image-task-size";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
@@ -55,7 +55,7 @@ export function deletePreparedImageTaskResults(results: StoredImageTaskMediaResu
 }
 
 async function persistPreparedResults(task: ImageTask, results: ImageTaskMediaResult[], requireAll: boolean) {
-    const targetSize = task.config.outputMode === "layers" ? undefined : resolveResultSize(task.config.quality, task.config.size || "auto");
+    const targetSize = resultTargetSize(task.workflowCode, task.executionProfile, task.config);
     const settled = await Promise.allSettled(
         results.map((item, index) =>
             normalizeAssets([{ type: "image", url: item.dataUrl, remoteUrl: item.remoteUrl, targetSize }], {

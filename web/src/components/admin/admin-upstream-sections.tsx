@@ -6,8 +6,8 @@ import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel
 import type { AgentSkill, PracticeModuleVisibility } from "@/lib/auth/store";
 import { FEATURE_MODULES, type FeatureModuleId } from "@/lib/feature-modules";
 import { Button, Input, InputNumber, Select, Switch, Tag } from "antd";
-import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
 
@@ -111,6 +111,20 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
                         <div className="font-semibold">Agent 执行就绪检查</div>
                         <Tag color={agentReadiness.ready ? "success" : "warning"}>{agentReadiness.ready ? "四类能力已就绪" : "需要补充模型配置"}</Tag>
                     </div>
+                    <div className="mt-3 rounded-md border border-stone-200 bg-white px-3 py-3 dark:border-stone-800 dark:bg-stone-950">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <div className="text-sm font-medium">剧本练习</div>
+                                <div className="mt-1 text-xs text-stone-500">独立文本剧本能力，不创建图片、视频或音频任务。</div>
+                            </div>
+                            <Switch
+                                checked={settings.practiceScriptSettings?.enabled !== false}
+                                loading={settingsLoading}
+                                aria-label="剧本练习显示状态"
+                                onChange={(next) => void saveSettings((current) => ({ practiceScriptSettings: { ...current.practiceScriptSettings, enabled: next } }), `剧本练习${next ? "已启用" : "已停用"}`)}
+                            />
+                        </div>
+                    </div>{" "}
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         {agentReadiness.capabilities.map((item) => (
                             <div key={item.type} className="rounded-md border border-stone-200 bg-white px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-950">
@@ -300,6 +314,27 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
     );
 }
 
+export function AdminDramaLabPluginSection({ controller }: { controller: AdminDashboardController }) {
+    const { settings, settingsLoading, saveSettings } = controller;
+    return (
+        <Panel>
+            <PanelHeader title="短剧工坊" description="配置短剧工坊内部功能显示开关。" />
+            <div className="p-5">
+                <div className="flex items-center justify-between rounded-md border p-4">
+                    <div>
+                        <div className="font-medium">本剧资源库编辑弹窗</div>
+                        <div className="text-xs text-stone-500">仅控制前端显示，功能代码和后端逻辑保留。</div>
+                    </div>
+                    <Switch
+                        checked={settings.featureModules["drama-lab-resource-editor"] !== false}
+                        loading={settingsLoading}
+                        onChange={(next) => void saveSettings((current) => ({ featureModules: { ...current.featureModules, "drama-lab-resource-editor": next } }), `本剧资源库编辑弹窗${next ? "已显示" : "已隐藏"}`)}
+                    />
+                </div>
+            </div>
+        </Panel>
+    );
+}
 export function AdminPluginsSection({ controller }: { controller: AdminDashboardController }) {
     const { settings, settingsLoading, activeSection, saveSettings } = controller;
     if (activeSection !== "plugins") return null;
@@ -318,6 +353,20 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     </div>
                     <Tag color="processing">6 个模块 · 7 条工作流</Tag>
                 </div>
+                <div className="mt-3 rounded-md border border-stone-200 bg-white px-3 py-3 dark:border-stone-800 dark:bg-stone-950">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <div className="text-sm font-medium">剧本练习</div>
+                            <div className="mt-1 text-xs text-stone-500">独立文本剧本能力，不创建图片、视频或音频任务。</div>
+                        </div>
+                        <Switch
+                            checked={settings.practiceScriptSettings?.enabled !== false}
+                            loading={settingsLoading}
+                            aria-label="剧本练习显示状态"
+                            onChange={(next) => void saveSettings((current) => ({ practiceScriptSettings: { ...current.practiceScriptSettings, enabled: next } }), `剧本练习${next ? "已启用" : "已停用"}`)}
+                        />
+                    </div>
+                </div>{" "}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {PRACTICE_VISIBILITY_FIELDS.map(([key, label, description]) => {
                         const enabled = (settings.practiceModuleVisibility || DEFAULT_PRACTICE_MODULE_VISIBILITY)[key];
@@ -350,11 +399,15 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                 </div>
             </section>
             <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
-                {FEATURE_MODULES.map((plugin) => {
+                {FEATURE_MODULES.filter((plugin) => plugin.id !== "drama-lab-resource-editor").map((plugin) => {
                     const Icon = plugin.icon;
                     const enabled = settings.featureModules[plugin.id] !== false;
                     return (
-                        <section key={plugin.id} className="flex min-h-40 flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950">
+                        <section
+                            key={plugin.id}
+                            className="flex min-h-40 cursor-pointer flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950"
+                            onClick={() => (plugin.id === "drama-lab" ? (window.location.href = "/admin/drama-lab-features") : undefined)}
+                        >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex min-w-0 items-center gap-3">
                                     <span className="grid size-9 shrink-0 place-items-center rounded-md bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-200">
@@ -365,7 +418,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                                         <div className="mt-1 text-xs text-stone-500">{plugin.group}</div>
                                     </div>
                                 </div>
-                                <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onChange={(next) => void toggle(plugin.id, next)} />
+                                <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onClick={() => undefined} onChange={(next) => void toggle(plugin.id, next)} />
                             </div>
                             <p className="mt-3 line-clamp-2 text-sm leading-5 text-stone-600 dark:text-stone-400">{plugin.description}</p>
                             <div className="mt-auto flex flex-wrap gap-1.5 pt-4">

@@ -1,0 +1,112 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+    getAuthSettings: vi.fn(),
+    resolveLogicalModelCandidates: vi.fn(),
+    resolveVisionModelCandidates: vi.fn(),
+    requestStructuredText: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings }));
+vi.mock("@/lib/server/logical-model-router", () => ({ resolveLogicalModelCandidates: mocks.resolveLogicalModelCandidates, resolveVisionModelCandidates: mocks.resolveVisionModelCandidates }));
+vi.mock("@/lib/server/text-planning-runtime", () => ({ rankTextPlanningCandidates: <T>(items: T[]) => items, requestStructuredText: mocks.requestStructuredText }));
+vi.mock("@/lib/server/system-ai-billing", () => ({ systemAiBillingHeaders: () => ({}), systemAiIdempotencyKey: () => "asset-ai-key" }));
+
+import { runDramaLabAssetAiAction } from "./drama-lab-asset-ai-service";
+
+const candidate = { channelId: "text-channel", upstreamModel: "writer", channel: {} };
+const project = {
+    id: "project-one",
+    title: "测试项目",
+    summary: "",
+    style: "realistic",
+    ratio: "16:9",
+    status: "active" as const,
+    creativeConversationId: "conversation-one",
+    characters: [{ id: "character-one", name: "林忆", description: "主角", appearance: "短发红衣", profile: { visualIdentity: "", styling: "", colorPalette: "", consistencyRules: "" }, references: [] }],
+    scenes: [],
+    props: [],
+    clues: [],
+    defaultVideoMode: "storyboard" as const,
+    episodes: Array.from({ length: 6 }, (_, index) => ({
+        id: `episode-${index + 1}`,
+        title: `第${index + 1}集`,
+        episodeNumber: index + 1,
+        script: index === 0 ? "角色换上白衣" : "剧情推进",
+        outline: "",
+        hook: "",
+        nextPreview: "",
+        sourceRange: "",
+        reviewStatus: "draft" as const,
+        shots: [],
+    })),
+    activeEpisodeId: "episode-one",
+    createdAt: "2026-09-12T00:00:00.000Z",
+    updatedAt: "2026-09-12T00:00:00.000Z",
+};
+
+describe("drama lab asset AI service", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.getAuthSettings.mockResolvedValue({ defaultModels: { textModel: "writer", visionModel: "vision" } });
+        mocks.resolveLogicalModelCandidates.mockReturnValue([candidate]);
+        mocks.resolveVisionModelCandidates.mockReturnValue([{ ...candidate, upstreamModel: "vision" }]);
+    });
+
+    it("generates and normalizes the final polished prompt", async () => {
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ visualDescription: "短发红衣，纤细体型" }) });
+        const result = await runDramaLabAssetAiAction({ userId: "user-one", origin: "http://app.test", cookie: "", requestId: "request-one", project, assetId: "character-one", kind: "characters", action: "prompt" });
+        expect(result.polishedPrompt).toContain("FACE HERO CLOSE-UP");
+        expect(result.polishedPrompt).toContain("短发红衣，纤细体型");
+    });
+
+    it("uses the exact LocalMiniDrama six-layer identity anchor contract for characters", async () => {
+        const anchors = {
+            face_shape: "oval face",
+            facial_features: "almond eyes #3D2B1F, straight nose, thin lips",
+            unique_marks: "none",
+            color_anchors: { hair: "#1A0A00", eyes: "#3D2B1F", skin: "#FDDBB4", primary_outfit: "#808080" },
+            skin_texture: "fair porcelain smooth",
+            hair_style: "shoulder-length wavy black hair",
+        };
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify(anchors) });
+        const result = await runDramaLabAssetAiAction({ userId: "user-one", origin: "http://app.test", cookie: "", requestId: "request-anchor", project, assetId: "character-one", kind: "characters", action: "anchor" });
+        expect("profile" in result ? result.profile : undefined).toMatchObject(anchors);
+        const call = mocks.requestStructuredText.mock.calls[0]?.[0];
+        expect(call.messages[0].content).toContain("these exact 6 keys");
+        expect(call.tool.parameters.required).toEqual(["face_shape", "facial_features", "unique_marks", "color_anchors", "skin_texture", "hair_style"]);
+    });
+    it("normalizes AI-generated multi-stage appearances", async () => {
+        mocks.requestStructuredText.mockResolvedValue({
+            arguments: JSON.stringify({
+                stages: [
+                    { episodeRange: [1, 3], appearance: "白色校服" },
+                    { episodeRange: [4, 6], appearance: "深色风衣" },
+                ],
+            }),
+        });
+        await expect(runDramaLabAssetAiAction({ userId: "user-one", origin: "http://app.test", cookie: "", requestId: "request-two", project, assetId: "character-one", kind: "characters", action: "stages" })).resolves.toMatchObject({
+            stages: expect.arrayContaining([
+                { episodeRange: [1, 3], appearance: "白色校服" },
+                { episodeRange: [4, 6], appearance: "深色风衣" },
+            ]),
+        });
+        const call = mocks.requestStructuredText.mock.calls[0]?.[0];
+        expect(call.messages[0].content).toContain("影视角色连续性设计师");
+        expect(call.messages[1].content).toContain("角色换上白衣");
+        expect(call.messages[1].content).toContain("阶段数量 1-6 个");
+    });
+
+    it("uses the L scene-specific input and contract for single-image prompts", async () => {
+        const sceneProject = { ...project, scenes: [{ id: "scene-one", name: "小区楼道口", location: "小区楼道口", time: "傍晚", description: "灰色墙面与金属扶手" }] };
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ visualDescription: "狭窄楼道，傍晚冷暖交界光线" }) });
+        const result = await runDramaLabAssetAiAction({ userId: "user-one", origin: "http://app.test", cookie: "", requestId: "scene-single", project: sceneProject, assetId: "scene-one", kind: "scenes", action: "prompt", generationLayout: "single" });
+        const call = mocks.requestStructuredText.mock.calls[0]?.[0];
+        expect(call.messages[0].content).toContain("专业的影视美术设计师");
+        expect(call.messages[1].content).toContain("场景地点：小区楼道口");
+        expect(call.messages[1].content).toContain("时间/时段：傍晚");
+        expect(call.messages[1].content).toContain("场景描述：灰色墙面与金属扶手");
+        expect(result).toMatchObject({ singleImagePrompt: expect.stringContaining("ONE single continuous image") });
+        expect(result).toMatchObject({ polishedPrompt: "" });
+    });
+});

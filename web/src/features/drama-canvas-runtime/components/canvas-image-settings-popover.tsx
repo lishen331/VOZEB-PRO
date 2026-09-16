@@ -24,6 +24,8 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
         image: {
             size: config.size || "auto",
             quality: imageQuality(config.quality),
+            resolution: config.imageResolution || "medium",
+            background: config.imageBackground || "auto",
             count: positiveInteger(config.count),
         },
     };
@@ -53,14 +55,19 @@ export function canvasImagePreferenceSummary(preferences: GenerationPreferences,
     const image = preferences.image;
     const size = fixedSizeLabel || compactSizeLabel(image?.size);
     if (!fixedSizeLabel && /^\d+x\d+$/i.test(image?.size || "")) return size;
-    const quality = ({ auto: "智能", high: "高", medium: "中", low: "低" } as Record<string, string>)[image?.quality || "auto"] || image?.quality || "智能";
+    const quality = ({ auto: "标准", high: "高", medium: "标准", low: "低" } as Record<string, string>)[image?.quality || "auto"] || image?.quality || "标准";
+    const resolution = ({ low: "1K", medium: "2K", high: "4K" } as Record<string, string>)[image?.resolution || "medium"] || "2K";
+    const bg = image?.background;
+    const bgLabel = bg === "transparent" ? "·透明" : bg === "keep" ? "·保留背景" : "";
     const count = image?.count || 1;
-    return `${size} · ${quality}${count > 1 ? ` · ${count}张` : ""}`;
+    return `${size} · ${quality} · ${resolution}${bgLabel}${count > 1 ? ` · ${count}张` : ""}`;
 }
 
 function applyImagePreferencePatch(patch: CreativeGenerationPreferencePatch, onChange: (key: keyof AiConfig, value: string) => void) {
     if (patch.size !== undefined) onChange("size", patch.size);
     if (patch.quality !== undefined) onChange("quality", patch.quality);
+    if (patch.resolution !== undefined) onChange("imageResolution", patch.resolution);
+    if (patch.background !== undefined) onChange("imageBackground", patch.background);
     if (patch.count !== undefined) onChange("count", String(patch.count));
 }
 

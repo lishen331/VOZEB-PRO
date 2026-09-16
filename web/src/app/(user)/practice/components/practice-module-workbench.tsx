@@ -10,6 +10,8 @@ import { ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picke
 import type { IpReference } from "@/lib/ip-library-domain";
 import type { PracticeModuleCapability, PracticeModuleKind } from "@/lib/practice-domain";
 import { practiceApi, type PracticeSession, type PracticeSessionInput, type PracticeSessionResult } from "@/services/api/practice";
+import { resolveImageUrl } from "@/services/image-storage";
+import type { PracticeDefaultInput } from "./practice-panel-types";
 import PracticeScriptPanel from "./practice-script-panel";
 import PracticeStoryboardImagePanel from "./practice-storyboard-image-panel";
 import PracticeStoryboardVideoPanel from "./practice-storyboard-video-panel";
@@ -40,6 +42,16 @@ export function practiceSessionPath(module: PracticeModuleKind, searchParams: UR
     return `/practice/${module}?${query.toString()}`;
 }
 
+export function practiceSessionResetPath(module: PracticeModuleKind, searchParams: URLSearchParams) {
+    const query = new URLSearchParams(searchParams.toString());
+    query.delete("sessionId");
+    const suffix = query.toString();
+    return `/practice/${module}${suffix ? `?${suffix}` : ""}`;
+}
+export function isDiscardablePracticeSessionError(error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+    return /练习会话不存在|练习会话租户范围缺失|无权访问/.test(message);
+}
 export function publicPracticeResult(value: unknown): PracticeSessionResult | undefined {
     if (!value || typeof value !== "object") return undefined;
     const source = value as Record<string, unknown>;
@@ -73,6 +85,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [ipReferences, setIpReferences] = useState<IpReference[]>([]);
+    const [restoreInput, setRestoreInput] = useState<PracticeDefaultInput | null>(null);
     const meta = PRACTICE_MODULES.find((item) => item.module === module) || ASSET_META[module] || PRACTICE_MODULES[0];
     const Icon = ICONS[module];
     const sessionId = searchParams.get("sessionId") || "";
@@ -91,11 +104,23 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     useEffect(() => {
         let active = true;
         setLoading(true);
+        setCapability(undefined);
+        setHistoryBusy(true);
+        setSessions([]);
+        setHistoryPage(1);
+        setHistoryTotal(0);
         setCurrent(undefined);
-        void Promise.all([practiceApi.listModules(), practiceApi.listSessions({ module, pageSize: 24 })])
-            .then(([modules, history]) => {
+        void practiceApi
+            .listModules()
+            .then((modules) => {
+                if (active) setCapability(modules.modules.find((item) => item.module === module));
+            })
+            .catch((error) => active && message.error(error instanceof Error ? error.message : "练习模块加载失败"))
+            .finally(() => active && setLoading(false));
+        void practiceApi
+            .listSessions({ module, pageSize: 24 })
+            .then((history) => {
                 if (!active) return;
-                setCapability(modules.modules.find((item) => item.module === module));
                 setSessions(history.sessions);
                 setHistoryPage(1);
                 setHistoryTotal(history.total);
@@ -105,8 +130,8 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                     router.replace(practiceSessionPath(module, new URLSearchParams(window.location.search), recent.id));
                 }
             })
-            .catch((error) => active && message.error(error instanceof Error ? error.message : "练习记录加载失败"))
-            .finally(() => active && setLoading(false));
+            .catch(() => active && message.error("历史练习暂时无法加载，不影响新建练习"))
+            .finally(() => active && setHistoryBusy(false));
         return () => {
             active = false;
         };
@@ -121,7 +146,12 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                 setCurrent(session);
                 setSessions((items) => (items.some((item) => item.id === session.id) ? items.map((item) => (item.id === session.id ? session : item)) : [session, ...items]));
             } catch (error) {
-                if (routeSelection.current === version) message.error(error instanceof Error ? error.message : "状态刷新失败");
+                if (routeSelection.current !== version) return;
+                if (isDiscardablePracticeSessionError(error)) {
+                    setCurrent(undefined);
+                    router.replace(practiceSessionResetPath(module, new URLSearchParams(window.location.search)));
+                }
+                message.error(error instanceof Error ? error.message : "状态刷新失败");
             }
         };
         void read();
@@ -194,16 +224,31 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             setRefreshing(false);
         }
     };
+    const loadIntoForm = async (target: PracticeSession) => {
+        const raw = target.input as Record<string, unknown>;
+        const refs = Array.isArray(raw.references) ? (raw.references as Array<{ type?: string; id?: string; inputKey?: string }>) : [];
+        const images: PracticeDefaultInput["images"] = {};
+        await Promise.all(
+            refs
+                .filter((r) => r.type === "asset" && r.id)
+                .map(async (r) => {
+                    const url = await resolveImageUrl(r.id);
+                    images![r.inputKey || "referenceImage"] = { url, storageKey: r.id!, width: 0, height: 0, bytes: 0, mimeType: "image/jpeg" };
+                }),
+        );
+        setRestoreInput({
+            prompt: typeof raw.prompt === "string" ? raw.prompt : undefined,
+            text: typeof raw.text === "string" ? raw.text : undefined,
+            workflowInput: raw,
+            images,
+        });
+        setDraftVersion((v) => v + 1);
+        setCurrent(target);
+    };
     const retry = async (target: PracticeSession | undefined = current) => {
-        if (!target || !practiceSessionCanRetry(target) || refreshing) return;
-        setRefreshing(true);
-        try {
-            onCreated((await practiceApi.retrySession(target.id)).session);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "练习重试失败");
-        } finally {
-            setRefreshing(false);
-        }
+        if (!target || refreshing) return;
+        if (!practiceSessionCanRetry(target)) return;
+        await loadIntoForm(target);
     };
     const deleteSession = async (target: PracticeSession) => {
         if (refreshing) return;
@@ -225,7 +270,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     };
     let panel = null;
     if (capability) {
-        const props = { capability, ipReferences, onIpReferencesChange: setIpReferences, onCreated };
+        const props = { capability, ipReferences, onIpReferencesChange: setIpReferences, onCreated, defaultInput: restoreInput };
         panel =
             module === "script" ? (
                 <PracticeScriptPanel {...props} />
@@ -257,6 +302,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                     size="small"
                     onClick={() => {
                         setDraftVersion((value) => value + 1);
+                        setRestoreInput(null);
                         setCurrent(undefined);
                         routeSelection.current += 1;
                         router.replace(`/practice/${module}`);
@@ -298,14 +344,14 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                             <h2 className="text-base font-semibold">练习结果</h2>
                             <Button type="text" size="small" icon={<RefreshCw className="size-4" />} loading={refreshing} onClick={() => void refresh()} aria-label="刷新练习状态" />
                         </div>
-                        <SessionResult module={module} session={current} onRetry={() => void retry()} onRefresh={() => void refresh()} />
+                        <SessionResult module={module} session={current} onRetry={(session) => void loadIntoForm(session)} onRefresh={() => void refresh()} />
                     </section>
                 </div>
                 <section className="mt-7 border-t border-border pt-5" aria-labelledby="practice-module-history">
                     <h2 id="practice-module-history" className="text-base font-semibold">
                         历史练习
                     </h2>
-                    {loading ? (
+                    {historyBusy ? (
                         <Spin />
                     ) : sessions.length ? (
                         <PracticeSessionHistory

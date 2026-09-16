@@ -6,6 +6,11 @@ import type { PracticeExecutionProfile, PracticeModuleKind, PracticeProjectKind,
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
+export type ScriptProjectRecord = import("@/lib/script-practice-types").ScriptPracticeProject;
+export type ScriptVersionRecord = import("@/lib/script-practice-types").ScriptVersion;
+export type ScriptEntityRecord = import("@/lib/script-practice-types").ScriptEntity;
+export type ScriptStageRecord = import("@/lib/script-practice-types").ScriptStage;
+
 export type PageInput = {
     page?: number;
     pageSize?: number;
@@ -888,6 +893,8 @@ export type PracticeSessionStatus = "draft" | "queued" | "running" | "success" |
 export type PracticeSessionRecord = {
     id: string;
     userId: string;
+    /** Derived from the active practice school; required for new practice rows. */
+    schoolId?: string;
     projectId?: string;
     projectKind: PracticeProjectKind;
     module: PracticeModuleKind;

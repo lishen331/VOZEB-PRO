@@ -1,3 +1,4 @@
+import { dramaLabStoryOptionLabel } from "@/lib/drama-lab-story-options";
 import { renderDramaLabStoryTemplate, dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
 import { randomUUID } from "node:crypto";
 
@@ -82,7 +83,8 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
     const requestedModel = input.model?.trim() || settings.defaultModels.textModel;
     const resolvedCandidates = resolveLogicalModelCandidates(settings, "text", requestedModel, "", "production");
     if (!requestedModel || !resolvedCandidates.length) throw new DramaLabStoryGenerationError("后台尚未配置可用的默认文本模型", 503);
-    const configs = resolvedCandidates.map((candidate) => ({ ...toSystemGenerationChannel(candidate), executionProfile: "production" as const }));
+    const maxOutputTokens = Math.max(2_000, episodeCount * 2_200);
+    const configs = resolvedCandidates.map((candidate) => ({ ...toSystemGenerationChannel(candidate), executionProfile: "production" as const, maxOutputTokens }));
 
     const context = {
         surface: "drama" as const,
@@ -94,13 +96,13 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
     };
     await validateGenerationContextIpReferences(input.userId, context);
     const billingContext = await resolveSchoolComputeBillingContext(input.userId, context);
-    const targetEpisodeIds = [sourceEpisodeId, ...Array.from({ length: episodeCount - 1 }, () => `episode-${randomUUID()}`)];
+    const targetEpisodeIds = Array.from({ length: episodeCount }, (_, index) => project.episodes[index]?.id || `episode-${randomUUID()}`);
     const storyBatch: DramaStoryBatch = {
         version: 1,
         projectId,
         projectOwnerUserId: ownerUserId,
         sourceEpisodeId,
-        sourceEpisodeIndex: sourceIndex,
+        sourceEpisodeIndex: 0,
         targetEpisodeIds,
         episodeCount,
         storyOutline,
@@ -126,8 +128,8 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
                 task: "根据故事梗概生成短剧完整多集剧本",
                 project: { id: project.id, title: project.title, summary: project.summary, style: project.style, ...dramaLabStyleContext(project.style), ratio: project.ratio },
                 storyOutline,
-                storyStyle: storyBatch.storyStyle,
-                scriptType: storyBatch.scriptType,
+                ...(storyBatch.storyStyle ? { storyStyle: dramaLabStoryOptionLabel("style", storyBatch.storyStyle) } : {}),
+                ...(storyBatch.scriptType ? { scriptType: dramaLabStoryOptionLabel("type", storyBatch.scriptType) } : {}),
                 episodeCount,
                 existingEpisodes: project.episodes.slice(0, sourceIndex).map((episode) => ({ title: episode.title, script: episode.script.slice(0, 8_000) })),
             }),
@@ -239,6 +241,7 @@ export async function materializeDramaLabStoryTask(task: TextTask) {
             if (current.status !== "success" || !current.storyBatch || current.storyBatch.status !== "persisting") return current;
             latestBatch = current.storyBatch;
         }
+        await finalizeStoryEpisodeSet(current.userId, latestBatch);
         const completedBatch: DramaStoryBatch = { ...latestBatch, status: "completed", completedAt: Date.now(), activeEpisodeIndex: undefined };
         return (await updateStoryBatchWhileActive(current.id, () => completedBatch)) || current;
     });
@@ -464,6 +467,20 @@ async function persistStoryEpisode(userId: string, batch: DramaStoryBatch, index
     }
 }
 
+async function finalizeStoryEpisodeSet(userId: string, batch: DramaStoryBatch) {
+    const resolved = await resolveDramaLabProjectForRequest(userId, batch.projectId);
+    const episodes = batch.targetEpisodeIds.map((id, index) => {
+        const episode = resolved.project.episodes.find((item) => item.id === id);
+        if (!episode?.script.trim()) throw new DramaLabStoryGenerationError(`第 ${index + 1} 集尚未完成持久化`, 500);
+        return { ...episode, episodeNumber: index + 1 };
+    });
+    await updateDramaProjectForUser(resolved.ownerUserId, batch.projectId, {
+        ...resolved.project,
+        episodes,
+        activeEpisodeId: episodes[0]?.id,
+        updatedAt: new Date().toISOString(),
+    });
+}
 function findEpisodeArray(value: Record<string, unknown>) {
     for (const key of ["episodes", "data", "items", "results"]) if (Array.isArray(value[key])) return value[key] as unknown[];
     if (value.content || value.script || value.text) return [value];

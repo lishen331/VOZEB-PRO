@@ -59,7 +59,11 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
 function AudioSelect({ value, options, theme, onChange }: { value: string; options: Array<{ value: string; label: string }>; theme: CanvasTheme; onChange: (value: string) => void }) {
     return (
         <span className="block [&_.ant-select]:w-full" onMouseDown={(event) => event.stopPropagation()}>
-            <Select value={value} options={options} onChange={onChange} />
+            {/* This panel is a hand-rolled portal (canvas-settings-popover-shell.tsx) at
+                zIndex 1200, not an antd Modal/Popover, so antd's automatic zIndex-context
+                bump never applies to this Select — its dropdown defaults to 1050 and
+                renders underneath the panel body. Match canvas-camera-control.tsx's fix. */}
+            <Select value={value} options={options} listHeight={176} styles={{ popup: { root: { zIndex: 1305 } } }} onChange={onChange} />
         </span>
     );
 }

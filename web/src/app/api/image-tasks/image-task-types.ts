@@ -129,6 +129,9 @@ export const IMAGE_URL_KEYS = [
 export const IMAGE_BASE64_KEYS = ["b64_json", "b64", "base64", "image_base64", "imageBase64", "base64_json"];
 export const IMAGE_CONTAINER_KEYS = ["data", "result", "results", "response", "payload", "content", "output", "outputs", "images", "image", "asset", "assets", "file", "files", "artifact", "artifacts", "items", "task", "job"];
 export const IMAGE_TASK_ID_KEYS = ["task_id", "taskId", "id", "job_id", "jobId", "request_id", "requestId", "generation_id", "generationId"];
+// 同步生图响应体无 task ID 时，从响应头兜底取上游请求 ID（内部代理已把中转的请求ID转存为这些 x-vozeb-pro-* 头）。
+// 顺序即优先级；渠道可通过 advancedConfig.requestIdHeader 覆盖为单一头名，兼容不同中转/上游池。
+export const UPSTREAM_REQUEST_ID_HEADERS = ["x-vozeb-pro-upstream-request-id", "x-vozeb-pro-upstream-origin-request-id"];
 export const IMAGE_STATUS_KEYS = ["status", "state", "task_status", "taskStatus"];
 export const IMAGE_POLL_URL_KEYS = ["poll_url", "pollUrl", "polling_url", "pollingUrl", "status_url", "statusUrl", "task_url", "taskUrl"];
 export type ImageEditReferenceMode = "auto" | "multipart" | "json" | "public-url";

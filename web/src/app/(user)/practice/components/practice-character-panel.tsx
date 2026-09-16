@@ -5,12 +5,13 @@ import { ImagePlus } from "lucide-react";
 import { useState } from "react";
 import { practiceApi } from "@/services/api/practice";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
-import { type PracticePanelProps, capabilityForWorkflow, PracticeSizeField, WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults } from "./practice-panel-types";
+import { type PracticePanelProps, type PracticeDefaultInput, capabilityForWorkflow, PracticeSizeField, WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults } from "./practice-panel-types";
 import { PracticeMediaInput } from "./practice-media-input";
 import { PracticePromptEditor } from "./practice-prompt-editor";
 import { ModelField } from "./practice-storyboard-image-panel";
+import { PracticeAssetPicker } from "./practice-asset-picker";
 
-export default function PracticeCharacterPanel({ capability, onCreated }: PracticePanelProps) {
+export default function PracticeCharacterPanel({ capability, onCreated, defaultInput }: PracticePanelProps) {
     const [view, setView] = useState("character_main_view");
     const [model, setModel] = useState(capability.models[0]?.id);
     const options = capability.models.find((item) => item.id === model)?.workflowOptions || capability.workflowOptions;
@@ -30,16 +31,28 @@ export default function PracticeCharacterPanel({ capability, onCreated }: Practi
                     ]}
                 />
             </div>
-            <CharacterForm key={`${model}:${view}`} capability={active} model={model} workflowCode={view} onCreated={onCreated} />
+            <CharacterForm key={`${model}:${view}`} capability={active} model={model} workflowCode={view} onCreated={onCreated} defaultInput={defaultInput} />
         </div>
     );
 }
 
-function CharacterForm({ capability, model, workflowCode, onCreated }: { capability: PracticePanelProps["capability"]; model?: string; workflowCode: string; onCreated: PracticePanelProps["onCreated"] }) {
+function CharacterForm({
+    capability,
+    model,
+    workflowCode,
+    onCreated,
+    defaultInput,
+}: {
+    capability: PracticePanelProps["capability"];
+    model?: string;
+    workflowCode: string;
+    onCreated: PracticePanelProps["onCreated"];
+    defaultInput?: PracticeDefaultInput | null;
+}) {
     const multi = workflowCode === "character_multi_view";
-    const [prompt, setPrompt] = useState("");
-    const [image, setImage] = useState<UploadedImage>();
-    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => workflowFieldDefaults(capability));
+    const [prompt, setPrompt] = useState(() => defaultInput?.prompt ?? "");
+    const [image, setImage] = useState<UploadedImage | undefined>(() => defaultInput?.images?.referenceImage);
+    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => ({ ...workflowFieldDefaults(capability), ...(defaultInput?.workflowInput ?? {}) }));
     const [uploading, setUploading] = useState(false);
     const [busy, setBusy] = useState(false);
     const { message } = App.useApp();
@@ -83,7 +96,9 @@ function CharacterForm({ capability, model, workflowCode, onCreated }: { capabil
         <div className="space-y-5">
             {multi ? (
                 <>
-                    <PracticeMediaInput label={`主形象参考图${multi ? "（必需）" : "（可选）"}`} url={image?.url} disabled={uploading || busy} onChoose={(file) => void chooseImage(file)} onRemove={() => setImage(undefined)} />
+                    <PracticeMediaInput label={`主形象参考图${multi ? "（必需）" : "（可选）"}`} url={image?.url} disabled={uploading || busy} onChoose={(file) => void chooseImage(file)} onRemove={() => setImage(undefined)}>
+                        <PracticeAssetPicker dramaAssetType="character" disabled={uploading || busy} onSelect={setImage} />
+                    </PracticeMediaInput>
                 </>
             ) : null}
             {multi ? (
@@ -93,7 +108,9 @@ function CharacterForm({ capability, model, workflowCode, onCreated }: { capabil
                 </label>
             ) : (
                 <PracticePromptEditor briefLabel="角色设定" label="角色描述" placeholder="描述外观、服装、气质和视觉风格" value={prompt} onChange={setPrompt} disabled={busy}>
-                    <PracticeMediaInput label={`主形象参考图${multi ? "（必需）" : "（可选）"}`} url={image?.url} disabled={uploading || busy} onChoose={(file) => void chooseImage(file)} onRemove={() => setImage(undefined)} />
+                    <PracticeMediaInput label={`主形象参考图${multi ? "（必需）" : "（可选）"}`} url={image?.url} disabled={uploading || busy} onChoose={(file) => void chooseImage(file)} onRemove={() => setImage(undefined)}>
+                        <PracticeAssetPicker dramaAssetType="character" disabled={uploading || busy} onSelect={setImage} />
+                    </PracticeMediaInput>
                 </PracticePromptEditor>
             )}
             <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />

@@ -23,6 +23,26 @@ vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTa
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask }));
 vi.mock("@/lib/server/audio-task-runtime", () => ({ ensurePracticeAudioGenerationLog: mocks.ensureAudioLog }));
 vi.mock("@/lib/server/generation-task-store", () => ({ getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest }));
+vi.mock("./practice-reference-authorization", () => ({
+    PracticeReferenceAuthorizationError: class PracticeReferenceAuthorizationError extends Error {
+        code = "PRACTICE_REFERENCE_INVALID" as const;
+        status = 400 as const;
+    },
+    validatePracticeReferences: vi.fn(async (_scope: unknown, _module: unknown, _input: unknown, value: unknown) => {
+        if (!Array.isArray(value)) return [];
+        const seen = new Set<string>();
+        return value.flatMap((item) => {
+            if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+            const source = item as { type?: unknown; id?: unknown; inputKey?: unknown; subIpId?: unknown; itemIds?: unknown };
+            if (source.type === "ip") return [item];
+            if (source.type !== "asset") return [];
+            const id = typeof source.id === "string" ? source.id.trim() : "";
+            if (!id || seen.has(id)) return [];
+            seen.add(id);
+            return [{ type: "asset", id, ...(typeof source.inputKey === "string" ? { inputKey: source.inputKey } : {}) }];
+        });
+    }),
+}));
 vi.mock("@/lib/server/database", () => ({ getDatabaseProvider: () => "file", createPostgresRepositories: vi.fn() }));
 
 import {
@@ -32,6 +52,7 @@ import {
     publicPracticeSession,
     resolvePracticeModelFromSettings,
     retryPracticeSessionForUser,
+    deletePracticeSession,
     type PracticeSessionStore,
     type PracticeTaskDispatchResult,
 } from "./practice-session-service";
@@ -43,9 +64,9 @@ function memoryStore(): PracticeSessionStore {
     const records = new Map<string, PracticeSessionRecord>();
     const requests = new Map<string, string>();
     return {
-        getByRequest: vi.fn(async (userId, clientRequestId) => records.get(requests.get(`${userId}:${clientRequestId}`) || "") || null),
+        getByRequest: vi.fn(async (scope, clientRequestId) => records.get(requests.get(`${scope.schoolId}:${scope.ownerUserId}:${clientRequestId}`) || "") || null),
         create: vi.fn(async (input) => {
-            const key = `${input.userId}:${input.clientRequestId}`;
+            const key = `${input.schoolId}:${input.userId}:${input.clientRequestId}`;
             const existing = records.get(requests.get(key) || "");
             if (existing) return existing;
             const record = { ...input, executionProfile: "open-source-practice", createdAt: "2026-08-18T00:00:00.000Z", updatedAt: "2026-08-18T00:00:00.000Z" };
@@ -53,41 +74,55 @@ function memoryStore(): PracticeSessionStore {
             requests.set(key, input.id);
             return record;
         }),
-        get: vi.fn(async (userId, id) => {
+        get: vi.fn(async (scope, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId) return null;
+            if (!record || record.userId !== scope.ownerUserId || record.schoolId !== scope.schoolId) return null;
             return record;
         }),
-        claimDispatch: vi.fn(async (userId, id) => {
+        claimDispatch: vi.fn(async (scope, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId || record.status !== "queued" || (Array.isArray(record.taskRefs) && record.taskRefs.length)) return null;
+            if (!record || record.userId !== scope.ownerUserId || record.schoolId !== scope.schoolId || record.status !== "queued" || (Array.isArray(record.taskRefs) && record.taskRefs.length)) return null;
             const claimed = { ...record, status: "running" as const };
             records.set(id, claimed);
             return claimed;
         }),
-        resetForRetry: vi.fn(async (userId, id) => {
+        resetForRetry: vi.fn(async (scope, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId || (record.status !== "failed" && record.status !== "cancelled" && !(record.status === "running" && (!Array.isArray(record.taskRefs) || !record.taskRefs.length)))) return null;
+            if (
+                !record ||
+                record.userId !== scope.ownerUserId ||
+                record.schoolId !== scope.schoolId ||
+                (record.status !== "failed" && record.status !== "cancelled" && !(record.status === "running" && (!Array.isArray(record.taskRefs) || !record.taskRefs.length)))
+            )
+                return null;
             const reset = { ...record, status: "queued" as const, taskRefs: [] };
             records.set(id, reset);
             return reset;
         }),
-        update: vi.fn(async (userId, id, patch) => {
+        update: vi.fn(async (scope, id, patch) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId) return null;
+            if (!record || record.userId !== scope.ownerUserId || record.schoolId !== scope.schoolId) return null;
             const updated = { ...record, ...patch };
             records.set(id, updated);
             return updated;
         }),
-        delete: vi.fn(async (userId, id) => {
+        delete: vi.fn(async (scope, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId) return;
+            if (!record || record.userId !== scope.ownerUserId || record.schoolId !== scope.schoolId) return;
             records.delete(id);
         }),
     };
 }
 
 describe("practice sessions", () => {
+    it("persists the active school scope on newly created sessions", async () => {
+        const store = memoryStore();
+
+        await createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", mode: "manual", title: "校验租户", input: { title: "标题", content: "正文" }, clientRequestId: "tenant-scope" }, { store });
+
+        expect(store.create).toHaveBeenCalledWith(expect.objectContaining({ schoolId: "school-one", userId: "student-one" }));
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.validateIpReferences.mockResolvedValue([]);
@@ -98,6 +133,75 @@ describe("practice sessions", () => {
         mocks.getAudioTask.mockResolvedValue(undefined);
         mocks.getStoredGenerationTaskByRequest.mockResolvedValue(null);
         mocks.ensureAudioLog.mockResolvedValue(undefined);
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+    });
+
+    it("deletes a session using the normalized id", async () => {
+        const store = memoryStore();
+        const session = await store.create({
+            id: "practice-session-delete",
+            userId: "student-one",
+            schoolId: "school-one",
+            projectKind: "canvas",
+            module: "script",
+            mode: "manual",
+            title: "待删除",
+            clientRequestId: "delete-request",
+            executionProfile: "open-source-practice",
+            prompt: "",
+            input: {},
+            taskRefs: [],
+            status: "draft",
+        });
+
+        await deletePracticeSession("student-one", ` ${session.id} `, { store });
+
+        await expect(store.get({ schoolId: "school-one", ownerUserId: "student-one" }, session.id)).resolves.toBeNull();
+        expect(store.delete).toHaveBeenCalledWith({ schoolId: "school-one", ownerUserId: "student-one" }, session.id);
+    });
+
+    it("rejects a hidden module before resolving or dispatching a task", async () => {
+        const store = memoryStore();
+        mocks.requirePracticeAccess.mockRejectedValueOnce(Object.assign(new Error("练习模块已停用"), { status: 404 }));
+        const resolveModel = vi.fn();
+        await expect(createPracticeSessionForUser({ id: "student-one" }, { module: "storyboard-image", title: "隐藏模块", input: { prompt: "测试" }, clientRequestId: "hidden-module" }, { store, resolveModel })).rejects.toMatchObject({ status: 404 });
+        expect(resolveModel).not.toHaveBeenCalled();
+    });
+
+    it("rejects an arbitrary or production project association", async () => {
+        const store = memoryStore();
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const resolveProject = vi.fn().mockResolvedValue({ id: "canvas-one", executionProfile: "production" });
+        await expect(
+            createPracticeSessionForUser(
+                { id: "student-one" },
+                { module: "script", mode: "manual", title: "测试剧本", projectId: "canvas-one", projectKind: "canvas", input: { title: "测试", content: "正文" }, clientRequestId: "bad-project" },
+                { store, resolveProject },
+            ),
+        ).rejects.toMatchObject({ status: 400 });
+        expect(store.create).not.toHaveBeenCalled();
+    });
+
+    it("requires current practice access before deleting a session", async () => {
+        const store = memoryStore();
+        await store.create({
+            id: "practice-session-revoked",
+            userId: "student-one",
+            schoolId: "school-one",
+            projectKind: "canvas",
+            module: "script",
+            mode: "manual",
+            title: "待删除",
+            clientRequestId: "delete-revoked",
+            executionProfile: "open-source-practice",
+            prompt: "",
+            input: {},
+            taskRefs: [],
+            status: "draft",
+        });
+        mocks.requirePracticeAccess.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用学校身份"), { status: 403 }));
+        await expect(deletePracticeSession("student-one", "practice-session-revoked", { store })).rejects.toMatchObject({ status: 403 });
+        expect(store.delete).not.toHaveBeenCalled();
     });
 
     it("validates module-specific workflow inputs", () => {
@@ -305,6 +409,40 @@ describe("practice sessions", () => {
         expect(dimensionDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "角色", width: 720, height: 1280 }, workflow: expect.objectContaining({ workflowCode: "character_main_view" }) }));
     });
 
+    it("creates a character multi-view session without a prompt when the workflow only requires the reference image", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const dispatch = vi.fn(async () => ({ taskId: "task-multi", taskType: "image" as const }));
+        const resolveModel = vi.fn(async () => ({
+            logicalModelId: "practice-image",
+            capability: "image" as const,
+            workflow: { workflowCode: "character_multi_view", version: 1, inputSchema: [{ key: "referenceImage", label: "角色主形象图", type: "image", required: true }], nodeMappings: [], outputMappings: [] },
+        })) as never;
+
+        const result = await createPracticeSessionForUser(
+            { id: "student-one", role: "user" },
+            {
+                module: "character",
+                title: "角色多视图",
+                workflowCode: "character_multi_view",
+                input: { prompt: "", workflowCode: "character_multi_view" },
+                references: [{ type: "asset", id: "permanent/2026/09/12/images/main.png", inputKey: "referenceImage" }],
+                clientRequestId: "multi-view-no-prompt",
+            },
+            { store, dispatch, resolveModel },
+        );
+
+        expect(result).toMatchObject({ module: "character", workflowCode: "character_multi_view", status: "running" });
+        expect(dispatch).toHaveBeenCalledOnce();
+        await expect(
+            createPracticeSessionForUser(
+                { id: "student-one", role: "user" },
+                { module: "character", title: "角色主形象", workflowCode: "character_main_view", input: { prompt: "" }, clientRequestId: "main-view-no-prompt" },
+                { store, dispatch, resolveModel },
+            ),
+        ).rejects.toMatchObject({ status: 400 });
+    });
+
     it("does not create a workflow session when model preflight fails", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
@@ -351,6 +489,7 @@ describe("practice sessions", () => {
         const session = await store.create({
             id: "audio-result-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "dubbing",
             mode: "workflow",
@@ -382,6 +521,7 @@ describe("practice sessions", () => {
         const created = await store.create({
             id: "failed-task-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "storyboard-image",
             mode: "workflow",
@@ -402,12 +542,37 @@ describe("practice sessions", () => {
         expect(resolveModel).toHaveBeenCalledWith("storyboard-image", "practice-image-b");
     });
 
+    it("does not retry a session after its module is disabled", async () => {
+        const store = memoryStore();
+        const cancelled = await store.create({
+            id: "disabled-retry",
+            userId: "student-one",
+            schoolId: "school-one",
+            projectKind: "canvas",
+            module: "storyboard-image",
+            mode: "workflow",
+            title: "已停用模块",
+            clientRequestId: "disabled-retry-request",
+            executionProfile: "open-source-practice",
+            prompt: { prompt: "雨夜" },
+            input: { prompt: "雨夜" },
+            taskRefs: [],
+            status: "cancelled",
+        });
+        mocks.requirePracticeAccess.mockResolvedValueOnce({ schoolId: "school-one", membershipId: "student-one", role: "student" }).mockRejectedValueOnce(Object.assign(new Error("练习模块已停用"), { status: 404 }));
+        const dispatch = vi.fn();
+        await expect(retryPracticeSessionForUser({ id: "student-one" }, cancelled.id, { store, dispatch })).rejects.toMatchObject({ status: 404 });
+        expect(mocks.requirePracticeAccess).toHaveBeenNthCalledWith(2, { id: "student-one" }, "storyboard-image");
+        expect(dispatch).not.toHaveBeenCalled();
+    });
+
     it("retries a cancelled workflow session through the same dispatch path", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
         const cancelled = await store.create({
             id: "cancelled-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "storyboard-image",
             mode: "workflow",
@@ -432,6 +597,7 @@ describe("practice sessions", () => {
         const legacy = {
             id: "legacy-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas" as const,
             module: "storyboard-image" as const,
             mode: "workflow" as const,
@@ -587,7 +753,7 @@ describe("practice sessions", () => {
             ),
         ).rejects.toThrow("上游失败");
 
-        const session = await store.getByRequest("student-one", "request-three");
+        const session = await store.getByRequest({ schoolId: "school-one", ownerUserId: "student-one" }, "request-three");
         expect(session).not.toBeNull();
         if (!session) throw new Error("练习会话未创建");
         expect(session.input).toEqual({ prompt: "雨夜车站", references: [{ type: "asset", id: "asset-one" }] });
@@ -625,7 +791,7 @@ describe("practice sessions", () => {
         await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "写回恢复", input: { prompt: "续写" }, clientRequestId: "request-write-back" }, { store, dispatch, resolveModel })).resolves.toMatchObject({
             status: "running",
         });
-        const session = await store.getByRequest("student-one", "request-write-back");
+        const session = await store.getByRequest({ schoolId: "school-one", ownerUserId: "student-one" }, "request-write-back");
         if (!session) throw new Error("练习会话未创建");
 
         expect(session).toMatchObject({ status: "running", taskRefs: [{ taskId: "task-one", taskType: "text" }] });
@@ -641,6 +807,7 @@ describe("practice sessions", () => {
         const session = await store.create({
             id: "unknown-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "script",
             mode: "workflow",
@@ -657,7 +824,7 @@ describe("practice sessions", () => {
         mocks.getStoredGenerationTaskByRequest.mockResolvedValue({ id: "durable-task", userId: "student-one", status: "pending", clientRequestId: "unknown-request" });
 
         await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store })).resolves.toMatchObject({ id: session.id, status: "running" });
-        expect(store.update).toHaveBeenCalledWith("student-one", session.id, expect.objectContaining({ taskRefs: [{ taskId: "durable-task", taskType: "text" }] }));
+        expect(store.update).toHaveBeenCalledWith({ schoolId: "school-one", ownerUserId: "student-one" }, session.id, expect.objectContaining({ taskRefs: [{ taskId: "durable-task", taskType: "text" }] }));
     });
 
     it("does not lose a task when both immediate reference writes fail", async () => {
@@ -677,12 +844,12 @@ describe("practice sessions", () => {
         await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "孤儿任务保护", input: { prompt: "续写" }, clientRequestId: "orphan-request" }, { store, dispatch, resolveModel })).rejects.toMatchObject({
             code: "PRACTICE_SUBMISSION_UNKNOWN",
         });
-        const session = await store.getByRequest("student-one", "orphan-request");
+        const session = await store.getByRequest({ schoolId: "school-one", ownerUserId: "student-one" }, "orphan-request");
         if (!session) throw new Error("练习会话未创建");
         expect(session).toMatchObject({ status: "running", errorCode: "PRACTICE_SUBMISSION_UNKNOWN", taskRefs: [] });
 
         await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store })).resolves.toMatchObject({ status: "running" });
-        expect(mocks.getStoredGenerationTaskByRequest).toHaveBeenCalledWith("text", "student-one", "orphan-request");
+        expect(mocks.getStoredGenerationTaskByRequest).toHaveBeenCalledWith("text", "student-one", "orphan-request", undefined, "school-one");
         expect(dispatch).toHaveBeenCalledOnce();
     });
 
@@ -729,14 +896,14 @@ describe("practice sessions", () => {
         await expect(
             createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "IP 剧本练习", input: { prompt: "续写" }, references: [reference], clientRequestId: "request-revoked" }, { store, dispatch, resolveModel }),
         ).rejects.toThrow("上游失败");
-        const session = await store.getByRequest("student-one", "request-revoked");
+        const session = await store.getByRequest({ schoolId: "school-one", ownerUserId: "student-one" }, "request-revoked");
         if (!session) throw new Error("练习会话未创建");
         mocks.validateIpReferences.mockRejectedValueOnce(Object.assign(new Error("IP 授权已失效"), { status: 403 }));
         const retryDispatch = vi.fn();
 
         await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch: retryDispatch, resolveModel })).rejects.toMatchObject({ status: 403 });
         expect(retryDispatch).not.toHaveBeenCalled();
-        await expect(store.get("student-one", session.id)).resolves.toMatchObject({ status: "failed" });
+        await expect(store.get({ schoolId: "school-one", ownerUserId: "student-one" }, session.id)).resolves.toMatchObject({ status: "failed" });
     });
 
     it("claims one failed session before concurrent retry dispatch", async () => {
@@ -751,7 +918,7 @@ describe("practice sessions", () => {
         await expect(
             createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "并发重试", input: { prompt: "续写" }, clientRequestId: "request-concurrent-retry" }, { store, dispatch: firstDispatch, resolveModel }),
         ).rejects.toThrow("上游失败");
-        const session = await store.getByRequest("student-one", "request-concurrent-retry");
+        const session = await store.getByRequest({ schoolId: "school-one", ownerUserId: "student-one" }, "request-concurrent-retry");
         if (!session) throw new Error("练习会话未创建");
 
         const [first, second] = await Promise.all([

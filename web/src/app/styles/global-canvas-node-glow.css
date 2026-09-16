@@ -1,0 +1,124 @@
+/* Canvas node card glow interactions.
+ *
+ * Three independent states, each cheap in its own way because they have very
+ * different concurrency profiles:
+ *   1. Hover edge-light — at most one card is hovered at a time, driven by a
+ *      pointermove handler writing CSS vars directly to the DOM (no React
+ *      state). Colors follow the canvas's existing blue/cyan/green flow
+ *      accent (see .canvas-edge-flow in global-canvas-controls.css).
+ *   2. Connection drop-target pulse — at most one card at a time, plain
+ *      keyframe animation, no JS involved.
+ *   3. Generating ring — potentially many cards concurrently (every node
+ *      mid-generation). Reuses the hover glow-edge element and animates the
+ *      conic-gradient's angle rather than transforming the box, so the light
+ *      sweeps along the border track instead of rotating the whole (rounded,
+ *      larger-than-the-card) box into a diamond. Registering the angle var
+ *      with @property gives it smooth <angle> interpolation across the
+ *      keyframe instead of the default discrete custom-property jump.
+ *
+ *      Do NOT replace this with `transform: rotate(...)` on a separate
+ *      `inset: -2px` box — that rotates the card's rounded-rect footprint
+ *      itself, and at ~45° the diagonal extends far outside the card,
+ *      producing a diamond that pokes past the card edges. This has already
+ *      regressed once (accidentally reintroduced by an unrelated formatting
+ *      commit) — if you see a rotating diamond in production, this file was
+ *      reverted, not edited.
+ */
+@property --canvas-glow-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@layer utilities {
+    .canvas-node-glow-edge {
+        position: absolute;
+        inset: -18px;
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    /* Gated behind the parent's .canvas-node-glow-active class (only present
+       while the card is hovered) so an idle card's glow span costs nothing —
+       no mask-image/box-shadow layers to composite when the class is absent. */
+    .canvas-node-glow-active .canvas-node-glow-edge {
+        opacity: calc((var(--edge-proximity, 0) - 55) / 45);
+        mask-image: conic-gradient(from var(--cursor-angle, 0deg) at center, black 2.5%, transparent 12%, transparent 88%, black 97.5%);
+        transition: opacity 0.2s ease-out;
+    }
+
+    .canvas-node-glow-active .canvas-node-glow-edge::before {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: inherit;
+        box-shadow:
+            inset 0 0 0 1px rgb(59 130 246 / 90%),
+            inset 0 0 6px 0 rgb(6 182 212 / 55%),
+            inset 0 0 16px 2px rgb(16 185 129 / 35%),
+            0 0 6px 0 rgb(59 130 246 / 55%),
+            0 0 16px 2px rgb(6 182 212 / 40%),
+            0 0 28px 3px rgb(16 185 129 / 25%);
+    }
+
+    .canvas-node-target-pulse {
+        animation: canvasNodeTargetPulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes canvasNodeTargetPulse {
+        0%,
+        100% {
+            box-shadow:
+                0 0 0 1px #2f80ff55,
+                0 0 0 0 #2f80ff33;
+        }
+        50% {
+            box-shadow:
+                0 0 0 1px #2f80ffaa,
+                0 0 18px 4px #2f80ff40;
+        }
+    }
+
+    /* Generating state reuses the hover glow-edge span (already unconditionally
+       rendered in the JSX) instead of a separate rotated box. The box itself
+       never moves — only the conic-gradient's start angle sweeps, so the light
+       travels around the border track and stays inside the card's footprint.
+       Written after the hover rule so a hovered+generating card shows the
+       brighter generating treatment (same specificity, later wins). */
+    .canvas-node-generating-ring .canvas-node-glow-edge {
+        opacity: 1;
+        mask-image: conic-gradient(from var(--canvas-glow-angle) at center, black 2.5%, transparent 12%, transparent 88%, black 97.5%);
+        animation: canvasNodeGlowSweep 2.4s linear infinite;
+    }
+
+    .canvas-node-generating-ring .canvas-node-glow-edge::before {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: inherit;
+        box-shadow:
+            inset 0 0 0 1.5px rgb(59 130 246 / 100%),
+            inset 0 0 10px 1px rgb(6 182 212 / 75%),
+            inset 0 0 24px 3px rgb(16 185 129 / 55%),
+            0 0 10px 1px rgb(59 130 246 / 75%),
+            0 0 24px 3px rgb(6 182 212 / 60%),
+            0 0 42px 5px rgb(16 185 129 / 40%);
+    }
+
+    @keyframes canvasNodeGlowSweep {
+        to {
+            --canvas-glow-angle: 360deg;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-glow-edge {
+            transition: none;
+        }
+        .canvas-node-target-pulse,
+        .canvas-node-generating-ring .canvas-node-glow-edge {
+            animation: none;
+        }
+    }
+}

@@ -181,7 +181,7 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
     if (!response.ok) throw imageSubmissionResponseError(response.status, await readFetchError(response, "图片生成失败"));
     const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-    const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+    const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
     if (allowProtocolFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
         await refundChargedImageResponse(task, response.headers);
         return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
@@ -220,7 +220,7 @@ async function runGlobalAiOpcImageTask(task: ImageTask, origin: string, publicOr
     if (!response.ok) throw imageSubmissionResponseError(response.status, await readFetchError(response, "图片生成失败"));
     const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-    return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+    return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
 }
 
 export async function runOpenAiJsonImageEditTask(
@@ -262,7 +262,7 @@ export async function runOpenAiJsonImageEditTask(
         }
         const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
         const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-        const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+        const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
         if (allowProtocolFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
             await refundChargedImageResponse(task, response.headers);
             return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, "b64_json", singleStep, "base64");
@@ -301,7 +301,7 @@ export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, orig
         }
         const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
         const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-        return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+        return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
     }
 
     headers.set("content-type", "application/json");
@@ -326,7 +326,7 @@ export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, orig
     }
     const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-    return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+    return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
 }
 
 export async function runOpenAiResponsesImageTask(task: ImageTask, origin: string, cookie: string, singleStep = false, billingVariant = "responses"): Promise<ImageTaskRunResult> {
@@ -348,7 +348,7 @@ export async function runOpenAiResponsesImageTask(task: ImageTask, origin: strin
         }
         const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
         const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-        return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext));
+        return parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
     }
 
     throw new GenerationSubmissionSafeFailure(lastError || "图片生成失败");
@@ -392,9 +392,17 @@ export async function buildJsonImageEditBodies(
     includeCompatibilityFields = true,
 ) {
     const referenceContext = { ownerUserId: task.userId, taskId: task.id };
-    const images = (
-        await Promise.all(task.references.map((reference) => (publicUrlReferenceMode ? publicImageReferenceRequestUrl(reference, origin, publicOrigin, referenceContext) : Promise.resolve(jsonImageReferenceRequestUrl(reference, origin)))))
-    ).filter(Boolean);
+    const resolvedReferenceUrls = await Promise.all(
+        task.references.map((reference) => (publicUrlReferenceMode ? publicImageReferenceRequestUrl(reference, origin, publicOrigin, referenceContext) : Promise.resolve(jsonImageReferenceRequestUrl(reference, origin)))),
+    );
+    const images = resolvedReferenceUrls.filter(Boolean);
+    // 参考图必须全部解析出可用 URL 才能提交:上游是凭 URL 回来取图的，少一张就等于模型少看一张脸，
+    // 人物一致性会崩。jsonImageReferenceRequestUrl 在无可用候选时返回空串，历史实现直接被 filter 静默丢弃，
+    // 导致"用户传 3 张、上游只收到 2 张"且全程无报错。这里改为提交前显式失败，避免静默降级。
+    if (images.length !== task.references.length) {
+        const missingIndexes = resolvedReferenceUrls.flatMap((url, index) => (url ? [] : [index + 1]));
+        throw new GenerationSubmissionSafeFailure(`参考图未全部就绪(第 ${missingIndexes.join("、")} 张缺少可用图片地址)，请重新上传参考图后再生成`);
+    }
     const mask = task.mask ? (publicUrlReferenceMode ? await publicImageReferenceRequestUrl(task.mask, origin, publicOrigin, referenceContext) : jsonImageReferenceRequestUrl(task.mask, origin)) : "";
     const prompt =
         task.upstreamPrompt || withSystemPrompt(task.config, withImageOutputInstructions(task.config, imageUrlObjectOnlyMode ? buildSub2ApiImageEditPrompt(task.prompt, task.references) : buildImageReferencePromptText(task.prompt, task.references)));

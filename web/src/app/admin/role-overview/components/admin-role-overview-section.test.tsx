@@ -8,10 +8,10 @@ import { roleOverviewPreviewItems } from "./admin-role-overview-section";
 
 describe("admin role overview", () => {
     it("shows the shared project entries for school roles only", () => {
-        expect(roleOverviewPreviewItems("teacher").map((item) => item.label)).toContain("练习");
-        expect(roleOverviewPreviewItems("student").map((item) => item.label)).toContain("练习");
+        expect(roleOverviewPreviewItems("teacher").map((item) => item.label)).toContain("无限练习");
+        expect(roleOverviewPreviewItems("student").map((item) => item.label)).toContain("无限练习");
         expect(roleOverviewPreviewItems("schoolAdmin").map((item) => item.label)).toContain("学校管理");
-        expect(roleOverviewPreviewItems("public").map((item) => item.label)).not.toContain("练习");
+        expect(roleOverviewPreviewItems("public").map((item) => item.label)).not.toContain("无限练习");
         expect(roleNavigationOverview.teacher.items.find((item) => item.slug === "practice")?.route).toBe("/practice");
         expect(
             roleOverviewPreviewItems("teacher")

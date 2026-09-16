@@ -18,7 +18,7 @@ import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-r
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
@@ -30,37 +30,44 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
     const rate = await checkGenerationRateLimit(user.id, request, "audio");
     if (!rate.allowed) return NextResponse.json({ error: "音频生成请求过于频繁，请稍后重试" }, { status: 429, headers: rateLimitHeaders(rate) });
+    let body: { config?: AudioTaskConfig; prompt?: string; input?: Record<string, unknown>; source?: string; context?: GenerationTaskContext };
+    try {
+        body = await readJsonBody(request);
+    } catch (error) {
+        if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
+        throw error;
+    }
+    try {
+        const moduleId = featureModuleForGenerationContext(body.context);
+        if (moduleId) await requireFeatureModuleEnabled(moduleId);
+    } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
+        throw error;
+    }
+    const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
+    const requestId = body.context?.clientRequestId?.trim();
+    if (requestId) {
+        const existing = await getStoredGenerationTaskByRequest<AudioTask>("audio", user.id, requestId, body.context?.attemptNo);
+        if (existing) return NextResponse.json({ task: publicTask(existing) });
+    }
+    try {
+        await validateGenerationContextIpReferences(user.id, body.context);
+    } catch (error) {
+        if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+        throw error;
+    }
+    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+    try {
+        projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+    } catch (error) {
+        const known = projectExecutionProfileError(error);
+        if (known) return NextResponse.json({ error: known.message }, { status: known.status });
+        throw error;
+    }
+    const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
+    if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
-    const response = await withGenerationConcurrencyLimit(user.id, "audio", 10 * 60 * 1000, settings.generationConcurrency.audio, async () => {
-        let body: { config?: AudioTaskConfig; prompt?: string; input?: Record<string, unknown>; source?: string; context?: GenerationTaskContext };
-        try {
-            body = await readJsonBody(request);
-        } catch (error) {
-            if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
-            throw error;
-        }
-        try {
-            const moduleId = featureModuleForGenerationContext(body.context);
-            if (moduleId) await requireFeatureModuleEnabled(moduleId);
-        } catch (error) {
-            if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
-            throw error;
-        }
-        const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
-        const requestId = body.context?.clientRequestId?.trim();
-        if (requestId) {
-            const existing = await getStoredGenerationTaskByRequest<AudioTask>("audio", user.id, requestId, body.context?.attemptNo);
-            if (existing) return NextResponse.json({ task: publicTask(existing) });
-        }
-        try {
-            await validateGenerationContextIpReferences(user.id, body.context);
-        } catch (error) {
-            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
-            throw error;
-        }
-        const projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
-        const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
-        if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
+    const createTask = async () => {
         const executionProfile: "production" | "open-source-practice" = practiceRequest ? "open-source-practice" : "production";
         let trustedContext: GenerationTaskContext;
         try {
@@ -96,10 +103,17 @@ export async function POST(request: Request) {
         await linkStoredGenerationTask("audio", task.id, trustedContext);
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         const cookie = request.headers.get("cookie") || "";
-        await scheduleGenerationTask("audio", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });
+        await scheduleGenerationTask("audio", task.id, {
+            executionPhase: practiceRequest ? "queued" : "created",
+            channelId: task.config.channelId,
+            provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
+            nextPollAt: Date.now(),
+            lastUpstreamStatus: practiceRequest ? "queued" : "created",
+        });
         after(() => runGenerationTaskRecoveryBatch({ origin, cookie, limit: 1, taskIds: [task.id] }));
-        return NextResponse.json({ task: publicTask(task) });
-    });
+        return NextResponse.json({ task: publicTask(task), ...(practiceRequest ? { queued: true } : {}) });
+    };
+    const response = practiceRequest ? await createTask() : await withGenerationConcurrencyLimit(user.id, "audio", 10 * 60 * 1000, settings.generationConcurrency.audio, createTask);
     return response || NextResponse.json({ error: "当前用户音频任务已达到并发上限" }, { status: 429 });
 }
 

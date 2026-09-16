@@ -53,6 +53,7 @@ import {
     IMAGE_BASE64_KEYS,
     IMAGE_CONTAINER_KEYS,
     IMAGE_TASK_ID_KEYS,
+    UPSTREAM_REQUEST_ID_HEADERS,
     IMAGE_STATUS_KEYS,
     IMAGE_POLL_URL_KEYS,
     type ImageEditReferenceMode,
@@ -342,6 +343,7 @@ export async function parseImagePayloadOrPoll(
     pollBaseUrl = mediaBaseUrl,
     singleStep = false,
     billingContext?: SchoolComputeBillingContext,
+    headers?: Headers,
 ): Promise<ImageTaskResult> {
     const payloadError = readImagePayloadError(payload);
     if (payloadError) throw new ImageUpstreamTerminalError(payloadError);
@@ -349,7 +351,17 @@ export async function parseImagePayloadOrPoll(
     if (images.length) return imageTaskResultFromMedia(images);
 
     const taskId = readImageTaskId(payload, config.advancedConfig?.taskIdField);
-    if (!taskId) throw new GenerationSubmissionUncertainError("图片接口没有返回图片或任务 ID，创建结果待确认");
+    if (!taskId) {
+        // 同步生图上游已成功（可能已扣费），但响应体既无图也无 task ID。
+        // 用中转在响应头回显的请求 ID 兜底，作为"可查询上游身份"落库，
+        // 让节点转入 needs_review 而非直接 Uncertain 冻结——后续可凭此 ID 向中转按 request_id 追回结果，避免钱花了图丢了。
+        const headerRequestId = readUpstreamRequestIdFromHeaders(headers, config);
+        if (headerRequestId) {
+            const upstream = { id: headerRequestId, mediaBaseUrl, pollBaseUrl };
+            return { dataUrl: "", needsReview: { upstream, reason: "图片接口未在响应体返回结果，已保留上游请求 ID 以便按 ID 追回" } };
+        }
+        throw new GenerationSubmissionUncertainError("图片接口没有返回图片或任务 ID，创建结果待确认");
+    }
     const explicitPollUrl = readImagePollUrl(config, payload, mediaBaseUrl, pollBaseUrl);
     const upstream = { id: taskId, mediaBaseUrl, pollBaseUrl, explicitPollUrl: explicitPollUrl || undefined };
     if (!imageTaskPollUrls(config, pollBaseUrl, taskId, explicitPollUrl).length) {
@@ -505,6 +517,20 @@ export function readImagePayloadError(payload: ImageApiResponse) {
 
 export function readImageTaskId(payload: ImageApiResponse, configuredPath?: string) {
     return configuredPath ? readProviderString(payload, configuredPath, []) : findStringByKeys(payload, IMAGE_TASK_ID_KEYS);
+}
+
+// 同步生图响应体没有 task ID，但中转会在响应头里回显请求 ID（内部代理已转存为 x-vozeb-pro-* 头）。
+// 当 body 拿不到 ID 时用它兜底，作为"可查询上游身份"，避免上游已扣费却本地丢结果、永久冻结。
+// 头名默认走转存后的 x-vozeb-pro-upstream-request-id，可由渠道 advancedConfig.requestIdHeader 覆盖（兼容多中转/上游池）。
+export function readUpstreamRequestIdFromHeaders(headers?: Headers, config?: ImageTaskConfig): string {
+    if (!headers) return "";
+    const configured = config?.advancedConfig?.requestIdHeader?.trim();
+    const names = configured ? [configured] : UPSTREAM_REQUEST_ID_HEADERS;
+    for (const name of names) {
+        const value = headers.get(name)?.trim();
+        if (value) return value;
+    }
+    return "";
 }
 
 export function readImageTaskStatus(payload: ImageApiResponse) {

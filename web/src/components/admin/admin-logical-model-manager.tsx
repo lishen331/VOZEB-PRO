@@ -381,6 +381,11 @@ function BindingEditor({ binding, capability, channels, onChange }: { binding: L
                         <Checkbox checked={profile.supportsReferenceAudio === true} onChange={(event) => updateProfile({ supportsReferenceAudio: event.target.checked })}>
                             参考音频
                         </Checkbox>
+                        {capability === "video" ? (
+                            <Checkbox checked={profile.supportsAudioGeneration === true} onChange={(event) => updateProfile({ supportsAudioGeneration: event.target.checked })}>
+                                生成音频
+                            </Checkbox>
+                        ) : null}
                         <Checkbox checked={effectiveAsync} onChange={(event) => updateProfile({ supportsAsync: event.target.checked })}>
                             异步查询
                         </Checkbox>

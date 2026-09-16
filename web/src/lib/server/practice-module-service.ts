@@ -115,6 +115,7 @@ export async function getPracticeModuleConfiguration(actor: PracticeActor, deps:
     return {
         modules: MODULES.filter((module) => visibility?.[module] !== false).map((module) => describeModule(settings, module)),
         projects: { canvas: visibility?.canvas === true, drama: visibility?.drama === true },
+        script: { enabled: settings.practiceScriptSettings?.enabled !== false },
     };
 }
 

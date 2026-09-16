@@ -22,8 +22,10 @@ const mocks = vi.hoisted(() => ({
     getDramaLabProjectGroup: vi.fn(),
     getDramaLabMembership: vi.fn(),
     getDramaProjectWithOwner: vi.fn(),
+    requirePracticeAccess: vi.fn(),
 }));
 
+vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.requirePracticeAccess }));
 vi.mock("@/lib/server/creative-runtime-store", () => ({ createCreativeConversation: mocks.createCreativeConversation, updateCreativeConversation: mocks.updateCreativeConversation }));
 vi.mock("@/lib/server/canvas-project-store", () => ({
     CanvasProjectStoreError: class CanvasProjectStoreError extends Error {
@@ -86,6 +88,7 @@ describe("canvas project service lifecycle", () => {
         mocks.getDramaProjectWithOwner.mockResolvedValue({ project: { id: "drama-one", episodes: [{ id: "episode-one", shots: [] }] }, ownerUserId: "owner-one" });
         mocks.validateIpReferences.mockResolvedValue([]);
         mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "membership-one", role: "student" });
     });
 
     it("archives the new conversation without deleting another project when project creation fails", async () => {
@@ -133,6 +136,19 @@ describe("canvas project service lifecycle", () => {
     it("rejects an oversized handoff key instead of silently collapsing it", async () => {
         await expect(createDramaLabCanvasProjectForUser("user-one", { sourceHandoffId: `drama-lab-canvas:${"x".repeat(600)}` })).rejects.toMatchObject({ status: 400 });
         expect(mocks.createCanvasProject).not.toHaveBeenCalled();
+    });
+
+    it("does not require a school membership for a production Canvas", async () => {
+        mocks.getCanvasProject.mockResolvedValue(project());
+        await expect(getCanvasProjectForUser("user-one", "canvas-one")).resolves.toMatchObject({ id: "canvas-one" });
+        expect(mocks.requirePracticeAccess).not.toHaveBeenCalled();
+    });
+
+    it("rejects an owned practice Canvas when the school membership is no longer active", async () => {
+        mocks.getCanvasProject.mockResolvedValue({ ...project(), executionProfile: "open-source-practice" });
+        mocks.requirePracticeAccess.mockRejectedValue(Object.assign(new Error("当前账号没有可用学校身份"), { status: 403 }));
+        await expect(getCanvasProjectForUser("user-one", "canvas-one")).rejects.toMatchObject({ status: 403 });
+        expect(mocks.requirePracticeAccess).toHaveBeenCalledWith({ id: "user-one" });
     });
 
     it("keeps drama-lab canvases inaccessible through ordinary detail reads", async () => {

@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-09-11，`codex/overnight-integration` 分支。当前源码包含 52 个 `page.tsx` 页面入口、348 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-15，`develop` 分支。当前源码包含 54 个 `page.tsx` 页面入口、372 个 API Route 文件和 139 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -396,3 +396,8 @@ flowchart LR
 - 图片 `image-task-custom.ts`、视频 `video-task-runtime.ts`、音频 `audio-task-runtime.ts` 的 RunningHub 官方查询复用 `queryRunningHubTask`，POST body 传 taskId，系统代理注入渠道 apiKey；继续原站内代理鉴权，不重新创建任务。
 - `practice-module-workbench.tsx` 分离目录/历史读取与选中任务查询；按稳定 sessionId 恢复结果，URL切换不卸载输入表单，历史支持加载更多。
 - 视频输入增加已完成配音选择及去配音入口；配音使用六维情绪滑杆，主文本对应首行的参考音色与情绪一起提交。
+
+
+## 2026-09-12 练习字段传递修复
+
+练习 Session 创建及重试向生成任务传递服务端 schoolId；项目 Identity / 列表查询支持 schoolId，保留旧 owner 项目。Schema 仅幂等新增 canvas_projects、drama_projects 的可空学校字段。详细边界见 `docs/incidents/2026-09-12-staging-ci-repair.md`。

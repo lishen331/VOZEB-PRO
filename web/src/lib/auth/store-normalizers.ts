@@ -10,6 +10,7 @@ import { deriveLogicalModelsConfig, normalizeDefaultModelsConfig, normalizeLogic
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { resolveConfiguredModelPointCost } from "@/lib/model-point-cost";
 import { normalizeSystemChannelAdvancedConfig } from "./store-normalizers-channel";
+import { SCRIPT_AGENT_TOOL_NAMES } from "@/lib/server/script-practice-agent-tools";
 import type { SystemChannelPurpose } from "@/lib/practice-domain";
 import {
     type UserRole,
@@ -268,6 +269,7 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         defaultModels: normalizeDefaultModelsConfig(settings.defaultModels, logicalModels, systemChannels),
         practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
         practiceWorkflowModels: {},
+        practiceScriptSettings: normalizePracticeScriptSettings(settings.practiceScriptSettings),
         practiceModuleVisibility: normalizePracticeModuleVisibility(settings.practiceModuleVisibility),
         agentSkills: normalizeAgentSkills(settings.agentSkills),
         featureModules: normalizeFeatureModuleSettings(settings.featureModules),
@@ -280,6 +282,36 @@ function normalizeRunningHubChannelForPractice(channel: SystemModelChannel) {
     return { ...channel, purpose: "open-source-practice" as const, models: [], advancedConfig };
 }
 
+export function normalizePracticeScriptSettings(value: unknown): AuthSettings["practiceScriptSettings"] {
+    const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+    return {
+        enabled: input.enabled !== false,
+        defaultModelId: typeof input.defaultModelId === "string" ? input.defaultModelId.trim() : "",
+        fallbackModelId: typeof input.fallbackModelId === "string" ? input.fallbackModelId.trim() : "",
+        endpointId: typeof input.endpointId === "string" ? input.endpointId.trim() : "",
+        defaultLanguage: typeof input.defaultLanguage === "string" && input.defaultLanguage.trim() ? input.defaultLanguage.trim() : "zh-CN",
+        defaultFormat: input.defaultFormat === "fountain" ? "fountain" : "structured",
+        enabledSkills: Array.isArray(input.enabledSkills)
+            ? input.enabledSkills
+                  .filter((item): item is string => typeof item === "string")
+                  .map((item) => item.trim())
+                  .filter(Boolean)
+            : [],
+        enabledTools: Array.isArray(input.enabledTools)
+            ? Array.from(
+                  new Set(
+                      input.enabledTools
+                          .filter((item): item is string => typeof item === "string")
+                          .map((item) => item.trim())
+                          .filter((item): item is (typeof SCRIPT_AGENT_TOOL_NAMES)[number] => SCRIPT_AGENT_TOOL_NAMES.includes(item as (typeof SCRIPT_AGENT_TOOL_NAMES)[number])),
+                  ),
+              )
+            : [...SCRIPT_AGENT_TOOL_NAMES],
+        agentWorkflowVersion: Number.isSafeInteger(input.agentWorkflowVersion) && Number(input.agentWorkflowVersion) > 0 ? Number(input.agentWorkflowVersion) : 1,
+        writeConfirmation: input.writeConfirmation === "high-risk-only" ? "high-risk-only" : "always",
+        creativeControlsEnabled: input.creativeControlsEnabled !== false,
+    };
+}
 export function normalizePracticeModuleVisibility(value: unknown): NonNullable<AuthSettings["practiceModuleVisibility"]> {
     const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
     return {

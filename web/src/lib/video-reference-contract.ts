@@ -4,6 +4,9 @@ export type VideoReferenceRole = (typeof videoReferenceRoles)[number];
 export const creativeVideoReferenceModes = ["reference", "first_frame", "first_last"] as const;
 export type CreativeVideoReferenceMode = (typeof creativeVideoReferenceModes)[number];
 
+export const canvasVideoGenerationModes = ["text_to_video", "omni_reference", "image_to_video", "first_last", "image_reference"] as const;
+export type CanvasVideoGenerationMode = (typeof canvasVideoGenerationModes)[number];
+
 export type VideoGenerationReference = {
     type: "image" | "video" | "audio";
     url: string;

@@ -2,6 +2,7 @@
 
 import type { DramaStoryboardFrameMode } from "@/lib/drama-project-contract";
 import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";
+import { DRAMA_LAB_UI_FEATURES, isDramaLabUiFeatureEnabled } from "@/lib/feature-modules";
 
 export type StoryboardConstraintDraft = { shotCount: string; totalDuration: string; creationMode?: "classic" | "universal"; generateNarration?: boolean };
 
@@ -15,9 +16,22 @@ export type DramaLabStoryboardConstraintsProps = {
     onSequenceModeChange?: (value: DramaLabStoryboardSequenceMode) => void;
     onExportXlsx?: () => void;
     onExportSrt?: () => void;
+    featureModules?: Record<string, boolean>;
 };
 
-export function DramaLabStoryboardConstraints({ value, onChange, disabled, storyboardFrameMode = "single", onStoryboardFrameModeChange, sequenceMode = "single", onSequenceModeChange, onExportXlsx, onExportSrt }: DramaLabStoryboardConstraintsProps) {
+export function DramaLabStoryboardConstraints({
+    value,
+    onChange,
+    disabled,
+    storyboardFrameMode = "single",
+    onStoryboardFrameModeChange,
+    sequenceMode = "single",
+    onSequenceModeChange,
+    onExportXlsx,
+    onExportSrt,
+    featureModules,
+}: DramaLabStoryboardConstraintsProps) {
+    const visible = (id: keyof typeof DRAMA_LAB_UI_FEATURES) => isDramaLabUiFeatureEnabled({ featureModules }, DRAMA_LAB_UI_FEATURES[id]);
     return (
         <div className="mb-4 space-y-3 rounded-lg border border-border p-3" aria-label="分镜生成配置">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3" aria-label="分镜数量与时长">
@@ -27,7 +41,7 @@ export function DramaLabStoryboardConstraints({ value, onChange, disabled, story
                         ["totalDuration", "视频总时长", "视频总时长（秒）"],
                     ] as const
                 ).map(([key, title, label]) => (
-                    <div key={key} className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label={`${title}配置`}>
+                    <div key={key} style={{ display: visible(key === "shotCount" ? "storyboardCount" : "storyboardDuration") ? undefined : "none" }} className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label={`${title}配置`}>
                         <span>{label}</span>
                         <div className="inline-flex h-9 overflow-hidden rounded border border-input bg-background">
                             <button
@@ -93,7 +107,7 @@ export function DramaLabStoryboardConstraints({ value, onChange, disabled, story
                 )}
             </div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-border pt-3" aria-label="分镜创作与旁白">
-                {onStoryboardFrameModeChange && (
+                {onStoryboardFrameModeChange && visible("storyboardFirstLast") && (
                     <label className="flex items-center gap-2 text-sm">
                         <input aria-label="首尾帧参考图" type="checkbox" checked={storyboardFrameMode === "first_last"} disabled={disabled} onChange={(event) => onStoryboardFrameModeChange(event.target.checked ? "first_last" : "single")} />
                         首尾帧参考图
@@ -116,12 +130,12 @@ export function DramaLabStoryboardConstraints({ value, onChange, disabled, story
                     <input type="checkbox" checked={value.generateNarration === true} disabled={disabled} onChange={(event) => onChange({ ...value, generateNarration: event.target.checked })} />
                     生成解说旁白
                 </label>
-                {onExportXlsx ? (
+                {visible("storyboardExport") && onExportXlsx ? (
                     <button type="button" disabled={disabled} onClick={onExportXlsx} className="h-9 rounded border border-primary px-3 text-sm text-primary hover:bg-primary/5">
                         导出分镜表 Excel
                     </button>
                 ) : null}
-                {onExportSrt ? (
+                {visible("storyboardExport") && onExportSrt ? (
                     <button type="button" disabled={disabled} onClick={onExportSrt} className="h-9 rounded border border-primary px-3 text-sm text-primary hover:bg-primary/5">
                         导出解说 SRT
                     </button>

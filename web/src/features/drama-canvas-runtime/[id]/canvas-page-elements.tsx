@@ -5,7 +5,7 @@ import { Globe2, ImageIcon, List, Music2, Settings2, Video } from "lucide-react"
 import { nanoid } from "nanoid";
 
 import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { getNodeSpec } from "../constants";
 import { CanvasNodeType, type CanvasAssistantSession, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type ConnectionHandle, type Position } from "../types";
 
@@ -76,7 +76,7 @@ export function createCanvasNode(type: CanvasNodeType, position: Position, metad
 }
 
 export function CanvasRefreshShell() {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     return (
         <main className="relative h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.backdrop, color: theme.node.text }}>
             <div
@@ -112,7 +112,7 @@ export function CanvasRefreshShell() {
 }
 
 export function NodeCreateMenu({ position, onCreate, onClose }: { position: Position; onCreate: (type: CanvasCreatableNodeType) => void; onClose: () => void }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
 
     return (
         <div
@@ -150,7 +150,7 @@ export function NodeCreateMenu({ position, onCreate, onClose }: { position: Posi
 }
 
 export function ConnectionCreateMenu({ pending, onCreate, onClose }: { pending: PendingConnectionCreate; onCreate: (type: CanvasCreatableNodeType) => void; onClose: () => void }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const menuRef = useRef<HTMLDivElement>(null);
     const [placement, setPlacement] = useState({ anchorX: pending.position.x, anchorY: pending.position.y, offsetX: 0, offsetY: 0 });
     const currentPlacement = placement.anchorX === pending.position.x && placement.anchorY === pending.position.y ? placement : { anchorX: pending.position.x, anchorY: pending.position.y, offsetX: 0, offsetY: 0 };

@@ -51,6 +51,37 @@ describe("admin settings model routing", () => {
         expect(mocks.safeRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "admin.settings.update", metadata: { fields: expect.arrayContaining(["systemChannels", "logicalModels", "defaultModels"]) } }));
     });
 
+    it("persists explicit reference-video capability on the logical binding", async () => {
+        const videoChannel = { ...savedSettings.systemChannels[0], id: "video-channel", models: ["doubao-seedance-2-0"], advancedConfig: { supportsReferenceVideo: false } };
+        const videoModel = {
+            id: "doubao-seedance-2-0",
+            name: "Seedance",
+            capability: "video",
+            enabled: true,
+            bindings: [
+                {
+                    id: "video-binding",
+                    channelId: "video-channel",
+                    upstreamModel: "doubao-seedance-2-0",
+                    enabled: true,
+                    priority: 1,
+                    capabilityProfile: { supportsReferenceVideo: true },
+                },
+            ],
+        };
+        const response = await PATCH(request({ systemChannels: [videoChannel], logicalModels: [videoModel], defaultModels: { ...savedSettings.defaultModels, videoModel: "doubao-seedance-2-0" } }));
+        expect(response.status).toBe(200);
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                logicalModels: [
+                    expect.objectContaining({
+                        id: "doubao-seedance-2-0",
+                        bindings: [expect.objectContaining({ capabilityProfile: expect.objectContaining({ supportsReferenceVideo: true }) })],
+                    }),
+                ],
+            }),
+        );
+    });
     it("deletes a channel together with stale logical bindings and defaults", async () => {
         const response = await PATCH(request({ systemChannels: [], logicalModels: savedSettings.logicalModels, defaultModels: savedSettings.defaultModels }));
         expect(response.status).toBe(200);

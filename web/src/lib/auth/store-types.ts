@@ -173,6 +173,7 @@ export type SystemChannelAdvancedConfig = {
     operationConfigs?: Partial<Record<LogicalModelCapability, SystemChannelModelConfig>>;
     workflowConfigs?: Record<string, RunningHubWorkflowConfig>;
     streaming?: SystemChannelStreamingConfig;
+    requestIdHeader?: string;
     contextWindowTokens?: number;
 };
 
@@ -210,6 +211,7 @@ export type LogicalModelCapabilityProfile = {
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
+    supportsAudioGeneration?: boolean;
     maxReferenceImages?: number;
     aspectRatios?: string[];
     resolutions?: string[];
@@ -594,6 +596,20 @@ export type StoredEmailCode = {
     attempts?: number;
 };
 
+export type PracticeScriptSettings = {
+    enabled: boolean;
+    defaultModelId: string;
+    fallbackModelId?: string;
+    endpointId?: string;
+    defaultLanguage: string;
+    defaultFormat: "structured" | "fountain";
+    enabledSkills: string[];
+    enabledTools: string[];
+    agentWorkflowVersion: number;
+    writeConfirmation: "always" | "high-risk-only";
+    creativeControlsEnabled: boolean;
+};
+
 export type AuthSettings = {
     settingsRevision?: number;
     site: SiteSettings;
@@ -616,6 +632,7 @@ export type AuthSettings = {
     practiceDefaultModels: SystemDefaultModels;
     practiceWorkflowModels: PracticeWorkflowModelBindings;
     practiceModuleVisibility?: PracticeModuleVisibility;
+    practiceScriptSettings: PracticeScriptSettings;
     agentSkills: AgentSkill[];
     /** Global enablement for built-in user-facing modules. */
     featureModules: FeatureModuleSettings;

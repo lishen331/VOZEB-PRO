@@ -742,6 +742,13 @@ function responseHeaders(headers: Headers, chargeResult?: Awaited<ReturnType<typ
         if (value) nextHeaders.set(key, value);
     });
     if (upstreamUrl) nextHeaders.set("x-vozeb-pro-upstream-url", upstreamUrl);
+    // 透传中转回显的请求 ID（转存为 x-vozeb-pro-* 命名，不向客户端暴露中转品牌头名）。
+    // 同步生图响应体无 task ID 时，下游凭此 ID 事后按 request_id 向中转查回已生成结果，
+    // 避免"上游已扣费、本地却丢结果并永久冻结"。
+    const upstreamRequestId = headers.get("x-oneapi-request-id") || headers.get("x-request-id");
+    if (upstreamRequestId) nextHeaders.set("x-vozeb-pro-upstream-request-id", upstreamRequestId);
+    const upstreamOriginRequestId = headers.get("x-upstream-request-id");
+    if (upstreamOriginRequestId) nextHeaders.set("x-vozeb-pro-upstream-origin-request-id", upstreamOriginRequestId);
     if (chargeResult) {
         nextHeaders.set("x-vozeb-pro-points-cost", String(chargeResult.cost));
         nextHeaders.set("x-vozeb-pro-billing-receipt-id", chargeResult.receiptId);

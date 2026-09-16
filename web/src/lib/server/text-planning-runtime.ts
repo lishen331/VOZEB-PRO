@@ -4,7 +4,7 @@ import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-o
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { buildProviderRequest, isProviderBusinessError, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
 import { extractJsonObjectText } from "@/lib/server/structured-model-output";
-import { SYSTEM_AI_LOGICAL_MODEL_HEADER, SYSTEM_AI_POINTS_IDEMPOTENCY_HEADER, SYSTEM_AI_UPSTREAM_MODEL_HEADER, systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
+import { SYSTEM_AI_EXECUTION_PROFILE_HEADER, SYSTEM_AI_LOGICAL_MODEL_HEADER, SYSTEM_AI_POINTS_IDEMPOTENCY_HEADER, SYSTEM_AI_UPSTREAM_MODEL_HEADER, systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { interpolateModelPath, resolveTextProtocol } from "@/lib/server/text-protocol-resolver";
 import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
@@ -321,8 +321,9 @@ function repairRequestHeaders(input: StructuredTextRequest) {
     const logicalModel = headers.get(SYSTEM_AI_LOGICAL_MODEL_HEADER)?.trim();
     const businessRequestId = headers.get(SYSTEM_AI_POINTS_IDEMPOTENCY_HEADER)?.trim();
     const upstreamModel = headers.get(SYSTEM_AI_UPSTREAM_MODEL_HEADER)?.trim() || input.candidate.upstreamModel;
+    const executionProfile = headers.get(SYSTEM_AI_EXECUTION_PROFILE_HEADER)?.trim() === "open-source-practice" ? "open-source-practice" : "production";
     if (!logicalModel || !businessRequestId) return headers;
-    Object.entries(systemAiBillingHeaders(logicalModel, `${businessRequestId}:repair`, upstreamModel)).forEach(([name, value]) => headers.set(name, value));
+    Object.entries(systemAiBillingHeaders(logicalModel, `${businessRequestId}:repair`, upstreamModel, executionProfile)).forEach(([name, value]) => headers.set(name, value));
     return headers;
 }
 

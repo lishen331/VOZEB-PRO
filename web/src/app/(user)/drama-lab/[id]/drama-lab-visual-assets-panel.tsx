@@ -1,30 +1,37 @@
-"use client";
+﻿"use client";
 
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
+import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 
-import { Button, Image, Input, Modal, Tabs, Tooltip } from "antd";
+import { Button, Checkbox, Image, Input, Modal, Progress, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
-import { Check, Edit2, ImagePlus, Images, LibraryBig, MapPin, Package, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
+import { Check, CheckCircle2, CircleAlert, Download, ImagePlus, LibraryBig, LoaderCircle, MapPin, Package, PanelsTopLeft, Plus, Search, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import type { TextAreaRef } from "antd/es/input/TextArea";
+import { highlightResourceMentions } from "./outline/resource-image-generation";
+import type { ReferenceImage } from "@/types/image";
 
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
+import { addPrimaryToGenerationReferences, createAssetGeneratedPrimary, generationReferences } from "@/lib/drama-lab-asset-editor-images";
 import type { Asset } from "@/lib/library-asset-contract";
+import type { DramaLabTaskView } from "@/lib/server/drama-lab-task-service";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { createImageGenerationTask, waitForImageGenerationTask, type ImageGenerationResult } from "@/services/api/image";
 import { createLibraryAsset } from "@/services/api/library-assets";
 import { uploadImage } from "@/services/image-storage";
-import { useEffectiveConfig } from "@/stores/use-config-store";
+import { selectableModelsByCapability, useEffectiveConfig } from "@/stores/use-config-store";
 
 import type { Character, DramaLabAssetProfile, DramaLabAssetReference, Episode, Project, Prop, Scene, Shot } from "./drama-workflow-lab-project-complete";
 
 import { DramaLabAssetLibraryPicker } from "./drama-lab-asset-library-picker";
 import { DramaLabAssetDetailFields } from "./drama-lab-asset-detail-fields";
+import { DramaLabUiFeature } from "./drama-lab-ui-feature";
 
 type AssetKind = "characters" | "scenes" | "props";
 type VisualAsset = Character | Scene | Prop;
-type EditorState = { kind: AssetKind; asset?: VisualAsset };
+type EditorState = { kind: AssetKind; asset?: VisualAsset; creating?: boolean; draftCreated?: boolean };
 type ProjectUpdate = Partial<Project> | ((current: Project) => Partial<Project>);
 
 const EMPTY_PROFILE: DramaLabAssetProfile = { visualIdentity: "", styling: "", colorPalette: "", consistencyRules: "" };
@@ -40,14 +47,17 @@ export function DramaLabVisualAssetsPanel({
     onSave,
     onReload,
     onLocateShot,
+    onOpenCanvasHref,
     messageApi,
 }: {
     project: Project;
     episode?: Episode;
     onSave: (updates: ProjectUpdate) => Promise<boolean>;
-    onReload: () => Promise<void>;
+    onReload: (options?: { silent?: boolean }) => Promise<void>;
     onLocateShot: (episodeId: string, shotId: string) => void;
+    onOpenCanvasHref: (assetType: "character" | "scene" | "prop", assetId: string) => string;
     messageApi: MessageInstance;
+    featureModules?: Record<string, boolean>;
 }) {
     const config = useEffectiveConfig();
     const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -55,9 +65,49 @@ export function DramaLabVisualAssetsPanel({
     const [editor, setEditor] = useState<EditorState>();
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [busyKey, setBusyKey] = useState("");
+    const [layoutDefaults, setLayoutDefaults] = useState<Record<AssetKind, "single" | "four_view">>({ characters: "four_view", scenes: "single", props: "single" });
+    const [historyAssetId, setHistoryAssetId] = useState<string>();
+    const historyAsset = (project[kind] as VisualAsset[]).find((asset) => asset.id === historyAssetId);
+    const [impactModalAsset, setImpactModalAsset] = useState<VisualAsset>();
+    const [previewImage, setPreviewImage] = useState<{ url: string; alt: string }>();
+    const [assetWorkflowTask, setAssetWorkflowTask] = useState<DramaLabTaskView>();
+    const reloadedAssetTaskIdsRef = useRef<Set<string>>(new Set());
 
-    const assets = project[kind] as VisualAsset[];
     const definition = ASSET_META[kind];
+    const assetWorkflowRunning = Boolean(assetWorkflowTask && ["pending", "running"].includes(assetWorkflowTask.status));
+    const assetWorkflowGuidance = getAssetWorkflowGuidance(assetWorkflowTask, project);
+    const assetWorkflowUpdates = getAssetWorkflowUpdates(assetWorkflowTask);
+
+    const selectAssetWorkflowTask = (tasks: DramaLabTaskView[]) => {
+        const candidates = tasks.filter((task) => task.projectId === project.id && task.workflowMode === "assets" && (!episode?.id || !task.episodeId || task.episodeId === episode.id)).sort((left, right) => right.updatedAt - left.updatedAt);
+        const latest = candidates[0];
+        if (latest) {
+            setAssetWorkflowTask((current) => (current?.id === latest.id && current.status === latest.status && current.progress === latest.progress && current.updatedAt === latest.updatedAt ? current : latest));
+        }
+    };
+
+    const loadAssetWorkflowTask = async () => {
+        try {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/tasks?status=all`, { cache: "no-store" });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: { tasks?: DramaLabTaskView[] } };
+            if (response.ok && payload.code === 0) selectAssetWorkflowTask(Array.isArray(payload.data?.tasks) ? payload.data.tasks : []);
+        } catch {
+            // The task sidebar remains the source of truth if this optional guidance read fails.
+        }
+    };
+
+    useEffect(() => {
+        void loadAssetWorkflowTask();
+        const onTaskUpdated = (event: Event) => {
+            const detail = (event as CustomEvent<{ projectId?: string; tasks?: DramaLabTaskView[] }>).detail;
+            if (detail?.projectId === project.id && Array.isArray(detail.tasks)) {
+                selectAssetWorkflowTask(detail.tasks);
+                // Task panel owns polling; keep this panel stable and do not reload the parent here.
+            }
+        };
+        window.addEventListener("drama-lab-task-updated", onTaskUpdated);
+        return () => window.removeEventListener("drama-lab-task-updated", onTaskUpdated);
+    }, [episode?.id, project.id]);
     const activeAsset = editor?.asset;
 
     const assetShots = useMemo(() => {
@@ -68,75 +118,152 @@ export function DramaLabVisualAssetsPanel({
         return grouped;
     }, [project.shots]);
 
-    const replaceAssets = async (next: VisualAsset[] | ((current: VisualAsset[]) => VisualAsset[])) =>
+    const replaceAssetsFor = async (assetKind: AssetKind, next: VisualAsset[] | ((current: VisualAsset[]) => VisualAsset[])) =>
         onSave(
             (currentProject) =>
                 ({
-                    [kind]: typeof next === "function" ? next(currentProject[kind] as VisualAsset[]) : next,
+                    [assetKind]: typeof next === "function" ? next(currentProject[assetKind] as VisualAsset[]) : next,
                 }) as Partial<Project>,
         );
 
+    const replaceAssets = (next: VisualAsset[] | ((current: VisualAsset[]) => VisualAsset[])) => replaceAssetsFor(kind, next);
+
     const updateAsset = async (assetId: string, patch: Partial<VisualAsset>) => {
-        return replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)));
+        const saved = await replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)));
+        if (saved) setEditor((current) => (current?.asset?.id === assetId ? { ...current, asset: { ...current.asset, ...patch } } : current));
+        return saved;
     };
 
-    const extractFromScript = async () => {
+    const extractAssetsForKind = async (assetKind: AssetKind) => {
+        if (!episode?.script.trim()) throw new Error("请先填写当前集剧本");
+
+        const resourceType = assetKind === "characters" ? "character" : assetKind === "scenes" ? "scene" : "prop";
+        const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-assets`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ episodeId: episode.id, assetType: resourceType, requestId: `drama-lab-extract:${project.id}:${episode.id}:${resourceType}:${nanoid()}` }),
+        });
+        const payload = (await response.json()) as { code?: number; msg?: string; data?: { assets?: Array<DramaAssetVisualDetails & { id?: string; name?: string; description?: string; location?: string }> } };
+        if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "资产提取失败");
+
+        const extracted = (payload.data?.assets || []).flatMap((asset) => {
+            const name = asset.name?.trim() || "";
+            if (!name) return [];
+            return [
+                createAsset(assetKind, {
+                    ...readDramaLabAssetVisualDetails(asset),
+                    id: asset.id || `${assetKind}-${nanoid()}`,
+                    name,
+                    generationLayout: assetKind === "characters" ? "four_view" : layoutDefaults[assetKind],
+                    description: asset.description || "",
+                    ...(assetKind === "scenes" ? { location: asset.location || name, time: asset.time } : {}),
+                }),
+            ];
+        });
+
+        if (!extracted.length) return 0;
+
+        let addedCount = 0;
+        const existingNames = new Set((project[assetKind] as VisualAsset[]).map((asset) => assetName(asset).trim()));
+        for (const extractedAsset of extracted) {
+            const name = assetName(extractedAsset).trim();
+            if (!name || existingNames.has(name)) continue;
+            existingNames.add(name);
+            let prepared = extractedAsset;
+            const initialSaved = await replaceAssetsFor(assetKind, (current) => [...current, extractedAsset]);
+            if (!initialSaved) throw new Error("项目保存失败");
+            await onReload();
+            const layout = assetKind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(assetKind, extractedAsset.generationLayout);
+            const resolvePersistedAssetId = async () => {
+                try {
+                    const latestResponse = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}`, { cache: "no-store" });
+                    const latestPayload = (await latestResponse.json().catch(() => ({}))) as { code?: number; data?: { project?: Project } };
+                    const latestProject = latestPayload.data?.project;
+                    const latestAssets = latestProject?.[assetKind] as VisualAsset[] | undefined;
+                    return latestAssets?.find((item) => assetName(item).trim() === name)?.id || extractedAsset.id;
+                } catch {
+                    return extractedAsset.id;
+                }
+            };
+            const persistedAssetId = await resolvePersistedAssetId();
+            const persistedAssetExists = persistedAssetId !== extractedAsset.id || Boolean((project[assetKind] as VisualAsset[]).some((item) => item.id === extractedAsset.id));
+            const runAi = async (action: "prompt" | "anchor") => {
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(persistedAssetId)}/ai`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ kind: assetKind, action, generationLayout: layout, requestId: `drama-lab-extract-${action}:${project.id}:${extractedAsset.id}:${nanoid()}` }),
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "资产 AI 资料生成失败");
+                return payload.data;
+            };
+            try {
+                const promptData = await runAi("prompt");
+                prepared = { ...prepared, ...(promptData.polishedPrompt ? { polishedPrompt: String(promptData.polishedPrompt) } : {}), ...(promptData.singleImagePrompt ? { singleImagePrompt: String(promptData.singleImagePrompt) } : {}) } as VisualAsset;
+                if (assetKind === "characters") {
+                    const anchorData = await runAi("anchor");
+                    if (anchorData.profile && typeof anchorData.profile === "object") prepared = { ...prepared, profile: anchorData.profile } as VisualAsset;
+                }
+            } catch (error) {
+                console.error("[drama-lab] asset enrichment failed", { assetId: extractedAsset.id, assetKind, error });
+            }
+            const savedOne = await replaceAssetsFor(assetKind, (current) => current.map((item) => (item.id === extractedAsset.id ? prepared : item)));
+            if (!savedOne) throw new Error("项目保存失败");
+            addedCount += 1;
+        }
+        return addedCount;
+    };
+
+    const startAssetWorkflow = async () => {
+        if (assetWorkflowRunning) {
+            messageApi.info("资产正在准备中，请等待 Agent 完成当前任务");
+            return;
+        }
         if (!episode?.script.trim()) {
             messageApi.warning("请先填写当前集剧本");
             return;
         }
-        const resourceType = kind === "characters" ? "character" : kind === "scenes" ? "scene" : "prop";
-        const requestKey = `extract:${kind}`;
-        setBusyKey(requestKey);
+        const requestId = `assets:${project.id}:${episode.id}:${Date.now()}`;
+        setBusyKey("extract:all");
         try {
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-assets`, {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/workflow`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ episodeId: episode.id, assetType: resourceType, requestId: `drama-lab-extract:${project.id}:${episode.id}:${resourceType}:${nanoid()}` }),
+                headers: { "Content-Type": "application/json", "x-vozeb-pro-client-request-id": requestId },
+                body: JSON.stringify({ episodeId: episode.id, mode: "assets", scope: "current", requestId }),
             });
-            const payload = (await response.json()) as { code?: number; msg?: string; data?: { assets?: Array<DramaAssetVisualDetails & { id?: string; name?: string; description?: string; location?: string }> } };
-            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "资产提取失败");
-            const current = project[kind] as VisualAsset[];
-            const names = new Set(current.map((asset) => assetName(asset).trim()));
-            const additions = (payload.data?.assets || []).flatMap((asset) => {
-                const name = asset.name?.trim() || "";
-                if (!name || names.has(name)) return [];
-                names.add(name);
-                return [
-                    createAsset(kind, { ...readDramaLabAssetVisualDetails(asset), id: asset.id || `${kind}-${nanoid()}`, name, description: asset.description || "", ...(kind === "scenes" ? { location: asset.location || name, time: asset.time } : {}) }),
-                ];
-            });
-            if (!additions.length) {
-                messageApi.info(`没有发现需要新增的${definition.label}`);
-                return;
-            }
-            if (!(await replaceAssets([...current, ...additions]))) throw new Error("项目保存失败");
-            messageApi.success(`已从剧本提取 ${additions.length} 个${definition.label}`);
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: DramaLabTaskView & { mode?: string } };
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "资产提取任务创建失败");
+            if (payload.data) setAssetWorkflowTask({ ...payload.data, workflowMode: payload.data.workflowMode || (payload.data.mode as DramaLabTaskView["workflowMode"]) });
+            if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("drama-lab-task-created", { detail: { projectId: project.id } }));
+            messageApi.info("资产提取任务已创建，正在提取角色、场景与道具");
         } catch (error) {
-            messageApi.error(error instanceof Error ? error.message : "资产提取失败");
+            messageApi.error(error instanceof Error ? error.message : "资产提取任务创建失败");
         } finally {
             setBusyKey("");
         }
     };
 
-    const importLibraryAsset = async (libraryAsset: Asset) => {
-        if (libraryAsset.kind !== "image") return;
+    const extractFromScript = startAssetWorkflow;
+    const extractAllFromScript = startAssetWorkflow;
+    const importLibraryAsset = async (libraryAsset: Asset): Promise<boolean> => {
+        if (libraryAsset.kind !== "image") return false;
         const current = project[kind] as VisualAsset[];
         if (current.some((asset) => assetName(asset).trim() === libraryAsset.title.trim())) {
             messageApi.warning(`本剧${definition.label}库已存在同名资产`);
-            return;
+            return true;
         }
         const url = libraryAsset.data.serverUrl || libraryAsset.data.remoteUrl || libraryAsset.data.dataUrl || libraryAsset.coverUrl;
         if (!url) {
             messageApi.warning("该素材没有可引用的图片");
-            return;
+            return false;
         }
         const reference = referenceFromUrl(url, "library", libraryAsset.title, libraryAsset.data.storageKey, libraryAsset.data.width, libraryAsset.data.height);
         const next = createAsset(kind, {
             id: `${kind}-${nanoid()}`,
             name: libraryAsset.title,
+            generationLayout: kind === "characters" ? "four_view" : layoutDefaults[kind],
             ...readDramaLabAssetVisualDetails(libraryAsset.metadata),
-            description: libraryAsset.note || libraryAsset.tags.join("、"),
+            description: libraryAsset.note || "",
             references: [reference],
             primaryReferenceId: reference.id,
             referenceImageUrl: reference.url,
@@ -146,43 +273,75 @@ export function DramaLabVisualAssetsPanel({
         try {
             if (!(await replaceAssets([...current, next]))) throw new Error("项目保存失败");
             messageApi.success(`已从素材库添加${definition.label}：${libraryAsset.title}`);
-            setLibraryOpen(false);
+            return true;
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "素材导入失败");
+            return false;
         } finally {
             setBusyKey("");
         }
     };
 
-    const appendReferences = async (asset: VisualAsset, added: DramaLabAssetReference[]) => {
-        const primary = added[0];
-        if (!primary) return false;
-        return updateAsset(asset.id, {
-            references: [...dramaAssetReferences(asset), ...added],
-            primaryReferenceId: primary.id,
-            referenceImageUrl: primary.url,
-            referenceStorageKey: primary.storageKey,
-            imageUrl: primary.url,
-        });
+    const promoteGeneratedReference = async (asset: VisualAsset, added: DramaLabAssetReference[]) => {
+        if (!added.length) return false;
+        const next = added[0];
+        const promoted = createAssetGeneratedPrimary(dramaAssetReferences(asset), dramaAssetPrimaryReference(asset), next);
+        return updateAsset(asset.id, { ...promoted, referenceImageUrl: next.url, referenceStorageKey: next.storageKey, imageUrl: next.url });
     };
-
-    const generateAssetReference = async (asset: VisualAsset) => {
+    const generateAssetReference = async (asset: VisualAsset, assetKind: AssetKind, overrides?: { prompt?: string; model?: string; size?: string; quality?: string }) => {
         const requestKey = `asset:${asset.id}`;
         setBusyKey(requestKey);
         try {
-            const prompt = buildDramaLabAssetImagePrompt(project, asset, kind);
-            const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
-            const task = await createImageGenerationTask(imageConfig, prompt, [], undefined, {
+            const layout = assetKind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(assetKind, asset.generationLayout);
+            let effectiveAsset = { ...asset, generationLayout: layout } as VisualAsset;
+            const storedPrompt = assetKind === "scenes" && layout === "single" ? effectiveAsset.singleImagePrompt?.trim() : effectiveAsset.polishedPrompt?.trim();
+            if (!storedPrompt && overrides?.prompt === undefined) {
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(asset.id)}/ai`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ kind: assetKind, action: "prompt", generationLayout: layout, requestId: `drama-lab-asset-prompt:${project.id}:${asset.id}:${layout}:${nanoid()}` }),
+                });
+                const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { polishedPrompt?: string; singleImagePrompt?: string } };
+                if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "最终生图提示词生成失败");
+                const promptPatch = { generationLayout: layout, polishedPrompt: payload.data.polishedPrompt || effectiveAsset.polishedPrompt, singleImagePrompt: payload.data.singleImagePrompt || effectiveAsset.singleImagePrompt };
+                if (!(await updateAsset(asset.id, promptPatch))) throw new Error("最终生图提示词保存失败");
+                effectiveAsset = { ...effectiveAsset, ...promptPatch } as VisualAsset;
+            }
+            const prompt = overrides?.prompt ?? buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind);
+            const selectedModel = overrides?.model || config.imageModel || config.model;
+            const imageConfig = { ...config, model: selectedModel, imageModel: selectedModel, size: overrides?.size || project.aspectRatio || config.size, quality: overrides?.quality || config.quality, count: "1" };
+            const canonicalReferences = dramaAssetReferences(effectiveAsset);
+            const primaryReference = dramaAssetPrimaryReference(effectiveAsset);
+            const sourceReferences =
+                assetKind === "characters"
+                    ? generationReferences(canonicalReferences)
+                    : [primaryReference, ...generationReferences(canonicalReferences)]
+                          .filter((reference, index, values): reference is NonNullable<typeof reference> => Boolean(reference) && values.findIndex((item) => item?.url === reference.url) === index)
+                          .slice(0, 10);
+            const imageReferences: ReferenceImage[] = sourceReferences.map((reference) => ({
+                id: reference.id,
+                name: reference.label || assetName(effectiveAsset),
+                type: "image",
+                dataUrl: reference.url,
+                url: reference.url,
+                serverUrl: reference.url.startsWith("/") ? reference.url : undefined,
+                remoteUrl: /^https?:\/\//i.test(reference.url) ? reference.url : undefined,
+                storageKey: reference.storageKey,
+                width: reference.width,
+                height: reference.height,
+            }));
+            const task = await createImageGenerationTask(imageConfig, prompt, imageReferences, undefined, {
                 logSource: "drama",
-                logTitle: `${project.title} · ${asset.name}${definition.label}设定图`,
+                logTitle: `${project.title} · ${assetName(effectiveAsset)}${ASSET_META[assetKind].label}设定图`,
                 surface: "drama",
                 projectId: project.id,
-                clientRequestId: `drama-lab-asset:${project.id}:${asset.id}:${nanoid()}`,
+                clientRequestId: `drama-lab-asset:${project.id}:${asset.id}:${layout}:${nanoid()}`,
+                referenceRoles: imageReferences.length ? Object.fromEntries(imageReferences.map((reference) => [reference.id, [assetKind === "characters" ? "identity" : assetKind === "scenes" ? "scene" : "prop"]])) : undefined,
             });
             const references = imageResultsToReferences(await waitForImageGenerationTask(imageConfig, task));
             if (!references.length) throw new Error("生成结果没有可持久化图片地址");
-            if (!(await appendReferences(asset, references))) throw new Error("项目保存失败");
-            messageApi.success(references.length > 1 ? `已生成 ${references.length} 张候选图` : "候选图已生成并设为主参考图");
+            if (!(await promoteGeneratedReference(effectiveAsset, references))) throw new Error("项目保存失败");
+            messageApi.success(references.length > 1 ? `已生成 ${references.length} 张候选图` : "图片已生成并设为主图");
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "资产图片生成失败");
         } finally {
@@ -190,15 +349,53 @@ export function DramaLabVisualAssetsPanel({
         }
     };
 
-    const uploadReference = async (file?: File) => {
-        if (!file || !activeAsset) return;
+    const removeActiveReference = async () => {
+        if (!activeAsset) return;
+        const refs = dramaAssetReferences(activeAsset);
+        const primary = refs[0];
+        if (!primary) return;
+        await updateAsset(activeAsset.id, { references: refs.slice(1), primaryReferenceId: refs[1]?.id, referenceImageUrl: refs[1]?.url, referenceStorageKey: refs[1]?.storageKey });
+        setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, references: refs.slice(1), primaryReferenceId: refs[1]?.id, referenceImageUrl: refs[1]?.url, referenceStorageKey: refs[1]?.storageKey } } : current));
+    };
+
+    const uploadReference = async (files?: FileList | File[]) => {
+        if (!files || !activeAsset) return;
+        const selected = Array.from(files).filter((file) => file.type.startsWith("image/"));
+        if (!selected.length) return;
+        if (!activeAsset.id) {
+            try {
+                const uploaded = await Promise.all(
+                    selected.map(async (file) => {
+                        const stored = await uploadImage(file);
+                        return referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height, "reference");
+                    }),
+                );
+                const refs = [...dramaAssetReferences(activeAsset), ...uploaded];
+                const primary = dramaAssetPrimaryReference(activeAsset) || uploaded[0];
+                setEditor((current) =>
+                    current?.asset ? { ...current, asset: { ...current.asset, references: refs, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url } } : current,
+                );
+            } catch (error) {
+                messageApi.error(error instanceof Error ? error.message : "参考图上传失败");
+            }
+            return;
+        }
         const requestKey = `upload:${activeAsset.id}`;
         setBusyKey(requestKey);
         try {
-            const stored = await uploadImage(file);
-            const reference = referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height);
-            if (!(await appendReferences(activeAsset, [reference]))) throw new Error("项目保存失败");
-            messageApi.success("参考图已上传并设为主参考图");
+            const uploaded = await Promise.all(
+                selected.map(async (file) => {
+                    const stored = await uploadImage(file);
+                    return referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height, "reference");
+                }),
+            );
+            const currentReferences = dramaAssetReferences(activeAsset);
+            const nextReferences = [...currentReferences, ...uploaded];
+            const primary = currentReferences[0] || uploaded[0];
+            const patch = { references: nextReferences, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url };
+            if (!(await updateAsset(activeAsset.id, patch))) throw new Error("项目保存失败");
+            setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, ...patch } } : current));
+            messageApi.success(`已上传 ${uploaded.length} 张参考图${primary ? "并显示主参考图" : ""}`);
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "参考图上传失败");
         } finally {
@@ -207,18 +404,98 @@ export function DramaLabVisualAssetsPanel({
         }
     };
 
+    const replacePrimaryReference = async (files?: FileList | File[]) => {
+        if (!files || !activeAsset) return;
+        const file = Array.from(files).find((item) => item.type.startsWith("image/"));
+        if (!file) return;
+        setBusyKey(`upload-primary:${activeAsset.id}`);
+        try {
+            const stored = await uploadImage(file);
+            const next = referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height, "primary");
+            const promoted = createAssetGeneratedPrimary(dramaAssetReferences(activeAsset), dramaAssetPrimaryReference(activeAsset), next);
+            const patch = { ...promoted, referenceImageUrl: next.url, referenceStorageKey: next.storageKey, imageUrl: next.url };
+            if (!(await updateAsset(activeAsset.id, patch))) throw new Error("项目保存失败");
+            setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, ...patch } } : current));
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "主图替换失败");
+        } finally {
+            setBusyKey("");
+        }
+    };
+
+    const addActivePrimaryToReferences = async () => {
+        if (!activeAsset) return;
+        const references = dramaAssetReferences(activeAsset);
+        const next = addPrimaryToGenerationReferences(references, dramaAssetPrimaryReference(activeAsset));
+        if (next === references) return messageApi.info("当前主图已在参考图中");
+        if (activeAsset.id && !(await updateAsset(activeAsset.id, { references: next }))) return;
+        setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, references: next } } : current));
+        messageApi.success("已加入参考图");
+    };
     const setPrimary = async (asset: VisualAsset, reference: DramaLabAssetReference) => {
-        if (!(await updateAsset(asset.id, { primaryReferenceId: reference.id, referenceImageUrl: reference.url, referenceStorageKey: reference.storageKey, imageUrl: reference.url }))) return;
+        if (asset.id && !(await updateAsset(asset.id, { primaryReferenceId: reference.id, referenceImageUrl: reference.url, referenceStorageKey: reference.storageKey, imageUrl: reference.url }))) return;
         messageApi.success("已设为主参考图");
     };
 
     const removeReference = async (asset: VisualAsset, referenceId: string) => {
         const references = dramaAssetReferences(asset).filter((reference) => reference.id !== referenceId);
         const primary = references.find((reference) => reference.id === asset.primaryReferenceId) || references[0];
-        if (!(await updateAsset(asset.id, { references, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url }))) return;
+        if (asset.id && !(await updateAsset(asset.id, { references, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url }))) return;
         messageApi.success("参考图已移除");
     };
 
+    const runAssetAiAction = async (action: "describe" | "prompt" | "anchor" | "stages") => {
+        if (!activeAsset || !editor) return;
+        const key = `ai:${action}:${activeAsset.id || "new"}`;
+        setBusyKey(key);
+        try {
+            if (!activeAsset.id) throw new Error("请先保存资产，再使用 AI 操作");
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(activeAsset.id)}/ai`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind: editor.kind, action, requestId: `drama-lab-asset-ai:${project.id}:${activeAsset.id}:${action}:${nanoid()}` }),
+            });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { appearance?: string; polishedPrompt?: string; singleImagePrompt?: string; profile?: DramaLabAssetProfile; stages?: VisualAsset["stages"] } };
+            if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "资产 AI 操作失败");
+            const patch =
+                action === "describe"
+                    ? { appearance: payload.data.appearance || "" }
+                    : action === "prompt"
+                      ? { polishedPrompt: payload.data.polishedPrompt || currentAssetPrompt(activeAsset, editor.kind, "four_view"), singleImagePrompt: payload.data.singleImagePrompt || activeAsset.singleImagePrompt }
+                      : action === "anchor"
+                        ? { profile: { ...EMPTY_PROFILE, ...(payload.data.profile || {}) } }
+                        : { stages: payload.data.stages || [] };
+            setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, ...patch } } : current));
+            messageApi.success(action === "describe" ? "参考图描述已提取" : action === "prompt" ? "最终生图提示词已生成" : action === "anchor" ? "视觉锚点已提炼" : "多阶段造型已生成");
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "资产 AI 操作失败");
+        } finally {
+            setBusyKey("");
+        }
+    };
+
+    const closeEditor = async () => {
+        if (!editor?.asset) return setEditor(undefined);
+        const close = async () => {
+            if (editor.creating && editor.draftCreated && editor.asset?.id) {
+                const draftId = editor.asset.id;
+                const cleaned = await replaceAssetsFor(editor.kind, (current) => current.filter((asset) => asset.id !== draftId));
+                if (!cleaned) return;
+            }
+            setEditor(undefined);
+        };
+        if (busyKey.startsWith("asset:")) {
+            Modal.confirm({
+                title: "图片仍在生成",
+                content: "关闭后将清理尚未保存的临时资产。确定关闭吗？",
+                okText: "关闭并清理",
+                cancelText: "继续生成",
+                onOk: close,
+            });
+            return;
+        }
+        await close();
+    };
     const saveEditor = async () => {
         if (!editor?.asset) return;
         const name = assetName(editor.asset).trim();
@@ -233,7 +510,23 @@ export function DramaLabVisualAssetsPanel({
     };
 
     const addAsset = () => {
-        setEditor({ kind, asset: createAsset(kind, { id: "", name: "", description: "", profile: { ...EMPTY_PROFILE } }) });
+        setEditor({ kind, creating: true, asset: createAsset(kind, { id: "", name: "", description: "", profile: { ...EMPTY_PROFILE }, generationLayout: kind === "characters" ? "four_view" : layoutDefaults[kind] }) });
+    };
+
+    const deleteAsset = (assetKind: AssetKind, asset: VisualAsset) => {
+        Modal.confirm({
+            title: "删除确认",
+            content: `确定删除「${assetName(asset)}」？`,
+            okText: "删除",
+            cancelText: "取消",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                const saved = await replaceAssetsFor(assetKind, (current) => current.filter((item) => item.id !== asset.id));
+                if (!saved) throw new Error("项目保存失败");
+                if (editor?.asset?.id === asset.id) setEditor(undefined);
+                messageApi.success(`已删除${ASSET_META[assetKind].label}：${assetName(asset)}`);
+            },
+        });
     };
 
     const regenerateShot = async (shot: Shot) => {
@@ -254,20 +547,82 @@ export function DramaLabVisualAssetsPanel({
 
     return (
         <div className="mx-auto max-w-6xl" data-drama-lab-visual-assets>
+            {assetWorkflowGuidance ? (
+                <section className="mb-4 overflow-hidden rounded-lg border border-primary/20 bg-primary/[0.04]" aria-label="资产提取进度" data-asset-workflow-guidance>
+                    <div className="flex items-start gap-3">
+                        {assetWorkflowGuidance.done ? (
+                            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+                        ) : assetWorkflowGuidance.failed ? (
+                            <CircleAlert className="mt-0.5 size-5 shrink-0 text-destructive" />
+                        ) : (
+                            <LoaderCircle className="mt-0.5 size-5 shrink-0 animate-spin text-primary" />
+                        )}
+                        <div className="min-w-0 flex-1 p-4 pb-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="text-sm font-semibold">{assetWorkflowGuidance.title}</h2>
+                                <span className="text-xs text-muted-foreground">{assetWorkflowGuidance.status}</span>
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">{assetWorkflowGuidance.detail}</p>
+                            {assetWorkflowGuidance.progress !== undefined ? (
+                                <Progress className="mt-3" percent={assetWorkflowGuidance.progress ?? 0} showInfo={false} size="small" status={assetWorkflowGuidance.failed ? "exception" : assetWorkflowGuidance.done ? "success" : "active"} />
+                            ) : null}
+                            <p className="mt-2 text-xs text-muted-foreground">{assetWorkflowGuidance.hint}</p>
+                        </div>
+                    </div>
+                    {!assetWorkflowGuidance.done && !assetWorkflowGuidance.failed ? (
+                        <div className="border-t border-primary/10 px-4 py-3" data-asset-workflow-live-output aria-live="polite">
+                            <div className="grid gap-2 sm:grid-cols-3">
+                                {assetWorkflowUpdates.map((update) => {
+                                    const Icon = ASSET_META[update.kind].icon;
+                                    return (
+                                        <button
+                                            key={update.kind}
+                                            type="button"
+                                            className={`flex min-h-16 items-center gap-3 rounded-md border bg-background/70 px-3 text-left transition-colors hover:border-primary/60 ${update.status === "running" ? "border-primary/50 animate-pulse" : "border-border"}`}
+                                            onClick={() => setKind(update.kind)}
+                                            aria-label={`查看${ASSET_META[update.kind].label}提取结果`}
+                                        >
+                                            <Icon className="size-4 shrink-0 text-primary" />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-sm font-medium">{ASSET_META[update.kind].label}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">{update.detail}</span>
+                                            </span>
+                                            {update.status === "running" ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" /> : update.status === "success" ? <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" /> : null}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-3 flex min-h-8 items-center gap-2 rounded-md bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                                <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" />
+                                <span>{assetWorkflowUpdates.find((update) => update.status === "success")?.detail || "Agent 正在读取剧本，识别结果会逐项显示在这里"}</span>
+                            </div>
+                        </div>
+                    ) : null}
+                </section>
+            ) : null}
             <Tabs
                 activeKey={kind}
                 onChange={(value) => setKind(value as AssetKind)}
                 tabBarExtraContent={
                     <div className="flex items-center gap-2">
-                        <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} onClick={() => void extractFromScript()}>
-                            从剧本提取
-                        </Button>
-                        <Button icon={<LibraryBig className="size-3.5" />} onClick={() => setLibraryOpen(true)}>
-                            从素材库添加
-                        </Button>
-                        <Button type="primary" icon={<Plus className="size-3.5" />} onClick={addAsset}>
-                            新增{definition.label}
-                        </Button>
+                        <DramaLabUiFeature feature="assetExtraction">
+                            <Button type="primary" icon={<Sparkles className="size-3.5" />} loading={busyKey === "extract:all"} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => void extractAllFromScript()}>
+                                一键提取
+                            </Button>
+                            <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => void extractFromScript()}>
+                                提取{definition.label}
+                            </Button>
+                        </DramaLabUiFeature>
+                        <DramaLabUiFeature feature="assetReferenceLibrary">
+                            <Button icon={<LibraryBig className="size-3.5" />} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => setLibraryOpen(true)}>
+                                从素材库添加
+                            </Button>
+                        </DramaLabUiFeature>
+                        <DramaLabUiFeature feature="assetPreparation">
+                            <Button type="primary" icon={<Plus className="size-3.5" />} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={addAsset}>
+                                新增{definition.label}
+                            </Button>
+                        </DramaLabUiFeature>
                     </div>
                 }
                 items={(Object.keys(ASSET_META) as AssetKind[]).map((assetKind) => ({
@@ -275,6 +630,20 @@ export function DramaLabVisualAssetsPanel({
                     label: `${ASSET_META[assetKind].label} (${project[assetKind].length})`,
                     children: (
                         <div className="pt-2">
+                            {assetKind !== "characters" ? (
+                                <div className="mb-3">
+                                    <Checkbox
+                                        checked={layoutDefaults[assetKind] === "four_view"}
+                                        onChange={(event) => {
+                                            const generationLayout = event.target.checked ? "four_view" : "single";
+                                            setLayoutDefaults((current) => ({ ...current, [assetKind]: generationLayout }));
+                                            void replaceAssetsFor(assetKind, (current) => current.map((asset) => ({ ...asset, generationLayout })));
+                                        }}
+                                    >
+                                        {assetKind === "scenes" ? "生成四宫格场景（默认单图）" : "生成四视图道具（默认单图，纯色无缝背景）"}
+                                    </Checkbox>
+                                </div>
+                            ) : null}
                             {(project[assetKind] as VisualAsset[]).length ? (
                                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                     {(project[assetKind] as VisualAsset[]).map((asset) => {
@@ -284,54 +653,121 @@ export function DramaLabVisualAssetsPanel({
                                         const meta = ASSET_META[assetKind];
                                         const Icon = meta.icon;
                                         return (
-                                            <article key={asset.id} className="overflow-hidden rounded-md border border-border bg-card" data-drama-lab-asset-card={asset.id}>
-                                                <div className={`relative grid ${meta.aspect} place-items-center overflow-hidden bg-muted/50`}>
+                                            <article
+                                                key={asset.id}
+                                                className="group relative flex h-[430px] cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-card transition-colors hover:border-primary/50"
+                                                data-drama-lab-asset-card={asset.id}
+                                                onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}
+                                            >
+                                                <Button
+                                                    type="text"
+                                                    danger
+                                                    size="small"
+                                                    shape="circle"
+                                                    className="!absolute !right-2 !top-2 z-10 invisible bg-background/90 shadow-sm group-hover:visible"
+                                                    icon={<X className="size-4" />}
+                                                    aria-label={`删除${meta.label}`}
+                                                    title={`删除${meta.label}`}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        deleteAsset(assetKind, asset);
+                                                    }}
+                                                />
+                                                <div className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-muted/50">
                                                     {primary?.url ? (
-                                                        <Image
-                                                            src={imagePreviewUrl(primary.url, 640)}
-                                                            alt={`${asset.name}主参考图`}
-                                                            rootClassName="!block !size-full"
-                                                            className="!size-full !object-cover"
-                                                            preview={{ src: imagePreviewUrl(primary.url, 1920) }}
-                                                        />
+                                                        <button
+                                                            type="button"
+                                                            className="flex size-full items-center justify-center"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                setPreviewImage({ url: imagePreviewUrl(primary.url, 1920), alt: `${asset.name}主参考图` });
+                                                            }}
+                                                            aria-label={`查看${asset.name}主参考图`}
+                                                        >
+                                                            <img src={imagePreviewUrl(primary.url, 640)} alt={`${asset.name}主参考图`} className="block max-h-full max-w-full object-contain" />
+                                                        </button>
                                                     ) : (
                                                         <ImagePlus className="size-7 text-muted-foreground" />
                                                     )}
                                                     {!primary ? <span className="absolute bottom-2 rounded bg-background/90 px-2 py-1 text-xs text-muted-foreground">待补主参考图</span> : null}
                                                 </div>
-                                                <div className="p-3">
+                                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
                                                     <div className="flex min-w-0 items-center gap-2">
                                                         <Icon className="size-4 shrink-0 text-muted-foreground" />
                                                         <h3 className="min-w-0 flex-1 truncate font-medium" title={asset.name}>
                                                             {asset.name}
                                                         </h3>
-                                                        <Tooltip title="编辑设定">
-                                                            <Button type="text" size="small" shape="circle" icon={<Edit2 className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })} aria-label={`编辑${meta.label}`} />
-                                                        </Tooltip>
                                                     </div>
                                                     <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">{asset.description || "未填写文字设定"}</p>
-                                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                                        <Button size="small" icon={<Sparkles className="size-3.5" />} loading={busyKey === `asset:${asset.id}`} onClick={() => void generateAssetReference(asset)}>
-                                                            AI 生图
-                                                        </Button>
-                                                        <Button size="small" icon={<Upload className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}>
+                                                    <div className="mt-2 flex flex-nowrap items-center gap-1" aria-label="资产操作">
+                                                        <DramaLabUiFeature feature="assetGeneration">
+                                                            <Button
+                                                                size="small"
+                                                                className="!px-2 !text-xs"
+                                                                icon={<Sparkles className="size-3.5" />}
+                                                                loading={busyKey === `asset:${asset.id}`}
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    void generateAssetReference(asset, assetKind);
+                                                                }}
+                                                            >
+                                                                AI 生图
+                                                            </Button>
+                                                        </DramaLabUiFeature>
+                                                        <Button
+                                                            size="small"
+                                                            className="!px-2 !text-xs"
+                                                            icon={<Upload className="size-3.5" />}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                setEditor({ kind: assetKind, asset: cloneAsset(asset) });
+                                                            }}
+                                                        >
                                                             上传
                                                         </Button>
-                                                        <Button size="small" icon={<LibraryBig className="size-3.5" />} disabled={!primary} onClick={() => void saveToLibrary(asset, assetKind, meta.label, messageApi)}>
-                                                            加入素材库
+                                                        <Button
+                                                            size="small"
+                                                            className="!px-2 !text-xs"
+                                                            icon={<LibraryBig className="size-3.5" />}
+                                                            disabled={!primary}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                void saveToLibrary(asset, assetKind, meta.label, messageApi);
+                                                            }}
+                                                        >
+                                                            入素材库
+                                                        </Button>
+                                                        <Button
+                                                            size="small"
+                                                            className="!px-2 !text-xs"
+                                                            icon={<PanelsTopLeft className="size-3.5" />}
+                                                            href={onOpenCanvasHref(assetKind === "characters" ? "character" : assetKind === "scenes" ? "scene" : "prop", asset.id)}
+                                                            aria-label="画布定位"
+                                                            title="画布定位"
+                                                            onClick={(event) => event.stopPropagation()}
+                                                        >
+                                                            画布定位
                                                         </Button>
                                                     </div>
                                                     {references.length ? (
-                                                        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5" aria-label="参考图候选">
-                                                            {references.map((reference) => {
+                                                        <div className="mt-2 flex h-12 shrink-0 items-center gap-1.5 overflow-hidden pb-0.5" aria-label="参考图候选">
+                                                            {references.slice(0, 3).map((reference) => {
                                                                 const isPrimary = reference.id === primary?.id;
                                                                 return (
                                                                     <div
                                                                         key={reference.id}
                                                                         className={`group/reference relative size-11 shrink-0 overflow-hidden rounded border ${isPrimary ? "border-foreground ring-1 ring-foreground/20" : "border-border"}`}
                                                                     >
-                                                                        <button type="button" className="block size-full" onClick={() => void setPrimary(asset, reference)} title={isPrimary ? "当前主参考图" : "设为主参考图"}>
-                                                                            <img src={imagePreviewUrl(reference.url, 128)} alt={reference.label} className="size-full object-cover" />
+                                                                        <button
+                                                                            type="button"
+                                                                            className="block size-full"
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                void setPrimary(asset, reference);
+                                                                            }}
+                                                                            title={isPrimary ? "当前主参考图" : "设为主参考图"}
+                                                                        >
+                                                                            <img src={imagePreviewUrl(reference.url, 128)} alt={reference.label} className="size-full object-contain" />
                                                                         </button>
                                                                         {isPrimary ? (
                                                                             <span className="absolute left-0 top-0 grid size-4 place-items-center bg-foreground text-background">
@@ -341,7 +777,10 @@ export function DramaLabVisualAssetsPanel({
                                                                         <button
                                                                             type="button"
                                                                             className="absolute bottom-0 right-0 grid size-4 place-items-center bg-background/90 text-muted-foreground opacity-0 transition group-hover/reference:opacity-100 hover:text-rose-600"
-                                                                            onClick={() => void removeReference(asset, reference.id)}
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                void removeReference(asset, reference.id);
+                                                                            }}
                                                                             aria-label="删除参考图"
                                                                         >
                                                                             <Trash2 className="size-2.5" />
@@ -349,31 +788,56 @@ export function DramaLabVisualAssetsPanel({
                                                                     </div>
                                                                 );
                                                             })}
+                                                            {references.length > 3 ? (
+                                                                <Button
+                                                                    type="text"
+                                                                    size="small"
+                                                                    className="shrink-0"
+                                                                    aria-label="更多历史参考图"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        setHistoryAssetId(asset.id);
+                                                                    }}
+                                                                >
+                                                                    ··· 更多
+                                                                </Button>
+                                                            ) : null}
                                                         </div>
                                                     ) : null}
-                                                    <div className="mt-3 border-t border-border pt-2.5">
+                                                    <div className="mt-auto border-t border-border pt-2.5">
                                                         <div className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                                                             <Video className="size-3.5" /> 影响分镜 {affected.length}
                                                         </div>
                                                         {affected.length ? (
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {affected.map((shot) => (
-                                                                    <div key={shot.id} className="inline-flex max-w-full items-center rounded border border-border bg-muted/35 text-xs">
-                                                                        <button type="button" className="truncate px-2 py-1 hover:bg-muted" onClick={() => onLocateShot(shot.episodeId, shot.id)}>
+                                                            <Tooltip title={<span>关联分镜：{affected.map((shot) => `#${shot.shotNumber}`).join("、")}</span>} placement="topLeft">
+                                                                <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                                                                    {affected.slice(0, 3).map((shot) => (
+                                                                        <button
+                                                                            key={shot.id}
+                                                                            type="button"
+                                                                            className="shrink-0 rounded border border-border bg-muted/35 px-2 py-1 text-xs hover:bg-muted"
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                onLocateShot(shot.episodeId, shot.id);
+                                                                            }}
+                                                                        >
                                                                             #{shot.shotNumber}
                                                                         </button>
+                                                                    ))}
+                                                                    {affected.length > 3 ? (
                                                                         <button
                                                                             type="button"
-                                                                            className="border-l border-border px-1.5 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                                            onClick={() => void regenerateShot(shot)}
-                                                                            disabled={busyKey === `shot:${shot.id}`}
-                                                                            aria-label={`重生成分镜 ${shot.shotNumber}`}
+                                                                            className="shrink-0 px-1 py-1 text-xs text-primary hover:underline"
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                setImpactModalAsset(asset);
+                                                                            }}
                                                                         >
-                                                                            {busyKey === `shot:${shot.id}` ? <span className="text-[10px]">...</span> : <Sparkles className="size-3" />}
+                                                                            ··· 更多（{affected.length - 3}）
                                                                         </button>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            </Tooltip>
                                                         ) : (
                                                             <span className="text-xs text-muted-foreground">尚未关联分镜</span>
                                                         )}
@@ -384,7 +848,9 @@ export function DramaLabVisualAssetsPanel({
                                     })}
                                 </div>
                             ) : (
-                                <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">暂未提取{ASSET_META[assetKind].label}，可先从剧本提取或手动新增</div>
+                                <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+                                    {assetWorkflowGuidance && !assetWorkflowGuidance.done && !assetWorkflowGuidance.failed ? "Agent 正在处理，识别到的资产会实时出现在这里" : `暂未提取${ASSET_META[assetKind].label}，可先从剧本提取或手动新增`}
+                                </div>
                             )}
                         </div>
                     ),
@@ -393,107 +859,967 @@ export function DramaLabVisualAssetsPanel({
 
             <AssetEditorModal
                 editor={editor}
-                busy={busyKey.startsWith("upload:")}
+                busy={busyKey.startsWith("upload:") || busyKey.startsWith("upload-primary:") || busyKey.startsWith("asset:")}
+                busyAction={busyKey.startsWith("ai:") ? (busyKey.split(":")[1] as "describe" | "prompt" | "anchor" | "stages") : undefined}
                 uploadInputRef={uploadInputRef}
-                onClose={() => setEditor(undefined)}
+                onClose={() => void closeEditor()}
                 onChange={(asset) => setEditor((current) => (current ? { ...current, asset } : current))}
                 onSave={() => void saveEditor()}
                 onUpload={() => uploadInputRef.current?.click()}
-                onUploadFile={(file) => void uploadReference(file)}
+                onUploadFile={(files) => void uploadReference(files)}
+                onReplacePrimary={(files) => void replacePrimaryReference(files)}
+                onAddPrimaryToReferences={() => void addActivePrimaryToReferences()}
+                onAiAction={(action) => void runAssetAiAction(action)}
+                defaultModel={config.imageModel || config.model || "auto"}
+                availableModels={selectableModelsByCapability(config, "image")}
+                onGenerate={async (options) => {
+                    if (!activeAsset || !editor) return;
+                    let target = activeAsset;
+                    if (!target.id) {
+                        const kind = editor.kind;
+                        target = createAsset(kind, { ...target, id: `${kind}-${nanoid()}`, name: target.name || "未命名资产", description: target.description || "" });
+                        const saved = await onSave({ [kind]: [...(project[kind] as VisualAsset[]), target] } as Partial<Project>);
+                        if (!saved) return;
+                        setEditor((current) => (current ? { ...current, asset: target, creating: true, draftCreated: true } : current));
+                    }
+                    await generateAssetReference(target, editor.kind, options);
+                }}
+                onRemoveReference={() => void removeActiveReference()}
+                onRemoveReferenceById={(referenceId) => (activeAsset ? void removeReference(activeAsset, referenceId) : undefined)}
+                onSelectHistory={(reference) => (activeAsset ? void setPrimary(activeAsset, reference) : undefined)}
+                onPreview={(reference) => setPreviewImage({ url: reference.url, alt: reference.label || "历史主图" })}
+                onDownloadPrimary={() => (activeAsset ? downloadReference(dramaAssetPrimaryReference(activeAsset)) : undefined)}
             />
-            {libraryOpen ? <DramaLabAssetLibraryPicker key={kind} kind={kind} label={definition.label} busyKey={busyKey} onClose={() => setLibraryOpen(false)} onImport={importLibraryAsset} /> : null}
+            {libraryOpen ? (
+                <DramaLabAssetLibraryPicker
+                    key={kind}
+                    kind={kind}
+                    label={definition.label}
+                    busyKey={busyKey}
+                    importedNames={(project[kind] as VisualAsset[]).map((asset) => assetName(asset))}
+                    onClose={() => setLibraryOpen(false)}
+                    onImport={importLibraryAsset}
+                />
+            ) : null}
+            {historyAsset ? (
+                <Modal open title={`历史参考图 · ${historyAsset.name}`} footer={null} width={720} onCancel={() => setHistoryAssetId(undefined)}>
+                    <div className="grid max-h-[65vh] grid-cols-2 gap-3 overflow-y-auto p-1 sm:grid-cols-3" aria-label="全部历史参考图">
+                        {dramaAssetReferences(historyAsset).map((reference) => (
+                            <div key={reference.id} className="min-w-0 rounded border border-border p-2">
+                                <button
+                                    type="button"
+                                    className="flex h-36 w-full items-center justify-center bg-muted/40"
+                                    aria-label={`查看历史参考图 ${reference.label || reference.id}`}
+                                    onClick={() => setPreviewImage({ url: reference.url, alt: assetName(historyAsset) })}
+                                >
+                                    <img src={imagePreviewUrl(reference.url, 384)} alt={reference.label || historyAsset.name} className="max-h-full max-w-full object-contain" />
+                                </button>
+                                <div className="mt-2 flex flex-wrap items-center gap-1">
+                                    <Button size="small" disabled={reference.id === dramaAssetPrimaryReference(historyAsset)?.id} onClick={() => void setPrimary(historyAsset, reference)}>
+                                        {reference.id === dramaAssetPrimaryReference(historyAsset)?.id ? "当前主参考图" : "设为主参考图"}
+                                    </Button>
+                                    <Button size="small" danger onClick={() => void removeReference(historyAsset, reference.id)}>
+                                        删除
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Modal>
+            ) : null}
+            {previewImage ? (
+                <Modal open title={previewImage.alt} footer={null} centered onCancel={() => setPreviewImage(undefined)} width="auto">
+                    <div className="flex max-h-[80vh] max-w-[90vw] items-center justify-center">
+                        <img src={previewImage.url} alt={previewImage.alt} className="max-h-[78vh] max-w-[88vw] object-contain" />
+                    </div>
+                </Modal>
+            ) : null}
+            {impactModalAsset ? (
+                <Modal open title={`${impactModalAsset.name} · 关联分镜（${(assetShots.get(impactModalAsset.id) || []).length}）`} footer={null} onCancel={() => setImpactModalAsset(undefined)} width={760}>
+                    <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">显示该资产关联分镜的全部信息。点击任意一项后关闭弹窗，并定位到分镜工作台对应镜头。</p>
+                        <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+                            {(assetShots.get(impactModalAsset.id) || []).map((shot) => {
+                                const imageUrl = shot.storyboardImageUrl || shot.imageUrl || shot.frames?.key?.url;
+                                return (
+                                    <button
+                                        key={shot.id}
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-md border border-border p-2 text-left transition-colors hover:bg-muted/50"
+                                        onClick={() => {
+                                            setImpactModalAsset(undefined);
+                                            onLocateShot(shot.episodeId, shot.id);
+                                        }}
+                                    >
+                                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded bg-muted/50 text-xs text-muted-foreground">
+                                            {imageUrl ? <img src={imagePreviewUrl(imageUrl, 160)} alt={`分镜 ${shot.shotNumber}`} className="size-full object-cover" /> : `分镜图 #${shot.shotNumber}`}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-sm font-medium">
+                                                #{shot.shotNumber} · {shot.title || shot.location || "未命名分镜"}
+                                            </div>
+                                            <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{shot.script || shot.description || "暂无分镜摘要"}</div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </Modal>
+            ) : null}
         </div>
     );
+}
+
+function downloadReference(reference?: DramaLabAssetReference) {
+    if (!reference?.url) return;
+    const a = document.createElement("a");
+    a.href = imagePreviewUrl(reference.url, 1920);
+    a.download = reference.label || "主图";
+    a.click();
+}
+
+function resolveAssetImageSize(aspect: string, resolution: string) {
+    if (resolution === "auto") return aspect;
+    const sizes: Record<string, Record<string, string>> = {
+        "2k": { "1:1": "2048x2048", "16:9": "2048x1152", "9:16": "1152x2048", "4:3": "2048x1536" },
+        "4k": { "1:1": "3840x3840", "16:9": "3840x2160", "9:16": "2160x3840", "4:3": "3840x2880" },
+    };
+    return sizes[resolution]?.[aspect] || aspect;
 }
 
 function AssetEditorModal({
     editor,
     busy,
+    busyAction,
     uploadInputRef,
     onClose,
     onChange,
     onSave,
     onUpload,
     onUploadFile,
+    onReplacePrimary,
+    onAddPrimaryToReferences,
+    onAiAction,
+    onGenerate,
+    onRemoveReference,
+    onRemoveReferenceById,
+    onSelectHistory,
+    onPreview,
+    onDownloadPrimary,
+    defaultModel,
+    availableModels,
 }: {
     editor?: EditorState;
     busy: boolean;
+    busyAction?: "describe" | "prompt" | "anchor" | "stages";
     uploadInputRef: RefObject<HTMLInputElement | null>;
     onClose: () => void;
     onChange: (asset: VisualAsset) => void;
     onSave: () => void;
     onUpload: () => void;
-    onUploadFile: (file?: File) => void;
+    onUploadFile: (files?: FileList | File[]) => void;
+    onReplacePrimary: (files?: FileList | File[]) => void;
+    onAddPrimaryToReferences: () => void;
+    onAiAction: (action: "describe" | "prompt" | "anchor" | "stages") => void;
+    defaultModel: string;
+    availableModels: string[];
+    onGenerate: (options?: { prompt?: string; model?: string; size?: string; quality?: string }) => void;
+    onRemoveReference: () => void;
+    onRemoveReferenceById: (referenceId: string) => void;
+    onSelectHistory: (reference: DramaLabAssetReference) => void;
+    onPreview: (reference: DramaLabAssetReference) => void;
+    onDownloadPrimary: () => void;
 }) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
+    const [mentionOpen, setMentionOpen] = useState(false);
+    const [mentionIndex, setMentionIndex] = useState(0);
+    const [selectedModel, setSelectedModel] = useState(defaultModel);
+    const [selectedAspect, setSelectedAspect] = useState("1:1");
+    const [selectedResolution, setSelectedResolution] = useState("auto");
+    const [selectedQuality, setSelectedQuality] = useState("standard");
+    const [modelOpen, setModelOpen] = useState(false);
+    const [paramsOpen, setParamsOpen] = useState(false);
+    useEffect(() => {
+        if (!modelOpen && !paramsOpen) return;
+        const close = () => {
+            setModelOpen(false);
+            setParamsOpen(false);
+        };
+        document.addEventListener("mousedown", close);
+        return () => document.removeEventListener("mousedown", close);
+    }, [modelOpen, paramsOpen]);
+    const promptMirrorRef = useRef<HTMLDivElement>(null);
+    const promptRef = useRef<TextAreaRef>(null);
+    const primaryUploadRef = useRef<HTMLInputElement>(null);
+    const mentionRangeRef = useRef({ start: 0, end: 0 });
     if (!asset) return null;
     const profile = asset.profile || EMPTY_PROFILE;
-    return (
-        <Modal
-            title={asset.id ? `编辑${label}` : `新增${label}`}
-            open
-            footer={
-                <div className="flex justify-between">
-                    <Button icon={<Upload className="size-3.5" />} loading={busy} onClick={onUpload}>
-                        上传参考图
-                    </Button>
-                    <div className="flex gap-2">
+    const references = dramaAssetReferences(asset);
+    const hasReference = references.length > 0;
+    const primary = dramaAssetPrimaryReference(asset);
+    const characterReferences = generationReferences(references);
+    const promptReferences = generationReferences(references);
+
+    const historyReferences = references.filter((reference) => reference.role === "history");
+    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const files = Array.from(event.dataTransfer.files || []);
+        if (files.length) onUploadFile(files);
+    };
+    const handlePromptChange = (value: string, selectionStart: number) => {
+        const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
+        const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
+        mentionRangeRef.current = { start: mentionStart >= 0 ? mentionStart : selectionStart, end: selectionStart };
+        const nextOpen = mentionStart >= 0 && !/\s/.test(mentionText);
+        setMentionOpen(nextOpen);
+        if (nextOpen) setMentionIndex(0);
+        onChange({ ...asset, polishedPrompt: value });
+    };
+    const insertMention = (mentionLabel: string) => {
+        const value = asset.polishedPrompt || "";
+        const { start, end } = mentionRangeRef.current;
+        const token = `@${mentionLabel} `;
+        onChange({ ...asset, polishedPrompt: `${value.slice(0, start)}${token}${value.slice(end)}` });
+        setMentionOpen(false);
+        setMentionIndex(0);
+    };
+    if (editor?.creating) {
+        return (
+            <Modal
+                data-asset-create-single-page
+                title={`新增${label}`}
+                open
+                width="min(960px, calc(100vw - 32px))"
+                onCancel={onClose}
+                footer={
+                    <div className="flex justify-end gap-2">
                         <Button onClick={onClose}>取消</Button>
                         <Button type="primary" onClick={onSave}>
                             保存
                         </Button>
                     </div>
+                }
+            >
+                <p className="mb-5 text-center text-sm text-muted-foreground">先生成或上传一张主参考图，确认后再配置参考图和图生提示词。</p>
+                <div className="grid gap-4">
+                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                        <span className="pt-2 text-sm">主图</span>
+                        <div className="grid grid-cols-[minmax(0,1fr)_13rem] gap-3">
+                            <div
+                                data-asset-primary-dropzone
+                                className="group relative flex min-h-64 cursor-pointer items-center justify-center overflow-hidden rounded border border-dashed bg-muted"
+                                onClick={() => primaryUploadRef.current?.click()}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onReplacePrimary(Array.from(event.dataTransfer.files || []));
+                                }}
+                            >
+                                {primary?.url ? (
+                                    <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt={`${label}主图`} className="!max-h-72 !object-contain" />
+                                ) : (
+                                    <span className="text-sm text-muted-foreground">
+                                        ＋<br />
+                                        拖入或点击上传主图
+                                    </span>
+                                )}
+                                <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-8 opacity-0 transition-opacity group-hover:opacity-100">
+                                    <Button
+                                        size="small"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            primaryUploadRef.current?.click();
+                                        }}
+                                    >
+                                        上传图片
+                                    </Button>
+                                    <Button size="small" onClick={onDownloadPrimary} disabled={!primary?.url}>
+                                        下载主图
+                                    </Button>
+                                    <Button size="small" onClick={onAddPrimaryToReferences} disabled={!primary?.url}>
+                                        加入参考
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="rounded border p-3">
+                                <div className="mb-2 text-sm font-medium">历史主图</div>
+                                <div className="grid max-h-60 grid-cols-2 gap-2 overflow-y-auto">
+                                    {historyReferences.length ? (
+                                        historyReferences.map((reference) => (
+                                            <div key={reference.id} className="group relative overflow-hidden rounded border bg-muted/20">
+                                                <button type="button" className="block h-24 w-full" onClick={() => onSelectHistory(reference)} aria-label={`设为主图 ${reference.label || reference.id}`}>
+                                                    <Image preview={false} src={imagePreviewUrl(reference.url, 200)} alt="历史主图" className="!block !h-24 !w-full !object-contain" />
+                                                </button>
+                                                <button type="button" className="absolute left-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 shadow" onClick={() => onPreview(reference)} aria-label="放大预览">
+                                                    <Search size={14} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 shadow"
+                                                    onClick={() => onRemoveReferenceById(reference.id)}
+                                                    aria-label="删除历史主图"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <span className="col-span-2 py-10 text-center text-xs text-muted-foreground">暂无历史图</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                        <span className="pt-2 text-sm">提示词</span>
+                        <div
+                            data-asset-prompt-dropzone
+                            className="relative rounded border border-dashed p-3"
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                                event.preventDefault();
+                                const files = Array.from(event.dataTransfer.files || []);
+                                if (files.length) onUploadFile(files);
+                            }}
+                        >
+                            <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+                                <span>参考图与提示词（图片可直接拖入此框）</span>
+                                <span>{promptReferences.length} / 9，最多 9 张</span>
+                            </div>
+                            <div className="flex min-h-16 flex-wrap gap-2">
+                                {promptReferences.slice(0, 9).map((reference) => (
+                                    <div key={reference.id} className="group relative size-16 overflow-hidden rounded border">
+                                        <button type="button" className="size-full" onClick={() => onPreview(reference)} aria-label="放大参考图">
+                                            <img src={imagePreviewUrl(reference.url, 160)} alt="参考图" className="size-full object-contain" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="absolute right-0 top-0 grid size-5 place-items-center rounded-full bg-white/90 opacity-0 group-hover:opacity-100"
+                                            onClick={() => onRemoveReferenceById(reference.id)}
+                                            aria-label="删除参考图"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button data-asset-reference-upload type="button" className="grid size-16 place-items-center rounded border text-xl text-muted-foreground" onClick={onUpload} aria-label="添加参考图">
+                                    ＋
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <Input.TextArea
+                                    rows={4}
+                                    value={asset.polishedPrompt || ""}
+                                    placeholder="输入图片生成提示词，输入 @ 选择参考图"
+                                    onChange={(event) => handlePromptChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
+                                />
+                                {mentionOpen && promptReferences.length ? (
+                                    <div className="absolute left-2 top-2 z-30 w-56 rounded-lg border bg-background p-1 shadow-xl">
+                                        {promptReferences.map((reference, index) => (
+                                            <button
+                                                key={reference.id}
+                                                type="button"
+                                                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted ${index === mentionIndex ? "bg-muted font-medium" : ""}`}
+                                                onMouseDown={(event) => event.preventDefault()}
+                                                onClick={() => insertMention(`图${index + 1}`)}
+                                            >
+                                                <img src={imagePreviewUrl(reference.url, 80)} alt="" className="size-8 rounded object-contain" />
+                                                <span>@图{index + 1}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                                <div className="relative">
+                                    <Button size="small" onClick={() => setModelOpen((open) => !open)}>
+                                        模型选择⌄
+                                    </Button>
+                                    {modelOpen ? (
+                                        <div className="absolute bottom-full left-0 z-20 mb-1 w-72 rounded-xl border bg-background p-3 shadow-xl">
+                                            <div className="mb-2 text-sm font-semibold">选择图片模型</div>
+                                            <div className="max-h-56 space-y-1 overflow-y-auto">
+                                                {(availableModels.length ? availableModels : [defaultModel]).map((model) => (
+                                                    <button
+                                                        key={model}
+                                                        type="button"
+                                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs hover:bg-muted ${selectedModel === model ? "bg-muted font-medium" : ""}`}
+                                                        onClick={() => {
+                                                            setSelectedModel(model);
+                                                            setModelOpen(false);
+                                                        }}
+                                                    >
+                                                        <span className="truncate">{model}</span>
+                                                        {selectedModel === model ? <Check size={14} /> : null}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <div className="relative">
+                                    <Button size="small" onClick={() => setParamsOpen((open) => !open)}>
+                                        生成参数⌄
+                                    </Button>
+                                    {paramsOpen ? (
+                                        <div className="absolute bottom-full left-0 z-20 mb-1 grid w-48 gap-2 rounded border bg-background p-2 text-xs shadow">
+                                            <label>
+                                                比例
+                                                <select className="ml-2 rounded border" value={selectedAspect} onChange={(event) => setSelectedAspect(event.target.value)}>
+                                                    <option>1:1</option>
+                                                    <option>16:9</option>
+                                                    <option>9:16</option>
+                                                    <option>4:3</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                分辨率
+                                                <select className="ml-2 rounded border" value={selectedResolution} onChange={(event) => setSelectedResolution(event.target.value)}>
+                                                    <option value="auto">自动</option>
+                                                    <option value="2k">2K</option>
+                                                    <option value="4k">4K</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                画质
+                                                <select className="ml-2 rounded border" value={selectedQuality} onChange={(event) => setSelectedQuality(event.target.value)}>
+                                                    <option value="standard">标准</option>
+                                                    <option value="high">高质量</option>
+                                                </select>
+                                            </label>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <Button
+                                    data-asset-generate-image
+                                    className="ml-auto"
+                                    type="primary"
+                                    onClick={() => onGenerate({ prompt: asset.polishedPrompt || "", model: selectedModel, size: resolveAssetImageSize(selectedAspect, selectedResolution), quality: selectedQuality })}
+                                    loading={busy}
+                                >
+                                    生成图片
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                    <input
+                        ref={primaryUploadRef}
+                        className="hidden"
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => {
+                            onReplacePrimary(event.target.files || undefined);
+                            event.currentTarget.value = "";
+                        }}
+                    />
+                    <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(event.target.files || undefined)} />
+                </div>
+            </Modal>
+        );
+    }
+    const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
+    if (editor.kind === "scenes") {
+        return (
+            <Modal
+                title={asset.id ? "编辑场景" : "新增场景"}
+                open
+                width="min(960px, calc(100vw - 32px))"
+                styles={{ body: { maxHeight: "calc(100vh - 160px)", overflowY: "auto", paddingRight: 8 } }}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button onClick={onClose}>取消</Button>
+                        <Button type="primary" onClick={onSave}>
+                            保存
+                        </Button>
+                    </div>
+                }
+                onCancel={onClose}
+                destroyOnHidden
+            >
+                <div className="grid gap-3">
+                    <div className="grid gap-3 border-b border-border pb-4" data-asset-primary-image>
+                        <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                            <span className="pt-2 text-sm">主图</span>
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
+                                <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                                    {primary?.url ? (
+                                        <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="场景主图" className="!max-h-64 !object-contain" />
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">暂无主图</span>
+                                    )}
+                                    <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                                        <Button size="small" onClick={onUpload}>
+                                            上传图片 / 替换主图
+                                        </Button>
+                                        {primary ? (
+                                            <Button size="small" onClick={onAddPrimaryToReferences}>
+                                                加入参考
+                                            </Button>
+                                        ) : null}
+                                        {primary ? (
+                                            <Button size="small" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
+                                                从主图提取描述
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                                <div className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="历史图片">
+                                    {references
+                                        .filter((reference) => reference.role === "history")
+                                        .map((reference, index) => (
+                                            <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                                <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
+                                                <button
+                                                    type="button"
+                                                    aria-label={`删除历史图${index + 1}`}
+                                                    className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                    onClick={() => onRemoveReferenceById(reference.id)}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                            <span className="pt-2 text-sm">参考</span>
+                            <div className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>生成图片的参考图（图生提示词可使用 @图N）</span>
+                                    <span>{references.length} / 9，最多 9 张</span>
+                                </div>
+                                <div className="flex min-h-24 flex-wrap gap-2">
+                                    {references.map((reference, index) => (
+                                        <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-16 !object-contain" />
+                                            <button
+                                                type="button"
+                                                aria-label={`移除参考图 图${index + 1}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                onClick={() => onRemoveReferenceById(reference.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {references.length < 9 ? (
+                                        <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
+                                            <span>
+                                                <b className="block text-xl font-normal">＋</b>拖入或添加
+                                            </span>
+                                        </button>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>地点</span>
+                        <Input value={(asset as Scene).location || ""} onChange={(event) => onChange({ ...asset, location: event.target.value } as VisualAsset)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>时间</span>
+                        <Input value={(asset as Scene).time || ""} onChange={(event) => onChange({ ...asset, time: event.target.value } as VisualAsset)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>场景描述</span>
+                        <Input.TextArea rows={5} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value } as VisualAsset)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span className="flex items-center justify-between">
+                            <span>
+                                单图提示词 <span className="text-xs font-normal text-muted-foreground">单图场景的完整图片提示词（不含四宫格布局），生图时直接使用；可手动修改</span>
+                            </span>
+                            <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
+                                重新生成提示词
+                            </Button>
+                        </span>
+                        <Input.TextArea
+                            rows={5}
+                            value={asset.singleImagePrompt || ""}
+                            onChange={(event) => onChange({ ...asset, singleImagePrompt: event.target.value } as VisualAsset)}
+                            placeholder="单图场景提示词，点击场景列表的 AI 生成按钮后会自动生成"
+                        />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span className="flex items-center justify-between">
+                            <span>
+                                四视图提示词 <span className="text-xs font-normal text-muted-foreground">AI 生成的完整四视图图片提示词，生图时直接使用；可手动修改</span>
+                            </span>
+                            <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
+                                重新生成提示词
+                            </Button>
+                        </span>
+                        <Input.TextArea rows={8} value={asset.polishedPrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value } as VisualAsset)} />
+                    </label>
+                </div>
+                <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(event.target.files || undefined)} />
+            </Modal>
+        );
+    }
+    if (editor.kind === "props") {
+        return (
+            <Modal
+                title={asset.id ? "编辑道具" : "新增道具"}
+                open
+                width={820}
+                styles={{ body: { maxHeight: "min(72vh, 680px)", overflowY: "auto", padding: "16px 20px 12px" } }}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button onClick={onClose}>取消</Button>
+                        <Button type="primary" onClick={onSave}>
+                            保存
+                        </Button>
+                    </div>
+                }
+                onCancel={onClose}
+                destroyOnHidden
+            >
+                <div className="grid gap-3">
+                    <div className="grid gap-3 border-b border-border pb-4" data-asset-primary-image>
+                        <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                            <span className="pt-2 text-sm">主图</span>
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
+                                <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                                    {primary?.url ? (
+                                        <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="道具主图" className="!max-h-64 !object-contain" />
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">暂无主图</span>
+                                    )}
+                                    <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                                        <Button size="small" onClick={onUpload}>
+                                            上传图片 / 替换主图
+                                        </Button>
+                                        {primary ? (
+                                            <Button size="small" onClick={onAddPrimaryToReferences}>
+                                                加入参考
+                                            </Button>
+                                        ) : null}
+                                        {primary ? (
+                                            <Button size="small" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
+                                                从主图提取描述
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                                <div className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="历史图片">
+                                    {references
+                                        .filter((reference) => reference.role === "history")
+                                        .map((reference, index) => (
+                                            <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                                <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
+                                                <button
+                                                    type="button"
+                                                    aria-label={`删除历史图${index + 1}`}
+                                                    className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                    onClick={() => onRemoveReferenceById(reference.id)}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                            <span className="pt-2 text-sm">参考</span>
+                            <div className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>生成图片的参考图（图生提示词可使用 @图N）</span>
+                                    <span>{references.length} / 9，最多 9 张</span>
+                                </div>
+                                <div className="flex min-h-24 flex-wrap gap-2">
+                                    {references.map((reference, index) => (
+                                        <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-full !object-contain" />
+                                            <button
+                                                type="button"
+                                                aria-label={`移除参考图 图${index + 1}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                onClick={() => onRemoveReferenceById(reference.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {references.length < 9 ? (
+                                        <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
+                                            <span>
+                                                <b className="block text-xl font-normal">＋</b>拖入或添加
+                                            </span>
+                                        </button>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>名称</span>
+                        <Input value={asset.name} onChange={(event) => onChange({ ...asset, name: event.target.value })} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>类型</span>
+                        <Input value={(asset as Prop).type || ""} onChange={(event) => onChange({ ...asset, type: event.target.value } as VisualAsset)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>描述</span>
+                        <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+                            <span className="shrink-0">图生提示词</span>
+                            <span className="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
+                            <Button size="small" className="shrink-0" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
+                                重新生成提示词
+                            </Button>
+                        </span>
+                        <Input.TextArea
+                            rows={5}
+                            value={asset.polishedPrompt || asset.imagePrompt || ""}
+                            onChange={(event) => handlePromptChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
+                            placeholder="可使用 @图N 引用参考图"
+                        />
+                    </label>
+                </div>
+                <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(Array.from(event.target.files || []))} />
+            </Modal>
+        );
+    }
+    return (
+        <Modal
+            title={asset.id ? `编辑${label}` : `新增${label}`}
+            open
+            width="min(960px, calc(100vw - 32px))"
+            styles={{ body: { maxHeight: "calc(100vh - 160px)", overflowY: "auto", paddingRight: 8 } }}
+            footer={
+                <div className="flex justify-end gap-2">
+                    <Button onClick={onClose}>取消</Button>
+                    <Button type="primary" onClick={onSave}>
+                        保存
+                    </Button>
                 </div>
             }
             onCancel={onClose}
             destroyOnHidden
         >
             <div className="grid gap-3">
+                <div className="grid gap-3 border-b border-border pb-4" data-character-primary-image>
+                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                        <span className="pt-2 text-sm">主图</span>
+                        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
+                            <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                                {primary?.url ? (
+                                    <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="角色主图" className="!max-h-64 !object-contain" />
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">暂无主图</span>
+                                )}
+                                <div
+                                    data-asset-primary-actions
+                                    className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                                >
+                                    <Button size="small" onClick={() => primaryUploadRef.current?.click()}>
+                                        上传图片 / 替换主图
+                                    </Button>
+                                    {primary ? (
+                                        <Button size="small" onClick={onAddPrimaryToReferences}>
+                                            加入参考
+                                        </Button>
+                                    ) : null}
+                                    {primary ? (
+                                        <Button size="small" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
+                                            从主图提取描述
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            </div>
+                            <div className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="历史图片">
+                                {references
+                                    .filter((reference) => reference.role === "history")
+                                    .map((reference, index) => (
+                                        <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
+                                            <button
+                                                type="button"
+                                                aria-label={`删除历史图${index + 1}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                onClick={() => onRemoveReferenceById(reference.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                        <span className="pt-2 text-sm">参考</span>
+                        <div data-character-generation-references className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                <span>生成图片的参考图（图生提示词可使用 @图N）</span>
+                                <span>{characterReferences.length} / 9，最多 9 张</span>
+                            </div>
+                            <div className="flex min-h-24 flex-wrap gap-2">
+                                {characterReferences.map((reference, index) => (
+                                    <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                        <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-full !object-contain" />
+                                        <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100">图{index + 1}</span>
+                                        <button
+                                            type="button"
+                                            aria-label={`移除参考图 图${index + 1}`}
+                                            className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                            onClick={() => onRemoveReferenceById(reference.id)}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                                {characterReferences.length < 9 ? (
+                                    <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
+                                        <span>
+                                            <b className="block text-xl font-normal">＋</b>拖入或添加
+                                        </span>
+                                    </button>
+                                ) : null}
+                            </div>
+                            <div className="mt-2 flex justify-end">
+                                <Button data-asset-generation-action size="small" type="primary" loading={busy} onClick={() => onGenerate()}>
+                                    AI 生成
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                    <input ref={primaryUploadRef} className="hidden" type="file" accept="image/*" onChange={(event) => onReplacePrimary(event.target.files || undefined)} />
+                </div>
                 <label className="grid gap-1.5 text-sm">
-                    <span>{label}名称</span>
+                    <span>名称</span>
                     <Input value={asset.name} onChange={(event) => onChange({ ...asset, name: event.target.value })} />
-                </label>
-                <label className="grid gap-1.5 text-sm">
-                    <span>文字设定</span>
-                    <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} />
                 </label>
                 {editor ? <DramaLabAssetDetailFields kind={editor.kind} asset={asset} onChange={onChange} /> : null}
                 {editor?.kind === "characters" ? (
                     <label className="grid gap-1.5 text-sm">
-                        <span>人物外貌</span>
-                        <Input.TextArea rows={3} value={asset.appearance || ""} onChange={(event) => onChange({ ...asset, appearance: event.target.value })} />
+                        <span>外貌描述</span>
+                        <Input.TextArea rows={3} value={asset.appearance || ""} onChange={(event) => onChange({ ...asset, appearance: event.target.value })} placeholder="用于 AI 生成图像的外貌描述，尽量详细" />
                     </label>
                 ) : null}
                 <label className="grid gap-1.5 text-sm">
-                    <span>生图提示词</span>
-                    <Input.TextArea rows={3} value={asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, imagePrompt: event.target.value })} />
+                    <span>{descriptionLabel}</span>
+                    <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} placeholder="角色背景简介，供剧本生成参考" />
                 </label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                    {(["visualIdentity", "styling", "colorPalette", "consistencyRules"] as const).map((key) => (
-                        <label key={key} className="grid gap-1.5 text-sm">
-                            <span>{profileLabel(key)}</span>
-                            <Input value={profile[key]} onChange={(event) => onChange({ ...asset, profile: { ...profile, [key]: event.target.value } })} />
-                        </label>
-                    ))}
-                </div>
+                <label className="grid gap-1.5 text-sm">
+                    <span className="flex items-center justify-between">
+                        <span>
+                            图生提示词 <span className="text-xs font-normal text-muted-foreground">AI 润色后的最终提示词，生成四视图图片时直接使用；可手动修改</span>
+                        </span>
+                        <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
+                            重新生成提示词
+                        </Button>
+                    </span>
+                    <div className="relative">
+                        {/@图[1-9]/.test(asset.polishedPrompt || "") ? (
+                            <div
+                                ref={promptMirrorRef}
+                                aria-hidden
+                                className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-foreground [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
+                                dangerouslySetInnerHTML={{ __html: highlightResourceMentions(asset.polishedPrompt || "") }}
+                            />
+                        ) : null}
+                        <Input.TextArea
+                            ref={promptRef}
+                            rows={7}
+                            className={`relative z-[1] !bg-transparent ${/@图[1-9]/.test(asset.polishedPrompt || "") ? "!text-transparent caret-foreground" : ""}`}
+                            onScroll={(event) => {
+                                const mirror = promptMirrorRef.current;
+                                if (!mirror) return;
+                                mirror.scrollTop = event.currentTarget.scrollTop;
+                                mirror.scrollLeft = event.currentTarget.scrollLeft;
+                            }}
+                            onKeyDown={(event) => {
+                                if (!mentionOpen || !characterReferences.length) return;
+                                if (event.key === "ArrowDown") {
+                                    event.preventDefault();
+                                    setMentionIndex((current) => (current + 1) % characterReferences.length);
+                                } else if (event.key === "ArrowUp") {
+                                    event.preventDefault();
+                                    setMentionIndex((current) => (current - 1 + characterReferences.length) % characterReferences.length);
+                                } else if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    insertMention(`图${mentionIndex + 1}`);
+                                } else if (event.key === "Escape") {
+                                    event.preventDefault();
+                                    setMentionOpen(false);
+                                }
+                            }}
+                            value={asset.polishedPrompt || ""}
+                            onChange={(event) => handlePromptChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
+                            placeholder="点击“重新生成提示词”由 AI 自动生成，或直接输入；输入 @ 可引用图1～图9"
+                        />
+                        {mentionOpen && characterReferences.length ? (
+                            <div className="absolute bottom-2 left-2 z-10 w-56 rounded border bg-popover p-1 shadow-lg">
+                                {characterReferences.map((reference, index) => (
+                                    <button
+                                        key={reference.id}
+                                        type="button"
+                                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${index === mentionIndex ? "bg-muted" : ""}`}
+                                        onClick={() => insertMention(`图${index + 1}`)}
+                                    >
+                                        <img src={imagePreviewUrl(reference.url, 80)} alt="" className="block size-8 rounded object-contain" />
+                                        <span>@图{index + 1}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+                </label>
+                <label className="grid gap-1.5 text-sm">
+                    <span className="flex items-center justify-between">
+                        <span>
+                            视觉锚点 <span className="text-xs font-normal text-muted-foreground">AI 从外貌描述/参考图提炼的视觉特征，用于保持生成图片角色一致性</span>
+                        </span>
+                        <Button size="small" onClick={() => onAiAction("anchor")} loading={busyAction === "anchor"}>
+                            提炼视觉锚点
+                        </Button>
+                    </span>
+                    <Input.TextArea
+                        rows={5}
+                        value={JSON.stringify(characterIdentityAnchorsForDisplay(profile), null, 2)}
+                        onChange={(event) => onChange({ ...asset, profile: parseCharacterIdentityAnchors(event.target.value, profile) })}
+                        placeholder='{"face_shape":"...","facial_features":"...","unique_marks":"...","color_anchors":{"hair":"#...","eyes":"#...","skin":"#...","primary_outfit":"#..."},"skin_texture":"...","hair_style":"..."}'
+                    />
+                </label>
+                {editor?.kind === "characters" ? (
+                    <label className="grid gap-1.5 text-sm">
+                        <span className="flex items-center justify-between">
+                            <span>
+                                多阶段造型 <span className="text-xs font-normal text-muted-foreground">不同集次的角色造型变化，格式：JSON 数组</span>
+                            </span>
+                            <Button size="small" onClick={() => onAiAction("stages")} loading={busyAction === "stages"}>
+                                AI 生成造型
+                            </Button>
+                        </span>
+                        <Input.TextArea rows={4} value={JSON.stringify(asset.stages || [], null, 2)} onChange={(event) => onChange({ ...asset, stages: parseStages(event.target.value) })} placeholder='[{"episode_range":[1,3],"appearance":"..."}]' />
+                    </label>
+                ) : null}
             </div>
-            <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" onChange={(event) => onUploadFile(event.target.files?.[0])} />
+            <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(event.target.files || undefined)} />
         </Modal>
     );
 }
 
 function createAsset(kind: AssetKind, asset: Partial<VisualAsset> & { id: string; name: string; description: string }) {
-    const common = { ...asset, profile: asset.profile || { ...EMPTY_PROFILE } };
+    const common = { ...asset, profile: asset.profile || { ...EMPTY_PROFILE }, generationLayout: normalizeDramaAssetGenerationLayout(kind, asset.generationLayout) };
     return kind === "scenes" ? ({ ...common, location: (asset as Scene).location || asset.name } as Scene) : (common as Character | Prop);
 }
 
 function cloneAsset(asset: VisualAsset): VisualAsset {
-    return { ...asset, profile: asset.profile ? { ...asset.profile } : { ...EMPTY_PROFILE }, references: dramaAssetReferences(asset).map((reference) => ({ ...reference })) } as VisualAsset;
+    return { ...asset, profile: asset.profile ? { ...asset.profile } : { ...EMPTY_PROFILE }, references: dramaAssetReferences(asset).map((reference) => ({ ...reference })), generationLayout: asset.generationLayout } as VisualAsset;
 }
 
-function referenceFromUrl(url: string, source: DramaLabAssetReference["source"], label: string, storageKey?: string, width?: number, height?: number): DramaLabAssetReference {
-    return { id: `reference-${nanoid()}`, url, storageKey, source, label, width, height, createdAt: new Date().toISOString() };
+function referenceFromUrl(url: string, source: DramaLabAssetReference["source"], label: string, storageKey?: string, width?: number, height?: number, role?: DramaLabAssetReference["role"]): DramaLabAssetReference {
+    return { id: `reference-${nanoid()}`, url, storageKey, source, role, label, width, height, createdAt: new Date().toISOString() };
 }
 
 function imageResultsToReferences(result: ImageGenerationResult & { results?: ImageGenerationResult[] }) {
@@ -541,10 +1867,104 @@ async function saveToLibrary(asset: VisualAsset, kind: AssetKind, label: string,
     }
 }
 
-function profileLabel(key: keyof DramaLabAssetProfile) {
-    return { visualIdentity: "视觉识别", styling: "造型与材质", colorPalette: "固定色彩", consistencyRules: "一致性规则" }[key];
+function getAssetWorkflowGuidance(task: DramaLabTaskView | undefined, project: Project) {
+    if (!task || task.workflowMode !== "assets") return undefined;
+    const counts = `${project.characters.length} 个角色、${project.scenes.length} 个场景、${project.props.length} 个道具`;
+    if (task.status === "success") return { title: "Agent 已完成资产拆解", status: "提取完成", detail: `已识别 ${counts}，资产卡片已经整理到下方。`, hint: "你可以继续补充参考图，或进入下一步分镜工作台。", progress: 100, done: true, failed: false };
+    if (task.status === "error" || task.status === "cancelled")
+        return {
+            title: "资产提取没有完成",
+            status: task.status === "cancelled" ? "已取消" : "提取失败",
+            detail: task.error || "Agent 未能完成角色、场景与道具的拆解。",
+            hint: "可以重新点击“一键提取”，已有资产不会被覆盖。",
+            progress: task.progress ?? 0,
+            done: false,
+            failed: true,
+        };
+    const currentStep = task.currentStep === "assets" ? "正在拆解角色、场景与道具" : "Agent 正在阅读剧本";
+    return {
+        title: currentStep,
+        status: (task.progress ?? 0) > 0 ? `已完成 ${task.progress}%` : "任务已创建",
+        detail: "Agent 正在理解当前集剧本，并为角色、场景与道具建立资产卡片。",
+        hint: "任务完成后会自动出现在这里，请不要重复点击提取。",
+        progress: task.progress ?? 0,
+        done: false,
+        failed: false,
+    };
+}
+
+function getAssetWorkflowUpdates(task: DramaLabTaskView | undefined) {
+    const kinds: Array<{ kind: AssetKind; assetType: "character" | "scene" | "prop" }> = [
+        { kind: "characters", assetType: "character" },
+        { kind: "scenes", assetType: "scene" },
+        { kind: "props", assetType: "prop" },
+    ];
+    return kinds.map(({ kind, assetType }) => {
+        const child = task?.workflowChildren?.find((item) => item.key.endsWith(`:${assetType}`));
+        const names = Array.isArray(child?.output?.assetNames) ? child.output.assetNames.filter((value): value is string => typeof value === "string" && Boolean(value.trim())) : [];
+        const added = typeof child?.output?.added === "number" ? child.output.added : names.length;
+        if (child?.status === "success") return { kind, status: "success" as const, detail: names.length ? `已识别 ${names.slice(0, 2).join("、")}${names.length > 2 ? "等" : ""}` : `已识别 ${added} 个${ASSET_META[kind].label}` };
+        if (child?.status === "error" || child?.status === "cancelled") return { kind, status: "error" as const, detail: child.error || `${ASSET_META[kind].label}提取失败` };
+        if (child?.status === "running") return { kind, status: "running" as const, detail: `正在识别${ASSET_META[kind].label}` };
+        return { kind, status: "pending" as const, detail: "等待 Agent 处理" };
+    });
+}
+
+function currentAssetPrompt(asset: VisualAsset, kind: AssetKind, layout: "single" | "four_view") {
+    return kind === "scenes" && layout === "single" ? asset.singleImagePrompt || "" : asset.polishedPrompt || "";
 }
 
 function assetName(asset: VisualAsset) {
     return asset.name || ("location" in asset ? asset.location : "");
+}
+
+function parseCharacterIdentityAnchors(value: string, fallback: DramaLabAssetProfile): DramaLabAssetProfile {
+    try {
+        const parsed = JSON.parse(value) as Record<string, unknown>;
+        const bilingual = (english: string, chinese: string) => parsed[`${english}（${chinese}）`] ?? parsed[english];
+        const colorsValue = bilingual("color_anchors", "颜色锚点");
+        const colors = colorsValue && typeof colorsValue === "object" && !Array.isArray(colorsValue) ? (colorsValue as Record<string, unknown>) : {};
+        const color = (english: string, chinese: string) => colors[`${english}（${chinese}）`] ?? colors[english];
+        return {
+            ...fallback,
+            face_shape: typeof bilingual("face_shape", "脸型") === "string" ? String(bilingual("face_shape", "脸型")) : fallback.face_shape,
+            facial_features: typeof bilingual("facial_features", "五官特征") === "string" ? String(bilingual("facial_features", "五官特征")) : fallback.facial_features,
+            unique_marks: typeof bilingual("unique_marks", "独特标记") === "string" ? String(bilingual("unique_marks", "独特标记")) : fallback.unique_marks,
+            color_anchors: {
+                hair: typeof color("hair", "头发") === "string" ? String(color("hair", "头发")) : fallback.color_anchors?.hair || "unspecified",
+                eyes: typeof color("eyes", "眼睛") === "string" ? String(color("eyes", "眼睛")) : fallback.color_anchors?.eyes || "unspecified",
+                skin: typeof color("skin", "肤色") === "string" ? String(color("skin", "肤色")) : fallback.color_anchors?.skin || "unspecified",
+                primary_outfit: typeof color("primary_outfit", "主服装") === "string" ? String(color("primary_outfit", "主服装")) : fallback.color_anchors?.primary_outfit || "unspecified",
+            },
+            skin_texture: typeof bilingual("skin_texture", "皮肤质感") === "string" ? String(bilingual("skin_texture", "皮肤质感")) : fallback.skin_texture,
+            hair_style: typeof bilingual("hair_style", "发型") === "string" ? String(bilingual("hair_style", "发型")) : fallback.hair_style,
+        };
+    } catch {
+        return fallback;
+    }
+}
+
+function parseStages(value: string) {
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.filter((item) => Array.isArray(item?.episodeRange) && item.episodeRange.length === 2 && typeof item.appearance === "string") : [];
+    } catch {
+        return [];
+    }
+}
+
+function characterIdentityAnchorsForDisplay(profile: DramaLabAssetProfile) {
+    return {
+        "face_shape（脸型）": profile.face_shape || "unspecified",
+        "facial_features（五官特征）": profile.facial_features || "unspecified",
+        "unique_marks（独特标记）": profile.unique_marks || "unspecified",
+        "color_anchors（颜色锚点）": {
+            "hair（头发）": profile.color_anchors?.hair || "unspecified",
+            "eyes（眼睛）": profile.color_anchors?.eyes || "unspecified",
+            "skin（肤色）": profile.color_anchors?.skin || "unspecified",
+            "primary_outfit（主服装）": profile.color_anchors?.primary_outfit || "unspecified",
+        },
+        "skin_texture（皮肤质感）": profile.skin_texture || "unspecified",
+        "hair_style（发型）": profile.hair_style || "unspecified",
+    };
 }

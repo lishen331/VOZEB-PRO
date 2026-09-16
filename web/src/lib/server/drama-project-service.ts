@@ -30,6 +30,7 @@ import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
 import { deleteDramaLabEpisodeCanvasForUser, listDramaLabCanvasProjectsForUser } from "@/lib/server/canvas-project-service";
+import { requirePracticeAccess } from "@/lib/server/practice-access-service";
 
 const MAX_PROJECT_BYTES = 2 * 1024 * 1024;
 
@@ -42,13 +43,21 @@ export class DramaProjectServiceError extends Error {
     }
 }
 
-export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number; executionProfile?: "production" | "open-source-practice" } = {}) {
+export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number; schoolId?: string; executionProfile?: "production" | "open-source-practice" } = {}) {
     return listDramaProjectSummaries(userId, { ...input, executionProfile: input.executionProfile || "production" });
 }
 
 export async function getDramaProjectForUser(userId: string, id: string) {
     const project = await getDramaProject(cleanText(id), userId);
     if (!project) throw new DramaProjectServiceError("短剧项目不存在", 404);
+    if ((project as DramaProject & { executionProfile?: string }).executionProfile === "open-source-practice") {
+        try {
+            await requirePracticeAccess({ id: userId });
+        } catch (error) {
+            const status = error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 403;
+            throw new DramaProjectServiceError(error instanceof Error ? error.message : "短剧练习权限已失效", status);
+        }
+    }
     return project;
 }
 
@@ -61,18 +70,20 @@ export async function createDramaProjectForUser(userId: string, value: unknown, 
     }
     const ipReferences = (await validateIpReferences(userId, input.ipReferences)).map((item) => item.reference);
     const projectId = input.sourceHandoffId ? `drama-${input.sourceHandoffId}` : `drama-${nanoid()}`;
-    const episode: DramaEpisode = {
-        id: `episode-${nanoid()}`,
-        episodeNumber: 1,
-        title: "第 1 集",
-        script: input.initialScript,
-        outline: "",
-        hook: "",
-        nextPreview: "",
-        sourceRange: "",
-        reviewStatus: "draft",
-        shots: [],
-    };
+    const episode: DramaEpisode | undefined = input.initialScript
+        ? {
+              id: `episode-${nanoid()}`,
+              episodeNumber: 1,
+              title: "第 1 集",
+              script: input.initialScript,
+              outline: "",
+              hook: "",
+              nextPreview: "",
+              sourceRange: "",
+              reviewStatus: "draft",
+              shots: [],
+          }
+        : undefined;
     const conversation = await createCreativeConversation(userId, { surface: "drama", projectId, title: input.title });
     const project: DramaProject = {
         id: projectId,
@@ -80,16 +91,18 @@ export async function createDramaProjectForUser(userId: string, value: unknown, 
         title: input.title,
         summary: input.summary,
         style: input.style,
+        storyStyle: input.storyStyle,
+        scriptType: input.scriptType,
         ratio: input.ratio,
         status: "active",
         creativeConversationId: conversation.id,
-        activeEpisodeId: episode.id,
+        activeEpisodeId: episode?.id,
         characters: [],
         scenes: [],
         props: [],
         clues: [],
         defaultVideoMode: input.defaultVideoMode,
-        episodes: [episode],
+        episodes: episode ? [episode] : [],
         sourceAssets: input.sourceAssets,
         ipReferences,
         createdAt: now,
@@ -194,6 +207,7 @@ function dramaUsageTarget(project: DramaProject) {
 
 export async function deleteDramaProjectForUser(userId: string, id: string) {
     const projectId = cleanText(id);
+    await getDramaProjectForUser(userId, projectId);
     let result: Awaited<ReturnType<typeof deleteDramaProjectCanvasAggregates>>;
     try {
         result = await deleteDramaProjectCanvasAggregates(userId, projectId);
@@ -251,6 +265,8 @@ function normalizeCreateInput(value: unknown): Required<Omit<CreateDramaProjectI
         sourceHandoffId: optionalText(input.sourceHandoffId),
         summary: cleanText(input.summary),
         style: cleanText(input.style) || "电影感国漫",
+        storyStyle: cleanText(input.storyStyle),
+        scriptType: cleanText(input.scriptType),
         ratio,
         initialScript: cleanText(input.initialScript),
         sourceAssets: normalizeSourceAssets(input.sourceAssets),
@@ -264,7 +280,7 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
     const episodes = array(input.episodes)
         .map((value, index) => normalizeEpisode(value, index))
         .filter((episode): episode is DramaEpisode => Boolean(episode));
-    if (!episodes.length) throw new DramaProjectServiceError("短剧项目至少需要一集", 400);
+    // 新建项目允许 0 集；用户添加第一集、导入或生成剧本时再创建剧集。
     const activeEpisodeId = cleanText(input.activeEpisodeId);
     const ratio = input.ratio === undefined ? normalizeDramaImageSize(current.ratio) : normalizeDramaImageSize(input.ratio);
     if (!ratio) throw new DramaProjectServiceError("短剧尺寸无效", 400);
@@ -274,10 +290,13 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         title: cleanText(input.title) || current.title,
         summary: cleanText(input.summary),
         style: cleanText(input.style),
+        storyStyle: input.storyStyle === undefined ? current.storyStyle : cleanText(input.storyStyle),
+        scriptType: input.scriptType === undefined ? current.scriptType : cleanText(input.scriptType),
+        scriptEpisodeCount: input.scriptEpisodeCount === undefined ? current.scriptEpisodeCount : boundedEpisodeCount(input.scriptEpisodeCount),
         ratio,
         status: input.status === "archived" ? "archived" : "active",
         creativeConversationId: current.creativeConversationId,
-        activeEpisodeId: episodes.some((episode) => episode.id === activeEpisodeId) ? activeEpisodeId : episodes[0].id,
+        activeEpisodeId: episodes.some((episode) => episode.id === activeEpisodeId) ? activeEpisodeId : episodes[0]?.id,
         characters: normalizeNamedAssets(input.characters, "character", true),
         scenes: normalizeNamedAssets(input.scenes, "scene"),
         props: normalizeNamedAssets(input.props, "prop"),
@@ -289,6 +308,11 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         createdAt: current.createdAt,
         updatedAt: nextTimestamp(current.updatedAt),
     };
+}
+
+function boundedEpisodeCount(value: unknown) {
+    const count = Math.floor(Number(value));
+    return Number.isFinite(count) ? Math.max(1, Math.min(100, count)) : 1;
 }
 
 function addedIpReferences(previous: IpReference[] | undefined, next: IpReference[]) {
@@ -487,12 +511,13 @@ function normalizeNamedAssets(value: unknown, prefix: string, character = false)
                 name: cleanText(input.name),
                 description: cleanText(input.description),
                 ...Object.fromEntries(
-                    ["appearance", "imagePrompt", "role", "type", "time"].flatMap((key) => {
+                    ["appearance", "imagePrompt", "polishedPrompt", "singleImagePrompt", "generationLayout", "role", "type", "time"].flatMap((key) => {
                         const value = optionalText(input[key]);
                         return value ? [[key, value]] : [];
                     }),
                 ),
                 profile: normalizeAssetProfile(input.profile),
+                stages: normalizeAssetStages(input.stages),
                 references,
                 primaryReferenceId,
                 referenceImageUrl: primaryReference?.url,
@@ -528,6 +553,19 @@ function normalizeClues(value: unknown) {
     });
 }
 
+function normalizeAssetStages(value: unknown) {
+    if (!Array.isArray(value)) return undefined;
+    const stages = value.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const input = item as Record<string, unknown>;
+        const range = Array.isArray(input.episodeRange) ? input.episodeRange.map(Number) : [];
+        const appearance = typeof input.appearance === "string" ? input.appearance.trim() : "";
+        if (range.length !== 2 || !Number.isFinite(range[0]) || !Number.isFinite(range[1]) || range[0] < 1 || range[1] < range[0] || !appearance) return [];
+        return [{ episodeRange: [Math.floor(range[0]), Math.floor(range[1])] as [number, number], appearance: appearance.slice(0, 4000) }];
+    });
+    return stages.length ? stages : undefined;
+}
+
 function normalizeAssetProfile(value: unknown): DramaAssetProfile {
     const input = object(value);
     return {
@@ -535,7 +573,19 @@ function normalizeAssetProfile(value: unknown): DramaAssetProfile {
         styling: cleanText(input.styling),
         colorPalette: cleanText(input.colorPalette),
         consistencyRules: cleanText(input.consistencyRules),
+        face_shape: optionalText(input.face_shape),
+        facial_features: optionalText(input.facial_features),
+        unique_marks: optionalText(input.unique_marks),
+        color_anchors: normalizeColorAnchors(input.color_anchors),
+        skin_texture: optionalText(input.skin_texture),
+        hair_style: optionalText(input.hair_style),
     };
+}
+
+function normalizeColorAnchors(value: unknown) {
+    const input = object(value);
+    const anchors = { hair: cleanText(input.hair), eyes: cleanText(input.eyes), skin: cleanText(input.skin), primary_outfit: cleanText(input.primary_outfit) };
+    return Object.values(anchors).some(Boolean) ? anchors : undefined;
 }
 
 function normalizeAssetReferences(value: unknown, assetId: string, legacyUrl: unknown, legacyStorageKey: unknown): DramaAssetReference[] {
@@ -544,12 +594,14 @@ function normalizeAssetReferences(value: unknown, assetId: string, legacyUrl: un
         const url = stableUrl(input.url);
         if (!url) return [];
         const source: DramaAssetReference["source"] = input.source === "generated" || input.source === "library" ? input.source : "upload";
+        const role: DramaAssetReference["role"] = input.role === "primary" || input.role === "history" || input.role === "reference" ? input.role : undefined;
         return [
             {
                 id: cleanText(input.id) || `${assetId}-reference-${index + 1}`,
                 url,
                 storageKey: optionalText(input.storageKey),
                 source,
+                role,
                 label: cleanText(input.label) || `参考图 ${index + 1}`,
                 width: optionalPositiveInteger(input.width),
                 height: optionalPositiveInteger(input.height),
@@ -558,7 +610,8 @@ function normalizeAssetReferences(value: unknown, assetId: string, legacyUrl: un
         ];
     });
     const url = stableUrl(legacyUrl);
-    if (!references.length && url) references.push({ id: `${assetId}-reference-legacy`, url, storageKey: optionalText(legacyStorageKey), source: "library", label: "原参考图", width: undefined, height: undefined, createdAt: new Date(0).toISOString() });
+    if (!references.length && url)
+        references.push({ id: `${assetId}-reference-legacy`, url, storageKey: optionalText(legacyStorageKey), source: "library", role: "primary", label: "原参考图", width: undefined, height: undefined, createdAt: new Date(0).toISOString() });
     return references;
 }
 

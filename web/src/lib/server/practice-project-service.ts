@@ -7,12 +7,12 @@ import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store
 import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
 
 export type PracticeProjectInput = { kind: PracticeProjectKind; title: string; source?: PracticeSource; references?: IpReference[] };
-export type PracticeProjectIdentity = { executionProfile: "open-source-practice"; practiceSource: PracticeSource };
+export type PracticeProjectIdentity = { executionProfile: "open-source-practice"; practiceSource: PracticeSource; schoolId: string };
 
 export async function createPracticeProject(actor: PracticeActor, input: PracticeProjectInput) {
-    await requirePracticeAccess(actor);
+    const access = await requirePracticeAccess(actor);
     const title = cleanTitle(input.title);
-    const identity: PracticeProjectIdentity = { executionProfile: "open-source-practice", practiceSource: input.source || { type: "blank" } };
+    const identity: PracticeProjectIdentity = { schoolId: access.schoolId, executionProfile: "open-source-practice", practiceSource: input.source || { type: "blank" } };
     const projectInput = { title, ...(input.references?.length ? { ipReferences: input.references } : {}) };
     if (input.kind === "drama") {
         const project = await createDramaProjectForUser(actor.id, projectInput, identity as DramaProjectIdentityInput);
@@ -23,11 +23,11 @@ export async function createPracticeProject(actor: PracticeActor, input: Practic
 }
 
 export async function listPracticeProjects(actor: PracticeActor, input: { kind: PracticeProjectKind; page?: unknown; pageSize?: unknown }) {
-    await requirePracticeAccess(actor);
+    const access = await requirePracticeAccess(actor);
     const page = positive(input.page, 1);
     const pageSize = Math.min(100, positive(input.pageSize, 12));
-    if (input.kind === "drama") return { kind: "drama" as const, ...(await listDramaProjectSummariesForUser(actor.id, { page, pageSize, executionProfile: "open-source-practice" })) };
-    return { kind: "canvas" as const, ...(await listCanvasProjectsForUser(actor.id, { page, pageSize, executionProfile: "open-source-practice" })) };
+    if (input.kind === "drama") return { kind: "drama" as const, ...(await listDramaProjectSummariesForUser(actor.id, { page, pageSize, schoolId: access.schoolId, executionProfile: "open-source-practice" })) };
+    return { kind: "canvas" as const, ...(await listCanvasProjectsForUser(actor.id, { page, pageSize, schoolId: access.schoolId, executionProfile: "open-source-practice" })) };
 }
 
 export async function getPracticeProject(actor: PracticeActor, kind: PracticeProjectKind, id: string) {

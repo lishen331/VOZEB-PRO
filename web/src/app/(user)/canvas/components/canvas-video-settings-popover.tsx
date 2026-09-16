@@ -8,13 +8,14 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import type { CreativeGenerationPreferences as GenerationPreferences } from "@/lib/creative-runtime-contract";
 import { boolConfig } from "@/lib/seedance-video";
 import type { AiConfig } from "@/stores/use-config-store";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 
 import type { CanvasNodeMetadata } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
-import { canvasVideoReferenceModeLabel, normalizeCanvasVideoReferenceMode } from "../utils/canvas-video-references";
+import { canvasVideoGenerationModeLabel, canvasVideoReferenceModeLabel, normalizeCanvasVideoGenerationMode, normalizeCanvasVideoReferenceMode } from "../utils/canvas-video-references";
 import { canvasModelCapabilityProfile } from "../utils/canvas-model-capabilities";
 import { CanvasVideoReferenceSettings } from "./canvas-video-reference-settings";
+import { CanvasVideoModeSelector } from "./canvas-video-mode-selector";
 
 type CanvasVideoSettingsPopoverProps = {
     config: AiConfig;
@@ -27,7 +28,7 @@ type CanvasVideoSettingsPopoverProps = {
 };
 
 export function CanvasVideoSettingsPopover({ config, metadata, references, onConfigChange, onMetadataChange, buttonClassName, placement = "topLeft" }: CanvasVideoSettingsPopoverProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const responsivePlacement = useCreativeComposerPopoverPlacement(placement);
     const preferences: GenerationPreferences = {
         mode: "video",
@@ -40,7 +41,8 @@ export function CanvasVideoSettingsPopover({ config, metadata, references, onCon
             referenceMode: normalizeCanvasVideoReferenceMode(metadata?.videoReferenceMode),
         },
     };
-    const summary = canvasVideoPreferenceSummary(preferences);
+    const modeLabel = canvasVideoGenerationModeLabel(metadata?.videoGenerationMode);
+    const summary = canvasVideoPreferenceSummary(preferences, modeLabel);
     const fullSummary = generationPreferenceSummary("video", preferences);
     const referenceLabel = canvasVideoReferenceModeLabel(metadata?.videoReferenceMode);
 
@@ -58,17 +60,18 @@ export function CanvasVideoSettingsPopover({ config, metadata, references, onCon
             autoAdjustOverflow
             showCount={false}
             videoReferenceContent={<CanvasVideoReferenceSettings metadata={metadata} references={references} theme={theme} compact onChange={onMetadataChange} />}
+            videoModeContent={<CanvasVideoModeSelector metadata={metadata} onChange={onMetadataChange} />}
             onChange={(patch) => applyVideoPreferencePatch(patch, onConfigChange)}
         />
     );
 }
 
-export function canvasVideoPreferenceSummary(preferences: GenerationPreferences) {
+export function canvasVideoPreferenceSummary(preferences: GenerationPreferences, modeLabel?: string) {
     const video = preferences.video;
     const size = !video?.size || video.size === "auto" ? "智能" : video.size.replace("x", "×");
-    if (/^\d+x\d+$/i.test(video?.size || "")) return size;
+    if (/^\d+x\d+$/i.test(video?.size || "")) return modeLabel ? `${modeLabel} · ${size}` : size;
     const quality = !video?.quality || video.quality === "auto" ? "智能" : `${video.quality.replace(/p$/i, "")}P`;
-    return `${size} · ${quality}`;
+    return modeLabel ? `${modeLabel} · ${size} · ${quality}` : `${size} · ${quality}`;
 }
 
 function applyVideoPreferencePatch(patch: CreativeGenerationPreferencePatch, onChange: (key: keyof AiConfig, value: string) => void) {
@@ -76,7 +79,6 @@ function applyVideoPreferencePatch(patch: CreativeGenerationPreferencePatch, onC
     if (patch.quality !== undefined) onChange("vquality", patch.quality);
     if (patch.seconds !== undefined) onChange("videoSeconds", String(patch.seconds));
     if (patch.generateAudio !== undefined) onChange("videoGenerateAudio", String(patch.generateAudio));
-    if (patch.watermark !== undefined) onChange("videoWatermark", String(patch.watermark));
 }
 
 function positiveInteger(value: unknown, fallback: number) {

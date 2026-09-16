@@ -4,6 +4,7 @@ import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { useNetworkReconnect } from "@/hooks/use-network-reconnect";
 
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { FeatureModuleGate } from "@/components/layout/feature-module-gate";
@@ -24,6 +25,7 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export function AppWorkspaceShell({ children, featureModules }: { children: ReactNode; featureModules: FeatureModuleSettings }) {
+    useNetworkReconnect(); // BUG-10: show toast on offline/reconnect
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);

@@ -361,7 +361,21 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
     );
 
     const completeTextTask = useCallback(async (nodeId: string, generationConfig: AiConfig, task: TextGenerationTask, controller: AbortController, prompt?: string) => {
-        const answer = await waitForTextGenerationTask(generationConfig, task, { signal: controller.signal });
+        const answer = await waitForTextGenerationTask(generationConfig, task, {
+            signal: controller.signal,
+            onPartial: (partial) =>
+                setNodes((prev) =>
+                    prev.map((node) =>
+                        node.id === nodeId
+                            ? {
+                                  ...node,
+                                  type: CanvasNodeType.Text,
+                                  metadata: { ...node.metadata, content: partial },
+                              }
+                            : node,
+                    ),
+                ),
+        });
         setNodes((prev) =>
             prev.map((node) =>
                 node.id === nodeId

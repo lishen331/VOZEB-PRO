@@ -96,11 +96,11 @@ describe("PostgreSQL schema lifecycle", () => {
     it("executes schema DDL only through explicit initialization", async () => {
         await initializePostgresSchema();
 
-        expect(mocks.query).toHaveBeenCalledTimes(4);
+        expect(mocks.query.mock.calls.length).toBeGreaterThan(4);
         expect(mocks.query.mock.calls[0]?.[0]).toBe("BEGIN");
         expect(mocks.query.mock.calls[1]).toEqual(["SELECT pg_advisory_xact_lock(hashtext($1))", ["vozeb-pro:schema"]]);
         const ddl = String(mocks.query.mock.calls[2]?.[0]);
-        expect(mocks.query.mock.calls[3]?.[0]).toBe("COMMIT");
+        expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("COMMIT");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_generation_worker_heartbeats");
         const publicationOriginColumn = "ALTER TABLE vozeb_pro_published_works ADD COLUMN IF NOT EXISTS publication_origin text NOT NULL DEFAULT 'user_submission'";
@@ -112,6 +112,14 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl.indexOf(publicationOriginColumn)).toBeLessThan(ddl.indexOf(publicationOriginConstraint));
         expect(ddl.indexOf(publicationOriginConstraint)).toBeLessThan(ddl.indexOf(publicationOriginIndex));
         expect(ddl).toContain("20260908_official_work_publication");
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_practice_script_runs");
+        const artifactTable = ddl.match(/CREATE TABLE IF NOT EXISTS vozeb_pro_practice_script_artifacts \(([\s\S]*?)\n\);/)?.[1] || "";
+        expect(artifactTable.match(/created_at timestamptz/g)).toHaveLength(1);
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_practice_script_run_events");
+        expect(ddl).toContain("20260913_practice_screenwriter_agent");
+        expect(ddl).toContain("UPDATE vozeb_pro_practice_script_projects AS project");
+        expect(ddl).toContain("SET school_id = membership.school_id");
+        expect(ddl.indexOf("ALTER TABLE vozeb_pro_practice_script_projects ADD COLUMN IF NOT EXISTS mode text")).toBeLessThan(ddl.indexOf("CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_projects_school_owner_updated_idx"));
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_version integer");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_config_fingerprint text");
@@ -199,6 +207,16 @@ describe("PostgreSQL schema lifecycle", () => {
                 "vozeb_pro_school_compute_settlements",
                 "vozeb_pro_school_compute_consumptions",
                 "vozeb_pro_practice_sessions",
+                "vozeb_pro_practice_script_projects",
+                "vozeb_pro_practice_script_versions",
+                "vozeb_pro_practice_script_entities",
+                "vozeb_pro_practice_script_stages",
+                "vozeb_pro_practice_script_agent_operations",
+                "vozeb_pro_practice_script_projects",
+                "vozeb_pro_practice_script_versions",
+                "vozeb_pro_practice_script_entities",
+                "vozeb_pro_practice_script_stages",
+                "vozeb_pro_practice_script_agent_operations",
                 "vozeb_pro_practice_copy_requests",
                 "vozeb_pro_ip_packages",
                 "vozeb_pro_ip_sub_ips",
@@ -229,9 +247,10 @@ describe("PostgreSQL schema lifecycle", () => {
 
         await ensurePostgresSchema();
 
-        expect(mocks.query).toHaveBeenCalledTimes(5);
+        expect(mocks.query.mock.calls.length).toBeGreaterThan(5);
         expect(mocks.query.mock.calls[0]?.[0]).toContain("to_regclass");
         expect(mocks.query.mock.calls[2]).toEqual(["SELECT pg_advisory_xact_lock(hashtext($1))", ["vozeb-pro:schema"]]);
-        expect(mocks.query.mock.calls[3]?.[0]).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
+        expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("COMMIT");
+        expect(String(mocks.query.mock.calls.find((call) => String(call[0]).includes("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations"))?.[0])).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
     });
 });

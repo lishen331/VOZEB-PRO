@@ -354,6 +354,7 @@ export function mapPostgresSettings(settingsRow: Record<string, unknown> | undef
         defaultModels: dbJson(settingsRow?.default_models, fallback.defaultModels),
         practiceDefaultModels: dbJson(settingsRow?.practice_default_models, fallback.practiceDefaultModels),
         practiceWorkflowModels: dbJson(settingsRow?.practice_workflow_models, fallback.practiceWorkflowModels),
+        practiceScriptSettings: dbJson(settingsRow?.practice_script_settings, fallback.practiceScriptSettings),
         practiceModuleVisibility: dbJson(settingsRow?.practice_module_visibility, fallback.practiceModuleVisibility),
         agentSkills: dbJson(settingsRow?.agent_skills, fallback.agentSkills),
         featureModules: dbJson(settingsRow?.feature_modules, fallback.featureModules),
@@ -520,9 +521,9 @@ export async function upsertPostgresSettings(db: QueryExecutor, settings: AuthSe
         INSERT INTO app_settings (
             id, site, registration_enabled, email_registration_enabled, free_daily_points_enabled, mail, allow_user_api_config,
             model_point_costs, generation_point_multipliers, generation_cost_control, data_lifecycle, entitlements_enabled, default_plan_id, generation_concurrency, generation_defaults,
-            logical_models, default_models, practice_default_models, practice_workflow_models, practice_module_visibility, agent_skills, free_daily_points
+            logical_models, default_models, practice_default_models, practice_workflow_models, practice_script_settings, practice_module_visibility, agent_skills, free_daily_points
         )
-        VALUES ('default', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        VALUES ('default', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
         ON CONFLICT (id) DO UPDATE SET
             site = EXCLUDED.site,
             registration_enabled = EXCLUDED.registration_enabled,
@@ -542,6 +543,7 @@ export async function upsertPostgresSettings(db: QueryExecutor, settings: AuthSe
             default_models = EXCLUDED.default_models,
             practice_default_models = EXCLUDED.practice_default_models,
             practice_workflow_models = EXCLUDED.practice_workflow_models,
+            practice_script_settings = EXCLUDED.practice_script_settings,
             practice_module_visibility = EXCLUDED.practice_module_visibility,
             agent_skills = EXCLUDED.agent_skills,
             free_daily_points = EXCLUDED.free_daily_points
@@ -565,6 +567,7 @@ export async function upsertPostgresSettings(db: QueryExecutor, settings: AuthSe
             dbJsonParam(settings.defaultModels),
             dbJsonParam(settings.practiceDefaultModels),
             dbJsonParam(settings.practiceWorkflowModels),
+            dbJsonParam(settings.practiceScriptSettings),
             dbJsonParam(settings.practiceModuleVisibility),
             dbJsonParam(settings.agentSkills),
             settings.freeDailyPoints,

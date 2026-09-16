@@ -1,0 +1,112 @@
+import { randomUUID } from "node:crypto";
+import { getCurrentUser } from "@/lib/auth/session";
+import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";
+import { ScriptAgentRepository } from "@/lib/server/database/script-agent-repository";
+import { postgresQuery } from "@/lib/server/database/postgres";
+import { completedRunTypesForArtifacts, createDefaultScriptAgentExecutor, executeScriptRunSequence } from "@/lib/server/script-agent-executor";
+import { resolveInternalOrigin } from "@/lib/server/internal-origin";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 2400;
+type Context = { params: Promise<{ id: string; runId: string }> };
+export async function GET(request: Request, context: Context) {
+    const user = await getCurrentUser(request);
+    if (!user) return new Response("未登录", { status: 401 });
+    const scope = await requirePracticeTenant(user, "script");
+    const { id, runId } = await context.params;
+    const url = new URL(request.url);
+    const cursor = Math.max(Number(request.headers.get("last-event-id") || 0), Number(url.searchParams.get("afterSequence") || 0));
+    const repository = new ScriptAgentRepository({ query: postgresQuery });
+    const run = await repository.getRun(scope, id, runId);
+    if (!run) return new Response("Run 不存在", { status: 404 });
+    const encoder = new TextEncoder();
+    let executionController: AbortController | undefined;
+    const body = new ReadableStream({
+        async start(controller) {
+            let last = cursor;
+            const send = (event: { sequence: number; type: string; runId: string; createdAt: string; data: Record<string, unknown> }) => {
+                last = event.sequence;
+                controller.enqueue(encoder.encode(`id: ${event.sequence}\nevent: ${event.type}\ndata: ${JSON.stringify({ runId: event.runId, sequence: event.sequence, type: event.type, occurredAt: event.createdAt, data: event.data })}\n\n`));
+            };
+            try {
+                for (const event of await repository.listRunEvents(scope, id, runId, cursor, 500)) send(event);
+                const claimed = await repository.claimRun(scope, id, runId);
+                if (claimed) {
+                    executionController = new AbortController();
+                    const abortExecution = () => executionController?.abort();
+                    request.signal.addEventListener("abort", abortExecution, { once: true });
+                    let stopCheckRunning = false;
+                    const stopMonitor = setInterval(() => {
+                        if (stopCheckRunning || executionController?.signal.aborted) return;
+                        stopCheckRunning = true;
+                        void repository
+                            .getRun(scope, id, runId)
+                            .then((current) => {
+                                if (current?.status === "stopped") executionController?.abort();
+                            })
+                            .finally(() => {
+                                stopCheckRunning = false;
+                            });
+                    }, 1_000);
+                    const liveRepository = new Proxy(repository, {
+                        get(target, prop) {
+                            if (prop !== "appendRunEvent") return Reflect.get(target, prop);
+                            return async (...args: Parameters<ScriptAgentRepository["appendRunEvent"]>) => {
+                                const event = await target.appendRunEvent(...args);
+                                if (event) send(event);
+                                return event;
+                            };
+                        },
+                    });
+                    const executor = createDefaultScriptAgentExecutor(liveRepository);
+                    const items = await repository.listRunItems(scope, id, runId);
+                    const item = items.find((entry) => entry.status === "queued");
+                    if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "running" });
+                    const completedRunTypes = completedRunTypesForArtifacts(await repository.listRunArtifactTypes(scope, id, runId));
+                    const result = await executeScriptRunSequence(
+                        executor,
+                        scope,
+                        {
+                            projectId: id,
+                            runId,
+                            chatSessionId: claimed.chatSessionId,
+                            runType: claimed.runType,
+                            input: claimed.configSnapshot,
+                            origin: resolveInternalOrigin(new URL(request.url).origin),
+                            cookie: request.headers.get("cookie") || "",
+                            signal: executionController.signal,
+                        },
+                        completedRunTypes,
+                    ).finally(() => {
+                        clearInterval(stopMonitor);
+                        request.signal.removeEventListener("abort", abortExecution);
+                        executionController = undefined;
+                    });
+                    const current = await repository.getRun(scope, id, runId);
+                    if (current?.status !== "stopped") {
+                        if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", ...(result?.artifactId ? { artifactId: result.artifactId } : {}) });
+                        await repository.updateRun(scope, id, runId, { status: "success", completedAt: new Date().toISOString() });
+                        const done = await repository.appendRunEvent(scope, id, runId, "run_completed", {}, randomUUID());
+                        if (done) send(done);
+                    }
+                }
+                controller.enqueue(encoder.encode(`event: heartbeat\ndata: ${JSON.stringify({ runId, sequence: last, type: "heartbeat", occurredAt: new Date().toISOString(), data: {} })}\n\n`));
+            } catch (error) {
+                const current = await repository.getRun(scope, id, runId).catch(() => null);
+                if (current?.status === "stopped") return;
+                const items = await repository.listRunItems(scope, id, runId).catch(() => []);
+                const runningItem = items.find((entry) => entry.status === "running");
+                if (runningItem) await repository.updateRunItem(scope, id, runId, runningItem.id, { status: "failed", errorCode: "SCRIPT_AGENT_EXECUTION_FAILED", errorMessage: error instanceof Error ? error.message : "剧本生成失败" }).catch(() => null);
+                await repository.updateRun(scope, id, runId, { status: "failed", completedAt: new Date().toISOString(), errorMessage: error instanceof Error ? error.message : "剧本生成失败" }).catch(() => null);
+                const failed = await repository.appendRunEvent(scope, id, runId, "error", { message: error instanceof Error ? error.message : "剧本生成失败" }, randomUUID()).catch(() => null);
+                if (failed) send(failed);
+            } finally {
+                controller.close();
+            }
+        },
+        cancel() {
+            executionController?.abort();
+        },
+    });
+    return new Response(body, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" } });
+}

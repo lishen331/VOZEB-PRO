@@ -12,10 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings, refundUserPoints: vi.fn() }));
 vi.mock("@/lib/server/logical-model-router", () => ({ resolveLogicalModelCandidates: mocks.resolveLogicalModelCandidates }));
-vi.mock("@/lib/server/drama-lab-prompt-template-service", () => ({
-    resolveDramaLabPrompt: mocks.resolveDramaLabPrompt,
-    withDramaLabPromptContract: (template: string, contract: string) => `${template}\n${contract}`,
-}));
+vi.mock("@/lib/server/drama-lab-prompt-template-service", () => ({ resolveDramaLabPrompt: mocks.resolveDramaLabPrompt }));
 vi.mock("@/lib/server/text-planning-runtime", () => ({ rankTextPlanningCandidates: mocks.rankTextPlanningCandidates, requestStructuredText: mocks.requestStructuredText }));
 vi.mock("@/lib/server/drama-lab-text-generation-log", () => ({ recordDramaLabTextGenerationLog: mocks.recordDramaLabTextGenerationLog }));
 vi.mock("@/lib/server/system-ai-billing", () => ({
@@ -72,13 +69,20 @@ describe("drama lab asset extraction", () => {
             },
         });
 
-        expect(mocks.requestStructuredText.mock.calls[0]?.[0].messages[0].content).toContain("CUSTOM CHARACTER TEMPLATE");
+        expect(mocks.requestStructuredText.mock.calls[0]?.[0].messages).toEqual([
+            { role: "system", content: "CUSTOM CHARACTER TEMPLATE" },
+            { role: "user", content: "剧本内容：\n林薇在车站遇见周明。\n\n请提取剧本中所有有名字角色的设定。" },
+        ]);
+        expect(mocks.requestStructuredText.mock.calls[0]?.[0]).toMatchObject({ preferNativeTools: true, allowRepair: false });
         expect(result.assets).toMatchObject([{ name: "周明", description: "同事" }]);
         expect(result.skippedCount).toBe(1);
         const properties = mocks.requestStructuredText.mock.calls[0][0].tool.parameters.properties.items.items.properties;
-        expect(properties).toHaveProperty("appearance");
-        expect(properties).toHaveProperty("imagePrompt");
-        expect(properties).toHaveProperty("role");
+        expect(properties).toEqual({
+            name: { type: "string" },
+            role: { type: "string", enum: ["main", "supporting", "minor"] },
+            appearance: { type: "string" },
+            description: { type: "string" },
+        });
         expect(mocks.recordDramaLabTextGenerationLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 id: "drama-lab-extract:project-one:episode-one:character:request-one",
@@ -130,7 +134,8 @@ describe("drama lab asset extraction", () => {
         const request = mocks.requestStructuredText.mock.calls[0][0];
         expect(request.messages[0].content).toContain("真实皮肤纹理");
         expect(request.messages[0].content).not.toContain("{{aspectRatio}}");
-        expect(request.messages[0].content).toContain("image_prompt 映射到 imagePrompt");
+        expect(request.messages[1].content).toBe("【剧本内容】\n主角拿起铜灯");
+        expect(request.messages[0].content).not.toContain("系统固定输出契约");
         expect(result.assets[0]).toMatchObject({ imagePrompt: "单一铜灯，纯色底，无人物", type: "线索" });
     });
 
@@ -161,5 +166,48 @@ describe("drama lab asset extraction", () => {
             [{ id: "scene-one", name: "", location: "咖啡馆", description: "已有" } as never],
         );
         expect(items).toMatchObject([{ name: "天台", time: "深夜" }]);
+    });
+
+    it.each([
+        { kind: "character" as const, output: [{ name: "林薇", role: "main", description: "主角", appearance: "短发" }], expected: { name: "林薇" } },
+        { kind: "scene" as const, output: [{ location: "公园", time: "深夜", prompt: "公园夜景，无人物" }], expected: { name: "公园", time: "深夜" } },
+        { kind: "prop" as const, output: [{ name: "光球", type: "装置", description: "关键道具", image_prompt: "单一光球" }], expected: { name: "光球", type: "装置" } },
+    ])("accepts L root-array output for $kind", ({ kind, output, expected }) => {
+        expect(normalizeExtractedDramaLabAssets(JSON.stringify(output), kind, [])).toMatchObject([expected]);
+    });
+
+    it.each([
+        { kind: "scene" as const, keys: ["location", "time", "prompt"] },
+        { kind: "prop" as const, keys: ["name", "type", "description", "image_prompt"] },
+    ])("uses the exact L field contract for $kind tool output", async ({ kind, keys }) => {
+        mocks.resolveDramaLabPrompt.mockResolvedValue({ key: `${kind}_extraction`, template: "L TEMPLATE" });
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ items: [] }), headers: new Headers(), elapsedMs: 1 });
+        await extractDramaLabAssets({
+            userId: "user-one",
+            origin: "http://localhost:3002",
+            cookie: "session=test",
+            requestId: `request-${kind}`,
+            episodeId: "episode-one",
+            assetType: kind,
+            project: {
+                id: "project-one",
+                title: "短剧",
+                summary: "",
+                style: "现代写实",
+                ratio: "9:16",
+                status: "active",
+                characters: [],
+                scenes: [],
+                props: [],
+                clues: [],
+                defaultVideoMode: "storyboard",
+                episodes: [{ id: "episode-one", title: "第一集", script: "林薇在公园拿起铜灯。", outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft", shots: [] }],
+                createdAt: "",
+                updatedAt: "",
+            },
+        });
+        const schema = mocks.requestStructuredText.mock.calls.at(-1)?.[0].tool.parameters.properties.items.items;
+        expect(Object.keys(schema.properties)).toEqual(keys);
+        expect(schema.required).toEqual(keys);
     });
 });

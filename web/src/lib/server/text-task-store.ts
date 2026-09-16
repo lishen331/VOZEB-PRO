@@ -23,6 +23,7 @@ export type TextTaskConfig = {
     capabilityProfile?: LogicalModelCapabilityProfile;
     advancedConfig?: SystemChannelAdvancedConfig;
     systemPrompt?: string;
+    maxOutputTokens?: number;
 };
 
 export type TextTask = GenerationTaskContext & {
@@ -74,6 +75,6 @@ export function touchTextTask(id: string) {
     return touchStoredGenerationTask("text", id, Date.now(), GENERATION_TASK_RETENTION_MS);
 }
 
-export function updateTextTask(id: string, patch: Partial<Pick<TextTask, "config" | "candidateConfigs" | "attempts" | "attemptNo" | "upstream" | "billing" | "storyBatch">>) {
+export function updateTextTask(id: string, patch: Partial<Pick<TextTask, "config" | "candidateConfigs" | "attempts" | "attemptNo" | "upstream" | "billing" | "storyBatch" | "result">>) {
     return mutateStoredGenerationTask<TextTask>("text", id, GENERATION_TASK_RETENTION_MS, (task) => ({ ...task, ...patch }));
 }

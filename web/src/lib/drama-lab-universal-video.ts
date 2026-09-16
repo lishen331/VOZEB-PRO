@@ -1,3 +1,17 @@
+/** Wrap a free-form user draft in the L-compatible envelope at submit time. */
+export function normalizeDramaLabUniversalVideoPrompt(prompt: string, duration: number) {
+    const value = prompt.trim();
+    if (!value) return value;
+    const lines = value
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    if (lines[0]?.startsWith("画面风格和类型") && /^生成一个由以下[1-8]个分镜组成的视频[。.]?$/.test(lines[1] || "")) return value;
+    const references = Array.from(value.matchAll(/@图片\d+/g), (match) => match[0])
+        .filter((item, index, all) => all.indexOf(item) === index)
+        .join("、");
+    return [`画面风格和类型：保持用户草稿指定的视觉风格。`, `生成一个由以下1个分镜组成的视频`, `环境与参考图说明：${references || "本镜头不使用额外参考图"}。`, `分镜1：${duration}秒：${value}`].join("\n");
+}
 /** Production L multi-beat structure; validate rather than silently rewriting user prompts. */
 export function validateDramaLabUniversalVideoPrompt(prompt: string, duration: number, referenceCount: number) {
     const lines = prompt

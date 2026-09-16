@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { App } from "antd";
 import { type CanvasNodeGenerationMode } from "../components/canvas-node-prompt-panel";
@@ -51,7 +51,7 @@ export function useCanvasPageState() {
     const renameProject = useCanvasStore((state) => state.renameProject);
     const deleteProjects = useCanvasStore((state) => state.deleteProjects);
     const currentProject = useCanvasStore((state) => state.projects.find((project) => project.id === projectId));
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const [nodes, setNodes] = useState<CanvasNodeData[]>([]);
     const [connections, setConnections] = useState<CanvasConnection[]>([]);
     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
@@ -97,6 +97,7 @@ export function useCanvasPageState() {
     const connectionsRef = useRef(connections);
     const selectedNodeIdsRef = useRef(selectedNodeIds);
     const viewportRef = useRef(viewport);
+    const displayViewportRef = useRef(viewport);
     const generateNodeRef = useRef<((nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => Promise<void>) | null>(null);
     const agentCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const autoOpenedAgentRef = useRef(false);
@@ -226,6 +227,7 @@ export function useCanvasPageState() {
         connectionsRef,
         selectedNodeIdsRef,
         viewportRef,
+        displayViewportRef,
         generateNodeRef,
         agentCloseTimerRef,
         autoOpenedAgentRef,

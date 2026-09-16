@@ -16,6 +16,7 @@ import { createPostgresSchoolComputeRepository } from "./school-compute-reposito
 import { AnnouncementsRepository, GenerationLogsRepository, PromptsRepository } from "./content-repository";
 import { CdkRepository, EmailCodesRepository, PointsRepository, SessionsRepository, UsersRepository } from "./user-repository";
 import { PracticeRepository } from "./practice-repository";
+import { createPostgresScriptPracticeRepository } from "./script-practice-repository";
 import { IpLibraryRepository } from "./ip-library-repository";
 import type { AppSettingsRecord, EntitlementPlanRecord, SystemModelChannelRecord } from "./repository-shared";
 import { isoValue, jsonParam, jsonValue, numberValue, optionalJson, stringValue } from "./repository-shared";
@@ -149,6 +150,7 @@ export function createPostgresRepositories(executor?: QueryExecutor) {
         schoolDomain: createPostgresSchoolDomainRepository(db),
         schoolCompute: createPostgresSchoolComputeRepository(executor),
         practice: new PracticeRepository(db),
+        scriptPractice: createPostgresScriptPracticeRepository(db),
         ipLibrary: new IpLibraryRepository(db, executor ? undefined : withPostgresTransaction),
     };
 }

@@ -24,7 +24,7 @@ import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
 import { generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
@@ -181,10 +181,21 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    const projectProfile = await resolveProjectExecutionProfile(currentUser.id, resolvedBody.context || {});
+    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+
+    try {
+        projectProfile = await resolveProjectExecutionProfile(currentUser.id, resolvedBody.context || {});
+    } catch (error) {
+        const known = projectExecutionProfileError(error);
+
+        if (known) return NextResponse.json({ error: known.message }, { status: known.status });
+
+        throw error;
+    }
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(resolvedBody) || hasUntrustedWorkflowContext(resolvedBody)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
+    const queuePractice = practiceRequest;
     const createTask = async () => {
         const executionProfile = practiceRequest ? "open-source-practice" : "production";
         let trustedContext: GenerationTaskContext;
@@ -259,12 +270,18 @@ export async function POST(request: Request) {
         const cookie = request.headers.get("cookie") || "";
         const origin = resolveInternalOrigin(resolvePublicRequestOrigin(request));
         const publicOrigin = requestPublicOrigin(request);
-        await scheduleGenerationTask("image", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });
+        await scheduleGenerationTask("image", task.id, {
+            executionPhase: queuePractice ? "queued" : "created",
+            channelId: task.config.channelId,
+            provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
+            nextPollAt: Date.now(),
+            lastUpstreamStatus: queuePractice ? "queued" : "created",
+        });
         after(() => runGenerationTaskRecoveryBatch({ origin, publicOrigin, cookie, limit: 1, taskIds: [task.id] }));
 
-        return NextResponse.json({ task: publicTask(task) });
+        return NextResponse.json({ task: publicTask(task), ...(queuePractice ? { queued: true } : {}) });
     };
-    const response = layerGrant ? await createTask() : await withGenerationConcurrencyLimit(currentUser.id, "image", 10 * 60 * 1000, settings.generationConcurrency.image, createTask, undefined, concurrencyRequestId);
+    const response = layerGrant || queuePractice ? await createTask() : await withGenerationConcurrencyLimit(currentUser.id, "image", 10 * 60 * 1000, settings.generationConcurrency.image, createTask, undefined, concurrencyRequestId);
     if (response) return response;
     const retryAfter = await generationCapacityRetryAfterSeconds(currentUser.id, "image", 10 * 60 * 1000);
     return NextResponse.json({ error: "当前用户生图任务已达到并发上限，请稍后再试" }, { status: 429, ...(retryAfter ? { headers: { "Retry-After": String(retryAfter) } } : {}) });

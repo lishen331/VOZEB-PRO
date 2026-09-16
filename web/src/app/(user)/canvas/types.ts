@@ -1,5 +1,5 @@
 import type { CanvasImageLayerBox, CanvasImageLayerKind } from "@/lib/canvas-image-decomposition";
-import type { CreativeVideoReferenceMode, VideoReferenceRole } from "@/lib/video-reference-contract";
+import type { CanvasVideoGenerationMode, CreativeVideoReferenceMode, VideoReferenceRole } from "@/lib/video-reference-contract";
 
 export type Position = {
     x: number;
@@ -22,6 +22,7 @@ export enum CanvasNodeType {
     Brief = "brief",
     Task = "task",
     BrandKit = "brand-kit",
+    Group = "group",
 }
 
 export function isCanvasImageNodeType(type: CanvasNodeType | null | undefined) {
@@ -68,6 +69,13 @@ export type CanvasVideoReferenceSnapshot = {
     width?: number;
     height?: number;
     durationMs?: number;
+};
+
+export type CanvasGroupMemberSnapshot = {
+    id: string;
+    content: string;
+    width: number;
+    height: number;
 };
 
 export type CanvasNodeMetadata = {
@@ -117,12 +125,15 @@ export type CanvasNodeMetadata = {
     size?: string;
     sizeLocked?: boolean;
     quality?: string;
+    resolution?: string;
+    background?: string;
     count?: number;
     seconds?: string;
     vquality?: string;
     generateAudio?: string;
     watermark?: string;
     videoReferenceMode?: CreativeVideoReferenceMode;
+    videoGenerationMode?: CanvasVideoGenerationMode;
     videoFirstFrame?: CanvasVideoFrameSelection;
     videoLastFrame?: CanvasVideoFrameSelection;
     videoReferences?: CanvasVideoReferenceSnapshot[];
@@ -177,6 +188,13 @@ export type CanvasNodeMetadata = {
     batchUsesReferenceImages?: boolean;
     primaryImageId?: string;
     imageBatchExpanded?: boolean;
+    /** On a Group node: ordered member node ids driving the storyboard grid. */
+    groupMemberIds?: string[];
+    /** On a member node: id of the Group node that currently owns it. */
+    groupId?: string;
+    groupLabel?: string;
+    /** On a Group node: thumbnail cache so the grid renders without the hidden members. */
+    groupMemberSnapshots?: CanvasGroupMemberSnapshot[];
     storageKey?: string;
     remoteUrl?: string;
     serverUrl?: string;

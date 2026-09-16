@@ -14,6 +14,23 @@ export const CANVAS_CONFIG_NODE_HEIGHT = {
     expanded: 226,
 } as const;
 
+/**
+ * Storyboard group geometry. `cell*` drives the thumbnail grid inside a Group
+ * node; `restore*` is the size each member returns to when the group dissolves.
+ */
+export const CANVAS_GROUP_GRID = {
+    cellWidth: 148,
+    cellHeight: 110,
+    gap: 4,
+    padding: 8,
+    headerHeight: 44,
+    minWidth: 360,
+    minHeight: 320,
+    restoreWidth: 340,
+    restoreHeight: 240,
+    restoreGap: 24,
+} as const;
+
 export const NODE_DEFAULT_SIZE = {
     [CanvasNodeType.Image]: { width: 340, height: 240, title: "New Generation" },
     [CanvasNodeType.Panorama]: { ...PANORAMA_NODE_SIZE, title: "全景图" },
@@ -24,6 +41,7 @@ export const NODE_DEFAULT_SIZE = {
     [CanvasNodeType.Brief]: { width: 380, height: 280, title: "创作简报" },
     [CanvasNodeType.Task]: { width: 340, height: 210, title: "Agent 任务" },
     [CanvasNodeType.BrandKit]: { width: 340, height: 240, title: "品牌规范" },
+    [CanvasNodeType.Group]: { width: CANVAS_GROUP_GRID.minWidth, height: CANVAS_GROUP_GRID.minHeight, title: "分镜组" },
 } satisfies Record<CanvasNodeType, { width: number; height: number; title: string }>;
 
 const NODE_SPECS = {
@@ -54,6 +72,7 @@ const NODE_SPECS = {
     [CanvasNodeType.Brief]: { ...NODE_DEFAULT_SIZE[CanvasNodeType.Brief], metadata: { status: "idle" } },
     [CanvasNodeType.Task]: { ...NODE_DEFAULT_SIZE[CanvasNodeType.Task], metadata: { status: "idle", agentTaskStatus: "pending", agentTaskAttempts: 0 } },
     [CanvasNodeType.BrandKit]: { ...NODE_DEFAULT_SIZE[CanvasNodeType.BrandKit], metadata: { status: "idle" } },
+    [CanvasNodeType.Group]: { ...NODE_DEFAULT_SIZE[CanvasNodeType.Group], metadata: { status: "idle", groupMemberIds: [], groupMemberSnapshots: [] } },
 } satisfies Record<CanvasNodeType, CanvasNodeSpec>;
 
 export function getNodeSpec(type: CanvasNodeType) {

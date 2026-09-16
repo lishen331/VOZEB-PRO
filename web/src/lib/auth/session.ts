@@ -123,6 +123,7 @@ export function serializePublicSettings(settings: AuthSettings) {
         registrationEnabled: false,
         emailRegistrationEnabled: settings.emailRegistrationEnabled,
         featureModules: { ...settings.featureModules },
+        practiceScriptSettings: { enabled: settings.practiceScriptSettings.enabled, defaultFormat: settings.practiceScriptSettings.defaultFormat },
         modelPointCosts: { ...settings.modelPointCosts },
         generationPointMultipliers: {
             imageQuality: { ...settings.generationPointMultipliers.imageQuality },

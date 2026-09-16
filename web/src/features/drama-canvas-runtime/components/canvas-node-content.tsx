@@ -1,17 +1,25 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, ListChecks, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
 import { imagePreviewUrl } from "@/lib/media-image-url";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
+
+function canvasGroupColumns(count: number) {
+    if (count <= 1) return 1;
+    if (count <= 3) return count;
+    if (count <= 6) return 3;
+    if (count <= 12) return 4;
+    return 5;
+}
 
 export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type NodeContentRendererProps = {
@@ -58,6 +66,7 @@ export const nodeContentRenderers = {
     [CanvasNodeType.Brief]: BriefNodeContent,
     [CanvasNodeType.Task]: TaskNodeContent,
     [CanvasNodeType.BrandKit]: BrandKitNodeContent,
+    [CanvasNodeType.Group]: GroupNodeContent,
 } satisfies Record<CanvasNodeType, (props: NodeContentRendererProps) => ReactNode>;
 
 export function BriefNodeContent({ node, theme }: NodeContentRendererProps) {
@@ -160,6 +169,39 @@ export function BrandKitNodeContent({ node, theme }: NodeContentRendererProps) {
                     避免：{kit.avoid.join("；")}
                 </p>
             ) : null}
+        </div>
+    );
+}
+
+export function GroupNodeContent({ node, theme }: NodeContentRendererProps) {
+    const snapshots = node.metadata?.groupMemberSnapshots ?? [];
+    const cols = canvasGroupColumns(snapshots.length || 1);
+
+    return (
+        <div className="flex h-full flex-col gap-2 overflow-hidden p-3" style={{ color: theme.node.text }}>
+            <div className="flex shrink-0 items-center gap-1.5 text-xs font-semibold">
+                <span className="truncate">{node.metadata?.groupLabel || node.title || "分镜组"}</span>
+                <span className="ml-auto shrink-0 opacity-45">{snapshots.length} 张</span>
+            </div>
+            {snapshots.length === 0 ? (
+                <div className="flex flex-1 items-center justify-center text-xs" style={{ color: theme.node.placeholder }}>
+                    暂无分镜
+                </div>
+            ) : (
+                <div className="grid min-h-0 flex-1 gap-1" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                    {snapshots.map((snap) => (
+                        <div key={snap.id} className="overflow-hidden rounded" style={{ background: theme.node.subtleSurface }}>
+                            {snap.content ? (
+                                <img src={snap.content} alt="" draggable={false} className="h-full w-full object-cover" />
+                            ) : (
+                                <div className="flex h-full w-full items-center justify-center" style={{ color: theme.node.placeholder }}>
+                                    <ImageIcon className="size-4 opacity-30" />
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -355,7 +397,24 @@ export function EmptyImageContent({ theme, isBatchRoot, batchCount, batchExpande
     return content;
 }
 
+// 只有真正进入视口才挂载 <video>，离开视口整体卸载以释放解码器和缓冲区。
+// 100+ 图片 / 50+ 视频同屏时，浏览器同时活跃的 media element 有硬上限
+// (Chrome 约 75-100)，裸挂所有视频节点会撞到这个上限造成静默失效或卡顿。
+function useElementOnScreen(ref: React.RefObject<Element | null>, rootMargin = "300px") {
+    const [onScreen, setOnScreen] = useState(false);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting), { rootMargin });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [ref, rootMargin]);
+    return onScreen;
+}
+
 export function VideoNodeContent({ node, theme }: NodeContentRendererProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const onScreen = useElementOnScreen(containerRef);
     if (!node.metadata?.content)
         return (
             <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.placeholder }}>
@@ -363,7 +422,17 @@ export function VideoNodeContent({ node, theme }: NodeContentRendererProps) {
                 <span className="text-sm">空视频节点</span>
             </div>
         );
-    return <video src={node.metadata.content} controls className="h-full w-full rounded-[18px] bg-black object-contain" data-canvas-video data-canvas-no-zoom />;
+    return (
+        <div ref={containerRef} className="h-full w-full">
+            {onScreen ? (
+                <video src={node.metadata.content} controls muted playsInline preload="metadata" className="h-full w-full rounded-[18px] bg-black object-contain" data-canvas-video data-canvas-no-zoom />
+            ) : (
+                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-black/90">
+                    <Video className="size-7 opacity-40" style={{ color: theme.node.placeholder }} />
+                </div>
+            )}
+        </div>
+    );
 }
 
 export function PanoramaNodeContent({ node, theme }: NodeContentRendererProps) {
@@ -420,7 +489,7 @@ export function ImageContent({
     onSetBatchPrimary?: () => void;
     onImageDimensions?: (nodeId: string, naturalWidth: number, naturalHeight: number) => void;
 }) {
-    const colorTheme = useThemeStore((state) => state.theme);
+    const colorTheme = useCanvasColorTheme().theme;
     const theme = canvasThemes[colorTheme];
     const isBatchChild = Boolean(node.metadata?.batchRootId);
     const imageRef = useRef<HTMLImageElement>(null);
@@ -524,7 +593,7 @@ export function BatchFrame({
     onToggleBatch?: () => void;
     children: ReactNode;
 }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const isBatchRoot = batchCount > 1;
     return (
         <div
@@ -573,7 +642,7 @@ export function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; on
 }
 
 export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "left" | "right"; visible: boolean; onConnectStart: (event: React.MouseEvent | React.PointerEvent) => void }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
 
     return (
         <div

@@ -9,20 +9,29 @@ import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
 import { practiceApi } from "@/services/api/practice";
 import { PracticeSizeField, WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
+import { PracticeAssetPicker } from "./practice-asset-picker";
+
+/**
+ * 角色/道具槽位固定为 2.Demo 页面虽然声明了 characterPropImage3→LoadImage(48)，
+ * 但 RunningHub 工作流图里第 3 路的下游节点（47/43/44/45）并不存在，节点 48 是孤立的，
+ * 传第 3 张会让适配器把 CFGGuider 重连到不存在的节点而报错.实际上限：1 场景 + 2 素材.
+ */
+export const STORYBOARD_CHARACTER_PROP_SLOTS = 2;
 
 export function buildStoryboardImageReferences(sceneId: string, assetIds: string[]) {
-    return [sceneId ? { type: "asset" as const, id: sceneId, inputKey: "sceneImage" } : null, ...assetIds.slice(0, 3).map((id, index) => (id ? { type: "asset" as const, id, inputKey: `characterPropImage${index + 1}` } : null))].filter(
-        (reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference),
-    );
+    return [
+        sceneId ? { type: "asset" as const, id: sceneId, inputKey: "sceneImage" } : null,
+        ...assetIds.slice(0, STORYBOARD_CHARACTER_PROP_SLOTS).map((id, index) => (id ? { type: "asset" as const, id, inputKey: `characterPropImage${index + 1}` } : null)),
+    ].filter((reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference));
 }
-export default function PracticeStoryboardImagePanel({ capability, ipReferences, onIpReferencesChange, onCreated }: PracticePanelProps) {
+export default function PracticeStoryboardImagePanel({ capability, ipReferences, onIpReferencesChange, onCreated, defaultInput }: PracticePanelProps) {
     const { message } = App.useApp();
-    const [prompt, setPrompt] = useState("");
+    const [prompt, setPrompt] = useState(() => defaultInput?.prompt ?? "");
     const [model, setModel] = useState(capability.models[0]?.id);
-    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => workflowFieldDefaults(capability));
+    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => ({ ...workflowFieldDefaults(capability), ...(defaultInput?.workflowInput ?? {}) }));
     const [busy, setBusy] = useState(false);
-    const [scene, setScene] = useState<UploadedImage>();
-    const [assets, setAssets] = useState<Array<UploadedImage | undefined>>([]);
+    const [scene, setScene] = useState<UploadedImage | undefined>(() => defaultInput?.images?.sceneImage);
+    const [assets, setAssets] = useState<Array<UploadedImage | undefined>>(() => [defaultInput?.images?.characterPropImage1, defaultInput?.images?.characterPropImage2]);
     const [uploading, setUploading] = useState(false);
     const chooseImage = async (file: File | undefined, index?: number) => {
         if (!file || !file.type.startsWith("image/")) return;
@@ -71,9 +80,11 @@ export default function PracticeStoryboardImagePanel({ capability, ipReferences,
         <div className="space-y-4">
             <ModelField capability={capability} value={model} onChange={setModel} />
             <PracticePromptEditor briefLabel="分镜脚本" label="画面描述" value={prompt} onChange={setPrompt} disabled={busy} mode="image" />
-            <PracticeMediaInput label="主场景图（必需）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={scene?.url} onRemove={() => setScene(undefined)} />
-            <div className="grid gap-3 sm:grid-cols-3">
-                {[0, 1, 2].map((index) => (
+            <PracticeMediaInput label="主场景图（必需）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={scene?.url} onRemove={() => setScene(undefined)}>
+                <PracticeAssetPicker dramaAssetType="scene" disabled={uploading} onSelect={setScene} label="从资产库选（场景）" />
+            </PracticeMediaInput>
+            <div className="grid gap-3 sm:grid-cols-2">
+                {[0, 1].map((index) => (
                     <PracticeMediaInput
                         key={index}
                         label={`角色/道具图 ${index + 1}`}
@@ -81,7 +92,9 @@ export default function PracticeStoryboardImagePanel({ capability, ipReferences,
                         onChoose={(file) => void chooseImage(file, index)}
                         url={assets[index]?.url}
                         onRemove={() => setAssets((current) => current.map((item, i) => (i === index ? undefined : item)))}
-                    />
+                    >
+                        <PracticeAssetPicker disabled={uploading} onSelect={(img) => setAssets((current) => Object.assign([...current], { [index]: img }))} />
+                    </PracticeMediaInput>
                 ))}
             </div>
             <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />

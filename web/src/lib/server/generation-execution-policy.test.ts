@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasUntrustedWorkflowContext, resolveGenerationExecutionPolicy } from "./generation-execution-policy";
+import { hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, resolveGenerationExecutionPolicy, trustedPracticeTaskHeaders } from "./generation-execution-policy";
 
 describe("generation execution policy", () => {
     it("keeps production as the default billed profile", () => {
@@ -29,5 +29,14 @@ describe("generation execution policy", () => {
     it("marks all client workflow selectors as untrusted context", () => {
         expect(hasUntrustedWorkflowContext({ context: { workflowKey: "wf", workflowVersion: 1, businessCode: "script", taskOrigin: "user" } })).toBe(true);
         expect(hasUntrustedWorkflowContext({ context: { surface: "canvas", projectId: "canvas-1" } })).toBe(false);
+    });
+
+    it("binds trusted practice task signatures to the school scope", () => {
+        const headers = trustedPracticeTaskHeaders("user-1", "school-a", "request-1");
+        const request = new Request("http://localhost/api/image-tasks", { headers });
+
+        expect(isTrustedPracticeTaskRequest(request, "user-1", { executionProfile: "open-source-practice", schoolId: "school-a", clientRequestId: "request-1" })).toBe(true);
+        expect(isTrustedPracticeTaskRequest(request, "user-1", { executionProfile: "open-source-practice", schoolId: "school-b", clientRequestId: "request-1" })).toBe(false);
+        expect(isTrustedPracticeTaskRequest(request, "user-1", { executionProfile: "open-source-practice", clientRequestId: "request-1" })).toBe(false);
     });
 });
