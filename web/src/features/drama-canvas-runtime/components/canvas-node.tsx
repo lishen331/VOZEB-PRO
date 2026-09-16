@@ -162,12 +162,16 @@ export const CanvasNode = React.memo(function CanvasNode({
     const hasVideoContent = data.type === CanvasNodeType.Video && Boolean(data.metadata?.content);
     const hasAudioContent = data.type === CanvasNodeType.Audio && Boolean(data.metadata?.content);
     const isConfig = data.type === CanvasNodeType.Config;
-    const nodeBackground = isConfig ? theme.node.panel : hasImageContent || hasVideoContent ? "transparent" : theme.node.fill;
+    const isGenerating = data.metadata?.status === "loading";
+    // While generating, force an opaque fill even for image/video nodes whose
+    // metadata.content still points at the previous render — otherwise a
+    // transparent card lets the canvas's connection lines (drawn beneath the
+    // node layer) show straight through as diagonal streaks across the card.
+    const nodeBackground = isConfig ? theme.node.panel : (hasImageContent || hasVideoContent) && !isGenerating ? "transparent" : theme.node.fill;
     const isBatchRoot = data.type === CanvasNodeType.Image && Boolean(data.metadata?.isBatchRoot) && batchCount > 1;
     const isBatchChild = data.type === CanvasNodeType.Image && Boolean(data.metadata?.batchRootId);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
     const imageBorderColor = isActive ? selectionBlue : isRelated && !isBatchChild ? theme.node.muted : theme.node.stroke;
-    const isGenerating = data.metadata?.status === "loading";
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const clickStartRef = useRef<{ x: number; y: number } | null>(null);
     const resizeRef = useRef({

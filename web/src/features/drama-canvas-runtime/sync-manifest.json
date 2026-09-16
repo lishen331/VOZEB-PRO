@@ -225,7 +225,7 @@
         },
         {
             "path": "components/canvas-node.tsx",
-            "sha256": "3624aedf9d8f30064f13b523844c1065c7ebb05f6756e81692b3adc8ed76b172"
+            "sha256": "7d3504cd20531dc8f6997f6f2c5eff7a22a3d5a5db319c70f0d66ff4fed50777"
         },
         {
             "path": "components/canvas-panorama-surface.tsx",
