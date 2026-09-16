@@ -290,8 +290,8 @@ export async function POST(request: Request) {
                                 ? {
                                       ...channel.advancedConfig!,
                                       supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset.supportsReferenceImage),
-                                  supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset.supportsReferenceVideo),
-                                  supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset.supportsReferenceAudio),
+                                      supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset.supportsReferenceVideo),
+                                      supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset.supportsReferenceAudio),
                                   }
                                 : channel.advancedConfig,
                             references,
