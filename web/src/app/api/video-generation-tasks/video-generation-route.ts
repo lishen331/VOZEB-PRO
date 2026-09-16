@@ -55,6 +55,39 @@ import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireF
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext; input?: Record<string, unknown> };
+type VideoCapabilityDebugChannel = {
+    logicalModelId?: string;
+    channelId?: string;
+    model?: string;
+    capabilityProfile?: { supportsReferenceImage?: boolean; supportsReferenceVideo?: boolean; supportsReferenceAudio?: boolean };
+    advancedConfig?: { supportsReferenceImage?: boolean; supportsReferenceVideo?: boolean; supportsReferenceAudio?: boolean };
+};
+
+function logVideoCapabilityDecision(
+    channel: VideoCapabilityDebugChannel,
+    globalPreset: { supportsReferenceImage?: boolean; supportsReferenceVideo?: boolean; supportsReferenceAudio?: boolean } | undefined,
+    references: VideoGenerationReference[],
+    resolved: { supportsReferenceImage: boolean; supportsReferenceVideo: boolean; supportsReferenceAudio: boolean },
+) {
+    console.info("[video-capability-debug]", {
+        logicalModelId: channel.logicalModelId,
+        channelId: channel.channelId,
+        upstreamModel: channel.model,
+        bindingSupportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage,
+        bindingSupportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo,
+        bindingSupportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio,
+        channelSupportsReferenceImage: channel.advancedConfig?.supportsReferenceImage,
+        channelSupportsReferenceVideo: channel.advancedConfig?.supportsReferenceVideo,
+        channelSupportsReferenceAudio: channel.advancedConfig?.supportsReferenceAudio,
+        globalPresetSupportsReferenceImage: globalPreset?.supportsReferenceImage,
+        globalPresetSupportsReferenceVideo: globalPreset?.supportsReferenceVideo,
+        globalPresetSupportsReferenceAudio: globalPreset?.supportsReferenceAudio,
+        resolvedSupportsReferenceImage: resolved.supportsReferenceImage,
+        resolvedSupportsReferenceVideo: resolved.supportsReferenceVideo,
+        resolvedSupportsReferenceAudio: resolved.supportsReferenceAudio,
+        referenceTypes: references.map((reference) => reference.type),
+    });
+}
 
 export async function POST(request: Request) {
     const user = await getCurrentUser(request);
@@ -160,6 +193,11 @@ export async function POST(request: Request) {
                     resolution: requestedParameters.vquality,
                 });
                 const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
+                logVideoCapabilityDecision(channel, globalPreset, references, {
+                    supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset?.supportsReferenceImage),
+                    supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset?.supportsReferenceVideo),
+                    supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset?.supportsReferenceAudio),
+                });
                 if (geminiVideo) assertGeminiVideoReferences(references);
                 else {
                     assertReferenceCapabilities(
@@ -282,6 +320,11 @@ export async function POST(request: Request) {
                         resolution: requestedParameters.vquality,
                     });
                     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
+                    logVideoCapabilityDecision(channel, globalPreset, references, {
+                        supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset?.supportsReferenceImage),
+                        supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset?.supportsReferenceVideo),
+                        supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset?.supportsReferenceAudio),
+                    });
                     if (geminiVideo) {
                         assertGeminiVideoReferences(references);
                     } else {
