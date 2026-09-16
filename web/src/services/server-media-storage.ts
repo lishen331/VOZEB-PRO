@@ -1,6 +1,6 @@
 "use client";
 
-import { browserReadableMediaUrl } from "@/lib/browser-media-url";
+import { browserReadableMediaUrl, canvasReadableImageUrl } from "@/lib/browser-media-url";
 import { creativeUploadLimitMessage, creativeUploadMaxBytes, isCreativeUploadMimeType } from "@/lib/creative-upload";
 
 export type ServerMediaType = "image" | "video" | "audio";
@@ -106,7 +106,9 @@ export function blobToDataUrl(blob: Blob) {
 
 async function fetchMediaBlob(url: string) {
     if (url.startsWith("data:")) return dataUrlToBlob(url);
-    const response = await fetch(browserReadableMediaUrl(url), { cache: "no-store" });
+    // Only images have an origin-clean byte route; other media still redirects to storage.
+    const readable = url.includes("/images/") ? canvasReadableImageUrl(url) : browserReadableMediaUrl(url);
+    const response = await fetch(readable, { cache: "no-store" });
     if (!response.ok) throw new Error("读取媒体失败");
     return response.blob();
 }

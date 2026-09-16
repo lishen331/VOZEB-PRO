@@ -1,6 +1,6 @@
 "use client";
 
-import { browserReadableMediaUrl } from "@/lib/browser-media-url";
+import { canvasReadableImageUrl } from "@/lib/browser-media-url";
 import { readImageMeta } from "@/lib/image-utils";
 import { blobToDataUrl, getServerMediaBlob, serverMediaUrl, uploadServerMedia } from "@/services/server-media-storage";
 
@@ -42,9 +42,9 @@ export async function imageToDataUrl(image: { url?: string; dataUrl?: string; re
     let fallback = "";
     for (const url of candidates) {
         if (url.startsWith("data:")) return url;
-        fallback ||= browserReadableMediaUrl(url);
+        fallback ||= canvasReadableImageUrl(url);
         try {
-            const response = await fetch(browserReadableMediaUrl(url), { cache: "no-store" });
+            const response = await fetch(canvasReadableImageUrl(url), { cache: "no-store" });
             if (response.ok) return blobToDataUrl(await response.blob());
         } catch {
             // Continue with another stable server or upstream source.
