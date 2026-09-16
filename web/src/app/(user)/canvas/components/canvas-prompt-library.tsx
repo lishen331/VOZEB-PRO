@@ -7,14 +7,14 @@ import { BookOpen } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { preloadOnIdle } from "@/lib/preload-on-idle";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 
 const loadPromptSelectDialog = () => import("@/components/prompts/prompt-select-dialog").then((module) => module.PromptSelectDialog);
 const PromptSelectDialog = dynamic(loadPromptSelectDialog, { ssr: false, loading: () => null });
 
 export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) => void }) {
     const [open, setOpen] = useState(false);
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
 
     useEffect(() => {
         return preloadOnIdle(() => {

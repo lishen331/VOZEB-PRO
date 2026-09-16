@@ -4,7 +4,7 @@ import { Tag } from "lucide-react";
 import { Button, Dropdown } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { IMAGE_REFERENCE_ROLE_LABELS, imageReferenceRoleSummary, normalizeImageReferenceRoles, toggleImageReferenceRole, type ImageReferenceRole, type ImageReferenceRoles } from "@/lib/image-reference-roles";
 
 type CanvasImageReference = {
@@ -24,7 +24,7 @@ type CanvasImageReferenceRolesPopoverProps = {
 const REFERENCE_ROLES_TRIGGER_CLASS = "canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3";
 
 export function CanvasImageReferenceRolesPopover({ references, roles, onChange, buttonClassName = REFERENCE_ROLES_TRIGGER_CLASS }: CanvasImageReferenceRolesPopoverProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const current = normalizeImageReferenceRoles(roles);
     const roleEntries = Object.entries(IMAGE_REFERENCE_ROLE_LABELS) as Array<[ImageReferenceRole, string]>;
     return (

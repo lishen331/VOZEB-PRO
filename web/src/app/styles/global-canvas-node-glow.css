@@ -9,10 +9,19 @@
  *   2. Connection drop-target pulse — at most one card at a time, plain
  *      keyframe animation, no JS involved.
  *   3. Generating ring — potentially many cards concurrently (every node
- *      mid-generation), kept to a single conic-gradient sweep with no
- *      mix-blend-mode / layered gradients so N concurrent generations stay
- *      cheap.
+ *      mid-generation). Reuses the hover glow-edge element and animates the
+ *      conic-gradient's angle rather than transforming the box, so the light
+ *      sweeps along the border track instead of rotating the whole (rounded,
+ *      larger-than-the-card) box into a diamond. Registering the angle var
+ *      with @property gives it smooth <angle> interpolation across the
+ *      keyframe instead of the default discrete custom-property jump.
  */
+@property --canvas-glow-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+
 @layer utilities {
     .canvas-node-glow-edge {
         position: absolute;
@@ -59,25 +68,35 @@
         }
     }
 
-    .canvas-node-generating-ring::before {
-        content: "";
-        position: absolute;
-        inset: -2px;
-        border-radius: inherit;
-        padding: 2px;
-        z-index: 1;
-        pointer-events: none;
-        background: conic-gradient(from 0deg, #3b82f6, #06b6d4, #10b981, #3b82f6);
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        animation: canvasNodeGeneratingSpin 2.2s linear infinite;
-        opacity: 0.75;
+    /* Generating state reuses the hover glow-edge span (already unconditionally
+       rendered in the JSX) instead of a separate rotated box. The box itself
+       never moves — only the conic-gradient's start angle sweeps, so the light
+       travels around the border track and stays inside the card's footprint.
+       Written after the hover rule so a hovered+generating card shows the
+       brighter generating treatment (same specificity, later wins). */
+    .canvas-node-generating-ring .canvas-node-glow-edge {
+        opacity: 1;
+        mask-image: conic-gradient(from var(--canvas-glow-angle) at center, black 2.5%, transparent 12%, transparent 88%, black 97.5%);
+        animation: canvasNodeGlowSweep 2.4s linear infinite;
     }
 
-    @keyframes canvasNodeGeneratingSpin {
+    .canvas-node-generating-ring .canvas-node-glow-edge::before {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: inherit;
+        box-shadow:
+            inset 0 0 0 1.5px rgb(59 130 246 / 100%),
+            inset 0 0 10px 1px rgb(6 182 212 / 75%),
+            inset 0 0 24px 3px rgb(16 185 129 / 55%),
+            0 0 10px 1px rgb(59 130 246 / 75%),
+            0 0 24px 3px rgb(6 182 212 / 60%),
+            0 0 42px 5px rgb(16 185 129 / 40%);
+    }
+
+    @keyframes canvasNodeGlowSweep {
         to {
-            transform: rotate(360deg);
+            --canvas-glow-angle: 360deg;
         }
     }
 
@@ -86,7 +105,7 @@
             transition: none;
         }
         .canvas-node-target-pulse,
-        .canvas-node-generating-ring::before {
+        .canvas-node-generating-ring .canvas-node-glow-edge {
             animation: none;
         }
     }

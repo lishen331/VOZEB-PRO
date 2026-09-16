@@ -8,7 +8,7 @@ import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { mentionAtCursor, type MentionAtCursor } from "@/lib/mention-at-cursor";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { handleMentionNavigation } from "../utils/canvas-mention-navigation";
 
@@ -29,7 +29,7 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
     { value, references, onChange, onSubmit, onKeyDown, className, containerClassName, style, highlightLabels = true, autoFocus, ...props },
     forwardedRef,
 ) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const [mention, setMention] = useState<MentionAtCursor | null>(null);

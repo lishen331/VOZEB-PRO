@@ -15,7 +15,7 @@ import { CreditSymbol, formatCreditAmount } from "@/constant/credits";
 import { cn } from "@/lib/utils";
 import { userAvatarFallback } from "@/lib/user-avatar";
 import { canvasThemes } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme, useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore, type LocalUser } from "@/stores/use-user-store";
 import { resetClientSessionState } from "@/lib/client-session-reset";
 
@@ -35,8 +35,11 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
     const rootRef = useRef<HTMLDivElement>(null);
     const storeUser = useUserStore((state) => state.user);
     const user = storeUser || initialUser || null;
-    const theme = useThemeStore((state) => state.theme);
-    const setTheme = useThemeStore((state) => state.setTheme);
+    const globalTheme = useThemeStore((state) => state.theme);
+    const globalSetTheme = useThemeStore((state) => state.setTheme);
+    const canvasColorTheme = useCanvasColorTheme();
+    const theme = variant === "canvas" ? canvasColorTheme.theme : globalTheme;
+    const setTheme = variant === "canvas" ? canvasColorTheme.setTheme : globalSetTheme;
     const canvasTheme = canvasThemes[theme];
     const defaultControlClass =
         "inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-[#e6e9ed] bg-white text-sm font-medium text-[#59616c] transition hover:border-[#d9dde3] hover:bg-[#f3f5f7] hover:text-[#20242a] dark:border-[#2c3138] dark:bg-[#181b20] dark:text-[#b7bec8] dark:hover:border-[#3b424c] dark:hover:bg-[#22262c] dark:hover:text-white";

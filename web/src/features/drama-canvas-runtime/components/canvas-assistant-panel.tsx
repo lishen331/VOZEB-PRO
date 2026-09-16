@@ -11,7 +11,7 @@ import { controlCreativeAgentRun, createCreativeAgentRun, listCreativeAgentRuns,
 import { updateCreativeConversation } from "@/services/api/creative";
 import { deleteDramaLabCanvasAssistantConversations as deleteCanvasAssistantConversations } from "@/services/api/drama-lab-canvas-projects";
 import { refreshUserPointsIfSystem } from "@/services/api/points";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { CREATIVE_RUN_MODEL_LIMIT, type CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
 import { CreativeAgentControls, CreativeAgentSkillCard, type CreativeAgentModelOption } from "@/components/agent/creative-agent-controls";
@@ -56,7 +56,7 @@ import { AssistantHistory, AssistantReferenceChip, assistantMessageToChatMessage
 
 export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, sessions, activeSessionId, onSelectNodeIds, onSessionsChange, onApplyOps, onLocateNode, onPasteImage, closing, onCollapse }: CanvasAssistantPanelProps) {
     const { message } = App.useApp();
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useCanvasColorTheme().theme];
     const user = useUserStore((state) => state.user);
     const { skills, skillsLoading, models } = useCreativeAgentOptions("canvas");
     const [width, setWidth] = useState(DEFAULT_PANEL_WIDTH);

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect } from "react";
+import { usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
@@ -11,6 +12,13 @@ import "dayjs/locale/zh-cn";
 import { ClientRootInit } from "@/components/layout/client-root-init";
 import { getAntThemeConfig } from "@/lib/app-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
+
+// The canvas editor (both /canvas/[id] and /drama-canvas/[id]) defaults to a
+// dark theme independent of the site-wide theme — see useCanvasColorTheme in
+// use-theme-store.ts. This regex is duplicated (not imported) in the inline
+// bootstrap script in app/layout.tsx, which runs before hydration and cannot
+// import app code.
+const CANVAS_EDITOR_ROUTE = /^\/(?:canvas|drama-canvas)\/[^/]+/;
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -26,7 +34,11 @@ const queryClient = new QueryClient({
 dayjs.locale("zh-cn");
 
 export function AppProviders({ children }: { children: ReactNode }) {
-    const theme = useThemeStore((state) => state.theme);
+    const pathname = usePathname();
+    const isCanvasEditorRoute = CANVAS_EDITOR_ROUTE.test(pathname || "");
+    const globalTheme = useThemeStore((state) => state.theme);
+    const canvasThemeOverride = useThemeStore((state) => state.canvasThemeOverride);
+    const theme = isCanvasEditorRoute ? (canvasThemeOverride ?? "dark") : globalTheme;
     const dark = theme === "dark";
 
     useEffect(() => {
