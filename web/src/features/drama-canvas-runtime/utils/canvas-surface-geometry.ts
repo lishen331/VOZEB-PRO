@@ -7,6 +7,12 @@ export function worldFromScreen(clientX: number, clientY: number, viewport: View
     return { x: (clientX - rect.left - viewport.x) / viewport.k, y: (clientY - rect.top - viewport.y) / viewport.k };
 }
 
+/** The edge hit path lives inside the scaled world layer, so its stroke must be divided by the zoom to stay clickable when zoomed out. */
+export function canvasEdgeHitStrokeWidth(zoom: number, screenWidth = 18) {
+    if (!Number.isFinite(zoom) || zoom <= 0) return screenWidth;
+    return screenWidth / zoom;
+}
+
 export function isCanvasVideoControlPoint(rect: Pick<DOMRect, "bottom" | "height">, clientY: number) {
     const controlsHeight = Math.max(40, Math.min(72, rect.height * 0.22));
     return clientY >= rect.bottom - controlsHeight;
