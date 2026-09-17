@@ -132,6 +132,21 @@ describe("one-click-film asset panel UI", () => {
         expect(source).toContain("dramaAssetPrimaryReference(item)");
     });
 
+    it("extracts assets from the episode script and persists them", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // 对应 L POST /episodes/:episode_id/{characters,props}/extract
+        expect(source).toContain("/extract-assets");
+        expect(source).toContain("extractAssets");
+        expect(source).toContain("KIND_ASSET_TYPE");
+        // L 的 assetType 用单数，与集合键不同名
+        expect(source).toContain('characters: "character"');
+        expect(source).toContain('scenes: "scene"');
+        expect(source).toContain('props: "prop"');
+        expect(source).toContain("aria-label={`从剧本提取${KIND_LABEL[kind]}`}");
+        // 提取结果必须回写项目，否则点了等于没反应
+        expect(source).toContain("onProjectChange(data.project as DramaProject)");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         const source = await readFile(panelPath, "utf8");
         expect(source).not.toContain("setTimeout");

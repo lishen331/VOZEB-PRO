@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Input, Modal, Segmented, Tag, message } from "antd";
-import { ImageIcon, Layers, Plus, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
+import { ImageIcon, Layers, Plus, ScanText, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
 import { useState } from "react";
 import type { DramaAssetReference, DramaNamedAsset, DramaProject } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
@@ -22,6 +22,9 @@ async function callJson(url: string, init?: RequestInit) {
 }
 
 const KIND_LABEL: Record<AssetKind, string> = { characters: "角色", scenes: "场景", props: "道具" };
+
+/** L 的 assetType 用单数，与集合键不同名。 */
+const KIND_ASSET_TYPE: Record<AssetKind, string> = { characters: "character", scenes: "scene", props: "prop" };
 
 /**
  * 资产面板（角色 / 场景 / 道具）。
@@ -170,6 +173,33 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
     };
 
     /**
+     * 从本集剧本提取资产，对应 L `POST /episodes/:episode_id/{characters,props}/extract`。
+     * 服务端按名称去重后直接落库，避免同名资产产生第二个锚点。
+     */
+    const extractAssets = async () => {
+        const episodeId = project.activeEpisodeId || project.episodes[0]?.id;
+        if (!episodeId) {
+            message.warning("请先添加分集并填写剧本");
+            return;
+        }
+        setBusy("__extract__");
+        try {
+            const data = await callJson(`${base}/extract-assets`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ episodeId, assetType: KIND_ASSET_TYPE[kind] }),
+            });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            const added = Number(data?.added) || 0;
+            if (added) message.success(`已提取 ${added} 个${KIND_LABEL[kind]}`);
+            else message.info(`没有发现新的${KIND_LABEL[kind]}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产提取失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+    /**
      * 批量生成设定图，对应 L `POST /characters/batch-generate-images`。
      * L 的硬上限是单次 10 个，这里只取前 10 个并提示，避免一次点掉大量额度。
      */
@@ -254,6 +284,9 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                     />
                     <Button size="small" icon={<Plus className="size-4" />} loading={busy === "__create__"} aria-label={`新增${KIND_LABEL[kind]}`} onClick={() => void createAsset()}>
                         新增
+                    </Button>
+                    <Button size="small" icon={<ScanText className="size-4" />} loading={busy === "__extract__"} aria-label={`从剧本提取${KIND_LABEL[kind]}`} onClick={() => void extractAssets()}>
+                        从剧本提取
                     </Button>
                     {assets.length ? (
                         <Button size="small" icon={<Layers className="size-4" />} loading={busy === "__batch__"} aria-label={`批量生成${KIND_LABEL[kind]}设定图`} onClick={() => void batchGenerate()}>
