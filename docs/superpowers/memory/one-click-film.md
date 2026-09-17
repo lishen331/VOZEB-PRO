@@ -28,7 +28,9 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 一级入口与导航、独立配置页、项目隔离（`sourceHandoffId` 前缀 `one-click-film:`）、父任务编排+调度入队+worker识别+取消/重试/恢复、配音真实 TTS 子任务、按音频拆镜接口、导出接口、画布往返按 `source` 分流、全能提示词字段合同。
 
 ### 覆盖现状（2026-09-17 收尾）
-**storyboards 域 14/21 已迁移 + 1 结构覆盖，剩 6 条全是 P2**（3 条 stream 版本的非流式等价物已迁移；props 独立端点、upscale、episode generate 端点）。
+**storyboards 域 15/21 已迁移 + 1 结构覆盖，剩 5 条全是 P2**（3 条 stream 版本的非流式等价物已迁移；props 独立端点、episode generate 端点）。
+
+`upscale` 已于 2026-09-17 迁移：sharp 固定 2 倍 lanczos3，不调模型不计费。承载差异是 L 直接读写本地 storage 目录并改写 `local_path`，V 下载源图到临时目录、放大、写回 reference 媒体库，再改写 `storyboardImageUrl/Width/Height`。UI 入口是分镜卡上的「放大分镜图」（仅在已有分镜图时出现）。
 
 `batch-infer-params` 已于 2026-09-17 迁移：纯本地规则推断（不调模型、不计费），契约文件 `photography-inference-l-contract.json` 用 113 个样本与 L 真实输出零不一致校验过。UI 入口是分镜列表头部的「补全摄影参数」按钮。
 
@@ -48,7 +50,10 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 注意一处等价判定的边界：`POST /videos/image/:image_gen_id`（L 用任意已生成图生视频）在 V 里没有独立端点，`generate-video` 只能用绑定在分镜 frames 上的帧。请求载荷等价但入口形态不同，"从历史候选图直接生视频"要单独补。
 
-其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：storyboards 剩余 6 条 P2（3 条 stream 版本、props 独立端点、upscale、episode generate 端点）与媒体域 5 条 P2（3 条 DELETE 清理历史、2 条 L 特有分集背景流）。**
+其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：storyboards 剩余 5 条 P2（3 条 stream 版本、props 独立端点、episode generate 端点）与媒体域 5 条 P2（3 条 DELETE 清理历史、2 条 L 特有分集背景流）。**
+
+### sharp 依赖差异
+L 把 sharp 当可选依赖（`try { require('sharp') }`，缺失时报错），V 的 package.json 里 sharp 是正式依赖，且 `image-layer-output` 等服务都是静态 `import sharp from "sharp"`。所以 V 侧不要再写 optional require 分支 —— 那会触发 TS2349（`typeof import("sharp")` 无调用签名），而且把构建期问题伪装成运行期分支。
 
 ### 白名单坑
 服务端新推断/新写入的分镜字段必须同时加进 `shot-crud.ts` 的白名单，否则会被静默丢弃。`batch-infer-params` 就因此补了 `lightingStyle` / `depthOfField`。测试要把「UI 能写」与「服务端能收」绑在一条断言里。
