@@ -187,6 +187,8 @@ export type CanvasNodeMetadata = {
     batchChildIds?: string[];
     batchUsesReferenceImages?: boolean;
     primaryImageId?: string;
+    /** On a batch child: true when this child is the batch root's current primary image. Mirrors root.primaryImageId. */
+    isBatchPrimary?: boolean;
     imageBatchExpanded?: boolean;
     /** On a batch root: thumbnail cache of the batch children so the collapsed card stack can preview them without the hidden child nodes. */
     batchMemberSnapshots?: CanvasGroupMemberSnapshot[];
