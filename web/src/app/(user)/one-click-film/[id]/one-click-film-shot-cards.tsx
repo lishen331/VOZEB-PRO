@@ -2,8 +2,10 @@
 
 import { Button, Empty, Input, Popconfirm, Segmented, Switch, Tag, Tooltip, message } from "antd";
 import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Maximize2, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
+
+import { runBatchMedia, type BatchMediaKind, type BatchMediaProgress } from "@/lib/one-click/batch-media";
 
 import { OneClickFilmShotEditor } from "./one-click-film-shot-editor";
 
@@ -43,6 +45,13 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
     const [totalDuration, setTotalDuration] = useState("");
     const [universalMode, setUniversalMode] = useState(false);
     const [generateNarration, setGenerateNarration] = useState(true);
+    /** 批量生成状态，对应 L 的 batchImageRunning / batchImageProgress / batchImageErrors。 */
+    const [batchKind, setBatchKind] = useState<BatchMediaKind>();
+    const [batchProgress, setBatchProgress] = useState<BatchMediaProgress>();
+    const [batchErrors, setBatchErrors] = useState<string[]>([]);
+    /** 停止标志用 ref：worker 循环里要读到最新值，state 快照读不到。 */
+    const stopRequested = useRef(false);
+    const [stopping, setStopping] = useState(false);
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const query = `?episodeId=${encodeURIComponent(episode.id)}`;
 
@@ -200,6 +209,47 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
         });
 
     /**
+     * 批量生成分镜图 / 分镜视频，对应 L `startBatchImageGeneration` / `startBatchVideoGeneration`。
+     *
+     * 编排逻辑在 `@/lib/one-click/batch-media`（并发 3、跳过已有成品、协作式停止），
+     * 抽出去是为了能做真实行为测试；这里只负责提交、刷新与提示。
+     */
+    const runBatch = async (kind: BatchMediaKind) => {
+        stopRequested.current = false;
+        setStopping(false);
+        setBatchErrors([]);
+        setBatchKind(kind);
+        setBatchProgress({ current: 0, total: 0, failed: 0 });
+        try {
+            const result = await runBatchMedia(episode.shots, kind, {
+                submit: async (shot) => {
+                    await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/generate-${kind}${query}`, { method: "POST" });
+                },
+                reload: async () => {
+                    const refreshed = await callJson(`${base}`, { cache: "no-store" });
+                    if (refreshed?.project) onProjectChange(refreshed.project);
+                    const next = (refreshed?.project as DramaProject | undefined)?.episodes.find((item) => item.id === episode.id);
+                    return next?.shots || [];
+                },
+                shouldStop: () => stopRequested.current,
+                onProgress: setBatchProgress,
+            });
+            setBatchErrors(result.errors);
+            const label = kind === "image" ? "分镜图" : "分镜视频";
+            if (!result.total) message.info(`所有分镜均已有${label}，无需重新生成`);
+            else if (result.stopped) message.info("批量生成已停止");
+            else if (result.failed) message.warning(`批量完成，${result.failed}/${result.total} 条失败`);
+            else message.success(`${label}批量生成完成（共 ${result.total} 条）`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "批量生成失败");
+        } finally {
+            setBatchKind(undefined);
+            setStopping(false);
+            stopRequested.current = false;
+        }
+    };
+
+    /**
      * 分镜图 2 倍超分，对应 L `POST /storyboards/:id/upscale`。
      *
      * 纯本地 sharp 处理，不调模型也不计费；成功后分镜主图指向放大结果。
@@ -269,8 +319,67 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                     <Button size="small" icon={<Plus className="size-4" />} loading={busyShotId === "__collection__"} onClick={() => void createShot()} aria-label="新增分镜">
                         新增分镜
                     </Button>
+                    {/* L §4 批量操作：批量生成分镜图 / 分镜视频 + 停止 */}
+                    <Button
+                        size="small"
+                        icon={<ImageIcon className="size-4" />}
+                        loading={batchKind === "image"}
+                        disabled={Boolean(batchKind) || busyShotId === "__collection__" || !episode.shots.length}
+                        aria-label="批量生成分镜图"
+                        onClick={() => void runBatch("image")}
+                    >
+                        批量生成分镜图
+                    </Button>
+                    <Button
+                        size="small"
+                        icon={<Clapperboard className="size-4" />}
+                        loading={batchKind === "video"}
+                        disabled={Boolean(batchKind) || busyShotId === "__collection__" || !episode.shots.length}
+                        aria-label="批量生成分镜视频"
+                        onClick={() => void runBatch("video")}
+                    >
+                        批量生成分镜视频
+                    </Button>
+                    {batchKind ? (
+                        <Button
+                            size="small"
+                            danger
+                            disabled={stopping}
+                            aria-label={batchKind === "image" ? "停止图片" : "停止视频"}
+                            onClick={() => {
+                                stopRequested.current = true;
+                                setStopping(true);
+                            }}
+                        >
+                            {batchKind === "image" ? "停止图片" : "停止视频"}
+                        </Button>
+                    ) : null}
                 </div>
             </div>
+
+            {/* L §4 批量进度与错误清单，对应 L 的 .batch-status */}
+            {batchKind || batchErrors.length ? (
+                <div className="mt-3 rounded-md border border-border bg-muted/30 p-3 text-sm" data-testid="one-click-batch-status">
+                    {batchKind && batchProgress ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-muted-foreground">{batchKind === "image" ? "分镜图" : "分镜视频"}批量生成</span>
+                            <span>
+                                {batchProgress.current}/{batchProgress.total}
+                            </span>
+                            {batchProgress.failed ? <span className="text-red-500">失败 {batchProgress.failed}</span> : null}
+                            {stopping ? <span className="text-muted-foreground">（正在停止...）</span> : null}
+                        </div>
+                    ) : null}
+                    {batchErrors.length ? (
+                        <div className="mt-2 text-xs text-red-500">
+                            <div className="font-semibold">失败明细：</div>
+                            {batchErrors.map((item) => (
+                                <div key={item}>{item}</div>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
 
             {/* L §4 配置行：分镜数量 / 视频总时长 / 全能分镜 / 解说旁白 */}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
