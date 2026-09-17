@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { readJsonBody } from "@/lib/auth/request";
 import { getDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { getOrCreateDramaLabEpisodeCanvasForUser } from "@/lib/server/drama-lab-episode-canvas-service";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -8,7 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const project = await getDramaProjectForUser(user.id, id);
     if (!project.sourceHandoffId?.startsWith("one-click-film:")) return NextResponse.json({ code: 404, msg: "项目不存在" }, { status: 404 });
-    const body = await request.json().catch(() => ({}));
+    const body = await readJsonBody<{ episodeId?: unknown; shotId?: unknown }>(request).catch(() => ({}) as { episodeId?: unknown; shotId?: unknown });
     const episodeId = typeof body.episodeId === "string" ? body.episodeId : "";
     try {
         const result = await getOrCreateDramaLabEpisodeCanvasForUser(user.id, id, episodeId);
