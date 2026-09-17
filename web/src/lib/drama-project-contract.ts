@@ -39,6 +39,12 @@ export type DramaShotFrameSource = "generated" | "uploaded" | "video_tail" | "re
 export type DramaShotFrameState = {
     prompt: string;
     description?: string;
+    /**
+     * L `frame_prompts.layout`：帧的空间布局合同文本。
+     * L 在 saveFramePrompt / 导入导出中都会带上这一列，V 此前缺失，
+     * 会导致一键成片保存首尾帧提示词时静默丢掉布局信息。可选字段，旧数据不受影响。
+     */
+    layout?: string;
     status: DramaTaskStatus;
     taskId?: string;
     attempt?: number;
