@@ -69,6 +69,14 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 **方法论教训**：验证"参数有没有传对"必须一路跟到持久化，不能只看发送端。发送端写对 + 接收端白名单没放行 = 等于没传，而且不报错。这与「后端有、前端没接 = 等于没做」是同一类错误的两个方向。
 
+### compose 的 featureModule 是"drama-lab"但不是计费泄漏（2026-09-17 核实）
+`drama-lab-final-video-service.ts` 把 render 任务的 `featureModule` 写死成 `"drama-lab"`，一键成片的 compose 步复用了它。核实结论：**不需要改**，理由是证据而不是感觉：
+- 该服务里搜不到 `fetchInternalApi` / `systemAi` / `charge` / `points` / `upstream`，成片只跑本地 ffmpeg concat，不产生上游调用与扣费；
+- `featureModule` 在全仓没有任何用量聚合读取（无 `feature_module` 列，也没有 group/sum/report 之类的使用）；
+- `requireFeatureModuleEnabled` 是空实现，所以这个标签也不会导致 403。
+
+即它只是任务记录上的一个标签。若将来成片改为调用付费的云端合成，这里必须同时改成按发起模块取值 —— 到那时它就变成真的计费问题。
+
 ### backgrounds 两条不是能力缺口（2026-09-17 复核）
 此前文档写"V 用场景资产体系承载，未做等价端点"，措辞含糊。复核结论：
 - `POST /images/episode/:id/backgrounds/extract` 已由 `POST /extract-assets`（assetType=scene）等价承载。L 走 `promptI18n.getSceneExtractionPrompt`（键 `scene_extraction`），V 的 `drama-lab-production-asset-defaults.json` 中同键提示词与 L 中文分支逐条对应，含"纯背景、不得包含人物"，输出字段同为 location/time/prompt。
