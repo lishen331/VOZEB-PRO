@@ -144,3 +144,62 @@ L 后端共 **161** 个接口，按归属拆分：
 ## 8. 下一步
 
 按 P0 顺序推进，每项须同时给出：V 实现位置、服务端接口、持久化字段、请求载荷对比、自动化测试。无证据项一律保持"未迁移"。
+
+## 9. 分镜字段映射（storyboards 域证据）
+
+L `storyboards` 表共 **31** 列（基表 24 + migration 追加 7）。逐列比对 V 的 `DramaShot` 合同：
+
+| L 列 | V 字段 | 状态 |
+|---|---|---|
+| `id` | `id` | 已对齐 |
+| `episode_id` | (分集容器 episodes[].shots) | 结构差异 |
+| `scene_id` | `sceneId` | 已对齐 |
+| `storyboard_number` | `order` | 已对齐 |
+| `title` | `title` | 已对齐 |
+| `description` | `description` | 已对齐 |
+| `location` | `location` | 已对齐 |
+| `time` | `time` | 已对齐 |
+| `duration` | `duration` | 已对齐 |
+| `dialogue` | `dialogue` | 已对齐 |
+| `action` | `action` | 已对齐 |
+| `atmosphere` | `atmosphere` | 已对齐 |
+| `image_prompt` | `imagePrompt` | 已对齐 |
+| `video_prompt` | `videoPrompt` | 已对齐 |
+| `characters` | `characterIds` | 已对齐 |
+| `shot_type` | `shotType` | 已对齐 |
+| `angle` | `cameraAngle` | 已对齐 |
+| `movement` | `cameraMotion` | 已对齐 |
+| `video_url` | `videoUrl` | 已对齐 |
+| `status` | `storyboardStatus/generationStatus` | 已对齐 |
+| `created_at` | (V 项目级 createdAt) | 结构差异 |
+| `updated_at` | (V 项目级 updatedAt) | 结构差异 |
+| `deleted_at` | (V 无软删，改为移除元素) | 结构差异 |
+| `segment_index` | `segmentIndex` | 已对齐 |
+| `segment_title` | `segmentTitle` | 已对齐 |
+| `angle_h` | `angleH` | 已对齐 |
+| `angle_v` | `angleV` | 已对齐 |
+| `angle_s` | `angleS` | 已对齐 |
+| `narration` | `narration` | 已对齐 |
+| `creation_mode` | `creationMode` | 已对齐 |
+| `universal_segment_text` | `universalSegmentText` | 已对齐 |
+
+**结论：字段层 27/31 已对齐，4 项属结构差异（V 用嵌套或项目级承载），无映射缺口 0 项。**
+
+这条结论很重要，它把 P0 缺口的性质说清楚了：
+
+- **数据合同不是缺口**。V 的 `DramaShot` 已完整覆盖 L 的分镜字段，且额外带了 28 个承载层字段（帧状态 `frames`、任务状态 `generationStatus`、音频 `dialogueAudio`/`narrationAudio`、首尾帧连续性 `continuity` 等）。
+- **真正的缺口在接口面与 UI 面**。字段有了但没有接口去读写它们，也没有前端去暴露它们，所以表现为"只有壳子"。
+
+### 结构差异说明
+
+| L 列 | V 承载方式 |
+|---|---|
+| `episode_id` | V 用 `project.episodes[].shots[]` 嵌套，不用外键 |
+| `created_at` / `updated_at` | V 在项目聚合级维护时间戳 |
+| `deleted_at` | V 无软删，直接移除数组元素；历史留在 `storyboardHistory` |
+
+### V 独有的承载层字段（28 个）
+
+`sourceText`, `shotBoundary`, `utterances`, `lightingStyle`, `depthOfField`, `polishedPrompt`, `result`, `emotion`, `emotionIntensity`, `layoutDescription`, `frames`, `firstFrameCandidate`, `videoFrameSnapshot`, `startFramePrompt`, `endFramePrompt`, `negativePrompt`, `continuity`, `propIds`, `clueIds`, `videoMode`, `storyboardStatus`, `storyboardFrameMode`, `storyboardImageUrl`, `storyboardHistory`, `generationStatus`, `generationTaskId`, `dialogueAudio`, `narrationAudio`
+
+这些不是 L 缺失，而是 L 用别的表（`frame_prompts`、`async_tasks`、`video_generations`）承载的内容，在 V 里内联到分镜对象上。迁移时必须保证语义等价，不能因为字段位置不同而丢状态。
