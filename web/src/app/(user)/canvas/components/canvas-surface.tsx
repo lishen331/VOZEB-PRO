@@ -7,7 +7,19 @@ import { canvasThemes, type CanvasBackgroundMode, type CanvasTheme } from "@/lib
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasNode, type CanvasNodeProps } from "./canvas-node";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type Position, type ViewportTransform } from "../types";
-import { canvasEdgeHitStrokeWidth, edgePath, expandCanvasDragNodeIds, findConnectionTarget, isBlockedConnectionDrop, isCanvasVideoControlPoint, nodeAnchor, previewPath, samePosition, selectNodesInBounds, worldFromScreen } from "../utils/canvas-surface-geometry";
+import {
+    canvasEdgeHitStrokeWidth,
+    edgePath,
+    expandCanvasDragNodeIds,
+    findConnectionTarget,
+    isBlockedConnectionDrop,
+    isCanvasVideoControlPoint,
+    nodeAnchor,
+    previewPath,
+    samePosition,
+    selectNodesInBounds,
+    worldFromScreen,
+} from "../utils/canvas-surface-geometry";
 import { buildCanvasSpatialIndex, canvasNodeBounds, canvasNodesBounds, type CanvasBounds } from "../utils/canvas-spatial-index";
 
 type CanvasPointerEvent = ReactMouseEvent | ReactPointerEvent;
