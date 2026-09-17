@@ -120,6 +120,18 @@ describe("one-click-film asset panel UI", () => {
         expect(source).not.toContain('readOnly aria-label="资产描述"');
     });
 
+    it("supports L's batch reference-image generation with its 10-item cap", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // 对应 L POST /characters/batch-generate-images
+        expect(source).toContain("batch-generate-images");
+        expect(source).toContain("batchGenerate");
+        expect(source).toContain("aria-label={`批量生成${KIND_LABEL[kind]}设定图`}");
+        // L 的硬上限：单次最多 10 个
+        expect(source).toContain("slice(0, 10)");
+        // 优先补齐还没有主参考图的资产，避免重复烧额度
+        expect(source).toContain("dramaAssetPrimaryReference(item)");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         const source = await readFile(panelPath, "utf8");
         expect(source).not.toContain("setTimeout");

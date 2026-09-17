@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Input, Modal, Segmented, Tag, message } from "antd";
-import { ImageIcon, Plus, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
+import { ImageIcon, Layers, Plus, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
 import { useState } from "react";
 import type { DramaAssetReference, DramaNamedAsset, DramaProject } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
@@ -169,6 +169,35 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
         }
     };
 
+    /**
+     * 批量生成设定图，对应 L `POST /characters/batch-generate-images`。
+     * L 的硬上限是单次 10 个，这里只取前 10 个并提示，避免一次点掉大量额度。
+     */
+    const batchGenerate = async () => {
+        const pending = assets.filter((item) => !dramaAssetPrimaryReference(item));
+        const targets = (pending.length ? pending : assets).slice(0, 10);
+        if (!targets.length) {
+            message.warning(`还没有可生成的${KIND_LABEL[kind]}`);
+            return;
+        }
+        setBusy("__batch__");
+        try {
+            const data = await callJson(`${base}/assets/batch-generate-images`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, assetIds: targets.map((item) => item.id) }),
+            });
+            const created = Number(data?.created) || 0;
+            const failed = Number(data?.failed) || 0;
+            if (failed) message.warning(`已提交 ${created} 个任务，${failed} 个失败`);
+            else message.success(`已提交 ${created} 个任务`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "批量生成失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
     /** 手工新增资产。之前只能靠 executor assets 步自动提取，用户无法自己加。 */
     const createAsset = async () => {
         const name = creatingName.trim();
@@ -226,6 +255,11 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                     <Button size="small" icon={<Plus className="size-4" />} loading={busy === "__create__"} aria-label={`新增${KIND_LABEL[kind]}`} onClick={() => void createAsset()}>
                         新增
                     </Button>
+                    {assets.length ? (
+                        <Button size="small" icon={<Layers className="size-4" />} loading={busy === "__batch__"} aria-label={`批量生成${KIND_LABEL[kind]}设定图`} onClick={() => void batchGenerate()}>
+                            批量生成
+                        </Button>
+                    ) : null}
                 </div>
             </div>
 
