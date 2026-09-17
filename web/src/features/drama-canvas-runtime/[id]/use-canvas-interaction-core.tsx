@@ -142,7 +142,6 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const toolbarNode = toolbarNodeId ? nodeById.get(toolbarNodeId) || null : null;
-    const dialogNode = dialogNodeId ? nodeById.get(dialogNodeId) || null : null;
     const infoNode = infoNodeId ? nodeById.get(infoNodeId) || null : null;
     const cropNode = cropNodeId ? nodeById.get(cropNodeId) || null : null;
     const maskEditNode = maskEditNodeId ? nodeById.get(maskEditNodeId) || null : null;
@@ -167,8 +166,8 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
             if (!rootId) return;
             const root = nodeById.get(rootId);
             const index = root?.metadata?.batchChildIds?.indexOf(node.id) ?? 0;
-            const stackX = root ? root.position.x + 34 + index * 14 : node.position.x;
-            const stackY = root ? root.position.y + 14 + index * 8 : node.position.y;
+            const stackX = root ? root.position.x + 6 + index * 5 : node.position.x;
+            const stackY = root ? root.position.y + 18 + index * 16 : node.position.y;
             map.set(node.id, { x: stackX - node.position.x, y: stackY - node.position.y, index: Math.max(index, 0) });
         });
         return map;
@@ -266,7 +265,6 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
         createConnectedNode,
         cancelPendingConnectionCreate,
         toolbarNode,
-        dialogNode,
         infoNode,
         cropNode,
         maskEditNode,

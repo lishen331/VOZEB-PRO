@@ -37,6 +37,7 @@ function renderImageNode(overrides: Partial<React.ComponentProps<typeof CanvasNo
             isFocusRelated={false}
             isConnectionTarget={false}
             isConnecting={false}
+            showPanel={false}
             showImageInfo={false}
             onMouseDown={noop}
             onHoverStart={noop}

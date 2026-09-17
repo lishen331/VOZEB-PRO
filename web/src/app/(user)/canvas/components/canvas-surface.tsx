@@ -52,6 +52,7 @@ type CanvasSurfaceProps = {
     relatedNodeIds: Set<string>;
     relatedConnectionIds: Set<string>;
     renderNode: (node: CanvasNodeData) => ReactNode;
+    renderPanel?: (node: CanvasNodeData) => ReactNode;
     nodeProps: Omit<
         CanvasNodeProps,
         | "data"
@@ -62,6 +63,7 @@ type CanvasSurfaceProps = {
         | "isConnectionTarget"
         | "isConnecting"
         | "editRequestNonce"
+        | "showPanel"
         | "showImageInfo"
         | "resourceLabel"
         | "mentionReferences"
@@ -71,6 +73,7 @@ type CanvasSurfaceProps = {
         | "batchOpening"
         | "batchRecovering"
         | "batchMotion"
+        | "renderPanel"
         | "renderNodeContent"
         | "onMouseDown"
         | "onConnectStart"
@@ -79,7 +82,7 @@ type CanvasSurfaceProps = {
     >;
     getNodeViewProps: (
         node: CanvasNodeData,
-    ) => Pick<CanvasNodeProps, "editRequestNonce" | "showImageInfo" | "resourceLabel" | "mentionReferences" | "batchCount" | "batchExpanded" | "batchClosing" | "batchOpening" | "batchRecovering" | "batchMotion">;
+    ) => Pick<CanvasNodeProps, "editRequestNonce" | "showPanel" | "showImageInfo" | "resourceLabel" | "mentionReferences" | "batchCount" | "batchExpanded" | "batchClosing" | "batchOpening" | "batchRecovering" | "batchMotion">;
     onNodesCommit: (updates: CanvasNodeUpdate[]) => void;
     onSelectionChange: (nodeIds: Set<string>, connectionId: string | null) => void;
     onViewportCommit: (viewport: ViewportTransform) => void;
@@ -134,6 +137,7 @@ export function CanvasSurface({
     relatedNodeIds,
     relatedConnectionIds,
     renderNode,
+    renderPanel,
     nodeProps,
     getNodeViewProps,
     onNodesCommit,
@@ -293,7 +297,27 @@ export function CanvasSurface({
 
     const applyViewportStyles = useCallback(
         (next: ViewportTransform) => {
-            if (worldLayerRef.current) worldLayerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+            if (worldLayerRef.current) {
+                worldLayerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+                // Published for descendants that must stay a constant on-screen
+                // size despite the scale(k) above (node panels, create menu).
+                // Written here rather than derived from React state because pan
+                // and wheel-zoom drive this imperatively via previewViewport and
+                // only commit to state ~140ms later — a state-derived inverse
+                // scale would lag a whole gesture behind.
+                worldLayerRef.current.style.setProperty("--canvas-zoom", String(next.k));
+            }
+            // Screen-space siblings of this surface (the node hover toolbar) need
+            // the same values, but CSS variables only inherit downward — so publish
+            // them on our parent, which is the common ancestor. Same imperative
+            // reasoning as above: reading these from React state would make the
+            // toolbar visibly lag behind the canvas for a whole gesture.
+            const sharedScope = surfaceRef.current?.parentElement;
+            if (sharedScope) {
+                sharedScope.style.setProperty("--canvas-zoom", String(next.k));
+                sharedScope.style.setProperty("--canvas-pan-x", `${next.x}px`);
+                sharedScope.style.setProperty("--canvas-pan-y", `${next.y}px`);
+            }
             if (!backgroundLayerRef.current) return;
             const gridSize = canvasGridSize(backgroundMode, next.k);
             backgroundLayerRef.current.style.backgroundSize = `${gridSize}px ${gridSize}px`;
@@ -772,7 +796,14 @@ export function CanvasSurface({
         flushFrame();
         commitViewport();
     }, [commitViewport, flushFrame]);
-    const worldStyle: CSSProperties = { transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`, transformOrigin: "0 0", willChange: "transform" };
+    const worldStyle: CSSProperties = {
+        transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`,
+        transformOrigin: "0 0",
+        willChange: "transform",
+        // Keep in sync with applyViewportStyles — this covers the first paint
+        // and any React-driven re-render; that function covers live gestures.
+        ["--canvas-zoom" as string]: String(displayViewport.k),
+    };
     const canvasStyle: CSSProperties = { background: theme.canvas.backdrop, color: theme.node.text, touchAction: "none", cursor: temporaryPan || interactionMode === "pan" ? "grab" : "default" };
     const gridSize = canvasGridSize(backgroundMode, displayViewport.k);
     const selectionStyle = boxSelection
@@ -883,6 +914,7 @@ export function CanvasSurface({
                                     isFocusRelated={activeSelectedNodeIds.has(node.id) || relatedNodeIds.has(node.id)}
                                     isConnectionTarget={connection?.targetNodeId === node.id}
                                     isConnecting={connection?.nodeId === node.id}
+                                    renderPanel={renderPanel}
                                     renderNodeContent={renderNode}
                                     onMouseDown={handleNodeMouseDown}
                                     onConnectStart={handleConnectStart}
