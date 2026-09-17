@@ -306,3 +306,38 @@ L `/storyboards` 共 21 条：**已迁移 13，结构覆盖 1，未迁移 7。**
 | `image-polish-l-system.json` | `promptI18n.getImagePolishPrompt` 中文分支 | 关键铁律断言 |
 | `layout-regenerate-l-system.json` | `promptI18n.getRegenerateLayoutDescriptionPrompt` 中文分支 | 关键要求断言 |
 | `angle-l-contract.json` | `angleService` 三张描述表 + 中文标签 | **全部 96 种 (h,v,s) 组合与 L 输出逐一比对一致** |
+
+## 14. 资产三域覆盖（characters / scenes / props）
+
+L 资产接口共 **39** 条（characters 19、scenes 11、props 9）：
+
+| 分类 | 数量 | 说明 |
+|---|---|---|
+| 已迁移专用路由 | **15** | 见下表 |
+| 项目聚合承载 | 12 | V 的资产内联在项目里，读写随 `PUT /projects/:id`；**但一键成片 UI 目前没有新增/删除资产的入口**，见"局限"一节 |
+| 素材库待适配 | 7 | `add-to-library` / `add-to-material-library` / `image-from-library`（P1） |
+| SD2 第三方能力 | 4 | L 特有的 sd2 声音认证；V 用自身音色体系，不复制第三方链路 |
+| **真正未迁移** | **1** | `POST /characters/batch-generate-images` |
+
+### 已迁移的资产能力（3 条 kind 参数化路由覆盖 15 个 L 端点）
+
+| 一键成片路由 | 覆盖的 L 端点 |
+|---|---|
+| `POST assets/:assetId/ai` | `characters/scenes/props` 的 `generate-prompt`、`extract-from-image`，以及角色的 `extract-anchors`、`generate-stages` |
+| `POST assets/:assetId/generate-image` | `generate-image`、`generate-four-view-image`（角色固定四视图，场景/道具默认单图可切四格） |
+| `POST assets/:assetId/references` | `upload-image`、`PUT image`（设为主图）、移除参考图 |
+
+三域共用同一批路由，靠 `kind` 区分 —— 这是 V 的资产合同本来就统一（`DramaNamedAsset`），不是我把差异抹平了。
+
+### 局限（不假装已完成）
+
+1. **一键成片 UI 没有新增/删除资产的入口**。资产只能靠 executor 的 `assets` 步自动提取产生。虽然 `PUT /projects/:id` 在 API 层能改，但用户在界面上无法手动加一个角色 —— 这条按 §7 P0"不得只有壳子"仍算缺口。
+2. **`batch-generate-images` 未迁移**：L 支持一次性给全部角色排队生图，一键成片目前只能逐个点。
+3. **素材库 7 条未适配**：资产无法存入/取自素材库。
+4. 资产编辑弹窗目前是**只读展示** + AI 按钮 + 参考图管理，字段本身不可手工编辑。
+
+### 计费归属
+
+资产生图走一键成片自有路由，上游 context 显式写 `featureModule: "one-click-film"`。
+
+补充一处发现：创作工坊资产面板用的客户端助手 `createImageGenerationTask`，其 `taskContext()` **不含 featureModule 字段**，所以照抄那条客户端链路会让商单用量记不到名下。这也是资产生图必须走服务端路由的原因。
