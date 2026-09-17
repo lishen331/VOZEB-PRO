@@ -1,7 +1,7 @@
 "use client";
 
-import { Alert, Button, Spin, Tag, Progress, message, Input, Select, Switch } from "antd";
-import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw } from "lucide-react";
+import { Alert, Button, Popconfirm, Spin, Tag, Progress, message, Input, Select, Switch } from "antd";
+import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -27,6 +27,7 @@ export default function OneClickFilmProject() {
     const [universalDraft, setUniversalDraft] = useState("");
     const [forceNoRef, setForceNoRef] = useState(false);
     const [universalBusy, setUniversalBusy] = useState<"generate" | "polish">();
+    const [renderRecordBusy, setRenderRecordBusy] = useState(false);
     const [renderTask, setRenderTask] = useState<{ id: string; status: string; error?: string; result?: { artifactId: string; url: string } }>();
     const [renderBusy, setRenderBusy] = useState(false);
     const loadProject = useCallback(async () => {
@@ -226,6 +227,28 @@ export default function OneClickFilmProject() {
         }
     };
 
+    /**
+     * 删除本集成片记录，对应 L `DELETE /video-merges/:merge_id`。
+     * 纯数据清理，不影响分镜与素材。
+     */
+    const removeRenderRecord = async () => {
+        if (!episodeId || !renderTask?.id) return;
+        setRenderRecordBusy(true);
+        try {
+            const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(episodeId)}/render/${encodeURIComponent(renderTask.id)}`, {
+                method: "DELETE",
+            });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string };
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "删除失败");
+            setRenderTask(undefined);
+            message.success("删除成功");
+        } catch (deleteError) {
+            message.error(deleteError instanceof Error ? deleteError.message : "删除失败");
+        } finally {
+            setRenderRecordBusy(false);
+        }
+    };
+
     const exportHref = `/api/one-click-film/projects/${encodeURIComponent(projectId)}/export`;
     const canvasHref = episodeId ? `/one-click-film/${encodeURIComponent(projectId)}/canvas?episode=${encodeURIComponent(episodeId)}` : undefined;
     return (
@@ -265,6 +288,13 @@ export default function OneClickFilmProject() {
                             >
                                 下载成片
                             </Button>
+                        ) : null}
+                        {episodeId && renderTask?.id ? (
+                            <Popconfirm title="删除本集成片记录？" description="仅删除成片记录，不影响分镜与素材。" okText="删除" cancelText="取消" onConfirm={() => void removeRenderRecord()}>
+                                <Button danger icon={<Trash2 className="size-4" />} loading={renderRecordBusy} aria-label="删除本集成片记录">
+                                    删除成片记录
+                                </Button>
+                            </Popconfirm>
                         ) : null}
                         <Button icon={<Download className="size-4" />} href={exportHref} aria-label="导出项目">
                             导出项目

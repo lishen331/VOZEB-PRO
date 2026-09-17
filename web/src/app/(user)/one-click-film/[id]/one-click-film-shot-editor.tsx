@@ -1,8 +1,8 @@
 "use client";
 
-import { Button, Input, Modal, Segmented, Tabs, message } from "antd";
+import { Button, Empty, Input, Modal, Popconfirm, Segmented, Tabs, Tag, message } from "antd";
 import { useEffect, useState } from "react";
-import type { DramaProject, DramaShot, DramaShotFrameType } from "@/lib/drama-project-contract";
+import type { DramaProject, DramaShot, DramaShotFrameType, DramaShotGenerationHistory } from "@/lib/drama-project-contract";
 
 type Props = {
     projectId: string;
@@ -32,6 +32,7 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const query = `?episodeId=${encodeURIComponent(episodeId)}`;
 
+    const [recordBusyId, setRecordBusyId] = useState<string>();
     const [title, setTitle] = useState(shot.title || "");
     const [description, setDescription] = useState(shot.description || "");
     const [dialogue, setDialogue] = useState(shot.dialogue || "");
@@ -180,6 +181,28 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
         }
     };
 
+    /**
+     * 删除一条生成记录，对应 L `DELETE /images/:id` 与 `DELETE /videos/:id`。
+     *
+     * 服务端会同时解除主图/首尾帧对该记录的引用，避免留下悬空地址。
+     */
+    const removeRecord = async (kind: "images" | "videos", record: DramaShotGenerationHistory) => {
+        setRecordBusyId(record.id);
+        try {
+            // 路径必须写成字面量：把 kind 插进模板会让死代码守卫找不到调用方，
+            // 也让"哪些路由真的被调用"无法静态看出来。
+            const path = kind === "images" ? `${base}/shots/${encodeURIComponent(shot.id)}/images/${encodeURIComponent(record.id)}${query}` : `${base}/shots/${encodeURIComponent(shot.id)}/videos/${encodeURIComponent(record.id)}${query}`;
+            const data = await callJson(path, { method: "DELETE" });
+            const project = data?.project as DramaProject | undefined;
+            if (project) onProjectChange(project);
+            message.success("删除成功");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "删除失败");
+        } finally {
+            setRecordBusyId(undefined);
+        }
+    };
+
     return (
         <Modal open width={760} title={`编辑分镜 · ${shot.title || "未命名"}`} onCancel={onClose} footer={null} destroyOnHidden>
             <Tabs
@@ -288,6 +311,52 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
                                         保存帧提示词
                                     </Button>
                                 </div>
+                            </div>
+                        ),
+                    },
+                    {
+                        key: "records",
+                        label: "生成记录",
+                        children: (
+                            <div className="grid gap-4">
+                                {(
+                                    [
+                                        ["images", "分镜图记录", shot.storyboardHistory],
+                                        ["videos", "分镜视频记录", shot.videoHistory],
+                                    ] as Array<["images" | "videos", string, DramaShotGenerationHistory[] | undefined]>
+                                ).map(([kind, label, history]) => (
+                                    <section key={kind} className="grid gap-2">
+                                        <b className="text-sm">
+                                            {label}（{history?.length || 0}）
+                                        </b>
+                                        {history?.length ? (
+                                            <ul className="grid gap-2">
+                                                {history.map((record) => (
+                                                    <li key={record.id} className="flex items-start justify-between gap-3 rounded-md border p-2">
+                                                        <div className="min-w-0">
+                                                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                                <Tag>{new Date(record.createdAt).toLocaleString()}</Tag>
+                                                                {record.width && record.height ? (
+                                                                    <span className="text-muted-foreground">
+                                                                        {record.width}x{record.height}
+                                                                    </span>
+                                                                ) : null}
+                                                            </div>
+                                                            <p className="mt-1 truncate text-xs text-muted-foreground">{record.prompt || "无提示词"}</p>
+                                                        </div>
+                                                        <Popconfirm title="删除这条生成记录？" description="同时会解除主图与首尾帧对它的引用，此操作不可撤销。" okText="删除" cancelText="取消" onConfirm={() => void removeRecord(kind, record)}>
+                                                            <Button size="small" danger loading={recordBusyId === record.id} aria-label={`删除${label} ${record.id}`}>
+                                                                删除
+                                                            </Button>
+                                                        </Popconfirm>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <Empty image={null} description={`暂无${label}`} />
+                                        )}
+                                    </section>
+                                ))}
                             </div>
                         ),
                     },
