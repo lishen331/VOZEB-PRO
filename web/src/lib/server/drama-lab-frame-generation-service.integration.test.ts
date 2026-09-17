@@ -186,6 +186,17 @@ describe("frame planning over local TCP with real template resolution and text r
         expect(result.prompt).not.toContain("顾城");
         expect(result.prompt).toContain("林薇（参考图中的人物形象）");
     });
+    it("drops the first-frame layout lock when 首帧站位 is unchecked", async () => {
+        const value = structuredClone(project);
+        value.episodes[0].shots[0].frames = { first: { prompt: "站台左侧的开场布局", url: "/first.png", status: "success" } };
+        const result = await prepareDramaLabFrame({ ...input("last", value), useFirstFrameLayout: false });
+        const system = requests[0].body.messages[0].content;
+        expect(system).not.toContain("站台左侧的开场布局");
+        // 只断言由该开关控制的那句契约；"declared movement" 也出现在生产模板正文里，不能作为判据。
+        expect(system).not.toContain("尾帧必须读取首帧布局");
+        expect(result.references.map((ref) => ref.url)).not.toContain("/first.png");
+    });
+
     it("rejects an empty model result instead of logging or returning success", async () => {
         reply = { prompt: "", description: "empty" };
         await expect(prepareDramaLabFrame(input("key"))).rejects.toThrow("必须包含 prompt 和 description");

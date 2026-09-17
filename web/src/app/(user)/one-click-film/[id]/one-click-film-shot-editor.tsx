@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Empty, Input, Modal, Popconfirm, Segmented, Select, Tabs, Tag, message } from "antd";
+import { Button, Checkbox, Empty, Input, Modal, Popconfirm, Segmented, Select, Tabs, Tag, message } from "antd";
 import { useEffect, useState } from "react";
 import type { DramaProject, DramaShot, DramaShotFrameType, DramaShotGenerationHistory } from "@/lib/drama-project-contract";
 import { SHOT_ANGLE_H_OPTIONS, SHOT_ANGLE_S_OPTIONS, SHOT_ANGLE_V_OPTIONS, SHOT_DEPTH_OF_FIELD_OPTIONS, SHOT_LIGHTING_OPTIONS, SHOT_MOVEMENT_OPTIONS } from "@/lib/one-click/shot-config-options";
@@ -55,6 +55,8 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
     const [frameLayout, setFrameLayout] = useState("");
     const [frameSaving, setFrameSaving] = useState(false);
     const [frameGenerating, setFrameGenerating] = useState(false);
+    /** 对应 L 的「首帧站位」（lastFrameUseFirstLayoutLock）：默认锁定首帧构图与站位。 */
+    const [useFirstFrameLayout, setUseFirstFrameLayout] = useState(true);
     const [polishing, setPolishing] = useState(false);
     const [rebuilding, setRebuilding] = useState(false);
     const [layoutBusy, setLayoutBusy] = useState(false);
@@ -172,7 +174,8 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
     const generateFrame = async () => {
         setFrameGenerating(true);
         try {
-            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/generate-frame${query}&frameType=${frameType}`, { method: "POST" });
+            const layoutLockQuery = frameType === "first" || useFirstFrameLayout ? "" : "&useFirstFrameLayout=0";
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/generate-frame${query}&frameType=${frameType}${layoutLockQuery}`, { method: "POST" });
             if (typeof data?.prompt === "string") setFramePrompt(data.prompt);
             if (typeof data?.description === "string") setFrameDescription(data.description);
             message.success("已由 AI 规划该帧提示词并提交帧图任务");
@@ -360,6 +363,11 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
                                         { value: "last", label: "尾帧" },
                                     ]}
                                 />
+                                {frameType === "first" ? null : (
+                                    <Checkbox checked={useFirstFrameLayout} onChange={(event) => setUseFirstFrameLayout(event.target.checked)} aria-label="首帧站位">
+                                        首帧站位（锁定首帧构图与左右站位；取消后可换出场人物）
+                                    </Checkbox>
+                                )}
                                 <label className="grid gap-1 text-sm">
                                     提示词
                                     <Input.TextArea rows={4} value={framePrompt} onChange={(event) => setFramePrompt(event.target.value)} aria-label="帧提示词" />

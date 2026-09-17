@@ -32,6 +32,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const frameType = url.searchParams.get("frameType")?.trim() || "";
         if (!episodeId) throw new DramaLabShotGenerationError("当前剧集不能为空");
         if (!isDramaShotFrameType(frameType)) throw new DramaLabShotGenerationError("frameType 必须是 first、key 或 last");
+        // 对应 L 的「首帧站位」勾选（lastFrameUseFirstLayoutLock）：默认锁定首帧构图，
+        // 显式传 0/false 时尾帧不再参考首帧，便于换出场人物。
+        const rawFirstFrameLayout = url.searchParams.get("useFirstFrameLayout")?.trim().toLowerCase() || "";
+        const useFirstFrameLayout = !(rawFirstFrameLayout === "0" || rawFirstFrameLayout === "false");
 
         const project = await getDramaProjectForUser(user.id, id);
         if (!project.sourceHandoffId?.startsWith("one-click-film:")) throw new DramaLabShotGenerationError("一键成片项目不存在", 404);
@@ -47,7 +51,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const requestId = `one-click-film-frame:${project.id}:${episodeId}:${shotId}:${frameType}:attempt-${attemptNo}`;
         const publicOrigin = resolvePublicRequestOrigin(request);
         const cookie = request.headers.get("cookie") || "";
-        const prepared = await prepareDramaLabFrame({ userId: user.id, origin: publicOrigin, cookie, requestId, project, episodeId, shotId, frameType });
+        const prepared = await prepareDramaLabFrame({ userId: user.id, origin: publicOrigin, cookie, requestId, project, episodeId, shotId, frameType, useFirstFrameLayout });
 
         const settings = await getAuthSettings();
         const model = settings.defaultModels.imageModel;
