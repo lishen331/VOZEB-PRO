@@ -12,15 +12,25 @@ type CanvasCameraControlProps = {
     value?: CameraControlOptions;
     onChange: (value: CameraControlOptions) => void;
     buttonClassName?: string;
+    iconOnly?: boolean;
     placement?: CanvasSettingsPopoverPlacement;
 };
 
-export function CanvasCameraControl({ value, onChange, buttonClassName, placement = "topLeft" }: CanvasCameraControlProps) {
+const CAMERA_ICON_CLASS = "!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !p-0";
+
+export function CanvasCameraControl({ value, onChange, buttonClassName, iconOnly = false, placement = "topLeft" }: CanvasCameraControlProps) {
     const control = normalizeCameraControl(value || DEFAULT_CAMERA_CONTROL);
     const update = (patch: Partial<CameraControlOptions>) => onChange({ ...control, ...patch });
 
     return (
-        <CanvasSettingsPopoverShell label={cameraControlLabel(control)} icon={<Camera className="size-3.5" />} buttonClassName={buttonClassName} defaultButtonClassName="!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5" placement={placement}>
+        <CanvasSettingsPopoverShell
+            label={iconOnly ? "" : cameraControlLabel(control)}
+            icon={<Camera className="size-3.5" />}
+            buttonClassName={iconOnly ? buttonClassName || CAMERA_ICON_CLASS : buttonClassName}
+            defaultButtonClassName="!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"
+            buttonAriaLabel={cameraControlLabel(control)}
+            placement={placement}
+        >
             {(theme) => (
                 <CameraPanel
                     control={control}

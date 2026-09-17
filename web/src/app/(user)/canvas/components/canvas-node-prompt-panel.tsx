@@ -33,7 +33,6 @@ const stopCanvasInteraction = (event: SyntheticEvent) => event.stopPropagation()
  * split the row evenly and clipped labels like 镜头关闭 mid-word.
  */
 const COMPOSER_PRIMARY_BUTTON_CLASS = "canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3";
-const COMPOSER_COMPACT_BUTTON_CLASS = "canvas-composer-settings !h-10 !w-auto !max-w-[11rem] !flex-none !shrink-0 !justify-start !rounded-full !px-3";
 
 type CanvasNodePromptPanelProps = {
     node: CanvasNodeData;
@@ -184,7 +183,6 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
 
             <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                 <div className="canvas-composer-tools flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                     {mode === "image" ? (
                         <>
                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))} capability="image" onMissingConfig={() => openConfigDialog(true)} />
@@ -196,15 +194,18 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 onOpenChange={onImageSettingsOpenChange}
                                 fixedSizeLabel={isPanorama ? "全景 2:1" : undefined}
                             />
-                            {referenceRoleImages.length ? (
-                                <CanvasImageReferenceRolesPopover
-                                    references={referenceRoleImages}
-                                    roles={node.metadata?.imageReferenceRoles}
-                                    onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })}
-                                    buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS}
-                                />
-                            ) : null}
-                            {!isPanorama ? <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS} /> : null}
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
+                                {referenceRoleImages.length ? (
+                                    <CanvasImageReferenceRolesPopover
+                                        references={referenceRoleImages}
+                                        roles={node.metadata?.imageReferenceRoles}
+                                        onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })}
+                                        iconOnly
+                                    />
+                                ) : null}
+                                {!isPanorama ? <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} iconOnly /> : null}
+                            </div>
                         </>
                     ) : mode === "video" ? (
                         <>
@@ -217,15 +218,26 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasVideoConfigPatch(key, value))}
                                 onMetadataChange={(patch) => onConfigChange(node.id, patch)}
                             />
-                            <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS} />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
+                                <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} iconOnly />
+                            </div>
                         </>
                     ) : mode === "audio" ? (
                         <>
                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasAudioSettingsPopover config={config} buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS} onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))} />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
+                            </div>
                         </>
                     ) : (
-                        <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                        <>
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
+                            </div>
+                        </>
                     )}
                 </div>
                 <Button

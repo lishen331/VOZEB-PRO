@@ -172,7 +172,6 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
 
             <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                 <div className="canvas-composer-tools flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <CanvasPromptLibrary onSelect={updatePrompt} />
                     {mode === "image" ? (
                         <>
                             <ModelPicker
@@ -183,9 +182,6 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 capability="image"
                                 onMissingConfig={() => openConfigDialog(true)}
                             />
-                            {referenceRoleImages.length ? (
-                                <CanvasImageReferenceRolesPopover references={referenceRoleImages} roles={node.metadata?.imageReferenceRoles} onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })} />
-                            ) : null}
                             <CanvasImageSettingsPopover
                                 config={config}
                                 placement="topLeft"
@@ -194,13 +190,13 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 onOpenChange={onImageSettingsOpenChange}
                                 fixedSizeLabel={isPanorama ? "全景 2:1" : undefined}
                             />
-                            {!isPanorama ? (
-                                <CanvasCameraControl
-                                    value={node.metadata?.cameraControl}
-                                    onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })}
-                                    buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
-                                />
-                            ) : null}
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={updatePrompt} />
+                                {referenceRoleImages.length ? (
+                                    <CanvasImageReferenceRolesPopover references={referenceRoleImages} roles={node.metadata?.imageReferenceRoles} onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })} iconOnly />
+                                ) : null}
+                                {!isPanorama ? <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} iconOnly /> : null}
+                            </div>
                         </>
                     ) : mode === "video" ? (
                         <>
@@ -220,11 +216,10 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasVideoConfigPatch(key, value))}
                                 onMetadataChange={(patch) => onConfigChange(node.id, patch)}
                             />
-                            <CanvasCameraControl
-                                value={node.metadata?.cameraControl}
-                                onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })}
-                                buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
-                            />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={updatePrompt} />
+                                <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} iconOnly />
+                            </div>
                         </>
                     ) : mode === "audio" ? (
                         <>
@@ -234,9 +229,17 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))}
                             />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={updatePrompt} />
+                            </div>
                         </>
                     ) : (
-                        <ModelPicker className="min-w-[9rem] flex-1" config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                        <>
+                            <ModelPicker className="min-w-[9rem] flex-1" config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={updatePrompt} />
+                            </div>
+                        </>
                     )}
                 </div>
                 <Button
