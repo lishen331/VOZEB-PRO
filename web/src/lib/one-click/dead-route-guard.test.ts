@@ -71,8 +71,18 @@ describe("one-click-film routes must have callers", () => {
             const needle = leaf;
             const referenced = [...sources.entries()].some(([file, text]) => {
                 if (file === routeFile) return false;
-                // 只认"确实构造了 one-click-film 请求路径"的引用，避免同名词误判。
-                return text.includes("one-click-film") && text.includes(needle) && /fetch|fetchInternalApi/.test(text);
+                if (!/fetch|fetchInternalApi/.test(text)) return false;
+                // 只认真正拼进请求路径的引用。
+                //
+                // 早期版本用 text.includes(needle) 判定，结果 "export" 这类 JS 关键字
+                // 在任何文件里都命中，导致 export 路由明明没有调用方却假通过。
+                // 这里改为提取所有 one-click-film 请求路径字面量，再在其中查段名。
+                const requestPaths = [
+                    ...text.matchAll(/\/api\/one-click-film[^\s`"']*/g),
+                    // UI 常用 `const base = \`/api/one-click-film/projects/\${id}\`` 再拼后缀
+                    ...(text.includes("/api/one-click-film") ? text.matchAll(/\$\{base\}[^`]*/g) : []),
+                ].map((match) => match[0]);
+                return requestPaths.some((path) => path.includes(needle));
             });
             if (!referenced) orphans.push(routeFile.slice(apiRoot.length).replace(/\\/g, "/"));
         }

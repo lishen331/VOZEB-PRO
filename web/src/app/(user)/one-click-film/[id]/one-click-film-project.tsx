@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Button, Spin, Tag, Progress, message, Input, Select, Switch } from "antd";
-import { ArrowLeft, ExternalLink, Film, PanelsTopLeft, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -179,6 +179,9 @@ export default function OneClickFilmProject() {
             </main>
         );
     const episodeId = project.episodes[0]?.id;
+    // 对应 L `GET /dramas/:id/export`：打包整个项目（含媒体）用于交付。
+    // 走一键成片自有的 export 路由，浏览器直接下载 zip。
+    const exportHref = `/api/one-click-film/projects/${encodeURIComponent(projectId)}/export`;
     const canvasHref = episodeId ? `/one-click-film/${encodeURIComponent(projectId)}/canvas?episode=${encodeURIComponent(episodeId)}` : undefined;
     return (
         <main className="h-full overflow-y-auto bg-background text-foreground">
@@ -204,6 +207,9 @@ export default function OneClickFilmProject() {
                                 打开平台画布
                             </Button>
                         ) : null}
+                        <Button icon={<Download className="size-4" />} href={exportHref} aria-label="导出项目">
+                            导出项目
+                        </Button>
                     </div>
                 </div>
                 <section className="mt-6 rounded-lg border border-border bg-card p-5">
