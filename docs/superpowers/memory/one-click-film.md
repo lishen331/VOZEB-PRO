@@ -28,11 +28,15 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 一级入口与导航、独立配置页、项目隔离（`sourceHandoffId` 前缀 `one-click-film:`）、父任务编排+调度入队+worker识别+取消/重试/恢复、配音真实 TTS 子任务、按音频拆镜接口、导出接口、画布往返按 `source` 分流、全能提示词字段合同。
 
 ### P0 待迁移（按序）
-storyboards 2/21 → dramas 6/19 → characters 0/19 → scenes 0/11 → props 0/9 → images 0/9 → episodes 0/7 → videos 0/7 → audio 0/2
+storyboards 已推进到约 10/21（CRUD 4 + frame-prompts 2 + generate-image/video 2 + 原有 2）→ dramas 6/19 → characters 0/19 → scenes 0/11 → props 0/9 → images 0/9 → episodes 0/7 → videos 0/7 → audio 0/2
+
+已建的一键成片自有路由（均带 `featureModule: "one-click-film"`，不再经由创作工坊）：
+`POST/PUT/DELETE shots`、`shots/:id/insert-before`、`shots/:id/frame-prompts[/:frameType]`、`shots/:id/generate-image`、`shots/:id/generate-video`、`shots/:id/split-by-audio`、`shots/:id/universal-prompt`、`export`、`tasks*`、`episode-canvas`
 
 ### 已知缺陷
-- 计费归属：经创作工坊工作流发起的生成写死 `featureModule: "drama-lab"`，商单用量记到教学版账上（P0）。
-- `export` / `split-by-audio` 后端已建但**无任何前端入口**，属死代码。
+- **协作闸门耦合（P0，未处置）**：`POST /api/one-click-film/projects` 会调 `ensureDramaLabProjectGroup`，把每个一键成片项目写进创作工坊协作组表。所以 `assertDramaLabStageAllowed` 一定查得到组、不会早退，教学版的审批配置会真实拦住商单链路。我先前"未建组时是空操作"的判断是错的。移除该调用前须确认现有项目读取路径是否已依赖该组存在。
+- `export` / `split-by-audio` / 新增的 shot CRUD / frame-prompts / generate-image / generate-video 后端已建但**无前端入口**，属死代码，UI 侧仍是最大缺口。
+- `sync-generation` 尚未自建：创作工坊那份有 439 行冲突重试与历史幂等逻辑，照抄必走偏，需单独按 L 语义逐条核对。
 
 ## 我犯过的错（勿重复）
 
