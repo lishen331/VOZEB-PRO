@@ -93,6 +93,18 @@ describe("one-click-film asset panel UI", () => {
         expect(source).not.toContain("localStorage");
     });
 
+    it("lets users add and delete assets by hand", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // 之前只能靠 executor assets 步自动提取，界面上无法手动加一个角色（§7 P0 缺口）
+        expect(source).toContain("createAsset");
+        expect(source).toContain("deleteAsset");
+        expect(source).toContain('method: "DELETE"');
+        expect(source).toContain("aria-label={`新增${KIND_LABEL[kind]}`}");
+        expect(source).toContain("aria-label={`删除${KIND_LABEL[kind]}");
+        // 删除必须带 kind，否则服务端不知道删哪一类
+        expect(source).toContain("?kind=${kind}");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         const source = await readFile(panelPath, "utf8");
         expect(source).not.toContain("setTimeout");

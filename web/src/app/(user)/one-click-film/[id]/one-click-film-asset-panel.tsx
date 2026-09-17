@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Input, Modal, Segmented, Tag, message } from "antd";
-import { ImageIcon, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
+import { ImageIcon, Plus, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
 import { useState } from "react";
 import type { DramaAssetReference, DramaNamedAsset, DramaProject } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
@@ -36,6 +36,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
     const [kind, setKind] = useState<AssetKind>("characters");
     const [editing, setEditing] = useState<DramaNamedAsset>();
     const [busy, setBusy] = useState<string>();
+    const [creatingName, setCreatingName] = useState("");
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const assets = (project[kind] || []) as DramaNamedAsset[];
 
@@ -141,11 +142,64 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
         await runReferenceAction(asset, { action: "upload", uploads }, "upload");
     };
 
+    /** 手工新增资产。之前只能靠 executor assets 步自动提取，用户无法自己加。 */
+    const createAsset = async () => {
+        const name = creatingName.trim();
+        if (!name) {
+            message.warning(`请输入${KIND_LABEL[kind]}名称`);
+            return;
+        }
+        setBusy("__create__");
+        try {
+            const data = await callJson(`${base}/assets`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, name }),
+            });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            setCreatingName("");
+            message.success(`已新增${KIND_LABEL[kind]}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产创建失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /** 删除资产；服务端会同步清掉分镜里的绑定，避免幽灵资产引用。 */
+    const deleteAsset = async (asset: DramaNamedAsset) => {
+        setBusy(`${asset.id}:delete`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(asset.id)}?kind=${kind}`, { method: "DELETE" });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            if (editing?.id === asset.id) setEditing(undefined);
+            message.success(`已删除${KIND_LABEL[kind]}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产删除失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
     return (
         <section className="mt-6 rounded-lg border border-border bg-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-semibold">资产准备</h2>
-                <Segmented value={kind} onChange={(value) => setKind(value as AssetKind)} options={(Object.keys(KIND_LABEL) as AssetKind[]).map((item) => ({ value: item, label: KIND_LABEL[item] }))} aria-label="资产类型" />
+                <div className="flex flex-wrap items-center gap-2">
+                    <Segmented value={kind} onChange={(value) => setKind(value as AssetKind)} options={(Object.keys(KIND_LABEL) as AssetKind[]).map((item) => ({ value: item, label: KIND_LABEL[item] }))} aria-label="资产类型" />
+                    <Input
+                        size="small"
+                        style={{ width: 160 }}
+                        value={creatingName}
+                        onChange={(event) => setCreatingName(event.target.value)}
+                        onPressEnter={() => void createAsset()}
+                        placeholder={`新增${KIND_LABEL[kind]}名称`}
+                        aria-label={`新增${KIND_LABEL[kind]}名称`}
+                    />
+                    <Button size="small" icon={<Plus className="size-4" />} loading={busy === "__create__"} aria-label={`新增${KIND_LABEL[kind]}`} onClick={() => void createAsset()}>
+                        新增
+                    </Button>
+                </div>
             </div>
 
             {assets.length ? (
@@ -162,9 +216,20 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                                     </div>
                                     <p className="mt-1 truncate text-sm text-muted-foreground">{asset.description || asset.appearance || "暂无描述"}</p>
                                 </div>
-                                <Button size="small" icon={<UserRound className="size-4" />} aria-label={`编辑${KIND_LABEL[kind]} ${asset.name || asset.id}`} onClick={() => setEditing(asset)}>
-                                    编辑
-                                </Button>
+                                <span className="flex shrink-0 items-center gap-1">
+                                    <Button size="small" icon={<UserRound className="size-4" />} aria-label={`编辑${KIND_LABEL[kind]} ${asset.name || asset.id}`} onClick={() => setEditing(asset)}>
+                                        编辑
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        type="text"
+                                        danger
+                                        icon={<Trash2 className="size-4" />}
+                                        loading={busy === `${asset.id}:delete`}
+                                        aria-label={`删除${KIND_LABEL[kind]} ${asset.name || asset.id}`}
+                                        onClick={() => void deleteAsset(asset)}
+                                    />
+                                </span>
                             </div>
 
                             <div className="mt-2 flex flex-wrap gap-2">
