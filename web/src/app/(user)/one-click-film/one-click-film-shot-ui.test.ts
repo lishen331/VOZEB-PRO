@@ -153,6 +153,16 @@ describe("one-click-film shot card UI", () => {
         expect(source).toContain("setVideoPrompt(data.videoPrompt)");
     });
 
+    it("offers L's AI layout-anchor regeneration", async () => {
+        const source = await readFile(editorPath, "utf8");
+        // 对应 L POST /storyboards/:id/regenerate-layout-description
+        expect(source).toContain("/regenerate-layout-description");
+        expect(source).toContain('aria-label="AI 重算空间布局"');
+        // 结果要回填并可见，否则用户不知道最终布局锚点是什么
+        expect(source).toContain("setLayoutDescription(data.layoutDescription)");
+        expect(source).toContain('aria-label="本镜空间布局锚点"');
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");

@@ -49,6 +49,8 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
     const [frameGenerating, setFrameGenerating] = useState(false);
     const [polishing, setPolishing] = useState(false);
     const [rebuilding, setRebuilding] = useState(false);
+    const [layoutBusy, setLayoutBusy] = useState(false);
+    const [layoutDescription, setLayoutDescription] = useState(shot.layoutDescription || "");
     const [polishedPrompt, setPolishedPrompt] = useState(shot.polishedPrompt || "");
 
     useEffect(() => {
@@ -160,6 +162,24 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
         }
     };
 
+    /**
+     * 对应 L `POST /storyboards/:id/regenerate-layout-description`：
+     * 结合前后分镜布局与本镜角色，让 AI 重算空间布局锚点。
+     */
+    const regenerateLayout = async () => {
+        setLayoutBusy(true);
+        try {
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/regenerate-layout-description${query}`, { method: "POST" });
+            if (typeof data?.layoutDescription === "string") setLayoutDescription(data.layoutDescription);
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            message.success("布局描述已由 AI 重新生成并保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "布局描述重生成失败");
+        } finally {
+            setLayoutBusy(false);
+        }
+    };
+
     return (
         <Modal open width={760} title={`编辑分镜 · ${shot.title || "未命名"}`} onCancel={onClose} footer={null} destroyOnHidden>
             <Tabs
@@ -250,6 +270,15 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
                                     空间布局
                                     <Input.TextArea rows={2} value={frameLayout} onChange={(event) => setFrameLayout(event.target.value)} aria-label="帧空间布局" />
                                 </label>
+                                <label className="grid gap-1 text-sm">
+                                    本镜空间布局锚点（layout_description）
+                                    <Input.TextArea rows={2} value={layoutDescription} readOnly placeholder="点击「AI 重算空间布局」后生成" aria-label="本镜空间布局锚点" />
+                                </label>
+                                <div>
+                                    <Button size="small" loading={layoutBusy} onClick={() => void regenerateLayout()} aria-label="AI 重算空间布局">
+                                        AI 重算空间布局
+                                    </Button>
+                                </div>
                                 <p className="text-xs text-muted-foreground">保存会整条覆盖该帧的提示词、描述与布局（与 L 一致）；已生成的帧图不受影响。</p>
                                 <div className="flex justify-end gap-2">
                                     <Button loading={frameGenerating} onClick={() => void generateFrame()} aria-label="AI 生成帧提示词">
