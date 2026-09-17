@@ -37,6 +37,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
     const [editing, setEditing] = useState<DramaNamedAsset>();
     const [busy, setBusy] = useState<string>();
     const [creatingName, setCreatingName] = useState("");
+    const [draft, setDraft] = useState<{ name: string; description: string; appearance: string; imagePrompt: string }>();
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const assets = (project[kind] || []) as DramaNamedAsset[];
 
@@ -142,6 +143,32 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
         await runReferenceAction(asset, { action: "upload", uploads }, "upload");
     };
 
+    /**
+     * 保存资产字段。服务端 `PUT assets/:assetId` 只接受白名单字段，
+     * 不会碰 references / primaryReferenceId（那些由参考图链路独占维护）。
+     */
+    const saveAsset = async () => {
+        if (!editing || !draft) return;
+        setBusy(`${editing.id}:save`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(editing.id)}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, name: draft.name, description: draft.description, appearance: draft.appearance, imagePrompt: draft.imagePrompt }),
+            });
+            if (data?.project) {
+                onProjectChange(data.project as DramaProject);
+                const refreshed = ((data.project as DramaProject)[kind] as DramaNamedAsset[]).find((item) => item.id === editing.id);
+                if (refreshed) setEditing(refreshed);
+            }
+            message.success("资产已保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产保存失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
     /** 手工新增资产。之前只能靠 executor assets 步自动提取，用户无法自己加。 */
     const createAsset = async () => {
         const name = creatingName.trim();
@@ -217,7 +244,15 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                                     <p className="mt-1 truncate text-sm text-muted-foreground">{asset.description || asset.appearance || "暂无描述"}</p>
                                 </div>
                                 <span className="flex shrink-0 items-center gap-1">
-                                    <Button size="small" icon={<UserRound className="size-4" />} aria-label={`编辑${KIND_LABEL[kind]} ${asset.name || asset.id}`} onClick={() => setEditing(asset)}>
+                                    <Button
+                                        size="small"
+                                        icon={<UserRound className="size-4" />}
+                                        aria-label={`编辑${KIND_LABEL[kind]} ${asset.name || asset.id}`}
+                                        onClick={() => {
+                                            setEditing(asset);
+                                            setDraft({ name: asset.name || "", description: asset.description || "", appearance: asset.appearance || "", imagePrompt: asset.polishedPrompt || asset.imagePrompt || "" });
+                                        }}
+                                    >
                                         编辑
                                     </Button>
                                     <Button
@@ -273,20 +308,25 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                     <div className="grid gap-3">
                         <label className="grid gap-1 text-sm">
                             名称
-                            <Input value={editing.name} readOnly aria-label="资产名称" />
+                            <Input value={draft?.name ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, name: event.target.value } : current))} aria-label="资产名称" />
                         </label>
                         <label className="grid gap-1 text-sm">
                             描述
-                            <Input.TextArea rows={3} value={editing.description || ""} readOnly aria-label="资产描述" />
+                            <Input.TextArea rows={3} value={draft?.description ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, description: event.target.value } : current))} aria-label="资产描述" />
                         </label>
                         <label className="grid gap-1 text-sm">
                             外貌 / 外观
-                            <Input.TextArea rows={3} value={editing.appearance || ""} readOnly aria-label="资产外貌" />
+                            <Input.TextArea rows={3} value={draft?.appearance ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, appearance: event.target.value } : current))} aria-label="资产外貌" />
                         </label>
                         <label className="grid gap-1 text-sm">
-                            生图提示词（AI 生成后写回）
-                            <Input.TextArea rows={4} value={editing.polishedPrompt || editing.imagePrompt || ""} readOnly aria-label="资产生图提示词" />
+                            生图提示词（AI 生成后写回，也可手工修改）
+                            <Input.TextArea rows={4} value={draft?.imagePrompt ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, imagePrompt: event.target.value } : current))} aria-label="资产生图提示词" />
                         </label>
+                        <div className="flex justify-end">
+                            <Button type="primary" loading={busy === `${editing.id}:save`} onClick={() => void saveAsset()} aria-label="保存资产">
+                                保存资产
+                            </Button>
+                        </div>
                         {editing.stages?.length ? (
                             <div className="grid gap-1 text-sm">
                                 阶段造型

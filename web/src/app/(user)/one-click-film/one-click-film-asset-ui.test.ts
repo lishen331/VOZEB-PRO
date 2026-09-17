@@ -105,6 +105,21 @@ describe("one-click-film asset panel UI", () => {
         expect(source).toContain("?kind=${kind}");
     });
 
+    it("lets users hand-edit asset fields and save them", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // 之前弹窗字段全是 readOnly，PUT assets/:assetId 没有调用方
+        expect(source).toContain("saveAsset");
+        expect(source).toContain('method: "PUT"');
+        expect(source).toContain('aria-label="保存资产"');
+        // 四个可编辑字段都要有受控 onChange
+        for (const field of ["name", "description", "appearance", "imagePrompt"]) {
+            expect(source).toContain(`${field}: event.target.value`);
+        }
+        // 编辑区不应再有只读输入框
+        expect(source).not.toContain('readOnly aria-label="资产名称"');
+        expect(source).not.toContain('readOnly aria-label="资产描述"');
+    });
+
     it("does not fake async work with setTimeout", async () => {
         const source = await readFile(panelPath, "utf8");
         expect(source).not.toContain("setTimeout");
