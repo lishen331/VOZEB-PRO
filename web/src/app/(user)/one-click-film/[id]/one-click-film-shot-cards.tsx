@@ -35,6 +35,14 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
     const [universalDrafts, setUniversalDrafts] = useState<Record<string, string>>({});
     const [universalBusy, setUniversalBusy] = useState<{ shotId: string; mode: "generate" | "polish" }>();
     const [forceNoRef, setForceNoRef] = useState(false);
+    /**
+     * L §4 配置行参数。留空 = 交给 AI 决定，与 L 的空值语义一致。
+     * 这四项经服务端 normalizeDramaLabStoryboardOptions 校验后注入拆解提示词约束。
+     */
+    const [shotCount, setShotCount] = useState("");
+    const [totalDuration, setTotalDuration] = useState("");
+    const [universalMode, setUniversalMode] = useState(false);
+    const [generateNarration, setGenerateNarration] = useState(true);
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const query = `?episodeId=${encodeURIComponent(episode.id)}`;
 
@@ -57,7 +65,17 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
      */
     const regenerateStoryboards = () =>
         run(undefined, async () => {
-            await callJson(`${base}/episodes/${encodeURIComponent(episode.id)}/storyboards/generate`, { method: "POST" });
+            const storyboardOptions: Record<string, unknown> = {
+                ...(shotCount.trim() ? { shotCount: shotCount.trim() } : {}),
+                ...(totalDuration.trim() ? { totalDuration: totalDuration.trim() } : {}),
+                creationMode: universalMode ? "universal" : "classic",
+                generateNarration,
+            };
+            await callJson(`${base}/episodes/${encodeURIComponent(episode.id)}/storyboards/generate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ storyboardOptions }),
+            });
             const refreshed = await callJson(`${base}`, { cache: "no-store" });
             if (refreshed?.project) onProjectChange(refreshed.project);
             message.success("分镜拆解已完成");
@@ -252,6 +270,33 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                         新增分镜
                     </Button>
                 </div>
+            </div>
+
+            {/* L §4 配置行：分镜数量 / 视频总时长 / 全能分镜 / 解说旁白 */}
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                <label className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">分镜数量</span>
+                    <Input size="small" style={{ width: 96 }} value={shotCount} placeholder="自动" aria-label="分镜数量" onChange={(event) => setShotCount(event.target.value)} />
+                    <span className="text-xs text-muted-foreground">留空由 AI 决定</span>
+                </label>
+                <label className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">视频总时长</span>
+                    <Input size="small" style={{ width: 96 }} value={totalDuration} placeholder="秒" aria-label="视频总时长" onChange={(event) => setTotalDuration(event.target.value)} />
+                    <span className="text-xs text-muted-foreground">秒，留空不约束</span>
+                </label>
+                <Tooltip title="每镜输出多子分镜段落式 universal_segment，与「生成/润色全能提示词」同版式">
+                    <label className="flex items-center gap-1.5">
+                        <Switch size="small" checked={universalMode} onChange={setUniversalMode} aria-label="全能分镜模式" />
+                        <span>全能分镜模式</span>
+                    </label>
+                </Tooltip>
+                <Tooltip title="narration 与对白分开存放，便于后期 TTS 与导出 SRT">
+                    <label className="flex items-center gap-1.5">
+                        <Switch size="small" checked={generateNarration} onChange={setGenerateNarration} aria-label="生成解说旁白" />
+                        <span>生成解说旁白</span>
+                    </label>
+                </Tooltip>
+                <span className="text-xs text-muted-foreground">以上参数在「重新拆解分镜」时生效</span>
             </div>
 
             <ul className="mt-3 grid gap-3">
