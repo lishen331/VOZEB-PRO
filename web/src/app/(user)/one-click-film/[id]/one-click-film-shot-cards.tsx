@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Segmented, Tag, Tooltip, message } from "antd";
-import { ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
+import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
@@ -42,6 +42,24 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
             setBusyShotId(undefined);
         }
     };
+
+    /**
+     * 批量补全本集分镜的摄影参数，对应 L `POST /storyboards/batch-infer-params`。
+     *
+     * 纯本地规则推断，不调用模型，因此不产生计费。默认只补缺失字段。
+     */
+    const batchInferParams = () =>
+        run(undefined, async () => {
+            const data = (await callJson(`${base}/shots/batch-infer-params`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ episodeId: episode.id, overwrite: false }),
+            })) as unknown as { total?: number; updated?: number; project?: DramaProject } | undefined;
+            if (data?.project) onProjectChange(data.project);
+            const updated = data?.updated || 0;
+            if (updated > 0) message.success(`已补全 ${updated} 个分镜的摄影参数`);
+            else message.info("所有分镜的摄影参数都已完整");
+        });
 
     const createShot = () =>
         run(undefined, async () => {
@@ -156,9 +174,16 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
         <div className="mt-5">
             <div className="flex items-center justify-between gap-2">
                 <b>分镜（{episode.shots.length}）</b>
-                <Button size="small" icon={<Plus className="size-4" />} loading={busyShotId === "__collection__"} onClick={() => void createShot()} aria-label="新增分镜">
-                    新增分镜
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Tooltip title="按镜头类型与情绪推断缺失的摄影参数，不调用模型">
+                        <Button size="small" icon={<Aperture className="size-4" />} loading={busyShotId === "__collection__"} onClick={() => void batchInferParams()} aria-label="批量补全摄影参数">
+                            补全摄影参数
+                        </Button>
+                    </Tooltip>
+                    <Button size="small" icon={<Plus className="size-4" />} loading={busyShotId === "__collection__"} onClick={() => void createShot()} aria-label="新增分镜">
+                        新增分镜
+                    </Button>
+                </div>
             </div>
 
             <ul className="mt-3 grid gap-3">

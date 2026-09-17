@@ -35,6 +35,10 @@ const EDITABLE_FIELDS = [
     "angleV",
     "angleS",
     "cameraMotion",
+    // L `batchInferParams` 会推断并写入这两项（连同 movement/cameraMotion）。
+    // 不放进白名单，批量推断的结果就存不下来。
+    "lightingStyle",
+    "depthOfField",
     "segmentIndex",
     "segmentTitle",
     "creationMode",

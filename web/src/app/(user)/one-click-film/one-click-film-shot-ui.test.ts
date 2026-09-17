@@ -181,6 +181,19 @@ describe("one-click-film shot card UI", () => {
         expect(source).toContain("aria-label={`播放分镜 ${index + 1} ${label}配音`}");
     });
 
+    it("wires L's batch photography-parameter inference", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        // 对应 L POST /storyboards/batch-infer-params（纯本地规则推断，不调模型，不计费）
+        expect(source).toContain("/shots/batch-infer-params");
+        expect(source).toContain("episodeId: episode.id");
+        expect(source).toContain("overwrite: false");
+        expect(source).toContain('aria-label="批量补全摄影参数"');
+        // 推断出的字段必须在服务端白名单里，否则会被静默丢弃
+        const crud = await readFile(resolve(process.cwd(), "src/lib/server/one-click-film/shot-crud.ts"), "utf8");
+        expect(crud).toContain('"lightingStyle"');
+        expect(crud).toContain('"depthOfField"');
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");
