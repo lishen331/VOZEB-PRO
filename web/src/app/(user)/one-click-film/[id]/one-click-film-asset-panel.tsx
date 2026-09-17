@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Empty, Input, InputNumber, Modal, Segmented, Select, Tag, message } from "antd";
+import { Button, Checkbox, Empty, Input, InputNumber, message, Modal, Segmented, Select, Tag, Tooltip } from "antd";
 import { FolderOpen, ImageIcon, Layers, Library, Plus, ScanText, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
 import { useState } from "react";
 import type { DramaAssetReference, DramaNamedAsset, DramaProject, DramaVoiceProfile } from "@/lib/drama-project-contract";
@@ -54,7 +54,21 @@ const KIND_ASSET_TYPE: Record<AssetKind, string> = { characters: "character", sc
  */
 export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, kind: controlledKind, onKindChange }: Props) {
     const [innerKind, setInnerKind] = useState<AssetKind>("characters");
+    /**
+     * 栅格开关，对应 L 的 `propUseQuadGrid` / `sceneUseQuadGrid`（两个独立 ref，默认单图）。
+     *
+     * 角色不在此列：L 角色区没有这个勾选，四视图写死在后端角色提示词里
+     * （工业角色参考表，且明确禁止 2×2 网格），所以角色恒走 four_view。
+     */
+    const [quadGrid, setQuadGrid] = useState<{ props: boolean; scenes: boolean }>({ props: false, scenes: false });
     const kind = controlledKind ?? innerKind;
+    /** 当前类别要请求的版式。 */
+    const layoutForKind = (asset?: Pick<PanelAsset, "generationLayout">) => {
+        if (kind === "characters") return "four_view";
+        // 到这里 kind 已被收窄为 "props" | "scenes"，无需再判非角色
+        if (quadGrid[kind]) return "four_view";
+        return (asset?.generationLayout as "single" | "four_view" | undefined) || "single";
+    };
     const setKind = (next: AssetKind) => {
         setInnerKind(next);
         onKindChange?.(next);
@@ -119,7 +133,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
             await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/generate-image`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ kind, generationLayout: kind === "characters" ? "four_view" : asset.generationLayout || "single" }),
+                body: JSON.stringify({ kind, generationLayout: layoutForKind(asset) }),
             });
             message.success(kind === "characters" ? "角色四视图任务已创建" : "资产设定图任务已创建");
         } catch (error) {
@@ -301,7 +315,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
             const data = await callJson(`${base}/assets/batch-generate-images`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ kind, assetIds: targets.map((item) => item.id) }),
+                body: JSON.stringify({ kind, assetIds: targets.map((item) => item.id), generationLayout: layoutForKind() }),
             });
             const created = Number(data?.created) || 0;
             const failed = Number(data?.failed) || 0;
@@ -374,6 +388,15 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                     <Button size="small" icon={<ScanText className="size-4" />} loading={busy === "__extract__"} aria-label={`从剧本提取${KIND_LABEL[kind]}`} onClick={() => void extractAssets()}>
                         从剧本提取
                     </Button>
+                    {/* L: 栅格勾选独立于列表，角色区没有此勾选（四视图写死在后端角色提示词） */}
+                    {kind !== "characters" ? (
+                        <Tooltip title={kind === "props" ? "四视图道具（前/侧/后/顶，纯色无缝背景）" : "四宫格场景（正/侧/俯/仰，四格视觉条件统一）"}>
+                            <label className="flex items-center gap-1.5 text-xs">
+                                <Checkbox checked={quadGrid[kind]} aria-label={kind === "props" ? "生成四视图道具" : "生成四宫格场景"} onChange={(event) => setQuadGrid((current) => ({ ...current, [kind]: event.target.checked }))} />
+                                <span>{kind === "props" ? "生成四视图道具（默认单图，纯色无缝背景）" : "生成四宫格场景（默认单图）"}</span>
+                            </label>
+                        </Tooltip>
+                    ) : null}
                     {assets.length ? (
                         <Button size="small" icon={<Layers className="size-4" />} loading={busy === "__batch__"} aria-label={`批量生成${KIND_LABEL[kind]}设定图`} onClick={() => void batchGenerate()}>
                             批量生成
