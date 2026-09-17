@@ -19,11 +19,8 @@ const apiRoot = resolve(process.cwd(), "src/app/api/one-click-film");
  * 这份名单是"欠账清单"，不是豁免：新增的死路由不在名单里就会判红。
  * 每接上一条 UI，就要把对应项从这里删掉。
  */
-const KNOWN_ORPHANS = new Set([
-    "/projects/[id]/shots/[shotId]/frame-prompts/route.ts",
-    "/projects/[id]/shots/[shotId]/frame-prompts/[frameType]/route.ts",
-    "/projects/[id]/shots/[shotId]/insert-before/route.ts",
-    "/projects/[id]/shots/[shotId]/split-by-audio/route.ts",
+const KNOWN_ORPHANS = new Set<string>([
+    // 欠账已还清：分镜卡片列表与编辑弹窗接入后，上述路由都已有真实调用方。
 ]);
 const searchRoots = ["src/app", "src/lib", "src/components", "src/features"].map((dir) => resolve(process.cwd(), dir));
 
