@@ -36,7 +36,16 @@ storyboards 已推进到约 10/21（CRUD 4 + frame-prompts 2 + generate-image/vi
 ### 已知缺陷
 - **协作闸门耦合（P0，未处置）**：`POST /api/one-click-film/projects` 会调 `ensureDramaLabProjectGroup`，把每个一键成片项目写进创作工坊协作组表。所以 `assertDramaLabStageAllowed` 一定查得到组、不会早退，教学版的审批配置会真实拦住商单链路。我先前"未建组时是空操作"的判断是错的。移除该调用前须确认现有项目读取路径是否已依赖该组存在。
 - `export` / `split-by-audio` / 新增的 shot CRUD / frame-prompts / generate-image / generate-video 后端已建但**无前端入口**，属死代码，UI 侧仍是最大缺口。
-- `sync-generation` 尚未自建：创作工坊那份有 439 行冲突重试与历史幂等逻辑，照抄必走偏，需单独按 L 语义逐条核对。
+- `sync-generation` 已自建基础版（`sync-runner.ts`）：图片 URL 取 serverUrl→remoteUrl→dataUrl（`ImageTask.result` **没有 `url` 字段**，我一开始写错过）、历史按 taskId+结果幂等、任务丢失则解绑避免锁死。**仍未覆盖**创作工坊那份 439 行里的：写冲突重试、任务上下文错配检测、首尾帧候选与 needs_review 完整分支 —— 保持"未迁移"。
+
+## 血的教训：改链路必须同时改回写
+
+我把 executor 的 images/videos 从创作工坊工作流切到一键成片自有路由后，**引入了"永久 pending"回归**：
+调 `sync-generation` 的原本只有创作工坊工作流服务、创作工坊 UI、视频恢复服务（且只经创作工坊路由可达），
+通用恢复服务只推进上游任务本身、**不回写分镜**。所以切链路等于把唯一的回写触发点一起摘掉了，
+上游成功也没人把 URL 写回分镜。已由 `media-runner` 主动调 `syncOneClickShotGeneration` 补上。
+
+**规律**：在这个仓库里，"提交任务"和"回写结果"是两条独立链路。动其中一条，必须检查另一条还通不通。
 
 ## 我犯过的错（勿重复）
 
@@ -46,6 +55,8 @@ storyboards 已推进到约 10/21（CRUD 4 + frame-prompts 2 + generate-image/vi
 | 拿"41 项测试全绿"当迁移达标 | 测试只覆盖服务层/路由层，未覆盖 UI 暴露面与 L 行为等价性 |
 | 声称关闭创作工坊会致 403 | 空实现，夸大 |
 | 跳过 Task 1 差异矩阵直接写实现 | 基线缺失是一切返工的根因 |
+| 建好路由但没有调用方 | 第三轮发现 generate-image/video 是死代码，计费修复其实没生效。已加 `dead-route-guard.test.ts` 守卫，新增死路由会判红 |
+| 切换任务提交链路却忘了回写链路 | 导致 images/videos 永久 pending，见上节 |
 
 ## L 源码导航
 
