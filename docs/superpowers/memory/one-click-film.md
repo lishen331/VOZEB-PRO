@@ -269,3 +269,26 @@ L 把 sharp 当可选依赖（`try { require('sharp') }`，缺失时报错），
 - 路由写法是 **handler 对象工厂**（`function routes(db, log, cfg) { return { create: (req,res)=>... } }`），不是 Express 装饰器 —— grep `router.post` 会零命中。
 - 故事板核心：`services/episodeStoryboardService.js`(75kb)、`framePromptService.js`(33kb)、`promptI18n.js`(133kb)、`universalSegmentPromptBundle.js`(22kb)
 - 图片/视频上游：`imageService.js`(86kb)、`videoClient.js`(160kb)、`videoService.js`(24kb)
+
+## 2026-09-18 本轮补齐（6 项缺口，均本地提交未 push）
+
+| commit | 缺口 | 核实要点 |
+|---|---|---|
+| `8e997446` | 首帧站位（L `lastFrameUseFirstLayoutLock`） | V 原先**无条件**把首帧当尾帧参考：`drama-lab-frame-generation-service.ts` 既加首帧参考图，又注入"首帧布局参考"提示词与"尾帧必须读取首帧布局"契约。三处一起受开关控制才算完整，只关参考图是半截。默认 true，drama-lab 717 项回归不变 |
+| `b2facfa4` | 上镜尾帧（L `onUsePrevTailAsFirst`） | 无需新后端：组合上一镜 `extract-tail-frame` + 本镜 `accept-first-frame-candidate`（`replaceExisting=true`）。仅在 first_last 模式且上一镜有视频时出现 |
+| `22824a5b` | 继续查询（L `onResumeSbVideoPoll`） | 复用平台共享 `/api/video-tasks/:id` 的 `recoverVideoGenerationTask`（无模块耦合），判定复用 `requiresDramaLabVideoTaskCheck`。只查原任务，绝不再打 generate-video，避免重复扣费。卡上原先完全没有待检查提示，用户会卡死 |
+| `72564af6` | 查看提示词 / 手工编辑直达入口 | 给编辑弹窗加 `initialTab`；卡上新增入口按帧模式分流：first_last → frames 页签，其余 → prompts 页签 |
+| `d49a90e2` | §2 暂停 / 继续（L `pipelinePaused`） | **L 是客户端标志位，V 不能照抄**：V 父任务由服务端 worker 推进，标志位必须落在 `workflow.paused` 上，否则关页面后 worker 继续启动下一步。语义只挡"启动下一步"，已提交子任务照常跑完、不撤单不退款。继续时重新 `scheduleGenerationTask` 入队 |
+| `14371a19` | §1 从剧本库导入（L:333–354） | 新增只读 `GET /api/one-click-film/script-library`；只列 `sourceHandoffId` 前缀为 one-click-film 的项目（教学版剧本不进商单剧本库）。「填入本集」只改编辑框，写库仍复用既有 `PUT /projects/:id`，不建第二套剧本写入语义 |
+
+验证基线（每项均跑过）：tsc 全绿、eslint 全绿、一键成片专项 352 项全绿（起点 343）、drama-lab 回归 717 项不变、`dead-route-guard` 全绿。
+
+### 本轮踩坑
+- 断言"declared movement"不存在来验证首帧锁移除是**误判**：该词也出现在生产模板正文里。改断由开关控制的那句"尾帧必须读取首帧布局"。教训不变：字面匹配检查器容易误报，判据要精确到被改动的那一处。
+- 卡片处理函数命名以 `use` 开头会被 `react-hooks/rules-of-hooks` 当成 hook 判红（`usePreviousTailAsFirst` → 改 `applyPreviousTailAsFirst`）。
+- 往测试文件写断言时，若断言字符串里含 `${...}`，用 JS 模板字符串生成会被就地求值。改用数组 join 逐行拼。
+
+### 剩余未做（3 项，均已核实原因）
+1. **§5 视频配置（分辨率/字幕/烧录/水印）** —— V `ffmpeg -c copy` 无转码无滤镜，字段从未进 ffmpeg 参数；加 UI 就是哑参数。L 侧对应项也是注释掉的死代码。
+2. **§1 故事风格 / 剧本类型** —— 只被 drama-lab 的 generate-script 消费；一键成片 script 步骤只校验剧本非空。
+3. **序列图模式（四宫格 / 九宫格）** —— L 后端有 `buildQuadGridPrompt` / `splitQuadGridToImages` / `splitNineGridToImages`，靠 `frame_type` 触发；V 类型存在但服务端零消费，生图路由只传 `{ model, size }`。**要做必须先补后端**，是唯一还需服务端新增能力的缺口。
