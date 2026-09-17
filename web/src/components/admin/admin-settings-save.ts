@@ -50,6 +50,10 @@ export function mergeAdminSettingsSaveResponse(current: AuthSettings, response: 
         if (next === current) next = { ...current };
         Object.assign(next, { [key]: response[key] });
     }
+    if (response.settingsRevision !== undefined && response.settingsRevision !== next.settingsRevision) {
+        if (next === current) next = { ...current };
+        next.settingsRevision = response.settingsRevision;
+    }
     return next;
 }
 
