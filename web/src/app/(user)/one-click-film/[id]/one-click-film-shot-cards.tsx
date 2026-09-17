@@ -1,11 +1,13 @@
 "use client";
 
 import { Button, Empty, Input, Popconfirm, Segmented, Switch, Tag, Tooltip, message } from "antd";
-import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
+import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, LoaderCircle, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
 import { runBatchMedia, type BatchMediaKind, type BatchMediaProgress } from "@/lib/one-click/batch-media";
+import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "@/app/(user)/drama-lab/[id]/drama-lab-video-task-recovery";
+import { recoverVideoGenerationTask } from "@/services/api/video-core";
 
 import { OneClickFilmShotEditor } from "./one-click-film-shot-editor";
 
@@ -329,6 +331,25 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
             message.success("已用上一镜尾帧作为本镜首帧");
         });
 
+    /**
+     * 对应 L `onResumeSbVideoPoll`（「继续查询」）：视频任务卡在待检查时，
+     * 只查询原上游任务，绝不重新提交，避免重复扣费。
+     * 走平台共享的 /api/video-tasks/:id recover（该端点无模块身份耦合），
+     * 判定逻辑复用与创作工坊同一份 requiresDramaLabVideoTaskCheck。
+     */
+    const resumeVideoPoll = (shot: DramaShot) =>
+        run(shot.id, async () => {
+            const taskId = shot.generationTaskId?.trim();
+            if (!taskId) {
+                message.info("当前分镜没有可继续查询的视频任务");
+                return;
+            }
+            await recoverVideoGenerationTask({ id: taskId, serverTaskId: taskId, provider: "generation", model: "one-click-film-video", pollPath: "server" });
+            const refreshed = await callJson(`${base}`, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project);
+            message.success("已查询原视频任务状态，结果会同步回本镜");
+        });
+
     if (!episode.shots.length) {
         return (
             <div className="mt-5 rounded-lg border p-6">
@@ -463,7 +484,13 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                     {shot.generationStatus ? <Tag color={statusColor(shot.generationStatus)}>视频 {shot.generationStatus}</Tag> : null}
                                 </div>
                                 <p className="mt-1 truncate text-sm text-muted-foreground">{shot.description || shot.sourceText || "暂无描述"}</p>
-                                {shot.storyboardError || shot.generationError ? <p className="mt-1 text-sm text-red-500">{shot.storyboardError || shot.generationError}</p> : null}
+                                {requiresDramaLabVideoTaskCheck(shot) ? (
+                                    <p className="mt-1 text-sm text-amber-600" aria-label={`分镜 ${index + 1} 视频结果待检查`}>
+                                        {dramaLabVideoTaskReviewDescription(shot)}
+                                    </p>
+                                ) : shot.storyboardError || shot.generationError ? (
+                                    <p className="mt-1 text-sm text-red-500">{shot.storyboardError || shot.generationError}</p>
+                                ) : null}
 
                                 {shot.dialogueAudio || shot.narrationAudio ? (
                                     <div className="mt-2 grid gap-1">
@@ -568,6 +595,13 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                         <Button size="small" icon={<Film className="size-4" />} loading={busyShotId === shot.id} aria-label={`提取分镜 ${index + 1} 视频尾帧`} onClick={() => void extractTailFrame(shot)}>
                                             提取尾帧
                                         </Button>
+                                    ) : null}
+                                    {requiresDramaLabVideoTaskCheck(shot) ? (
+                                        <Tooltip title="只查询原上游视频任务，不会重新提交、不会重复扣费（对应 L 的「继续查询」）">
+                                            <Button size="small" icon={<LoaderCircle className="size-4" />} loading={busyShotId === shot.id} aria-label={`继续查询分镜 ${index + 1} 视频任务`} onClick={() => void resumeVideoPoll(shot)}>
+                                                继续查询
+                                            </Button>
+                                        </Tooltip>
                                     ) : null}
                                     {shot.storyboardFrameMode === "first_last" && index > 0 && episode.shots[index - 1]?.videoUrl ? (
                                         <Tooltip title="取上一镜视频的真实尾帧作为本镜首帧（对应 L 的「上镜尾帧」）">

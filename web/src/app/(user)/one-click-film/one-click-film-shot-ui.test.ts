@@ -30,6 +30,14 @@ describe("one-click-film shot card UI", () => {
         }
     });
 
+    it("offers L's 继续查询 without resubmitting the upstream video task", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        // 对应 L onResumeSbVideoPoll：只 recover 原任务，不得再打 generate-video。
+        expect(source).toContain("requiresDramaLabVideoTaskCheck");
+        expect(source).toContain("recoverVideoGenerationTask");
+        expect(source).toContain("继续查询");
+    });
+
     it("offers L's 上镜尾帧 by composing extract + accept on the previous shot", async () => {
         const source = await readFile(cardsPath, "utf8");
         // 对应 L onUsePrevTailAsFirst：先在上一镜抽尾帧，再在本镜确认候选为首帧。
