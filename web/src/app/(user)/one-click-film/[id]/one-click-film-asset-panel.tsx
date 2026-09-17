@@ -31,6 +31,8 @@ type Props = {
     onProjectChange: (project: DramaProject) => void;
 };
 
+import { findAffectedShots } from "@/lib/one-click/affected-shots";
+
 async function callJson(url: string, init?: RequestInit) {
     const response = await fetch(url, init);
     const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: Record<string, unknown>; msg?: string };
@@ -61,6 +63,9 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
      * （工业角色参考表，且明确禁止 2×2 网格），所以角色恒走 four_view。
      */
     const [quadGrid, setQuadGrid] = useState<{ props: boolean; scenes: boolean }>({ props: false, scenes: false });
+    /** 正在重新生成受影响分镜图的资产 id，以及进度，对应 L 的 regenSbImagesForAsset / regenSbImagesProgress。 */
+    const [regenAssetId, setRegenAssetId] = useState<string>();
+    const [regenProgress, setRegenProgress] = useState<{ current: number; total: number }>();
     const kind = controlledKind ?? innerKind;
     /** 当前类别要请求的版式。 */
     const layoutForKind = (asset?: Pick<PanelAsset, "generationLayout">) => {
@@ -300,6 +305,41 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
         }
     };
     /**
+     * 重新生成受该资产影响的分镜图，对应 L 的 `onRegenAffectedSbImages`。
+     *
+     * 改了资产设定图后，引用它的分镜图就过时了。这里串行提交（不并发），
+     * 因为它通常只涉及几个分镜，串行的进度显示更贴合 L 的 `current/total`。
+     * 复用一键成片自有的单镜生图路由，计费归属仍是 one-click-film。
+     */
+    const regenerateAffectedShots = async (asset: PanelAsset) => {
+        const affected = findAffectedShots(project, kind, asset.id);
+        if (!affected.length) {
+            message.info("没有分镜引用该资产");
+            return;
+        }
+        setRegenAssetId(asset.id);
+        setRegenProgress({ current: 0, total: affected.length });
+        let failed = 0;
+        try {
+            for (const [position, item] of affected.entries()) {
+                try {
+                    await callJson(`${base}/shots/${encodeURIComponent(item.shot.id)}/generate-image?episodeId=${encodeURIComponent(item.episodeId)}`, { method: "POST" });
+                } catch {
+                    failed += 1;
+                }
+                setRegenProgress({ current: position + 1, total: affected.length });
+            }
+            const refreshed = await callJson(base, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project as DramaProject);
+            if (failed) message.warning(`已提交 ${affected.length - failed}/${affected.length} 个分镜图任务，${failed} 个失败`);
+            else message.success(`已提交 ${affected.length} 个分镜图任务`);
+        } finally {
+            setRegenAssetId(undefined);
+            setRegenProgress(undefined);
+        }
+    };
+
+    /**
      * 批量生成设定图，对应 L `POST /characters/batch-generate-images`。
      * L 的硬上限是单次 10 个，这里只取前 10 个并提示，避免一次点掉大量额度。
      */
@@ -477,6 +517,8 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                     </>
                                 ) : null}
                             </div>
+                            {/* L 资产卡底部：影响的分镜 + 重新生成分镜图 */}
+                            <AffectedShotsRow project={project} kind={kind} asset={asset} regenerating={regenAssetId === asset.id} progress={regenAssetId === asset.id ? regenProgress : undefined} onRegenerate={() => void regenerateAffectedShots(asset)} />
                         </li>
                     ))}
                 </ul>
@@ -649,5 +691,41 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                 </Modal>
             ) : null}
         </section>
+    );
+}
+
+/**
+ * 「影响的分镜」行，对应 L 资产卡底部的 `asset-storyboard-link`。
+ *
+ * 做成独立组件而不是在 `assets.map` 里塞 IIFE：那个 map 是隐式 return，
+ * 没法先声明局部变量，硬塞会导致每次渲染重复计算且难读。
+ */
+function AffectedShotsRow({ project, kind, asset, regenerating, progress, onRegenerate }: { project: DramaProject; kind: AssetKind; asset: PanelAsset; regenerating: boolean; progress?: { current: number; total: number }; onRegenerate: () => void }) {
+    const affected = findAffectedShots(project, kind, asset.id);
+    if (!affected.length) return null;
+    return (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span>影响的分镜：</span>
+            {affected.map((item) => (
+                <button
+                    key={item.shot.id}
+                    type="button"
+                    title={item.shot.title || `分镜 ${item.index}`}
+                    aria-label={`跳转到分镜 ${item.index}`}
+                    className="rounded border border-border bg-muted/40 px-1.5 py-0.5 hover:border-primary hover:text-primary"
+                    onClick={() => document.getElementById(`one-click-shot-${item.shot.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                >
+                    #{item.index}
+                </button>
+            ))}
+            {regenerating && progress ? (
+                <span>
+                    {progress.current}/{progress.total}
+                </span>
+            ) : null}
+            <Button size="small" loading={regenerating} aria-label={`重新生成受该${KIND_LABEL[kind]}影响的分镜图`} onClick={onRegenerate}>
+                重新生成分镜图
+            </Button>
+        </div>
     );
 }
