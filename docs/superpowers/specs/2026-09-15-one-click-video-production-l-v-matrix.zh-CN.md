@@ -20,9 +20,9 @@ L 后端共 **161** 个接口，按归属拆分：
 |---|---|---|
 | V 平台承载，不迁移 | 34 | 复用 V 的模型渠道、设置、上传、资产、生成路由 |
 | 素材库，需适配 | 15 | 映射到 V 素材库体系（P1） |
-| **必须迁移的业务逻辑** | **108** | **已覆盖 92，即 85.2%**（§13–§18 逐条核算） |
+| **必须迁移的业务逻辑** | **108** | **已覆盖 93，即 86.1%**（§13–§18 逐条核算） |
 
-**结论（2026-09-17 更新）：主链路已覆盖 92/108（85.2%），分镜与资产链路具备真机验证条件；仍有 12 条 P2 缺口与 4 条刻意不复制项，不等于 1:1 完成。**
+**结论（2026-09-17 更新）：主链路已覆盖 93/108（86.1%），分镜与资产链路具备真机验证条件；仍有 11 条 P2 缺口与 4 条刻意不复制项，不等于 1:1 完成。**
 
 > 首轮结论曾是「完成度约 9%，不具备可测条件」。那对应当时状态，现已按 §13–§18 逐条核算更新。
 > 保留这段历史，避免把早期结论当成当前事实。
@@ -34,7 +34,7 @@ L 后端共 **161** 个接口，按归属拆分：
 
 | 域 | 覆盖/总数 | 缺口 | 说明 |
 |---|---|---|---|
-| storyboards | 14/21 | 7（P2） | 3 条 stream 版本（非流式已迁移）、props 独立端点、batch-infer-params、upscale、episode generate 端点 |
+| storyboards | 15/21 | 6（P2） | 3 条 stream 版本（非流式已迁移）、props 独立端点、upscale、episode generate 端点 |
 | characters | 15/19 | 0 | 另 4 条 SD2 声音认证属 L 特有第三方，刻意不复制 |
 | scenes | 11/11 | 0 | — |
 | props | 9/9 | 0 | — |
@@ -45,7 +45,7 @@ L 后端共 **161** 个接口，按归属拆分：
 | audio | 2/2 | 0 | — |
 | dramas | 19/19 | 0 | 多数由 `PUT /projects/:id` 聚合承载 |
 
-**合计：覆盖 92/108，刻意不复制 4，仍为缺口 12（全部 P2）。**
+**合计：覆盖 93/108，刻意不复制 4，仍为缺口 11（全部 P2）。**
 
 ## 4. P0 逐项清单
 
@@ -69,7 +69,7 @@ L 后端共 **161** 个接口，按归属拆分：
 | `POST   /storyboards/:id/classic-video-prompt-polish-stream` | P0 | 未迁移 |
 | `POST   /storyboards/:id/universal-segment-prompt-stream` | P0 | 未迁移 |
 | `POST   /storyboards/:id/universal-segment-prompt` | P0 | 未迁移 |
-| `POST   /storyboards/batch-infer-params` | P0 | 未迁移 |
+| `POST   /storyboards/batch-infer-params` | P0 | 已迁移 |
 | `POST   /storyboards/:id/upscale` | P0 | 未迁移 |
 | `POST   /storyboards/:id/regenerate-layout-description` | P0 | 未迁移 |
 | `POST   /storyboards/:id/rebuild-video-prompt` | P0 | 未迁移 |
@@ -299,7 +299,6 @@ L `/storyboards` 共 21 条：**已迁移 13，结构覆盖 1，未迁移 7。**
 | `universal-segment-polish-stream` | 流式版本；非流式已迁移（P2） |
 | `classic-video-prompt-polish-stream` | 流式版本（P2） |
 | `universal-segment-prompt-stream` | 流式版本；非流式已迁移（P2） |
-| `POST /storyboards/batch-infer-params` | 批量推断参数（P2） |
 | `POST /storyboards/:id/upscale` | 放大（P2） |
 
 三条 stream 端点的非流式等价物都已迁移，差别只是响应传输方式，不影响最终提示词内容。
