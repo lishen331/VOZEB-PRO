@@ -1120,6 +1120,17 @@ export function withGenerationTaskFileMutation<T>(mutator: (tasks: StoredGenerat
     return run;
 }
 
+/**
+ * 归一化用量归属模块。
+ *
+ * 早先这里写死成 `=== "drama-lab" ? "drama-lab" : undefined`，于是一键成片传上来的
+ * "one-click-film" 会被静默抹成 undefined，归属回落到通用 drama，
+ * 商单用量因此记不到自己名下。新增模块必须同时加进这个白名单。
+ */
+function normalizeFeatureModule(value: unknown): GenerationTaskContext["featureModule"] {
+    return value === "drama-lab" || value === "one-click-film" ? value : undefined;
+}
+
 function normalizeGenerationTaskContext(context: GenerationTaskContext): GenerationTaskContext {
     if (context.executionProfile === "open-source-practice" && !cleanContextText(context.schoolId)) throw new Error("练习任务缺少学校范围");
     const attempt = Number(context.attemptNo);
@@ -1129,7 +1140,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         conversationId: cleanContextText(context.conversationId),
         runId: cleanContextText(context.runId),
         surface: context.surface === "chat" || context.surface === "canvas" || context.surface === "drama" ? context.surface : undefined,
-        featureModule: context.featureModule === "drama-lab" ? "drama-lab" : undefined,
+        featureModule: normalizeFeatureModule(context.featureModule),
         executionProfile: context.executionProfile === "open-source-practice" ? "open-source-practice" : "production",
         schoolId: cleanContextText(context.schoolId),
         projectId: cleanContextText(context.projectId),
@@ -1294,7 +1305,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         conversationId: cleanContextText(String(row.conversation_id || "")),
         runId: cleanContextText(String(row.run_id || "")),
         surface: isTaskSurface(durableSurface) ? durableSurface : undefined,
-        featureModule: nested.featureModule === "drama-lab" || payload.featureModule === "drama-lab" ? "drama-lab" : undefined,
+        featureModule: normalizeFeatureModule(nested.featureModule) || normalizeFeatureModule(payload.featureModule),
         executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
         schoolId: cleanContextText(String(row.school_id || payload.schoolId || "")),
         projectId: cleanContextText(String(row.project_id || "")),

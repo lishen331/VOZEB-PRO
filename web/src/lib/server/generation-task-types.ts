@@ -17,7 +17,12 @@ export type GenerationTaskContext = {
     conversationId?: string;
     runId?: string;
     surface?: "chat" | "canvas" | "drama";
-    featureModule?: "drama-lab";
+    /**
+     * 发起该任务的功能模块，决定用量归属。
+     * 商单（一键成片）与教学版（创作工坊）共用底层生成链路，只能靠这个字段区分，
+     * 所以两者都必须是合法取值 —— 只允许 drama-lab 会让商单用量被静默记到教学版账上。
+     */
+    featureModule?: "drama-lab" | "one-click-film";
     executionProfile?: PracticeExecutionProfile;
     /** School scope for open-source-practice tasks; derived server-side. */
     schoolId?: string;
