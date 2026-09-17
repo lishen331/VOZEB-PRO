@@ -133,7 +133,7 @@ L 后端共 **161** 个接口，按归属拆分：
 | 此前说法 | 纠正 |
 |---|---|
 | 关闭创作工坊会导致一键成片 403 | 错。`requireFeatureModuleEnabled` 是空实现，开关按设计只控前端显示 |
-| 创作工坊审批闸门会套到商单链路 | 部分成立。`getDramaLabProjectGroup` 查不到协作组即 return，未建组时为空操作 |
+| 创作工坊审批闸门会套到商单链路 | **成立，且比先前判断更严重**。见 §10 |
 | 复用创作工坊工作流服务即等于对齐 L | 错。创作工坊不是基线，违反规范 §9.3 |
 | 41 项测试通过即迁移达标 | 错。测试只覆盖服务层与路由层，未覆盖 UI 暴露面与 L 行为等价性 |
 
@@ -203,3 +203,30 @@ L `storyboards` 表共 **31** 列（基表 24 + migration 追加 7）。逐列�
 `sourceText`, `shotBoundary`, `utterances`, `lightingStyle`, `depthOfField`, `polishedPrompt`, `result`, `emotion`, `emotionIntensity`, `layoutDescription`, `frames`, `firstFrameCandidate`, `videoFrameSnapshot`, `startFramePrompt`, `endFramePrompt`, `negativePrompt`, `continuity`, `propIds`, `clueIds`, `videoMode`, `storyboardStatus`, `storyboardFrameMode`, `storyboardImageUrl`, `storyboardHistory`, `generationStatus`, `generationTaskId`, `dialogueAudio`, `narrationAudio`
 
 这些不是 L 缺失，而是 L 用别的表（`frame_prompts`、`async_tasks`、`video_generations`）承载的内容，在 V 里内联到分镜对象上。迁移时必须保证语义等价，不能因为字段位置不同而丢状态。
+
+## 10. 协作闸门耦合（修正结论）
+
+先前我判断"一键成片项目没建协作组时闸门为空操作"，这个判断是**错的**。实际链路：
+
+```
+POST /api/one-click-film/projects        （创建一键成片项目）
+  └→ await ensureDramaLabProjectGroup(project.id, user.id)
+       └→ INSERT INTO drama_lab_project_groups
+       └→ INSERT INTO drama_lab_project_members (role='owner', status='active')
+```
+
+也就是说**每个一键成片项目在创建时就被写入了创作工坊的协作组表**。因此：
+
+1. `assertDramaLabStageAllowed` 里的 `getDramaLabProjectGroup(projectId)` **一定查得到组**，不会走 return 早退分支。
+2. 接着 `requireActiveMember` 会执行；创建者本人是 `owner/active`，能通过；但**非成员访问会 403**。
+3. 若该组存在 `enabled && strictMode` 的阶段配置，`assertStrictPredecessorsApproved` 会要求前序阶段审批通过后才允许继续。
+
+即：**教学版的协作与审批配置会实际拦住商单生产链路**。这违反规范 §9.2「一键成片不是教学流程的简化版」与 §9.1「不得让两者互相影响」。
+
+### 本次已做的处置
+
+新建的一键成片自有路由（`generate-image`、`generate-video`）**不调用** `assertDramaLabStageAllowed`，只做项目归属校验（`sourceHandoffId` 前缀）。这符合规范：商单链路的审核应走 V 平台自身的审核能力（P1），而不是复用教学版的阶段闸门。
+
+### 仍待处置（P0）
+
+`POST /api/one-click-film/projects` 里的 `ensureDramaLabProjectGroup` 调用应当移除或替换为一键成片自有的成员模型。移除前需确认：现有一键成片项目的读取路径是否已依赖该组存在（否则会把已建项目锁在外面）。此项未做，保持"未迁移"。
