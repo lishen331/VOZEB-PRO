@@ -58,6 +58,17 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：只剩 3 条 stream 版本（P2）。它们的非流式等价物都已迁移，差别仅在响应传输方式，不影响最终提示词内容与落库结果；要做的是 SSE/NDJSON 增量输出体验。媒体域两条 backgrounds 经复核不是能力缺口（见下）。**
 
+### 计费归属曾被静默丢弃（2026-09-17 修复，最高优先级教训）
+之前记的是「上游请求 context 必须写 `featureModule: "one-click-film"`」，路由确实写了，**但服务端把它丢了**：
+- `generation-task-types.ts` 里 `featureModule?: "drama-lab"` 只允许一个取值；
+- `generation-task-store.ts` 落库与回读两处都写成 `=== "drama-lab" ? "drama-lab" : undefined`，于是 "one-click-film" 被抹成 undefined；
+- `featureModuleForGenerationContext` 也只认 drama-lab，归属回落到通用 `drama`。
+
+结果就是商单的钱记到教学版账上 —— 正是之前一直想避免的那件事，只是当时只检查了「路由有没有写」，没检查「服务端有没有留」。
+修复：类型放宽为 `"drama-lab" | "one-click-film"`、新增 `normalizeFeatureModule` 白名单（两处共用）、解析函数把 one-click-film 排在 drama-lab 之前（含 projectId 前缀兜底）。守卫见 `one-click-film/billing-attribution.test.ts`。
+
+**方法论教训**：验证"参数有没有传对"必须一路跟到持久化，不能只看发送端。发送端写对 + 接收端白名单没放行 = 等于没传，而且不报错。这与「后端有、前端没接 = 等于没做」是同一类错误的两个方向。
+
 ### backgrounds 两条不是能力缺口（2026-09-17 复核）
 此前文档写"V 用场景资产体系承载，未做等价端点"，措辞含糊。复核结论：
 - `POST /images/episode/:id/backgrounds/extract` 已由 `POST /extract-assets`（assetType=scene）等价承载。L 走 `promptI18n.getSceneExtractionPrompt`（键 `scene_extraction`），V 的 `drama-lab-production-asset-defaults.json` 中同键提示词与 L 中文分支逐条对应，含"纯背景、不得包含人物"，输出字段同为 location/time/prompt。
