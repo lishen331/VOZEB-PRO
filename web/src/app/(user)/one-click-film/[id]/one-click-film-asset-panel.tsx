@@ -1,9 +1,16 @@
 "use client";
 
-import { Button, Empty, Input, Modal, Segmented, Tag, message } from "antd";
+import { Button, Empty, Input, InputNumber, Modal, Segmented, Select, Tag, message } from "antd";
 import { ImageIcon, Layers, Plus, ScanText, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
 import { useState } from "react";
-import type { DramaAssetReference, DramaNamedAsset, DramaProject } from "@/lib/drama-project-contract";
+import type { DramaAssetReference, DramaNamedAsset, DramaProject, DramaVoiceProfile } from "@/lib/drama-project-contract";
+
+/**
+ * 面板按 kind 统一处理三类资产，但 `voiceProfile` 在契约里只挂在 `DramaCharacter` 上。
+ * 这里用别名表达"可能带音色的资产"，音色控件只在 kind === "characters" 时渲染。
+ */
+type PanelAsset = DramaNamedAsset & { voiceProfile?: DramaVoiceProfile };
+import { audioVoiceOptions } from "@/lib/audio-generation";
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
 
 type AssetKind = "characters" | "scenes" | "props";
@@ -37,14 +44,15 @@ const KIND_ASSET_TYPE: Record<AssetKind, string> = { characters: "character", sc
  */
 export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: Props) {
     const [kind, setKind] = useState<AssetKind>("characters");
-    const [editing, setEditing] = useState<DramaNamedAsset>();
+    const [editing, setEditing] = useState<PanelAsset>();
     const [busy, setBusy] = useState<string>();
     const [creatingName, setCreatingName] = useState("");
     const [draft, setDraft] = useState<{ name: string; description: string; appearance: string; imagePrompt: string }>();
+    const [voiceDraft, setVoiceDraft] = useState<{ voice: string; speed: number; instructions: string }>();
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
-    const assets = (project[kind] || []) as DramaNamedAsset[];
+    const assets = (project[kind] || []) as PanelAsset[];
 
-    const runAi = async (asset: DramaNamedAsset, action: "describe" | "prompt" | "anchor" | "stages") => {
+    const runAi = async (asset: PanelAsset, action: "describe" | "prompt" | "anchor" | "stages") => {
         setBusy(`${asset.id}:${action}`);
         try {
             const data = await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/ai`, {
@@ -60,20 +68,20 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
             });
 
             // 把 AI 产出写回项目，字段与 L 对齐：描述 / 提示词 / 视觉锚点 / 阶段造型
-            const patch: Partial<DramaNamedAsset> = {};
+            const patch: Partial<PanelAsset> = {};
             if (typeof data?.description === "string" && data.description.trim()) patch.description = data.description;
             if (typeof data?.appearance === "string" && data.appearance.trim()) patch.appearance = data.appearance;
             if (typeof data?.polishedPrompt === "string" && data.polishedPrompt.trim()) patch.polishedPrompt = data.polishedPrompt;
             if (typeof data?.imagePrompt === "string" && data.imagePrompt.trim()) patch.imagePrompt = data.imagePrompt;
-            if (data?.profile && typeof data.profile === "object") patch.profile = data.profile as DramaNamedAsset["profile"];
-            if (Array.isArray(data?.stages)) patch.stages = data.stages as DramaNamedAsset["stages"];
+            if (data?.profile && typeof data.profile === "object") patch.profile = data.profile as PanelAsset["profile"];
+            if (Array.isArray(data?.stages)) patch.stages = data.stages as PanelAsset["stages"];
 
             if (Object.keys(patch).length) {
                 const nextAssets = assets.map((item) => (item.id === asset.id ? { ...item, ...patch } : item));
                 const saved = await callJson(base, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [kind]: nextAssets }) });
                 if (saved?.project) {
                     onProjectChange(saved.project as DramaProject);
-                    const refreshed = ((saved.project as DramaProject)[kind] as DramaNamedAsset[]).find((item) => item.id === asset.id);
+                    const refreshed = ((saved.project as DramaProject)[kind] as PanelAsset[]).find((item) => item.id === asset.id);
                     if (refreshed && editing?.id === asset.id) setEditing(refreshed);
                 }
             }
@@ -89,7 +97,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
      * 资产设定图生成。对应 L 的 `generate-image` / `generate-four-view-image`。
      * 走一键成片自有路由（服务端显式写 featureModule），计费归属 one-click-film。
      */
-    const generateImage = async (asset: DramaNamedAsset) => {
+    const generateImage = async (asset: PanelAsset) => {
         setBusy(`${asset.id}:image`);
         try {
             await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/generate-image`, {
@@ -118,7 +126,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
      * 参考图操作，对应 L 的 upload-image / PUT image（设为主图）/ 移除。
      * 服务端负责持久化与主图排序，这里只负责交互。
      */
-    const runReferenceAction = async (asset: DramaNamedAsset, body: Record<string, unknown>, key: string) => {
+    const runReferenceAction = async (asset: PanelAsset, body: Record<string, unknown>, key: string) => {
         setBusy(`${asset.id}:${key}`);
         try {
             const data = await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/references`, {
@@ -128,7 +136,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
             });
             if (data?.project) {
                 onProjectChange(data.project as DramaProject);
-                const refreshed = ((data.project as DramaProject)[kind] as DramaNamedAsset[]).find((item) => item.id === asset.id);
+                const refreshed = ((data.project as DramaProject)[kind] as PanelAsset[]).find((item) => item.id === asset.id);
                 if (refreshed && editing?.id === asset.id) setEditing(refreshed);
             }
             message.success("参考图已更新");
@@ -139,7 +147,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
         }
     };
 
-    const uploadReferences = async (asset: DramaNamedAsset, files: FileList | null) => {
+    const uploadReferences = async (asset: PanelAsset, files: FileList | null) => {
         const selected = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
         if (!selected.length) return;
         const uploads = await Promise.all(selected.map(async (file) => ({ dataUrl: await readAsDataUrl(file), name: file.name })));
@@ -157,11 +165,19 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
             const data = await callJson(`${base}/assets/${encodeURIComponent(editing.id)}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ kind, name: draft.name, description: draft.description, appearance: draft.appearance, imagePrompt: draft.imagePrompt }),
+                body: JSON.stringify({
+                    kind,
+                    name: draft.name,
+                    description: draft.description,
+                    appearance: draft.appearance,
+                    imagePrompt: draft.imagePrompt,
+                    // 仅角色有音色配置；空音色传 null 表示清除，回落平台默认。
+                    ...(kind === "characters" ? { voiceProfile: voiceDraft?.voice ? voiceDraft : null } : {}),
+                }),
             });
             if (data?.project) {
                 onProjectChange(data.project as DramaProject);
-                const refreshed = ((data.project as DramaProject)[kind] as DramaNamedAsset[]).find((item) => item.id === editing.id);
+                const refreshed = ((data.project as DramaProject)[kind] as PanelAsset[]).find((item) => item.id === editing.id);
                 if (refreshed) setEditing(refreshed);
             }
             message.success("资产已保存");
@@ -253,7 +269,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
     };
 
     /** 删除资产；服务端会同步清掉分镜里的绑定，避免幽灵资产引用。 */
-    const deleteAsset = async (asset: DramaNamedAsset) => {
+    const deleteAsset = async (asset: PanelAsset) => {
         setBusy(`${asset.id}:delete`);
         try {
             const data = await callJson(`${base}/assets/${encodeURIComponent(asset.id)}?kind=${kind}`, { method: "DELETE" });
@@ -318,6 +334,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                                         onClick={() => {
                                             setEditing(asset);
                                             setDraft({ name: asset.name || "", description: asset.description || "", appearance: asset.appearance || "", imagePrompt: asset.polishedPrompt || asset.imagePrompt || "" });
+                                            setVoiceDraft({ voice: asset.voiceProfile?.voice || "", speed: asset.voiceProfile?.speed ?? 1, instructions: asset.voiceProfile?.instructions || "" });
                                         }}
                                     >
                                         编辑
@@ -389,6 +406,44 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                             生图提示词（AI 生成后写回，也可手工修改）
                             <Input.TextArea rows={4} value={draft?.imagePrompt ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, imagePrompt: event.target.value } : current))} aria-label="资产生图提示词" />
                         </label>
+                        {kind === "characters" ? (
+                            <div className="grid gap-2 rounded border p-3 text-sm">
+                                <b className="text-sm">配音音色（供 TTS 使用）</b>
+                                <label className="grid gap-1">
+                                    音色
+                                    <Select
+                                        allowClear
+                                        placeholder="使用平台默认音色"
+                                        value={voiceDraft?.voice || undefined}
+                                        onChange={(value) => setVoiceDraft((current) => ({ voice: value || "", speed: current?.speed ?? 1, instructions: current?.instructions || "" }))}
+                                        options={audioVoiceOptions}
+                                        aria-label="角色音色"
+                                    />
+                                </label>
+                                <label className="grid gap-1">
+                                    语速（0.25–4）
+                                    <InputNumber
+                                        min={0.25}
+                                        max={4}
+                                        step={0.05}
+                                        value={voiceDraft?.speed ?? 1}
+                                        onChange={(value) => setVoiceDraft((current) => ({ voice: current?.voice || "", speed: Number(value) || 1, instructions: current?.instructions || "" }))}
+                                        aria-label="角色语速"
+                                    />
+                                </label>
+                                <label className="grid gap-1">
+                                    朗读指令
+                                    <Input.TextArea
+                                        rows={2}
+                                        value={voiceDraft?.instructions || ""}
+                                        onChange={(event) => setVoiceDraft((current) => ({ voice: current?.voice || "", speed: current?.speed ?? 1, instructions: event.target.value }))}
+                                        placeholder="例如：低沉、克制，句尾略上扬"
+                                        aria-label="角色朗读指令"
+                                    />
+                                </label>
+                                <p className="text-xs text-muted-foreground">对白配音会按说话人匹配到角色并使用这里的音色；清空音色即回落平台默认。</p>
+                            </div>
+                        ) : null}
                         <div className="flex justify-end">
                             <Button type="primary" loading={busy === `${editing.id}:save`} onClick={() => void saveAsset()} aria-label="保存资产">
                                 保存资产

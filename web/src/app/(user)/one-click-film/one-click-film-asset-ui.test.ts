@@ -147,6 +147,31 @@ describe("one-click-film asset panel UI", () => {
         expect(source).toContain("onProjectChange(data.project as DramaProject)");
     });
 
+    it("offers character voice settings that feed the TTS chain", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // audio-runner 的 voice/speed/instructions 全部来自角色 voiceProfile，
+        // 之前服务端能存但 UI 没入口，等于配音只能用平台默认音色。
+        expect(source).toContain("voiceDraft");
+        expect(source).toContain("audioVoiceOptions");
+        expect(source).toContain('aria-label="角色音色"');
+        expect(source).toContain('aria-label="角色语速"');
+        expect(source).toContain('aria-label="角色朗读指令"');
+        // 只有角色有音色配置
+        expect(source).toContain('kind === "characters" ? { voiceProfile:');
+        // 空音色传 null 表示清除，回落平台默认
+        expect(source).toContain("voiceDraft?.voice ? voiceDraft : null");
+    });
+
+    it("keeps voiceProfile writable on the server whitelist", async () => {
+        // UI 能改但服务端不收就会静默丢失，这条把两侧绑在一起。
+        const crud = await readFile(resolve(process.cwd(), "src/lib/server/one-click-film/asset-crud.ts"), "utf8");
+        expect(crud).toContain("normalizeOneClickVoiceProfile");
+        // 非法音色必须拒绝，而不是把脏数据传给上游
+        expect(crud).toContain("不支持的音色");
+        // 语速区间与平台一致
+        expect(crud).toContain("speedValue >= 0.25 && speedValue <= 4");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         const source = await readFile(panelPath, "utf8");
         expect(source).not.toContain("setTimeout");

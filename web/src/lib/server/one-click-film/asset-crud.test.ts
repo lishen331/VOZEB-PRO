@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { DramaNamedAsset, DramaProject, DramaShot } from "@/lib/drama-project-contract";
-import { OneClickAssetCrudError, createOneClickAsset, deleteOneClickAsset, updateOneClickAsset } from "./asset-crud";
+import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
+import { OneClickAssetCrudError, createOneClickAsset, deleteOneClickAsset, normalizeOneClickVoiceProfile, updateOneClickAsset, type OneClickAsset } from "./asset-crud";
 
 /**
  * 资产手工增删改。L 的资产名称在项目内唯一（提取时靠名称去重），
  * 删除时必须同步清掉分镜绑定，否则会留下幽灵资产引用（规范 §8 禁止）。
  */
-function asset(id: string, name: string, extra: Partial<DramaNamedAsset> = {}): DramaNamedAsset {
-    return { id, name, description: "", references: [], ...extra } as DramaNamedAsset;
+function asset(id: string, name: string, extra: Partial<OneClickAsset> = {}): OneClickAsset {
+    return { id, name, description: "", references: [], ...extra } as OneClickAsset;
 }
 
 function shot(extra: Partial<DramaShot> = {}): DramaShot {
@@ -116,6 +116,36 @@ describe("one-click-film asset CRUD", () => {
 
         expect(deleteOneClickAsset(source, "props", "p1").episodes[0].shots[0].propIds).toEqual([]);
         expect(deleteOneClickAsset(source, "scenes", "s1").episodes[0].shots[0].sceneId).toBeUndefined();
+    });
+
+    it("normalizes a character voice profile and rejects unknown voices", () => {
+        // 平台支持的音色才放行
+        expect(normalizeOneClickVoiceProfile({ voice: "alloy", speed: 1.25, instructions: " 低沉一些 " })).toEqual({ voice: "alloy", speed: 1.25, instructions: "低沉一些" });
+        // 语速越界回落到 1 倍速，而不是把非法值传给上游
+        expect(normalizeOneClickVoiceProfile({ voice: "nova", speed: 99 })?.speed).toBe(1);
+        expect(normalizeOneClickVoiceProfile({ voice: "nova", speed: 0 })?.speed).toBe(1);
+        expect(normalizeOneClickVoiceProfile({ voice: "nova" })?.instructions).toBe("");
+        // null / 空音色表示清除配置
+        expect(normalizeOneClickVoiceProfile(null)).toBeNull();
+        expect(normalizeOneClickVoiceProfile({ voice: "   " })).toBeNull();
+        // 非对象一律忽略
+        expect(normalizeOneClickVoiceProfile("alloy")).toBeUndefined();
+        // 非法音色必须拒绝，否则 prepareDramaLabAudio 会把脏数据传给上游
+        expect(() => normalizeOneClickVoiceProfile({ voice: "not-a-voice" })).toThrow(OneClickAssetCrudError);
+        expect(() => normalizeOneClickVoiceProfile({ voice: "not-a-voice" })).toThrow("不支持的音色");
+    });
+
+    it("persists and clears a character voice profile through the whitelist", () => {
+        const source = project({ characters: [asset("a1", "林薇")] });
+        const saved = updateOneClickAsset(source, "characters", "a1", { voiceProfile: { voice: "coral", speed: 1.1, instructions: "清冷" } }).asset;
+        expect(saved.voiceProfile).toEqual({ voice: "coral", speed: 1.1, instructions: "清冷" });
+
+        // 传 null 清除，回落平台默认音色
+        const withProfile = project({ characters: [asset("a1", "林薇", { voiceProfile: { voice: "coral", speed: 1.1, instructions: "清冷" } })] });
+        expect(updateOneClickAsset(withProfile, "characters", "a1", { voiceProfile: null }).asset.voiceProfile).toBeUndefined();
+
+        // 未传时保持原值不动
+        expect(updateOneClickAsset(withProfile, "characters", "a1", { description: "改描述" }).asset.voiceProfile).toEqual({ voice: "coral", speed: 1.1, instructions: "清冷" });
     });
 
     it("reports a missing asset as 404", () => {
