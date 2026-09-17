@@ -343,3 +343,28 @@ L 资产接口共 **39** 条（characters 19、scenes 11、props 9）：
 资产生图走一键成片自有路由，上游 context 显式写 `featureModule: "one-click-film"`。
 
 补充一处发现：创作工坊资产面板用的客户端助手 `createImageGenerationTask`，其 `taskContext()` **不含 featureModule 字段**，所以照抄那条客户端链路会让商单用量记不到名下。这也是资产生图必须走服务端路由的原因。
+
+## 15. episodes 域覆盖（分集级）
+
+L `/episodes` 共 **7** 条：**已迁移 5，聚合承载 2，未迁移 0。**
+
+| L 接口 | 一键成片实现 | 状态 |
+|---|---|---|
+| `POST /episodes/:id/storyboards` | executor `storyboard` 步 + `shots` CRUD | 已迁移 |
+| `POST /episodes/:id/characters/extract` | `POST extract-assets`（`assetType: "character"`） | 已迁移 |
+| `POST /episodes/:id/props/extract` | `POST extract-assets`（`assetType: "prop"`） | 已迁移 |
+| `POST /episodes/:id/finalize` | `POST episodes/:episodeId/render`（含 cancel / retry 动作） | 已迁移 |
+| `GET /episodes/:id/download` | `GET episodes/:episodeId/render/artifact/:artifactId` | 已迁移 |
+| `GET /episodes/:id/storyboards` | 随 `GET /projects/:id` 聚合返回 | 聚合承载 |
+| `GET /episodes/:id/storyboards/status` | 分镜状态内联在 `DramaShot` 上，随项目聚合返回 | 聚合承载 |
+
+### 资产提取的一处刻意差异
+
+创作工坊的 `extract-assets` 只返回提取结果，落库交给前端二次写入。一键成片的版本**直接落库并按名称去重** ——
+商单侧没有那层前端写入逻辑，若只返回不落库，用户点了等于没反应。去重靠名称，与 L 的提取语义一致。
+
+### 成片链路
+
+`episodes/:episodeId/render` 与 executor 的 `compose` 步共用同一套 V 成片服务，状态服务端持久化，
+前端只轮询（`pending`/`running` 时 3 秒一次），不用 setTimeout 假装进度。下载按钮仅在
+`renderTask.result.artifactId` 存在时出现，避免点开一个还没产出的成片。

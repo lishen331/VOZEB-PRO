@@ -40,7 +40,9 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 手动增删已补：`POST assets` / `PUT assets/:assetId` / `DELETE assets/:assetId`。**删除时必须同步清掉分镜绑定**（characterIds/propIds/sceneId），否则留下幽灵资产引用；资产名项目内唯一，同名 409。
 
-其余域仍未开始：dramas 6/19 → images 0/9 → episodes 0/7 → videos 0/7 → audio 0/2。**下一步优先 episodes（7 条，分集级拆解与合成）。**
+**episodes 域 7 条已全部覆盖**：5 条自有路由（storyboards 拆解、characters/props 提取、finalize、download）+ 2 条聚合承载（分镜列表与状态随项目返回）。
+
+其余域仍未开始：dramas 6/19 → images 0/9 → videos 0/7 → audio 0/2。**下一步优先 images/videos（L 的独立生成端点，当前只有分镜内联入口）。**
 
 已建的一键成片自有路由（生成类均带 `featureModule: "one-click-film"`，不再经由创作工坊）：
 `POST/PUT/DELETE shots`、`insert-before`、`frame-prompts[/:frameType]`、`generate-image`、`generate-video`、`generate-frame`、`extract-tail-frame`、`accept-first-frame-candidate`、`polish-prompt`、`rebuild-video-prompt`、`regenerate-layout-description`、`split-by-audio`、`universal-prompt`、`export`、`tasks*`、`episode-canvas`
@@ -59,6 +61,8 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 资产面板已可用：三域切换、生成生图提示词、从参考图提取特征、提炼视觉锚点、AI 生成阶段造型、生成四视图/设定图、参考图上传/设为主图/移除。
 
 资产增删：面板顶部新增输入框 + 卡片删除按钮。
+
+本集成片：工作台「合成本集成片」+「下载成片」（服务端持久化 + 3 秒轮询）。
 
 **仍缺**：素材库、配音设置面板。
 
