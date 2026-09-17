@@ -65,3 +65,46 @@ describe("one-click-film audio runner", () => {
         await expect(runOneClickAudioForEpisodes(input([{ id: "s1", dialogue: "hi", dialogueAudio: { status: "running", taskId: "audio-1", attempt: 1 } }]))).rejects.toThrow("上游拒绝");
     });
 });
+
+describe("one-click-film audio runner single-shot filters", () => {
+    /** 单镜配音路由复用同一个 runner，只传 shotIds / kinds。 */
+    const twoShots = [
+        { id: "s1", order: 1, dialogue: "第一镜对白", narration: "第一镜旁白" },
+        { id: "s2", order: 2, dialogue: "第二镜对白", narration: "第二镜旁白" },
+    ];
+
+    it("only processes the requested shot", async () => {
+        mocks.fetchInternalApi.mockResolvedValue({ ok: true, json: async () => ({ task: { id: "audio-new", status: "pending" } }) });
+        await runOneClickAudioForEpisodes({ ...input(twoShots), shotIds: ["s2"] } as never);
+        const shotIds = mocks.fetchInternalApi.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)).context.shotId as string);
+        expect([...new Set(shotIds)]).toEqual(["s2"]);
+    });
+
+    it("only processes the requested audio kind", async () => {
+        mocks.fetchInternalApi.mockResolvedValue({ ok: true, json: async () => ({ task: { id: "audio-new", status: "pending" } }) });
+        await runOneClickAudioForEpisodes({ ...input(twoShots), shotIds: ["s1"], kinds: ["narration"] } as never);
+        const kinds = mocks.fetchInternalApi.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)).context.audioKind as string);
+        expect(kinds).toEqual(["narration"]);
+    });
+
+    it("still bills to one-click-film on the single-shot path", async () => {
+        // 复用 runner 的全部意义就在这里：featureModule 只有一处来源，不会漏写
+        mocks.fetchInternalApi.mockResolvedValue({ ok: true, json: async () => ({ task: { id: "audio-new", status: "pending" } }) });
+        await runOneClickAudioForEpisodes({ ...input(twoShots), shotIds: ["s1"], kinds: ["dialogue"] } as never);
+        const body = JSON.parse(String((mocks.fetchInternalApi.mock.calls[0][1] as RequestInit).body)) as { context: Record<string, unknown> };
+        expect(body.context.featureModule).toBe("one-click-film");
+    });
+
+    it("falls back to the whole episode when no filter is given", async () => {
+        mocks.fetchInternalApi.mockResolvedValue({ ok: true, json: async () => ({ task: { id: "audio-new", status: "pending" } }) });
+        await runOneClickAudioForEpisodes(input(twoShots) as never);
+        // 两镜 × 两种音轨 = 4 条
+        expect(mocks.fetchInternalApi).toHaveBeenCalledTimes(4);
+    });
+
+    it("ignores an empty filter array rather than skipping everything", async () => {
+        mocks.fetchInternalApi.mockResolvedValue({ ok: true, json: async () => ({ task: { id: "audio-new", status: "pending" } }) });
+        await runOneClickAudioForEpisodes({ ...input(twoShots), shotIds: [], kinds: [] } as never);
+        expect(mocks.fetchInternalApi).toHaveBeenCalledTimes(4);
+    });
+});

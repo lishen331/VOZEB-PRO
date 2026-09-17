@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Input, Popconfirm, Segmented, Switch, Tag, Tooltip, message } from "antd";
-import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Maximize2, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
+import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
@@ -248,6 +248,23 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
             stopRequested.current = false;
         }
     };
+
+    /**
+     * 单镜配音，对应 L `onTtsSbDialogue`（对白配音）与 `onTtsSbNarration`（解说配音）。
+     *
+     * 服务端复用整集配音 runner 并只传该分镜与该音轨，避免 featureModule 分叉。
+     */
+    const generateAudio = (shot: DramaShot, kind: "dialogue" | "narration") =>
+        run(shot.id, async () => {
+            await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/generate-audio${query}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind }),
+            });
+            message.success(kind === "narration" ? "解说配音任务已创建" : "对白配音任务已创建");
+            const refreshed = await callJson(`${base}`, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project);
+        });
 
     /**
      * 分镜图 2 倍超分，对应 L `POST /storyboards/:id/upscale`。
@@ -501,6 +518,21 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                     <Button size="small" icon={<Clapperboard className="size-4" />} loading={busyShotId === shot.id} aria-label={`生成分镜 ${index + 1} 视频`} onClick={() => void generate(shot, "video")}>
                                         生成视频
                                     </Button>
+                                    {/* L: 对白配音 / 解说配音，仅在有对应文案时出现 */}
+                                    {shot.dialogue?.trim() ? (
+                                        <Tooltip title="对白配音（TTS）">
+                                            <Button size="small" icon={<Mic className="size-4" />} loading={busyShotId === shot.id} aria-label={`为分镜 ${index + 1} 生成对白配音`} onClick={() => void generateAudio(shot, "dialogue")}>
+                                                对白配音
+                                            </Button>
+                                        </Tooltip>
+                                    ) : null}
+                                    {shot.narration?.trim() ? (
+                                        <Tooltip title="解说旁白配音（TTS）">
+                                            <Button size="small" icon={<Mic className="size-4" />} loading={busyShotId === shot.id} aria-label={`为分镜 ${index + 1} 生成解说配音`} onClick={() => void generateAudio(shot, "narration")}>
+                                                解说配音
+                                            </Button>
+                                        </Tooltip>
+                                    ) : null}
                                     {shot.storyboardImageUrl ? (
                                         <Tooltip title="把分镜图放大 2 倍（本地处理，不计费）">
                                             <Button size="small" icon={<Maximize2 className="size-4" />} loading={busyShotId === shot.id} aria-label={`放大分镜 ${index + 1} 分镜图`} onClick={() => void upscaleImage(shot)}>

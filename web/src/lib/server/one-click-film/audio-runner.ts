@@ -15,6 +15,16 @@ export type OneClickAudioInput = {
     project: DramaProject;
     episodeIds: string[];
     runtime: OneClickAudioRuntime;
+    /**
+     * 只处理这些分镜。省略表示整集（工作流用法）。
+     *
+     * 单镜配音复用同一个 runner 而不是复制一份逻辑：上游 context 的
+     * `featureModule: "one-click-film"` 只能有一处来源，一旦分叉就容易漏写，
+     * 导致商单用量记到教学版账上（这类计费归属 bug 已经出现过一次）。
+     */
+    shotIds?: string[];
+    /** 只处理这些音轨类型。省略表示对白与旁白都做。 */
+    kinds?: DramaLabAudioKind[];
 };
 
 /**
@@ -28,8 +38,10 @@ export async function runOneClickAudioForEpisodes(input: OneClickAudioInput) {
     let model = "";
 
     for (const episode of input.project.episodes.filter((item) => input.episodeIds.includes(item.id))) {
-        for (const shot of episode.shots) {
-            for (const kind of KINDS) {
+        const shots = input.shotIds?.length ? episode.shots.filter((shot) => input.shotIds?.includes(shot.id)) : episode.shots;
+        const kinds = input.kinds?.length ? KINDS.filter((kind) => input.kinds?.includes(kind)) : KINDS;
+        for (const shot of shots) {
+            for (const kind of kinds) {
                 let prepared;
                 try {
                     prepared = prepareDramaLabAudio(input.project, episode.id, shot.id, kind);
