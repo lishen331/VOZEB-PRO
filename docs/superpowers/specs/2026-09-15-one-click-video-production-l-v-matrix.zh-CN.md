@@ -414,3 +414,34 @@ L 允许直接指定任意一条 image_generations 记录，V 只能用绑定在
 
 三条 DELETE 属"清理历史"能力，不影响生产闭环；两条 backgrounds 是 L 特有的分集背景流。
 均保持"未迁移"，不假装等价。
+
+## 17. 配音链路（audio 域收尾）
+
+### 本轮补齐
+
+| 缺口 | 处置 |
+|---|---|
+| 配音结果 UI 完全不可见 | `audio-runner` 一直在把 `dialogueAudio` / `narrationAudio` 写回分镜，但 UI 没读过 —— "配音"只是步骤条上的静态文字。现在分镜卡显示对白/旁白的状态、说话人、音色、错误原因，并内嵌播放器播放服务端产物。 |
+| 角色音色无法配置 | `prepareDramaLabAudio` 的 `voice`/`speed`/`instructions` 全部读自角色 `voiceProfile`，而该字段**不在资产白名单里**，等于配音只能用平台默认音色。现已放行并加规范化。 |
+
+### voiceProfile 的规范化（不是直接放行）
+
+`voiceProfile` 是对象字段，直接进白名单等于允许写任意结构，脏数据会被
+`prepareDramaLabAudio` 原样传给上游。因此 `normalizeOneClickVoiceProfile` 做三件事：
+
+- 音色必须在平台 `audioVoiceOptions` 内，非法值直接 400 拒绝；
+- 语速限制在 0.25–4，越界回落 1 倍速；
+- 指令截断到 2000 字符；
+- 传 `null` 表示清除配置，回落平台默认音色。
+
+### 一处类型契约的坑
+
+`voiceProfile` 在契约里只挂在 `DramaCharacter` 上，`DramaScene` / `DramaProp` 没有。
+一键成片按 `kind` 统一处理三类资产、内部用 `DramaNamedAsset`，所以直接读写会 TS2339。
+已引入 `OneClickAsset`（服务端）与 `PanelAsset`（UI）两个别名表达"可能带音色的资产"，
+写入侧仍只在 `kind === "characters"` 时落该字段。
+
+### audio 域覆盖
+
+L `/audio` 2 条（`extract` / `extract/batch`）已全部覆盖：executor `audio` 步逐集派发真实 TTS 子任务，
+按音频拆镜走 `shots/:id/split-by-audio`（预览 + 追加应用）。

@@ -46,7 +46,10 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 注意一处等价判定的边界：`POST /videos/image/:image_gen_id`（L 用任意已生成图生视频）在 V 里没有独立端点，`generate-video` 只能用绑定在分镜 frames 上的帧。请求载荷等价但入口形态不同，"从历史候选图直接生视频"要单独补。
 
-其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步优先素材库适配（7 条）与配音设置面板。**
+其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：素材库适配（7 条 `add-to-library` / `add-to-material-library` / `image-from-library`）。**
+
+### 类型坑
+`voiceProfile` 只在 `DramaCharacter` 上，`DramaScene`/`DramaProp` 没有。按 kind 统一处理三类资产时用 `OneClickAsset`（服务端）/ `PanelAsset`（UI）别名，否则 TS2339。
 
 已建的一键成片自有路由（生成类均带 `featureModule: "one-click-film"`，不再经由创作工坊）：
 `POST/PUT/DELETE shots`、`insert-before`、`frame-prompts[/:frameType]`、`generate-image`、`generate-video`、`generate-frame`、`extract-tail-frame`、`accept-first-frame-candidate`、`polish-prompt`、`rebuild-video-prompt`、`regenerate-layout-description`、`split-by-audio`、`universal-prompt`、`export`、`tasks*`、`episode-canvas`
@@ -68,7 +71,9 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 本集成片：工作台「合成本集成片」+「下载成片」（服务端持久化 + 3 秒轮询）。
 
-**仍缺**：素材库、配音设置面板。
+配音：分镜卡显示对白/旁白状态+说话人+音色+错误+播放器；角色音色在资产编辑弹窗配置（音色/语速/朗读指令），服务端 `normalizeOneClickVoiceProfile` 校验非法音色与语速区间。
+
+**仍缺**：素材库适配（7 条）。
 
 ### 已知缺陷
 - **协作闸门耦合（P0，未处置）**：`POST /api/one-click-film/projects` 会调 `ensureDramaLabProjectGroup`，把每个一键成片项目写进创作工坊协作组表。所以 `assertDramaLabStageAllowed` 一定查得到组、不会早退，教学版的审批配置会真实拦住商单链路。我先前"未建组时是空操作"的判断是错的。移除该调用前须确认现有项目读取路径是否已依赖该组存在。
