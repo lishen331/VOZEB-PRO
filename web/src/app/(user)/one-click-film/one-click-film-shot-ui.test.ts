@@ -30,6 +30,16 @@ describe("one-click-film shot card UI", () => {
         }
     });
 
+    it("opens the prompt view straight from the card, per frame mode", async () => {
+        const cards = await readFile(cardsPath, "utf8");
+        const editor = await readFile(editorPath, "utf8");
+        // 对应 L 的卡内「查看提示词」：首尾帧模式直达首尾帧页签，其余直达提示词页签。
+        expect(cards).toContain("查看分镜");
+        expect(cards).toContain('openEditor(shot, shot.storyboardFrameMode === "first_last" ? "frames" : "prompts")');
+        expect(cards).toContain("initialTab={editingTab}");
+        expect(editor).toContain("defaultActiveKey={initialTab}");
+    });
+
     it("offers L's 继续查询 without resubmitting the upstream video task", async () => {
         const source = await readFile(cardsPath, "utf8");
         // 对应 L onResumeSbVideoPoll：只 recover 原任务，不得再打 generate-video。

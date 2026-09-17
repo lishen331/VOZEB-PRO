@@ -13,7 +13,12 @@ type Props = {
     shot: DramaShot;
     onClose: () => void;
     onProjectChange: (project: DramaProject) => void;
+    /** 由分镜卡的「查看提示词 / 首尾帧」直达入口指定默认页签，对应 L 的卡内提示词预览。 */
+    initialTab?: OneClickFilmShotEditorTab;
 };
+
+/** 与 Tabs 的 key 一一对应，避免卡片侧传入拼错的字符串。 */
+export type OneClickFilmShotEditorTab = "basic" | "prompts" | "frames" | "config" | "bindings" | "records";
 
 type FramePrompt = { frameType: DramaShotFrameType; prompt: string; description?: string; layout?: string };
 
@@ -31,7 +36,7 @@ async function callJson(url: string, init?: RequestInit) {
  * 首尾帧提示词走 L `frame_prompts` 的整条覆盖语义（prompt/description/layout 一起写）。
  * 全部调用一键成片自有路由。
  */
-export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, onClose, onProjectChange }: Props) {
+export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, onClose, onProjectChange, initialTab = "basic" }: Props) {
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const query = `?episodeId=${encodeURIComponent(episodeId)}`;
 
@@ -288,6 +293,7 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
     return (
         <Modal open width={760} title={`编辑分镜 · ${shot.title || "未命名"}`} onCancel={onClose} footer={null} destroyOnHidden>
             <Tabs
+                defaultActiveKey={initialTab}
                 items={[
                     {
                         key: "basic",

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Input, Popconfirm, Segmented, Switch, Tag, Tooltip, message } from "antd";
-import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, LoaderCircle, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
+import { Aperture, ArrowUpToLine, Clapperboard, FileText, Film, ImageIcon, Link2, LoaderCircle, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
@@ -9,7 +9,7 @@ import { runBatchMedia, type BatchMediaKind, type BatchMediaProgress } from "@/l
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "@/app/(user)/drama-lab/[id]/drama-lab-video-task-recovery";
 import { recoverVideoGenerationTask } from "@/services/api/video-core";
 
-import { OneClickFilmShotEditor } from "./one-click-film-shot-editor";
+import { OneClickFilmShotEditor, type OneClickFilmShotEditorTab } from "./one-click-film-shot-editor";
 
 type Props = {
     projectId: string;
@@ -35,6 +35,12 @@ async function callJson(url: string, init?: RequestInit) {
 export function OneClickFilmShotCards({ projectId, project, episode, onProjectChange }: Props) {
     const [busyShotId, setBusyShotId] = useState<string>();
     const [editing, setEditing] = useState<DramaShot>();
+    /** 卡上的直达入口指定编辑弹窗默认页签（对应 L 的卡内「查看提示词」）。 */
+    const [editingTab, setEditingTab] = useState<OneClickFilmShotEditorTab>("basic");
+    const openEditor = (shot: DramaShot, tab: OneClickFilmShotEditorTab = "basic") => {
+        setEditingTab(tab);
+        setEditing(shot);
+    };
     /** 全能片段草稿：按分镜 id 存，避免多镜互相串写。 */
     const [universalDrafts, setUniversalDrafts] = useState<Record<string, string>>({});
     const [universalBusy, setUniversalBusy] = useState<{ shotId: string; mode: "generate" | "polish" }>();
@@ -625,7 +631,10 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                                 <Tooltip title="编辑分镜">
-                                    <Button size="small" type="text" icon={<Pencil className="size-4" />} aria-label={`编辑分镜 ${index + 1}`} onClick={() => setEditing(shot)} />
+                                    <Button size="small" type="text" icon={<Pencil className="size-4" />} aria-label={`编辑分镜 ${index + 1}`} onClick={() => openEditor(shot)} />
+                                </Tooltip>
+                                <Tooltip title={shot.storyboardFrameMode === "first_last" ? "查看并编辑首尾帧提示词" : "查看并编辑本镜图片 / 视频提示词"}>
+                                    <Button size="small" type="text" icon={<FileText className="size-4" />} aria-label={`查看分镜 ${index + 1} 提示词`} onClick={() => openEditor(shot, shot.storyboardFrameMode === "first_last" ? "frames" : "prompts")} />
                                 </Tooltip>
                                 <Tooltip title="在此分镜前插入">
                                     <Button size="small" type="text" icon={<ArrowUpToLine className="size-4" />} loading={busyShotId === shot.id} aria-label={`在分镜 ${index + 1} 前插入`} onClick={() => void insertBefore(shot)} />
@@ -648,6 +657,7 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                     project={project}
                     episodeId={episode.id}
                     shot={editing}
+                    initialTab={editingTab}
                     onClose={() => setEditing(undefined)}
                     onProjectChange={(next) => {
                         onProjectChange(next);
