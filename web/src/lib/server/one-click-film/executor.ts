@@ -2,6 +2,7 @@ import { getDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { advanceDramaLabWorkflow, dramaLabWorkflowTaskView, startDramaLabWorkflow } from "@/lib/server/drama-lab-workflow-task-service";
 import { createDramaLabFinalVideoTask, executeDramaLabFinalVideoTask } from "@/lib/server/drama-lab-final-video-service";
 import { runOneClickAudioForEpisodes } from "./audio-runner";
+import { runOneClickMediaForEpisodes } from "./media-runner";
 import type { OneClickFilmExecutor, OneClickFilmStepKey } from "./types";
 
 type RuntimeInput = { origin: string; cookie: string };
@@ -17,8 +18,10 @@ export function createOneClickFilmExecutor(runtime: RuntimeInput): OneClickFilmE
         }
         if (step.key === "assets") return runWorkflowChildForEpisodes(task, step.key, "assets", episodeIds, runtime);
         if (step.key === "storyboard") return runWorkflowChildForEpisodes(task, step.key, "storyboard_extract", episodeIds, runtime);
-        if (step.key === "images") return runWorkflowChildForEpisodes(task, step.key, "storyboard", episodeIds, runtime);
-        if (step.key === "videos") return runWorkflowChildForEpisodes(task, step.key, "video", episodeIds, runtime);
+        // 分镜图/分镜视频必须走一键成片自有路由，否则上游 featureModule 会写成 drama-lab，
+        // 把商单用量记到教学版账上（见 docs/audits 第三轮审查）。
+        if (step.key === "images") return runOneClickMediaForEpisodes("image", { taskId: task.id, userId: task.userId, project, episodeIds, runtime });
+        if (step.key === "videos") return runOneClickMediaForEpisodes("video", { taskId: task.id, userId: task.userId, project, episodeIds, runtime });
         if (step.key === "audio") {
             return runOneClickAudioForEpisodes({ taskId: task.id, userId: task.userId, project, episodeIds, runtime });
         }
