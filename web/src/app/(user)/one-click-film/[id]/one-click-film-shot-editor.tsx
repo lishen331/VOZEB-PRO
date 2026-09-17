@@ -3,6 +3,7 @@
 import { Button, Empty, Input, Modal, Popconfirm, Segmented, Select, Tabs, Tag, message } from "antd";
 import { useEffect, useState } from "react";
 import type { DramaProject, DramaShot, DramaShotFrameType, DramaShotGenerationHistory } from "@/lib/drama-project-contract";
+import { SHOT_ANGLE_H_OPTIONS, SHOT_ANGLE_S_OPTIONS, SHOT_ANGLE_V_OPTIONS, SHOT_DEPTH_OF_FIELD_OPTIONS, SHOT_LIGHTING_OPTIONS, SHOT_MOVEMENT_OPTIONS } from "@/lib/one-click/shot-config-options";
 
 type Props = {
     projectId: string;
@@ -58,6 +59,19 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
     const [rebuilding, setRebuilding] = useState(false);
     const [layoutBusy, setLayoutBusy] = useState(false);
     const [layoutDescription, setLayoutDescription] = useState(shot.layoutDescription || "");
+
+    /**
+     * L「分镜配置」弹窗字段（景别 / 俯仰 / 方向 / 运镜 / 灯光 / 景深 / 时长）。
+     * 这些键全在 shot-crud 白名单里，此前只是没有 UI 入口 —— 属于「后端有、前端没接」。
+     */
+    const [angleS, setAngleS] = useState(shot.angleS || "");
+    const [angleV, setAngleV] = useState(shot.angleV || "");
+    const [angleH, setAngleH] = useState(shot.angleH || "");
+    const [cameraMotion, setCameraMotion] = useState(shot.cameraMotion || "");
+    const [lightingStyle, setLightingStyle] = useState(shot.lightingStyle || "");
+    const [depthOfField, setDepthOfField] = useState(shot.depthOfField || "");
+    const [duration, setDuration] = useState(String(shot.duration ?? ""));
+    const [configSaving, setConfigSaving] = useState(false);
     const [polishedPrompt, setPolishedPrompt] = useState(shot.polishedPrompt || "");
 
     useEffect(() => {
@@ -94,6 +108,42 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
             message.error(error instanceof Error ? error.message : "分镜保存失败");
         } finally {
             setSaving(false);
+        }
+    };
+
+    /**
+     * 保存 L「分镜配置」弹窗字段，对应 L `onSaveVideoParamsDialog`。
+     *
+     * 走同一条 `PUT shots/:id`：这些键本来就在 shot-crud 白名单里。
+     * 留空表示不设置，发空字符串即清空该项，与 L 的可清空语义一致。
+     */
+    const saveConfig = async () => {
+        const parsedDuration = duration.trim() ? Number(duration) : undefined;
+        if (parsedDuration !== undefined && (!Number.isFinite(parsedDuration) || parsedDuration <= 0)) {
+            message.warning("时长需为正数，或留空");
+            return;
+        }
+        setConfigSaving(true);
+        try {
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}${query}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    angleS,
+                    angleV,
+                    angleH,
+                    cameraMotion,
+                    lightingStyle,
+                    depthOfField,
+                    ...(parsedDuration === undefined ? {} : { duration: parsedDuration }),
+                }),
+            });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            message.success("分镜配置已保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "分镜配置保存失败");
+        } finally {
+            setConfigSaving(false);
         }
     };
 
@@ -338,6 +388,53 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
                                     </Button>
                                     <Button type="primary" loading={frameSaving} onClick={() => void saveFramePrompt()} aria-label="保存帧提示词">
                                         保存帧提示词
+                                    </Button>
+                                </div>
+                            </div>
+                        ),
+                    },
+                    {
+                        key: "config",
+                        label: "分镜配置",
+                        children: (
+                            <div className="grid gap-3">
+                                {/* L「分镜配置」弹窗：景别 / 俯仰 / 方向 / 运镜 / 灯光 / 景深 / 时长 */}
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    <div>
+                                        <div className="mb-1 text-sm text-muted-foreground">景别（angle_s）</div>
+                                        <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜景别" value={angleS || undefined} onChange={(value) => setAngleS(value || "")} options={SHOT_ANGLE_S_OPTIONS} />
+                                    </div>
+                                    <div>
+                                        <div className="mb-1 text-sm text-muted-foreground">俯仰（angle_v）</div>
+                                        <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜俯仰" value={angleV || undefined} onChange={(value) => setAngleV(value || "")} options={SHOT_ANGLE_V_OPTIONS} />
+                                    </div>
+                                    <div>
+                                        <div className="mb-1 text-sm text-muted-foreground">方向（angle_h）</div>
+                                        <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜方向" value={angleH || undefined} onChange={(value) => setAngleH(value || "")} options={SHOT_ANGLE_H_OPTIONS} />
+                                    </div>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    <div>
+                                        <div className="mb-1 text-sm text-muted-foreground">运镜</div>
+                                        <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜运镜" value={cameraMotion || undefined} onChange={(value) => setCameraMotion(value || "")} options={SHOT_MOVEMENT_OPTIONS} />
+                                    </div>
+                                    <div>
+                                        <div className="mb-1 text-sm text-muted-foreground">灯光风格</div>
+                                        <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜灯光风格" value={lightingStyle || undefined} onChange={(value) => setLightingStyle(value || "")} options={SHOT_LIGHTING_OPTIONS} />
+                                    </div>
+                                    <div>
+                                        <div className="mb-1 text-sm text-muted-foreground">景深</div>
+                                        <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜景深" value={depthOfField || undefined} onChange={(value) => setDepthOfField(value || "")} options={SHOT_DEPTH_OF_FIELD_OPTIONS} />
+                                    </div>
+                                </div>
+                                <div className="sm:max-w-[200px]">
+                                    <div className="mb-1 text-sm text-muted-foreground">时长（秒）</div>
+                                    <Input value={duration} placeholder="留空不修改" aria-label="分镜时长" onChange={(event) => setDuration(event.target.value)} />
+                                </div>
+                                <p className="m-0 text-xs text-muted-foreground">这些参数会进入视频提示词的镜头角度段；留空表示不设置。可用分镜列表上的「补全摄影参数」按规则批量推断。</p>
+                                <div>
+                                    <Button type="primary" loading={configSaving} onClick={() => void saveConfig()} aria-label="保存分镜配置">
+                                        保存分镜配置
                                     </Button>
                                 </div>
                             </div>
