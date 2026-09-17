@@ -1,9 +1,10 @@
 "use client";
 
 import { Button, Empty, Input, Modal, Segmented, Tag, message } from "antd";
-import { ImageIcon, Sparkles, UserRound } from "lucide-react";
+import { ImageIcon, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
 import { useState } from "react";
-import type { DramaNamedAsset, DramaProject } from "@/lib/drama-project-contract";
+import type { DramaAssetReference, DramaNamedAsset, DramaProject } from "@/lib/drama-project-contract";
+import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
 
 type AssetKind = "characters" | "scenes" | "props";
 
@@ -99,6 +100,47 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
         }
     };
 
+    /** 读取本地文件为 dataUrl，交服务端持久化（不在前端直接落库）。 */
+    const readAsDataUrl = (file: File) =>
+        new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(new Error("读取图片失败"));
+            reader.readAsDataURL(file);
+        });
+
+    /**
+     * 参考图操作，对应 L 的 upload-image / PUT image（设为主图）/ 移除。
+     * 服务端负责持久化与主图排序，这里只负责交互。
+     */
+    const runReferenceAction = async (asset: DramaNamedAsset, body: Record<string, unknown>, key: string) => {
+        setBusy(`${asset.id}:${key}`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/references`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, ...body }),
+            });
+            if (data?.project) {
+                onProjectChange(data.project as DramaProject);
+                const refreshed = ((data.project as DramaProject)[kind] as DramaNamedAsset[]).find((item) => item.id === asset.id);
+                if (refreshed && editing?.id === asset.id) setEditing(refreshed);
+            }
+            message.success("参考图已更新");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "参考图操作失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    const uploadReferences = async (asset: DramaNamedAsset, files: FileList | null) => {
+        const selected = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
+        if (!selected.length) return;
+        const uploads = await Promise.all(selected.map(async (file) => ({ dataUrl: await readAsDataUrl(file), name: file.name })));
+        await runReferenceAction(asset, { action: "upload", uploads }, "upload");
+    };
+
     return (
         <section className="mt-6 rounded-lg border border-border bg-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -192,7 +234,68 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                                 </ul>
                             </div>
                         ) : null}
-                        <p className="text-xs text-muted-foreground">字段由上方 AI 按钮生成并写回项目；参考图上传与四视图生成仍在迁移中。</p>
+                        <div className="grid gap-2 text-sm">
+                            <div className="flex items-center justify-between gap-2">
+                                <span>参考图（{dramaAssetReferences(editing).length}）</span>
+                                <label className="cursor-pointer rounded border px-3 py-1 text-xs" aria-label="上传参考图">
+                                    <Upload className="mr-1 inline size-3" />
+                                    上传参考图
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(event) => {
+                                            void uploadReferences(editing, event.target.files);
+                                            event.target.value = "";
+                                        }}
+                                    />
+                                </label>
+                            </div>
+                            {dramaAssetReferences(editing).length ? (
+                                <ul className="grid gap-2">
+                                    {dramaAssetReferences(editing).map((reference: DramaAssetReference) => {
+                                        const isPrimary = dramaAssetPrimaryReference(editing)?.id === reference.id;
+                                        return (
+                                            <li key={reference.id} className="flex items-center justify-between gap-2 rounded border p-2">
+                                                <span className="min-w-0 truncate text-xs">
+                                                    {reference.label || reference.id}
+                                                    {isPrimary ? (
+                                                        <Tag className="ml-2" color="success">
+                                                            主参考图
+                                                        </Tag>
+                                                    ) : null}
+                                                </span>
+                                                <span className="flex shrink-0 gap-1">
+                                                    {isPrimary ? null : (
+                                                        <Button
+                                                            size="small"
+                                                            type="text"
+                                                            icon={<Star className="size-3" />}
+                                                            loading={busy === `${editing.id}:primary`}
+                                                            aria-label={`将 ${reference.label || reference.id} 设为主参考图`}
+                                                            onClick={() => void runReferenceAction(editing, { action: "primary", referenceId: reference.id }, "primary")}
+                                                        />
+                                                    )}
+                                                    <Button
+                                                        size="small"
+                                                        type="text"
+                                                        danger
+                                                        icon={<Trash2 className="size-3" />}
+                                                        loading={busy === `${editing.id}:remove`}
+                                                        aria-label={`移除 ${reference.label || reference.id}`}
+                                                        onClick={() => void runReferenceAction(editing, { action: "remove", referenceId: reference.id }, "remove")}
+                                                    />
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">还没有参考图，可上传后设为主参考图。</p>
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">字段由上方 AI 按钮生成并写回项目。</p>
                     </div>
                 </Modal>
             ) : null}

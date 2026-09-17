@@ -71,6 +71,28 @@ describe("one-click-film asset panel UI", () => {
         expect(source).toContain("生成设定图");
     });
 
+    it("manages reference images: upload, set primary, remove", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // 对应 L POST /characters/:id/upload-image 与 PUT /characters/:id/image
+        expect(source).toContain("/references");
+        expect(source).toContain('action: "upload"');
+        expect(source).toContain('action: "primary"');
+        expect(source).toContain('action: "remove"');
+        expect(source).toContain('aria-label="上传参考图"');
+        expect(source).toContain("设为主参考图");
+        // 主图判定复用平台既有纯函数，不自己另写一套
+        expect(source).toContain("dramaAssetPrimaryReference");
+        expect(source).toContain("dramaAssetReferences");
+    });
+
+    it("uploads through the server instead of persisting in the browser", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // 前端只读成 dataUrl，持久化由服务端 writeReferenceImageDataUrl 完成
+        expect(source).toContain("readAsDataURL");
+        expect(source).toContain("dataUrl");
+        expect(source).not.toContain("localStorage");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         const source = await readFile(panelPath, "utf8");
         expect(source).not.toContain("setTimeout");
