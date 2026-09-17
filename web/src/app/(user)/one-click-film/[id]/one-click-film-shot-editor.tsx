@@ -47,6 +47,8 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
     const [frameLayout, setFrameLayout] = useState("");
     const [frameSaving, setFrameSaving] = useState(false);
     const [frameGenerating, setFrameGenerating] = useState(false);
+    const [polishing, setPolishing] = useState(false);
+    const [polishedPrompt, setPolishedPrompt] = useState(shot.polishedPrompt || "");
 
     useEffect(() => {
         let cancelled = false;
@@ -121,6 +123,24 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
         }
     };
 
+    /**
+     * 对应 L `POST /storyboards/:id/polish-prompt`：把本镜字段交给文本模型润色，
+     * 结果写回 polishedPrompt（经典单图生成会优先取它）。
+     */
+    const polishImagePrompt = async () => {
+        setPolishing(true);
+        try {
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/polish-prompt${query}`, { method: "POST" });
+            if (typeof data?.polishedPrompt === "string") setPolishedPrompt(data.polishedPrompt);
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            message.success("已润色图片提示词");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "图片提示词润色失败");
+        } finally {
+            setPolishing(false);
+        }
+    };
+
     return (
         <Modal open width={760} title={`编辑分镜 · ${shot.title || "未命名"}`} onCancel={onClose} footer={null} destroyOnHidden>
             <Tabs
@@ -167,7 +187,14 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
                                     视频提示词
                                     <Input.TextArea rows={4} value={videoPrompt} onChange={(event) => setVideoPrompt(event.target.value)} aria-label="视频提示词" />
                                 </label>
-                                <div className="flex justify-end">
+                                <label className="grid gap-1 text-sm">
+                                    润色后的图片提示词（经典单图生成优先使用）
+                                    <Input.TextArea rows={4} value={polishedPrompt} readOnly placeholder="点击「AI 润色图片提示词」后生成" aria-label="润色后的图片提示词" />
+                                </label>
+                                <div className="flex justify-end gap-2">
+                                    <Button loading={polishing} onClick={() => void polishImagePrompt()} aria-label="AI 润色图片提示词">
+                                        AI 润色图片提示词
+                                    </Button>
                                     <Button type="primary" loading={saving} onClick={() => void saveShot()} aria-label="保存提示词">
                                         保存
                                     </Button>

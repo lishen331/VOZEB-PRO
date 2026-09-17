@@ -134,6 +134,16 @@ describe("one-click-film shot card UI", () => {
         expect(source).toContain("setFrameDescription(data.description)");
     });
 
+    it("offers L's image prompt polish and surfaces the polished result", async () => {
+        const source = await readFile(editorPath, "utf8");
+        // 对应 L POST /storyboards/:id/polish-prompt
+        expect(source).toContain("/polish-prompt");
+        expect(source).toContain('aria-label="AI 润色图片提示词"');
+        // 润色结果必须可见，否则用户不知道最终提示词是什么
+        expect(source).toContain("setPolishedPrompt(data.polishedPrompt)");
+        expect(source).toContain('aria-label="润色后的图片提示词"');
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");
