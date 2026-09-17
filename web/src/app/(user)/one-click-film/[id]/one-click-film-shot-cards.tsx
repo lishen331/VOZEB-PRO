@@ -305,6 +305,30 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
             message.success("候选首帧已应用");
         });
 
+    /**
+     * 对应 L `onUsePrevTailAsFirst`：把上一镜视频的真实尾帧直接取来当本镜首帧。
+     * V 已有两条等价路由，这里按 L 的语义组合：先在上一镜抽尾帧生成候选，
+     * 再在本镜确认该候选为首帧（replaceExisting=true，与 L 的覆盖行为一致）。
+     */
+    const applyPreviousTailAsFirst = (shot: DramaShot, previousShot: DramaShot) =>
+        run(shot.id, async () => {
+            if (!previousShot.videoUrl) {
+                message.info("上一镜还没有可用视频，无法取尾帧");
+                return;
+            }
+            const extracted = (await callJson(`${base}/shots/${encodeURIComponent(previousShot.id)}/extract-tail-frame${query}`, { method: "POST" })) as unknown as { nextShot?: { id?: string; candidate?: { id?: string } } } | undefined;
+            const candidateId = extracted?.nextShot?.id === shot.id ? extracted?.nextShot?.candidate?.id : undefined;
+            if (!candidateId) {
+                message.error("上一镜尾帧没有落到本镜候选首帧，请确认两镜相邻");
+                return;
+            }
+            const search = `${query}&candidateId=${encodeURIComponent(candidateId)}&replaceExisting=true`;
+            await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/accept-first-frame-candidate${search}`, { method: "POST" });
+            const refreshed = await callJson(`${base}`, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project);
+            message.success("已用上一镜尾帧作为本镜首帧");
+        });
+
     if (!episode.shots.length) {
         return (
             <div className="mt-5 rounded-lg border p-6">
@@ -544,6 +568,19 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                         <Button size="small" icon={<Film className="size-4" />} loading={busyShotId === shot.id} aria-label={`提取分镜 ${index + 1} 视频尾帧`} onClick={() => void extractTailFrame(shot)}>
                                             提取尾帧
                                         </Button>
+                                    ) : null}
+                                    {shot.storyboardFrameMode === "first_last" && index > 0 && episode.shots[index - 1]?.videoUrl ? (
+                                        <Tooltip title="取上一镜视频的真实尾帧作为本镜首帧（对应 L 的「上镜尾帧」）">
+                                            <Button
+                                                size="small"
+                                                icon={<Link2 className="size-4" />}
+                                                loading={busyShotId === shot.id}
+                                                aria-label={`用上一镜尾帧作为分镜 ${index + 1} 首帧`}
+                                                onClick={() => void applyPreviousTailAsFirst(shot, episode.shots[index - 1])}
+                                            >
+                                                上镜尾帧
+                                            </Button>
+                                        </Tooltip>
                                     ) : null}
                                     {shot.firstFrameCandidate ? (
                                         <Button size="small" icon={<Link2 className="size-4" />} loading={busyShotId === shot.id} aria-label={`应用分镜 ${index + 1} 候选首帧`} onClick={() => void acceptFirstFrame(shot)}>

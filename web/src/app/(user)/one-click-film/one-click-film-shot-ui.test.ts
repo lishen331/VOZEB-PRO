@@ -30,6 +30,22 @@ describe("one-click-film shot card UI", () => {
         }
     });
 
+    it("offers L's 上镜尾帧 by composing extract + accept on the previous shot", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        // 对应 L onUsePrevTailAsFirst：先在上一镜抽尾帧，再在本镜确认候选为首帧。
+        expect(source).toContain("applyPreviousTailAsFirst");
+        expect(source).toContain("上镜尾帧");
+        expect(source).toContain("episode.shots[index - 1]");
+        expect(source).toContain("replaceExisting=true");
+    });
+
+    it("keeps the 首帧站位 lock toggle wired to the frame route", async () => {
+        const source = await readFile(editorPath, "utf8");
+        // 对应 L lastFrameUseFirstLayoutLock：取消勾选时显式告知服务端不要锁首帧构图。
+        expect(source).toContain("useFirstFrameLayout");
+        expect(source).toContain("useFirstFrameLayout=0");
+    });
+
     it("exposes L's storyboard actions with locatable labels", async () => {
         const source = await readFile(cardsPath, "utf8");
         // 对应 L: POST /storyboards, POST /storyboards/:id/insert-before,
