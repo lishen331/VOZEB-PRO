@@ -163,6 +163,24 @@ describe("one-click-film shot card UI", () => {
         expect(source).toContain('aria-label="本镜空间布局锚点"');
     });
 
+    it("surfaces the dubbing state the audio runner writes back", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        // audio-runner 会把 dialogueAudio / narrationAudio 写到分镜上，UI 之前完全没读，
+        // 「配音」只是步骤条上的静态文字 —— 那等于用户看不到配音结果。
+        expect(source).toContain("shot.dialogueAudio");
+        expect(source).toContain("shot.narrationAudio");
+        expect(source).toContain("对白");
+        expect(source).toContain("旁白");
+        // 音色与说话人来自服务端回写，必须可见
+        expect(source).toContain("state.speaker");
+        expect(source).toContain("state.voice");
+        // 失败原因必须可见（规范 §6）
+        expect(source).toContain("state?.error");
+        // 只播放服务端产物，不在前端合成
+        expect(source).toContain("<audio");
+        expect(source).toContain("aria-label={`播放分镜 ${index + 1} ${label}配音`}");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");

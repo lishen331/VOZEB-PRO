@@ -177,6 +177,31 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
                                 <p className="mt-1 truncate text-sm text-muted-foreground">{shot.description || shot.sourceText || "暂无描述"}</p>
                                 {shot.storyboardError || shot.generationError ? <p className="mt-1 text-sm text-red-500">{shot.storyboardError || shot.generationError}</p> : null}
 
+                                {shot.dialogueAudio || shot.narrationAudio ? (
+                                    <div className="mt-2 grid gap-1">
+                                        {(
+                                            [
+                                                ["对白", shot.dialogueAudio],
+                                                ["旁白", shot.narrationAudio],
+                                            ] as Array<[string, typeof shot.dialogueAudio]>
+                                        )
+                                            .filter(([, state]) => Boolean(state))
+                                            .map(([label, state]) => (
+                                                <div key={label} className="flex flex-wrap items-center gap-2 text-xs">
+                                                    <span className="text-muted-foreground">{label}配音</span>
+                                                    <Tag color={statusColor(state?.status || "idle")}>{state?.status}</Tag>
+                                                    {state?.speaker ? <span className="text-muted-foreground">{state.speaker}</span> : null}
+                                                    {state?.voice ? <span className="text-muted-foreground">音色 {state.voice}</span> : null}
+                                                    {state?.url ? (
+                                                        // 结果由服务端回写，这里只播放，不在前端合成
+                                                        <audio controls preload="none" src={state.url} className="h-6" aria-label={`播放分镜 ${index + 1} ${label}配音`} />
+                                                    ) : null}
+                                                    {state?.error ? <span className="text-red-500">{state.error}</span> : null}
+                                                </div>
+                                            ))}
+                                    </div>
+                                ) : null}
+
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
                                     <Segmented
                                         size="small"
