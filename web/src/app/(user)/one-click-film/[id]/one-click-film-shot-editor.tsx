@@ -48,6 +48,7 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
     const [frameSaving, setFrameSaving] = useState(false);
     const [frameGenerating, setFrameGenerating] = useState(false);
     const [polishing, setPolishing] = useState(false);
+    const [rebuilding, setRebuilding] = useState(false);
     const [polishedPrompt, setPolishedPrompt] = useState(shot.polishedPrompt || "");
 
     useEffect(() => {
@@ -141,6 +142,24 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
         }
     };
 
+    /**
+     * 对应 L `POST /storyboards/:id/rebuild-video-prompt`：
+     * 按最新模板规则用本镜字段重算视频提示词（纯本地重组，不调模型）。
+     */
+    const rebuildVideoPrompt = async () => {
+        setRebuilding(true);
+        try {
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/rebuild-video-prompt${query}`, { method: "POST" });
+            if (typeof data?.videoPrompt === "string") setVideoPrompt(data.videoPrompt);
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            message.success("已按最新规则重建视频提示词");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "视频提示词重建失败");
+        } finally {
+            setRebuilding(false);
+        }
+    };
+
     return (
         <Modal open width={760} title={`编辑分镜 · ${shot.title || "未命名"}`} onCancel={onClose} footer={null} destroyOnHidden>
             <Tabs
@@ -192,6 +211,9 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
                                     <Input.TextArea rows={4} value={polishedPrompt} readOnly placeholder="点击「AI 润色图片提示词」后生成" aria-label="润色后的图片提示词" />
                                 </label>
                                 <div className="flex justify-end gap-2">
+                                    <Button loading={rebuilding} onClick={() => void rebuildVideoPrompt()} aria-label="重建视频提示词">
+                                        重建视频提示词
+                                    </Button>
                                     <Button loading={polishing} onClick={() => void polishImagePrompt()} aria-label="AI 润色图片提示词">
                                         AI 润色图片提示词
                                     </Button>

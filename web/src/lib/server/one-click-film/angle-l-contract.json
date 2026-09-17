@@ -1,0 +1,47 @@
+{
+    "_source": "LocalMiniDrama backend-node/src/services/angleService.js —— 从源码字面量解析，并对全部 96 种 (h,v,s) 组合与 L 的 toPromptFragment / toChineseLabel 逐一校验一致，非手抄。",
+    "horizontalDesc": {
+        "front": "shooting from the front",
+        "front_left": "shooting from front-left at 45-degree angle",
+        "left": "shooting from the left side, profile view",
+        "back_left": "shooting from back-left at 135-degree angle",
+        "back": "shooting from behind, character's back to camera",
+        "back_right": "shooting from back-right at 135-degree angle",
+        "right": "shooting from the right side, profile view",
+        "front_right": "shooting from front-right at 45-degree angle"
+    },
+    "elevationDesc": {
+        "worm": "extreme low-angle worm's eye view, camera near ground pointing sharply upward, strong upward perspective distortion, background shows sky/ceiling",
+        "low": "low-angle upward shot, camera below eye-line, slight upward tilt, empowering perspective",
+        "eye_level": "eye-level shot, neutral perspective, natural horizontal framing",
+        "high": "high-angle bird's eye view, camera above looking down, background shows floor/ground with downward perspective distortion"
+    },
+    "shotSizeDesc": {
+        "close_up": "close-up shot (face/bust framing), subject fills most of frame, shallow depth of field, background softly blurred",
+        "medium": "medium shot (waist-up to full body), character and immediate surroundings visible, moderate depth of field",
+        "wide": "wide shot (full body with environment), subject small relative to scene, deep depth of field, environment context prominent"
+    },
+    "chineseLabel": {
+        "horizontal": {
+            "front": "正面",
+            "front_left": "前左",
+            "left": "左侧",
+            "back_left": "后左",
+            "back": "背面",
+            "back_right": "后右",
+            "right": "右侧",
+            "front_right": "前右"
+        },
+        "elevation": {
+            "worm": "虫眼仰",
+            "low": "仰拍",
+            "eye_level": "平视",
+            "high": "俯拍"
+        },
+        "shotSize": {
+            "close_up": "特写",
+            "medium": "中景",
+            "wide": "远景"
+        }
+    }
+}

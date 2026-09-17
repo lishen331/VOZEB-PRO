@@ -144,6 +144,15 @@ describe("one-click-film shot card UI", () => {
         expect(source).toContain('aria-label="润色后的图片提示词"');
     });
 
+    it("offers L's local video-prompt rebuild", async () => {
+        const source = await readFile(editorPath, "utf8");
+        // 对应 L POST /storyboards/:id/rebuild-video-prompt（纯本地模板重组，不调模型）
+        expect(source).toContain("/rebuild-video-prompt");
+        expect(source).toContain('aria-label="重建视频提示词"');
+        // 重建结果要回填，否则用户看不到最终视频提示词
+        expect(source).toContain("setVideoPrompt(data.videoPrompt)");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");
