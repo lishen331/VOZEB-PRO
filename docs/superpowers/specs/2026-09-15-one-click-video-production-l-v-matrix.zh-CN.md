@@ -230,3 +230,34 @@ POST /api/one-click-film/projects        （创建一键成片项目）
 ### 仍待处置（P0）
 
 `POST /api/one-click-film/projects` 里的 `ensureDramaLabProjectGroup` 调用应当移除或替换为一键成片自有的成员模型。移除前需确认：现有一键成片项目的读取路径是否已依赖该组存在（否则会把已建项目锁在外面）。此项未做，保持"未迁移"。
+
+## 11. assets / storyboard 两步的耦合核查（结论）
+
+executor 的 `assets` 与 `storyboard` 两步仍走 `startDramaLabWorkflow`。逐项核查其耦合面：
+
+| 检查项 | 结果 |
+|---|---|
+| 是否打 `/api/drama-lab/...` HTTP 路由 | **否**（该区段无 `internalJson` 调用） |
+| 底层提取服务是否写 `featureModule` | **否**（`drama-lab-asset-extraction-service` / `drama-lab-storyboard-extraction-service` 均无模块身份） |
+| 文本上游是否带模块计费归属 | **否**（`systemAiBillingHeaders` 不含 featureModule；日志仅 `source: "drama"`） |
+| 是否调阶段闸门 | **是**，3 处：`assets` / `storyboard` / `storyboard_image` |
+
+**结论：这两步没有计费归属问题，也不经由创作工坊的 HTTP 路由，唯一残留是阶段闸门。**
+
+而闸门的实际影响已被 §10 的修复大幅收窄：
+
+- **新建的一键成片项目**：不再写入协作组 → `getDramaLabProjectGroup` 返回 null → 闸门 `return` 早退，成为空操作。
+- **修复前已建的旧项目**：仍有协作组，闸门仍然生效。创建者是 `owner/active` 能通过；但若该组配置了 `enabled && strictMode` 阶段，仍会被拦。
+
+因此 `images` / `videos` 是必须切走的（计费写死 drama-lab），而 `assets` / `storyboard` 属于**可延后**项：
+它们复用的是与 L 行为等价的纯提取逻辑，切换收益低、回归风险高（`storyboard` 步含截断续写与
+checkpoint 恢复语义）。保持现状并标注为 P1，不在此处假装已迁移。
+
+## 12. 本轮新增的守卫测试
+
+| 测试 | 防的是什么 |
+|---|---|
+| `migration-matrix.test.ts` | 基线被换成创作工坊、无证据宣称完成 |
+| `dead-route-guard.test.ts` | 建好路由却无调用方（我犯过两次） |
+| `project-isolation.test.ts` | 商单路由调教学版协作/闸门、读项目不校验归属 |
+| `media-runner.test.ts` 回写用例 | 切换提交链路却忘了回写链路（导致永久 pending） |
