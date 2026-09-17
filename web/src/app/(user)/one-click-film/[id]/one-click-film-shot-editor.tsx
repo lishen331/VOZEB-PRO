@@ -46,6 +46,7 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
     const [frameDescription, setFrameDescription] = useState("");
     const [frameLayout, setFrameLayout] = useState("");
     const [frameSaving, setFrameSaving] = useState(false);
+    const [frameGenerating, setFrameGenerating] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -99,6 +100,24 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
             message.error(error instanceof Error ? error.message : "帧提示词保存失败");
         } finally {
             setFrameSaving(false);
+        }
+    };
+
+    /**
+     * 对应 L `POST /storyboards/:id/frame-prompt`：由 AI 规划该帧提示词并直接提交帧图任务。
+     * 走一键成片自有路由，计费归属 one-click-film。
+     */
+    const generateFrame = async () => {
+        setFrameGenerating(true);
+        try {
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/generate-frame${query}&frameType=${frameType}`, { method: "POST" });
+            if (typeof data?.prompt === "string") setFramePrompt(data.prompt);
+            if (typeof data?.description === "string") setFrameDescription(data.description);
+            message.success("已由 AI 规划该帧提示词并提交帧图任务");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "帧提示词生成失败");
+        } finally {
+            setFrameGenerating(false);
         }
     };
 
@@ -183,7 +202,10 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
                                     <Input.TextArea rows={2} value={frameLayout} onChange={(event) => setFrameLayout(event.target.value)} aria-label="帧空间布局" />
                                 </label>
                                 <p className="text-xs text-muted-foreground">保存会整条覆盖该帧的提示词、描述与布局（与 L 一致）；已生成的帧图不受影响。</p>
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-2">
+                                    <Button loading={frameGenerating} onClick={() => void generateFrame()} aria-label="AI 生成帧提示词">
+                                        AI 生成该帧
+                                    </Button>
                                     <Button type="primary" loading={frameSaving} onClick={() => void saveFramePrompt()} aria-label="保存帧提示词">
                                         保存帧提示词
                                     </Button>

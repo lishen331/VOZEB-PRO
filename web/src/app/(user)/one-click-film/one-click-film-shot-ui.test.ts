@@ -123,6 +123,17 @@ describe("one-click-film shot card UI", () => {
         expect(source).toContain("aria-label={`应用分镜 ${index + 1} 候选首帧`}");
     });
 
+    it("offers AI frame-prompt planning per frame type", async () => {
+        const source = await readFile(editorPath, "utf8");
+        // 对应 L POST /storyboards/:id/frame-prompt（framePromptService.generateFramePrompt）
+        expect(source).toContain("/generate-frame");
+        expect(source).toContain("frameType=${frameType}");
+        expect(source).toContain('aria-label="AI 生成帧提示词"');
+        // 生成结果要回填到编辑框，否则用户看不到 AI 产出
+        expect(source).toContain("setFramePrompt(data.prompt)");
+        expect(source).toContain("setFrameDescription(data.description)");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");
