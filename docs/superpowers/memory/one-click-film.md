@@ -34,7 +34,9 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 三条 kind 参数化路由覆盖 15 个 L 端点：`assets/:id/ai`（describe/prompt/anchor/stages）、`assets/:id/generate-image`（含 four_view）、`assets/:id/references`（upload/primary/remove）。
 
-**资产域已知缺口**：一键成片 UI 没有手动新增/删除资产的入口（只能靠 executor assets 步自动提取）；资产编辑弹窗字段只读；`batch-generate-images` 未迁移；素材库 7 条未适配。
+**资产域已知缺口**：资产编辑弹窗字段仍只读（服务端 `PUT assets/:assetId` 白名单已支持编辑，UI 未接输入框）；`batch-generate-images` 未迁移；素材库 7 条未适配。
+
+手动增删已补：`POST assets` / `PUT assets/:assetId` / `DELETE assets/:assetId`。**删除时必须同步清掉分镜绑定**（characterIds/propIds/sceneId），否则留下幽灵资产引用；资产名项目内唯一，同名 409。
 
 其余域仍未开始：dramas 6/19 → images 0/9 → episodes 0/7 → videos 0/7 → audio 0/2。**下一步优先 episodes（7 条，分集级拆解与合成）。**
 
@@ -54,7 +56,9 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 分镜卡片列表 + 编辑弹窗已可用：新增/前插/删除、三模式切换（经典/首尾帧/全能）、单镜生成图/视频、提取尾帧、应用候选首帧、AI 生成帧提示词、AI 润色图片提示词、重建视频提示词、AI 重算空间布局、按音频拆镜（预览+追加应用）。
 资产面板已可用：三域切换、生成生图提示词、从参考图提取特征、提炼视觉锚点、AI 生成阶段造型、生成四视图/设定图、参考图上传/设为主图/移除。
 
-**仍缺**：手动新增/删除资产入口、资产字段手工编辑、素材库、配音设置面板、批量生图。
+资产增删：面板顶部新增输入框 + 卡片删除按钮。
+
+**仍缺**：资产字段手工编辑（服务端已支持，UI 未接）、素材库、配音设置面板、批量生图。
 
 ### 已知缺陷
 - **协作闸门耦合（P0，未处置）**：`POST /api/one-click-film/projects` 会调 `ensureDramaLabProjectGroup`，把每个一键成片项目写进创作工坊协作组表。所以 `assertDramaLabStageAllowed` 一定查得到组、不会早退，教学版的审批配置会真实拦住商单链路。我先前"未建组时是空操作"的判断是错的。移除该调用前须确认现有项目读取路径是否已依赖该组存在。

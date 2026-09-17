@@ -331,10 +331,10 @@ L 资产接口共 **39** 条（characters 19、scenes 11、props 9）：
 
 ### 局限（不假装已完成）
 
-1. **一键成片 UI 没有新增/删除资产的入口**。资产只能靠 executor 的 `assets` 步自动提取产生。虽然 `PUT /projects/:id` 在 API 层能改，但用户在界面上无法手动加一个角色 —— 这条按 §7 P0"不得只有壳子"仍算缺口。
+1. ~~一键成片 UI 没有新增/删除资产的入口~~ **已补**：新增 `POST assets` / `PUT assets/:assetId` / `DELETE assets/:assetId`，面板顶部有新增输入框，卡片上有删除按钮。删除会**同步清掉所有分镜里对该资产的绑定**（`characterIds` / `propIds` / `sceneId`），避免留下幽灵资产引用（规范 §8 禁止）。资产名称在项目内唯一，同名直接 409 拒绝，与 L 靠名称去重的语义一致。
 2. **`batch-generate-images` 未迁移**：L 支持一次性给全部角色排队生图，一键成片目前只能逐个点。
 3. **素材库 7 条未适配**：资产无法存入/取自素材库。
-4. 资产编辑弹窗目前是**只读展示** + AI 按钮 + 参考图管理，字段本身不可手工编辑。
+4. 资产编辑弹窗目前是**只读展示** + AI 按钮 + 参考图管理。服务端 `PUT assets/:assetId` 已支持白名单字段手工编辑（`name`/`description`/`appearance`/`imagePrompt`/`polishedPrompt`/`singleImagePrompt`/`generationLayout`/`role`/`type`/`time`），但弹窗还没接上输入框 —— 这条仍算缺口。
 
 ### 计费归属
 
