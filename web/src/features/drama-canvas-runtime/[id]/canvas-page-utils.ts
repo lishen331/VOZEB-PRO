@@ -166,6 +166,7 @@ export function replaceCanvasNodeMediaMetadata(current: CanvasNodeMetadata | und
         batchRootId: undefined,
         batchChildIds: undefined,
         batchUsesReferenceImages: undefined,
+        batchMemberSnapshots: undefined,
         primaryImageId: undefined,
         imageBatchExpanded: undefined,
         imageTask: undefined,
