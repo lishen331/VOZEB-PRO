@@ -20,9 +20,9 @@ L 后端共 **161** 个接口，按归属拆分：
 |---|---|---|
 | V 平台承载，不迁移 | 34 | 复用 V 的模型渠道、设置、上传、资产、生成路由 |
 | 素材库，需适配 | 15 | 映射到 V 素材库体系（P1） |
-| **必须迁移的业务逻辑** | **108** | **已覆盖 94，即 87.0%**（§13–§18 逐条核算） |
+| **必须迁移的业务逻辑** | **108** | **已覆盖 97，即 89.8%**（§13–§18 逐条核算） |
 
-**结论（2026-09-17 更新）：主链路已覆盖 94/108（87.0%），分镜与资产链路具备真机验证条件；仍有 10 条 P2 缺口与 4 条刻意不复制项，不等于 1:1 完成。**
+**结论（2026-09-17 更新）：主链路已覆盖 97/108（89.8%），分镜与资产链路具备真机验证条件；仍有 7 条 P2 缺口与 4 条刻意不复制项，不等于 1:1 完成。**
 
 > 首轮结论曾是「完成度约 9%，不具备可测条件」。那对应当时状态，现已按 §13–§18 逐条核算更新。
 > 保留这段历史，避免把早期结论当成当前事实。
@@ -39,13 +39,13 @@ L 后端共 **161** 个接口，按归属拆分：
 | scenes | 11/11 | 0 | — |
 | props | 9/9 | 0 | — |
 | episodes | 7/7 | 0 | 含 finalize 与 download |
-| images | 6/9 | 3（P2） | `DELETE /images/:id`、分集背景列表与提取（L 特有） |
-| videos | 6/7 | 1（P2） | `DELETE /videos/:id` |
-| video-merges | 3/4 | 1（P2） | `DELETE /video-merges/:id` |
+| images | 7/9 | 2（P2） | 分集背景列表与提取（L 特有） |
+| videos | 7/7 | 0 | — |
+| video-merges | 4/4 | 0 | — |
 | audio | 2/2 | 0 | — |
 | dramas | 19/19 | 0 | 多数由 `PUT /projects/:id` 聚合承载 |
 
-**合计：覆盖 94/108，刻意不复制 4，仍为缺口 10（全部 P2）。**
+**合计：覆盖 97/108，刻意不复制 4，仍为缺口 7（全部 P2）。**
 
 ## 4. P0 逐项清单
 
@@ -97,7 +97,7 @@ L 后端共 **161** 个接口，按归属拆分：
 | `POST   /videos/episode/:episode_id/batch` | P0 | 未迁移 |
 | `POST   /videos/:id/resume-poll` | P0 | 未迁移 |
 | `GET    /videos/:id` | P0 | 未迁移 |
-| `DELETE /videos/:id` | P0 | 未迁移 |
+| `DELETE /videos/:id` | P0 | 已迁移 |
 
 ### 图片（L 9 个接口）
 
@@ -111,7 +111,7 @@ L 后端共 **161** 个接口，按归属拆分：
 | `POST   /images/scene/:scene_id` | P0 | 未迁移 |
 | `POST   /images/upload` | P0 | 未迁移 |
 | `GET    /images/:id` | P0 | 未迁移 |
-| `DELETE /images/:id` | P0 | 未迁移 |
+| `DELETE /images/:id` | P0 | 已迁移 |
 
 ### 音频（L 2 个接口）
 
@@ -410,9 +410,6 @@ L 允许直接指定任意一条 image_generations 记录，V 只能用绑定在
 
 | L 接口 | 说明 |
 |---|---|
-| `DELETE /images/:id` | 删除单张生成图记录。V 侧历史留在 `storyboardHistory` / `frames.history`，无删除入口 |
-| `DELETE /videos/:id` | 同上，`videoHistory` 无删除入口 |
-| `DELETE /video-merges/:id` | 删除成片记录，无入口 |
 | `GET /images/episode/:id/backgrounds` | L 的分集背景图列表 |
 | `POST /images/episode/:id/backgrounds/extract` | L 的分集背景提取，V 用场景资产体系承载，未做等价端点 |
 

@@ -46,11 +46,16 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 **episodes 域 7 条已全部覆盖**：5 条自有路由（storyboards 拆解、characters/props 提取、finalize、download）+ 2 条聚合承载（分镜列表与状态随项目返回）。
 
-**媒体域（images 9 / videos 7 / video-merges 4 / audio 2 = 22 条）**：已迁移 12、聚合承载 5、缺口 5（3 条 DELETE 清理历史 + 2 条 L 特有的分集背景流，均 P2）。
+**媒体域（images 9 / videos 7 / video-merges 4 / audio 2 = 22 条）**：已迁移 15、聚合承载 5、缺口 2（L 特有的分集背景列表与提取，均 P2）。
+
+3 条 DELETE 已于 2026-09-17 迁移（`generation-cleanup.ts`）：纯数据清理，不调模型不计费。要点是 L 的 `imageService.deleteById` 不只软删那一行，还会解除分镜首/尾帧绑定，V 侧对应清 `storyboardImageUrl`、`frames.first/last`（含解锁 `locked`）与 `firstFrameCandidate`。L 的 video_merges 是独立多行表，V 每集只有一个 `renderTask`，故按 `renderTask.id` 匹配删除。UI 入口：分镜编辑弹窗新增「生成记录」页签，工作区新增「删除成片记录」。
 
 注意一处等价判定的边界：`POST /videos/image/:image_gen_id`（L 用任意已生成图生视频）在 V 里没有独立端点，`generate-video` 只能用绑定在分镜 frames 上的帧。请求载荷等价但入口形态不同，"从历史候选图直接生视频"要单独补。
 
-其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：storyboards 剩余 5 条 P2（3 条 stream 版本、props 独立端点、episode generate 端点）与媒体域 5 条 P2（3 条 DELETE 清理历史、2 条 L 特有分集背景流）。**
+其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：storyboards 剩余 5 条 P2（3 条 stream 版本、props 独立端点、episode generate 端点）与媒体域 2 条 P2（L 特有的分集背景列表与提取）。**
+
+### 死代码守卫坑：请求路径不要插变量
+`dead-route-guard` 靠"请求路径字面量里出现路由的最后一个静态段"来判定有没有调用方。把段名写成 `\`${base}/shots/${id}/${kind}/...\`` 会让它找不到调用方（我写 images/videos 删除时就中了这一枪，videos 直接被判为死代码）。所以按 kind 分支时要把路径写成字面量，别插变量。顺带一提，`images` 当时是"假通过"——因为 `batch-generate-images` 里也含 images 这个子串。
 
 ### sharp 依赖差异
 L 把 sharp 当可选依赖（`try { require('sharp') }`，缺失时报错），V 的 package.json 里 sharp 是正式依赖，且 `image-layer-output` 等服务都是静态 `import sharp from "sharp"`。所以 V 侧不要再写 optional require 分支 —— 那会触发 TS2349（`typeof import("sharp")` 无调用签名），而且把构建期问题伪装成运行期分支。
