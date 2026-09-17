@@ -368,3 +368,49 @@ L `/episodes` 共 **7** 条：**已迁移 5，聚合承载 2，未迁移 0。**
 `episodes/:episodeId/render` 与 executor 的 `compose` 步共用同一套 V 成片服务，状态服务端持久化，
 前端只轮询（`pending`/`running` 时 3 秒一次），不用 setTimeout 假装进度。下载按钮仅在
 `renderTask.result.artifactId` 存在时出现，避免点开一个还没产出的成片。
+
+## 16. 媒体域覆盖（images / videos / video-merges / audio）
+
+L 这四域共 **22** 条：**已迁移 12，聚合承载 5，缺口 5。**
+
+| 域 | 条数 | 已迁移 | 聚合承载 | 缺口 |
+|---|---|---|---|---|
+| images | 9 | 4 | 2 | 3 |
+| videos | 7 | 4 | 2 | 1 |
+| video-merges | 4 | 2 | 1 | 1 |
+| audio | 2 | 2 | 0 | 0 |
+
+### 已迁移映射
+
+| L 接口 | 一键成片实现 |
+|---|---|
+| `POST /images` | `shots/:id/generate-image`、`assets/:id/generate-image` |
+| `POST /images/scene/:scene_id` | `assets/:id/generate-image`（`kind: "scenes"`） |
+| `POST /images/upload` | `assets/:id/references`（`action: "upload"`） |
+| `POST /images/episode/:id/batch` | executor `images` 步 → `media-runner` |
+| `POST /videos` | `shots/:id/generate-video` |
+| `POST /videos/episode/:id/batch` | executor `videos` 步 → `media-runner` |
+| `POST /videos/:id/resume-poll` | `sync-runner` + 通用恢复服务 |
+| `POST /video-merges` / `GET /video-merges/:id` | `episodes/:episodeId/render`（POST / GET） |
+| `POST /audio/extract` / `extract/batch` | `audio-runner`（TTS 子任务）+ `shots/:id/split-by-audio` |
+
+### 一处需要说明的等价判定
+
+`POST /videos/image/:image_gen_id`（L 的"用某张已生成图去生视频"）在 V 里没有对应的独立端点：
+一键成片的 `generate-video` 是从**分镜的 frames 状态**取首/尾帧参考图。两者最终请求载荷等价
+（同样是把图片 URL 作为 `first_frame`/`last_frame` 参考传给上游），但**入口形态不同** ——
+L 允许直接指定任意一条 image_generations 记录，V 只能用绑定在分镜上的帧。
+若后续需要"从历史候选图直接生视频"，这条要单独补。
+
+### 缺口（5 条，均为 P2）
+
+| L 接口 | 说明 |
+|---|---|
+| `DELETE /images/:id` | 删除单张生成图记录。V 侧历史留在 `storyboardHistory` / `frames.history`，无删除入口 |
+| `DELETE /videos/:id` | 同上，`videoHistory` 无删除入口 |
+| `DELETE /video-merges/:id` | 删除成片记录，无入口 |
+| `GET /images/episode/:id/backgrounds` | L 的分集背景图列表 |
+| `POST /images/episode/:id/backgrounds/extract` | L 的分集背景提取，V 用场景资产体系承载，未做等价端点 |
+
+三条 DELETE 属"清理历史"能力，不影响生产闭环；两条 backgrounds 是 L 特有的分集背景流。
+均保持"未迁移"，不假装等价。

@@ -42,7 +42,11 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 **episodes 域 7 条已全部覆盖**：5 条自有路由（storyboards 拆解、characters/props 提取、finalize、download）+ 2 条聚合承载（分镜列表与状态随项目返回）。
 
-其余域仍未开始：dramas 6/19 → images 0/9 → videos 0/7 → audio 0/2。**下一步优先 images/videos（L 的独立生成端点，当前只有分镜内联入口）。**
+**媒体域（images 9 / videos 7 / video-merges 4 / audio 2 = 22 条）**：已迁移 12、聚合承载 5、缺口 5（3 条 DELETE 清理历史 + 2 条 L 特有的分集背景流，均 P2）。
+
+注意一处等价判定的边界：`POST /videos/image/:image_gen_id`（L 用任意已生成图生视频）在 V 里没有独立端点，`generate-video` 只能用绑定在分镜 frames 上的帧。请求载荷等价但入口形态不同，"从历史候选图直接生视频"要单独补。
+
+其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步优先素材库适配（7 条）与配音设置面板。**
 
 已建的一键成片自有路由（生成类均带 `featureModule: "one-click-film"`，不再经由创作工坊）：
 `POST/PUT/DELETE shots`、`insert-before`、`frame-prompts[/:frameType]`、`generate-image`、`generate-video`、`generate-frame`、`extract-tail-frame`、`accept-first-frame-candidate`、`polish-prompt`、`rebuild-video-prompt`、`regenerate-layout-description`、`split-by-audio`、`universal-prompt`、`export`、`tasks*`、`episode-canvas`
