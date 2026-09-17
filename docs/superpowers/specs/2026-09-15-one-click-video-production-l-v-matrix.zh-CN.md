@@ -313,11 +313,11 @@ L 资产接口共 **39** 条（characters 19、scenes 11、props 9）：
 
 | 分类 | 数量 | 说明 |
 |---|---|---|
-| 已迁移专用路由 | **15** | 见下表 |
+| 已迁移专用路由 | **16** | 见下表 |
 | 项目聚合承载 | 12 | V 的资产内联在项目里，读写随 `PUT /projects/:id`；**但一键成片 UI 目前没有新增/删除资产的入口**，见"局限"一节 |
 | 素材库待适配 | 7 | `add-to-library` / `add-to-material-library` / `image-from-library`（P1） |
 | SD2 第三方能力 | 4 | L 特有的 sd2 声音认证；V 用自身音色体系，不复制第三方链路 |
-| **真正未迁移** | **1** | `POST /characters/batch-generate-images` |
+| **真正未迁移** | **0** | 全部已覆盖 |
 
 ### 已迁移的资产能力（3 条 kind 参数化路由覆盖 15 个 L 端点）
 
@@ -326,13 +326,15 @@ L 资产接口共 **39** 条（characters 19、scenes 11、props 9）：
 | `POST assets/:assetId/ai` | `characters/scenes/props` 的 `generate-prompt`、`extract-from-image`，以及角色的 `extract-anchors`、`generate-stages` |
 | `POST assets/:assetId/generate-image` | `generate-image`、`generate-four-view-image`（角色固定四视图，场景/道具默认单图可切四格） |
 | `POST assets/:assetId/references` | `upload-image`、`PUT image`（设为主图）、移除参考图 |
+| `POST assets/batch-generate-images` | `characters/batch-generate-images`（10 个上限） |
+| `POST assets` / `PUT assets/:assetId` / `DELETE assets/:assetId` | `POST /scenes` / `POST /props` 及各域 `PUT` / `DELETE` |
 
 三域共用同一批路由，靠 `kind` 区分 —— 这是 V 的资产合同本来就统一（`DramaNamedAsset`），不是我把差异抹平了。
 
 ### 局限（不假装已完成）
 
 1. ~~一键成片 UI 没有新增/删除资产的入口~~ **已补**：新增 `POST assets` / `PUT assets/:assetId` / `DELETE assets/:assetId`，面板顶部有新增输入框，卡片上有删除按钮。删除会**同步清掉所有分镜里对该资产的绑定**（`characterIds` / `propIds` / `sceneId`），避免留下幽灵资产引用（规范 §8 禁止）。资产名称在项目内唯一，同名直接 409 拒绝，与 L 靠名称去重的语义一致。
-2. **`batch-generate-images` 未迁移**：L 支持一次性给全部角色排队生图，一键成片目前只能逐个点。
+2. ~~`batch-generate-images` 未迁移~~ **已补**：`POST assets/batch-generate-images`，沿用 L 的单次最多 10 个上限；优先补齐还没有主参考图的资产；逐个派发，单个失败不连坐其余。上游派发与单个生成共用 `dispatchOneClickAssetImage`，避免两条链路分叉后漏写 `featureModule`。
 3. **素材库 7 条未适配**：资产无法存入/取自素材库。
 4. ~~资产编辑弹窗只读~~ **已补**：名称/描述/外貌/生图提示词四个字段改为受控输入 + 「保存资产」按钮，接 `PUT assets/:assetId`。服务端白名单为 `name`/`description`/`appearance`/`imagePrompt`/`polishedPrompt`/`singleImagePrompt`/`generationLayout`/`role`/`type`/`time`，**不含 references / primaryReferenceId**（那些由参考图链路独占维护，避免一次保存把参考图状态覆盖掉）。
 
