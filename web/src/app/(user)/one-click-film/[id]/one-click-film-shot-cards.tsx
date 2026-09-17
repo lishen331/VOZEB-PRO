@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Segmented, Tag, Tooltip, message } from "antd";
-import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
+import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Maximize2, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
@@ -131,6 +131,18 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
         });
 
     /**
+     * 分镜图 2 倍超分，对应 L `POST /storyboards/:id/upscale`。
+     *
+     * 纯本地 sharp 处理，不调模型也不计费；成功后分镜主图指向放大结果。
+     */
+    const upscaleImage = (shot: DramaShot) =>
+        run(shot.id, async () => {
+            const data = (await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/upscale${query}`, { method: "POST" })) as unknown as { project?: DramaProject; width?: number; height?: number } | undefined;
+            if (data?.project) onProjectChange(data.project);
+            message.success(data?.width && data?.height ? `分镜图已放大到 ${data.width}x${data.height}` : "分镜图已放大");
+        });
+
+    /**
      * 对应 L `link-tail-frame` 的前半段：从本镜已完成视频抽最后一帧，
      * 作为下一镜的候选首帧，实现首尾帧连续性。
      */
@@ -245,6 +257,13 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
                                     <Button size="small" icon={<Clapperboard className="size-4" />} loading={busyShotId === shot.id} aria-label={`生成分镜 ${index + 1} 视频`} onClick={() => void generate(shot, "video")}>
                                         生成视频
                                     </Button>
+                                    {shot.storyboardImageUrl ? (
+                                        <Tooltip title="把分镜图放大 2 倍（本地处理，不计费）">
+                                            <Button size="small" icon={<Maximize2 className="size-4" />} loading={busyShotId === shot.id} aria-label={`放大分镜 ${index + 1} 分镜图`} onClick={() => void upscaleImage(shot)}>
+                                                放大分镜图
+                                            </Button>
+                                        </Tooltip>
+                                    ) : null}
                                     {shot.videoUrl ? (
                                         <Button size="small" icon={<Film className="size-4" />} loading={busyShotId === shot.id} aria-label={`提取分镜 ${index + 1} 视频尾帧`} onClick={() => void extractTailFrame(shot)}>
                                             提取尾帧
