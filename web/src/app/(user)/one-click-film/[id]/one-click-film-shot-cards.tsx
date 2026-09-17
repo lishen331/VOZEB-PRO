@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Segmented, Tag, Tooltip, message } from "antd";
-import { ArrowUpToLine, Clapperboard, ImageIcon, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
+import { ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
@@ -112,6 +112,33 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
             if (refreshed?.project) onProjectChange(refreshed.project);
         });
 
+    /**
+     * 对应 L `link-tail-frame` 的前半段：从本镜已完成视频抽最后一帧，
+     * 作为下一镜的候选首帧，实现首尾帧连续性。
+     */
+    const extractTailFrame = (shot: DramaShot) =>
+        run(shot.id, async () => {
+            await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/extract-tail-frame${query}`, { method: "POST" });
+            const refreshed = await callJson(`${base}`, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project);
+            message.success("已提取视频尾帧，可应用为下一镜首帧");
+        });
+
+    /** L `link-tail-frame` 的后半段：把候选正式应用为本镜首帧。 */
+    const acceptFirstFrame = (shot: DramaShot) =>
+        run(shot.id, async () => {
+            const candidateId = shot.firstFrameCandidate?.id;
+            if (!candidateId) {
+                message.info("当前分镜没有候选首帧");
+                return;
+            }
+            const search = `${query}&candidateId=${encodeURIComponent(candidateId)}&replaceExisting=true`;
+            await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/accept-first-frame-candidate${search}`, { method: "POST" });
+            const refreshed = await callJson(`${base}`, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project);
+            message.success("候选首帧已应用");
+        });
+
     if (!episode.shots.length) {
         return (
             <div className="mt-5 rounded-lg border p-6">
@@ -168,6 +195,16 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
                                     <Button size="small" icon={<Clapperboard className="size-4" />} loading={busyShotId === shot.id} aria-label={`生成分镜 ${index + 1} 视频`} onClick={() => void generate(shot, "video")}>
                                         生成视频
                                     </Button>
+                                    {shot.videoUrl ? (
+                                        <Button size="small" icon={<Film className="size-4" />} loading={busyShotId === shot.id} aria-label={`提取分镜 ${index + 1} 视频尾帧`} onClick={() => void extractTailFrame(shot)}>
+                                            提取尾帧
+                                        </Button>
+                                    ) : null}
+                                    {shot.firstFrameCandidate ? (
+                                        <Button size="small" icon={<Link2 className="size-4" />} loading={busyShotId === shot.id} aria-label={`应用分镜 ${index + 1} 候选首帧`} onClick={() => void acceptFirstFrame(shot)}>
+                                            应用候选首帧
+                                        </Button>
+                                    ) : null}
                                 </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">

@@ -109,6 +109,20 @@ describe("one-click-film shot card UI", () => {
         expect(crud).toContain('"creationMode"');
     });
 
+    it("wires L's first/last frame continuity handoff", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        // 对应 L POST /storyboards/:id/link-tail-frame 的两段：抽尾帧 → 应用为下一镜首帧
+        expect(source).toContain("/extract-tail-frame");
+        expect(source).toContain("/accept-first-frame-candidate");
+        expect(source).toContain("candidateId=");
+        expect(source).toContain("replaceExisting=true");
+        // 没有视频就不该出现"提取尾帧"，没有候选就不该出现"应用候选首帧"
+        expect(source).toContain("shot.videoUrl ?");
+        expect(source).toContain("shot.firstFrameCandidate ?");
+        expect(source).toContain("aria-label={`提取分镜 ${index + 1} 视频尾帧`}");
+        expect(source).toContain("aria-label={`应用分镜 ${index + 1} 候选首帧`}");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");
