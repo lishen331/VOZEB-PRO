@@ -380,7 +380,7 @@ export default function OneClickFilmProject() {
                             </div>
                         ) : null}
                         <OneClickFilmAssetPanel projectId={projectId} project={project} onProjectChange={setProject} />
-                        {project.episodes[0] ? <OneClickFilmShotCards projectId={projectId} episode={project.episodes[0]} onProjectChange={setProject} /> : null}
+                        {project.episodes[0] ? <OneClickFilmShotCards projectId={projectId} project={project} episode={project.episodes[0]} onProjectChange={setProject} /> : null}
                         {project.episodes[0]?.shots.length ? (
                             <div className="mt-5 rounded-lg border p-4">
                                 <div className="flex items-center justify-between gap-2">

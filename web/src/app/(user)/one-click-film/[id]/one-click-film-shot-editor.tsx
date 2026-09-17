@@ -1,11 +1,13 @@
 "use client";
 
-import { Button, Empty, Input, Modal, Popconfirm, Segmented, Tabs, Tag, message } from "antd";
+import { Button, Empty, Input, Modal, Popconfirm, Segmented, Select, Tabs, Tag, message } from "antd";
 import { useEffect, useState } from "react";
 import type { DramaProject, DramaShot, DramaShotFrameType, DramaShotGenerationHistory } from "@/lib/drama-project-contract";
 
 type Props = {
     projectId: string;
+    /** 资产绑定需要项目级的角色/场景/道具清单。 */
+    project: DramaProject;
     episodeId: string;
     shot: DramaShot;
     onClose: () => void;
@@ -28,11 +30,15 @@ async function callJson(url: string, init?: RequestInit) {
  * 首尾帧提示词走 L `frame_prompts` 的整条覆盖语义（prompt/description/layout 一起写）。
  * 全部调用一键成片自有路由。
  */
-export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, onProjectChange }: Props) {
+export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, onClose, onProjectChange }: Props) {
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const query = `?episodeId=${encodeURIComponent(episodeId)}`;
 
     const [recordBusyId, setRecordBusyId] = useState<string>();
+    const [characterIds, setCharacterIds] = useState<string[]>(shot.characterIds || []);
+    const [propIds, setPropIds] = useState<string[]>(shot.propIds || []);
+    const [sceneId, setSceneId] = useState<string | undefined>(shot.sceneId);
+    const [bindingSaving, setBindingSaving] = useState(false);
     const [title, setTitle] = useState(shot.title || "");
     const [description, setDescription] = useState(shot.description || "");
     const [dialogue, setDialogue] = useState(shot.dialogue || "");
@@ -182,6 +188,29 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
     };
 
     /**
+     * 保存分镜的资产绑定，对应 L `POST /storyboards/:id/props`（propService.associateWithStoryboard）。
+     *
+     * L 有独立的道具关联端点；V 的 `PUT shots/:id` 白名单已收 characterIds / propIds / sceneId，
+     * 所以走同一个更新入口，语义等价（整组覆盖，不是增量追加）。
+     */
+    const saveBindings = async () => {
+        setBindingSaving(true);
+        try {
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}${query}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ characterIds, propIds, ...(sceneId ? { sceneId } : {}) }),
+            });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            message.success("资产绑定已保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产绑定保存失败");
+        } finally {
+            setBindingSaving(false);
+        }
+    };
+
+    /**
      * 删除一条生成记录，对应 L `DELETE /images/:id` 与 `DELETE /videos/:id`。
      *
      * 服务端会同时解除主图/首尾帧对该记录的引用，避免留下悬空地址。
@@ -309,6 +338,55 @@ export function OneClickFilmShotEditor({ projectId, episodeId, shot, onClose, on
                                     </Button>
                                     <Button type="primary" loading={frameSaving} onClick={() => void saveFramePrompt()} aria-label="保存帧提示词">
                                         保存帧提示词
+                                    </Button>
+                                </div>
+                            </div>
+                        ),
+                    },
+                    {
+                        key: "bindings",
+                        label: "资产绑定",
+                        children: (
+                            <div className="grid gap-3">
+                                <label className="grid gap-1 text-sm">
+                                    出场角色
+                                    <Select
+                                        mode="multiple"
+                                        allowClear
+                                        value={characterIds}
+                                        onChange={(value) => setCharacterIds(value as string[])}
+                                        options={project.characters.map((asset) => ({ value: asset.id, label: asset.name || asset.id }))}
+                                        placeholder="选择本镜出场的角色"
+                                        aria-label="分镜出场角色"
+                                    />
+                                </label>
+                                <label className="grid gap-1 text-sm">
+                                    关联道具
+                                    <Select
+                                        mode="multiple"
+                                        allowClear
+                                        value={propIds}
+                                        onChange={(value) => setPropIds(value as string[])}
+                                        options={project.props.map((asset) => ({ value: asset.id, label: asset.name || asset.id }))}
+                                        placeholder="选择本镜出现的道具"
+                                        aria-label="分镜关联道具"
+                                    />
+                                </label>
+                                <label className="grid gap-1 text-sm">
+                                    所属场景
+                                    <Select
+                                        allowClear
+                                        value={sceneId}
+                                        onChange={(value) => setSceneId(value as string | undefined)}
+                                        options={project.scenes.map((asset) => ({ value: asset.id, label: asset.name || asset.id }))}
+                                        placeholder="选择本镜所属场景"
+                                        aria-label="分镜所属场景"
+                                    />
+                                </label>
+                                <p className="text-xs text-muted-foreground">保存为整组覆盖（与 L 的道具关联一致），未选中的资产会被解除绑定。</p>
+                                <div className="flex justify-end">
+                                    <Button type="primary" loading={bindingSaving} onClick={() => void saveBindings()} aria-label="保存资产绑定">
+                                        保存资产绑定
                                     </Button>
                                 </div>
                             </div>

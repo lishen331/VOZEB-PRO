@@ -9,6 +9,8 @@ import { OneClickFilmShotEditor } from "./one-click-film-shot-editor";
 
 type Props = {
     projectId: string;
+    /** 资产绑定需要项目级的角色/场景/道具清单，故整个项目一起传下去。 */
+    project: DramaProject;
     episode: DramaEpisode;
     onProjectChange: (project: DramaProject) => void;
 };
@@ -26,7 +28,7 @@ async function callJson(url: string, init?: RequestInit) {
  * 这些操作对应 L 的 storyboards 接口（create / insert-before / update / delete / split-by-audio），
  * 全部走一键成片自有路由，不经由创作工坊。
  */
-export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: Props) {
+export function OneClickFilmShotCards({ projectId, project, episode, onProjectChange }: Props) {
     const [busyShotId, setBusyShotId] = useState<string>();
     const [editing, setEditing] = useState<DramaShot>();
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
@@ -298,6 +300,7 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
             {editing ? (
                 <OneClickFilmShotEditor
                     projectId={projectId}
+                    project={project}
                     episodeId={episode.id}
                     shot={editing}
                     onClose={() => setEditing(undefined)}

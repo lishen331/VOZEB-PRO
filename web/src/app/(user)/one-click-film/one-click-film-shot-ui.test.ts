@@ -194,6 +194,31 @@ describe("one-click-film shot card UI", () => {
         expect(crud).toContain('"depthOfField"');
     });
 
+    it("binds characters, props and scene from the shot editor", async () => {
+        const source = await readFile(editorPath, "utf8");
+        // 对应 L POST /storyboards/:id/props（propService.associateWithStoryboard）。
+        // L 有独立端点，V 的 PUT shots/:id 白名单已收这三项，走同一入口即等价。
+        expect(source).toContain("characterIds");
+        expect(source).toContain("propIds");
+        expect(source).toContain("sceneId");
+        expect(source).toContain('aria-label="分镜出场角色"');
+        expect(source).toContain('aria-label="分镜关联道具"');
+        expect(source).toContain('aria-label="分镜所属场景"');
+        expect(source).toContain('aria-label="保存资产绑定"');
+        // 选项必须来自项目的真实资产清单，不能是写死的假数据
+        expect(source).toContain("project.characters.map");
+        expect(source).toContain("project.props.map");
+        expect(source).toContain("project.scenes.map");
+    });
+
+    it("keeps the binding fields writable on the server whitelist", async () => {
+        // UI 能选但服务端不收就会静默丢失 —— 把两侧绑在一条断言里。
+        const crud = await readFile(resolve(process.cwd(), "src/lib/server/one-click-film/shot-crud.ts"), "utf8");
+        expect(crud).toContain('"sceneId"');
+        expect(crud).toContain("characterIds?: string[]");
+        expect(crud).toContain("propIds?: string[]");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");
