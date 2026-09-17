@@ -373,6 +373,7 @@ export function TextContent({ node, theme, isEditingContent, textareaRef, mentio
             )}
 
             <div className="contents" onClick={stop} onDoubleClick={stop} onMouseDown={stop} onPointerDown={stop} onWheel={stop} onContextMenu={stop}>
+                {expanded ? (
                 <Modal
                     className="canvas-prompt-editor-modal"
                     open={expanded}
@@ -421,6 +422,7 @@ export function TextContent({ node, theme, isEditingContent, textareaRef, mentio
                         </Button>
                     </div>
                 </Modal>
+                ) : null}
             </div>
         </div>
     );

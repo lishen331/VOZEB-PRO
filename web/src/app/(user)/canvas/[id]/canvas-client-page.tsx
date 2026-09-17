@@ -409,6 +409,17 @@ function VozebProCanvasPage() {
         ),
         [runningNodeId, configInputsById, mentionReferencesByNodeId, handleConfigNodeChange, confirmStopGeneration, setDialogNodeId, nodesRef, handleGenerateNode],
     );
+    const handleNodeContextMenu = useCallback(
+        (event: React.MouseEvent, id: string) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setDialogNodeId(null);
+            setEditingNodeId(null);
+            setToolbarNodeId(null);
+            setContextMenu({ type: "node", x: event.clientX, y: event.clientY, nodeId: id });
+        },
+        [setDialogNodeId, setEditingNodeId, setToolbarNodeId, setContextMenu],
+    );
     const canGroupSelection = useMemo(() => canvasGroupCandidates(nodes, selectedNodeIds).length >= CANVAS_GROUP_MIN_MEMBERS, [nodes, selectedNodeIds]);
     const selectedGroupCount = useMemo(() => nodes.filter((node) => node.type === CanvasNodeType.Group && selectedNodeIds.has(node.id)).length, [nodes, selectedNodeIds]);
     const contextMenuNode = contextMenu?.type === "node" ? nodes.find((node) => node.id === contextMenu.nodeId) : undefined;
@@ -519,14 +530,7 @@ function VozebProCanvasPage() {
                         setNodeCreatePosition(position);
                     }}
                     onPaneContextMenu={(event) => preventCanvasContextMenu(event as React.MouseEvent)}
-                    onNodeContextMenu={(event, id) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setDialogNodeId(null);
-                        setEditingNodeId(null);
-                        setToolbarNodeId(null);
-                        setContextMenu({ type: "node", x: event.clientX, y: event.clientY, nodeId: id });
-                    }}
+                    onNodeContextMenu={handleNodeContextMenu}
                     onEdgeContextMenu={(event, id) => {
                         setSelectedConnectionId(id);
                         setSelectedNodeIds(new Set());
