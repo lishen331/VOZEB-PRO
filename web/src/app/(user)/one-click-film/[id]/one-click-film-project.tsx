@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { DramaProject } from "@/lib/drama-project-contract";
 import { splitDramaSource } from "@/lib/drama-source-splitter";
 
+import { OneClickFilmAssetPanel } from "./one-click-film-asset-panel";
 import { OneClickFilmShotCards } from "./one-click-film-shot-cards";
 
 export default function OneClickFilmProject() {
@@ -290,6 +291,7 @@ export default function OneClickFilmProject() {
                                 </ol>
                             </div>
                         ) : null}
+                        <OneClickFilmAssetPanel projectId={projectId} project={project} onProjectChange={setProject} />
                         {project.episodes[0] ? <OneClickFilmShotCards projectId={projectId} episode={project.episodes[0]} onProjectChange={setProject} /> : null}
                         {project.episodes[0]?.shots.length ? (
                             <div className="mt-5 rounded-lg border p-4">
