@@ -11,7 +11,7 @@ import { imagePreviewUrl } from "@/lib/media-image-url";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
-import { CanvasNodeType, type CanvasNodeData } from "../types";
+import { CanvasNodeType, type CanvasGroupMemberSnapshot, type CanvasNodeData } from "../types";
 import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
 import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-group";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
@@ -447,7 +447,7 @@ export function ImageNodeContent(props: NodeContentRendererProps) {
                 <EmptyImageContent {...props} isBatchRoot={false} />
             );
         return (
-            <BatchFrame batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} onToggleBatch={props.onToggleBatch}>
+            <BatchFrame batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} snapshots={props.node.metadata?.batchMemberSnapshots} onToggleBatch={props.onToggleBatch}>
                 {content}
             </BatchFrame>
         );
@@ -470,7 +470,7 @@ export function ImageNodeContent(props: NodeContentRendererProps) {
     );
 }
 
-export function EmptyImageContent({ theme, isBatchRoot, batchCount, batchExpanded, batchOpening, batchRecovering, onToggleBatch }: NodeContentRendererProps) {
+export function EmptyImageContent({ node, theme, isBatchRoot, batchCount, batchExpanded, batchOpening, batchRecovering, onToggleBatch }: NodeContentRendererProps) {
     const content = (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.placeholder }}>
             <div className="flex size-14 items-center justify-center rounded-2xl border" style={{ background: theme.node.subtleSurface, borderColor: theme.node.subtleBorder, color: theme.node.subtleText }}>
@@ -481,7 +481,7 @@ export function EmptyImageContent({ theme, isBatchRoot, batchCount, batchExpande
     );
     if (isBatchRoot)
         return (
-            <BatchFrame batchCount={batchCount} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} onToggleBatch={onToggleBatch}>
+            <BatchFrame batchCount={batchCount} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} snapshots={node.metadata?.batchMemberSnapshots} onToggleBatch={onToggleBatch}>
                 {content}
             </BatchFrame>
         );
@@ -601,7 +601,7 @@ export function ImageContent({
     }, [node.metadata?.content, reportDimensions]);
 
     return (
-        <BatchFrame batchCount={isBatchRoot ? batchCount : 0} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} onToggleBatch={onToggleBatch}>
+        <BatchFrame batchCount={isBatchRoot ? batchCount : 0} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} snapshots={node.metadata?.batchMemberSnapshots} onToggleBatch={onToggleBatch}>
             <div className="h-full w-full overflow-hidden rounded-3xl" style={{ background: theme.node.fill }}>
                 <img
                     ref={imageRef}
@@ -675,6 +675,7 @@ export function BatchFrame({
     batchExpanded,
     batchOpening,
     batchRecovering,
+    snapshots = [],
     onToggleBatch,
     children,
 }: {
@@ -682,14 +683,21 @@ export function BatchFrame({
     batchExpanded: boolean;
     batchOpening: boolean;
     batchRecovering: boolean;
+    snapshots?: CanvasGroupMemberSnapshot[];
     onToggleBatch?: () => void;
     children: ReactNode;
 }) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
+    const [hovered, setHovered] = useState(false);
     const isBatchRoot = batchCount > 1;
+    // Behind-card previews: prefer real child thumbnails, fall back to blank cards while they load.
+    const behindCards = snapshots.length ? snapshots.slice(0, 5) : Array.from({ length: Math.min(batchCount - 1, 5) }, () => null);
+    const fanned = hovered && !batchExpanded;
     return (
         <div
             className="group/batch relative h-full w-full overflow-visible"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
             onDoubleClick={
                 isBatchRoot
                     ? (event) => {
@@ -701,21 +709,31 @@ export function BatchFrame({
         >
             {isBatchRoot ? (
                 <div className="pointer-events-none absolute inset-0 overflow-visible">
-                    {Array.from({ length: Math.min(batchCount - 1, 5) }).map((_, index) => (
-                        <div
-                            key={index}
-                            className="absolute rounded-[inherit] border shadow-[0_14px_34px_rgba(68,64,60,.16)] transition-all duration-300 group-hover/batch:translate-x-2"
-                            style={{
-                                inset: 0,
-                                background: `linear-gradient(135deg, ${theme.node.panel}, ${theme.node.fill})`,
-                                borderColor: theme.node.stroke,
-                                opacity: batchExpanded && !batchOpening ? 0.34 : 1,
-                                transform:
-                                    batchOpening || batchRecovering ? `translate(${54 + index * 22}px, ${20 + index * 12}px) rotate(${8 + index * 5}deg) scale(.98)` : `translate(${34 + index * 18}px, ${14 + index * 10}px) rotate(${6 + index * 4}deg)`,
-                                zIndex: -index - 1,
-                            }}
-                        />
-                    ))}
+                    {behindCards.map((snapshot, index) => {
+                        const spread = behindCards.length > 1 ? index / (behindCards.length - 1) - 0.5 : 0;
+                        const restTransform =
+                            batchOpening || batchRecovering ? `translate(${8 + index * 6}px, ${26 + index * 20}px) scale(.98)` : `translate(${6 + index * 5}px, ${18 + index * 16}px)`;
+                        const fannedTransform = `translate(${spread * (58 + behindCards.length * 12)}px, ${34 + index * 6}px) rotate(${spread * 16}deg)`;
+                        return (
+                            <div
+                                key={snapshot?.id || index}
+                                className="absolute overflow-hidden rounded-[inherit] border shadow-[0_14px_34px_rgba(68,64,60,.16)] transition-all duration-300"
+                                style={{
+                                    inset: 0,
+                                    background: snapshot?.content ? theme.node.fill : `linear-gradient(135deg, ${theme.node.panel}, ${theme.node.fill})`,
+                                    borderColor: theme.node.stroke,
+                                    opacity: batchExpanded && !batchOpening ? 0.34 : 1,
+                                    transform: fanned ? fannedTransform : restTransform,
+                                    transformOrigin: "top center",
+                                    zIndex: -index - 1,
+                                }}
+                            >
+                                {snapshot?.content ? (
+                                    <img src={imagePreviewUrl(snapshot.content, 320)} alt="" draggable={false} loading="lazy" decoding="async" className="pointer-events-none size-full select-none object-cover" />
+                                ) : null}
+                            </div>
+                        );
+                    })}
                 </div>
             ) : null}
             {children}

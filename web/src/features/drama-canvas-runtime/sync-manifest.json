@@ -9,7 +9,7 @@
     "files": [
         {
             "path": "[id]/canvas-client-page.tsx",
-            "sha256": "85fbb2d13f3ae524f9ed05b8171a56509acac4dcf278aad958f85b3ebb174599"
+            "sha256": "c9ef1d2525ce71af50accdfee9541808f67ca979e9c95361d09b13fd71d7717d"
         },
         {
             "path": "[id]/canvas-generation-review.ts",
@@ -29,7 +29,7 @@
         },
         {
             "path": "[id]/canvas-page-elements.tsx",
-            "sha256": "26418e87c84acc341b1c83b17c4aca99392e1046491a9cf39c2f28cc27f61f27"
+            "sha256": "7fa47fbee3e40b7587f4f420598f7371ffbe2adf1609ee73e52a22ce905cc333"
         },
         {
             "path": "[id]/canvas-page-utils.ts",
@@ -53,7 +53,7 @@
         },
         {
             "path": "[id]/use-canvas-interaction-core.tsx",
-            "sha256": "45d4ad2536bf6b5d1bfa9263d707de94953c393fc06d1d56fb866521319ec7ae"
+            "sha256": "7d26de1e7d4397cac209ba044a84f1a226cca3352e35723d2d544d7a1d13fce3"
         },
         {
             "path": "[id]/use-canvas-interactions.tsx",
@@ -205,7 +205,7 @@
         },
         {
             "path": "components/canvas-node-hover-toolbar.tsx",
-            "sha256": "3510357825e93e1635f16650cbf0b63073481406bfbfdf708e99e37b6325a3bf"
+            "sha256": "15eb72c8e86046e3aefbd26cc059c5f4d48116b902da2cf8e73634448234d85e"
         },
         {
             "path": "components/canvas-node-mask-edit-dialog.tsx",
@@ -225,7 +225,7 @@
         },
         {
             "path": "components/canvas-node.tsx",
-            "sha256": "7d3504cd20531dc8f6997f6f2c5eff7a22a3d5a5db319c70f0d66ff4fed50777"
+            "sha256": "e86d624cea27bc60108695a5722e981a3aecd3bc892c6426c989fd9340abf43a"
         },
         {
             "path": "components/canvas-panorama-surface.tsx",
@@ -249,7 +249,7 @@
         },
         {
             "path": "components/canvas-surface.tsx",
-            "sha256": "fe15d862c514578d3d0cf8b587bd0bad1bda2ab4d59011100e66b72850b96203"
+            "sha256": "402b27b1fe58add84fa7cf9ee5aedf8e90fca94658a398cd28a44f0f7e094638"
         },
         {
             "path": "components/canvas-toolbar.tsx",

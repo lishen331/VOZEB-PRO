@@ -40,6 +40,11 @@ export type CanvasGenerationRequest = {
     controller: AbortController;
 };
 
+// Cancels the world layer's scale(k) so the menu stays a constant on-screen
+// size at any zoom, while left/top keep it pinned to the world position that
+// was double-clicked. transformOrigin matches that same top-left anchor.
+const MENU_INVERSE_ZOOM = "scale(calc(1 / var(--canvas-zoom, 1)))";
+
 export const VIDEO_NODE_MAX_WIDTH = 420;
 export const VIDEO_NODE_MAX_HEIGHT = 420;
 export const CANVAS_DROP_NODE_OFFSET = 48;
@@ -118,7 +123,7 @@ export function NodeCreateMenu({ position, onCreate, onClose }: { position: Posi
         <div
             className="absolute z-[120] w-[300px] rounded-[18px] border p-3 shadow-2xl backdrop-blur"
             data-canvas-node-create-menu
-            style={{ left: position.x, top: position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+            style={{ left: position.x, top: position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text, transform: MENU_INVERSE_ZOOM, transformOrigin: "top left" }}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
         >

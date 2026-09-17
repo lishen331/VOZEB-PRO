@@ -15,6 +15,12 @@ import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
 
+// Keeps the node's edit panel a constant on-screen size. It lives inside the
+// world layer (so canvas panning moves it for free, via that layer's imperative
+// transform), and this cancels out the layer's scale(k). --canvas-zoom is
+// published by canvas-surface's applyViewportStyles on every gesture frame.
+const PANEL_INVERSE_ZOOM = "translateX(-50%) scale(calc(1 / var(--canvas-zoom, 1)))";
+
 // Edge-glow pointer tracking (ported from the react-bits BorderGlow pattern,
 // minus its mesh-gradient border swap which would fight the card's real
 // border/boxShadow selection styling). Only ever invoked while `hovered` is
@@ -373,7 +379,9 @@ export const CanvasNode = React.memo(function CanvasNode({
         const usableBottom = Math.min(surfaceRect.bottom, viewportBottom, toolbarRect ? toolbarRect.top - 16 : surfaceRect.bottom);
         const availableWidth = Math.max(0, usableRight - usableLeft);
         const renderedScale = Math.max(nodeRect.width / (nodeElement.offsetWidth || 1), 0.01);
-        const nextMaxWidth = availableWidth > 0 ? availableWidth / renderedScale : undefined;
+        // The panel renders 1:1 on screen thanks to PANEL_INVERSE_ZOOM, so the
+        // usable width applies directly instead of being divided by the zoom.
+        const nextMaxWidth = availableWidth > 0 ? availableWidth : undefined;
         const currentOffset = panelOffsetXRef.current * renderedScale;
         const centeredPanelLeft = panelRect.left - currentOffset;
         const centeredPanelRight = panelRect.right - currentOffset;
@@ -540,8 +548,14 @@ export const CanvasNode = React.memo(function CanvasNode({
                     data-canvas-no-drag
                     data-canvas-node-panel
                     data-canvas-node-panel-placement={panelPlacement}
-                    className={`absolute left-1/2 z-[70] w-[560px] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
-                    style={{ marginLeft: panelOffsetX, maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)", maxWidth: panelMaxWidth }}
+                    className={`absolute left-1/2 z-[70] w-[560px] max-w-[calc(100vw-2rem)] overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
+                    style={{
+                        marginLeft: panelOffsetX,
+                        maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)",
+                        maxWidth: panelMaxWidth,
+                        transform: PANEL_INVERSE_ZOOM,
+                        transformOrigin: panelPlacement === "top" ? "bottom center" : "top center",
+                    }}
                 >
                     {renderPanel(data)}
                 </div>

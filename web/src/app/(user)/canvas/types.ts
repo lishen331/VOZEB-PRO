@@ -188,6 +188,8 @@ export type CanvasNodeMetadata = {
     batchUsesReferenceImages?: boolean;
     primaryImageId?: string;
     imageBatchExpanded?: boolean;
+    /** On a batch root: thumbnail cache of the batch children so the collapsed card stack can preview them without the hidden child nodes. */
+    batchMemberSnapshots?: CanvasGroupMemberSnapshot[];
     /** On a Group node: ordered member node ids driving the storyboard grid. */
     groupMemberIds?: string[];
     /** On a member node: id of the Group node that currently owns it. */

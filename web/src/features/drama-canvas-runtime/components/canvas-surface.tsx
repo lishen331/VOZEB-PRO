@@ -297,7 +297,25 @@ export function CanvasSurface({
 
     const applyViewportStyles = useCallback(
         (next: ViewportTransform) => {
-            if (worldLayerRef.current) worldLayerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+            if (worldLayerRef.current) {
+                worldLayerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+                // Published for descendants that must stay a constant on-screen
+                // size (node edit panel, node-create menu). Written here rather
+                // than derived from React state because panning/zooming updates
+                // the DOM directly and only commits to state after the gesture.
+                worldLayerRef.current.style.setProperty("--canvas-zoom", String(next.k));
+            }
+            // Screen-space siblings of this surface (the node hover toolbar) need
+            // the same values, but CSS variables only inherit downward — so publish
+            // them on our parent, which is the common ancestor. Same imperative
+            // reasoning as above: reading these from React state would make the
+            // toolbar visibly lag behind the canvas for a whole gesture.
+            const sharedScope = surfaceRef.current?.parentElement;
+            if (sharedScope) {
+                sharedScope.style.setProperty("--canvas-zoom", String(next.k));
+                sharedScope.style.setProperty("--canvas-pan-x", `${next.x}px`);
+                sharedScope.style.setProperty("--canvas-pan-y", `${next.y}px`);
+            }
             if (!backgroundLayerRef.current) return;
             const gridSize = canvasGridSize(backgroundMode, next.k);
             backgroundLayerRef.current.style.backgroundSize = `${gridSize}px ${gridSize}px`;
@@ -776,7 +794,13 @@ export function CanvasSurface({
         flushFrame();
         commitViewport();
     }, [commitViewport, flushFrame]);
-    const worldStyle: CSSProperties = { transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`, transformOrigin: "0 0" };
+    const worldStyle: CSSProperties = {
+        transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`,
+        transformOrigin: "0 0",
+        // Keep in sync with applyViewportStyles — this covers the first paint
+        // and any React-driven re-render; that function covers live gestures.
+        ["--canvas-zoom" as string]: String(displayViewport.k),
+    };
     const canvasStyle: CSSProperties = { background: theme.canvas.backdrop, color: theme.node.text, touchAction: "none", cursor: temporaryPan || interactionMode === "pan" ? "grab" : "default" };
     const gridSize = canvasGridSize(backgroundMode, displayViewport.k);
     const selectionStyle = boxSelection

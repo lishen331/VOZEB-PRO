@@ -120,11 +120,19 @@ export function CanvasNodeHoverToolbar({
 
     if (!node) return null;
 
-    const left = viewport.x + (node.position.x + node.width / 2) * viewport.k;
-    const top = viewport.y + node.position.y * viewport.k - 12;
+    // Position is expressed in CSS so it tracks pan/zoom with zero lag. The
+    // --canvas-* variables are published imperatively by canvas-surface on every
+    // gesture frame; the React `viewport` prop only catches up ~140ms after a
+    // gesture ends, which made the toolbar drift and then snap into place.
+    const nodeCenterX = node.position.x + node.width / 2;
+    const left = `calc(var(--canvas-pan-x, ${viewport.x}px) + ${nodeCenterX} * var(--canvas-zoom, ${viewport.k}) * 1px)`;
+    const top = `calc(var(--canvas-pan-y, ${viewport.y}px) + ${node.position.y} * var(--canvas-zoom, ${viewport.k}) * 1px - 12px)`;
     const safeViewportWidth = toolbarMetrics.viewportWidth || 0;
     const safeToolbarWidth = Math.min(toolbarMetrics.width || 0, Math.max(0, safeViewportWidth - 32));
-    const toolbarLeft = safeViewportWidth && safeToolbarWidth ? Math.min(Math.max(left, safeToolbarWidth / 2 + 16), safeViewportWidth - safeToolbarWidth / 2 - 16) : left;
+    // Keep the toolbar fully on screen. Done in CSS so the clamp re-evaluates
+    // mid-gesture along with `left` above; the bounds still come from the real
+    // measured toolbar width, which only JS can know.
+    const toolbarLeft = safeViewportWidth && safeToolbarWidth ? `clamp(${safeToolbarWidth / 2 + 16}px, ${left}, ${safeViewportWidth - safeToolbarWidth / 2 - 16}px)` : left;
     const isImage = isCanvasImageNodeType(node.type);
     const isPanorama = node.type === CanvasNodeType.Panorama;
     const isVideo = node.type === CanvasNodeType.Video;

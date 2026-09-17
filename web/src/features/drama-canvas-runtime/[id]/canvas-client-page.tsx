@@ -527,8 +527,11 @@ function VozebProCanvasPage() {
                     }}
                     onViewportCommit={(next) => {
                         setViewport(next);
+                        // The context menu is screen-anchored, so a viewport change
+                        // orphans it — close it. The node-create menu is anchored to
+                        // a world position and scale-compensated, so it correctly
+                        // follows pan/zoom and must survive this commit.
                         setContextMenu(null);
-                        setNodeCreatePosition(null);
                     }}
                     onConnect={({ source, target }) => connectNodes({ nodeId: source, handleType: "source" }, target)}
                     onConnectionCreate={({ nodeId, handleType, position }) => setPendingConnectionCreate({ connection: { nodeId, handleType }, position })}

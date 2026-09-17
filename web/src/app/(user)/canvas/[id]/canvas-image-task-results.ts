@@ -66,8 +66,15 @@ export function applyCanvasImageTaskResults(
         ];
     });
 
-    if (batchRootId && extraIds.length) {
-        next = next.map((node) => (node.id === batchRootId ? { ...node, metadata: { ...node.metadata, batchChildIds: Array.from(new Set([...(node.metadata?.batchChildIds || []), ...extraIds])) } } : node));
+    if (batchRootId) {
+        const memberSnapshots = next
+            .filter((node) => node.metadata?.batchRootId === batchRootId && (node.metadata?.content || node.metadata?.serverUrl))
+            .map((node) => ({ id: node.id, content: node.metadata?.content || node.metadata?.serverUrl || "", width: node.metadata?.naturalWidth || node.width, height: node.metadata?.naturalHeight || node.height }));
+        next = next.map((node) =>
+            node.id === batchRootId
+                ? { ...node, metadata: { ...node.metadata, batchChildIds: extraIds.length ? Array.from(new Set([...(node.metadata?.batchChildIds || []), ...extraIds])) : node.metadata?.batchChildIds, batchMemberSnapshots: memberSnapshots } }
+                : node,
+        );
     }
     return next;
 }
