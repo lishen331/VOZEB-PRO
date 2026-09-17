@@ -219,6 +219,27 @@ describe("one-click-film shot card UI", () => {
         expect(crud).toContain("propIds?: string[]");
     });
 
+    it("offers standalone storyboard regeneration for one episode", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        // 对应 L GET /storyboards/episode/:episode_id/generate。
+        // V 此前只能跑完整 7 步工作流，改完剧本没法只重拆本集分镜。
+        expect(source).toContain("/storyboards/generate");
+        expect(source).toContain('aria-label="重新拆解本集分镜"');
+        // 破坏性操作要有二次确认
+        expect(source).toContain("<Popconfirm");
+    });
+
+    it("reuses the same storyboard_extract child workflow as the executor", async () => {
+        const route = await readFile(resolve(process.cwd(), "src/app/api/one-click-film/projects/[id]/episodes/[episodeId]/storyboards/generate/route.ts"), "utf8");
+        // 必须复用 executor 那条子工作流，否则提示词契约会分叉
+        expect(route).toContain('mode: "storyboard_extract"');
+        expect(route).toContain('scope: "current"');
+        expect(route).toContain("startDramaLabWorkflow");
+        expect(route).toContain('startsWith("one-click-film:")');
+        // L 在剧本为空时报错而不是产出空分镜
+        expect(route).toContain("剧本内容为空");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");

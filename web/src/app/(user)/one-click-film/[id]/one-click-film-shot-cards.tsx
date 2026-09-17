@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, Empty, Segmented, Tag, Tooltip, message } from "antd";
-import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Maximize2, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
+import { Button, Empty, Popconfirm, Segmented, Tag, Tooltip, message } from "antd";
+import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Maximize2, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
@@ -44,6 +44,20 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
             setBusyShotId(undefined);
         }
     };
+
+    /**
+     * 重新拆解本集分镜，对应 L `GET /storyboards/episode/:episode_id/generate`。
+     *
+     * V 此前只能跑完整 7 步工作流，改完剧本没法只重拆分镜。这里走同一个
+     * storyboard_extract 子工作流，所以提示词契约与落库字段一致。
+     */
+    const regenerateStoryboards = () =>
+        run(undefined, async () => {
+            await callJson(`${base}/episodes/${encodeURIComponent(episode.id)}/storyboards/generate`, { method: "POST" });
+            const refreshed = await callJson(`${base}`, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project);
+            message.success("分镜拆解已完成");
+        });
 
     /**
      * 批量补全本集分镜的摄影参数，对应 L `POST /storyboards/batch-infer-params`。
@@ -189,6 +203,11 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
             <div className="flex items-center justify-between gap-2">
                 <b>分镜（{episode.shots.length}）</b>
                 <div className="flex items-center gap-2">
+                    <Popconfirm title="重新拆解本集分镜？" description="会按当前剧本重新生成分镜，已生成的图与视频不会被删除。" okText="重新拆解" cancelText="取消" onConfirm={() => void regenerateStoryboards()}>
+                        <Button size="small" icon={<RefreshCcw className="size-4" />} loading={busyShotId === "__collection__"} aria-label="重新拆解本集分镜">
+                            重新拆解分镜
+                        </Button>
+                    </Popconfirm>
                     <Tooltip title="按镜头类型与情绪推断缺失的摄影参数，不调用模型">
                         <Button size="small" icon={<Aperture className="size-4" />} loading={busyShotId === "__collection__"} onClick={() => void batchInferParams()} aria-label="批量补全摄影参数">
                             补全摄影参数
