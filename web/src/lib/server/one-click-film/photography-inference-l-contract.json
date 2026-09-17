@@ -56,107 +56,45 @@
     ],
     "movementAliases": [
         {
-            "keys": [
-                "固定",
-                "不动",
-                "static",
-                "locked"
-            ],
+            "keys": ["固定", "不动", "static", "locked"],
             "value": "static"
         },
         {
-            "keys": [
-                "推镜",
-                "推进",
-                "推",
-                "push in",
-                "dolly in",
-                "push"
-            ],
+            "keys": ["推镜", "推进", "推", "push in", "dolly in", "push"],
             "value": "push"
         },
         {
-            "keys": [
-                "拉镜",
-                "拉出",
-                "拉",
-                "pull back",
-                "dolly out",
-                "pull"
-            ],
+            "keys": ["拉镜", "拉出", "拉", "pull back", "dolly out", "pull"],
             "value": "pull"
         },
         {
-            "keys": [
-                "横移",
-                "横摇",
-                "摇镜",
-                "摇",
-                "pan"
-            ],
+            "keys": ["横移", "横摇", "摇镜", "摇", "pan"],
             "value": "pan"
         },
         {
-            "keys": [
-                "纵摇",
-                "上摇",
-                "下摇",
-                "tilt"
-            ],
+            "keys": ["纵摇", "上摇", "下摇", "tilt"],
             "value": "tilt"
         },
         {
-            "keys": [
-                "跟镜",
-                "跟拍",
-                "跟随",
-                "track"
-            ],
+            "keys": ["跟镜", "跟拍", "跟随", "track"],
             "value": "tracking"
         },
         {
-            "keys": [
-                "升镜",
-                "向上",
-                "crane up"
-            ],
+            "keys": ["升镜", "向上", "crane up"],
             "value": "crane_up"
         },
         {
-            "keys": [
-                "降镜",
-                "向下",
-                "crane down"
-            ],
+            "keys": ["降镜", "向下", "crane down"],
             "value": "crane_dn"
         },
         {
-            "keys": [
-                "环绕",
-                "绕",
-                "orbit",
-                "arc"
-            ],
+            "keys": ["环绕", "绕", "orbit", "arc"],
             "value": "orbit"
         },
         {
-            "keys": [
-                "手持",
-                "handheld"
-            ],
+            "keys": ["手持", "handheld"],
             "value": "handheld"
         }
     ],
-    "movementEnums": [
-        "static",
-        "push",
-        "pull",
-        "pan",
-        "tilt",
-        "tracking",
-        "crane_up",
-        "crane_dn",
-        "orbit",
-        "handheld"
-    ]
+    "movementEnums": ["static", "push", "pull", "pan", "tilt", "tracking", "crane_up", "crane_dn", "orbit", "handheld"]
 }

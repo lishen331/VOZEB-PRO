@@ -711,8 +711,7 @@ export function BatchFrame({
                 <div className="pointer-events-none absolute inset-0 overflow-visible">
                     {behindCards.map((snapshot, index) => {
                         const spread = behindCards.length > 1 ? index / (behindCards.length - 1) - 0.5 : 0;
-                        const restTransform =
-                            batchOpening || batchRecovering ? `translate(${8 + index * 6}px, ${26 + index * 20}px) scale(.98)` : `translate(${6 + index * 5}px, ${18 + index * 16}px)`;
+                        const restTransform = batchOpening || batchRecovering ? `translate(${8 + index * 6}px, ${26 + index * 20}px) scale(.98)` : `translate(${6 + index * 5}px, ${18 + index * 16}px)`;
                         const fannedTransform = `translate(${spread * (58 + behindCards.length * 12)}px, ${34 + index * 6}px) rotate(${spread * 16}deg)`;
                         return (
                             <div
@@ -728,9 +727,7 @@ export function BatchFrame({
                                     zIndex: -index - 1,
                                 }}
                             >
-                                {snapshot?.content ? (
-                                    <img src={imagePreviewUrl(snapshot.content, 320)} alt="" draggable={false} loading="lazy" decoding="async" className="pointer-events-none size-full select-none object-cover" />
-                                ) : null}
+                                {snapshot?.content ? <img src={imagePreviewUrl(snapshot.content, 320)} alt="" draggable={false} loading="lazy" decoding="async" className="pointer-events-none size-full select-none object-cover" /> : null}
                             </div>
                         );
                     })}
