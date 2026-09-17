@@ -201,14 +201,12 @@ export async function POST(request: Request) {
                 if (geminiVideo) assertGeminiVideoReferences(references);
                 else {
                     assertReferenceCapabilities(
-                        globalPreset
-                            ? {
-                                  ...channel.advancedConfig!,
-                                  supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset.supportsReferenceImage),
-                                  supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset.supportsReferenceVideo),
-                                  supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset.supportsReferenceAudio),
-                              }
-                            : channel.advancedConfig,
+                        {
+                            ...channel.advancedConfig!,
+                            supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset ? globalPreset.supportsReferenceImage : channel.advancedConfig?.supportsReferenceImage),
+                            supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset ? globalPreset.supportsReferenceVideo : channel.advancedConfig?.supportsReferenceVideo),
+                            supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset ? globalPreset.supportsReferenceAudio : channel.advancedConfig?.supportsReferenceAudio),
+                        },
                         references,
                     );
                     if (channel.advancedConfig?.protocol !== "yumeng") assertVideoReferenceRoles(channel.advancedConfig, references, globalPreset?.videoReferenceRoles);
@@ -329,14 +327,12 @@ export async function POST(request: Request) {
                         assertGeminiVideoReferences(references);
                     } else {
                         assertReferenceCapabilities(
-                            globalPreset
-                                ? {
-                                      ...channel.advancedConfig!,
-                                      supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset.supportsReferenceImage),
-                                      supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset.supportsReferenceVideo),
-                                      supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset.supportsReferenceAudio),
-                                  }
-                                : channel.advancedConfig,
+                            {
+                                ...channel.advancedConfig!,
+                                supportsReferenceImage: channel.capabilityProfile?.supportsReferenceImage ?? Boolean(globalPreset ? globalPreset.supportsReferenceImage : channel.advancedConfig?.supportsReferenceImage),
+                                supportsReferenceVideo: channel.capabilityProfile?.supportsReferenceVideo ?? Boolean(globalPreset ? globalPreset.supportsReferenceVideo : channel.advancedConfig?.supportsReferenceVideo),
+                                supportsReferenceAudio: channel.capabilityProfile?.supportsReferenceAudio ?? Boolean(globalPreset ? globalPreset.supportsReferenceAudio : channel.advancedConfig?.supportsReferenceAudio),
+                            },
                             references,
                         );
                         if (channel.advancedConfig?.protocol !== "yumeng") assertVideoReferenceRoles(channel.advancedConfig, references, globalPreset?.videoReferenceRoles);
