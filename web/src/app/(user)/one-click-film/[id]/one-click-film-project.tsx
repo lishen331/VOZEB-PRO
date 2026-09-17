@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Popconfirm, Select, Spin, Tag, Progress, message, Input } from "antd";
+import { Alert, Button, Popconfirm, Select, Spin, Tag, Tooltip, Progress, message, Input } from "antd";
 import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -21,7 +21,7 @@ export default function OneClickFilmProject() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
     const [task, setTask] = useState<{ id: string; status: string; progress: number; currentStep?: string; steps: Array<{ key: string; label: string; status: string; error?: string }> }>();
-    const [starting, setStarting] = useState(false);
+    const [starting, setStarting] = useState<"full" | "text_framework">();
     const [episodeTitle, setEpisodeTitle] = useState("第 1 集");
     const [episodeScript, setEpisodeScript] = useState("");
     const [savingEpisode, setSavingEpisode] = useState(false);
@@ -56,13 +56,24 @@ export default function OneClickFilmProject() {
         },
         [projectId],
     );
-    const startWorkflow = async () => {
-        setStarting(true);
+    /**
+     * 启动工作流。L §2 有两个入口：
+     * - `full`：一键成片带图片视频（`startOneClickPipeline`）
+     * - `text_framework`：生成文本框架（`startTextFrameworkPipeline`，仅提取资产与分镜文本）
+     *
+     * 模式经 options 传给服务端，由引擎把媒体步骤标为 skipped —— 不是前端假装跳过。
+     */
+    const startWorkflow = async (mode: "full" | "text_framework" = "full") => {
+        setStarting(mode);
         try {
             const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/tasks`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ episodeId: project?.episodes[0]?.id, clientRequestId: `one-click-ui:${projectId}:${Date.now()}` }),
+                body: JSON.stringify({
+                    episodeId: project?.episodes[0]?.id,
+                    clientRequestId: `one-click-ui:${mode}:${projectId}:${Date.now()}`,
+                    ...(mode === "text_framework" ? { options: { mode: "text_framework" } } : {}),
+                }),
             });
             const payload = (await response.json()) as { code?: number; data?: { task?: typeof task }; msg?: string };
             if (!response.ok || payload.code !== 0 || !payload.data?.task) throw new Error(payload.msg || "一键成片任务创建失败");
@@ -70,7 +81,7 @@ export default function OneClickFilmProject() {
         } catch (startError) {
             message.error(startError instanceof Error ? startError.message : "一键成片任务创建失败");
         } finally {
-            setStarting(false);
+            setStarting(undefined);
         }
     };
     const cancelWorkflow = async () => {
@@ -400,9 +411,16 @@ export default function OneClickFilmProject() {
                             <Tag>{project.episodes.length} 集</Tag>
                             <Tag>{project.episodes.reduce((sum, episode) => sum + episode.shots.length, 0)} 分镜</Tag>
                             {!task || task.status === "success" ? (
-                                <Button type="primary" loading={starting} aria-label="一键成片带图片视频" onClick={() => void startWorkflow()}>
-                                    一键成片带图片视频
-                                </Button>
+                                <>
+                                    <Button type="primary" loading={starting === "full"} disabled={Boolean(starting)} aria-label="一键成片带图片视频" onClick={() => void startWorkflow("full")}>
+                                        一键成片带图片视频
+                                    </Button>
+                                    <Tooltip title="仅提取角色、场景、道具与生成分镜文本，不生成图片与视频">
+                                        <Button loading={starting === "text_framework"} disabled={Boolean(starting)} aria-label="生成文本框架" onClick={() => void startWorkflow("text_framework")}>
+                                            生成文本框架
+                                        </Button>
+                                    </Tooltip>
+                                </>
                             ) : null}
                             {task && ["pending", "running"].includes(task.status) ? (
                                 <Button danger aria-label="取消一键成片任务" onClick={() => void cancelWorkflow()}>

@@ -9,6 +9,19 @@ const STEPS: Array<[OneClickFilmStep["key"], string]> = [
     ["audio", "配音"],
     ["compose", "成片"],
 ];
+
+/**
+ * L「生成文本框架」跳过的步骤。
+ *
+ * 对应 L `startTextFrameworkPipeline`（其 title 写明「仅提取角色、场景、道具与生成分镜文本，
+ * 不生成图片与视频」）。靠既有的 `skipped` 状态实现：`advanceOneClickFilmWorkflow` 已经会
+ * 跳过 success/skipped 的步骤，所以不必另写一条推进路径。
+ *
+ * 标 skipped 而不是从 steps 里删掉：步骤列表要让用户看到"这几步被跳过了"，
+ * 而且 view 的 progress 分母依赖完整步骤数。
+ */
+const TEXT_FRAMEWORK_SKIPPED: ReadonlySet<OneClickFilmStep["key"]> = new Set(["images", "videos", "audio", "compose"]);
+
 export function createOneClickFilmWorkflow(input: OneClickFilmStartInput): OneClickFilmTask {
     const now = Date.now();
     return {
@@ -18,7 +31,7 @@ export function createOneClickFilmWorkflow(input: OneClickFilmStartInput): OneCl
         taskKind: "one-click-film-workflow",
         source: ONE_CLICK_FILM_SOURCE,
         status: "pending",
-        title: "一键成片",
+        title: textFrameworkOnly(input) ? "生成文本框架" : "一键成片",
         clientRequestId: input.clientRequestId,
         projectId: input.projectId,
         createdAt: now,
@@ -31,7 +44,14 @@ export function createOneClickFilmWorkflow(input: OneClickFilmStartInput): OneCl
             episodeIds: input.episodeIds,
             options: input.options || {},
             inputSnapshot: input.inputSnapshot || {},
-            steps: STEPS.map(([key, label]) => ({ key, label, status: "pending", attempts: 0, childTaskIds: [], outputRefs: [] })),
+            steps: STEPS.map(([key, label]) => ({
+                key,
+                label,
+                status: textFrameworkOnly(input) && TEXT_FRAMEWORK_SKIPPED.has(key) ? ("skipped" as const) : ("pending" as const),
+                attempts: 0,
+                childTaskIds: [],
+                outputRefs: [],
+            })),
             currentStepIndex: 0,
             childTaskIds: [],
             outputRefs: [],
@@ -39,6 +59,11 @@ export function createOneClickFilmWorkflow(input: OneClickFilmStartInput): OneCl
         },
     };
 }
+/** 是否只跑文本框架（L 的第二个入口）。模式放在 options 里，避免改动 StartInput 的既有形状。 */
+function textFrameworkOnly(input: OneClickFilmStartInput) {
+    return input.options?.mode === "text_framework";
+}
+
 export function oneClickFilmTaskView(task: OneClickFilmTask): OneClickFilmTaskView {
     const done = task.workflow.steps.filter((step) => step.status === "success" || step.status === "skipped").length;
     return {
