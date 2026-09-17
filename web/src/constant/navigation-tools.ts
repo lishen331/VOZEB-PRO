@@ -1,4 +1,4 @@
-import { BookMarked, Clapperboard, Compass, FileText, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
+import { BookMarked, Clapperboard, Compass, FileText, Film, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
 
 import type { SchoolContext } from "@/lib/school-domain";
 import { featureModuleForNavigationSlug, type FeatureModuleSettings } from "@/lib/feature-modules";
@@ -99,6 +99,14 @@ const practiceNavigationTool = {
     icon: Sparkles,
 } as const;
 
+const oneClickFilmNavigationTool = {
+    slug: "one-click-film",
+    label: "一键成片",
+    description: "完整短剧一键成片工作流",
+    group: "projects",
+    icon: Film,
+} as const;
+
 const dramaWorkflowLabNavigationTool = {
     slug: "drama-lab",
     label: "创作工坊",
@@ -170,13 +178,13 @@ export function schoolNavigationTools(context: SchoolContext | null) {
     return [teacherNavigationTool, ...(context.canManageSchool ? ([schoolManagementNavigationTool] as const) : [])] as const;
 }
 
-export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school" | "drama-lab";
+export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school" | "drama-lab" | "one-click-film";
 export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
 export function navigationToolsForContext(context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
     const schoolTools = schoolNavigationTools(context);
     // 默认包含创作工坊（如果环境变量启用）
-    const candidates = [...(schoolTools.length ? [practiceNavigationTool] : []), ...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool]), ...schoolTools];
+    const candidates = [...(schoolTools.length ? [practiceNavigationTool] : []), ...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool, oneClickFilmNavigationTool]), ...schoolTools];
     return candidates.filter((tool) => {
         const featureModule = featureModuleForNavigationSlug(tool.slug);
         return !featureModule || options.featureModules?.[featureModule] !== false;

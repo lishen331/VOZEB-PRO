@@ -92,6 +92,7 @@ async function processGenerationTaskLeaseCore(lease: GenerationTaskLease, worker
     if (lease.type === "agent") return processAgentLease(lease, workerId, origin, cookie);
     if (lease.type === "render") {
         if (lease.payload?.taskKind === DRAMA_LAB_FINAL_VIDEO_TASK_KIND) return processDramaLabFinalVideoLease(lease, workerId, origin, cookie);
+        if (lease.payload?.taskKind === "one-click-film-workflow") return processOneClickFilmLease(lease, workerId, origin, cookie);
         return processDramaWorkflowLease(lease, workerId, origin, cookie);
     }
     if (lease.type !== "video") {
@@ -101,6 +102,27 @@ async function processGenerationTaskLeaseCore(lease: GenerationTaskLease, worker
     return processVideoLease(lease, workerId, origin, cookie, userRequested);
 }
 
+async function processOneClickFilmLease(lease: GenerationTaskLease, workerId: string, origin: string, cookie: string): Promise<RecoveryResult> {
+    const now = Date.now();
+    try {
+        const { advanceOneClickFilm, createOneClickFilmExecutor } = await import("@/lib/server/one-click-film/worker");
+        const task = await advanceOneClickFilm(lease.id, lease.userId, createOneClickFilmExecutor({ origin, cookie: cookie || maintenanceWorkerContext(lease.userId) }));
+        if (!task) {
+            await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: "one_click_missing" });
+            return "failed";
+        }
+        if (["success", "error", "cancelled"].includes(task.status)) {
+            await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: `one_click_${task.status}` });
+            return task.status === "error" ? "failed" : "completed";
+        }
+        await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "polling", nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }), lastPollAt: now, lastUpstreamStatus: `one_click_${task.status}` });
+        return "pending";
+    } catch (error) {
+        await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "polling", nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }), lastPollAt: now, lastUpstreamStatus: "one_click_error" });
+        console.warn("One click film recovery deferred", { taskId: lease.id, error: safeError(error) });
+        return "deferred";
+    }
+}
 /** Execute the dedicated final-video snapshot through the same durable render lease. */
 async function processDramaLabFinalVideoLease(lease: GenerationTaskLease, workerId: string, origin: string, cookie: string): Promise<RecoveryResult> {
     const now = Date.now();

@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Spin, Tag, Progress, message, Input } from "antd";
+import { Alert, Button, Spin, Tag, Progress, message, Input, Select, Switch } from "antd";
 import { ArrowLeft, ExternalLink, Film, PanelsTopLeft, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -20,6 +20,10 @@ export default function OneClickFilmProject() {
     const [episodeScript, setEpisodeScript] = useState("");
     const [savingEpisode, setSavingEpisode] = useState(false);
     const [importing, setImporting] = useState(false);
+    const [activeShotId, setActiveShotId] = useState<string>();
+    const [universalDraft, setUniversalDraft] = useState("");
+    const [forceNoRef, setForceNoRef] = useState(false);
+    const [universalBusy, setUniversalBusy] = useState<"generate" | "polish">();
     const loadProject = useCallback(async () => {
         setLoading(true);
         try {
@@ -138,6 +142,28 @@ export default function OneClickFilmProject() {
             setSavingEpisode(false);
         }
     };
+    const activeShot = project?.episodes[0]?.shots.find((shot) => shot.id === activeShotId);
+    const runUniversalPrompt = async (mode: "generate" | "polish") => {
+        if (!project || !activeShot) return message.warning("请先选择一个分镜");
+        if (mode === "polish" && !universalDraft.trim()) return message.warning("请先生成或填写全能片段描述后再润色");
+        setUniversalBusy(mode);
+        try {
+            const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/shots/${encodeURIComponent(activeShot.id)}/universal-prompt`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mode, duration: activeShot.duration, draft: universalDraft, forceWithoutReferenceImages: forceNoRef }),
+            });
+            const payload = (await response.json()) as { code?: number; data?: { universalSegmentText?: string }; msg?: string };
+            if (!response.ok || payload.code !== 0 || !payload.data?.universalSegmentText) throw new Error(payload.msg || "全能提示词生成失败");
+            setUniversalDraft(payload.data.universalSegmentText);
+            await loadProject();
+            message.success(mode === "polish" ? "已润色全能片段描述" : "已生成全能片段描述");
+        } catch (promptError) {
+            message.error(promptError instanceof Error ? promptError.message : "全能提示词生成失败");
+        } finally {
+            setUniversalBusy(undefined);
+        }
+    };
     if (loading)
         return (
             <div className="flex h-full items-center justify-center">
@@ -254,6 +280,38 @@ export default function OneClickFilmProject() {
                                         </li>
                                     ))}
                                 </ol>
+                            </div>
+                        ) : null}
+                        {project.episodes[0]?.shots.length ? (
+                            <div className="mt-5 rounded-lg border p-4">
+                                <div className="flex items-center justify-between gap-2">
+                                    <b>全能片段描述（L 全能分镜提示词）</b>
+                                    <Select
+                                        size="small"
+                                        style={{ minWidth: 220 }}
+                                        placeholder="选择分镜"
+                                        value={activeShotId}
+                                        onChange={(value) => {
+                                            setActiveShotId(value);
+                                            const shot = project.episodes[0]?.shots.find((item) => item.id === value);
+                                            setUniversalDraft(shot?.universalSegmentText || "");
+                                        }}
+                                        options={project.episodes[0]?.shots.map((shot, index) => ({ value: shot.id, label: `分镜 ${index + 1} · ${shot.title || "未命名"}` }))}
+                                    />
+                                </div>
+                                <Input.TextArea className="mt-3" rows={6} value={universalDraft} onChange={(event) => setUniversalDraft(event.target.value)} placeholder="点击生成，或手动填写后再润色" />
+                                <div className="mt-3 flex flex-wrap items-center gap-3">
+                                    <Button loading={universalBusy === "generate"} disabled={!activeShot} onClick={() => void runUniversalPrompt("generate")}>
+                                        生成全能提示词
+                                    </Button>
+                                    <Button loading={universalBusy === "polish"} disabled={!activeShot || !universalDraft.trim()} onClick={() => void runUniversalPrompt("polish")}>
+                                        润色
+                                    </Button>
+                                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Switch size="small" checked={forceNoRef} onChange={setForceNoRef} />
+                                        无参考图仍强制生成
+                                    </label>
+                                </div>
                             </div>
                         ) : null}
                         {episodeId ? (
