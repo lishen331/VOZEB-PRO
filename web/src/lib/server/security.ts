@@ -34,7 +34,7 @@ const generationRateLimits: Record<GenerationRateLimitType, RateLimitConfig> = {
 };
 
 const mediaProxyRateLimit: RateLimitConfig = { maxRequests: 120, windowMs: 60 * 1000 };
-const localMediaRateLimit: RateLimitConfig = { maxRequests: 240, windowMs: 60 * 1000 };
+const localMediaRateLimit: RateLimitConfig = { maxRequests: 600, windowMs: 60 * 1000 };
 const signedMediaRateLimit: RateLimitConfig = { maxRequests: 60, windowMs: 60 * 1000 };
 const publicMediaResourceRateLimit: RateLimitConfig = { maxRequests: 2400, windowMs: 60 * 1000 };
 const publicMediaIpRateLimit: RateLimitConfig = { maxRequests: 240, windowMs: 60 * 1000 };
