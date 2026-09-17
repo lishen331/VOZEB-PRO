@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Popconfirm, Spin, Tag, Progress, message, Input } from "antd";
+import { Alert, Button, Popconfirm, Select, Spin, Tag, Progress, message, Input } from "antd";
 import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -299,35 +299,26 @@ export default function OneClickFilmProject() {
                             </div>
                             <h1 className="mt-2 text-2xl font-semibold">{project.title}</h1>
                         </div>
-                        <div className="flex gap-2">
-                            <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProject()}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* L header 只放导航与集数切换；成片相关按钮归 §6，不在此重复 */}
+                            {project.episodes.length > 0 ? (
+                                <Select
+                                    size="middle"
+                                    style={{ minWidth: 130 }}
+                                    placeholder="选择集数"
+                                    value={episodeId}
+                                    aria-label="选择集数"
+                                    options={project.episodes.map((item, index) => ({ value: item.id, label: item.title || `第 ${item.episodeNumber ?? index + 1} 集` }))}
+                                    onChange={() => message.info("当前工作区固定处理第 1 集，多集切换将随分集管理一并接入")}
+                                />
+                            ) : null}
+                            <Button icon={<RefreshCcw className="size-4" />} aria-label="刷新项目" onClick={() => void loadProject()}>
                                 刷新
                             </Button>
                             {canvasHref ? (
-                                <Button icon={<PanelsTopLeft className="size-4" />} href={canvasHref}>
-                                    打开平台画布
+                                <Button type="primary" icon={<PanelsTopLeft className="size-4" />} href={canvasHref} aria-label="画布模式">
+                                    画布模式
                                 </Button>
-                            ) : null}
-                            {episodeId ? (
-                                <Button icon={<Clapperboard className="size-4" />} loading={renderBusy || renderTask?.status === "pending" || renderTask?.status === "running"} aria-label="合成本集成片" onClick={() => void startRender()}>
-                                    合成本集成片
-                                </Button>
-                            ) : null}
-                            {episodeId && renderTask?.result?.artifactId ? (
-                                <Button
-                                    icon={<Download className="size-4" />}
-                                    href={`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(episodeId)}/render/artifact/${encodeURIComponent(renderTask.result.artifactId)}?taskId=${encodeURIComponent(renderTask.id)}`}
-                                    aria-label="下载本集成片"
-                                >
-                                    下载成片
-                                </Button>
-                            ) : null}
-                            {episodeId && renderTask?.id ? (
-                                <Popconfirm title="删除本集成片记录？" description="仅删除成片记录，不影响分镜与素材。" okText="删除" cancelText="取消" onConfirm={() => void removeRenderRecord()}>
-                                    <Button danger icon={<Trash2 className="size-4" />} loading={renderRecordBusy} aria-label="删除本集成片记录">
-                                        删除成片记录
-                                    </Button>
-                                </Popconfirm>
                             ) : null}
                             <Button icon={<Download className="size-4" />} href={exportHref} aria-label="导出项目">
                                 导出项目
@@ -445,6 +436,24 @@ export default function OneClickFilmProject() {
                                 <Button icon={<ExternalLink className="size-4" />} href={canvasHref} aria-label="打开本集画布">
                                     打开本集画布
                                 </Button>
+                            ) : null}
+                            {/* 对应 L `GET .../download`：成片产物下载 */}
+                            {episodeId && renderTask?.result?.artifactId ? (
+                                <Button
+                                    icon={<Download className="size-4" />}
+                                    href={`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(episodeId)}/render/artifact/${encodeURIComponent(renderTask.result.artifactId)}?taskId=${encodeURIComponent(renderTask.id)}`}
+                                    aria-label="下载成片"
+                                >
+                                    下载成片
+                                </Button>
+                            ) : null}
+                            {/* 对应 L `DELETE /video-merges/:id`：仅删记录，不动分镜与素材 */}
+                            {episodeId && renderTask?.id ? (
+                                <Popconfirm title="删除本集成片记录？" description="仅删除成片记录，不影响分镜与素材。" okText="删除" cancelText="取消" onConfirm={() => void removeRenderRecord()}>
+                                    <Button danger icon={<Trash2 className="size-4" />} loading={renderRecordBusy} aria-label="删除本集成片记录">
+                                        删除成片记录
+                                    </Button>
+                                </Popconfirm>
                             ) : null}
                             {!episodeId ? <p className="m-0 text-sm text-muted-foreground">当前项目还没有分集，请先添加分集。</p> : null}
                         </div>

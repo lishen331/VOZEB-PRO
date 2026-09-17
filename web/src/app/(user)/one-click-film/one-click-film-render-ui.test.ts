@@ -14,7 +14,8 @@ describe("one-click-film episode render UI", () => {
         const source = await readFile(workspacePath, "utf8");
         expect(source).toContain("/episodes/${encodeURIComponent(episodeId)}/render");
         expect(source).not.toContain("/api/drama-lab");
-        expect(source).toContain('aria-label="合成本集成片"');
+        // L §6 的按钮文案就是「合成视频」；此前 V 写的是「合成本集成片」，本轮对齐 L 改名。
+        expect(source).toContain('aria-label="合成视频"');
         expect(source).toContain("clientRequestId");
     });
 
@@ -41,7 +42,9 @@ describe("one-click-film episode render UI", () => {
         expect(source).toContain("renderTask?.result?.artifactId");
         expect(source).toContain("/render/artifact/");
         expect(source).toContain("taskId=");
-        expect(source).toContain('aria-label="下载本集成片"');
+        expect(source).toContain('aria-label="下载成片"');
+        // 成片相关入口必须集中在 §6，不能又回到 header 造成重复
+        expect(source).not.toContain('aria-label="合成本集成片"');
     });
 
     it("keeps the project export entry separate from the episode download", async () => {
