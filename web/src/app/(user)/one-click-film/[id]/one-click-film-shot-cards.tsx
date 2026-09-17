@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Empty, Popconfirm, Segmented, Tag, Tooltip, message } from "antd";
+import { Button, Empty, Input, Popconfirm, Segmented, Switch, Tag, Tooltip, message } from "antd";
 import { Aperture, ArrowUpToLine, Clapperboard, Film, ImageIcon, Link2, Maximize2, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
@@ -31,6 +31,10 @@ async function callJson(url: string, init?: RequestInit) {
 export function OneClickFilmShotCards({ projectId, project, episode, onProjectChange }: Props) {
     const [busyShotId, setBusyShotId] = useState<string>();
     const [editing, setEditing] = useState<DramaShot>();
+    /** 全能片段草稿：按分镜 id 存，避免多镜互相串写。 */
+    const [universalDrafts, setUniversalDrafts] = useState<Record<string, string>>({});
+    const [universalBusy, setUniversalBusy] = useState<{ shotId: string; mode: "generate" | "polish" }>();
+    const [forceNoRef, setForceNoRef] = useState(false);
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const query = `?episodeId=${encodeURIComponent(episode.id)}`;
 
@@ -58,6 +62,37 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
             if (refreshed?.project) onProjectChange(refreshed.project);
             message.success("分镜拆解已完成");
         });
+
+    /**
+     * 生成 / 润色全能片段描述，对应 L `POST /storyboards/:id/universal-segment-prompt`
+     * 与 `universal-segment-polish-stream` 的非流式等价物。
+     *
+     * L 把这个入口放在全能模式分镜的中栏（片段描述区），不是页面级的单选面板，
+     * 所以这里按分镜承载；`forceNoRef` 对应 L 菜单里的「不查图片强制生成/润色」。
+     */
+    const runUniversalPrompt = async (shot: DramaShot, mode: "generate" | "polish") => {
+        const draft = universalDrafts[shot.id] ?? shot.universalSegmentText ?? "";
+        if (mode === "polish" && !draft.trim()) {
+            message.warning("请先生成或填写全能片段描述后再润色");
+            return;
+        }
+        setUniversalBusy({ shotId: shot.id, mode });
+        try {
+            const data = (await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/universal-prompt${query}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mode, draft, forceWithoutReferenceImages: forceNoRef }),
+            })) as unknown as { universalSegmentText?: string } | undefined;
+            if (data?.universalSegmentText) setUniversalDrafts((prev) => ({ ...prev, [shot.id]: data.universalSegmentText as string }));
+            const refreshed = await callJson(`${base}`, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project);
+            message.success(mode === "polish" ? "已润色全能片段描述" : "已生成全能片段描述");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "全能提示词生成失败");
+        } finally {
+            setUniversalBusy(undefined);
+        }
+    };
 
     /**
      * 批量补全本集分镜的摄影参数，对应 L `POST /storyboards/batch-infer-params`。
@@ -257,6 +292,40 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                                     {state?.error ? <span className="text-red-500">{state.error}</span> : null}
                                                 </div>
                                             ))}
+                                    </div>
+                                ) : null}
+
+                                {shot.creationMode === "universal" ? (
+                                    <div className="mt-2 rounded-md border border-border bg-muted/30 p-2">
+                                        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                            <span>片段描述</span>
+                                            <span title="全能生视频链路：由片段描述与 @ 引用的资产共同驱动">（@ 可引用本集角色 / 场景 / 道具）</span>
+                                        </div>
+                                        <Input.TextArea
+                                            rows={5}
+                                            value={universalDrafts[shot.id] ?? shot.universalSegmentText ?? ""}
+                                            onChange={(event) => setUniversalDrafts((prev) => ({ ...prev, [shot.id]: event.target.value }))}
+                                            placeholder="例如：@图片1 为夜景街道，@图片2 从餐厅冲出停在光斑里，低头操作手机…"
+                                            aria-label={`分镜 ${index + 1} 全能片段描述`}
+                                        />
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                            <Button
+                                                size="small"
+                                                type="primary"
+                                                loading={universalBusy?.shotId === shot.id && universalBusy.mode === "generate"}
+                                                aria-label={`生成分镜 ${index + 1} 全能提示词`}
+                                                onClick={() => void runUniversalPrompt(shot, "generate")}
+                                            >
+                                                生成全能提示词
+                                            </Button>
+                                            <Button size="small" loading={universalBusy?.shotId === shot.id && universalBusy.mode === "polish"} aria-label={`润色分镜 ${index + 1} 全能提示词`} onClick={() => void runUniversalPrompt(shot, "polish")}>
+                                                润色全能提示词
+                                            </Button>
+                                            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                <Switch size="small" checked={forceNoRef} onChange={setForceNoRef} aria-label="不查图片强制生成/润色" />
+                                                不查图片强制生成/润色
+                                            </label>
+                                        </div>
                                     </div>
                                 ) : null}
 
