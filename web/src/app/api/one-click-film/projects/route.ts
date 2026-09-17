@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { readJsonBody } from "@/lib/auth/request";
 import { createDramaProjectForUser, listDramaProjectSummariesForUser, getDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { ensureDramaLabProjectGroup } from "@/lib/server/drama-lab-collaboration-service";
 export async function GET() {
@@ -14,7 +15,7 @@ export async function GET() {
 export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ code: 401, msg: "请先登录" }, { status: 401 });
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = (await readJsonBody(request).catch(() => ({}))) as Record<string, unknown>;
     const title = typeof body.title === "string" ? body.title.trim() : "";
     if (!title) return NextResponse.json({ code: 400, msg: "项目名称不能为空" }, { status: 400 });
     const project = await createDramaProjectForUser(

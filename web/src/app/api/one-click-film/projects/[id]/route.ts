@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { readJsonBody } from "@/lib/auth/request";
 import { getDramaProjectForUser, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +25,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         const { id } = await params;
         const existing = await getDramaProjectForUser(user.id, id);
         if (!existing.sourceHandoffId?.startsWith("one-click-film:")) return NextResponse.json({ code: 404, msg: "一键成片项目不存在" }, { status: 404 });
-        const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+        const body = (await readJsonBody(request).catch(() => ({}))) as Record<string, unknown>;
         const next = { ...existing, ...body, id: existing.id, sourceHandoffId: existing.sourceHandoffId, updatedAt: new Date().toISOString() };
         const project = await updateDramaProjectForUser(user.id, id, next);
         return NextResponse.json({ code: 0, data: { project }, msg: "项目更新成功" });

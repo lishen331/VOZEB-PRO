@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { readJsonBody } from "@/lib/auth/request";
 import { getDramaProjectForUser, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { generateOneClickUniversalPrompt, OneClickUniversalPromptError } from "@/lib/server/one-click-film/universal-prompt-service";
@@ -17,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const shot = episode?.shots.find((item) => item.id === shotId);
         if (!episode || !shot) return NextResponse.json({ code: 404, msg: "分镜不存在" }, { status: 404 });
 
-        const body = (await request.json().catch(() => ({}))) as { mode?: unknown; duration?: unknown; draft?: unknown; forceWithoutReferenceImages?: unknown };
+        const body = (await readJsonBody(request).catch(() => ({}))) as { mode?: unknown; duration?: unknown; draft?: unknown; forceWithoutReferenceImages?: unknown };
         const mode = body.mode === "polish" ? "polish" : "generate";
         if (mode === "polish" && (typeof body.draft !== "string" || !body.draft.trim())) return NextResponse.json({ code: 400, msg: "请先填写或生成全能片段描述后再润色" }, { status: 400 });
 

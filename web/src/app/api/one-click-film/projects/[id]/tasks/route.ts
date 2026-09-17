@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { readJsonBody } from "@/lib/auth/request";
 import { getDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { startOneClickFilm, oneClickFilmTaskView } from "@/lib/server/one-click-film/service";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -8,7 +9,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const project = await getDramaProjectForUser(user.id, id);
     if (!project.sourceHandoffId?.startsWith("one-click-film:")) return NextResponse.json({ code: 404, msg: "项目不存在" }, { status: 404 });
-    const body = await request.json().catch(() => ({}));
+    type TaskBody = { episodeIds?: unknown; episodeId?: unknown; clientRequestId?: unknown; options?: unknown };
+    const body = await readJsonBody<TaskBody>(request).catch(() => ({}) as TaskBody);
     const allEpisodeIds = project.episodes.map((e) => e.id);
     // 用户显式勾选的分集优先；未勾选才回落到全项目，避免把没选的分集也计费生成。
     const requested = Array.isArray(body.episodeIds) ? body.episodeIds.filter((value: unknown): value is string => typeof value === "string") : [];
@@ -23,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         clientRequestId: typeof body.clientRequestId === "string" ? body.clientRequestId : `one-click:${id}:${Date.now()}`,
         sourceEpisodeId: typeof body.episodeId === "string" && episodeIds.includes(body.episodeId) ? body.episodeId : episodeIds[0],
         episodeIds,
-        options: typeof body.options === "object" && body.options ? body.options : {},
+        options: typeof body.options === "object" && body.options ? (body.options as Record<string, unknown>) : {},
     });
     return NextResponse.json({ code: 0, data: { task: oneClickFilmTaskView(task) }, msg: "OK" });
 }
