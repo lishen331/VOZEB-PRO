@@ -52,7 +52,6 @@ type CanvasSurfaceProps = {
     relatedNodeIds: Set<string>;
     relatedConnectionIds: Set<string>;
     renderNode: (node: CanvasNodeData) => ReactNode;
-    renderPanel?: (node: CanvasNodeData) => ReactNode;
     nodeProps: Omit<
         CanvasNodeProps,
         | "data"
@@ -63,7 +62,6 @@ type CanvasSurfaceProps = {
         | "isConnectionTarget"
         | "isConnecting"
         | "editRequestNonce"
-        | "showPanel"
         | "showImageInfo"
         | "resourceLabel"
         | "mentionReferences"
@@ -73,7 +71,6 @@ type CanvasSurfaceProps = {
         | "batchOpening"
         | "batchRecovering"
         | "batchMotion"
-        | "renderPanel"
         | "renderNodeContent"
         | "onMouseDown"
         | "onConnectStart"
@@ -82,7 +79,7 @@ type CanvasSurfaceProps = {
     >;
     getNodeViewProps: (
         node: CanvasNodeData,
-    ) => Pick<CanvasNodeProps, "editRequestNonce" | "showPanel" | "showImageInfo" | "resourceLabel" | "mentionReferences" | "batchCount" | "batchExpanded" | "batchClosing" | "batchOpening" | "batchRecovering" | "batchMotion">;
+    ) => Pick<CanvasNodeProps, "editRequestNonce" | "showImageInfo" | "resourceLabel" | "mentionReferences" | "batchCount" | "batchExpanded" | "batchClosing" | "batchOpening" | "batchRecovering" | "batchMotion">;
     onNodesCommit: (updates: CanvasNodeUpdate[]) => void;
     onSelectionChange: (nodeIds: Set<string>, connectionId: string | null) => void;
     onViewportCommit: (viewport: ViewportTransform) => void;
@@ -137,7 +134,6 @@ export function CanvasSurface({
     relatedNodeIds,
     relatedConnectionIds,
     renderNode,
-    renderPanel,
     nodeProps,
     getNodeViewProps,
     onNodesCommit,
@@ -887,7 +883,6 @@ export function CanvasSurface({
                                     isFocusRelated={activeSelectedNodeIds.has(node.id) || relatedNodeIds.has(node.id)}
                                     isConnectionTarget={connection?.targetNodeId === node.id}
                                     isConnecting={connection?.nodeId === node.id}
-                                    renderPanel={renderPanel}
                                     renderNodeContent={renderNode}
                                     onMouseDown={handleNodeMouseDown}
                                     onConnectStart={handleConnectStart}

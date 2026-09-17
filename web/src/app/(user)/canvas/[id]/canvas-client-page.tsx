@@ -13,7 +13,7 @@ import { CanvasSurface, type CanvasInteractionMode } from "../components/canvas-
 import { CanvasNodeAngleDialog } from "../components/canvas-node-angle-dialog";
 import { CanvasNodeEmotionDialog } from "../components/canvas-node-emotion-dialog";
 import { CanvasNodeCropDialog } from "../components/canvas-node-crop-dialog";
-import { CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "../components/canvas-node-hover-toolbar";
+import { CanvasNodeDialogPanel, CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "../components/canvas-node-hover-toolbar";
 import { CanvasNodeMaskEditDialog } from "../components/canvas-node-mask-edit-dialog";
 import { CanvasNodePromptPanel } from "../components/canvas-node-prompt-panel";
 import { CanvasNodeSplitDialog } from "../components/canvas-node-split-dialog";
@@ -197,6 +197,7 @@ function VozebProCanvasPage() {
         createConnectedNode,
         cancelPendingConnectionCreate,
         toolbarNode,
+        dialogNode,
         infoNode,
         cropNode,
         maskEditNode,
@@ -348,7 +349,6 @@ function VozebProCanvasPage() {
     const getNodeViewProps = useCallback(
         (node: CanvasNodeData) => ({
             editRequestNonce: editingNodeId === node.id ? editRequestNonce : 0,
-            showPanel: dialogNodeId === node.id,
             batchCount: batchChildCountById.get(node.id) || 0,
             batchExpanded: Boolean(node.metadata?.imageBatchExpanded),
             batchClosing: Boolean(node.metadata?.batchRootId && collapsingBatchIds.has(node.metadata.batchRootId)),
@@ -359,7 +359,7 @@ function VozebProCanvasPage() {
             resourceLabel: resourceReferenceByNodeId.get(node.id),
             mentionReferences: mentionReferencesByNodeId.get(node.id) || EMPTY_MENTION_REFERENCES,
         }),
-        [editingNodeId, editRequestNonce, dialogNodeId, batchChildCountById, collapsingBatchIds, openingBatchIds, batchMotionById, showImageInfo, resourceReferenceByNodeId, mentionReferencesByNodeId],
+        [editingNodeId, editRequestNonce, batchChildCountById, collapsingBatchIds, openingBatchIds, batchMotionById, showImageInfo, resourceReferenceByNodeId, mentionReferencesByNodeId],
     );
     const renderCanvasPanel = useCallback(
         (panelNode: CanvasNodeData) =>
@@ -476,7 +476,6 @@ function VozebProCanvasPage() {
                     relatedConnectionIds={relatedHighlight.connectionIds}
                     nodeProps={nodeProps}
                     getNodeViewProps={getNodeViewProps}
-                    renderPanel={renderCanvasPanel}
                     renderNode={renderCanvasNode}
                     onNodesCommit={(updates) => {
                         const updatesById = new Map(updates.map((update) => [update.id, update]));
@@ -539,22 +538,22 @@ function VozebProCanvasPage() {
                     onDisplayViewportChange={(next) => {
                         displayViewportRef.current = next;
                     }}
-                    overlay={
-                        <>
-                            {pendingConnectionCreate ? <ConnectionCreateMenu pending={pendingConnectionCreate} onCreate={(type) => createConnectedNode(type, pendingConnectionCreate)} onClose={cancelPendingConnectionCreate} /> : null}
-                            {nodeCreatePosition ? (
-                                <NodeCreateMenu
-                                    position={nodeCreatePosition}
-                                    onCreate={(type) => {
-                                        createNode(type, nodeCreatePosition);
-                                        setNodeCreatePosition(null);
-                                    }}
-                                    onClose={() => setNodeCreatePosition(null)}
-                                />
-                            ) : null}
-                        </>
-                    }
+                    overlay={pendingConnectionCreate ? <ConnectionCreateMenu pending={pendingConnectionCreate} onCreate={(type) => createConnectedNode(type, pendingConnectionCreate)} onClose={cancelPendingConnectionCreate} /> : null}
                 />
+
+                {nodeCreatePosition ? (
+                    <NodeCreateMenu
+                        position={nodeCreatePosition}
+                        viewport={viewport}
+                        onCreate={(type) => {
+                            createNode(type, nodeCreatePosition);
+                            setNodeCreatePosition(null);
+                        }}
+                        onClose={() => setNodeCreatePosition(null)}
+                    />
+                ) : null}
+
+                <CanvasNodeDialogPanel node={dialogNode} viewport={viewport} renderPanel={renderCanvasPanel} />
 
                 <CanvasNodeHoverToolbar
                     node={isNodeDragging || nodeImageSettingsOpen ? null : toolbarNode}

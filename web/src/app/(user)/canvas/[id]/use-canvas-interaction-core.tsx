@@ -143,6 +143,7 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const toolbarNode = toolbarNodeId ? nodeById.get(toolbarNodeId) || null : null;
+    const dialogNode = dialogNodeId ? nodeById.get(dialogNodeId) || null : null;
     const infoNode = infoNodeId ? nodeById.get(infoNodeId) || null : null;
     const cropNode = cropNodeId ? nodeById.get(cropNodeId) || null : null;
     const maskEditNode = maskEditNodeId ? nodeById.get(maskEditNodeId) || null : null;
@@ -267,6 +268,7 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
         createConnectedNode,
         cancelPendingConnectionCreate,
         toolbarNode,
+        dialogNode,
         infoNode,
         cropNode,
         maskEditNode,

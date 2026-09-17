@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { App, Modal, Segmented, Tooltip } from "antd";
 import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, MessageSquare, Minus, Music2, Pencil, Plus, RefreshCw, Settings2, Trash2, Upload, Video } from "lucide-react";
 
@@ -231,6 +231,116 @@ export function CanvasNodeHoverToolbar({
                 <ImageToolSettingsModal open={imageToolSettingsOpen} tools={selectableImageToolbarTools} selectedIds={draftImageToolIds} onToggle={setDraftImageToolVisible} onCancel={closeImageToolSettings} onSave={saveImageToolSettings} />
             ) : null}
         </>
+    );
+}
+
+/**
+ * Renders a node's generation/edit panel (renderPanel from canvas-client-page)
+ * as a sibling of CanvasSurface rather than as a child of CanvasNode — the
+ * same "screen-space overlay" pattern CanvasNodeHoverToolbar already uses.
+ * CanvasNode lives inside worldLayerRef's `scale(k)` transform, so a panel
+ * anchored there shrinks/grows with canvas zoom (560px wide becomes 28
+ * screen px at 5% zoom). Projecting the node's world-space bounding box to
+ * screen coordinates here keeps the panel a constant, readable size at any
+ * zoom level, while `node.position`/`width`/`height` (already screen-independent
+ * world units) still drive where it anchors.
+ *
+ * The placement math (centering, viewport clamping, top/bottom flip) mirrors
+ * the removed canvas-node.tsx `updatePanelPlacement`, but simplified: since
+ * this now renders outside the scaled layer, `panelRect` is already in screen
+ * units — no `renderedScale` back-conversion is needed.
+ */
+export function CanvasNodeDialogPanel({ node, viewport, renderPanel }: { node: CanvasNodeData | null; viewport: ViewportTransform; renderPanel: (node: CanvasNodeData) => ReactNode }) {
+    const panelRef = useRef<HTMLDivElement>(null);
+    const [layout, setLayout] = useState<{ left: number; top: number; placement: "top" | "bottom"; maxHeight?: number; maxWidth?: number }>();
+
+    const nodeScreenRect = useMemo(() => {
+        if (!node) return null;
+        return {
+            left: viewport.x + node.position.x * viewport.k,
+            top: viewport.y + node.position.y * viewport.k,
+            width: node.width * viewport.k,
+            height: node.height * viewport.k,
+        };
+    }, [node, viewport]);
+
+    const updatePlacement = useCallback(() => {
+        const panelElement = panelRef.current;
+        const surfaceElement = panelElement?.closest<HTMLElement>("[data-canvas-surface]");
+        if (!nodeScreenRect || !panelElement || !surfaceElement) return;
+        const panelRect = panelElement.getBoundingClientRect();
+        const surfaceRect = surfaceElement.getBoundingClientRect();
+        const visualViewport = window.visualViewport;
+        const viewportLeft = visualViewport?.offsetLeft ?? 0;
+        const viewportTop = visualViewport?.offsetTop ?? 0;
+        const viewportRight = viewportLeft + (visualViewport?.width ?? window.innerWidth);
+        const viewportBottom = viewportTop + (visualViewport?.height ?? window.innerHeight);
+        const toolbarRect = surfaceElement.querySelector<HTMLElement>("[data-canvas-toolbar]")?.getBoundingClientRect();
+        const usableLeft = Math.max(surfaceRect.left, viewportLeft) + 16;
+        const usableRight = Math.min(surfaceRect.right, viewportRight) - 16;
+        const usableTop = Math.max(surfaceRect.top, viewportTop);
+        const usableBottom = Math.min(surfaceRect.bottom, viewportBottom, toolbarRect ? toolbarRect.top - 16 : surfaceRect.bottom);
+        const availableWidth = Math.max(0, usableRight - usableLeft);
+
+        const nodeCenterX = surfaceRect.left + nodeScreenRect.left + nodeScreenRect.width / 2;
+        const nodeTop = surfaceRect.top + nodeScreenRect.top;
+        const nodeBottom = nodeTop + nodeScreenRect.height;
+
+        const renderedPanelWidth = Math.min(panelRect.width, availableWidth);
+        const minimumCenter = usableLeft + renderedPanelWidth / 2;
+        const maximumCenter = usableRight - renderedPanelWidth / 2;
+        const desiredCenter = minimumCenter <= maximumCenter ? Math.min(maximumCenter, Math.max(minimumCenter, nodeCenterX)) : (usableLeft + usableRight) / 2;
+
+        const spaceAbove = Math.max(0, nodeTop - usableTop - 16);
+        const spaceBelow = Math.max(0, usableBottom - nodeBottom);
+        const nextPlacement: "top" | "bottom" = panelRect.height > spaceBelow && spaceAbove >= 96 ? "top" : "bottom";
+        const availableSpace = nextPlacement === "top" ? spaceAbove : spaceBelow;
+
+        setLayout((current) => {
+            const next = {
+                left: desiredCenter - surfaceRect.left,
+                top: (nextPlacement === "top" ? nodeTop : nodeBottom) - surfaceRect.top,
+                placement: nextPlacement,
+                maxHeight: availableSpace > 0 ? availableSpace : undefined,
+                maxWidth: availableWidth > 0 ? availableWidth : undefined,
+            };
+            if (current && Math.abs(current.left - next.left) < 0.1 && Math.abs(current.top - next.top) < 0.1 && current.placement === next.placement && current.maxHeight === next.maxHeight && current.maxWidth === next.maxWidth) return current;
+            return next;
+        });
+    }, [nodeScreenRect]);
+
+    useLayoutEffect(() => {
+        if (!node || !panelRef.current) return;
+        updatePlacement();
+        const observer = new ResizeObserver(updatePlacement);
+        observer.observe(panelRef.current);
+        const surfaceElement = panelRef.current.closest<HTMLElement>("[data-canvas-surface]");
+        if (surfaceElement) observer.observe(surfaceElement);
+        const visualViewport = window.visualViewport;
+        window.addEventListener("resize", updatePlacement);
+        visualViewport?.addEventListener("resize", updatePlacement);
+        visualViewport?.addEventListener("scroll", updatePlacement);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener("resize", updatePlacement);
+            visualViewport?.removeEventListener("resize", updatePlacement);
+            visualViewport?.removeEventListener("scroll", updatePlacement);
+        };
+    }, [node?.id, updatePlacement]);
+
+    if (!node) return null;
+
+    return (
+        <div
+            ref={panelRef}
+            data-canvas-no-drag
+            data-canvas-node-panel
+            data-canvas-node-panel-placement={layout?.placement || "bottom"}
+            className={`absolute z-[70] w-[560px] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-y-auto ${layout?.placement === "top" ? "-translate-y-full pb-4" : "pt-4"}`}
+            style={{ left: layout?.left, top: layout?.top, maxHeight: layout?.maxHeight ? `${layout.maxHeight}px` : "calc(100dvh - 1rem)", maxWidth: layout?.maxWidth }}
+        >
+            {renderPanel(node)}
+        </div>
     );
 }
 

@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { getNodeSpec } from "../constants";
-import { CanvasNodeType, type CanvasAssistantSession, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type ConnectionHandle, type Position } from "../types";
+import { CanvasNodeType, type CanvasAssistantSession, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type ConnectionHandle, type Position, type ViewportTransform } from "../types";
 
 export type CanvasClipboard = {
     nodes: CanvasNodeData[];
@@ -111,14 +111,20 @@ export function CanvasRefreshShell() {
     );
 }
 
-export function NodeCreateMenu({ position, onCreate, onClose }: { position: Position; onCreate: (type: CanvasCreatableNodeType) => void; onClose: () => void }) {
+export function NodeCreateMenu({ position, viewport, onCreate, onClose }: { position: Position; viewport: ViewportTransform; onCreate: (type: CanvasCreatableNodeType) => void; onClose: () => void }) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
+    // Project the world-space double-click point to screen space so the menu
+    // itself renders at a constant on-screen size regardless of canvas zoom —
+    // it still sits inside the scaled world layer (via the `overlay` prop),
+    // so without this the menu would shrink to unreadable at low zoom.
+    const left = viewport.x + position.x * viewport.k;
+    const top = viewport.y + position.y * viewport.k;
 
     return (
         <div
             className="absolute z-[120] w-[300px] rounded-[18px] border p-3 shadow-2xl backdrop-blur"
             data-canvas-node-create-menu
-            style={{ left: position.x, top: position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+            style={{ left, top, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
         >

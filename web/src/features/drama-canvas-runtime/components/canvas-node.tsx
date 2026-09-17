@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { BriefcaseBusiness, ChevronRight, CircleCheck, Image as ImageIcon, ListChecks, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
 
@@ -60,11 +60,9 @@ export type CanvasNodeProps = {
     isConnectionTarget: boolean;
     isConnecting: boolean;
     editRequestNonce?: number;
-    showPanel: boolean;
     showImageInfo: boolean;
     resourceLabel?: CanvasResourceReference;
     mentionReferences?: CanvasResourceReference[];
-    renderPanel?: (node: CanvasNodeData) => ReactNode;
     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
     batchCount?: number;
     batchExpanded?: boolean;
@@ -120,11 +118,9 @@ export const CanvasNode = React.memo(function CanvasNode({
     isConnectionTarget,
     isConnecting,
     editRequestNonce = 0,
-    showPanel,
     showImageInfo,
     resourceLabel,
     mentionReferences = [],
-    renderPanel,
     renderNodeContent,
     batchCount = 0,
     batchExpanded = false,
@@ -151,13 +147,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const [hovered, setHovered] = useState(false);
     const [isEditingContent, setIsEditingContent] = useState(false);
-    const [panelPlacement, setPanelPlacement] = useState<"top" | "bottom">("bottom");
-    const [panelMaxHeight, setPanelMaxHeight] = useState<number>();
-    const [panelMaxWidth, setPanelMaxWidth] = useState<number>();
-    const [panelOffsetX, setPanelOffsetX] = useState(0);
     const nodeRef = useRef<HTMLDivElement>(null);
-    const panelRef = useRef<HTMLDivElement>(null);
-    const panelOffsetXRef = useRef(0);
     const hasImageContent = isCanvasImageNodeType(data.type) && Boolean(data.metadata?.content);
     const hasVideoContent = data.type === CanvasNodeType.Video && Boolean(data.metadata?.content);
     const hasAudioContent = data.type === CanvasNodeType.Audio && Boolean(data.metadata?.content);
@@ -353,66 +343,6 @@ export const CanvasNode = React.memo(function CanvasNode({
         if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 6 && !event.shiftKey && !event.ctrlKey && !event.metaKey) setIsEditingContent(true);
     };
 
-    const updatePanelPlacement = useCallback(() => {
-        const nodeElement = nodeRef.current;
-        const panelElement = panelRef.current;
-        const surfaceElement = nodeElement?.closest<HTMLElement>("[data-canvas-surface]");
-        if (!showPanel || !nodeElement || !panelElement || !surfaceElement) return;
-        const nodeRect = nodeElement.getBoundingClientRect();
-        const panelRect = panelElement.getBoundingClientRect();
-        const surfaceRect = surfaceElement.getBoundingClientRect();
-        const visualViewport = window.visualViewport;
-        const viewportLeft = visualViewport?.offsetLeft ?? 0;
-        const viewportTop = visualViewport?.offsetTop ?? 0;
-        const viewportRight = viewportLeft + (visualViewport?.width ?? window.innerWidth);
-        const viewportBottom = viewportTop + (visualViewport?.height ?? window.innerHeight);
-        const toolbarRect = surfaceElement.querySelector<HTMLElement>("[data-canvas-toolbar]")?.getBoundingClientRect();
-        const usableLeft = Math.max(surfaceRect.left, viewportLeft) + 16;
-        const usableRight = Math.min(surfaceRect.right, viewportRight) - 16;
-        const usableTop = Math.max(surfaceRect.top, viewportTop);
-        const usableBottom = Math.min(surfaceRect.bottom, viewportBottom, toolbarRect ? toolbarRect.top - 16 : surfaceRect.bottom);
-        const availableWidth = Math.max(0, usableRight - usableLeft);
-        const renderedScale = Math.max(nodeRect.width / (nodeElement.offsetWidth || 1), 0.01);
-        const nextMaxWidth = availableWidth > 0 ? availableWidth / renderedScale : undefined;
-        const currentOffset = panelOffsetXRef.current * renderedScale;
-        const centeredPanelLeft = panelRect.left - currentOffset;
-        const centeredPanelRight = panelRect.right - currentOffset;
-        const centeredPanelCenter = (centeredPanelLeft + centeredPanelRight) / 2;
-        const renderedPanelWidth = Math.min(panelRect.width, availableWidth);
-        const minimumCenter = usableLeft + renderedPanelWidth / 2;
-        const maximumCenter = usableRight - renderedPanelWidth / 2;
-        const desiredCenter = minimumCenter <= maximumCenter ? Math.min(maximumCenter, Math.max(minimumCenter, centeredPanelCenter)) : (usableLeft + usableRight) / 2;
-        const nextOffsetX = (desiredCenter - centeredPanelCenter) / renderedScale;
-        const spaceAbove = Math.max(0, nodeRect.top - usableTop - 16);
-        const spaceBelow = Math.max(0, usableBottom - nodeRect.bottom);
-        const nextPlacement = panelRect.bottom > usableBottom && spaceAbove >= 96 ? "top" : "bottom";
-        const availableSpace = nextPlacement === "top" ? spaceAbove : spaceBelow;
-        setPanelPlacement((current) => (current === nextPlacement ? current : nextPlacement));
-        if (availableSpace > 0) setPanelMaxHeight((current) => (current === availableSpace ? current : availableSpace));
-        if (nextMaxWidth) setPanelMaxWidth((current) => (current !== undefined && Math.abs(current - nextMaxWidth) < 0.1 ? current : nextMaxWidth));
-        panelOffsetXRef.current = nextOffsetX;
-        setPanelOffsetX((current) => (Math.abs(current - nextOffsetX) < 0.1 ? current : nextOffsetX));
-    }, [showPanel]);
-
-    useLayoutEffect(() => {
-        if (!showPanel || !panelRef.current) return;
-        updatePanelPlacement();
-        const observer = new ResizeObserver(updatePanelPlacement);
-        observer.observe(panelRef.current);
-        const surfaceElement = nodeRef.current?.closest<HTMLElement>("[data-canvas-surface]");
-        if (surfaceElement) observer.observe(surfaceElement);
-        const visualViewport = window.visualViewport;
-        window.addEventListener("resize", updatePanelPlacement);
-        visualViewport?.addEventListener("resize", updatePanelPlacement);
-        visualViewport?.addEventListener("scroll", updatePanelPlacement);
-        return () => {
-            observer.disconnect();
-            window.removeEventListener("resize", updatePanelPlacement);
-            visualViewport?.removeEventListener("resize", updatePanelPlacement);
-            visualViewport?.removeEventListener("scroll", updatePanelPlacement);
-        };
-    }, [showPanel, data.id, data.position.x, data.position.y, updatePanelPlacement]);
-
     useEffect(() => {
         return () => {
             window.removeEventListener("mousemove", handleResizeMove);
@@ -534,18 +464,6 @@ export const CanvasNode = React.memo(function CanvasNode({
             <ConnectionHandleDot side="left" visible={hovered || isSelected || isConnecting} onConnectStart={(event) => onConnectStart(event, data.id, "target")} />
             <ConnectionHandleDot side="right" visible={data.type !== CanvasNodeType.Config && (hovered || isSelected || isConnecting)} onConnectStart={(event) => onConnectStart(event, data.id, "source")} />
 
-            {showPanel && renderPanel ? (
-                <div
-                    ref={panelRef}
-                    data-canvas-no-drag
-                    data-canvas-node-panel
-                    data-canvas-node-panel-placement={panelPlacement}
-                    className={`absolute left-1/2 z-[70] w-[500px] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
-                    style={{ marginLeft: panelOffsetX, maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)", maxWidth: panelMaxWidth }}
-                >
-                    {renderPanel(data)}
-                </div>
-            ) : null}
         </div>
     );
 });
