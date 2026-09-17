@@ -261,3 +261,48 @@ checkpoint 恢复语义）。保持现状并标注为 P1，不在此处假装已
 | `dead-route-guard.test.ts` | 建好路由却无调用方（我犯过两次） |
 | `project-isolation.test.ts` | 商单路由调教学版协作/闸门、读项目不校验归属 |
 | `media-runner.test.ts` 回写用例 | 切换提交链路却忘了回写链路（导致永久 pending） |
+
+## 13. storyboards 域覆盖（2026-09-17 收尾重算）
+
+L `/storyboards` 共 21 条：**已迁移 13，结构覆盖 1，未迁移 7。**
+
+### 已迁移（均有自有路由 + 测试 + UI 调用方）
+
+| L 接口 | 一键成片实现 |
+|---|---|
+| `POST /storyboards` | `POST shots` |
+| `POST /storyboards/:id/insert-before` | `POST shots/:id/insert-before` |
+| `PUT /storyboards/:id` | `PUT shots/:id`（L 白名单语义） |
+| `DELETE /storyboards/:id` | `DELETE shots/:id` |
+| `GET /storyboards/:id/frame-prompts` | `GET shots/:id/frame-prompts` |
+| `PUT .../frame-prompts/:frame_type` | `PUT shots/:id/frame-prompts/:frameType`（含 layout 覆盖语义） |
+| `POST /storyboards/:id/frame-prompt` | `POST shots/:id/generate-frame`（AI 规划帧提示词 + 提交帧图任务） |
+| `POST /storyboards/:id/link-tail-frame` | `extract-tail-frame` + `accept-first-frame-candidate` |
+| `POST /storyboards/:id/polish-prompt` | `POST shots/:id/polish-prompt`（系统提示词逐字抄录） |
+| `POST /storyboards/:id/rebuild-video-prompt` | `POST shots/:id/rebuild-video-prompt`（纯本地重组，angle 契约经 96 组合校验） |
+| `.../regenerate-layout-description` | `POST shots/:id/regenerate-layout-description`（系统提示词逐字抄录） |
+| `POST /storyboards/:id/universal-segment-prompt` | `POST shots/:id/universal-prompt` |
+| `POST /storyboards/:id/split-by-audio` | `POST shots/:id/split-by-audio` |
+
+### 未迁移（保持"未迁移"，不假装等价）
+
+| L 接口 | 原因 / 优先级 |
+|---|---|
+| `GET /storyboards/episode/:id/generate` | 分镜拆解，现由 executor storyboard 步复用等价提取服务；独立端点未建（P1） |
+| `POST /storyboards/:id/props` | 道具关联独立端点；`PUT shots/:id` 已支持 propIds（P2） |
+| `universal-segment-polish-stream` | 流式版本；非流式已迁移（P2） |
+| `classic-video-prompt-polish-stream` | 流式版本（P2） |
+| `universal-segment-prompt-stream` | 流式版本；非流式已迁移（P2） |
+| `POST /storyboards/batch-infer-params` | 批量推断参数（P2） |
+| `POST /storyboards/:id/upscale` | 放大（P2） |
+
+三条 stream 端点的非流式等价物都已迁移，差别只是响应传输方式，不影响最终提示词内容。
+
+### 从 L 逐字抄录的提示词契约
+
+| 文件 | 来源 | 校验方式 |
+|---|---|---|
+| `universal-prompt-l-system.json` | `promptI18n.getUniversalOmniSegmentPrompt` + 润色后缀 + DEFAULT_LINE3 | 快照测试 |
+| `image-polish-l-system.json` | `promptI18n.getImagePolishPrompt` 中文分支 | 关键铁律断言 |
+| `layout-regenerate-l-system.json` | `promptI18n.getRegenerateLayoutDescriptionPrompt` 中文分支 | 关键要求断言 |
+| `angle-l-contract.json` | `angleService` 三张描述表 + 中文标签 | **全部 96 种 (h,v,s) 组合与 L 输出逐一比对一致** |
