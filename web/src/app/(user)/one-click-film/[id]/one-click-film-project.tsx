@@ -11,6 +11,7 @@ import { decodeOneClickRouteId } from "@/lib/one-click/route-id";
 
 import { OneClickFilmAssetPanel } from "./one-click-film-asset-panel";
 import { OneClickFilmShotCards } from "./one-click-film-shot-cards";
+import { OneClickFilmNavSidebar, type OneClickActiveTask } from "./one-click-film-nav-sidebar";
 
 export default function OneClickFilmProject() {
     const { id } = useParams<{ id: string }>();
@@ -30,6 +31,8 @@ export default function OneClickFilmProject() {
     const [forceNoRef, setForceNoRef] = useState(false);
     const [universalBusy, setUniversalBusy] = useState<"generate" | "polish">();
     const [renderRecordBusy, setRenderRecordBusy] = useState(false);
+    // 侧栏「角色/道具/场景」三步要能切到对应页签，故把资产类别提到页面层。
+    const [assetKind, setAssetKind] = useState<"characters" | "scenes" | "props">("characters");
     const [renderTask, setRenderTask] = useState<{ id: string; status: string; error?: string; result?: { artifactId: string; url: string } }>();
     const [renderBusy, setRenderBusy] = useState(false);
     const loadProject = useCallback(async () => {
@@ -251,180 +254,235 @@ export default function OneClickFilmProject() {
         }
     };
 
+    /**
+     * L 侧栏点击步骤后滚动到对应 section。
+     *
+     * 角色/道具/场景在 L 是三个独立子卡，V 是单面板 + Segmented，
+     * 所以这三个锚点先切页签再滚到资产区，避免跳到不存在的 DOM。
+     */
+    const ASSET_ANCHORS: Record<string, "characters" | "props" | "scenes"> = {
+        "anchor-characters": "characters",
+        "anchor-props": "props",
+        "anchor-scenes": "scenes",
+    };
+    const jumpToAnchor = (anchor: string) => {
+        const assetKindForAnchor = ASSET_ANCHORS[anchor];
+        if (assetKindForAnchor) {
+            setAssetKind(assetKindForAnchor);
+            document.getElementById("anchor-assets")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+        }
+        document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    /** L 侧栏点击分镜后滚动到该分镜卡。 */
+    const jumpToShot = (shotId: string) => {
+        document.getElementById(`one-click-shot-${shotId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+
+    /**
+     * L 的 allActiveTaskItems：把当前运行中的东西聚合成一个列表。
+     * V 侧真实可取消的只有工作流任务本身（有 /tasks/:id/cancel 路由），
+     * 分镜级图/视频任务没有逐条取消入口，所以标 cancelable=false，不放假按钮。
+     */
+    const activeTasks: OneClickActiveTask[] = [
+        ...(task && ["pending", "running"].includes(task.status) ? [{ id: `workflow:${task.id}`, label: task.currentStep ? `一键成片 · ${task.currentStep}` : "一键成片运行中…", cancelable: true }] : []),
+        ...(renderTask && ["pending", "running"].includes(renderTask.status) ? [{ id: `render:${renderTask.id}`, label: "本集成片合成中…" }] : []),
+        ...(project?.episodes[0]?.shots || []).flatMap((shot, index) => {
+            const running = (status?: string) => status === "running" || status === "pending" || status === "queued";
+            const items: OneClickActiveTask[] = [];
+            if (running(shot.storyboardStatus)) items.push({ id: `sbimg:${shot.id}`, label: `分镜 ${index + 1} 分镜图` });
+            if (running(shot.generationStatus)) items.push({ id: `sbvideo:${shot.id}`, label: `分镜 ${index + 1} 视频` });
+            return items;
+        }),
+    ];
+
     const exportHref = `/api/one-click-film/projects/${encodeURIComponent(projectId)}/export`;
     const canvasHref = episodeId ? `/one-click-film/${encodeURIComponent(projectId)}/canvas?episode=${encodeURIComponent(episodeId)}` : undefined;
     return (
-        <main className="h-full overflow-y-auto bg-background text-foreground">
-            <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
-                    <div>
-                        <Link href="/one-click-film" className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                            <ArrowLeft className="size-4" />
-                            返回项目列表
-                        </Link>
-                        <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                            <Film className="size-4" />
-                            一键成片 · 独立工作区
-                        </div>
-                        <h1 className="mt-2 text-2xl font-semibold">{project.title}</h1>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProject()}>
-                            刷新
-                        </Button>
-                        {canvasHref ? (
-                            <Button icon={<PanelsTopLeft className="size-4" />} href={canvasHref}>
-                                打开平台画布
-                            </Button>
-                        ) : null}
-                        {episodeId ? (
-                            <Button icon={<Clapperboard className="size-4" />} loading={renderBusy || renderTask?.status === "pending" || renderTask?.status === "running"} aria-label="合成本集成片" onClick={() => void startRender()}>
-                                合成本集成片
-                            </Button>
-                        ) : null}
-                        {episodeId && renderTask?.result?.artifactId ? (
-                            <Button
-                                icon={<Download className="size-4" />}
-                                href={`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(episodeId)}/render/artifact/${encodeURIComponent(renderTask.result.artifactId)}?taskId=${encodeURIComponent(renderTask.id)}`}
-                                aria-label="下载本集成片"
-                            >
-                                下载成片
-                            </Button>
-                        ) : null}
-                        {episodeId && renderTask?.id ? (
-                            <Popconfirm title="删除本集成片记录？" description="仅删除成片记录，不影响分镜与素材。" okText="删除" cancelText="取消" onConfirm={() => void removeRenderRecord()}>
-                                <Button danger icon={<Trash2 className="size-4" />} loading={renderRecordBusy} aria-label="删除本集成片记录">
-                                    删除成片记录
-                                </Button>
-                            </Popconfirm>
-                        ) : null}
-                        <Button icon={<Download className="size-4" />} href={exportHref} aria-label="导出项目">
-                            导出项目
-                        </Button>
-                    </div>
-                </div>
-                <section className="mt-6 rounded-lg border border-border bg-card p-5">
-                    <div className="flex items-center justify-between">
-                        <h2 className="font-semibold">本集剧本</h2>
-                        <label className="cursor-pointer rounded border px-3 py-1.5 text-sm">
-                            {importing ? "导入中…" : "导入 TXT / MD"}
-                            <input
-                                className="hidden"
-                                type="file"
-                                accept=".txt,.md,text/plain,text/markdown"
-                                disabled={importing}
-                                onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    event.target.value = "";
-                                    if (file) void importScriptFile(file);
-                                }}
-                            />
-                        </label>
-                    </div>
-                    <div className="mt-3 grid gap-3">
-                        <Input value={episodeTitle} onChange={(event) => setEpisodeTitle(event.target.value)} placeholder="分集标题" />
-                        <Input.TextArea value={episodeScript} onChange={(event) => setEpisodeScript(event.target.value)} rows={10} placeholder="粘贴或输入本集完整剧本" />
+        // L 布局：左侧固定侧栏（.quick-nav 180px）+ 右侧可滚动主区（.main）
+        <div className="flex h-full bg-background text-foreground">
+            <OneClickFilmNavSidebar
+                project={project}
+                episode={project.episodes[0]}
+                activeTasks={activeTasks}
+                onCancelTask={(item) => {
+                    if (item.id.startsWith("workflow:")) void cancelWorkflow();
+                }}
+                onJumpAnchor={jumpToAnchor}
+                onJumpShot={jumpToShot}
+            />
+            <main className="h-full flex-1 overflow-y-auto">
+                <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
                         <div>
-                            <Button type="primary" loading={savingEpisode} onClick={() => void saveEpisode()}>
-                                保存本集剧本
+                            <Link href="/one-click-film" className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                                <ArrowLeft className="size-4" />
+                                返回项目列表
+                            </Link>
+                            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                                <Film className="size-4" />
+                                一键成片 · 独立工作区
+                            </div>
+                            <h1 className="mt-2 text-2xl font-semibold">{project.title}</h1>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProject()}>
+                                刷新
+                            </Button>
+                            {canvasHref ? (
+                                <Button icon={<PanelsTopLeft className="size-4" />} href={canvasHref}>
+                                    打开平台画布
+                                </Button>
+                            ) : null}
+                            {episodeId ? (
+                                <Button icon={<Clapperboard className="size-4" />} loading={renderBusy || renderTask?.status === "pending" || renderTask?.status === "running"} aria-label="合成本集成片" onClick={() => void startRender()}>
+                                    合成本集成片
+                                </Button>
+                            ) : null}
+                            {episodeId && renderTask?.result?.artifactId ? (
+                                <Button
+                                    icon={<Download className="size-4" />}
+                                    href={`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(episodeId)}/render/artifact/${encodeURIComponent(renderTask.result.artifactId)}?taskId=${encodeURIComponent(renderTask.id)}`}
+                                    aria-label="下载本集成片"
+                                >
+                                    下载成片
+                                </Button>
+                            ) : null}
+                            {episodeId && renderTask?.id ? (
+                                <Popconfirm title="删除本集成片记录？" description="仅删除成片记录，不影响分镜与素材。" okText="删除" cancelText="取消" onConfirm={() => void removeRenderRecord()}>
+                                    <Button danger icon={<Trash2 className="size-4" />} loading={renderRecordBusy} aria-label="删除本集成片记录">
+                                        删除成片记录
+                                    </Button>
+                                </Popconfirm>
+                            ) : null}
+                            <Button icon={<Download className="size-4" />} href={exportHref} aria-label="导出项目">
+                                导出项目
                             </Button>
                         </div>
                     </div>
-                </section>
-                <section className="mt-6 grid gap-4 lg:grid-cols-[220px_1fr]">
-                    <aside className="rounded-lg border border-border bg-card p-4">
-                        <h2 className="font-semibold">生产流程</h2>
-                        <ol className="mt-4 grid gap-3 text-sm text-muted-foreground">
-                            {["剧本", "资产准备", "故事板", "分镜图/视频", "配音", "审核与导出"].map((item, index) => (
-                                <li key={item} className="flex items-center gap-2">
-                                    <span className="grid size-6 place-items-center rounded-full bg-muted text-xs">{index + 1}</span>
-                                    {item}
-                                </li>
-                            ))}
-                        </ol>
-                    </aside>
-                    <section className="rounded-lg border border-border bg-card p-6">
-                        <h2 className="text-lg font-semibold">项目数据</h2>
-                        <div className="mt-4 flex flex-wrap gap-3">
-                            <Tag>{project.episodes.length} 集</Tag>
-                            <Tag>{project.episodes.reduce((sum, episode) => sum + episode.shots.length, 0)} 分镜</Tag>
-                            <Tag>{project.ratio}</Tag>
+                    <section id="anchor-script" className="mt-6 rounded-lg border border-border bg-card p-5">
+                        <div className="flex items-center justify-between">
+                            <h2 className="font-semibold">本集剧本</h2>
+                            <label className="cursor-pointer rounded border px-3 py-1.5 text-sm">
+                                {importing ? "导入中…" : "导入 TXT / MD"}
+                                <input
+                                    className="hidden"
+                                    type="file"
+                                    accept=".txt,.md,text/plain,text/markdown"
+                                    disabled={importing}
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        event.target.value = "";
+                                        if (file) void importScriptFile(file);
+                                    }}
+                                />
+                            </label>
                         </div>
-                        <p className="mt-6 text-sm text-muted-foreground">独立工作区已加载真实项目数据，故事板将按 L 的完整生产逻辑承载。</p>
-                        <div className="mt-5 flex flex-wrap gap-2">
-                            {!task || task.status === "success" ? (
-                                <Button type="primary" loading={starting} onClick={() => void startWorkflow()}>
-                                    启动一键成片
+                        <div className="mt-3 grid gap-3">
+                            <Input value={episodeTitle} onChange={(event) => setEpisodeTitle(event.target.value)} placeholder="分集标题" />
+                            <Input.TextArea value={episodeScript} onChange={(event) => setEpisodeScript(event.target.value)} rows={10} placeholder="粘贴或输入本集完整剧本" />
+                            <div>
+                                <Button type="primary" loading={savingEpisode} onClick={() => void saveEpisode()}>
+                                    保存本集剧本
                                 </Button>
-                            ) : null}
-                            {task && ["pending", "running"].includes(task.status) ? (
-                                <Button danger onClick={() => void cancelWorkflow()}>
-                                    取消任务
-                                </Button>
-                            ) : null}
-                            {task && ["error", "cancelled"].includes(task.status) ? <Button onClick={() => void retryWorkflow()}>重试</Button> : null}
+                            </div>
                         </div>
-                        {task ? (
-                            <div className="mt-5 rounded-lg border p-4">
-                                <div className="flex items-center justify-between">
-                                    <b>生产任务：{task.status}</b>
-                                    <span className="text-sm text-stone-500">{task.currentStep || "等待启动"}</span>
-                                </div>
-                                <Progress percent={task.progress} status={task.status === "error" ? "exception" : task.status === "success" ? "success" : "active"} />
-                                <ol className="mt-3 grid gap-2 text-sm">
-                                    {task.steps.map((step) => (
-                                        <li key={step.key} className="flex items-center justify-between">
-                                            <span>{step.label}</span>
-                                            <Tag color={step.status === "success" ? "success" : step.status === "error" ? "error" : step.status === "running" ? "processing" : "default"}>{step.status}</Tag>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </div>
-                        ) : null}
-                        <OneClickFilmAssetPanel projectId={projectId} project={project} onProjectChange={setProject} />
-                        {project.episodes[0] ? <OneClickFilmShotCards projectId={projectId} project={project} episode={project.episodes[0]} onProjectChange={setProject} /> : null}
-                        {project.episodes[0]?.shots.length ? (
-                            <div className="mt-5 rounded-lg border p-4">
-                                <div className="flex items-center justify-between gap-2">
-                                    <b>全能片段描述（L 全能分镜提示词）</b>
-                                    <Select
-                                        size="small"
-                                        style={{ minWidth: 220 }}
-                                        placeholder="选择分镜"
-                                        value={activeShotId}
-                                        onChange={(value) => {
-                                            setActiveShotId(value);
-                                            const shot = project.episodes[0]?.shots.find((item) => item.id === value);
-                                            setUniversalDraft(shot?.universalSegmentText || "");
-                                        }}
-                                        options={project.episodes[0]?.shots.map((shot, index) => ({ value: shot.id, label: `分镜 ${index + 1} · ${shot.title || "未命名"}` }))}
-                                    />
-                                </div>
-                                <Input.TextArea className="mt-3" rows={6} value={universalDraft} onChange={(event) => setUniversalDraft(event.target.value)} placeholder="点击生成，或手动填写后再润色" />
-                                <div className="mt-3 flex flex-wrap items-center gap-3">
-                                    <Button loading={universalBusy === "generate"} disabled={!activeShot} onClick={() => void runUniversalPrompt("generate")}>
-                                        生成全能提示词
-                                    </Button>
-                                    <Button loading={universalBusy === "polish"} disabled={!activeShot || !universalDraft.trim()} onClick={() => void runUniversalPrompt("polish")}>
-                                        润色
-                                    </Button>
-                                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <Switch size="small" checked={forceNoRef} onChange={setForceNoRef} />
-                                        无参考图仍强制生成
-                                    </label>
-                                </div>
-                            </div>
-                        ) : null}
-                        {episodeId ? (
-                            <Button className="mt-5" type="primary" icon={<ExternalLink className="size-4" />} href={canvasHref}>
-                                打开本集画布
-                            </Button>
-                        ) : (
-                            <p className="mt-5 text-sm text-muted-foreground">当前项目还没有分集，请先添加分集。</p>
-                        )}
                     </section>
-                </section>
-            </div>
-        </main>
+                    <section className="mt-6 grid gap-4 lg:grid-cols-[220px_1fr]">
+                        <aside className="rounded-lg border border-border bg-card p-4">
+                            <h2 className="font-semibold">生产流程</h2>
+                            <ol className="mt-4 grid gap-3 text-sm text-muted-foreground">
+                                {["剧本", "资产准备", "故事板", "分镜图/视频", "配音", "审核与导出"].map((item, index) => (
+                                    <li key={item} className="flex items-center gap-2">
+                                        <span className="grid size-6 place-items-center rounded-full bg-muted text-xs">{index + 1}</span>
+                                        {item}
+                                    </li>
+                                ))}
+                            </ol>
+                        </aside>
+                        <section className="rounded-lg border border-border bg-card p-6">
+                            <h2 className="text-lg font-semibold">项目数据</h2>
+                            <div className="mt-4 flex flex-wrap gap-3">
+                                <Tag>{project.episodes.length} 集</Tag>
+                                <Tag>{project.episodes.reduce((sum, episode) => sum + episode.shots.length, 0)} 分镜</Tag>
+                                <Tag>{project.ratio}</Tag>
+                            </div>
+                            <p className="mt-6 text-sm text-muted-foreground">独立工作区已加载真实项目数据，故事板将按 L 的完整生产逻辑承载。</p>
+                            <div className="mt-5 flex flex-wrap gap-2">
+                                {!task || task.status === "success" ? (
+                                    <Button type="primary" loading={starting} onClick={() => void startWorkflow()}>
+                                        启动一键成片
+                                    </Button>
+                                ) : null}
+                                {task && ["pending", "running"].includes(task.status) ? (
+                                    <Button danger onClick={() => void cancelWorkflow()}>
+                                        取消任务
+                                    </Button>
+                                ) : null}
+                                {task && ["error", "cancelled"].includes(task.status) ? <Button onClick={() => void retryWorkflow()}>重试</Button> : null}
+                            </div>
+                            {task ? (
+                                <div className="mt-5 rounded-lg border p-4">
+                                    <div className="flex items-center justify-between">
+                                        <b>生产任务：{task.status}</b>
+                                        <span className="text-sm text-stone-500">{task.currentStep || "等待启动"}</span>
+                                    </div>
+                                    <Progress percent={task.progress} status={task.status === "error" ? "exception" : task.status === "success" ? "success" : "active"} />
+                                    <ol className="mt-3 grid gap-2 text-sm">
+                                        {task.steps.map((step) => (
+                                            <li key={step.key} className="flex items-center justify-between">
+                                                <span>{step.label}</span>
+                                                <Tag color={step.status === "success" ? "success" : step.status === "error" ? "error" : step.status === "running" ? "processing" : "default"}>{step.status}</Tag>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </div>
+                            ) : null}
+                            <OneClickFilmAssetPanel projectId={projectId} project={project} onProjectChange={setProject} kind={assetKind} onKindChange={setAssetKind} />
+                            <div id="anchor-storyboard">{project.episodes[0] ? <OneClickFilmShotCards projectId={projectId} project={project} episode={project.episodes[0]} onProjectChange={setProject} /> : null}</div>
+                            {project.episodes[0]?.shots.length ? (
+                                <div className="mt-5 rounded-lg border p-4">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <b>全能片段描述（L 全能分镜提示词）</b>
+                                        <Select
+                                            size="small"
+                                            style={{ minWidth: 220 }}
+                                            placeholder="选择分镜"
+                                            value={activeShotId}
+                                            onChange={(value) => {
+                                                setActiveShotId(value);
+                                                const shot = project.episodes[0]?.shots.find((item) => item.id === value);
+                                                setUniversalDraft(shot?.universalSegmentText || "");
+                                            }}
+                                            options={project.episodes[0]?.shots.map((shot, index) => ({ value: shot.id, label: `分镜 ${index + 1} · ${shot.title || "未命名"}` }))}
+                                        />
+                                    </div>
+                                    <Input.TextArea className="mt-3" rows={6} value={universalDraft} onChange={(event) => setUniversalDraft(event.target.value)} placeholder="点击生成，或手动填写后再润色" />
+                                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                                        <Button loading={universalBusy === "generate"} disabled={!activeShot} onClick={() => void runUniversalPrompt("generate")}>
+                                            生成全能提示词
+                                        </Button>
+                                        <Button loading={universalBusy === "polish"} disabled={!activeShot || !universalDraft.trim()} onClick={() => void runUniversalPrompt("polish")}>
+                                            润色
+                                        </Button>
+                                        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Switch size="small" checked={forceNoRef} onChange={setForceNoRef} />
+                                            无参考图仍强制生成
+                                        </label>
+                                    </div>
+                                </div>
+                            ) : null}
+                            {episodeId ? (
+                                <Button id="anchor-video" className="mt-5" type="primary" icon={<ExternalLink className="size-4" />} href={canvasHref}>
+                                    打开本集画布
+                                </Button>
+                            ) : (
+                                <p className="mt-5 text-sm text-muted-foreground">当前项目还没有分集，请先添加分集。</p>
+                            )}
+                        </section>
+                    </section>
+                </div>
+            </main>
+        </div>
     );
 }

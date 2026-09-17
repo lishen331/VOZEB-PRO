@@ -221,7 +221,7 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
 
             <ul className="mt-3 grid gap-3">
                 {episode.shots.map((shot, index) => (
-                    <li key={shot.id} className="rounded-lg border p-3" data-testid={`one-click-shot-card-${shot.id}`}>
+                    <li key={shot.id} id={`one-click-shot-${shot.id}`} className="rounded-lg border p-3" data-testid={`one-click-shot-card-${shot.id}`}>
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">

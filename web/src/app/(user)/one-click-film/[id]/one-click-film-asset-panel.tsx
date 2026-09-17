@@ -17,6 +17,16 @@ type AssetKind = "characters" | "scenes" | "props";
 
 type Props = {
     projectId: string;
+    /**
+     * 受控的资产类别。
+     *
+     * L 的资源管理是「角色 / 道具 / 场景」三个并列可折叠子卡，各自有独立锚点
+     * （anchor-characters / anchor-props / anchor-scenes）；V 这里是单面板 + Segmented 切换，
+     * 所以把 kind 提升给父组件，侧栏点击对应步骤时既滚动到本区、又切到对应页签，
+     * 否则那三个锚点会指向不存在的 DOM，跳转就是死的。
+     */
+    kind?: AssetKind;
+    onKindChange?: (kind: AssetKind) => void;
     project: DramaProject;
     onProjectChange: (project: DramaProject) => void;
 };
@@ -42,8 +52,13 @@ const KIND_ASSET_TYPE: Record<AssetKind, string> = { characters: "character", sc
  *
  * L 的角色默认四视图，场景/道具默认单图 —— 这里沿用同一约定。
  */
-export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: Props) {
-    const [kind, setKind] = useState<AssetKind>("characters");
+export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, kind: controlledKind, onKindChange }: Props) {
+    const [innerKind, setInnerKind] = useState<AssetKind>("characters");
+    const kind = controlledKind ?? innerKind;
+    const setKind = (next: AssetKind) => {
+        setInnerKind(next);
+        onKindChange?.(next);
+    };
     const [editing, setEditing] = useState<PanelAsset>();
     const [busy, setBusy] = useState<string>();
     const [creatingName, setCreatingName] = useState("");
@@ -339,7 +354,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
     };
 
     return (
-        <section className="mt-6 rounded-lg border border-border bg-card p-5">
+        <section id="anchor-assets" className="mt-6 rounded-lg border border-border bg-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-semibold">资产准备</h2>
                 <div className="flex flex-wrap items-center gap-2">
