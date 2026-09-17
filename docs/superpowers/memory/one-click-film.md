@@ -28,7 +28,9 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 一级入口与导航、独立配置页、项目隔离（`sourceHandoffId` 前缀 `one-click-film:`）、父任务编排+调度入队+worker识别+取消/重试/恢复、配音真实 TTS 子任务、按音频拆镜接口、导出接口、画布往返按 `source` 分流、全能提示词字段合同。
 
 ### 覆盖现状（2026-09-17 收尾）
-**storyboards 域 16/21 已迁移 + 1 结构覆盖，剩 4 条全是 P2**（3 条 stream 版本的非流式等价物已迁移；episode generate 端点）。
+**storyboards 域 17/21 已迁移 + 1 结构覆盖，剩 3 条全是 P2**（仅剩 3 条 stream 版本，非流式等价物均已迁移）。
+
+`GET /storyboards/episode/:id/generate` 已于 2026-09-17 迁移为 `POST .../episodes/:episodeId/storyboards/generate`。动机：V 原先只能跑完整 7 步工作流，`currentStepIndex` 恒从 0 起，改完剧本没法只重拆本集分镜。实现复用 executor 的 `storyboard_extract` 子工作流（scope=current），因此提示词契约与落库字段不分叉。用 POST 而非 L 的 GET —— 有副作用的操作不能让浏览器/代理预取。
 
 `POST /storyboards/:id/props` 已于 2026-09-17 打通：服务端白名单本来就收 `characterIds`/`propIds`/`sceneId`，但**没有任何 UI 发过这三个字段**，所以能力实际不可达。这是典型的「后端有、前端没接 = 等于没做」，教训同死代码守卫那条。现由分镜编辑弹窗「资产绑定」页签承载，整组覆盖语义与 L 一致。
 
@@ -54,7 +56,7 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 注意一处等价判定的边界：`POST /videos/image/:image_gen_id`（L 用任意已生成图生视频）在 V 里没有独立端点，`generate-video` 只能用绑定在分镜 frames 上的帧。请求载荷等价但入口形态不同，"从历史候选图直接生视频"要单独补。
 
-其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：storyboards 剩余 4 条 P2（3 条 stream 版本、episode generate 端点）。媒体域两条 backgrounds 经复核不是能力缺口（见下）。**
+其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：只剩 3 条 stream 版本（P2）。它们的非流式等价物都已迁移，差别仅在响应传输方式，不影响最终提示词内容与落库结果；要做的是 SSE/NDJSON 增量输出体验。媒体域两条 backgrounds 经复核不是能力缺口（见下）。**
 
 ### backgrounds 两条不是能力缺口（2026-09-17 复核）
 此前文档写"V 用场景资产体系承载，未做等价端点"，措辞含糊。复核结论：
