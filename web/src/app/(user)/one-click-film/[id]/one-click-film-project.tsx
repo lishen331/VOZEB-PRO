@@ -20,7 +20,7 @@ export default function OneClickFilmProject() {
     const [project, setProject] = useState<DramaProject>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
-    const [task, setTask] = useState<{ id: string; status: string; progress: number; currentStep?: string; steps: Array<{ key: string; label: string; status: string; error?: string }> }>();
+    const [task, setTask] = useState<{ id: string; status: string; progress: number; currentStep?: string; paused?: boolean; steps: Array<{ key: string; label: string; status: string; error?: string }> }>();
     const [starting, setStarting] = useState<"full" | "text_framework">();
     const [episodeTitle, setEpisodeTitle] = useState("第 1 集");
     const [episodeScript, setEpisodeScript] = useState("");
@@ -87,6 +87,15 @@ export default function OneClickFilmProject() {
     const cancelWorkflow = async () => {
         if (!task) return;
         await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/cancel`, { method: "POST" });
+        await refreshTask(task.id);
+    };
+    /**
+     * 对应 L 的「暂停 / 继续」（pipelinePaused）。
+     * 只挡住"启动下一步"，已提交的子任务照常跑完，不撤单也不重复扣费。
+     */
+    const setWorkflowPaused = async (paused: boolean) => {
+        if (!task) return;
+        await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/pause?action=${paused ? "pause" : "continue"}`, { method: "POST" });
         await refreshTask(task.id);
     };
     const retryWorkflow = async () => {
@@ -423,9 +432,16 @@ export default function OneClickFilmProject() {
                                 </>
                             ) : null}
                             {task && ["pending", "running"].includes(task.status) ? (
-                                <Button danger aria-label="取消一键成片任务" onClick={() => void cancelWorkflow()}>
-                                    取消任务
-                                </Button>
+                                <>
+                                    <Tooltip title={task.paused ? "继续启动后续步骤" : "暂停后不再启动下一步；已提交的子任务会继续跑完，不会重复扣费"}>
+                                        <Button aria-label={task.paused ? "继续一键成片任务" : "暂停一键成片任务"} onClick={() => void setWorkflowPaused(!task.paused)}>
+                                            {task.paused ? "继续" : "暂停"}
+                                        </Button>
+                                    </Tooltip>
+                                    <Button danger aria-label="取消一键成片任务" onClick={() => void cancelWorkflow()}>
+                                        取消任务
+                                    </Button>
+                                </>
                             ) : null}
                             {task && ["error", "cancelled"].includes(task.status) ? (
                                 <Button aria-label="重试一键成片任务" onClick={() => void retryWorkflow()}>

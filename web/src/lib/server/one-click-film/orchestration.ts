@@ -1,6 +1,6 @@
 import { createStoredGenerationTask, getStoredGenerationTask, getStoredGenerationTaskByRequest, updateStoredGenerationTask } from "@/lib/server/generation-task-store";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
-import { advanceOneClickFilmWorkflow, cancelOneClickFilmWorkflow, createOneClickFilmWorkflow, oneClickFilmTaskView } from "./engine";
+import { advanceOneClickFilmWorkflow, cancelOneClickFilmWorkflow, createOneClickFilmWorkflow, oneClickFilmTaskView, pauseOneClickFilmWorkflow, resumeOneClickFilmWorkflow } from "./engine";
 import { ONE_CLICK_FILM_SOURCE, type OneClickFilmExecutor, type OneClickFilmStartInput, type OneClickFilmTask } from "./types";
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -56,6 +56,26 @@ export async function cancelOneClickFilm(taskId: string, userId: string) {
     await updateStoredGenerationTask("render", next, TTL_MS);
     return next;
 }
+/** 对应 L 的「暂停」：置暂停位后 worker 不再启动下一步。 */
+export async function pauseOneClickFilm(taskId: string, userId: string) {
+    const t = await getOneClickFilmTask(taskId, userId);
+    if (!t) return null;
+    const next = pauseOneClickFilmWorkflow(structuredClone(t));
+    await updateStoredGenerationTask("render", next, TTL_MS);
+    return next;
+}
+
+/** 对应 L 的「继续」：清暂停位并重新入队，避免等到下一次自然轮询。 */
+export async function continueOneClickFilm(taskId: string, userId: string) {
+    const t = await getOneClickFilmTask(taskId, userId);
+    if (!t) return null;
+    if (!t.workflow.paused) return t;
+    const next = resumeOneClickFilmWorkflow(structuredClone(t));
+    await updateStoredGenerationTask("render", next, TTL_MS);
+    await scheduleGenerationTask("render", next.id, { executionPhase: "created", nextPollAt: Date.now() });
+    return next;
+}
+
 export async function retryOneClickFilm(taskId: string, userId: string) {
     const t = await getOneClickFilmTask(taskId, userId);
     if (!t || !(t.status === "error" || t.status === "cancelled")) return t;

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { advanceOneClickFilmWorkflow, createOneClickFilmWorkflow, oneClickFilmTaskView } from "./engine";
+import { advanceOneClickFilmWorkflow, createOneClickFilmWorkflow, oneClickFilmTaskView, pauseOneClickFilmWorkflow, resumeOneClickFilmWorkflow } from "./engine";
 import type { OneClickFilmExecutor, OneClickFilmStartInput, OneClickFilmStep } from "./types";
 
 /**
@@ -69,5 +69,48 @@ describe("advanceOneClickFilmWorkflow with skipped steps", () => {
         const executor = vi.fn<OneClickFilmExecutor>(async () => ({ status: "success" as const }));
         await advanceOneClickFilmWorkflow(task, executor);
         expect(executor).toHaveBeenCalledTimes(7);
+    });
+});
+
+/**
+ * 对应 L 的 `pipelinePaused`。这里测真实行为，不测标志位本身：
+ * 暂停后推进器绝不能再启动下一步（否则用户关掉页面仍会继续花钱），
+ * 继续后必须从原断点接着跑，不能从头重跑（否则重复扣费）。
+ */
+describe("pause / continue the one-click pipeline", () => {
+    it("stops launching further steps once paused", async () => {
+        const task = createOneClickFilmWorkflow(startInput());
+        const executor = vi.fn<OneClickFilmExecutor>(async () => ({ status: "success" as const }));
+        pauseOneClickFilmWorkflow(task);
+        const next = await advanceOneClickFilmWorkflow(task, executor);
+        expect(executor).not.toHaveBeenCalled();
+        expect(next.status).toBe("pending");
+        expect(next.workflow.currentStepIndex).toBe(0);
+        expect(oneClickFilmTaskView(next).paused).toBe(true);
+    });
+
+    it("resumes from the same step instead of restarting the pipeline", async () => {
+        const task = createOneClickFilmWorkflow(startInput());
+        const executor = vi.fn<OneClickFilmExecutor>(async () => ({ status: "success" as const }));
+        // 先跑完前两步，再暂停。
+        await advanceOneClickFilmWorkflow(task, async ({ step }) => ({ status: step.key === "storyboard" ? ("pending" as const) : ("success" as const) }));
+        const reached = task.workflow.currentStepIndex;
+        expect(reached).toBe(2);
+        pauseOneClickFilmWorkflow(task);
+        await advanceOneClickFilmWorkflow(task, executor);
+        expect(executor).not.toHaveBeenCalled();
+
+        resumeOneClickFilmWorkflow(task);
+        expect(oneClickFilmTaskView(task).paused).toBeUndefined();
+        const done = await advanceOneClickFilmWorkflow(task, executor);
+        // 只跑剩下的五步，已成功的 script / assets 不会被重跑。
+        expect(executor.mock.calls.map((call) => call[0].step.key)).toEqual(["storyboard", "images", "videos", "audio", "compose"]);
+        expect(done.status).toBe("success");
+    });
+
+    it("refuses to pause a settled task", () => {
+        const task = createOneClickFilmWorkflow(startInput());
+        task.status = "success";
+        expect(pauseOneClickFilmWorkflow(task).workflow.paused).toBeUndefined();
     });
 });

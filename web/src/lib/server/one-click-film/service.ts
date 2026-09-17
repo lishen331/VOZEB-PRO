@@ -1,3 +1,3 @@
-export { advanceOneClickFilm, cancelOneClickFilm, getOneClickFilmTask, oneClickFilmTaskView, retryOneClickFilm, resumeOneClickFilm, startOneClickFilm, OneClickFilmOrchestrationError } from "./orchestration";
-export { advanceOneClickFilmWorkflow, cancelOneClickFilmWorkflow, createOneClickFilmWorkflow } from "./engine";
+export { advanceOneClickFilm, cancelOneClickFilm, continueOneClickFilm, getOneClickFilmTask, oneClickFilmTaskView, pauseOneClickFilm, retryOneClickFilm, resumeOneClickFilm, startOneClickFilm, OneClickFilmOrchestrationError } from "./orchestration";
+export { advanceOneClickFilmWorkflow, cancelOneClickFilmWorkflow, createOneClickFilmWorkflow, pauseOneClickFilmWorkflow, resumeOneClickFilmWorkflow } from "./engine";
 export * from "./types";

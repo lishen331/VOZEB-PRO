@@ -79,11 +79,14 @@ export function oneClickFilmTaskView(task: OneClickFilmTask): OneClickFilmTaskVi
         childTaskIds: task.workflow.childTaskIds,
         outputRefs: task.workflow.outputRefs,
         error: task.error,
+        paused: task.workflow.paused === true ? true : undefined,
     };
 }
 export async function advanceOneClickFilmWorkflow(task: OneClickFilmTask, executor: OneClickFilmExecutor) {
     task.workflow.childTaskIds = [...new Set(task.workflow.childTaskIds)];
     if (task.status === "success" || task.status === "cancelled" || task.status === "error") return task;
+    // L 的「暂停」只挡住"启动下一步"，已提交的子任务照常跑完，不撤单也不退款。
+    if (task.workflow.paused) return task;
     for (let index = task.workflow.currentStepIndex; index < task.workflow.steps.length; index += 1) {
         const step = task.workflow.steps[index];
         if (step.status === "success" || step.status === "skipped") {
@@ -109,6 +112,22 @@ export async function advanceOneClickFilmWorkflow(task: OneClickFilmTask, execut
     task.updatedAt = Date.now();
     return task;
 }
+/** 暂停：只置标志位，不动步骤状态，父任务保持可继续。 */
+export function pauseOneClickFilmWorkflow(task: OneClickFilmTask) {
+    if (task.status === "success" || task.status === "error" || task.status === "cancelled") return task;
+    task.workflow.paused = true;
+    task.updatedAt = Date.now();
+    return task;
+}
+
+/** 继续：清掉标志位即可，推进器下一轮会从 currentStepIndex 继续。 */
+export function resumeOneClickFilmWorkflow(task: OneClickFilmTask) {
+    if (!task.workflow.paused) return task;
+    task.workflow.paused = undefined;
+    task.updatedAt = Date.now();
+    return task;
+}
+
 export function cancelOneClickFilmWorkflow(task: OneClickFilmTask) {
     if (task.status === "success" || task.status === "error" || task.status === "cancelled") return task;
     task.status = "cancelled";

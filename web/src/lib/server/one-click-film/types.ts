@@ -35,6 +35,13 @@ export type OneClickFilmWorkflow = {
     startedAt: number;
     finishedAt?: number;
     error?: string;
+    /**
+     * 对应 L `pipelinePaused`：用户按下「暂停」后，父任务保持 pending，
+     * 但推进器一进入就原样返回，不再启动下一步。
+     * L 是客户端标志位，V 的父任务由服务端 worker 推进，所以必须落在任务上，
+     * 否则关掉页面后 worker 会继续往下跑。
+     */
+    paused?: boolean;
 };
 
 export type OneClickFilmTask = {
@@ -60,6 +67,8 @@ export type OneClickFilmTaskView = Pick<OneClickFilmTask, "id" | "status" | "tit
     childTaskIds: string[];
     outputRefs: Array<Record<string, unknown>>;
     error?: string;
+    /** 暂停中：前端据此显示「继续」而不是「暂停」。 */
+    paused?: boolean;
 };
 
 export type OneClickFilmStartInput = {
