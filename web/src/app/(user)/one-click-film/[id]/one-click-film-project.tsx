@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Popconfirm, Select, Spin, Tag, Tooltip, Progress, message, Input } from "antd";
+import { Alert, Button, Modal, Popconfirm, Select, Spin, Tag, Tooltip, Progress, message, Input } from "antd";
 import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -26,6 +26,11 @@ export default function OneClickFilmProject() {
     const [episodeScript, setEpisodeScript] = useState("");
     const [savingEpisode, setSavingEpisode] = useState(false);
     const [importing, setImporting] = useState(false);
+    /** L §1 的「从剧本库导入」弹窗：列出本人其他一键成片项目的分集剧本。 */
+    const [libraryOpen, setLibraryOpen] = useState(false);
+    const [libraryLoading, setLibraryLoading] = useState(false);
+    const [libraryProjects, setLibraryProjects] = useState<Array<{ id: string; title: string; episodes: Array<{ id: string; episodeNumber: number; title: string; script: string }> }>>([]);
+    const [librarySelection, setLibrarySelection] = useState<string>();
     const [renderRecordBusy, setRenderRecordBusy] = useState(false);
     const [exportingStoryboard, setExportingStoryboard] = useState<"xlsx" | "srt">();
     // 侧栏「角色/道具/场景」三步要能切到对应页签，故把资产类别提到页面层。
@@ -166,6 +171,35 @@ export default function OneClickFilmProject() {
             setImporting(false);
         }
     };
+    /** 打开「从剧本库导入」：只读列出本人其他一键成片项目的分集剧本。 */
+    const openScriptLibrary = async () => {
+        setLibraryOpen(true);
+        setLibraryLoading(true);
+        try {
+            const response = await fetch(`/api/one-click-film/script-library?excludeProjectId=${encodeURIComponent(projectId)}`, { cache: "no-store" });
+            const payload = await response.json();
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "剧本库读取失败");
+            setLibraryProjects(payload.data.projects || []);
+        } catch (libraryError) {
+            message.error(libraryError instanceof Error ? libraryError.message : "剧本库读取失败");
+        } finally {
+            setLibraryLoading(false);
+        }
+    };
+
+    /**
+     * 应用剧本库里选中的那一集：只把剧本正文填进本集编辑框，不直接落库。
+     * 与 L 一致 —— 用户仍需点「保存本集剧本」确认，避免误覆盖已有剧本。
+     */
+    const applyLibraryScript = () => {
+        const [libraryProjectId, episodeId] = (librarySelection || "").split("::");
+        const episode = libraryProjects.find((item) => item.id === libraryProjectId)?.episodes.find((item) => item.id === episodeId);
+        if (!episode) return message.warning("请先选择要导入的剧本");
+        setEpisodeScript(episode.script);
+        setLibraryOpen(false);
+        message.success("已填入所选剧本，确认后点「保存本集剧本」生效");
+    };
+
     const saveEpisode = async () => {
         if (!project || !episodeScript.trim()) return message.warning("请输入本集剧本");
         setSavingEpisode(true);
@@ -384,23 +418,44 @@ export default function OneClickFilmProject() {
                             </Button>
                         </div>
                     </div>
+                    <Modal open={libraryOpen} title="从剧本库导入" onCancel={() => setLibraryOpen(false)} onOk={applyLibraryScript} okText="填入本集" cancelText="取消" destroyOnHidden>
+                        <Spin spinning={libraryLoading}>
+                            <p className="mb-2 text-sm text-muted-foreground">选择本人其他一键成片项目的分集剧本；填入后仍需点「保存本集剧本」才会写库。</p>
+                            <Select
+                                style={{ width: "100%" }}
+                                placeholder={libraryProjects.length ? "选择项目与集数" : "暂无可导入的剧本"}
+                                value={librarySelection}
+                                onChange={setLibrarySelection}
+                                aria-label="选择剧本库剧本"
+                                options={libraryProjects.map((item) => ({
+                                    label: item.title,
+                                    options: item.episodes.map((episode) => ({ value: `${item.id}::${episode.id}`, label: `${episode.title}（${episode.script.length} 字）` })),
+                                }))}
+                            />
+                        </Spin>
+                    </Modal>
                     <section id="anchor-script" className="mt-6 rounded-lg border border-border bg-card p-5">
                         <div className="flex items-center justify-between">
                             <h2 className="font-semibold">本集剧本</h2>
-                            <label className="cursor-pointer rounded border px-3 py-1.5 text-sm">
-                                {importing ? "导入中…" : "导入 TXT / MD"}
-                                <input
-                                    className="hidden"
-                                    type="file"
-                                    accept=".txt,.md,text/plain,text/markdown"
-                                    disabled={importing}
-                                    onChange={(event) => {
-                                        const file = event.target.files?.[0];
-                                        event.target.value = "";
-                                        if (file) void importScriptFile(file);
-                                    }}
-                                />
-                            </label>
+                            <div className="flex items-center gap-2">
+                                <Button size="small" aria-label="从剧本库导入" onClick={() => void openScriptLibrary()}>
+                                    从剧本库导入
+                                </Button>
+                                <label className="cursor-pointer rounded border px-3 py-1.5 text-sm">
+                                    {importing ? "导入中…" : "导入 TXT / MD"}
+                                    <input
+                                        className="hidden"
+                                        type="file"
+                                        accept=".txt,.md,text/plain,text/markdown"
+                                        disabled={importing}
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            event.target.value = "";
+                                            if (file) void importScriptFile(file);
+                                        }}
+                                    />
+                                </label>
+                            </div>
                         </div>
                         <div className="mt-3 grid gap-3">
                             <Input value={episodeTitle} onChange={(event) => setEpisodeTitle(event.target.value)} placeholder="分集标题" />

@@ -40,6 +40,23 @@ describe("one-click-film shot card UI", () => {
         expect(editor).toContain("defaultActiveKey={initialTab}");
     });
 
+    it("offers L's 从剧本库导入 entry and only reads the library route", async () => {
+        const source = await readFile(workspacePath, "utf8");
+        // 对应 L:333–354 的剧本库弹窗：只读列出，写入仍复用既有的 PUT /projects/:id。
+        expect(source).toContain("从剧本库导入");
+        expect(source).toContain("/api/one-click-film/script-library?excludeProjectId=");
+        expect(source).toContain("applyLibraryScript");
+        // 填入本集只改编辑框，不得直接落库（避免误覆盖已有剧本）。
+        expect(source).toContain("setEpisodeScript(episode.script)");
+    });
+
+    it("keeps L's pipeline 暂停/继续 wired to the pause route", async () => {
+        const source = await readFile(workspacePath, "utf8");
+        expect(source).toContain("setWorkflowPaused");
+        expect(source).toContain("/pause?action=");
+        expect(source).toContain("暂停");
+    });
+
     it("offers L's 继续查询 without resubmitting the upstream video task", async () => {
         const source = await readFile(cardsPath, "utf8");
         // 对应 L onResumeSbVideoPoll：只 recover 原任务，不得再打 generate-video。
