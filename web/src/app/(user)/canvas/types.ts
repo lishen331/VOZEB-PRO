@@ -177,7 +177,7 @@ export type CanvasNodeMetadata = {
     panoramaProjection?: "equirectangular";
     panoramaSourcePrompt?: string;
     upstreamPrompt?: string;
-    imageReferenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop" | "face")[]>;
+    imageReferenceRoles?: import("@/lib/image-reference-roles").ImageReferenceRoles;
     references?: string[];
     naturalWidth?: number;
     naturalHeight?: number;
