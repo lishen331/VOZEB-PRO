@@ -62,6 +62,15 @@ describe("one-click-film asset panel UI", () => {
         }
     });
 
+    it("exposes asset reference-image generation that bills to one-click-film", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // 对应 L generate-image / generate-four-view-image
+        expect(source).toContain("/generate-image");
+        expect(source).toContain('kind === "characters" ? "four_view"');
+        expect(source).toContain("生成四视图");
+        expect(source).toContain("生成设定图");
+    });
+
     it("does not fake async work with setTimeout", async () => {
         const source = await readFile(panelPath, "utf8");
         expect(source).not.toContain("setTimeout");

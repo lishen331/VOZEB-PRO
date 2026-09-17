@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Input, Modal, Segmented, Tag, message } from "antd";
-import { Sparkles, UserRound } from "lucide-react";
+import { ImageIcon, Sparkles, UserRound } from "lucide-react";
 import { useState } from "react";
 import type { DramaNamedAsset, DramaProject } from "@/lib/drama-project-contract";
 
@@ -79,6 +79,26 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
         }
     };
 
+    /**
+     * 资产设定图生成。对应 L 的 `generate-image` / `generate-four-view-image`。
+     * 走一键成片自有路由（服务端显式写 featureModule），计费归属 one-click-film。
+     */
+    const generateImage = async (asset: DramaNamedAsset) => {
+        setBusy(`${asset.id}:image`);
+        try {
+            await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/generate-image`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, generationLayout: kind === "characters" ? "four_view" : asset.generationLayout || "single" }),
+            });
+            message.success(kind === "characters" ? "角色四视图任务已创建" : "资产设定图任务已创建");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产设定图任务创建失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
     return (
         <section className="mt-6 rounded-lg border border-border bg-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -108,6 +128,15 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                             <div className="mt-2 flex flex-wrap gap-2">
                                 <Button size="small" icon={<Sparkles className="size-4" />} loading={busy === `${asset.id}:prompt`} aria-label={`生成${KIND_LABEL[kind]}生图提示词`} onClick={() => void runAi(asset, "prompt")}>
                                     生成生图提示词
+                                </Button>
+                                <Button
+                                    size="small"
+                                    icon={<ImageIcon className="size-4" />}
+                                    loading={busy === `${asset.id}:image`}
+                                    aria-label={kind === "characters" ? `生成角色四视图 ${asset.name || asset.id}` : `生成${KIND_LABEL[kind]}设定图 ${asset.name || asset.id}`}
+                                    onClick={() => void generateImage(asset)}
+                                >
+                                    {kind === "characters" ? "生成四视图" : "生成设定图"}
                                 </Button>
                                 <Button size="small" loading={busy === `${asset.id}:describe`} aria-label={`从参考图提取${KIND_LABEL[kind]}特征`} onClick={() => void runAi(asset, "describe")}>
                                     从参考图提取特征
