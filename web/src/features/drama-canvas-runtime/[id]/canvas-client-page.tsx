@@ -454,12 +454,22 @@ function VozebProCanvasPage() {
                         const dramaProjectId = searchParams.get("dramaProjectId") || "";
                         const episodeId = searchParams.get("episodeId") || "";
                         const shotId = searchParams.get("shotId") || "";
+                        // 同一个画布被创作工坊（教学版）和一键成片（商单版）复用，回跳必须按来源分流，
+                        // 否则一键成片用户会被送进创作工坊。
+                        const isOneClickFilm = searchParams.get("source") === "one-click-film";
                         if (!dramaProjectId || !episodeId) {
-                            router.push("/drama-lab");
+                            router.push(isOneClickFilm ? "/one-click-film" : "/drama-lab");
+                            return;
+                        }
+                        const anchor = shotId ? `#storyboard-shot-${encodeURIComponent(shotId)}` : "";
+                        if (isOneClickFilm) {
+                            const oneClickQuery = new URLSearchParams({ episode: episodeId });
+                            if (shotId) oneClickQuery.set("shotId", shotId);
+                            router.push(`/one-click-film/${encodeURIComponent(dramaProjectId)}?${oneClickQuery.toString()}${anchor}`);
                             return;
                         }
                         const query = new URLSearchParams({ episode: episodeId, stage: "storyboard" });
-                        router.push(`/drama-lab/${encodeURIComponent(dramaProjectId)}/create?${query.toString()}${shotId ? `#storyboard-shot-${encodeURIComponent(shotId)}` : ""}`);
+                        router.push(`/drama-lab/${encodeURIComponent(dramaProjectId)}/create?${query.toString()}${anchor}`);
                     }}
                     onDeleteProject={() => message.info("短剧画布由剧集绑定管理")}
                     onImportImage={() => handleUploadRequest()}
