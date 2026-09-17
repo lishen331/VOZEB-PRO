@@ -2,8 +2,11 @@
 import { Alert, Spin } from "antd";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { decodeOneClickRouteId } from "@/lib/one-click/route-id";
 export default function OneClickFilmCanvasPage() {
-    const { id } = useParams<{ id: string }>();
+    const { id: rawId } = useParams<{ id: string }>();
+    // useParams 返回未解码的路径段，一键成片的 id 含冒号（%3A），直接再编码会双重编码。
+    const id = decodeOneClickRouteId(rawId);
     const query = useSearchParams();
     const router = useRouter();
     const episodeId = query.get("episode") || query.get("episodeId") || "";

@@ -7,13 +7,15 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { DramaProject } from "@/lib/drama-project-contract";
 import { splitDramaSource } from "@/lib/drama-source-splitter";
+import { decodeOneClickRouteId } from "@/lib/one-click/route-id";
 
 import { OneClickFilmAssetPanel } from "./one-click-film-asset-panel";
 import { OneClickFilmShotCards } from "./one-click-film-shot-cards";
 
 export default function OneClickFilmProject() {
     const { id } = useParams<{ id: string }>();
-    const projectId = String(id || "");
+    // useParams 返回未解码的路径段，一键成片的 id 含冒号（%3A），直接再编码会双重编码。
+    const projectId = decodeOneClickRouteId(id);
     const [project, setProject] = useState<DramaProject>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
