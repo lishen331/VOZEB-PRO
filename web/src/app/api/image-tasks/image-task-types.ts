@@ -25,7 +25,7 @@ export type CreateImageTaskBody = {
     config?: ImageTaskConfig;
     prompt?: string;
     references?: ImageTaskReference[];
-    referenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop")[]>;
+    referenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop" | "face")[]>;
     mask?: ImageTaskReference;
     source?: string;
     title?: string;
