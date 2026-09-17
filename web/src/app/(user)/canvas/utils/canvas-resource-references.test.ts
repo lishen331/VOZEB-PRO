@@ -14,6 +14,18 @@ describe("canvas resource reference index", () => {
         expect(index.forNode("image-64")).toBe(index.forNode("image-64"));
     });
 
+    it("expands a connected group into its member images so downstream nodes can reference them", () => {
+        const members = [imageNode("m1"), imageNode("m2")];
+        const group = node("group", CanvasNodeType.Group, { groupMemberIds: ["m1", "m2"] });
+        const downstream = node("shot", CanvasNodeType.Config);
+        const grouped = members.map((member) => ({ ...member, metadata: { ...member.metadata, groupId: "group" } }));
+        const connections: CanvasConnection[] = [{ id: "group-shot", fromNodeId: "group", toNodeId: "shot" }];
+        const index = createCanvasResourceReferenceIndex([...grouped, group, downstream], connections);
+
+        expect(index.resourceNodesFor("shot", false).map((item) => item.id)).toEqual(["m1", "m2"]);
+        expect(index.forNode("shot").map((reference) => reference.nodeId)).toEqual(["m1", "m2"]);
+    });
+
     it("reuses the indexed connection graph for config and direct node inputs", () => {
         const images = [imageNode("one"), imageNode("two")];
         const config = node("config", CanvasNodeType.Config);
