@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { FileText, Image as ImageIcon, LoaderCircle, Maximize2, Minimize2, Music2, Square, Video, X } from "lucide-react";
+import { FileText, Image as ImageIcon, Maximize2, Minimize2, Music2, Square, Video, X } from "lucide-react";
 import { Button, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
@@ -242,16 +242,15 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 </div>
                 <Button
                     type="primary"
-                    className="canvas-generate-button !h-10 !min-w-16 shrink-0 !rounded-full !px-3"
-                    danger={isRunning}
+                    className="canvas-generate-button canvas-metal-button !h-10 !min-w-16 shrink-0 !rounded-full !px-3"
+                    data-generating={isRunning ? "true" : undefined}
                     disabled={!isRunning && !prompt.trim()}
                     onClick={() => (isRunning ? onStop(node.id) : submit())}
                     aria-label={isRunning ? "停止生成" : "生成"}
                 >
-                    <span className="flex items-center gap-1.5">
+                    <span className="relative flex items-center gap-1.5">
                         {isRunning ? (
                             <>
-                                <LoaderCircle className="size-4 animate-spin" />
                                 <Square className="size-3.5 fill-current" />
                                 <span className="text-xs font-medium">停止</span>
                             </>

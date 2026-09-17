@@ -10,6 +10,7 @@
 @import "./styles/global-selection-controls.css";
 @import "./styles/global-scroll-utilities.css";
 @import "./styles/global-canvas-controls.css";
+@import "./styles/global-canvas-generate-button.css";
 @import "./styles/global-canvas-node-glow.css";
 @import "./styles/global-responsive-controls.css";
 @import "./styles/global-canvas-overrides.css";
