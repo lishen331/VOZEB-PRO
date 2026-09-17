@@ -172,6 +172,35 @@ describe("one-click-film asset panel UI", () => {
         expect(crud).toContain("speedValue >= 0.25 && speedValue <= 4");
     });
 
+    it("bridges assets to and from the material library", async () => {
+        const source = await readFile(panelPath, "utf8");
+        // 对应 L add-to-library / add-to-material-library / image-from-library
+        expect(source).toContain("/library");
+        expect(source).toContain('action: "save"');
+        expect(source).toContain('action: "apply"');
+        expect(source).toContain("libraryAssetId");
+        expect(source).toContain("存入素材库");
+        expect(source).toContain("取用素材");
+        // 挑选器只列当前类别的图片素材，避免把道具图取给角色
+        expect(source).toContain("kind=image");
+        expect(source).toContain("dramaAssetType=${KIND_ASSET_TYPE[kind]}");
+        // 取用后必须回写项目，否则界面看不到新主图
+        expect(source).toContain("onProjectChange(data.project as DramaProject)");
+    });
+
+    it("keeps the library bridge on the server side", async () => {
+        const service = await readFile(resolve(process.cwd(), "src/lib/server/one-click-film/asset-library-service.ts"), "utf8");
+        // 类别靠 metadata.dramaAssetType 区分（L 用单数）
+        expect(service).toContain("dramaAssetType");
+        expect(service).toContain('characters: "character"');
+        // 没有参考图不允许存入，否则素材库会出现空封面条目
+        expect(service).toContain("请先为该资产生成或上传参考图");
+        // 取用时旧主图降级为 history，不丢
+        expect(service).toContain('role: "history"');
+        // blob: 是临时地址，不能落库
+        expect(service).toContain('startsWith("blob:")');
+    });
+
     it("does not fake async work with setTimeout", async () => {
         const source = await readFile(panelPath, "utf8");
         expect(source).not.toContain("setTimeout");

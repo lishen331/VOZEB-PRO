@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Empty, Input, InputNumber, Modal, Segmented, Select, Tag, message } from "antd";
-import { ImageIcon, Layers, Plus, ScanText, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
+import { FolderOpen, ImageIcon, Layers, Library, Plus, ScanText, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
 import { useState } from "react";
 import type { DramaAssetReference, DramaNamedAsset, DramaProject, DramaVoiceProfile } from "@/lib/drama-project-contract";
 
@@ -49,6 +49,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
     const [creatingName, setCreatingName] = useState("");
     const [draft, setDraft] = useState<{ name: string; description: string; appearance: string; imagePrompt: string }>();
     const [voiceDraft, setVoiceDraft] = useState<{ voice: string; speed: number; instructions: string }>();
+    const [picker, setPicker] = useState<{ asset: PanelAsset; items: Array<{ id: string; title: string; coverUrl?: string }> }>();
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
     const assets = (project[kind] || []) as PanelAsset[];
 
@@ -188,6 +189,60 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
         }
     };
 
+    /**
+     * 存入素材库，对应 L `add-to-library` / `add-to-material-library`。
+     * V 只有统一素材库，靠 metadata.dramaAssetType 区分类别。
+     */
+    const saveToLibrary = async (asset: PanelAsset) => {
+        setBusy(`${asset.id}:library`);
+        try {
+            await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/library`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, action: "save" }),
+            });
+            message.success("已存入素材库");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "存入素材库失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /** 打开素材库挑选器，只列当前类别的图片素材。 */
+    const openPicker = async (asset: PanelAsset) => {
+        setBusy(`${asset.id}:picker`);
+        try {
+            const response = await fetch(`/api/library-assets?kind=image&pageSize=50&dramaAssetType=${KIND_ASSET_TYPE[kind]}`, { cache: "no-store" });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: { assets?: Array<{ id: string; title: string; coverUrl?: string }> }; msg?: string };
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "素材库读取失败");
+            setPicker({ asset, items: payload.data?.assets || [] });
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "素材库读取失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /** 取用素材库图片作为主参考图，对应 L `image-from-library`。 */
+    const applyFromLibrary = async (libraryAssetId: string) => {
+        if (!picker) return;
+        setBusy(`${picker.asset.id}:apply`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(picker.asset.id)}/library`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, action: "apply", libraryAssetId }),
+            });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            setPicker(undefined);
+            message.success("已取用素材库图片");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "取用素材失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
     /**
      * 从本集剧本提取资产，对应 L `POST /episodes/:episode_id/{characters,props}/extract`。
      * 服务端按名称去重后直接落库，避免同名资产产生第二个锚点。
@@ -364,6 +419,12 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                                 >
                                     {kind === "characters" ? "生成四视图" : "生成设定图"}
                                 </Button>
+                                <Button size="small" icon={<Library className="size-4" />} loading={busy === `${asset.id}:library`} aria-label={`将${KIND_LABEL[kind]} ${asset.name || asset.id} 存入素材库`} onClick={() => void saveToLibrary(asset)}>
+                                    存入素材库
+                                </Button>
+                                <Button size="small" icon={<FolderOpen className="size-4" />} loading={busy === `${asset.id}:picker`} aria-label={`为${KIND_LABEL[kind]} ${asset.name || asset.id} 取用素材库图片`} onClick={() => void openPicker(asset)}>
+                                    取用素材
+                                </Button>
                                 <Button size="small" loading={busy === `${asset.id}:describe`} aria-label={`从参考图提取${KIND_LABEL[kind]}特征`} onClick={() => void runAi(asset, "describe")}>
                                     从参考图提取特征
                                 </Button>
@@ -524,6 +585,29 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange }: 
                         </div>
                         <p className="text-xs text-muted-foreground">字段由上方 AI 按钮生成并写回项目。</p>
                     </div>
+                </Modal>
+            ) : null}
+            {picker ? (
+                <Modal open width={720} title={`取用素材库图片 · ${picker.asset.name || "未命名"}`} onCancel={() => setPicker(undefined)} footer={null} destroyOnHidden>
+                    {picker.items.length ? (
+                        <ul className="grid max-h-[60vh] grid-cols-2 gap-3 overflow-y-auto md:grid-cols-3">
+                            {picker.items.map((item) => (
+                                <li key={item.id} className="rounded border p-2">
+                                    <button type="button" className="grid w-full gap-2 text-left" aria-label={`取用素材 ${item.title}`} disabled={busy === `${picker.asset.id}:apply`} onClick={() => void applyFromLibrary(item.id)}>
+                                        {item.coverUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={item.coverUrl} alt={item.title} className="h-28 w-full rounded object-cover" />
+                                        ) : (
+                                            <span className="flex h-28 items-center justify-center rounded bg-muted text-xs text-muted-foreground">无预览</span>
+                                        )}
+                                        <span className="truncate text-xs">{item.title}</span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <Empty description={`素材库还没有${KIND_LABEL[kind]}类图片素材`} />
+                    )}
                 </Modal>
             ) : null}
         </section>
