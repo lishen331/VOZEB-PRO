@@ -69,6 +69,25 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 **方法论教训**：验证"参数有没有传对"必须一路跟到持久化，不能只看发送端。发送端写对 + 接收端白名单没放行 = 等于没传，而且不报错。这与「后端有、前端没接 = 等于没做」是同一类错误的两个方向。
 
+### classic-video-prompt-polish-stream 在 L 里本身就是坏的（2026-09-17 运行时核实）
+这条要特别记住，因为它同时纠正了我之前写下的一个**错误结论**。
+
+我此前在矩阵里写「3 条 stream 的非流式等价物都已迁移，差别仅在响应传输方式」。逐条核对后发现**对其中一条不成立**：
+- `universal-segment-prompt-stream` / `universal-segment-polish-stream` → 确有非流式孪生（`universal-segment-prompt`），V 的 `universal-prompt` 路由已同时覆盖 generate 与 polish 两种 mode，结论成立；
+- `classic-video-prompt-polish-stream` → **L 里没有非流式孪生**，它是 L 唯一的「经典模式视频提示词 AI 润色」入口。V 的 `rebuild-video-prompt` 只是本地模板重排（不调模型），**不是**它的等价物。所以这里原本是一个真实能力缺口，不是传输方式差异。
+
+但继续查下去发现更关键的事实：**这条路由在 L 里根本跑不通。**
+- `storyboards.js:1024` 调用 `promptI18n.getClassicVideoPromptPolishPrompt()`；
+- 该函数在整个 L 仓库里**只有这一处调用，没有任何定义**，也不在 `promptI18n` 的 `module.exports` 里；
+- 运行时实测（`require('./src/services/promptI18n')`）：`typeof === "undefined"`、`hasOwnProperty === false`；
+- 调用点被 try/catch 包着，所以每次请求都抛 `TypeError: ... is not a function`，然后 `writeNd({type:'error'})` 收尾。
+
+即用户在 L 上点「润色经典视频提示词」只会拿到报错，从未真正产出过内容。
+
+**结论：不迁移，且不该迁移。** 1:1 复刻的基准是「L 已验证的行为」，而这条从未被验证过——照抄只会把一个必然失败的按钮搬到 V 里。要做的话得先自己设计系统提示词，那就属于新功能，需要产品确认，不能挂在「照抄 L」名下。
+
+**方法论教训**：判断"L 有 V 没有"之前，先确认**L 那条真的能跑**。基准的价值来自它被验证过；照抄一个坏功能比不抄更糟。
+
 ### compose 的 featureModule 是"drama-lab"但不是计费泄漏（2026-09-17 核实）
 `drama-lab-final-video-service.ts` 把 render 任务的 `featureModule` 写死成 `"drama-lab"`，一键成片的 compose 步复用了它。核实结论：**不需要改**，理由是证据而不是感觉：
 - 该服务里搜不到 `fetchInternalApi` / `systemAi` / `charge` / `points` / `upstream`，成片只跑本地 ffmpeg concat，不产生上游调用与扣费；

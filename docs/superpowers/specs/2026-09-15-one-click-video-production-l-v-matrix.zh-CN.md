@@ -34,7 +34,7 @@ L 后端共 **161** 个接口，按归属拆分：
 
 | 域 | 覆盖/总数 | 缺口 | 说明 |
 |---|---|---|---|
-| storyboards | 18/21 | 3（P2） | 仅剩 3 条 stream 版本（非流式等价物均已迁移） |
+| storyboards | 18/21 | 3 | 2 条 stream 版本已由非流式等价物承载（P2，仅传输方式差异）；1 条 `classic-video-prompt-polish-stream` **在 L 里本身就跑不通**，刻意不复制 |
 | characters | 15/19 | 0 | 另 4 条 SD2 声音认证属 L 特有第三方，刻意不复制 |
 | scenes | 11/11 | 0 | — |
 | props | 9/9 | 0 | — |
@@ -296,10 +296,22 @@ L `/storyboards` 共 21 条：**已迁移 13，结构覆盖 1，未迁移 7。**
 |---|---|
 | `GET /storyboards/episode/:id/generate` | 分镜拆解，现由 executor storyboard 步复用等价提取服务；独立端点未建（P1） |
 | `universal-segment-polish-stream` | 流式版本；非流式已迁移（P2） |
-| `classic-video-prompt-polish-stream` | 流式版本（P2） |
+| `classic-video-prompt-polish-stream` | **L 侧已损坏，刻意不复制**（详见下方说明） |
 | `universal-segment-prompt-stream` | 流式版本；非流式已迁移（P2） |
 
-三条 stream 端点的非流式等价物都已迁移，差别只是响应传输方式，不影响最终提示词内容。
+**2026-09-17 更正（此前这里的结论有误）**：原文写「三条 stream 端点的非流式等价物都已迁移，差别只是响应传输方式」。逐条核对后，其中一条不成立：
+
+- `universal-segment-prompt-stream` 与 `universal-segment-polish-stream`：结论成立。L 有非流式孪生 `universal-segment-prompt`，V 的 `universal-prompt` 路由已同时覆盖 `mode=generate` 与 `mode=polish`（含 `draft`、`forceWithoutReferenceImages`），差别仅在 NDJSON 增量输出。
+- `classic-video-prompt-polish-stream`：结论**不成立**。L 里没有非流式孪生，它是 L 唯一的「经典模式视频提示词 AI 润色」入口；V 的 `rebuild-video-prompt` 只是本地模板重排、不调模型，**不是**等价物。
+
+但进一步核实发现这条路由**在 L 里从未真正工作过**：
+
+- `backend-node/src/routes/storyboards.js:1024` 调用 `promptI18n.getClassicVideoPromptPolishPrompt()`；
+- 该函数在 L 全仓只有这一处调用，**没有任何定义**，也不在 `promptI18n` 的 `module.exports` 中；
+- 运行时实测：`typeof promptI18n.getClassicVideoPromptPolishPrompt === "undefined"`、`hasOwnProperty === false`；
+- 调用点位于 try/catch 内，因此每次请求都抛 `TypeError: ... is not a function`，随后以 `{type:"error"}` 结束流。
+
+**处置：刻意不复制。** 本次迁移的基准是「L 已验证的行为」，而这条从未产出过任何结果，照抄只会把一个必然失败的按钮搬到 V。若确需该能力，需要重新设计系统提示词并由产品确认，属新增功能而非 1:1 复刻。
 
 ### 从 L 逐字抄录的提示词契约
 
