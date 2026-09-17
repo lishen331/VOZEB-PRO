@@ -134,6 +134,27 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 ### upscale 的 2 倍已实测
 不是只靠源码字符串断言：用 37x23（奇数、非整数比例）实跑 sharp `resize(w*2, h*2, { kernel: "lanczos3" })`，输出精确 74x46，确认是精确乘法而非四舍五入。
 
+### L §4「序列图模式」（四宫格/九宫格）在 V 是真能力缺口（2026-09-18 核实）
+做 §4 配置行时逐条核实，这条**不是**文案差异，是真缺功能。先纠正我自己一个错误结论。
+
+**我一开始搜 `quad_grid|nine_grid` 在 L 后端零命中，就写下「L 后端不消费栅格值」——这是错的。**
+改用中文词搜索后发现 L 后端有完整实现：
+- `imageService.js:187 buildQuadGridPrompt`：用四种相机角度（平视/仰拍/俯拍/侧面）各生成一条帧提示词，拼成一张 2×2 序列图的提示词；
+- `imageService.js:1559`：`row.frame_type === 'quad_grid'` → `splitQuadGridToImages` 自动把整图拆成 4 张子图并各建 `image_generations` 记录；
+- `imageService.js:1570`：`nine_grid` → `splitNineGridToImages` 同理拆 9 张；
+- 前端 `FilmCreate.vue:4404 / 6964`：`frame_type: gridMode !== 'single' ? gridMode : undefined` 把值送上去。
+教训：**搜英文键名零命中不等于功能不存在**，实现可能用中文注释/函数名。要换词再搜一遍才能下结论。
+
+**V 侧现状（三处都缺）：**
+- `one-click-film/.../generate-image/route.ts` 只发 `config: { model, size: project.ratio }`，没有栅格参数；
+- 全 server 端搜 `sequenceMode` **零引用**；
+- `DramaLabStoryboardSequenceMode`（single/quad_grid/nine_grid）类型存在，但 `drama-lab-storyboard-constraints.tsx:92` 的 select 是 `{onSequenceModeChange && ...}` 条件渲染，而 `drama-workflow-lab-project-complete.tsx:5760-5769` **没传这个回调** → 连创作工坊里都是不显示的死代码。
+- `drama-lab-storyboard-options.test.ts:32` 明确断言 `sequenceMode` 不进拆解 options（`toEqual({ shotCount: 12 })`），即刻意不持久化。
+
+**注意别和资产四视图搞混**：V 的 `four_view`（`asset-image-service.ts:29` 角色硬编码 four_view）是**资产设定图**的机制，靠提示词合同产出 2×2 参考表，**没有服务端拆图**；L 的序列图模式是**分镜图**的机制，有拆图。两者不是同一件事，不能拿前者充当后者。
+
+**处置：§4 配置行先不放「序列图模式」下拉。** 要做需要三件事齐全：生图路由接收栅格参数 → 四/九宫格提示词构造器（多机位）→ 服务端拆图并回写多条记录。属后端工作量，需产品确认。
+
 ### L §5「视频配置」在 V 侧目前无法 1:1 复刻（2026-09-18 核实）
 做主区 section 对齐时逐条核实了 L 的 §5，结论要记住，否则很容易加出一排点了不生效的控件。
 

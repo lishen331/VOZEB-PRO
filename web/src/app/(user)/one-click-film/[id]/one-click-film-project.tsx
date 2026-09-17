@@ -27,6 +27,7 @@ export default function OneClickFilmProject() {
     const [savingEpisode, setSavingEpisode] = useState(false);
     const [importing, setImporting] = useState(false);
     const [renderRecordBusy, setRenderRecordBusy] = useState(false);
+    const [exportingStoryboard, setExportingStoryboard] = useState<"xlsx" | "srt">();
     // 侧栏「角色/道具/场景」三步要能切到对应页签，故把资产类别提到页面层。
     const [assetKind, setAssetKind] = useState<"characters" | "scenes" | "props">("characters");
     const [renderTask, setRenderTask] = useState<{ id: string; status: string; error?: string; result?: { artifactId: string; url: string } }>();
@@ -270,6 +271,44 @@ export default function OneClickFilmProject() {
         }),
     ];
 
+    /**
+     * 导出分镜表 Excel / 解说 SRT，对应 L `onExportStoryboardSheet` 与 `onExportNarrationSrt`。
+     *
+     * 复用 `@/lib/drama-lab-storyboard-export`：已核实该模块无创作工坊耦合
+     * （不含 featureModule / collaboration / stage 判断），纯数据转换、浏览器端生成，不计费。
+     */
+    const exportStoryboard = async (kind: "xlsx" | "srt") => {
+        const episode = project?.episodes[0];
+        if (!episode) return;
+        setExportingStoryboard(kind);
+        try {
+            const { buildStoryboardNarrationSrt, buildStoryboardXlsx, storyboardExportFilename } = await import("@/lib/drama-lab-storyboard-export");
+            const input = {
+                projectTitle: project.title,
+                episode: { id: episode.id, number: episode.episodeNumber },
+                shots: episode.shots,
+                scenes: project.scenes,
+                characters: project.characters,
+                props: project.props,
+            };
+            const blob =
+                kind === "srt"
+                    ? new Blob([buildStoryboardNarrationSrt(input)], { type: "text/plain;charset=utf-8" })
+                    : new Blob([new Uint8Array(await buildStoryboardXlsx(input))], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = storyboardExportFilename(input, kind);
+            anchor.click();
+            URL.revokeObjectURL(url);
+            message.success(kind === "srt" ? "解说 SRT 已导出" : "分镜表 Excel 已导出");
+        } catch (exportError) {
+            message.error(exportError instanceof Error ? exportError.message : "导出失败");
+        } finally {
+            setExportingStoryboard(undefined);
+        }
+    };
+
     const exportHref = `/api/one-click-film/projects/${encodeURIComponent(projectId)}/export`;
     const canvasHref = episodeId ? `/one-click-film/${encodeURIComponent(projectId)}/canvas?episode=${encodeURIComponent(episodeId)}` : undefined;
     return (
@@ -412,10 +451,23 @@ export default function OneClickFilmProject() {
 
                     {/* L §4: 分镜生成 */}
                     <section id="anchor-storyboard" className="mt-6 rounded-lg border border-border bg-card p-5">
-                        <h2 className="m-0 flex flex-wrap items-center gap-2.5 text-base font-semibold">
-                            <span>分镜生成</span>
-                            <span className="text-xs font-normal text-muted-foreground">根据剧本、角色、场景自动生成分镜头脚本</span>
-                        </h2>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="m-0 flex flex-wrap items-center gap-2.5 text-base font-semibold">
+                                <span>分镜生成</span>
+                                <span className="text-xs font-normal text-muted-foreground">根据剧本、角色、场景自动生成分镜头脚本</span>
+                            </h2>
+                            {/* 对应 L 的「导出分镜表excel」与「导出解说 SRT」，L 也是放在本 section 顶部 */}
+                            {project.episodes[0]?.shots.length ? (
+                                <div className="flex flex-wrap gap-2">
+                                    <Button size="small" loading={exportingStoryboard === "xlsx"} aria-label="导出分镜表excel" onClick={() => void exportStoryboard("xlsx")}>
+                                        导出分镜表excel
+                                    </Button>
+                                    <Button size="small" loading={exportingStoryboard === "srt"} aria-label="导出解说 SRT" onClick={() => void exportStoryboard("srt")}>
+                                        导出解说 SRT
+                                    </Button>
+                                </div>
+                            ) : null}
+                        </div>
                         {project.episodes[0] ? (
                             <OneClickFilmShotCards projectId={projectId} project={project} episode={project.episodes[0]} onProjectChange={setProject} />
                         ) : (
