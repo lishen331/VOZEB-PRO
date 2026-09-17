@@ -278,6 +278,7 @@ export async function imageSubmissionFetch(config: ImageTaskConfig, url: string,
     try {
         return await taskFetch(config, url, init);
     } catch (error) {
+        console.info("[image-upstream-debug] fetch-throw", { channelId: config.channelId, model: config.model, url, error: error instanceof Error ? error.message : String(error) });
         throw generationSubmissionUncertainError(error, "图片任务创建结果未知");
     }
 }
@@ -399,7 +400,10 @@ export async function pollOpenAiImageTask(
             const image = parseImagePayloadCompat(payload, baseUrl, config);
             if (image) return image;
             const error = readImagePayloadError(payload);
-            if (error) throw new ImageUpstreamTerminalError(error);
+            if (error) {
+                console.info("[image-upstream-debug] poll-terminal", { channelId: config.channelId, model: config.model, pollUrl, error: String(error).slice(0, 800), payload: JSON.stringify(payload).slice(0, 800) });
+                throw new ImageUpstreamTerminalError(error);
+            }
             payload.status = readImageTaskStatus(payload) || payload.status;
             if (!isPendingImageStatus(payload.status)) throw new ImageUpstreamTerminalError("图片任务完成但没有返回图片");
         }
