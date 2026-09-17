@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, Empty, Tag, Tooltip, message } from "antd";
-import { ArrowUpToLine, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
+import { Button, Empty, Segmented, Tag, Tooltip, message } from "antd";
+import { ArrowUpToLine, Clapperboard, ImageIcon, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
@@ -87,6 +87,31 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
             message.success(`已按音频拆出 ${segments} 段候选`);
         });
 
+    /** L 的三模式：经典单图 / 首尾帧 / 全能。经典与首尾帧靠 storyboardFrameMode 区分。 */
+    const setMode = (shot: DramaShot, mode: "single" | "first_last" | "universal") =>
+        run(shot.id, async () => {
+            const patch = mode === "universal" ? { creationMode: "universal" as const } : { creationMode: "classic" as const, storyboardFrameMode: mode };
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}${query}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(patch),
+            });
+            if (data?.project) onProjectChange(data.project);
+        });
+
+    /**
+     * 单镜生成。走一键成片自有的 generate-image / generate-video，
+     * 因此计费归属是 one-click-film，而不是教学版。
+     */
+    const generate = (shot: DramaShot, kind: "image" | "video") =>
+        run(shot.id, async () => {
+            await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/generate-${kind}${query}`, { method: "POST" });
+            message.success(kind === "image" ? "分镜图任务已创建" : "分镜视频任务已创建");
+            // 任务状态由服务端持久化，这里刷新项目以拿到最新的 running 状态。
+            const refreshed = await callJson(`${base}`, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project);
+        });
+
     if (!episode.shots.length) {
         return (
             <div className="mt-5 rounded-lg border p-6">
@@ -124,6 +149,26 @@ export function OneClickFilmShotCards({ projectId, episode, onProjectChange }: P
                                 </div>
                                 <p className="mt-1 truncate text-sm text-muted-foreground">{shot.description || shot.sourceText || "暂无描述"}</p>
                                 {shot.storyboardError || shot.generationError ? <p className="mt-1 text-sm text-red-500">{shot.storyboardError || shot.generationError}</p> : null}
+
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                    <Segmented
+                                        size="small"
+                                        value={shot.creationMode === "universal" ? "universal" : shot.storyboardFrameMode === "first_last" ? "first_last" : "single"}
+                                        onChange={(value) => void setMode(shot, value as "single" | "first_last" | "universal")}
+                                        options={[
+                                            { value: "single", label: "经典" },
+                                            { value: "first_last", label: "首尾帧" },
+                                            { value: "universal", label: "全能" },
+                                        ]}
+                                        aria-label={`分镜 ${index + 1} 创作模式`}
+                                    />
+                                    <Button size="small" icon={<ImageIcon className="size-4" />} loading={busyShotId === shot.id} aria-label={`生成分镜 ${index + 1} 分镜图`} onClick={() => void generate(shot, "image")}>
+                                        生成分镜图
+                                    </Button>
+                                    <Button size="small" icon={<Clapperboard className="size-4" />} loading={busyShotId === shot.id} aria-label={`生成分镜 ${index + 1} 视频`} onClick={() => void generate(shot, "video")}>
+                                        生成视频
+                                    </Button>
+                                </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                                 <Tooltip title="编辑分镜">

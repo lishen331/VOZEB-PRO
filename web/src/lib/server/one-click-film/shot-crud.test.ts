@@ -101,6 +101,21 @@ describe("one-click-film shot CRUD (L parity)", () => {
         expect(() => updateOneClickShot(source, "episode-one", "s1", { sceneId: "ghost" })).toThrow("场景不存在");
     });
 
+    it("persists the three creation/frame modes L supports", () => {
+        const source = project([shot("s1", 1)]);
+        // 经典单图 → 首尾帧：L 靠 storyboardFrameMode !== "single" 判定
+        const firstLast = updateOneClickShot(source, "episode-one", "s1", { storyboardFrameMode: "first_last" }).shot;
+        expect(firstLast.storyboardFrameMode).toBe("first_last");
+
+        const single = updateOneClickShot(source, "episode-one", "s1", { storyboardFrameMode: "single" }).shot;
+        expect(single.storyboardFrameMode).toBe("single");
+
+        // 全能模式
+        const universal = updateOneClickShot(source, "episode-one", "s1", { creationMode: "universal", universalSegmentText: "全能文本" }).shot;
+        expect(universal.creationMode).toBe("universal");
+        expect(universal.universalSegmentText).toBe("全能文本");
+    });
+
     it("deletes a shot and keeps the remaining order continuous", () => {
         const next = deleteOneClickShot(project([shot("s1", 1), shot("s2", 2), shot("s3", 3)]), "episode-one", "s2");
         expect(next.episodes[0].shots.map((item) => item.id)).toEqual(["s1", "s3"]);

@@ -79,6 +79,36 @@ describe("one-click-film shot card UI", () => {
         expect(source).toContain('aria-label="保存帧提示词"');
     });
 
+    it("offers L's three creation modes and persists the switch", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        expect(source).toContain("<Segmented");
+        expect(source).toContain('{ value: "single", label: "经典" }');
+        expect(source).toContain('{ value: "first_last", label: "首尾帧" }');
+        expect(source).toContain('{ value: "universal", label: "全能" }');
+        // 切换必须落库：经典/首尾帧靠 storyboardFrameMode，全能靠 creationMode
+        expect(source).toContain("storyboardFrameMode: mode");
+        expect(source).toContain('creationMode: "universal"');
+        expect(source).toContain('method: "PUT"');
+        expect(source).toContain("aria-label={`分镜 ${index + 1} 创作模式`}");
+    });
+
+    it("exposes per-shot generation that bills to one-click-film", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        // 走自有路由，因此上游 featureModule 是 one-click-film 而非 drama-lab
+        expect(source).toContain("/generate-${kind}");
+        expect(source).toContain("aria-label={`生成分镜 ${index + 1} 分镜图`}");
+        expect(source).toContain("aria-label={`生成分镜 ${index + 1} 视频`}");
+        expect(source).toContain("分镜图任务已创建");
+        expect(source).toContain("分镜视频任务已创建");
+    });
+
+    it("keeps the frame-mode field writable on the server whitelist", async () => {
+        // UI 能切但服务端白名单不收，就会静默丢失 —— 这条把两侧绑在一起。
+        const crud = await readFile(resolve(process.cwd(), "src/lib/server/one-click-film/shot-crud.ts"), "utf8");
+        expect(crud).toContain('"storyboardFrameMode"');
+        expect(crud).toContain('"creationMode"');
+    });
+
     it("does not fake async work with setTimeout", async () => {
         for (const path of [cardsPath, editorPath]) {
             const source = await readFile(path, "utf8");

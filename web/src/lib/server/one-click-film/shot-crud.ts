@@ -38,6 +38,10 @@ const EDITABLE_FIELDS = [
     "segmentIndex",
     "segmentTitle",
     "creationMode",
+    // L 的经典/首尾帧切换靠这个字段：prepareDramaLabStoryboardVideo 用
+    // `storyboardFrameMode !== "single"` 判定是否启用首尾帧。不放进白名单，
+    // 前端切模式就存不下来。
+    "storyboardFrameMode",
     "universalSegmentText",
     "layoutDescription",
 ] as const;
