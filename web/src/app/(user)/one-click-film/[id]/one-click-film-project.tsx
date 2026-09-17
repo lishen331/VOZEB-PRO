@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Button, Spin, Tag, Progress, message, Input, Select, Switch } from "antd";
-import { ArrowLeft, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -27,6 +27,8 @@ export default function OneClickFilmProject() {
     const [universalDraft, setUniversalDraft] = useState("");
     const [forceNoRef, setForceNoRef] = useState(false);
     const [universalBusy, setUniversalBusy] = useState<"generate" | "polish">();
+    const [renderTask, setRenderTask] = useState<{ id: string; status: string; error?: string; result?: { artifactId: string; url: string } }>();
+    const [renderBusy, setRenderBusy] = useState(false);
     const loadProject = useCallback(async () => {
         setLoading(true);
         try {
@@ -88,6 +90,25 @@ export default function OneClickFilmProject() {
     useEffect(() => {
         if (projectId) void loadProject();
     }, [projectId, loadProject]);
+    // 成片任务轮询。必须放在提前 return 之前，否则违反 React Hook 调用顺序规则；
+    // 也不能引用下方的 episodeId（它定义在 return 之后），所以自己从 project 推导。
+    const refreshRenderTask = useCallback(
+        async (taskId: string) => {
+            const currentEpisodeId = project?.episodes[0]?.id;
+            if (!currentEpisodeId) return;
+            const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(currentEpisodeId)}/render?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
+            const payload = (await response.json()) as { code?: number; data?: typeof renderTask };
+            if (response.ok && payload.code === 0 && payload.data) setRenderTask(payload.data);
+        },
+        [projectId, project],
+    );
+    useEffect(() => {
+        if (!renderTask || !["pending", "running"].includes(renderTask.status)) return;
+        const timer = window.setInterval(() => {
+            void refreshRenderTask(renderTask.id).catch(() => undefined);
+        }, 3000);
+        return () => window.clearInterval(timer);
+    }, [renderTask, refreshRenderTask]);
     const importScriptFile = async (file: File) => {
         setImporting(true);
         try {
@@ -182,6 +203,29 @@ export default function OneClickFilmProject() {
     const episodeId = project.episodes[0]?.id;
     // 对应 L `GET /dramas/:id/export`：打包整个项目（含媒体）用于交付。
     // 走一键成片自有的 export 路由，浏览器直接下载 zip。
+    /**
+     * 本集成片，对应 L `POST /episodes/:episode_id/finalize` 与 `GET .../download`。
+     * 与 executor 的 compose 步共用同一套成片服务，状态由服务端持久化。
+     */
+    const startRender = async () => {
+        if (!episodeId) return;
+        setRenderBusy(true);
+        try {
+            const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(episodeId)}/render`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ clientRequestId: `one-click-render:${projectId}:${episodeId}:${Date.now()}` }),
+            });
+            const payload = (await response.json()) as { code?: number; data?: typeof renderTask; msg?: string };
+            if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "成片任务创建失败");
+            setRenderTask(payload.data);
+        } catch (renderError) {
+            message.error(renderError instanceof Error ? renderError.message : "成片任务创建失败");
+        } finally {
+            setRenderBusy(false);
+        }
+    };
+
     const exportHref = `/api/one-click-film/projects/${encodeURIComponent(projectId)}/export`;
     const canvasHref = episodeId ? `/one-click-film/${encodeURIComponent(projectId)}/canvas?episode=${encodeURIComponent(episodeId)}` : undefined;
     return (
@@ -206,6 +250,20 @@ export default function OneClickFilmProject() {
                         {canvasHref ? (
                             <Button icon={<PanelsTopLeft className="size-4" />} href={canvasHref}>
                                 打开平台画布
+                            </Button>
+                        ) : null}
+                        {episodeId ? (
+                            <Button icon={<Clapperboard className="size-4" />} loading={renderBusy || renderTask?.status === "pending" || renderTask?.status === "running"} aria-label="合成本集成片" onClick={() => void startRender()}>
+                                合成本集成片
+                            </Button>
+                        ) : null}
+                        {episodeId && renderTask?.result?.artifactId ? (
+                            <Button
+                                icon={<Download className="size-4" />}
+                                href={`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(episodeId)}/render/artifact/${encodeURIComponent(renderTask.result.artifactId)}?taskId=${encodeURIComponent(renderTask.id)}`}
+                                aria-label="下载本集成片"
+                            >
+                                下载成片
                             </Button>
                         ) : null}
                         <Button icon={<Download className="size-4" />} href={exportHref} aria-label="导出项目">
