@@ -2,6 +2,7 @@ import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import { getImageTask } from "@/lib/server/image-task-store";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { getVideoTask } from "@/lib/server/video-task-store";
+import { syncOneClickShotGeneration } from "./sync-runner";
 
 export type OneClickMediaKind = "image" | "video";
 
@@ -29,6 +30,7 @@ type ShotRef = { episodeId: string; shot: DramaShot };
  * - 逐个分镜推进，任一分镜未完成即返回 pending，父任务下一轮继续。
  */
 export async function runOneClickMediaForEpisodes(kind: OneClickMediaKind, input: OneClickMediaInput) {
+    let project = input.project;
     const refs = collectShots(input);
     if (!refs.length) throw new Error("一键成片项目没有分镜");
 
@@ -50,7 +52,22 @@ export async function runOneClickMediaForEpisodes(kind: OneClickMediaKind, input
             const task = kind === "image" ? await getImageTask(state.taskId) : await getVideoTask(state.taskId);
             if (task?.status === "error") throw new Error(task.error || `${label(kind)}生成失败（分集 ${episodeId} 分镜 ${shot.id}）`);
             if (task?.status === "cancelled") throw new Error(`${label(kind)}任务已取消（分集 ${episodeId} 分镜 ${shot.id}）`);
-            // 结果 URL 由 sync 回写；任务成功但分镜尚未回写时继续等待，不要重新提交。
+
+            // 关键：结果回写必须由这里主动触发。
+            // 调 sync 的原本只有创作工坊工作流服务和创作工坊 UI，images/videos 改走一键成片
+            // 自有路由后就没有任何东西会回写商单分镜了，两步会永久停在 pending。
+            const synced = await syncOneClickShotGeneration({ userId: input.userId, project, episodeId, shotId: shot.id });
+            if (synced.changed) {
+                project = synced.project;
+                const after = kind === "image" ? imageState(synced.shot) : videoState(synced.shot);
+                if (after.url) {
+                    outputRefs.push({ episodeId, shotId: shot.id, kind: kind === "image" ? "storyboard-image" : "storyboard-video", url: after.url });
+                    continue;
+                }
+                const failure = kind === "image" ? synced.shot.storyboardError : synced.shot.generationError;
+                if (failure) throw new Error(`${failure}（分集 ${episodeId} 分镜 ${shot.id}）`);
+            }
+            // 仍在执行：只轮询，绝不重新提交（复用同一个上游 provider task）。
             pending = true;
             continue;
         }

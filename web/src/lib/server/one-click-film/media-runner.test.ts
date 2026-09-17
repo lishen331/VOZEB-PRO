@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
-const mocks = vi.hoisted(() => ({ getImageTask: vi.fn(), getVideoTask: vi.fn(), fetchInternalApi: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getImageTask: vi.fn(), getVideoTask: vi.fn(), fetchInternalApi: vi.fn(), sync: vi.fn() }));
 vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTask }));
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
+vi.mock("./sync-runner", () => ({ syncOneClickShotGeneration: mocks.sync }));
 
 import { runOneClickMediaForEpisodes } from "./media-runner";
 
@@ -42,6 +43,8 @@ const input = (s: DramaShot) => ({
 beforeEach(() => {
     vi.clearAllMocks();
     mocks.fetchInternalApi.mockResolvedValue({ ok: true, json: async () => ({ code: 0, data: { task: { id: "new-task" } } }) });
+    // 默认：回写未产生变化（任务仍在跑）
+    mocks.sync.mockImplementation(async (args: { project: unknown }) => ({ project: args.project, shot: shot({ storyboardTaskId: "img-1" }), changed: false }));
 });
 
 describe("one-click-film media runner", () => {
@@ -84,9 +87,38 @@ describe("one-click-film media runner", () => {
         expect(result.childTaskIds).toEqual(["img-1"]);
     });
 
-    it("waits for sync to write back a succeeded task rather than resubmitting", async () => {
+    it("triggers write-back itself so a bound task cannot stall forever", async () => {
+        // 回归防护：调 sync 的原本只有创作工坊链路，media-runner 接管后必须自己触发回写，
+        // 否则上游成功了也没人把 URL 写回分镜，images/videos 会永久 pending。
+        mocks.getImageTask.mockResolvedValue({ status: "success" });
+        mocks.sync.mockImplementation(async (args: { project: unknown }) => ({
+            project: args.project,
+            shot: shot({ storyboardTaskId: "img-1", storyboardImageUrl: "https://cdn/written.png" }),
+            changed: true,
+        }));
+
+        const result = await runOneClickMediaForEpisodes("image", input(shot({ storyboardTaskId: "img-1" })));
+
+        expect(mocks.sync).toHaveBeenCalledWith(expect.objectContaining({ userId: "u1", episodeId: "e1", shotId: "s1" }));
+        expect(result.status).toBe("success");
+        expect(result.outputRefs).toEqual([{ episodeId: "e1", shotId: "s1", kind: "storyboard-image", url: "https://cdn/written.png" }]);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("raises a write-back failure instead of looping pending forever", async () => {
         mocks.getVideoTask.mockResolvedValue({ status: "success" });
+        mocks.sync.mockImplementation(async (args: { project: unknown }) => ({
+            project: args.project,
+            shot: shot({ generationTaskId: "vid-1", generationError: "分镜视频任务没有返回可播放地址" }),
+            changed: true,
+        }));
+        await expect(runOneClickMediaForEpisodes("video", input(shot({ generationTaskId: "vid-1" })))).rejects.toThrow("没有返回可播放地址");
+    });
+
+    it("stays pending while write-back reports no change yet", async () => {
+        mocks.getVideoTask.mockResolvedValue({ status: "running" });
         const result = await runOneClickMediaForEpisodes("video", input(shot({ generationTaskId: "vid-1" })));
+        expect(mocks.sync).toHaveBeenCalled();
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
         expect(result.status).toBe("pending");
     });
