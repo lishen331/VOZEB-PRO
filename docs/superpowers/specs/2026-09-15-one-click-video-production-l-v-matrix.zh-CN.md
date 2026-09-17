@@ -406,15 +406,26 @@ L 这四域共 **22** 条：**已迁移 12，聚合承载 5，缺口 5。**
 L 允许直接指定任意一条 image_generations 记录，V 只能用绑定在分镜上的帧。
 若后续需要"从历史候选图直接生视频"，这条要单独补。
 
-### 缺口（5 条，均为 P2）
+### 缺口（2 条，均为 P2）
+
+三条 DELETE 已于 2026-09-17 迁移（见 §3 与 `generation-cleanup.ts`），此处只余两条 backgrounds。
 
 | L 接口 | 说明 |
 |---|---|
-| `GET /images/episode/:id/backgrounds` | L 的分集背景图列表 |
-| `POST /images/episode/:id/backgrounds/extract` | L 的分集背景提取，V 用场景资产体系承载，未做等价端点 |
+| `GET /images/episode/:id/backgrounds` | L 的分集背景图列表：`storyboards JOIN scenes` 的纯读投影 |
+| `POST /images/episode/:id/backgrounds/extract` | L 的分集背景提取 |
 
-三条 DELETE 属"清理历史"能力，不影响生产闭环；两条 backgrounds 是 L 特有的分集背景流。
-均保持"未迁移"，不假装等价。
+**2026-09-17 复核后的结论（更正此前"未做等价端点"的说法）：**
+
+- `backgrounds/extract` **已由 `POST /extract-assets`（assetType=scene）等价承载**，不是缺口。
+  核对依据：L `backgroundExtractionService.extractBackgroundsFromScript` 用的是
+  `promptI18n.getSceneExtractionPrompt`，提示词键为 `scene_extraction`；V 的
+  `drama-lab-production-asset-defaults.json` 里 `scene_extraction` 与 L 中文分支逐条对应，
+  含"纯背景、不得包含人物"这条关键约束，输出字段同为 location / time / prompt。
+- `GET .../backgrounds` 是纯读投影，数据（`shots[].sceneId` + `scenes[]`）已随项目聚合返回，
+  前端可自行组合，**不需要单独端点**。若将来要严格对齐 L 的排序语义（按分镜序号）再补。
+
+因此媒体域实际只剩"是否要为这两条各做一个独立端点"的形态问题，不存在能力缺失。
 
 ## 17. 配音链路（audio 域收尾）
 

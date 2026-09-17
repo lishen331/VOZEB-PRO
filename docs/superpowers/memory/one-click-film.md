@@ -54,6 +54,15 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：storyboards 剩余 5 条 P2（3 条 stream 版本、props 独立端点、episode generate 端点）与媒体域 2 条 P2（L 特有的分集背景列表与提取）。**
 
+### backgrounds 两条不是能力缺口（2026-09-17 复核）
+此前文档写"V 用场景资产体系承载，未做等价端点"，措辞含糊。复核结论：
+- `POST /images/episode/:id/backgrounds/extract` 已由 `POST /extract-assets`（assetType=scene）等价承载。L 走 `promptI18n.getSceneExtractionPrompt`（键 `scene_extraction`），V 的 `drama-lab-production-asset-defaults.json` 中同键提示词与 L 中文分支逐条对应，含"纯背景、不得包含人物"，输出字段同为 location/time/prompt。
+- `GET /images/episode/:id/backgrounds` 是 `storyboards JOIN scenes` 的纯读投影，数据已随项目聚合返回（`shots[].sceneId` + `scenes[]`），不需要独立端点。
+所以媒体域剩的是"端点形态"问题，不是能力缺失。别再当成待迁移功能重复实现。
+
+### upscale 的 2 倍已实测
+不是只靠源码字符串断言：用 37x23（奇数、非整数比例）实跑 sharp `resize(w*2, h*2, { kernel: "lanczos3" })`，输出精确 74x46，确认是精确乘法而非四舍五入。
+
 ### 死代码守卫坑：请求路径不要插变量
 `dead-route-guard` 靠"请求路径字面量里出现路由的最后一个静态段"来判定有没有调用方。把段名写成 `\`${base}/shots/${id}/${kind}/...\`` 会让它找不到调用方（我写 images/videos 删除时就中了这一枪，videos 直接被判为死代码）。所以按 kind 分支时要把路径写成字面量，别插变量。顺带一提，`images` 当时是"假通过"——因为 `batch-generate-images` 里也含 images 这个子串。
 
