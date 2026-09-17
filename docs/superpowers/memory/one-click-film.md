@@ -34,7 +34,7 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 三条 kind 参数化路由覆盖 15 个 L 端点：`assets/:id/ai`（describe/prompt/anchor/stages）、`assets/:id/generate-image`（含 four_view）、`assets/:id/references`（upload/primary/remove）。
 
-**资产域已知缺口**：资产编辑弹窗字段仍只读（服务端 `PUT assets/:assetId` 白名单已支持编辑，UI 未接输入框）；`batch-generate-images` 未迁移；素材库 7 条未适配。
+**资产域已知缺口**：`batch-generate-images` 未迁移；素材库 7 条未适配。字段编辑已补（受控输入 + 保存资产按钮 → `PUT assets/:assetId`）。
 
 手动增删已补：`POST assets` / `PUT assets/:assetId` / `DELETE assets/:assetId`。**删除时必须同步清掉分镜绑定**（characterIds/propIds/sceneId），否则留下幽灵资产引用；资产名项目内唯一，同名 409。
 
@@ -58,7 +58,7 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 资产增删：面板顶部新增输入框 + 卡片删除按钮。
 
-**仍缺**：资产字段手工编辑（服务端已支持，UI 未接）、素材库、配音设置面板、批量生图。
+**仍缺**：素材库、配音设置面板、批量生图。
 
 ### 已知缺陷
 - **协作闸门耦合（P0，未处置）**：`POST /api/one-click-film/projects` 会调 `ensureDramaLabProjectGroup`，把每个一键成片项目写进创作工坊协作组表。所以 `assertDramaLabStageAllowed` 一定查得到组、不会早退，教学版的审批配置会真实拦住商单链路。我先前"未建组时是空操作"的判断是错的。移除该调用前须确认现有项目读取路径是否已依赖该组存在。
