@@ -34,7 +34,7 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 三条 kind 参数化路由覆盖 15 个 L 端点：`assets/:id/ai`（describe/prompt/anchor/stages）、`assets/:id/generate-image`（含 four_view）、`assets/:id/references`（upload/primary/remove）。
 
-**资产域已知缺口**：仅剩素材库 7 条未适配（`add-to-library` / `add-to-material-library` / `image-from-library`）与 SD2 第三方 4 条（不复制）。
+**资产域已知缺口**：仅剩 SD2 第三方 4 条（L 特有的声音认证，V 用自身音色体系，不复制）。素材库 7 条已适配。
 
 字段编辑、手动增删、批量生成均已补齐。批量走 `POST assets/batch-generate-images`（L 上限 10 个、逐个派发不连坐）；上游派发统一在 `asset-image-dispatch.ts`，单个与批量共用，防止漏写 `featureModule`。
 
@@ -46,7 +46,7 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 注意一处等价判定的边界：`POST /videos/image/:image_gen_id`（L 用任意已生成图生视频）在 V 里没有独立端点，`generate-video` 只能用绑定在分镜 frames 上的帧。请求载荷等价但入口形态不同，"从历史候选图直接生视频"要单独补。
 
-其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：素材库适配（7 条 `add-to-library` / `add-to-material-library` / `image-from-library`）。**
+其余：dramas 6/19（项目/剧本/大纲/分集/进度，多数由项目聚合 PUT 承载）。**下一步：storyboards 剩余 7 条 P2（3 条 stream 版本、props 独立端点、batch-infer-params、upscale、episode generate 端点）与媒体域 5 条 P2（3 条 DELETE 清理历史、2 条 L 特有分集背景流）。**
 
 ### 类型坑
 `voiceProfile` 只在 `DramaCharacter` 上，`DramaScene`/`DramaProp` 没有。按 kind 统一处理三类资产时用 `OneClickAsset`（服务端）/ `PanelAsset`（UI）别名，否则 TS2339。
@@ -73,7 +73,9 @@ L 后端 161 个接口 → V 平台承载 34、素材库适配 15、**必须迁�
 
 配音：分镜卡显示对白/旁白状态+说话人+音色+错误+播放器；角色音色在资产编辑弹窗配置（音色/语速/朗读指令），服务端 `normalizeOneClickVoiceProfile` 校验非法音色与语速区间。
 
-**仍缺**：素材库适配（7 条）。
+素材库：`POST assets/:assetId/library`（`save` 存入 / `apply` 取用）。卡片上「存入素材库」「取用素材」，取用走挑选器弹窗。
+
+**资产域与 storyboards/episodes/audio 主体链路已全部覆盖。**
 
 ### 已知缺陷
 - **协作闸门耦合（P0，未处置）**：`POST /api/one-click-film/projects` 会调 `ensureDramaLabProjectGroup`，把每个一键成片项目写进创作工坊协作组表。所以 `assertDramaLabStageAllowed` 一定查得到组、不会早退，教学版的审批配置会真实拦住商单链路。我先前"未建组时是空操作"的判断是错的。移除该调用前须确认现有项目读取路径是否已依赖该组存在。

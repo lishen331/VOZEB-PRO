@@ -315,7 +315,7 @@ L 资产接口共 **39** 条（characters 19、scenes 11、props 9）：
 |---|---|---|
 | 已迁移专用路由 | **16** | 见下表 |
 | 项目聚合承载 | 12 | V 的资产内联在项目里，读写随 `PUT /projects/:id`；**但一键成片 UI 目前没有新增/删除资产的入口**，见"局限"一节 |
-| 素材库待适配 | 7 | `add-to-library` / `add-to-material-library` / `image-from-library`（P1） |
+| 素材库待适配 | **0** | 已适配，见 §18 |
 | SD2 第三方能力 | 4 | L 特有的 sd2 声音认证；V 用自身音色体系，不复制第三方链路 |
 | **真正未迁移** | **0** | 全部已覆盖 |
 
@@ -335,7 +335,7 @@ L 资产接口共 **39** 条（characters 19、scenes 11、props 9）：
 
 1. ~~一键成片 UI 没有新增/删除资产的入口~~ **已补**：新增 `POST assets` / `PUT assets/:assetId` / `DELETE assets/:assetId`，面板顶部有新增输入框，卡片上有删除按钮。删除会**同步清掉所有分镜里对该资产的绑定**（`characterIds` / `propIds` / `sceneId`），避免留下幽灵资产引用（规范 §8 禁止）。资产名称在项目内唯一，同名直接 409 拒绝，与 L 靠名称去重的语义一致。
 2. ~~`batch-generate-images` 未迁移~~ **已补**：`POST assets/batch-generate-images`，沿用 L 的单次最多 10 个上限；优先补齐还没有主参考图的资产；逐个派发，单个失败不连坐其余。上游派发与单个生成共用 `dispatchOneClickAssetImage`，避免两条链路分叉后漏写 `featureModule`。
-3. **素材库 7 条未适配**：资产无法存入/取自素材库。
+3. ~~素材库 7 条未适配~~ **已适配**：见 §18。
 4. ~~资产编辑弹窗只读~~ **已补**：名称/描述/外貌/生图提示词四个字段改为受控输入 + 「保存资产」按钮，接 `PUT assets/:assetId`。服务端白名单为 `name`/`description`/`appearance`/`imagePrompt`/`polishedPrompt`/`singleImagePrompt`/`generationLayout`/`role`/`type`/`time`，**不含 references / primaryReferenceId**（那些由参考图链路独占维护，避免一次保存把参考图状态覆盖掉）。
 
 ### 计费归属
@@ -445,3 +445,35 @@ L 允许直接指定任意一条 image_generations 记录，V 只能用绑定在
 
 L `/audio` 2 条（`extract` / `extract/batch`）已全部覆盖：executor `audio` 步逐集派发真实 TTS 子任务，
 按音频拆镜走 `shots/:id/split-by-audio`（预览 + 追加应用）。
+
+## 18. 素材库适配（资产域收尾）
+
+L 的 7 条素材库接口全部适配完毕：
+
+| L 接口 | 一键成片实现 |
+|---|---|
+| `POST /characters/:id/add-to-library` | `POST assets/:assetId/library`（`action: "save"`，`kind: "characters"`） |
+| `POST /characters/:id/add-to-material-library` | 同上 |
+| `POST /scenes/:id/add-to-library` | 同上（`kind: "scenes"`） |
+| `POST /scenes/:id/add-to-material-library` | 同上 |
+| `POST /props/:id/add-to-library` | 同上（`kind: "props"`） |
+| `POST /props/:id/add-to-material-library` | 同上 |
+| `PUT /{characters,scenes}/:id/image-from-library` | `POST assets/:assetId/library`（`action: "apply"`） |
+
+### 一处结构差异（不是丢语义）
+
+L 有"角色库 / 场景库 / 道具库"和"素材库"**两套**存储，所以每类资产各有两个存入端点。
+V 只有统一素材库，靠 `metadata.dramaAssetType`（`character`/`scene`/`prop`，L 用单数）区分类别。
+因此 L 的 6 个存入端点在 V 侧收敛为同一个 `action: "save"` —— 这是承载结构差异，不是把语义合并掉了。
+
+### 关键约束
+
+- **没有参考图不允许存入**：否则素材库会出现空封面条目。
+- **视觉字段一并带入 metadata**（`appearance` / `imagePrompt` / `polishedPrompt` / `stages` 等，
+  经 `readDramaLabAssetVisualDetails`），取用后可以直接生图而不必重写提示词。
+- **角色音色随条目走**：`voiceProfile` 存入 metadata，场景/道具不会凭空带上。
+- **取用时旧主图降级为 history**，不丢；新图置顶为 `primary`，`source: "library"`。
+- **回填不覆盖用户已填值**：库条目的视觉字段只填资产上为空的字段。
+- **拒绝 `blob:` 临时地址与非图片条目**，避免落库一个取不回来的 URL。
+- 挑选器只列当前类别的图片素材，避免把道具图取给角色。
+- 只读当前用户自己的素材（`getLibraryAsset(user.id, ...)`），不跨账号取用。
