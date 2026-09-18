@@ -115,7 +115,47 @@ describe("model routing config", () => {
         } as never;
         const existing: LogicalModel[] = [{ id: "opaque-media", name: "opaque-media", capability: "text", enabled: true, bindings: [{ id: "old", channelId: "newapi", upstreamModel: "opaque-media", enabled: true, priority: 1 }] }];
 
-        expect(synchronizeLogicalModelsWithChannels(existing, [source])[0]?.capability).toBe("image");
+        expect(synchronizeLogicalModelsWithChannels(existing, [source], "detect")[0]?.capability).toBe("image");
+    });
+
+    it("keeps an administrator capability edit when saving and re-detects only on an explicit resync", () => {
+        const source = channel("newapi", ["opaque-media"]);
+        source.advancedConfig = {
+            protocol: "newapi",
+            modelCapabilities: { "opaque-media": "image" },
+            modelConfigs: { "opaque-media": { capability: "image", source: "manual" } },
+        } as never;
+        const edited: LogicalModel[] = [{ id: "opaque-media", name: "opaque-media", capability: "video", enabled: true, bindings: [{ id: "old", channelId: "newapi", upstreamModel: "opaque-media", enabled: true, priority: 1 }] }];
+
+        // A plain save normalizes routing structure without touching the chosen capability,
+        // and stays stable when the saved value is read back and normalized again.
+        const saved = synchronizeLogicalModelsWithChannels(edited, [source]);
+        expect(saved[0]?.capability).toBe("video");
+        expect(normalizeLogicalModelsConfig(saved, [source])[0]?.capability).toBe("video");
+
+        expect(synchronizeLogicalModelsWithChannels(edited, [source], "detect")[0]?.capability).toBe("image");
+    });
+
+    it("still prunes stale bindings and adds new channel models while preserving capability", () => {
+        const channels = [channel("one", ["opaque-media", "opaque-extra"])];
+        const edited: LogicalModel[] = [
+            {
+                id: "opaque-media",
+                name: "opaque-media",
+                capability: "audio",
+                enabled: true,
+                bindings: [
+                    { id: "live", channelId: "one", upstreamModel: "opaque-media", enabled: true, priority: 1 },
+                    { id: "gone", channelId: "deleted-channel", upstreamModel: "opaque-media", enabled: true, priority: 2 },
+                ],
+            },
+        ];
+
+        const saved = synchronizeLogicalModelsWithChannels(edited, channels);
+
+        expect(saved.find((model) => model.id === "opaque-media")?.capability).toBe("audio");
+        expect(saved.find((model) => model.id === "opaque-media")?.bindings).toEqual([{ id: "live", channelId: "one", upstreamModel: "opaque-media", enabled: true, priority: 1 }]);
+        expect(saved.some((model) => model.id === "opaque-extra")).toBe(true);
     });
 
     it("uses single-capability protocol catalogs for opaque model names", () => {

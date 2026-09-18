@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Segmented, Select, Space, Switch, Tag } from "antd";
+import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Modal, Segmented, Select, Space, Switch, Tag } from "antd";
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
@@ -74,6 +74,18 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
         setDrawerOpen(true);
     };
 
+    const confirmCapabilityChange = (capability: LogicalModelCapability) => {
+        const current = draft;
+        if (!current || current.capability === capability) return;
+        Modal.confirm({
+            title: "确认修改能力类型？",
+            content: `把「${current.name || current.id}」从${capabilityLabel(current.capability)}改为${capabilityLabel(capability)}，会改变该模型的调用路径与可选默认模型。保存渠道配置后生效。`,
+            okText: "确认修改",
+            cancelText: "取消",
+            onOk: () => setDraft((value) => (value ? { ...value, capability } : value)),
+        });
+    };
+
     const saveDraft = () => {
         if (!draft) return;
         const name = draft.name.trim();
@@ -92,7 +104,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
     };
 
     const syncChannelModels = () => {
-        const nextModels = synchronizeLogicalModelsWithChannels(logicalModels, channels);
+        const nextModels = synchronizeLogicalModelsWithChannels(logicalModels, channels, "detect");
         if (JSON.stringify(nextModels) === JSON.stringify(logicalModels)) {
             message.info("逻辑模型已与渠道目录同步");
             return;
@@ -281,7 +293,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                     />
                                 </LabeledControl>
                                 <LabeledControl label="能力类型">
-                                    <Select className="w-full" value={draft.capability} options={capabilityOptions} onChange={(capability) => setDraft((current) => (current ? { ...current, capability } : current))} />
+                                    <Select className="w-full" value={draft.capability} options={capabilityOptions} onChange={confirmCapabilityChange} />
                                 </LabeledControl>
                                 <LabeledControl label="模型状态">
                                     <div className="flex h-8 items-center">
