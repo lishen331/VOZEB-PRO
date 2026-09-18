@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { DramaProject } from "@/lib/drama-project-contract";
+import { DRAMA_LAB_SCRIPT_TYPE_PRESETS, DRAMA_LAB_STORY_STYLE_PRESETS } from "@/lib/drama-lab-story-options";
 import { splitDramaSource } from "@/lib/drama-source-splitter";
 import { decodeOneClickRouteId } from "@/lib/one-click/route-id";
 
@@ -26,6 +27,14 @@ export default function OneClickFilmProject() {
     const [episodeScript, setEpisodeScript] = useState("");
     const [savingEpisode, setSavingEpisode] = useState(false);
     const [importing, setImporting] = useState(false);
+    /**
+     * §1 故事风格 / 剧本类型。这两项此前是哑参数（能存进项目，但一键成片从不生成剧本，
+     * 所以永不影响产物）。现在由「AI 生成本集剧本」真正消费：服务端会把它们翻成中文标签注入模型上下文。
+     */
+    const [storyStyle, setStoryStyle] = useState("");
+    const [scriptType, setScriptType] = useState("");
+    const [storyOutline, setStoryOutline] = useState("");
+    const [generatingScript, setGeneratingScript] = useState(false);
     /** L §1 的「从剧本库导入」弹窗：列出本人其他一键成片项目的分集剧本。 */
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [libraryLoading, setLibraryLoading] = useState(false);
@@ -51,6 +60,10 @@ export default function OneClickFilmProject() {
             const payload = (await response.json()) as { code?: number; data?: { project?: DramaProject }; msg?: string };
             if (!response.ok || payload.code !== 0 || !payload.data?.project) throw new Error(payload.msg || "项目加载失败");
             setProject(payload.data.project);
+            // 回显项目上已保存的风格/类型与梗概，避免用户每次进来都要重选。
+            setStoryStyle(payload.data.project.storyStyle || "");
+            setScriptType(payload.data.project.scriptType || "");
+            setStoryOutline((current) => current || payload.data?.project?.summary || "");
             setError(undefined);
         } catch (loadError) {
             setError(loadError instanceof Error ? loadError.message : "项目加载失败");
@@ -205,6 +218,32 @@ export default function OneClickFilmProject() {
         setEpisodeScript(episode.script);
         setLibraryOpen(false);
         message.success("已填入所选剧本，确认后点「保存本集剧本」生效");
+    };
+
+    /**
+     * 用「故事梗概 + 故事风格 + 剧本类型」生成本集剧本。
+     * 服务端会把风格/类型翻成中文标签注入模型上下文，并把结果写回本集剧本。
+     */
+    const generateScript = async () => {
+        if (!episodeId) return;
+        if (!storyOutline.trim()) return message.warning("请先填写故事梗概");
+        setGeneratingScript(true);
+        try {
+            const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/generate-script`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ episodeId, storyOutline: storyOutline.trim(), storyStyle, scriptType }),
+            });
+            const payload = (await response.json()) as { code?: number; data?: { project?: DramaProject; script?: string }; msg?: string };
+            if (!response.ok || payload.code !== 0 || !payload.data?.project) throw new Error(payload.msg || "剧本生成失败");
+            setProject(payload.data.project);
+            if (typeof payload.data.script === "string") setEpisodeScript(payload.data.script);
+            message.success("本集剧本已生成");
+        } catch (scriptError) {
+            message.error(scriptError instanceof Error ? scriptError.message : "剧本生成失败");
+        } finally {
+            setGeneratingScript(false);
+        }
     };
 
     const saveEpisode = async () => {
@@ -467,7 +506,45 @@ export default function OneClickFilmProject() {
                                 </label>
                             </div>
                         </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                            <label className="flex items-center gap-1.5">
+                                <span className="text-muted-foreground">故事风格</span>
+                                <Select
+                                    size="small"
+                                    style={{ minWidth: 120 }}
+                                    allowClear
+                                    placeholder="不限"
+                                    value={storyStyle || undefined}
+                                    aria-label="故事风格"
+                                    onChange={(value) => setStoryStyle(value || "")}
+                                    options={DRAMA_LAB_STORY_STYLE_PRESETS.map((item) => ({ value: item.value, label: item.label }))}
+                                />
+                            </label>
+                            <label className="flex items-center gap-1.5">
+                                <span className="text-muted-foreground">剧本类型</span>
+                                <Select
+                                    size="small"
+                                    style={{ minWidth: 120 }}
+                                    allowClear
+                                    placeholder="不限"
+                                    value={scriptType || undefined}
+                                    aria-label="剧本类型"
+                                    onChange={(value) => setScriptType(value || "")}
+                                    options={DRAMA_LAB_SCRIPT_TYPE_PRESETS.map((item) => ({ value: item.value, label: item.label }))}
+                                />
+                            </label>
+                            <span className="text-xs text-muted-foreground">风格与类型会写进生成剧本的模型上下文；留空则不约束</span>
+                        </div>
                         <div className="mt-3 grid gap-3">
+                            <label className="grid gap-1 text-sm">
+                                故事梗概
+                                <Input.TextArea value={storyOutline} onChange={(event) => setStoryOutline(event.target.value)} rows={3} placeholder="用一段话说明本集要讲什么，AI 依据它生成剧本" aria-label="故事梗概" />
+                            </label>
+                            <div>
+                                <Button loading={generatingScript} aria-label="AI 生成本集剧本" onClick={() => void generateScript()}>
+                                    AI 生成本集剧本
+                                </Button>
+                            </div>
                             <Input value={episodeTitle} onChange={(event) => setEpisodeTitle(event.target.value)} placeholder="分集标题" />
                             <Input.TextArea value={episodeScript} onChange={(event) => setEpisodeScript(event.target.value)} rows={10} placeholder="粘贴或输入本集完整剧本" />
                             <div>

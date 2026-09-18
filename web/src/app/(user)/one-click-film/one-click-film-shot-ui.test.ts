@@ -40,6 +40,17 @@ describe("one-click-film shot card UI", () => {
         expect(editor).toContain("defaultActiveKey={initialTab}");
     });
 
+    it("makes 故事风格 / 剧本类型 real by sending them to a generator route", async () => {
+        const source = await readFile(workspacePath, "utf8");
+        // 这两项此前只存不用（一键成片从不生成剧本）。必须真的发给会消费它们的路由。
+        expect(source).toContain("/generate-script");
+        expect(source).toContain("storyStyle, scriptType");
+        expect(source).toContain("故事风格");
+        expect(source).toContain("剧本类型");
+        // 结果要写回本集剧本框，否则用户看不到产物。
+        expect(source).toContain("setEpisodeScript(payload.data.script)");
+    });
+
     it("sends the §6 compose options so they are not dumb parameters", async () => {
         const source = await readFile(workspacePath, "utf8");
         // 分辨率 / 烧字幕 / 水印必须真的发给服务端；只存不发就等于骗用户。
