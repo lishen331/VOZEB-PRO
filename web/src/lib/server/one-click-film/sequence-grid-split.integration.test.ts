@@ -141,6 +141,8 @@ describe("splitOneClickSequenceGrid with real sharp", () => {
         const history = result.project.episodes[0].shots[0].storyboardHistory || [];
         expect(history).toHaveLength(4);
         // 机位标签只在文字里，供 UI 展示。
+        // 每格一个独立 taskId：共用网格图那个会被回写的 taskId 去重整组清空。
+        expect(history.map((entry) => entry.taskId)).toEqual(["task-grid:panel0", "task-grid:panel1", "task-grid:panel2", "task-grid:panel3"]);
         expect(history.map((entry) => entry.prompt)).toEqual(["[平视] 站台上的女人", "[仰拍] 站台上的女人", "[俯拍] 站台上的女人", "[侧面] 站台上的女人"]);
     });
 

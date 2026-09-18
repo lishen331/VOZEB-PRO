@@ -8,6 +8,8 @@ import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { maintenanceWorkerContextHeaders, requestRuntimeCredential } from "@/lib/server/maintenance-auth";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
+import { buildSequenceGridPrompt, sequenceGridPanelCount, sequenceGridPanels } from "@/lib/server/one-click-film/sequence-grid";
+import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +34,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!project.sourceHandoffId?.startsWith("one-click-film:")) throw new DramaLabShotGenerationError("一键成片项目不存在", 404);
 
         const prepared = await prepareDramaLabStoryboardImage(project, episodeId, shotId);
+
+        // 序列图模式：query 显式指定优先，否则用分镜上已保存的选择。
+        const requestedMode = new URL(request.url).searchParams.get("sequenceMode")?.trim();
+        const sequenceMode: DramaLabStoryboardSequenceMode = requestedMode === "quad_grid" || requestedMode === "nine_grid" || requestedMode === "single" ? requestedMode : prepared.shot.storyboardSequenceMode || "single";
+        const panelCount = sequenceGridPanelCount(sequenceMode);
+
+        /**
+         * 网格提示词。
+         *
+         * 与 L 的一处**承载差异**：L 为每格单独调一次 AI 生成帧提示词（4 或 9 次文本调用），
+         * V 复用本镜那一条已备好的关键帧提示词作为共同画面描述，只让机位逐格不同。
+         * 这样同一瞬间的多机位语义与 L 一致，但不额外产生 4~9 次文本模型费用；
+         * 分格的差异化由 sequenceGridPanels 的机位表提供，而不是由多次模型调用提供。
+         */
+        const prompt = panelCount ? buildSequenceGridPrompt({ mode: sequenceMode, panelPrompts: sequenceGridPanels(sequenceMode).map(() => prepared.prompt) }) : prepared.prompt;
         const settings = await getAuthSettings();
         const model = settings.defaultModels.imageModel;
         if (!model) throw new DramaLabShotGenerationError("后台尚未配置可用的默认图片模型", 503);
@@ -54,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 // 有参考图走编辑、无参考图走纯生成 —— 与 L 的分支一致。
                 kind: prepared.references.length ? "edit" : "generation",
                 config: { model, size: project.ratio },
-                prompt: prepared.prompt,
+                prompt,
                 references: prepared.references.map((reference) => ({
                     id: reference.id,
                     name: reference.label,
@@ -75,6 +92,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                     shotId,
                     attemptNo,
                     clientRequestId: requestId,
+                    sequenceMode,
                 },
             }),
         });
@@ -93,9 +111,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 storyboardTaskId: payload.task.id,
                 storyboardAttempt: attemptNo,
                 storyboardError: undefined,
+                // 落库供同步阶段判断是否要按象限拆图（拆图是纯本地操作，不计费）。
+                storyboardSequenceMode: sequenceMode,
             },
         });
-        return NextResponse.json({ code: 0, data: { task: payload.task, templateKey: prepared.templateKey }, msg: "分镜图任务已创建" });
+        return NextResponse.json({ code: 0, data: { task: payload.task, templateKey: prepared.templateKey, sequenceMode, panelCount }, msg: panelCount ? `网格分镜图任务已创建，完成后会自动拆成 ${panelCount} 个候选` : "分镜图任务已创建" });
     } catch (error) {
         const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜图任务创建失败" }, { status });

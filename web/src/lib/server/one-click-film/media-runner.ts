@@ -56,7 +56,9 @@ export async function runOneClickMediaForEpisodes(kind: OneClickMediaKind, input
             // 关键：结果回写必须由这里主动触发。
             // 调 sync 的原本只有创作工坊工作流服务和创作工坊 UI，images/videos 改走一键成片
             // 自有路由后就没有任何东西会回写商单分镜了，两步会永久停在 pending。
-            const synced = await syncOneClickShotGeneration({ userId: input.userId, project, episodeId, shotId: shot.id });
+            // origin/cookie 必须透传：网格分镜图回写成功后要下载原图按象限拆成候选，
+            // 缺了它们拆图会被静默跳过（回写照常，但用户拿不到候选机位）。
+            const synced = await syncOneClickShotGeneration({ userId: input.userId, project, episodeId, shotId: shot.id, origin: input.runtime.origin, cookie: input.runtime.cookie });
             if (synced.changed) {
                 project = synced.project;
                 const after = kind === "image" ? imageState(synced.shot) : videoState(synced.shot);

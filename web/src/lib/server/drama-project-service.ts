@@ -442,6 +442,8 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         sceneId: optionalText(input.sceneId),
         videoMode: videoMode(input.videoMode),
         storyboardFrameMode: input.storyboardFrameMode === "first_last" ? "first_last" : "single",
+        // 只认已知的两种网格，其余（含 undefined）一律回落 single，即普通单图。
+        storyboardSequenceMode: input.storyboardSequenceMode === "quad_grid" || input.storyboardSequenceMode === "nine_grid" ? input.storyboardSequenceMode : "single",
         storyboardStatus: taskStatus(input.storyboardStatus),
         storyboardAttempt: optionalPositiveInteger(input.storyboardAttempt),
         storyboardTaskId: optionalText(input.storyboardTaskId),

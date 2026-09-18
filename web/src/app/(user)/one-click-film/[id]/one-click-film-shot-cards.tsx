@@ -1,8 +1,9 @@
 "use client";
 
-import { Button, Empty, Input, Popconfirm, Segmented, Switch, Tag, Tooltip, message } from "antd";
+import { Button, Empty, Input, Popconfirm, Segmented, Select, Switch, Tag, Tooltip, message } from "antd";
 import { Aperture, ArrowUpToLine, Clapperboard, FileText, Film, ImageIcon, Link2, LoaderCircle, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
+import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 
 import { runBatchMedia, type BatchMediaKind, type BatchMediaProgress } from "@/lib/one-click/batch-media";
@@ -199,6 +200,21 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(patch),
+            });
+            if (data?.project) onProjectChange(data.project);
+        });
+
+    /**
+     * 序列图模式：一次上游调用出一张 2x2 / 3x3 网格图，每格是同一瞬间的不同机位，
+     * 任务成功后由服务端按象限裁成候选（纯本地裁剪，不额外计费）。
+     * 候选在编辑弹窗「生成记录」里挑，选中即成为本镜分镜图。
+     */
+    const setSequenceMode = (shot: DramaShot, mode: DramaLabStoryboardSequenceMode) =>
+        run(shot.id, async () => {
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}${query}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ storyboardSequenceMode: mode }),
             });
             if (data?.project) onProjectChange(data.project);
         });
@@ -569,6 +585,22 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                         ]}
                                         aria-label={`分镜 ${index + 1} 创作模式`}
                                     />
+                                    {shot.creationMode === "universal" ? null : (
+                                        <Tooltip title="一次生成多机位网格图，完成后自动裁成候选，在编辑弹窗「生成记录」里挑一格。裁剪为本地处理，不额外计费">
+                                            <Select
+                                                size="small"
+                                                style={{ minWidth: 108 }}
+                                                value={shot.storyboardSequenceMode || "single"}
+                                                aria-label={`分镜 ${index + 1} 序列图模式`}
+                                                onChange={(value) => void setSequenceMode(shot, value)}
+                                                options={[
+                                                    { value: "single", label: "单图" },
+                                                    { value: "quad_grid", label: "四宫格" },
+                                                    { value: "nine_grid", label: "九宫格" },
+                                                ]}
+                                            />
+                                        </Tooltip>
+                                    )}
                                     <Button size="small" icon={<ImageIcon className="size-4" />} loading={busyShotId === shot.id} aria-label={`生成分镜 ${index + 1} 分镜图`} onClick={() => void generate(shot, "image")}>
                                         生成分镜图
                                     </Button>

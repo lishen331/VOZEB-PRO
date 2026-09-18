@@ -51,6 +51,28 @@ describe("one-click-film shot card UI", () => {
         expect(source).toContain("setEpisodeScript(payload.data.script)");
     });
 
+    it("lets the user pick a sequence grid mode and persists it", async () => {
+        const source = await readFile(cardsPath, "utf8");
+        // 模式必须落库：字段不存下来，生图时就拿不到，拆图链路永不触发。
+        expect(source).toContain("setSequenceMode");
+        expect(source).toContain("storyboardSequenceMode: mode");
+        expect(source).toContain("四宫格");
+        expect(source).toContain("九宫格");
+        // 全能模式没有分镜图，不该出现序列图选择。
+        expect(source).toContain('shot.creationMode === "universal" ? null : (');
+    });
+
+    it("lets the user promote a split panel to the main storyboard image", async () => {
+        const source = await readFile(editorPath, "utf8");
+        // 拆出来的候选必须能被选中，否则四宫格只是好看而不可用。
+        expect(source).toContain("setAsStoryboard");
+        expect(source).toContain("设为分镜图");
+        expect(source).toContain("/images/${encodeURIComponent(record.id)}");
+        // 机位标签只从提示词文字里取，图片本身不烧角标。
+        expect(source).toContain("sequencePanelLabel");
+        expect(source).toContain("sequence-panel:");
+    });
+
     it("sends the §6 compose options so they are not dumb parameters", async () => {
         const source = await readFile(workspacePath, "utf8");
         // 分辨率 / 烧字幕 / 水印必须真的发给服务端；只存不发就等于骗用户。

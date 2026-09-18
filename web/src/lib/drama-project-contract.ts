@@ -4,6 +4,8 @@ import type { IpReference } from "@/lib/ip-library-domain";
 export type DramaTaskStatus = "idle" | "queued" | "pending" | "running" | "success" | "error" | "cancelled";
 export type DramaReviewStatus = "draft" | "content_review" | "approved" | "visual_ready";
 export type DramaVideoMode = "storyboard" | "direct" | "reference";
+import type { DramaLabStoryboardSequenceMode } from "./drama-lab-storyboard-options";
+
 export type DramaShotCreationMode = "classic" | "universal";
 export type DramaStoryboardFrameMode = "single" | "first_last";
 export type DramaShotAudioMode = "source" | "voiceover" | "mute";
@@ -231,6 +233,11 @@ export type DramaShot = {
     videoMode?: DramaVideoMode;
     storyboardStatus?: DramaTaskStatus;
     storyboardFrameMode?: DramaStoryboardFrameMode;
+    /**
+     * 序列图模式（四宫格 / 九宫格）。single 表示普通单图。
+     * 生图时决定是否走网格提示词，任务成功后决定是否按象限拆成候选图。
+     */
+    storyboardSequenceMode?: DramaLabStoryboardSequenceMode;
     storyboardAttempt?: number;
     storyboardTaskId?: string;
     storyboardError?: string;

@@ -22,6 +22,17 @@ export type OneClickFilmShotEditorTab = "basic" | "prompts" | "frames" | "config
 
 type FramePrompt = { frameType: DramaShotFrameType; prompt: string; description?: string; layout?: string };
 
+/**
+ * 从记录提示词里取序列图机位标签（拆图时写成 `[俯拍] ...` 前缀）。
+ *
+ * 标签只存在于文字里 —— 图片本身不烧角标，因为选中的那张会直接作为视频参考图，
+ * 烧进去的角标会出现在成片画面里。
+ */
+function sequencePanelLabel(record: DramaShotGenerationHistory) {
+    if (!record.id.startsWith("sequence-panel:")) return "";
+    return /^\[([^\]]{1,12})\]/.exec(record.prompt || "")?.[1] || "";
+}
+
 async function callJson(url: string, init?: RequestInit) {
     const response = await fetch(url, init);
     const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: Record<string, unknown>; msg?: string };
@@ -290,6 +301,27 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
         }
     };
 
+    /**
+     * 把一条分镜图记录设为本镜主图。
+     *
+     * 序列图模式（四宫格/九宫格）拆出的每一格都是一条记录，用户靠这个按钮挑机位；
+     * 普通记录同样可用，等价于回退到上一版分镜图。
+     * 地址由服务端从记录里取，前端不传 URL。
+     */
+    const setAsStoryboard = async (record: DramaShotGenerationHistory) => {
+        setRecordBusyId(record.id);
+        try {
+            const data = await callJson(`${base}/shots/${encodeURIComponent(shot.id)}/images/${encodeURIComponent(record.id)}${query}`, { method: "POST" });
+            const project = data?.project as DramaProject | undefined;
+            if (project) onProjectChange(project);
+            message.success("已设为本镜分镜图");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "设置分镜图失败");
+        } finally {
+            setRecordBusyId(undefined);
+        }
+    };
+
     return (
         <Modal open width={760} title={`编辑分镜 · ${shot.title || "未命名"}`} onCancel={onClose} footer={null} destroyOnHidden>
             <Tabs
@@ -522,22 +554,44 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
                                             <ul className="grid gap-2">
                                                 {history.map((record) => (
                                                     <li key={record.id} className="flex items-start justify-between gap-3 rounded-md border p-2">
-                                                        <div className="min-w-0">
-                                                            <div className="flex flex-wrap items-center gap-2 text-xs">
-                                                                <Tag>{new Date(record.createdAt).toLocaleString()}</Tag>
-                                                                {record.width && record.height ? (
-                                                                    <span className="text-muted-foreground">
-                                                                        {record.width}x{record.height}
-                                                                    </span>
-                                                                ) : null}
+                                                        <div className="flex min-w-0 gap-2">
+                                                            {kind === "images" && record.url ? (
+                                                                // 缩略图：挑机位靠眼睛看，纯文字列表挑不出来。
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img src={record.url} alt={record.prompt || "分镜图候选"} className="size-16 shrink-0 rounded border border-border object-cover" />
+                                                            ) : null}
+                                                            <div className="min-w-0">
+                                                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                                    <Tag>{new Date(record.createdAt).toLocaleString()}</Tag>
+                                                                    {sequencePanelLabel(record) ? <Tag color="blue">{sequencePanelLabel(record)}</Tag> : null}
+                                                                    {record.width && record.height ? (
+                                                                        <span className="text-muted-foreground">
+                                                                            {record.width}x{record.height}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </div>
+                                                                <p className="mt-1 truncate text-xs text-muted-foreground">{record.prompt || "无提示词"}</p>
                                                             </div>
-                                                            <p className="mt-1 truncate text-xs text-muted-foreground">{record.prompt || "无提示词"}</p>
                                                         </div>
-                                                        <Popconfirm title="删除这条生成记录？" description="同时会解除主图与首尾帧对它的引用，此操作不可撤销。" okText="删除" cancelText="取消" onConfirm={() => void removeRecord(kind, record)}>
-                                                            <Button size="small" danger loading={recordBusyId === record.id} aria-label={`删除${label} ${record.id}`}>
-                                                                删除
-                                                            </Button>
-                                                        </Popconfirm>
+                                                        <div className="flex shrink-0 items-center gap-2">
+                                                            {kind === "images" && record.url ? (
+                                                                <Button
+                                                                    size="small"
+                                                                    type={shot.storyboardImageUrl === record.url ? "primary" : "default"}
+                                                                    disabled={shot.storyboardImageUrl === record.url}
+                                                                    loading={recordBusyId === record.id}
+                                                                    aria-label={`将记录 ${record.id} 设为分镜图`}
+                                                                    onClick={() => void setAsStoryboard(record)}
+                                                                >
+                                                                    {shot.storyboardImageUrl === record.url ? "当前分镜图" : "设为分镜图"}
+                                                                </Button>
+                                                            ) : null}
+                                                            <Popconfirm title="删除这条生成记录？" description="同时会解除主图与首尾帧对它的引用，此操作不可撤销。" okText="删除" cancelText="取消" onConfirm={() => void removeRecord(kind, record)}>
+                                                                <Button size="small" danger loading={recordBusyId === record.id} aria-label={`删除${label} ${record.id}`}>
+                                                                    删除
+                                                                </Button>
+                                                            </Popconfirm>
+                                                        </div>
                                                     </li>
                                                 ))}
                                             </ul>

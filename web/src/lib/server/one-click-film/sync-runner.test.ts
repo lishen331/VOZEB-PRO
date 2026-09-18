@@ -127,3 +127,85 @@ describe("one-click-film sync runner", () => {
         expect(result.changed).toBe(false);
     });
 });
+
+/**
+ * 序列图拆分的触发条件。重点不是"能不能拆"，而是：
+ * 1. 普通单图绝不触发（多跑一次下载+裁剪纯属浪费）；
+ * 2. 缺 origin 时静默跳过，回写照常（否则整条同步会挂）；
+ * 3. **拆分失败绝不能把已成功的生图判为失败** —— 用户已经为这张图付过费了；
+ * 4. 同一任务不重复拆，避免候选翻倍。
+ */
+describe("one-click-film sequence grid split trigger", () => {
+    const successTask = {
+        id: "img-grid",
+        status: "success",
+        prompt: "网格提示词",
+        result: { serverUrl: "https://cdn/grid.png", width: 1024, height: 1024 },
+    };
+
+    // 注意不能用默认参数表达"省略 origin"：显式传 undefined 会触发默认值，
+    // 于是 origin 又变回 http://localhost，测不到真正的缺省分支。
+    function callWith(s: DramaShot, split: ReturnType<typeof vi.fn>, options: { origin?: string } = { origin: "http://localhost" }) {
+        return syncOneClickShotGeneration({
+            userId: "u1",
+            project: project(s),
+            episodeId: "e1",
+            shotId: "s1",
+            ...(options.origin === undefined ? {} : { origin: options.origin }),
+            splitSequenceGrid: split as never,
+        });
+    }
+
+    it("never splits a plain single-image shot", async () => {
+        mocks.getImageTask.mockResolvedValue(successTask);
+        const split = vi.fn();
+        const result = await callWith(shot({ storyboardTaskId: "img-grid", storyboardStatus: "running", storyboardSequenceMode: "single" }), split);
+        expect(split).not.toHaveBeenCalled();
+        expect(result.shot.storyboardStatus).toBe("success");
+    });
+
+    it("splits a quad grid once the image is written back", async () => {
+        mocks.getImageTask.mockResolvedValue(successTask);
+        const split = vi.fn(async (input: { project: DramaProject }) => ({ project: input.project, panels: [] }));
+        await callWith(shot({ storyboardTaskId: "img-grid", storyboardStatus: "running", storyboardSequenceMode: "quad_grid" }), split);
+        expect(split).toHaveBeenCalledTimes(1);
+        // 必须拿回写后的图片地址去拆，而不是拆前的空值。
+        expect(split.mock.calls[0][0]).toMatchObject({ mode: "quad_grid", sourceUrl: "https://cdn/grid.png", taskId: "img-grid" });
+    });
+
+    it("skips the split without breaking write-back when origin is missing", async () => {
+        mocks.getImageTask.mockResolvedValue(successTask);
+        const split = vi.fn();
+        const result = await callWith(shot({ storyboardTaskId: "img-grid", storyboardStatus: "running", storyboardSequenceMode: "quad_grid" }), split, {});
+        expect(split).not.toHaveBeenCalled();
+        expect(result.shot.storyboardStatus).toBe("success");
+        expect(result.shot.storyboardImageUrl).toBe("https://cdn/grid.png");
+    });
+
+    it("keeps the paid image successful when splitting throws", async () => {
+        mocks.getImageTask.mockResolvedValue(successTask);
+        const split = vi.fn(async () => {
+            throw new Error("sharp 裁剪失败");
+        });
+        const result = await callWith(shot({ storyboardTaskId: "img-grid", storyboardStatus: "running", storyboardSequenceMode: "quad_grid" }), split);
+        expect(split).toHaveBeenCalledTimes(1);
+        // 整张网格图仍然可用，绝不因为候选拆分失败而让用户白付费。
+        expect(result.shot.storyboardStatus).toBe("success");
+        expect(result.shot.storyboardImageUrl).toBe("https://cdn/grid.png");
+        expect(result.shot.storyboardError).toBeUndefined();
+    });
+
+    it("does not split the same task twice", async () => {
+        mocks.getImageTask.mockResolvedValue(successTask);
+        const split = vi.fn();
+        const already = shot({
+            storyboardTaskId: "img-grid",
+            storyboardStatus: "running",
+            storyboardSequenceMode: "quad_grid",
+            // 面板带各自的 taskId（img-grid:panel0），否则会被回写的 taskId 去重清掉。
+            storyboardHistory: [{ id: "sequence-panel:img-grid:0", taskId: "img-grid:panel0", url: "/panel0.png", prompt: "[平视]", createdAt: "2026-09-18T00:00:00Z" }],
+        });
+        await callWith(already, split);
+        expect(split).not.toHaveBeenCalled();
+    });
+});

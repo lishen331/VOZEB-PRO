@@ -46,6 +46,9 @@ const EDITABLE_FIELDS = [
     // `storyboardFrameMode !== "single"` 判定是否启用首尾帧。不放进白名单，
     // 前端切模式就存不下来。
     "storyboardFrameMode",
+    // 序列图模式（四宫格/九宫格）：不放进白名单，前端选了模式也存不下来，
+    // 生图时就拿不到它，拆图链路等于永不触发。
+    "storyboardSequenceMode",
     "universalSegmentText",
     "layoutDescription",
 ] as const;

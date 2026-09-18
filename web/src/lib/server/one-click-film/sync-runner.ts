@@ -3,6 +3,8 @@ import { appendDramaLabGenerationHistory, findShot, persistDramaLabShotUpdate } 
 import { getImageTask } from "@/lib/server/image-task-store";
 import { getVideoTask } from "@/lib/server/video-task-store";
 
+import { splitOneClickSequenceGrid } from "./sequence-grid-split";
+
 export class OneClickSyncError extends Error {
     constructor(
         message: string,
@@ -30,7 +32,17 @@ export class OneClickSyncError extends Error {
  */
 export type OneClickSyncResult = { project: DramaProject; shot: DramaShot; changed: boolean };
 
-export async function syncOneClickShotGeneration(input: { userId: string; project: DramaProject; episodeId: string; shotId: string }): Promise<OneClickSyncResult> {
+export async function syncOneClickShotGeneration(input: {
+    userId: string;
+    project: DramaProject;
+    episodeId: string;
+    shotId: string;
+    /** 拆图需要下载原图，故需 origin/cookie；缺省则跳过拆图（回写照常）。 */
+    origin?: string;
+    cookie?: string;
+    /** 注入点，便于测试断言拆图是否被触发。 */
+    splitSequenceGrid?: typeof splitOneClickSequenceGrid;
+}): Promise<OneClickSyncResult> {
     const { shot } = findShot(input.project, input.episodeId, input.shotId);
     const patch: Partial<DramaShot> = {};
 
@@ -39,8 +51,41 @@ export async function syncOneClickShotGeneration(input: { userId: string; projec
 
     if (!Object.keys(patch).length) return { project: input.project, shot, changed: false };
 
-    const project = await persistDramaLabShotUpdate({ userId: input.userId, project: input.project, episodeId: input.episodeId, shotId: input.shotId, patch });
-    const { shot: next } = findShot(project, input.episodeId, input.shotId);
+    let project = await persistDramaLabShotUpdate({ userId: input.userId, project: input.project, episodeId: input.episodeId, shotId: input.shotId, patch });
+    let next = findShot(project, input.episodeId, input.shotId).shot;
+
+    /**
+     * 网格图刚回写成功时，按象限拆成候选图。
+     *
+     * 放在这里而不是生图路由里：生图路由只提交任务，那时还没有图片。
+     * 这一步是纯本地 sharp 裁剪，不调模型、不计费。
+     *
+     * 拆分失败绝不能把已成功的生图判为失败 —— 整张网格图已经可用，
+     * 否则用户白付一次费用。所以只吞掉错误并保留已完成的回写结果。
+     */
+    const mode = next.storyboardSequenceMode;
+    const gridTaskId = next.storyboardTaskId?.trim();
+    const alreadySplit = next.storyboardHistory?.some((entry) => entry.id.startsWith(`sequence-panel:${gridTaskId}:`));
+    if (patch.storyboardStatus === "success" && (mode === "quad_grid" || mode === "nine_grid") && gridTaskId && next.storyboardImageUrl && !alreadySplit && input.origin) {
+        try {
+            const split = await (input.splitSequenceGrid || splitOneClickSequenceGrid)({
+                userId: input.userId,
+                project,
+                episodeId: input.episodeId,
+                shotId: input.shotId,
+                mode,
+                sourceUrl: next.storyboardImageUrl,
+                taskId: gridTaskId,
+                origin: input.origin,
+                cookie: input.cookie,
+            });
+            project = split.project;
+            next = findShot(project, input.episodeId, input.shotId).shot;
+        } catch {
+            // 保留原图与成功状态：候选拆分是增强，不是成片前提。
+        }
+    }
+
     return { project, shot: next, changed: true };
 }
 

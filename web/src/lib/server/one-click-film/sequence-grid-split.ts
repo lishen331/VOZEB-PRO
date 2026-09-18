@@ -103,7 +103,10 @@ export async function splitOneClickSequenceGrid(input: OneClickSequenceSplitInpu
         const panelEntries: DramaShotGenerationHistory[] = panels.map((panel) => ({
             // id 带 taskId + 序号：同一任务重复拆分不会产生重复候选。
             id: `sequence-panel:${input.taskId}:${panel.index}`,
-            taskId: input.taskId,
+            // 每格必须带**各自**的 taskId，不能共用网格图那个。
+            // 因为回写用的 appendDramaLabGenerationHistory 按 taskId 去重（同 taskId 只留一条），
+            // 共用会导致：面板之间互相挤掉，且下一次回写把整组面板连带清空。
+            taskId: `${input.taskId}:panel${panel.index}`,
             url: panel.url,
             // 机位标签只在文字里，不在像素里。
             prompt: `[${panel.label}] ${basePrompt}`.trim().slice(0, 1000),
@@ -111,7 +114,9 @@ export async function splitOneClickSequenceGrid(input: OneClickSequenceSplitInpu
             width: panel.width,
             height: panel.height,
         }));
-        const history = [...(shot.storyboardHistory || []).filter((entry) => entry.taskId !== input.taskId), ...panelEntries].slice(-20);
+        // 只清掉本任务上一次拆出的面板，保留网格原图那条记录与其他任务的历史。
+        const panelPrefix = `${input.taskId}:panel`;
+        const history = [...(shot.storyboardHistory || []).filter((entry) => !entry.taskId.startsWith(panelPrefix)), ...panelEntries].slice(-20);
 
         const project = await persistDramaLabShotUpdate({
             userId: input.userId,
