@@ -104,6 +104,12 @@ export type CanvasNodeProps = {
     onImageDimensions?: (nodeId: string, naturalWidth: number, naturalHeight: number) => void;
     onViewImage?: (node: CanvasNodeData) => void;
     onContextMenu: (event: React.MouseEvent, nodeId: string) => void;
+    /**
+     * Publishes which side the edit panel settled on. The hover toolbar is a
+     * sibling of this component pinned to the same band above the node, so it
+     * needs to know when the panel has claimed that band.
+     */
+    onPanelPlacementChange?: (nodeId: string, placement: CanvasPanelPlacement) => void;
 };
 
 import {
@@ -164,6 +170,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     onImageDimensions,
     onViewImage,
     onContextMenu,
+    onPanelPlacementChange,
 }: CanvasNodeProps) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const [hovered, setHovered] = useState(false);
@@ -454,6 +461,13 @@ export const CanvasNode = React.memo(function CanvasNode({
             visualViewport?.removeEventListener("scroll", scheduleMeasure);
         };
     }, [showPanel, data.id, data.position.x, data.position.y, updatePanelPlacement]);
+
+    // Report to the page which band the panel occupies. Reports "bottom" while
+    // the panel is closed so the toolbar returns to its default spot above the
+    // node rather than keeping the last open panel's placement.
+    useEffect(() => {
+        onPanelPlacementChange?.(data.id, showPanel ? panelPlacement : "bottom");
+    }, [data.id, onPanelPlacementChange, panelPlacement, showPanel]);
 
     useEffect(() => {
         return () => {

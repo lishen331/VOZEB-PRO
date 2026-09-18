@@ -29,6 +29,7 @@ const CanvasAssistantPanel = dynamic(() => import("../components/canvas-assistan
 import { CanvasRefreshShell, ConnectionCreateMenu, NodeCreateMenu } from "./canvas-page-elements";
 import { getInputSummary, isHiddenBatchChild } from "./canvas-page-utils";
 import { CANVAS_GROUP_MIN_MEMBERS, canvasGroupCandidates, isHiddenCanvasGroupMember } from "../utils/canvas-storyboard-group";
+import type { CanvasPanelPlacement } from "../utils/canvas-panel-placement";
 
 export default function CanvasPage() {
     const [mounted, setMounted] = useState(false);
@@ -330,6 +331,13 @@ function VozebProCanvasPage() {
         [setSelectedNodeIds, setSelectedConnectionId, setToolbarNodeId, setDialogNodeId],
     );
     const handleNodeViewImage = useCallback((node: CanvasNodeData) => setPreviewNodeId(node.id), [setPreviewNodeId]);
+    // Lifted out of CanvasNode so the hover toolbar — a sibling, not a child —
+    // can step aside when a panel claims the band above its node. Keyed by node
+    // id so a stale placement never leaks onto a different node's toolbar.
+    const [panelPlacement, setPanelPlacement] = useState<{ nodeId: string; placement: CanvasPanelPlacement } | null>(null);
+    const handlePanelPlacementChange = useCallback((nodeId: string, placement: CanvasPanelPlacement) => {
+        setPanelPlacement((current) => (current?.nodeId === nodeId && current.placement === placement ? current : { nodeId, placement }));
+    }, []);
     const nodeProps = useMemo(
         () => ({
             onHoverStart: handleNodeHoverStart,
@@ -342,8 +350,9 @@ function VozebProCanvasPage() {
             onOpenPanel: handleNodeOpenPanel,
             onImageDimensions: handleImageDimensions,
             onViewImage: handleNodeViewImage,
+            onPanelPlacementChange: handlePanelPlacementChange,
         }),
-        [handleNodeHoverStart, handleNodeHoverEnd, handleNodeContentChange, toggleBatchExpanded, setBatchPrimary, handleNodeRetry, generateImageFromTextNode, handleNodeOpenPanel, handleImageDimensions, handleNodeViewImage],
+        [handleNodeHoverStart, handleNodeHoverEnd, handleNodeContentChange, toggleBatchExpanded, setBatchPrimary, handleNodeRetry, generateImageFromTextNode, handleNodeOpenPanel, handleImageDimensions, handleNodeViewImage, handlePanelPlacementChange],
     );
     const getNodeViewProps = useCallback(
         (node: CanvasNodeData) => ({
@@ -566,6 +575,7 @@ function VozebProCanvasPage() {
                 <CanvasNodeHoverToolbar
                     node={isNodeDragging || nodeImageSettingsOpen ? null : toolbarNode}
                     viewport={viewport}
+                    panelPlacement={toolbarNode && panelPlacement?.nodeId === toolbarNode.id ? panelPlacement.placement : "bottom"}
                     onKeep={keepNodeToolbar}
                     onInfo={(node) => setInfoNodeId(node.id)}
                     onEditText={openTextEditor}

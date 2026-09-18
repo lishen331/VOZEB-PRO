@@ -9,12 +9,19 @@ import { formatBytes, getDataUrlByteSize } from "@/lib/image-utils";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type ViewportTransform } from "../types";
+import type { CanvasPanelPlacement } from "../utils/canvas-panel-placement";
 import { ImageToolSettingsModal, type ImageToolbarSettingsTool } from "./canvas-image-toolbar-settings-modal";
 import { IMAGE_QUICK_TOOLS_STORAGE_KEY, buildImageToolbarTools, defaultImageQuickToolIds, readImageQuickToolsConfig, type ImageQuickToolId } from "./canvas-image-toolbar-tools";
 
 type CanvasNodeHoverToolbarProps = {
     node: CanvasNodeData | null;
     viewport: ViewportTransform;
+    /**
+     * Where this node's edit panel sits. "top" means the panel has claimed the
+     * band above the node — this toolbar's default spot — so the toolbar moves
+     * below the node instead of overlapping the panel's controls.
+     */
+    panelPlacement?: CanvasPanelPlacement;
     onKeep: (nodeId: string) => void;
     onInfo: (node: CanvasNodeData) => void;
     onEditText: (node: CanvasNodeData) => void;
@@ -54,6 +61,7 @@ type ToolbarTool = {
 export function CanvasNodeHoverToolbar({
     node,
     viewport,
+    panelPlacement = "bottom",
     onKeep,
     onInfo,
     onEditText,
@@ -126,7 +134,14 @@ export function CanvasNodeHoverToolbar({
     // gesture ends, which made the toolbar drift and then snap into place.
     const nodeCenterX = node.position.x + node.width / 2;
     const left = `calc(var(--canvas-pan-x, ${viewport.x}px) + ${nodeCenterX} * var(--canvas-zoom, ${viewport.k}) * 1px)`;
-    const top = `calc(var(--canvas-pan-y, ${viewport.y}px) + ${node.position.y} * var(--canvas-zoom, ${viewport.k}) * 1px - 12px)`;
+    // The panel and this toolbar both default to the band above the node. When
+    // the panel takes that band, anchor to the node's bottom edge instead — the
+    // strip directly below a node is otherwise empty (resize handles sit at the
+    // corners, connection dots on the left/right).
+    const panelAbove = panelPlacement === "top";
+    const anchorWorldY = panelAbove ? node.position.y + node.height : node.position.y;
+    const anchorOffset = panelAbove ? "+ 12px" : "- 12px";
+    const top = `calc(var(--canvas-pan-y, ${viewport.y}px) + ${anchorWorldY} * var(--canvas-zoom, ${viewport.k}) * 1px ${anchorOffset})`;
     const safeViewportWidth = toolbarMetrics.viewportWidth || 0;
     const safeToolbarWidth = Math.min(toolbarMetrics.width || 0, Math.max(0, safeViewportWidth - 32));
     // Keep the toolbar fully on screen. Done in CSS so the clamp re-evaluates
@@ -225,7 +240,7 @@ export function CanvasNodeHoverToolbar({
                 ref={toolbarRef}
                 data-canvas-hover-toolbar
                 className="hide-scrollbar absolute z-[70] flex h-10 max-w-[calc(100vw-32px)] items-center overflow-x-auto overflow-y-hidden rounded-xl border shadow-[0_7px_22px_rgba(15,23,42,.10)]"
-                style={{ left: toolbarLeft, top, transform: "translate(-50%, -100%)", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                style={{ left: toolbarLeft, top, transform: panelAbove ? "translate(-50%, 0)" : "translate(-50%, -100%)", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                 onMouseEnter={() => onKeep(node.id)}
                 onMouseDown={(event) => event.stopPropagation()}
                 onPointerDown={(event) => event.stopPropagation()}
