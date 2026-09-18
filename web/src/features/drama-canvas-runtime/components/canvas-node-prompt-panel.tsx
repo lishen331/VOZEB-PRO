@@ -250,7 +250,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     onClick={() => (isRunning ? onStop(node.id) : submit())}
                     aria-label={isRunning ? "停止生成" : "生成"}
                 >
-                    <span className="relative flex items-center gap-1.5">
+                    <span className="relative z-10 flex items-center gap-1.5">
                         {isRunning ? (
                             <>
                                 <Square className="size-3.5 fill-current" />
