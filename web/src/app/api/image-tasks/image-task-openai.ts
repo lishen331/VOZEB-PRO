@@ -1,3 +1,4 @@
+import { withMediaDiagnosticScope } from "@/lib/server/media-task-trace";
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -126,22 +127,13 @@ import {
 } from "./image-task-support";
 
 export async function runOpenAiImageTask(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false): Promise<ImageTaskRunResult> {
+    return withMediaDiagnosticScope("image", task, "provider", () => runObservedOpenAiImageTask(task, origin, publicOrigin, cookie, singleStep));
+}
+
+async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false): Promise<ImageTaskRunResult> {
     const config = task.config;
     const quality = normalizeQuality(config.quality || "");
     const requestSize = resolveRequestSize(quality, config.size || "auto");
-    console.info("[image-upstream-debug] submit", {
-        taskId: task.id,
-        channelId: config.channelId,
-        model: config.model,
-        protocol: config.advancedConfig?.protocol,
-        apiFormat: config.apiFormat,
-        kind: task.kind,
-        rawSize: config.size,
-        rawQuality: config.quality,
-        normalizedQuality: quality,
-        requestSize,
-        hasGlobalPreset: Boolean(globalAiOpcImagePreset(config)),
-    });
     const globalPreset = globalAiOpcImagePreset(config);
     if (globalPreset) return runGlobalAiOpcImageTask(task, origin, publicOrigin, cookie, quality, requestSize, singleStep);
     const path = await openAiImageTaskPath(config, task.kind);
@@ -178,7 +170,6 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
             ...(requestSize ? { size: requestSize } : {}),
             ...(allowProtocolFallback || responseFormat !== "url" ? { response_format: responseFormat, output_format: IMAGE_OUTPUT_FORMAT } : {}),
         };
-        console.info("[image-upstream-debug] request", { taskId: task.id, channelId: config.channelId, url, body: JSON.stringify(generationBody).slice(0, 800) });
         response = await imageSubmissionFetch(config, url, {
             method: "POST",
             headers,
@@ -187,7 +178,6 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
         });
         if (!response.ok) {
             const message = await readFetchError(response, "图片生成失败");
-            console.info("[image-upstream-debug] response-error", { taskId: task.id, channelId: config.channelId, status: response.status, message: String(message).slice(0, 800) });
             if (allowProtocolFallback && shouldTryNextImageResponseFormat(responseFormat, response.status, message)) return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
             if (allowProtocolFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
             throw imageSubmissionResponseError(response.status, message);

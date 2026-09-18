@@ -1,3 +1,4 @@
+import { observeMediaFetch, traceMediaException } from "@/lib/server/media-task-trace";
 import { rawReferenceRequestUrlCandidates } from "./image-task-reference-urls";
 import { after, NextResponse } from "next/server";
 
@@ -270,7 +271,7 @@ export function taskFetch(config: ImageTaskConfig, url: string, init: RequestIni
         ...init,
         signal: init.signal || AbortSignal.timeout(imageTaskRequestTimeoutMs(config)),
     };
-    if (!isInternalApiBaseUrl(config.baseUrl)) return fetchSafeOutbound(url, nextInit);
+    if (!isInternalApiBaseUrl(config.baseUrl)) return observeMediaFetch(url, nextInit, () => fetchSafeOutbound(url, nextInit));
     return fetchInternalApi(url, nextInit);
 }
 
@@ -278,7 +279,6 @@ export async function imageSubmissionFetch(config: ImageTaskConfig, url: string,
     try {
         return await taskFetch(config, url, init);
     } catch (error) {
-        console.info("[image-upstream-debug] fetch-throw", { channelId: config.channelId, model: config.model, url, error: error instanceof Error ? error.message : String(error) });
         throw generationSubmissionUncertainError(error, "图片任务创建结果未知");
     }
 }
@@ -290,7 +290,8 @@ export function imageSubmissionResponseError(status: number, message: string) {
 export async function parseImageSubmissionJson<T>(task: ImageTask, response: Response): Promise<T> {
     try {
         return (await response.json()) as T;
-    } catch {
+    } catch (error) {
+        await traceMediaException(error, "response_parse_exception");
         await persistChargedImageResponse(task, response.headers);
         throw new GenerationSubmissionUncertainError("图片接口返回了无效 JSON，创建结果待确认");
     }
@@ -401,7 +402,6 @@ export async function pollOpenAiImageTask(
             if (image) return image;
             const error = readImagePayloadError(payload);
             if (error) {
-                console.info("[image-upstream-debug] poll-terminal", { channelId: config.channelId, model: config.model, pollUrl, error: String(error).slice(0, 800), payload: JSON.stringify(payload).slice(0, 800) });
                 throw new ImageUpstreamTerminalError(error);
             }
             payload.status = readImageTaskStatus(payload) || payload.status;

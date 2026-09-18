@@ -1,3 +1,4 @@
+import { withMediaDiagnosticScope } from "@/lib/server/media-task-trace";
 import { after, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -393,20 +394,22 @@ export async function POST(request: Request) {
                 });
                 try {
                     const workflow = workflowConfigForTask({ ...trustedContext, config: channel });
-                    const upstream = await createUpstream(
-                        user.id,
-                        origin,
-                        cookie,
-                        channel,
-                        providerPrompt,
-                        // 受信任的练习请求可携带工作流参数（尺寸比例、时长等），并入 RunningHub businessInput
-                        trustedPractice && body.input && typeof body.input === "object" && !Array.isArray(body.input) ? { ...parameters, ...body.input } : parameters,
-                        references,
-                        settings.generationPointMultipliers,
-                        billingRequestId,
-                        trustedContext.billingContext,
-                        trustedContext.executionProfile,
-                        workflow,
+                    const upstream = await withMediaDiagnosticScope("video", localTask, "submit", () =>
+                        createUpstream(
+                            user.id,
+                            origin,
+                            cookie,
+                            channel,
+                            providerPrompt,
+                            // 受信任的练习请求可携带工作流参数（尺寸比例、时长等），并入 RunningHub businessInput
+                            trustedPractice && body.input && typeof body.input === "object" && !Array.isArray(body.input) ? { ...parameters, ...body.input } : parameters,
+                            references,
+                            settings.generationPointMultipliers,
+                            billingRequestId,
+                            trustedContext.billingContext,
+                            trustedContext.executionProfile,
+                            workflow,
+                        ),
                     );
                     await updateVideoTask(localTask.id, { config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts });
                     const task = { ...localTask, config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts };

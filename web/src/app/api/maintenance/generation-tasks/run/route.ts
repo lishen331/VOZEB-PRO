@@ -1,3 +1,4 @@
+import { cleanupMediaDiagnostics } from "@/lib/server/media-task-diagnostic-store";
 import { NextResponse } from "next/server";
 
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
             limit: 50,
             workerId: workerId || undefined,
         });
+        await cleanupMediaDiagnostics(50);
         const nextDueAt = await getNextGenerationTaskDueAt();
         return NextResponse.json({ code: 0, data: { ...result, nextDueAt }, msg: result.claimed ? `已处理 ${result.claimed} 个生成任务` : "没有到期的生成任务" });
     } catch (error) {

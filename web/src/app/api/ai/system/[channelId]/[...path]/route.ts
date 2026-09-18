@@ -1,3 +1,5 @@
+import { observeMediaFetch, MEDIA_TRACE_HEADER } from "@/lib/server/media-task-trace";
+import { resolveMediaDiagnosticContext } from "@/lib/server/media-task-diagnostic-store";
 import { createHash, randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
@@ -239,14 +241,9 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     let upstream: Response;
     try {
         const outboundBody = injectRunningHubWorkflowApiKey(globalAdaptation?.body || requestBody.body, globalAdaptation?.path || path, modelConfig?.protocol || channel.advancedConfig?.protocol, channel.apiKey);
-        upstream = await fetchSafeOutbound(target, {
-            method: request.method,
-            headers,
-            body: outboundBody,
-            cache: "no-store",
-            redirect: "manual",
-            signal: request.signal,
-        });
+        const diagnosticContext = await resolveMediaDiagnosticContext(request.headers.get(MEDIA_TRACE_HEADER) || "", userId, channelId);
+        const outboundInit: RequestInit = { method: request.method, headers, body: outboundBody, cache: "no-store", redirect: "manual", signal: request.signal };
+        upstream = await observeMediaFetch(target, outboundInit, () => fetchSafeOutbound(target, outboundInit), diagnosticContext);
     } catch (error) {
         await refundConsumedPoints();
         console.error("System API proxy request failed", error instanceof Error ? error.message : error);
