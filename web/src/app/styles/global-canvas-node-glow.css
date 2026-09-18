@@ -121,4 +121,116 @@
             animation: none;
         }
     }
+
+    /* Blinking caret trailing the generating caption's typewriter text. */
+    .canvas-node-caret {
+        display: inline-block;
+        width: 1px;
+        height: 0.85em;
+        margin-left: 2px;
+        vertical-align: text-bottom;
+        background: currentColor;
+        animation: canvasNodeCaretBlink 1s step-end infinite;
+    }
+
+    @keyframes canvasNodeCaretBlink {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-caret {
+            animation: none;
+        }
+    }
+
+    /* Depth Card tilt, applied while this card is the connection-drag target.
+       The transform itself is written inline per-frame from pointer position;
+       this rule supplies the easing, the 3D context and the cursor spotlight. */
+    .canvas-node-depth-tilt {
+        transform-style: preserve-3d;
+        transition:
+            transform 120ms ease-out,
+            box-shadow 160ms ease-out;
+        will-change: transform;
+    }
+
+    /* Spotlight tracks the pointer via the two vars set inline. */
+    .canvas-node-depth-tilt::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        background: radial-gradient(circle at var(--canvas-spotlight-x, 50%) var(--canvas-spotlight-y, 50%), rgb(255 255 255 / 22%) 0%, rgb(255 255 255 / 0%) 55%);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-depth-tilt {
+            transform: none !important;
+            transition: none;
+        }
+    }
+
+    /* In-card generating effect. Independent of the border sweep above: that
+       one paints the card edge, this fills the card body, so they layer. */
+    .canvas-node-generating-shader {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        overflow: hidden;
+        pointer-events: none;
+        background: #0b1220;
+    }
+
+    /* Two drifting radial blobs. Animating only transform keeps this on the
+       compositor, so N generating cards stay cheap. */
+    .canvas-node-generating-shader::before {
+        content: "";
+        position: absolute;
+        inset: -30%;
+        background: radial-gradient(circle at 30% 35%, rgb(55 151 255 / 85%) 0%, rgb(55 151 255 / 0%) 45%), radial-gradient(circle at 70% 65%, rgb(16 185 129 / 55%) 0%, rgb(16 185 129 / 0%) 40%);
+        filter: blur(14px);
+        animation: canvasNodeShaderDrift 7s ease-in-out infinite;
+    }
+
+    /* Sheen sweeping across the blobs, offset in phase so the two don't beat. */
+    .canvas-node-generating-shader::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, rgb(255 255 255 / 0%) 35%, rgb(255 255 255 / 14%) 50%, rgb(255 255 255 / 0%) 65%);
+        animation: canvasNodeShaderSheen 3.2s linear infinite;
+    }
+
+    @keyframes canvasNodeShaderDrift {
+        0%,
+        100% {
+            transform: translate3d(-6%, -4%, 0) scale(1.05);
+        }
+        50% {
+            transform: translate3d(6%, 5%, 0) scale(1.15);
+        }
+    }
+
+    @keyframes canvasNodeShaderSheen {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(100%);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-generating-shader::before,
+        .canvas-node-generating-shader::after {
+            animation: none;
+        }
+    }
 }

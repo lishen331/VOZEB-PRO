@@ -62,6 +62,22 @@ export function expandCanvasDragNodeIds(nodes: CanvasNodeData[], selectedNodeIds
     return [...dragNodeIds];
 }
 
+/**
+ * Fraction of each half-extent that still counts as aiming at a node.
+ * Previously ANY point inside the bounds snapped, so a card the pointer merely
+ * crossed stole the connection while the cursor was still far from it.
+ */
+export const CONNECTION_SNAP_CORE = 0.55;
+
+/** True when `world` is inside the node's shrunken central snap zone. */
+export function isNearNodeCenter(world: Position, node: CanvasNodeData) {
+    const halfWidth = (node.width / 2) * CONNECTION_SNAP_CORE;
+    const halfHeight = (node.height / 2) * CONNECTION_SNAP_CORE;
+    const centerX = node.position.x + node.width / 2;
+    const centerY = node.position.y + node.height / 2;
+    return Math.abs(world.x - centerX) <= halfWidth && Math.abs(world.y - centerY) <= halfHeight;
+}
+
 export function findConnectionTarget(world: Position, draft: { nodeId: string; handleType: "source" | "target" }, nodes: CanvasNodeData[], scale: number) {
     const tolerance = 52 / Math.max(scale, 0.1);
     let best: { id: string; distance: number } | null = null;
@@ -69,9 +85,9 @@ export function findConnectionTarget(world: Position, draft: { nodeId: string; h
         const node = nodes[index];
         if (node.id === draft.nodeId || (draft.handleType === "target" && node.type === CanvasNodeType.Config)) continue;
         const anchor = nodeAnchor(node, draft.handleType === "source" ? "target" : "source");
-        const inside = world.x >= node.position.x && world.x <= node.position.x + node.width && world.y >= node.position.y && world.y <= node.position.y + node.height;
+        const nearCenter = isNearNodeCenter(world, node);
         const distance = Math.hypot(world.x - anchor.x, world.y - anchor.y);
-        if (!inside && distance > tolerance) continue;
+        if (!nearCenter && distance > tolerance) continue;
         if (!best || distance < best.distance) best = { id: node.id, distance };
     }
     return best?.id || null;

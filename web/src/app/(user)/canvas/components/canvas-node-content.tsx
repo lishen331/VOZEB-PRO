@@ -14,6 +14,7 @@ import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
 import { CanvasNodeType, type CanvasGroupMemberSnapshot, type CanvasNodeData } from "../types";
 import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
 import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-group";
+import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
 export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -222,10 +223,35 @@ const CANVAS_GROUP_CELL_INSET = 24;
 
 export function LoadingContent({ theme }: Pick<NodeContentRendererProps, "theme">) {
     return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.activeStroke }}>
-            <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />
-            <span className="text-[10px] tracking-[0.2em]">生成中</span>
+        <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden" style={{ color: theme.node.activeStroke }}>
+            <div className="canvas-node-generating-shader" aria-hidden />
+            <div className="relative size-8 animate-spin rounded-full border-2" style={{ borderColor: "rgb(255 255 255 / 25%)", borderTopColor: "#3797ff" }} aria-hidden />
+            <GeneratingCaption />
         </div>
+    );
+}
+
+/**
+ * Rotating anthropomorphic status line with a typewriter reveal. Ticks a
+ * single elapsed counter and derives the frame from it, so the animation is a
+ * pure function of time — no per-character state machine to fall out of sync.
+ */
+function GeneratingCaption() {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        const started = Date.now();
+        const id = window.setInterval(() => setElapsed(Date.now() - started), TYPE_MS);
+        return () => window.clearInterval(id);
+    }, []);
+
+    const { text } = typewriterFrame(elapsed);
+
+    return (
+        <span className="relative min-h-4 px-4 text-center text-[11px] leading-4 text-white/90" aria-live="polite">
+            {text}
+            <span className="canvas-node-caret" aria-hidden />
+        </span>
     );
 }
 

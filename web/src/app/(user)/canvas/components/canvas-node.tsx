@@ -12,6 +12,7 @@ import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type Positi
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
 import { resolveCanvasPanelPlacement, type CanvasPanelPlacement } from "../utils/canvas-panel-placement";
+import { depthTilt } from "../utils/canvas-depth-tilt";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
@@ -75,6 +76,11 @@ export type CanvasNodeProps = {
     isRelated: boolean;
     isFocusRelated: boolean;
     isConnectionTarget: boolean;
+    /**
+     * Pointer position in world coords while this card is the connection-drag
+     * target. Drives the Depth Card tilt; undefined leaves the card flat.
+     */
+    connectionPointer?: Position;
     isConnecting: boolean;
     editRequestNonce?: number;
     showPanel: boolean;
@@ -141,6 +147,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     isRelated,
     isFocusRelated,
     isConnectionTarget,
+    connectionPointer,
     isConnecting,
     editRequestNonce = 0,
     showPanel,
@@ -198,6 +205,8 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isBatchRoot = data.type === CanvasNodeType.Image && Boolean(data.metadata?.isBatchRoot) && batchCount > 1;
     const isBatchChild = data.type === CanvasNodeType.Image && Boolean(data.metadata?.batchRootId);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
+    // Depth Card tilt, only while this card is the live connection-drag target.
+    const tilt = connectionPointer ? depthTilt(connectionPointer, { x: data.position.x, y: data.position.y, width: data.width, height: data.height }) : null;
     const imageBorderColor = isActive ? selectionBlue : isRelated && !isBatchChild ? theme.node.muted : theme.node.stroke;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const clickStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -253,6 +262,21 @@ export const CanvasNode = React.memo(function CanvasNode({
         return () => window.removeEventListener("pointerdown", handleOutsidePointerDown, true);
     }, [isEditingContent]);
 
+    // The window listeners for an in-flight resize must outlive React renders.
+    // handleResizeUp transitively depends on canvas-client-page's inline
+    // onNodesCommit arrow, so ANY parent re-render gives it a new identity. A
+    // cleanup effect keyed on that identity used to rip the listeners off
+    // mid-drag: a fast drag throws the pointer outside the node box, which fires
+    // onMouseLeave -> onHoverEnd -> setHoveredNodeId -> parent re-render -> new
+    // handleResizeUp -> cleanup -> resize dies and the cursor falls back to the
+    // surface's grab cursor. Registering these stable wrappers instead (identity
+    // fixed for the component's lifetime) decouples the listener lifecycle from
+    // rendering entirely; only mouseup or unmount detaches them.
+    const resizeMoveRef = useRef<(event: MouseEvent) => void>(() => {});
+    const resizeUpRef = useRef<() => void>(() => {});
+    const stableResizeMoveRef = useRef((event: MouseEvent) => resizeMoveRef.current(event));
+    const stableResizeUpRef = useRef(() => resizeUpRef.current());
+
     const handleResizeMove = useCallback(
         (event: MouseEvent) => {
             if (!resizeRef.current.isResizing) return;
@@ -293,16 +317,41 @@ export const CanvasNode = React.memo(function CanvasNode({
             resizeRef.current.currentWidth = width;
             resizeRef.current.currentHeight = height;
             resizeRef.current.currentPosition = position;
-            onResize(data.id, width, height, position);
+            // Preview via a compositor-only transform instead of committing real
+            // width/height to React state every frame. The DOM box keeps its
+            // start size; scaling from origin (0,0) makes the visual size equal
+            // width×height while skipping layout reflow entirely — the resized
+            // node (and image) never relayouts mid-drag. Real dimensions are
+            // committed once on mouseup. Thumbnails distort slightly while
+            // dragging, which is acceptable (the underlying asset is unchanged).
+            const element = nodeRef.current;
+            if (element) {
+                const sx = width / (resizeRef.current.startWidth || 1);
+                const sy = height / (resizeRef.current.startHeight || 1);
+                element.style.transformOrigin = "0 0";
+                element.style.transform = `translate(${position.x}px, ${position.y}px) scale(${sx}, ${sy})`;
+            }
         },
-        [data.id, onResize, scale],
+        [scale],
     );
 
     const handleResizeUp = useCallback(() => {
         if (!resizeRef.current.isResizing) return;
         resizeRef.current.isResizing = false;
-        window.removeEventListener("mousemove", handleResizeMove);
-        window.removeEventListener("mouseup", handleResizeUp);
+        window.removeEventListener("mousemove", stableResizeMoveRef.current);
+        window.removeEventListener("mouseup", stableResizeUpRef.current);
+        document.body.style.cursor = "";
+        // Restore the plain (unscaled) transform and set the committed size
+        // imperatively first, so the frame before React re-renders already
+        // matches the final layout — no flash between clearing scale and the
+        // state commit landing.
+        const element = nodeRef.current;
+        if (element) {
+            element.style.transformOrigin = "";
+            element.style.transform = `translate(${resizeRef.current.currentPosition.x}px, ${resizeRef.current.currentPosition.y}px)`;
+            element.style.width = `${resizeRef.current.currentWidth}px`;
+            element.style.height = `${resizeRef.current.currentHeight}px`;
+        }
         onResizeEnd?.(data.id, resizeRef.current.currentWidth, resizeRef.current.currentHeight, resizeRef.current.currentPosition);
     }, [data.id, handleResizeMove, onResizeEnd]);
 
@@ -324,8 +373,15 @@ export const CanvasNode = React.memo(function CanvasNode({
             currentHeight: data.height,
             currentPosition: data.position,
         };
-        window.addEventListener("mousemove", handleResizeMove);
-        window.addEventListener("mouseup", handleResizeUp);
+        resizeMoveRef.current = handleResizeMove;
+        resizeUpRef.current = handleResizeUp;
+        // Pin the resize cursor for the whole gesture. Without this the cursor
+        // reverts to whatever sits under the pointer once a fast drag throws it
+        // off the small handle (the surface's grab cursor), which reads as the
+        // resize turning into the pan tool.
+        document.body.style.cursor = resizeRef.current.corner === "top-left" || resizeRef.current.corner === "bottom-right" ? "nwse-resize" : "nesw-resize";
+        window.addEventListener("mousemove", stableResizeMoveRef.current);
+        window.addEventListener("mouseup", stableResizeUpRef.current);
     };
 
     const handleNodeDoubleClick = (event: React.MouseEvent) => {
@@ -469,12 +525,24 @@ export const CanvasNode = React.memo(function CanvasNode({
         onPanelPlacementChange?.(data.id, showPanel ? panelPlacement : "bottom");
     }, [data.id, onPanelPlacementChange, panelPlacement, showPanel]);
 
+    // Keep the refs pointing at the latest handlers so the stable wrappers always
+    // call current logic, without the listener registration depending on their
+    // identity.
+    resizeMoveRef.current = handleResizeMove;
+    resizeUpRef.current = handleResizeUp;
+
+    // Unmount-only cleanup. Deliberately empty deps: keying this on the handler
+    // identities is exactly what used to kill an in-flight resize on any parent
+    // re-render (see the stable-wrapper comment above).
     useEffect(() => {
+        const move = stableResizeMoveRef.current;
+        const up = stableResizeUpRef.current;
         return () => {
-            window.removeEventListener("mousemove", handleResizeMove);
-            window.removeEventListener("mouseup", handleResizeUp);
+            window.removeEventListener("mousemove", move);
+            window.removeEventListener("mouseup", up);
+            document.body.style.cursor = "";
         };
-    }, [handleResizeMove, handleResizeUp]);
+    }, []);
 
     return (
         <div
@@ -511,6 +579,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     hovered ? "canvas-node-glow-active" : "",
                     isConnectionTarget ? "canvas-node-target-pulse" : "",
                     isGenerating ? "canvas-node-generating-ring" : "",
+                    tilt ? "canvas-node-depth-tilt" : "",
                 ]
                     .filter(Boolean)
                     .join(" ")}
@@ -518,6 +587,13 @@ export const CanvasNode = React.memo(function CanvasNode({
                     background: nodeBackground,
                     borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
                     boxShadow: isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated && !isBatchChild ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : undefined,
+                    ...(tilt
+                        ? {
+                              transform: `perspective(900px) rotateX(${tilt.rotateX.toFixed(2)}deg) rotateY(${tilt.rotateY.toFixed(2)}deg)`,
+                              "--canvas-spotlight-x": `${tilt.spotlightX.toFixed(1)}%`,
+                              "--canvas-spotlight-y": `${tilt.spotlightY.toFixed(1)}%`,
+                          }
+                        : null),
                 }}
                 onMouseDown={(event) => {
                     rememberNodePointer(event);
