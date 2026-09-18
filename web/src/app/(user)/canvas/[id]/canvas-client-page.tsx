@@ -465,7 +465,7 @@ function VozebProCanvasPage() {
                     onRetrySave={() => retryProjectSave(projectId)}
                     canUndo={historyState.canUndo}
                     canRedo={historyState.canRedo}
-                    onWorkbench={() => router.push("/create")}
+                    onWorkbench={() => router.push("/canvas")}
                     onDeleteProject={deleteCurrentProject}
                     onImportImage={() => handleUploadRequest()}
                     onUndo={undoCanvas}
