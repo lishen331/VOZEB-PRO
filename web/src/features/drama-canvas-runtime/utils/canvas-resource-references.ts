@@ -46,11 +46,7 @@ export function createCanvasResourceReferenceIndex(nodes: CanvasNodeData[], conn
         // A Group node is a container, not a resource itself — expand it to its member
         // image nodes (still present but hidden) so downstream nodes can reference them.
         const sourceResourceNodes =
-            source.type === CanvasNodeType.Group
-                ? (source.metadata?.groupMemberIds || []).map((id) => nodeById.get(id)).filter((node): node is CanvasNodeData => Boolean(node) && isResourceNode(node!))
-                : isResourceNode(source)
-                  ? [source]
-                  : [];
+            source.type === CanvasNodeType.Group ? (source.metadata?.groupMemberIds || []).map((id) => nodeById.get(id)).filter((node): node is CanvasNodeData => Boolean(node) && isResourceNode(node!)) : isResourceNode(source) ? [source] : [];
         if (sourceResourceNodes.length) {
             const inputs = inputsByTargetId.get(target.id);
             if (inputs) inputs.push(...sourceResourceNodes);
