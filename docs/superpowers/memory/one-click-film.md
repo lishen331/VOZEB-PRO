@@ -292,3 +292,33 @@ L 把 sharp 当可选依赖（`try { require('sharp') }`，缺失时报错），
 1. **§5 视频配置（分辨率/字幕/烧录/水印）** —— V `ffmpeg -c copy` 无转码无滤镜，字段从未进 ffmpeg 参数；加 UI 就是哑参数。L 侧对应项也是注释掉的死代码。
 2. **§1 故事风格 / 剧本类型** —— 只被 drama-lab 的 generate-script 消费；一键成片 script 步骤只校验剧本非空。
 3. **序列图模式（四宫格 / 九宫格）** —— L 后端有 `buildQuadGridPrompt` / `splitQuadGridToImages` / `splitNineGridToImages`，靠 `frame_type` 触发；V 类型存在但服务端零消费，生图路由只传 `{ model, size }`。**要做必须先补后端**，是唯一还需服务端新增能力的缺口。
+
+## 2026-09-18 追加：把两项"哑参数"做成真的（我先前判定错误，已纠正）
+
+我此前把 §5 视频配置与 §1 故事风格/剧本类型判为"不可做，做了就是骗人"。**这个判断是错的**，
+纠正依据是仓库内已有的现成能力：
+
+- `src/app/api/drama/render/route.ts:171-191` 早就用 `subtitles=...:force_style=...` + libx264 烧过硬字幕，
+  证明"成片只能 `-c copy`"不是能力上限，只是那条链路当初没接。
+- 仓库根 `Dockerfile:43` 装了 `fonts-noto-cjk`，所以中文文字水印有真实字体可用。
+- `drama-lab-script-generation-service.ts:34-35` 本来就把 storyStyle/scriptType 经
+  `dramaLabStoryOptionLabel` 翻成中文标签注入模型上下文 —— 缺的只是一键成片侧的调用入口。
+
+| commit | 内容 | 关键设计 |
+|---|---|---|
+| `1cb25794` | 分辨率 / 烧字幕 / 水印真正进 ffmpeg | 新增纯函数 `final-video-compose-args.ts`（归一化 + SRT + argv）与 `final-video-font.ts`（字体探测）。**默认路径必须零变化**：无配置时仍是单次 `-f concat -c copy`，由 `drama-lab-final-video-service.test.ts` 的 `ffmpeg` 调用次数断言锁死 |
+| `77fafe03` | storyStyle / scriptType 真正影响产物 | 新增 `POST /api/one-click-film/projects/:id/generate-script`，复用 `generateDramaLabScript`（无模块耦合），结果写回本集剧本并固化本次风格/类型；§1 加梗概输入 + 两个下拉 + 「AI 生成本集剧本」 |
+
+### 这一轮的真实设计约束（别回退）
+1. **不转码是默认，转码是例外**：转码会重编码全片（耗时 + 画质损失）。`finalVideoNeedsTranscode` 只在"分辨率变了 / 有字幕文件 / 水印有字体"时为真。缺字体时**跳过水印而不是让成片失败**（有测试）。
+2. **composeOptions 进 inputHash**：换配置就是一次新请求，否则会命中旧成片结果，用户以为配置没生效。
+3. **SRT 时间轴对所有分镜累加**，包括没字幕的那些，否则后续字幕整体提前。这是最易错处，已用乱序 fixture（order 2 在前）锁死"按 order 排而非按数组序"。
+4. **filter 文本必须转义**：中文水印带 `:` `,` 会让整条 filtergraph 解析失败；Windows 盘符冒号同样要转义。
+
+### 本轮踩坑
+- 我最初把 concat 拆成"永远两段 ffmpeg"，立刻被既有测试 `expect(deps.ffmpeg).toHaveBeenCalledTimes(1)` 判红。**这是好事**：它正是防止默认路径变慢的护栏。改成只有需要第二段时才拼 joined.mp4。
+- 给字幕测试写断言时忘了 fixture 的 shot 根本没有 subtitle 文案，断言拿到的是 `-y`。说明"配置开了"不等于"功能生效"，测试必须提供真实数据。
+- fixture 的 shot 是字面量推断类型，没有可选 `subtitle` 字段，写入前要按契约放宽一层。
+
+### 现在只剩 1 项未做
+**序列图模式（四宫格 / 九宫格分镜图）** —— 仍需服务端新增拆图能力（L 有 `buildQuadGridPrompt` / `splitQuadGridToImages` / `splitNineGridToImages`，V 的生图路由只传 `{ model, size }`）。这是唯一还需要补上游能力的缺口。
