@@ -29,8 +29,13 @@ export const CANVAS_PANEL_GAP = 16;
  */
 export const CANVAS_PANEL_HYSTERESIS = 24;
 
-/** Below this, a side is too cramped to be worth flipping to. */
-export const CANVAS_PANEL_MIN_USABLE = 96;
+/**
+ * Below this, a side is too cramped to be worth flipping to. Also acts as the
+ * floor for the panel's height cap, so it must stay >= the prompt panel's own
+ * minimum layout height (p-3 padding + min-h-16 textarea + the button row),
+ * otherwise the cap would clip the generate button out of view.
+ */
+export const CANVAS_PANEL_MIN_USABLE = 160;
 
 /**
  * Decide which side of a node its panel occupies.

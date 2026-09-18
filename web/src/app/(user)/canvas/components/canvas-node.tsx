@@ -582,7 +582,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     data-canvas-no-drag
                     data-canvas-node-panel
                     data-canvas-node-panel-placement={panelPlacement}
-                    className={`absolute left-1/2 z-[70] w-[560px] max-w-[calc(100vw-2rem)] overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
+                    className={`absolute left-1/2 z-[70] flex w-[560px] max-w-[calc(100vw-2rem)] flex-col ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
                     style={{
                         marginLeft: panelOffsetX,
                         maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)",
