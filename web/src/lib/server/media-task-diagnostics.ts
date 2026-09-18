@@ -25,7 +25,7 @@ const stringFields = [
     "protocol",
     "kind",
 ] as const;
-const numberFields = ["status", "durationMs", "referenceCount", "responseBytes", "attemptNo"] as const;
+const numberFields = ["status", "durationMs", "referenceCount", "responseBytes", "attemptNo", "firstByteMs", "idleMs", "contentLength"] as const;
 
 export function sanitizeDiagnosticEvent(input: Record<string, unknown>, now = Date.now()): MediaDiagnosticEvent {
     const event: MediaDiagnosticEvent = { at: now, phase: typeof input.phase === "string" ? redactDiagnosticText(input.phase).slice(0, 64) : "unknown" };

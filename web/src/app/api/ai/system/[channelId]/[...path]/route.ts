@@ -1,3 +1,5 @@
+import { readObservedResponseBody } from "@/lib/server/media-response-body";
+import { persistMediaDiagnostic } from "@/lib/server/media-task-diagnostic-store";
 import { observeMediaFetch, MEDIA_TRACE_HEADER } from "@/lib/server/media-task-trace";
 import { resolveMediaDiagnosticContext } from "@/lib/server/media-task-diagnostic-store";
 import { createHash, randomUUID } from "node:crypto";
@@ -238,10 +240,10 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     }
     request.signal.addEventListener("abort", () => void refundConsumedPoints(), { once: true });
 
+    const diagnosticContext = await resolveMediaDiagnosticContext(request.headers.get(MEDIA_TRACE_HEADER) || "", userId, channelId);
     let upstream: Response;
     try {
         const outboundBody = injectRunningHubWorkflowApiKey(globalAdaptation?.body || requestBody.body, globalAdaptation?.path || path, modelConfig?.protocol || channel.advancedConfig?.protocol, channel.apiKey);
-        const diagnosticContext = await resolveMediaDiagnosticContext(request.headers.get(MEDIA_TRACE_HEADER) || "", userId, channelId);
         const outboundInit: RequestInit = { method: request.method, headers, body: outboundBody, cache: "no-store", redirect: "manual", signal: request.signal };
         upstream = await observeMediaFetch(target, outboundInit, () => fetchSafeOutbound(target, outboundInit), diagnosticContext);
     } catch (error) {
@@ -268,7 +270,7 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     }
     if (isJsonResponse(upstream)) {
         try {
-            const body = await upstream.arrayBuffer();
+            const body = diagnosticContext ? await readObservedResponseBody(upstream, (event) => persistMediaDiagnostic(diagnosticContext, { ...event, url: target }), request.signal) : await upstream.arrayBuffer();
             if (upstream.ok) pointsSettled = true;
             return new Response(body, {
                 status: upstream.status,
