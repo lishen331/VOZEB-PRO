@@ -40,6 +40,20 @@ describe("one-click-film shot card UI", () => {
         expect(editor).toContain("defaultActiveKey={initialTab}");
     });
 
+    it("sends the §6 compose options so they are not dumb parameters", async () => {
+        const source = await readFile(workspacePath, "utf8");
+        // 分辨率 / 烧字幕 / 水印必须真的发给服务端；只存不发就等于骗用户。
+        expect(source).toContain("composeOptions:");
+        expect(source).toContain("resolution: renderResolution");
+        expect(source).toContain("burnSubtitles: renderBurnSubtitles");
+        expect(source).toContain("watermarkText: renderWatermark.trim()");
+        // 默认必须是"不处理"，否则默认路径会白白转码一遍。
+        expect(source).toContain('useState<"source" | "720p" | "1080p" | "1440p" | "2160p">("source")');
+        expect(source).toContain("输出分辨率");
+        expect(source).toContain("烧制字幕");
+        expect(source).toContain("水印文字");
+    });
+
     it("offers L's 从剧本库导入 entry and only reads the library route", async () => {
         const source = await readFile(workspacePath, "utf8");
         // 对应 L:333–354 的剧本库弹窗：只读列出，写入仍复用既有的 PUT /projects/:id。

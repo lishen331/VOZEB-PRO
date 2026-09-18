@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Modal, Popconfirm, Select, Spin, Tag, Tooltip, Progress, message, Input } from "antd";
+import { Alert, Button, Modal, Popconfirm, Select, Spin, Switch, Tag, Tooltip, Progress, message, Input } from "antd";
 import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -37,6 +37,13 @@ export default function OneClickFilmProject() {
     const [assetKind, setAssetKind] = useState<"characters" | "scenes" | "props">("characters");
     const [renderTask, setRenderTask] = useState<{ id: string; status: string; error?: string; result?: { artifactId: string; url: string } }>();
     const [renderBusy, setRenderBusy] = useState(false);
+    /**
+     * §6 成片配置。这三项现在会真正进 ffmpeg 参数（缩放 / 烧字幕 / 水印），
+     * 默认值保持"不处理"，此时成片仍是直接拼流不转码。
+     */
+    const [renderResolution, setRenderResolution] = useState<"source" | "720p" | "1080p" | "1440p" | "2160p">("source");
+    const [renderBurnSubtitles, setRenderBurnSubtitles] = useState(false);
+    const [renderWatermark, setRenderWatermark] = useState("");
     const loadProject = useCallback(async () => {
         setLoading(true);
         try {
@@ -249,7 +256,10 @@ export default function OneClickFilmProject() {
             const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(episodeId)}/render`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ clientRequestId: `one-click-render:${projectId}:${episodeId}:${Date.now()}` }),
+                body: JSON.stringify({
+                    clientRequestId: `one-click-render:${projectId}:${episodeId}:${Date.now()}`,
+                    composeOptions: { resolution: renderResolution, burnSubtitles: renderBurnSubtitles, watermarkText: renderWatermark.trim() },
+                }),
             });
             const payload = (await response.json()) as { code?: number; data?: typeof renderTask; msg?: string };
             if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "成片任务创建失败");
@@ -567,6 +577,36 @@ export default function OneClickFilmProject() {
                     {/* L §6: 合成视频 */}
                     <section id="anchor-video" className="mt-6 rounded-lg border border-border bg-card p-5">
                         <h2 className="m-0 text-base font-semibold">合成视频</h2>
+                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                            <label className="flex items-center gap-1.5">
+                                <span className="text-muted-foreground">输出分辨率</span>
+                                <Select
+                                    size="small"
+                                    style={{ minWidth: 118 }}
+                                    value={renderResolution}
+                                    aria-label="输出分辨率"
+                                    onChange={(value) => setRenderResolution(value)}
+                                    options={[
+                                        { value: "source", label: "保持源尺寸" },
+                                        { value: "720p", label: "720P" },
+                                        { value: "1080p", label: "1080P" },
+                                        { value: "1440p", label: "1440P" },
+                                        { value: "2160p", label: "2160P" },
+                                    ]}
+                                />
+                            </label>
+                            <Tooltip title="把分镜字幕烧进画面（硬字幕，播放器无法关闭）；分镜没有字幕文案时不生效">
+                                <label className="flex items-center gap-1.5">
+                                    <Switch size="small" checked={renderBurnSubtitles} onChange={setRenderBurnSubtitles} aria-label="烧制字幕" />
+                                    <span>烧制字幕</span>
+                                </label>
+                            </Tooltip>
+                            <label className="flex items-center gap-1.5">
+                                <span className="text-muted-foreground">水印文字</span>
+                                <Input size="small" style={{ width: 160 }} maxLength={60} value={renderWatermark} placeholder="留空不打水印" aria-label="水印文字" onChange={(event) => setRenderWatermark(event.target.value)} />
+                            </label>
+                            <span className="text-xs text-muted-foreground">保持源尺寸且不烧字幕、无水印时直接拼流不转码，速度最快、无画质损失</span>
+                        </div>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                             {episodeId ? (
                                 <Button type="primary" icon={<Clapperboard className="size-4" />} loading={renderBusy || renderTask?.status === "pending" || renderTask?.status === "running"} aria-label="合成视频" onClick={() => void startRender()}>

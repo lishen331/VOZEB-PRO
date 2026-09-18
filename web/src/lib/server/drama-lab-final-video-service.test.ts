@@ -329,3 +329,92 @@ describe("final video fixture execution", () => {
         expect(deps.writeArtifact).not.toHaveBeenCalled();
     });
 });
+
+/**
+ * 分辨率 / 烧字幕 / 水印此前是哑参数：字段进了快照，却从不进 ffmpeg。
+ * 所以这里断言的是最终 argv，而不是快照字段 —— 只有 argv 变了才算功能真的存在。
+ */
+describe("final video compose options reach ffmpeg", () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        statefulMocks();
+    });
+    function engine() {
+        return {
+            download: vi.fn(async (_url: string, target: string) => {
+                await writeFile(target, new Uint8Array([1, 2]));
+                return { bytes: 2, mimeType: "video/mp4" };
+            }),
+            ffmpeg: vi.fn(async (_args: string[], _options?: { cwd?: string }) => ({ stdout: "", stderr: "" })),
+            ffprobe: vi.fn(async () => ({ stdout: JSON.stringify({ streams: [{ codec_type: "video", width: 720, height: 1280 }] }), stderr: "" })),
+            writeArtifact: vi.fn(async () => ({ token: "permanent/result.mp4", bytes: 2, mimeType: "video/mp4", storage: "local" as const })),
+            resolveFontPath: vi.fn(async () => "/fonts/noto.ttc"),
+        };
+    }
+    async function seedWith(composeOptions: unknown, requestId: string) {
+        const task = await createDramaLabFinalVideoTask({ ...coordinates, clientRequestId: requestId, composeOptions });
+        stored.set(task.id, structuredClone(task));
+        return task;
+    }
+
+    it("scales the output when a resolution is requested", async () => {
+        const task = await seedWith({ resolution: "1080p" }, "scaled");
+        const deps = engine();
+        expect((await executeDramaLabFinalVideoTask(task.id, deps))?.status).toBe("success");
+        const args = deps.ffmpeg.mock.calls.at(-1)?.[0] as string[];
+        expect(args[args.indexOf("-vf") + 1]).toBe("scale=-2:1080");
+        expect(args).toContain("libx264");
+    });
+
+    it("burns subtitles and writes the srt in persisted shot order", async () => {
+        // 分镜在 fixture 里是乱序（order 2 在前），字幕必须按 order 排，不是按数组顺序。
+        const subtitled = project();
+        // fixture 的 shot 是字面量推断类型，没有可选的 subtitle 字段，这里按契约放宽一层再写入。
+        const shots = subtitled.episodes[0].shots as Array<(typeof subtitled.episodes)[0]["shots"][0] & { subtitle?: string }>;
+        shots[0] = { ...shots[0], subtitle: "第二句" };
+        shots[1] = { ...shots[1], subtitle: "第一句" };
+        mocks.resolveProject.mockResolvedValue({ project: subtitled, ownerUserId: "owner-one" });
+
+        const task = await seedWith({ burnSubtitles: true }, "subtitled");
+        const deps = engine();
+        let srtText = "";
+        deps.ffmpeg.mockImplementation(async (_args, options) => {
+            const cwd = options?.cwd || "";
+            srtText = srtText || (await readFile(`${cwd}/subtitles.srt`, "utf8").catch(() => ""));
+            return { stdout: "", stderr: "" };
+        });
+        await executeDramaLabFinalVideoTask(task.id, deps);
+
+        const args = deps.ffmpeg.mock.calls.at(-1)?.[0] as string[];
+        expect(args[args.indexOf("-vf") + 1]).toContain("subtitles=subtitles.srt");
+        // order=1 的"第一句"必须排在前，且时间码从 0 起、按该镜 2 秒收尾。
+        expect(srtText).toContain("第一句");
+        expect(srtText.indexOf("第一句")).toBeLessThan(srtText.indexOf("第二句"));
+        expect(srtText).toContain("00:00:00,000 --> 00:00:02,000");
+    });
+
+    it("draws the watermark once a CJK font is available", async () => {
+        const task = await seedWith({ watermarkText: "VOZEB 出品" }, "watermarked");
+        const deps = engine();
+        await executeDramaLabFinalVideoTask(task.id, deps);
+        const args = deps.ffmpeg.mock.calls.at(-1)?.[0] as string[];
+        expect(args[args.indexOf("-vf") + 1]).toContain("drawtext=");
+        expect(args[args.indexOf("-vf") + 1]).toContain("VOZEB 出品");
+    });
+
+    it("skips the watermark instead of failing the render when no font exists", async () => {
+        const task = await seedWith({ watermarkText: "VOZEB" }, "no-font");
+        const deps = engine();
+        deps.resolveFontPath.mockResolvedValue(undefined as unknown as string);
+        expect((await executeDramaLabFinalVideoTask(task.id, deps))?.status).toBe("success");
+        // 退回单次拼流，绝不能因为缺字体就让成片失败。
+        expect(deps.ffmpeg).toHaveBeenCalledTimes(1);
+        expect(deps.ffmpeg.mock.calls[0][0]).not.toContain("-vf");
+    });
+
+    it("changes the input hash so a new config is not served a stale result", async () => {
+        const plain = await seedWith({}, "hash-plain");
+        const scaled = await seedWith({ resolution: "1080p" }, "hash-scaled");
+        expect(scaled.inputSnapshot.inputHash).not.toBe(plain.inputSnapshot.inputHash);
+    });
+});

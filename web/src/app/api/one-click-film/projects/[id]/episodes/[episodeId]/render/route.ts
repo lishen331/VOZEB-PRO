@@ -32,7 +32,7 @@ export async function POST(request: Request, { params }: Context) {
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
-        const body = await readJsonBodyResult<{ clientRequestId?: string; action?: string; taskId?: string }>(request);
+        const body = await readJsonBodyResult<{ clientRequestId?: string; action?: string; taskId?: string; composeOptions?: unknown }>(request);
         if (!body.ok) return NextResponse.json({ code: body.status, data: null, msg: body.message }, { status: body.status });
         const { id, episodeId } = await params;
         await assertOneClickProject(user.id, id);
@@ -46,7 +46,8 @@ export async function POST(request: Request, { params }: Context) {
             return NextResponse.json({ code: 0, data: task, msg: action === "cancel" ? "成片任务已取消" : "成片任务已重试" });
         }
 
-        const task = await createDramaLabFinalVideoTask({ userId: user.id, projectId: id, episodeId, clientRequestId: body.data.clientRequestId });
+        // 分辨率 / 烧字幕 / 水印：由成片服务真正写进 ffmpeg 参数（非法值会被归一化回"不处理"）。
+        const task = await createDramaLabFinalVideoTask({ userId: user.id, projectId: id, episodeId, clientRequestId: body.data.clientRequestId, composeOptions: body.data.composeOptions });
         return NextResponse.json({ code: 0, data: publicFinalVideoTask(task), msg: "成片任务已创建" });
     } catch (error) {
         return failure(error, "成片任务创建失败");
