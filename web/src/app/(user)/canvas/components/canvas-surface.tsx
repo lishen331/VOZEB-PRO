@@ -173,6 +173,7 @@ export function CanvasSurface({
     const displayViewportRef = useRef(viewport);
     const viewportDirtyRef = useRef(false);
     const previousViewportPropRef = useRef(viewport);
+    const lastCommittedViewportRef = useRef(viewport);
     const animationFrameRef = useRef<number | null>(null);
     const frameActionsRef = useRef(new Map<string, () => void>());
     const wheelFrameRef = useRef<WheelFrame | null>(null);
@@ -288,6 +289,11 @@ export function CanvasSurface({
         const propChanged = !sameViewport(previousViewportPropRef.current, viewport);
         previousViewportPropRef.current = viewport;
         if (!propChanged || sameViewport(displayViewportRef.current, viewport)) return;
+        // The incoming prop is the echo of a value we ourselves committed. During
+        // a fast wheel/pinch the live ref has already moved past this snapshot, so
+        // re-applying it would snap the viewport back to a stale value. Only an
+        // external viewport change (zoom controls, reset, undo/redo) should win.
+        if (sameViewport(viewport, lastCommittedViewportRef.current)) return;
         if (wheelCommitTimerRef.current) clearTimeout(wheelCommitTimerRef.current);
         wheelCommitTimerRef.current = null;
         viewportDirtyRef.current = false;
@@ -370,6 +376,7 @@ export function CanvasSurface({
         }
         const commit = () => {
             viewportCommitHandleRef.current = null;
+            lastCommittedViewportRef.current = next;
             startTransition(() => {
                 setDisplayViewport((current) => (sameViewport(current, next) ? current : next));
                 onViewportCommit(next);
@@ -739,11 +746,15 @@ export function CanvasSurface({
 
     const previewNodeResize = useCallback(
         (id: string, width: number, height: number, position?: Position) => {
+            // Claim the resize synchronously, before the rAF runs. The clear-effect
+            // keyed on `nodes` wipes localTransforms unless this ref is already set;
+            // on a fast drag `nodes` can change before the first frame fires, so
+            // setting it inside the rAF left a gap where the node snapped back.
+            resizingNodeIdRef.current = id;
             scheduleFrame(`resize:${id}`, () => {
                 const current = localTransformsRef.current[id] || nodesRef.current.find((node) => node.id === id);
                 if (!current) return;
                 const next = { ...localTransformsRef.current, [id]: { position: position || current.position, width, height } };
-                resizingNodeIdRef.current = id;
                 localTransformsRef.current = next;
                 setLocalTransforms(next);
             });
@@ -920,7 +931,7 @@ export function CanvasSurface({
                                     onConnectStart={handleConnectStart}
                                     onResize={previewNodeResize}
                                     onResizeEnd={commitNodeResize}
-                                    onContextMenu={(event, id) => onNodeContextMenu(event, id)}
+                                    onContextMenu={onNodeContextMenu}
                                 />
                             );
                         })}

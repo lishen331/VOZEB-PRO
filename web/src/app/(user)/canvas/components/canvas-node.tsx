@@ -11,9 +11,20 @@ import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textare
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type Position } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
+import { resolveCanvasPanelPlacement, type CanvasPanelPlacement } from "../utils/canvas-panel-placement";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
+
+/**
+ * Both undefined, or within half a pixel. getBoundingClientRect yields
+ * fractional CSS pixels, so `===` on a derived length never settles and every
+ * measurement would queue another state update.
+ */
+function sameOptionalLength(a: number | undefined, b: number | undefined) {
+    if (a === undefined || b === undefined) return a === b;
+    return Math.abs(a - b) < 0.5;
+}
 
 // Keeps the node's edit panel a constant on-screen size. It lives inside the
 // world layer (so canvas panning moves it for free, via that layer's imperative
@@ -93,6 +104,12 @@ export type CanvasNodeProps = {
     onImageDimensions?: (nodeId: string, naturalWidth: number, naturalHeight: number) => void;
     onViewImage?: (node: CanvasNodeData) => void;
     onContextMenu: (event: React.MouseEvent, nodeId: string) => void;
+    /**
+     * Publishes which side the edit panel settled on. The hover toolbar is a
+     * sibling of this component pinned to the same band above the node, so it
+     * needs to know when the panel has claimed that band.
+     */
+    onPanelPlacementChange?: (nodeId: string, placement: CanvasPanelPlacement) => void;
 };
 
 import {
@@ -153,17 +170,21 @@ export const CanvasNode = React.memo(function CanvasNode({
     onImageDimensions,
     onViewImage,
     onContextMenu,
+    onPanelPlacementChange,
 }: CanvasNodeProps) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const [hovered, setHovered] = useState(false);
     const [isEditingContent, setIsEditingContent] = useState(false);
-    const [panelPlacement, setPanelPlacement] = useState<"top" | "bottom">("bottom");
+    const [panelPlacement, setPanelPlacement] = useState<CanvasPanelPlacement>("bottom");
     const [panelMaxHeight, setPanelMaxHeight] = useState<number>();
     const [panelMaxWidth, setPanelMaxWidth] = useState<number>();
     const [panelOffsetX, setPanelOffsetX] = useState(0);
     const nodeRef = useRef<HTMLDivElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const panelOffsetXRef = useRef(0);
+    // Mirrors panelPlacement so the measurement callback reads the latest value
+    // without taking it as a dependency, which would rebuild the observer.
+    const panelPlacementRef = useRef<CanvasPanelPlacement>("bottom");
     const hasImageContent = isCanvasImageNodeType(data.type) && Boolean(data.metadata?.content);
     const hasVideoContent = data.type === CanvasNodeType.Video && Boolean(data.metadata?.content);
     const hasAudioContent = data.type === CanvasNodeType.Audio && Boolean(data.metadata?.content);
@@ -391,12 +412,20 @@ export const CanvasNode = React.memo(function CanvasNode({
         const maximumCenter = usableRight - renderedPanelWidth / 2;
         const desiredCenter = minimumCenter <= maximumCenter ? Math.min(maximumCenter, Math.max(minimumCenter, centeredPanelCenter)) : (usableLeft + usableRight) / 2;
         const nextOffsetX = (desiredCenter - centeredPanelCenter) / renderedScale;
-        const spaceAbove = Math.max(0, nodeRect.top - usableTop - 16);
-        const spaceBelow = Math.max(0, usableBottom - nodeRect.bottom);
-        const nextPlacement = panelRect.bottom > usableBottom && spaceAbove >= 96 ? "top" : "bottom";
-        const availableSpace = nextPlacement === "top" ? spaceAbove : spaceBelow;
+        // scrollHeight is the panel's intrinsic content height. Unlike
+        // panelRect.bottom it does not depend on which side the panel is pinned
+        // to, so the placement decision can no longer feed itself.
+        const { placement: nextPlacement, maxHeight: nextMaxHeight } = resolveCanvasPanelPlacement({
+            nodeTop: nodeRect.top,
+            nodeBottom: nodeRect.bottom,
+            usableTop,
+            usableBottom,
+            panelHeight: panelElement.scrollHeight,
+            currentPlacement: panelPlacementRef.current,
+        });
+        panelPlacementRef.current = nextPlacement;
         setPanelPlacement((current) => (current === nextPlacement ? current : nextPlacement));
-        if (availableSpace > 0) setPanelMaxHeight((current) => (current === availableSpace ? current : availableSpace));
+        setPanelMaxHeight((current) => (sameOptionalLength(current, nextMaxHeight) ? current : nextMaxHeight));
         if (nextMaxWidth) setPanelMaxWidth((current) => (current !== undefined && Math.abs(current - nextMaxWidth) < 0.1 ? current : nextMaxWidth));
         panelOffsetXRef.current = nextOffsetX;
         setPanelOffsetX((current) => (Math.abs(current - nextOffsetX) < 0.1 ? current : nextOffsetX));
@@ -404,22 +433,41 @@ export const CanvasNode = React.memo(function CanvasNode({
 
     useLayoutEffect(() => {
         if (!showPanel || !panelRef.current) return;
+        // The observer watches the panel, and measuring can resize the panel, so
+        // coalesce to one measurement per frame. Without this a burst of resize
+        // records each queues its own synchronous re-measure.
+        let frame: number | null = null;
+        const scheduleMeasure = () => {
+            if (frame !== null) return;
+            frame = requestAnimationFrame(() => {
+                frame = null;
+                updatePanelPlacement();
+            });
+        };
         updatePanelPlacement();
-        const observer = new ResizeObserver(updatePanelPlacement);
+        const observer = new ResizeObserver(scheduleMeasure);
         observer.observe(panelRef.current);
         const surfaceElement = nodeRef.current?.closest<HTMLElement>("[data-canvas-surface]");
         if (surfaceElement) observer.observe(surfaceElement);
         const visualViewport = window.visualViewport;
-        window.addEventListener("resize", updatePanelPlacement);
-        visualViewport?.addEventListener("resize", updatePanelPlacement);
-        visualViewport?.addEventListener("scroll", updatePanelPlacement);
+        window.addEventListener("resize", scheduleMeasure);
+        visualViewport?.addEventListener("resize", scheduleMeasure);
+        visualViewport?.addEventListener("scroll", scheduleMeasure);
         return () => {
+            if (frame !== null) cancelAnimationFrame(frame);
             observer.disconnect();
-            window.removeEventListener("resize", updatePanelPlacement);
-            visualViewport?.removeEventListener("resize", updatePanelPlacement);
-            visualViewport?.removeEventListener("scroll", updatePanelPlacement);
+            window.removeEventListener("resize", scheduleMeasure);
+            visualViewport?.removeEventListener("resize", scheduleMeasure);
+            visualViewport?.removeEventListener("scroll", scheduleMeasure);
         };
     }, [showPanel, data.id, data.position.x, data.position.y, updatePanelPlacement]);
+
+    // Report to the page which band the panel occupies. Reports "bottom" while
+    // the panel is closed so the toolbar returns to its default spot above the
+    // node rather than keeping the last open panel's placement.
+    useEffect(() => {
+        onPanelPlacementChange?.(data.id, showPanel ? panelPlacement : "bottom");
+    }, [data.id, onPanelPlacementChange, panelPlacement, showPanel]);
 
     useEffect(() => {
         return () => {
@@ -548,7 +596,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     data-canvas-no-drag
                     data-canvas-node-panel
                     data-canvas-node-panel-placement={panelPlacement}
-                    className={`absolute left-1/2 z-[70] w-[560px] max-w-[calc(100vw-2rem)] overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
+                    className={`absolute left-1/2 z-[70] flex w-[560px] max-w-[calc(100vw-2rem)] flex-col ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
                     style={{
                         marginLeft: panelOffsetX,
                         maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)",

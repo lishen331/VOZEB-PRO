@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { Tag } from "lucide-react";
-import { Button, Dropdown } from "antd";
+import { Button, Dropdown, Tooltip } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
@@ -19,11 +19,13 @@ type CanvasImageReferenceRolesPopoverProps = {
     roles?: ImageReferenceRoles;
     onChange: (roles: ImageReferenceRoles) => void;
     buttonClassName?: string;
+    iconOnly?: boolean;
 };
 
 const REFERENCE_ROLES_TRIGGER_CLASS = "canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3";
+const REFERENCE_ROLES_ICON_CLASS = "!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !bg-transparent !p-0";
 
-export function CanvasImageReferenceRolesPopover({ references, roles, onChange, buttonClassName = REFERENCE_ROLES_TRIGGER_CLASS }: CanvasImageReferenceRolesPopoverProps) {
+export function CanvasImageReferenceRolesPopover({ references, roles, onChange, buttonClassName, iconOnly = false }: CanvasImageReferenceRolesPopoverProps) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const current = normalizeImageReferenceRoles(roles);
     const roleEntries = Object.entries(IMAGE_REFERENCE_ROLE_LABELS) as Array<[ImageReferenceRole, string]>;
@@ -63,10 +65,16 @@ export function CanvasImageReferenceRolesPopover({ references, roles, onChange, 
                 </div>
             )}
         >
-            <Button type="text" data-canvas-no-drag className={buttonClassName} style={{ color: theme.node.muted }} aria-label="设置参考图用途">
-                <Tag className="mr-1.5 size-3.5" />
-                <span className="truncate text-xs">参考图用途</span>
-            </Button>
+            {iconOnly ? (
+                <Tooltip title="参考图用途">
+                    <Button type="text" data-canvas-no-drag className={buttonClassName || REFERENCE_ROLES_ICON_CLASS} style={{ color: theme.node.muted }} icon={<Tag className="size-3.5" />} aria-label="设置参考图用途" />
+                </Tooltip>
+            ) : (
+                <Button type="text" data-canvas-no-drag className={buttonClassName || REFERENCE_ROLES_TRIGGER_CLASS} style={{ color: theme.node.muted }} aria-label="设置参考图用途">
+                    <Tag className="mr-1.5 size-3.5" />
+                    <span className="truncate text-xs">参考图用途</span>
+                </Button>
+            )}
         </Dropdown>
     );
 }

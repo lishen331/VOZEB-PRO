@@ -373,54 +373,56 @@ export function TextContent({ node, theme, isEditingContent, textareaRef, mentio
             )}
 
             <div className="contents" onClick={stop} onDoubleClick={stop} onMouseDown={stop} onPointerDown={stop} onWheel={stop} onContextMenu={stop}>
-                <Modal
-                    className="canvas-prompt-editor-modal"
-                    open={expanded}
-                    title="编辑文字"
-                    centered
-                    destroyOnHidden
-                    mask={{ closable: false }}
-                    width="min(860px, calc(100vw - 24px))"
-                    onCancel={() => setExpanded(false)}
-                    afterOpenChange={(open) => {
-                        if (!open) return;
-                        requestAnimationFrame(() => {
-                            const textarea = expandedEditorRef.current;
-                            textarea?.focus();
-                            textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
-                        });
-                    }}
-                    styles={{
-                        container: { background: theme.node.panel, border: `1px solid ${theme.toolbar.border}`, color: theme.node.text },
-                        header: { background: theme.node.panel, marginBottom: 0, paddingBottom: 8 },
-                        title: { color: theme.node.text },
-                        body: { background: theme.node.panel, padding: "4px 12px 12px" },
-                    }}
-                    footer={null}
-                >
-                    <div className="min-w-0 overflow-hidden rounded-xl border" style={{ borderColor: theme.node.stroke }}>
-                        <CanvasResourceMentionTextarea
-                            ref={expandedEditorRef}
-                            autoFocus={expanded}
-                            value={content}
-                            references={mentionReferences}
-                            highlightLabels
-                            onChange={(value) => onContentChange(node.id, value)}
-                            aria-label="文字编辑器"
-                            className="thin-scrollbar h-[min(62vh,34rem)] min-h-64 w-full resize-none overflow-y-auto overscroll-contain border-0 px-4 py-3 outline-none"
-                            style={{ background: theme.node.fill, color: theme.node.text, fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.65)}px` }}
-                            placeholder="请输入文字内容"
-                        />
-                    </div>
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                        <span className="text-xs" style={{ color: theme.node.placeholder }}>
-                            字数 {characterCount}
-                        </span>
-                        <Button icon={<Minimize2 className="size-4" />} onClick={() => setExpanded(false)} aria-label="收起">
-                            收起
-                        </Button>
-                    </div>
-                </Modal>
+                {expanded ? (
+                    <Modal
+                        className="canvas-prompt-editor-modal"
+                        open={expanded}
+                        title="编辑文字"
+                        centered
+                        destroyOnHidden
+                        mask={{ closable: false }}
+                        width="min(860px, calc(100vw - 24px))"
+                        onCancel={() => setExpanded(false)}
+                        afterOpenChange={(open) => {
+                            if (!open) return;
+                            requestAnimationFrame(() => {
+                                const textarea = expandedEditorRef.current;
+                                textarea?.focus();
+                                textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+                            });
+                        }}
+                        styles={{
+                            container: { background: theme.node.panel, border: `1px solid ${theme.toolbar.border}`, color: theme.node.text },
+                            header: { background: theme.node.panel, marginBottom: 0, paddingBottom: 8 },
+                            title: { color: theme.node.text },
+                            body: { background: theme.node.panel, padding: "4px 12px 12px" },
+                        }}
+                        footer={null}
+                    >
+                        <div className="min-w-0 overflow-hidden rounded-xl border" style={{ borderColor: theme.node.stroke }}>
+                            <CanvasResourceMentionTextarea
+                                ref={expandedEditorRef}
+                                autoFocus={expanded}
+                                value={content}
+                                references={mentionReferences}
+                                highlightLabels
+                                onChange={(value) => onContentChange(node.id, value)}
+                                aria-label="文字编辑器"
+                                className="thin-scrollbar h-[min(62vh,34rem)] min-h-64 w-full resize-none overflow-y-auto overscroll-contain border-0 px-4 py-3 outline-none"
+                                style={{ background: theme.node.fill, color: theme.node.text, fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.65)}px` }}
+                                placeholder="请输入文字内容"
+                            />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                            <span className="text-xs" style={{ color: theme.node.placeholder }}>
+                                字数 {characterCount}
+                            </span>
+                            <Button icon={<Minimize2 className="size-4" />} onClick={() => setExpanded(false)} aria-label="收起">
+                                收起
+                            </Button>
+                        </div>
+                    </Modal>
+                ) : null}
             </div>
         </div>
     );
@@ -633,20 +635,31 @@ export function ImageContent({
                 </button>
             ) : null}
             {isBatchChild ? (
-                <button
-                    type="button"
-                    className="absolute right-3 top-3 z-30 flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium opacity-0 shadow-[0_8px_20px_rgba(68,64,60,.13)] backdrop-blur-md transition group-hover/batch:opacity-100 hover:scale-[1.02]"
-                    style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onSetBatchPrimary?.();
-                    }}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => event.stopPropagation()}
-                >
-                    <Star className="size-3.5 text-[#2f80ff]" />
-                    设为主图
-                </button>
+                node.metadata?.isBatchPrimary ? (
+                    <div
+                        className="absolute right-3 top-3 z-30 flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium opacity-0 shadow-[0_8px_20px_rgba(68,64,60,.13)] backdrop-blur-md transition group-hover/batch:opacity-100"
+                        style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.placeholder }}
+                        aria-disabled="true"
+                    >
+                        <Star className="size-3.5 fill-[#2f80ff] text-[#2f80ff]" />
+                        当前主图
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        className="absolute right-3 top-3 z-30 flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium opacity-0 shadow-[0_8px_20px_rgba(68,64,60,.13)] backdrop-blur-md transition group-hover/batch:opacity-100 hover:scale-[1.02]"
+                        style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onSetBatchPrimary?.();
+                        }}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onPointerDown={(event) => event.stopPropagation()}
+                    >
+                        <Star className="size-3.5 text-[#2f80ff]" />
+                        设为主图
+                    </button>
+                )
             ) : null}
         </BatchFrame>
     );
