@@ -94,7 +94,7 @@ export function AdminChannelOnboardingDrawer({ open, initialProtocol, settings, 
     };
     const synchronizeModels = () => {
         if (!channel?.models.length) return message.error("请先同步或填写上游模型目录");
-        const logicalModels = synchronizeLogicalModelsWithChannels(settings.logicalModels, settings.systemChannels);
+        const logicalModels = synchronizeLogicalModelsWithChannels(settings.logicalModels, settings.systemChannels, "detect");
         const defaultModels = { ...settings.defaultModels };
         if (setAsDefault) {
             channel.models.forEach((upstreamModel) => {
