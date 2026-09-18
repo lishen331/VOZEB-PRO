@@ -29,3 +29,12 @@
 
 ## 验收
 专项测试覆盖脱敏、20KB、轮询去重、过期过滤、图片/视频403、timeout cause、Response 原样返回、并行 task 隔离、非canvas不记录、DB失败不抛出和清理不删除业务数据。发布只允许 develop，不动 main。部署后确认任务诊断能通过数据库查询、容器重建不会丢失数据库字段。
+
+## 已执行验收（测试环境）
+- 全量 Vitest：986文件通过、6跳过；5049项通过、32跳过。独立诊断新增的17项测试通过。
+- ESLint、源代码 typecheck、全量Prettier通过。Webpack生产构建成功；构建后生成的Next类型暴露既有drama-lab页面导出限制（与此次诊断无关），源码检查与GitHub干净环境门禁通过。
+- 文档校验：411路由、58页面、139表，接口索引和开发地图均通过。
+- 首版诊断部署：3fda7b09，Actions 35335002018成功；App/Worker镜像均确认。
+- 浏览器真实点击新建画布/图片生成：项目canvas-5BhgYRDHnXECEIc8Zlba5，节点image-QMS41OruNnYNuP_b7WkwJ，任务f8c24551-0275-4e31-b273-c7ab775437c9成功。兔子gpt-image-2，HTTP200，上游响应约38秒，内部响应约44秒，存储成功并返回前端。数据库20事件/7418字节，到期为成功后3天。未重试用户历史needs_review任务。
+- 视频线上只读验收：成功任务b8badefa-9c94-4868-afe9-1d7ba6ec297a查询返回200，并持久记录api_response:completed与上游任务ID。视频新生成与错误分支用本地fixtures验证，没有额外向真实上游发起视频付费生成。
+- 小补丁：代理byte-buffer请求摘要和x-oneapi-request-id识别，防止真实上游参数摘要遗漏。

@@ -69,6 +69,10 @@ export function currentMediaTraceHeaders(url: string, headers?: HeadersInit) {
 
 function requestSummary(body: RequestInit["body"]) {
     const summary: Record<string, unknown> = {};
+    // Proxy requests are byte buffers. Decode only small JSON metadata requests;
+    // never decode large media uploads for diagnostics.
+    if (body instanceof ArrayBuffer && body.byteLength <= 64 * 1024) body = new TextDecoder().decode(body);
+    else if (ArrayBuffer.isView(body) && body.byteLength <= 64 * 1024) body = new TextDecoder().decode(body);
     // Do not serialize image data, prompts, authorization or arbitrary custom fields.
     const names = ["model", "size", "quality", "n", "seconds", "duration", "response_format", "output_format"];
     if (typeof body === "string") {
@@ -108,7 +112,7 @@ export async function observeMediaFetch(url: string, init: RequestInit | undefin
                 status: response.status,
                 durationMs: Date.now() - start,
                 contentType: response.headers.get("content-type"),
-                requestId: response.headers.get("x-request-id") || response.headers.get("request-id") || response.headers.get("x-amzn-requestid"),
+                requestId: response.headers.get("x-request-id") || response.headers.get("x-oneapi-request-id") || response.headers.get("request-id") || response.headers.get("x-amzn-requestid"),
                 errorMessage,
             });
         return response;

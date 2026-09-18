@@ -57,3 +57,12 @@ it("associates nodes with existing client request identities without changing re
     expect(diagnosticNodeId({ projectId: "canvas-p", clientRequestId: "canvas-video-retry:canvas-p:video-node:nonce" })).toBe("video-node");
     expect(diagnosticNodeId({ projectId: "other", clientRequestId: "canvas-image:canvas-p:image-node:nonce" })).toBeUndefined();
 });
+
+it("captures actual proxy byte-buffer parameters and gateway request IDs", async () => {
+    const body = new TextEncoder().encode(JSON.stringify({ model: "gpt-image-2", prompt: "do-not-log", size: "1024x1024" })).buffer;
+    await withMediaDiagnosticScope("image", task, "submit", () => observeMediaFetch("https://gateway.example/v1/images/generations", { method: "POST", body }, async () => new Response("{}", { headers: { "x-oneapi-request-id": "gateway-123" } })));
+    const events = JSON.stringify(mocks.persist.mock.calls);
+    expect(events).toContain("1024x1024");
+    expect(events).toContain("gateway-123");
+    expect(events).not.toContain("do-not-log");
+});
