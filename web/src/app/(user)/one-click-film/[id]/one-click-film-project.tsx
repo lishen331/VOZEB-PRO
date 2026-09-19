@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { DramaProject } from "@/lib/drama-project-contract";
 import { DRAMA_LAB_SCRIPT_TYPE_PRESETS, DRAMA_LAB_STORY_STYLE_PRESETS } from "@/lib/drama-lab-story-options";
+import { generateClientUUID } from "@/lib/client-uuid";
 import { splitDramaSource } from "@/lib/drama-source-splitter";
 import { selectEpisode, replaceEpisode } from "@/lib/one-click/episode-selection";
 import { decodeOneClickRouteId } from "@/lib/one-click/route-id";
@@ -100,6 +101,7 @@ export default function OneClickFilmProject() {
      * 模式经 options 传给服务端，由引擎把媒体步骤标为 skipped —— 不是前端假装跳过。
      */
     const startWorkflow = async (mode: "full" | "text_framework" = "full") => {
+        if (!episodeId || !selectedEpisode?.script?.trim()) return message.warning("请先保存本集剧本，再启动生成");
         setStarting(mode);
         try {
             const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/tasks`, {
@@ -171,13 +173,19 @@ export default function OneClickFilmProject() {
     const importScriptFile = async (file: File) => {
         setImporting(true);
         try {
-            const text = await file.text();
+            if (file.size > 20 * 1024 * 1024) throw new Error("剧本文件不能超过 20MB");
+            const form = new FormData();
+            form.set("file", file);
+            const parsedResponse = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/script-import`, { method: "POST", body: form });
+            const parsedPayload = await parsedResponse.json();
+            if (!parsedResponse.ok || parsedPayload.code !== 0) throw new Error(parsedPayload.msg || "文件解析失败");
+            const text = parsedPayload.data.text as string;
             const drafts = splitDramaSource(text);
             if (!drafts.length || !project) throw new Error("未识别到可导入的剧本内容");
             const now = new Date().toISOString();
-            const episodes = drafts.map((draft, index) => ({
-                id: `episode-${crypto.randomUUID()}`,
-                episodeNumber: index + 1,
+            const importedEpisodes = drafts.map((draft, index) => ({
+                id: `episode-${generateClientUUID()}`,
+                episodeNumber: project.episodes.length + index + 1,
                 title: draft.title,
                 script: draft.script,
                 outline: "",
@@ -189,14 +197,15 @@ export default function OneClickFilmProject() {
                 createdAt: now,
                 updatedAt: now,
             }));
-            const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ episodes, activeEpisodeId: episodes[0].id }) });
+            const episodes = [...project.episodes, ...importedEpisodes];
+            const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ episodes, activeEpisodeId: importedEpisodes[0].id }) });
             const payload = await response.json();
             if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "剧本导入失败");
             setProject(payload.data.project);
-            setSelectedEpisodeId(episodes[0].id);
-            setEpisodeTitle(episodes[0].title);
-            setEpisodeScript(episodes[0].script);
-            message.success(`已导入 ${episodes.length} 集`);
+            setSelectedEpisodeId(importedEpisodes[0].id);
+            setEpisodeTitle(importedEpisodes[0].title);
+            setEpisodeScript(importedEpisodes[0].script);
+            message.success(`已导入 ${importedEpisodes.length} 集`);
         } catch (importError) {
             message.error(importError instanceof Error ? importError.message : "剧本导入失败");
         } finally {
@@ -243,7 +252,7 @@ export default function OneClickFilmProject() {
             const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/generate-script`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ episodeId, episodeCount: plannedEpisodeCount, requestId: crypto.randomUUID(), storyOutline: storyOutline.trim(), storyStyle, scriptType }),
+                body: JSON.stringify({ episodeId, episodeCount: plannedEpisodeCount, requestId: generateClientUUID(), storyOutline: storyOutline.trim(), storyStyle, scriptType }),
             });
             const payload = (await response.json()) as { code?: number; data?: { project?: DramaProject; script?: string; episodeId?: string }; msg?: string };
             if (!response.ok || payload.code !== 0 || !payload.data?.project) throw new Error(payload.msg || "剧本生成失败");
@@ -298,7 +307,7 @@ export default function OneClickFilmProject() {
             const current = selectedEpisode;
             const episode = current
                 ? { ...current, title: episodeTitle.trim() || current.title, script: episodeScript.trim() }
-                : { id: `episode-${crypto.randomUUID()}`, episodeNumber: 1, title: episodeTitle.trim() || "第 1 集", script: episodeScript.trim(), outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft" as const, shots: [] };
+                : { id: `episode-${generateClientUUID()}`, episodeNumber: 1, title: episodeTitle.trim() || "第 1 集", script: episodeScript.trim(), outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft" as const, shots: [] };
             const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -537,11 +546,11 @@ export default function OneClickFilmProject() {
                                     从剧本库导入
                                 </Button>
                                 <label className="cursor-pointer rounded border px-3 py-1.5 text-sm">
-                                    {importing ? "导入中…" : "导入 TXT / MD"}
+                                    {importing ? "导入中…" : "导入 TXT / MD / DOCX / DOC"}
                                     <input
                                         className="hidden"
                                         type="file"
-                                        accept=".txt,.md,text/plain,text/markdown"
+                                        accept=".txt,.md,.markdown,.docx,.doc,text/plain,text/markdown,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                         disabled={importing}
                                         onChange={(event) => {
                                             const file = event.target.files?.[0];
@@ -596,7 +605,23 @@ export default function OneClickFilmProject() {
                                 </Button>
                             </div>
                             <Input value={episodeTitle} onChange={(event) => setEpisodeTitle(event.target.value)} placeholder="分集标题" />
-                            <Input.TextArea value={episodeScript} onChange={(event) => setEpisodeScript(event.target.value)} rows={10} placeholder="粘贴或输入本集完整剧本" />
+                            <Input.TextArea
+                                onDragOver={(event) => {
+                                    event.preventDefault();
+                                    event.dataTransfer.dropEffect = "copy";
+                                }}
+                                onDrop={(event) => {
+                                    event.preventDefault();
+                                    if (importing) return;
+                                    const file = event.dataTransfer.files[0];
+                                    if (file) void importScriptFile(file);
+                                }}
+                                aria-label="本集剧本，可拖入 TXT、MD、DOCX 或 DOC 文件"
+                                value={episodeScript}
+                                onChange={(event) => setEpisodeScript(event.target.value)}
+                                rows={10}
+                                placeholder="粘贴或输入本集完整剧本"
+                            />
                             <div>
                                 <Button type="primary" loading={savingEpisode} onClick={() => void saveEpisode()}>
                                     保存本集剧本
