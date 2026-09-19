@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-19。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **416** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-19。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **417** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**416**
-- 方法出现次数：DELETE 62、GET 206、HEAD 6、PATCH 57、POST 238、PUT 16
-- 一级域：`admin` 125、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 44、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**417**
+- 方法出现次数：DELETE 62、GET 206、HEAD 6、PATCH 57、POST 239、PUT 16
+- 一级域：`admin` 125、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -448,7 +448,7 @@
 | POST | `/api/notifications/interactions/[id]/read` | 用户 | [route.ts](web/src/app/api/notifications/interactions/[id]/read/route.ts) | [work-community-service](web/src/lib/server/work-community-service.ts) | PostgreSQL、作品与社区数据 | 通知 / 互动通知 / 单项 / 已读：提交/执行 |
 | POST | `/api/notifications/interactions/read-all` | 用户 | [route.ts](web/src/app/api/notifications/interactions/read-all/route.ts) | [work-community-service](web/src/lib/server/work-community-service.ts) | PostgreSQL、作品与社区数据 | 通知 / 互动通知 / 全部已读：提交/执行 |
 
-### `one-click-film`（44）
+### `one-click-film`（45）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -469,6 +469,7 @@
 | GET | `/api/one-click-film/projects/[id]/export` | 用户 | [route.ts](web/src/app/api/one-click-film/projects/[id]/export/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[drama-lab-project-archive](web/src/lib/server/drama-lab-project-archive.ts) | PostgreSQL | one-click-film / 项目 / 单项 / 导出：查询 |
 | POST | `/api/one-click-film/projects/[id]/extract-assets` | 用户 | [route.ts](web/src/app/api/one-click-film/projects/[id]/extract-assets/route.ts) | [drama-lab-asset-extraction-service](web/src/lib/server/drama-lab-asset-extraction-service.ts)<br>[drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[drama-project-contract](web/src/lib/drama-project-contract.ts) | PostgreSQL | one-click-film / 项目 / 单项 / extract-assets：提交/执行 |
 | POST | `/api/one-click-film/projects/[id]/generate-script` | 混合 | [route.ts](web/src/app/api/one-click-film/projects/[id]/generate-script/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[story-generation-service](web/src/lib/server/one-click-film/story-generation-service.ts) | PostgreSQL | one-click-film / 项目 / 单项 / generate-script：提交/执行 |
+| POST | `/api/one-click-film/projects/[id]/script-import` | 混合 | [route.ts](web/src/app/api/one-click-film/projects/[id]/script-import/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[drama-lab-novel-file-parser](web/src/lib/server/drama-lab-novel-file-parser.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL | one-click-film / 项目 / 单项 / script-import：提交/执行 |
 | POST | `/api/one-click-film/projects/[id]/shots` | 用户 | [route.ts](web/src/app/api/one-click-film/projects/[id]/shots/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[shot-crud](web/src/lib/server/one-click-film/shot-crud.ts) | PostgreSQL | one-click-film / 项目 / 单项 / shots：提交/执行 |
 | DELETE, PUT | `/api/one-click-film/projects/[id]/shots/[shotId]` | 用户 | [route.ts](web/src/app/api/one-click-film/projects/[id]/shots/[shotId]/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[shot-crud](web/src/lib/server/one-click-film/shot-crud.ts) | PostgreSQL | one-click-film / 项目 / 单项 / shots / [shotId]：删除、替换 |
 | POST | `/api/one-click-film/projects/[id]/shots/[shotId]/accept-first-frame-candidate` | 混合 | [route.ts](web/src/app/api/one-click-film/projects/[id]/shots/[shotId]/accept-first-frame-candidate/route.ts) | [drama-lab-tail-frame-service](web/src/lib/server/drama-lab-tail-frame-service.ts)<br>[drama-project-service](web/src/lib/server/drama-project-service.ts) | PostgreSQL | one-click-film / 项目 / 单项 / shots / [shotId] / accept-first-frame-candidate：提交/执行 |
