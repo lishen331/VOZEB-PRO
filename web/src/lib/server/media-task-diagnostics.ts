@@ -3,6 +3,7 @@ export const MEDIA_DIAGNOSTIC_MAX_BYTES = 20 * 1024;
 export const MEDIA_DIAGNOSTIC_RETENTION_MS = 7 * 86400000;
 export type MediaDiagnosticEvent = { at: number; phase: string; [key: string]: string | number | boolean | undefined };
 const stringFields = [
+    "transportPolicy",
     "taskId",
     "nodeId",
     "projectId",

@@ -32,6 +32,17 @@ describe("admin settings model routing", () => {
         mocks.setAuthSettings.mockImplementation(async (patch) => ({ ...savedSettings, ...patch }));
     });
 
+    it.each([true, false])("saves and returns binding HTTP/1.1 setting %s", async (enabled) => {
+        const logicalModels = savedSettings.logicalModels.map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, capabilityProfile: { http1Compatibility: enabled } })) }));
+        const response = await PATCH(request({ logicalModels }));
+        expect(response.status).toBe(200);
+        const payload = await response.json();
+        expect(payload.settings.logicalModels[0].bindings[0].capabilityProfile.http1Compatibility).toBe(enabled);
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith(
+            expect.objectContaining({ logicalModels: expect.arrayContaining([expect.objectContaining({ bindings: expect.arrayContaining([expect.objectContaining({ capabilityProfile: expect.objectContaining({ http1Compatibility: enabled }) })]) })]) }),
+        );
+    });
+
     it("saves a consistent channel, logical model, and default snapshot", async () => {
         const response = await PATCH(
             request({

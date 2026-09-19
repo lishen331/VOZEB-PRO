@@ -4,6 +4,7 @@ import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Modal,
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
+import { BindingHttp1Control } from "./binding-http1-control";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import { AdminModelConnectionTest } from "@/components/admin/admin-model-connection-test";
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
@@ -407,6 +408,7 @@ function BindingEditor({ binding, capability, channels, onChange }: { binding: L
                         <Checkbox checked={profile.supportsWebhook === true} onChange={(event) => updateProfile({ supportsWebhook: event.target.checked })}>
                             Webhook
                         </Checkbox>
+                        <BindingHttp1Control enabled={profile.http1Compatibility === true} channelName={channel?.name || binding.channelId} modelName={binding.upstreamModel} onChange={(http1Compatibility) => updateProfile({ http1Compatibility })} />
                     </div>
                     <LabeledControl label="最大参考图数量">
                         <InputNumber className="w-full" min={0} max={16} precision={0} value={profile.maxReferenceImages} onChange={(value) => updateProfile({ maxReferenceImages: Number(value) || 0 })} />

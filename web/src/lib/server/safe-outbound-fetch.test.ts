@@ -91,3 +91,19 @@ describe("safe outbound fetch", () => {
         });
     });
 });
+
+it.each([false, true])("isolates HTTP/1.1 dispatcher policy with proxy=%s", async (proxy) => {
+    const host = proxy ? "h1-proxy.test" : "h1-direct.test";
+    mocks.resolve.mockResolvedValue({ url: new URL(`https://${host}/images`), address: "8.8.4.4", family: 4 });
+    mocks.proxyUrl.mockReturnValue(proxy ? "http://proxy.test:8080" : "");
+    mocks.fetch.mockResolvedValue(Response.json({ ok: true }));
+    await fetchSafeOutbound(`https://${host}/images`);
+    const normal = mocks.fetch.mock.calls.at(-1)![1].dispatcher;
+    await fetchSafeOutbound(`https://${host}/images`, {}, { http1Compatibility: true });
+    const compatible = mocks.fetch.mock.calls.at(-1)![1].dispatcher;
+    expect(compatible).not.toBe(normal);
+    expect(compatible.options.allowH2).toBe(false);
+    expect(normal.options.allowH2).toBeUndefined();
+    await fetchSafeOutbound(`https://${host}/images`, {}, { http1Compatibility: false });
+    expect(mocks.fetch.mock.calls.at(-1)![1].dispatcher).toBe(normal);
+});
