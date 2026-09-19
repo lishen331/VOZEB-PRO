@@ -1,3 +1,4 @@
+import { cleanupMediaDiagnostics } from "./media-task-diagnostic-store";
 import { cleanupExpiredAuthRecords, getAuthSettings } from "@/lib/auth/store";
 import { cleanupExpiredStoredGenerationTasks } from "@/lib/server/generation-task-store";
 import { cleanupExpiredLocalMediaAssets } from "@/lib/server/local-media-storage";
@@ -15,6 +16,7 @@ export type DataLifecycleMaintenanceResult = {
 
 export async function runDataLifecycleMaintenance(): Promise<DataLifecycleMaintenanceResult> {
     const { dataLifecycle } = await getAuthSettings();
+    await cleanupMediaDiagnostics(dataLifecycle.maintenanceBatchSize);
     const emptyMedia = { deletedFiles: 0, deletedBytes: 0, blocked: [] };
     const [auth, generationTasks, temporaryMedia] = await Promise.all([
         dataLifecycle.cleanupExpiredSessions || dataLifecycle.cleanupExpiredEmailCodes

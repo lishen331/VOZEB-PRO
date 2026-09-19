@@ -1,3 +1,4 @@
+import { recordMediaTaskEvent } from "./media-task-trace";
 import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { resolveGenerationReviewReason } from "@/lib/server/generation-task-review-reason";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
@@ -30,7 +31,9 @@ let fileMutationQueue = Promise.resolve();
 const concurrencyQueues = new Map<string, Promise<void>>();
 
 export async function createStoredGenerationTask<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(type: GenerationTaskType, task: T, ttlMs: number) {
-    return insertTask(type, task, ttlMs);
+    const created = await insertTask(type, task, ttlMs);
+    if (type === "image" || type === "video") await recordMediaTaskEvent(type, created, { phase: "task_created" });
+    return created;
 }
 
 export async function cleanupExpiredStoredGenerationTasks(input: { limit: number; now?: Date }) {
@@ -665,6 +668,20 @@ export async function updateStoredGenerationTask<T extends { id: string; userId:
 }
 
 export async function transitionStoredGenerationTask<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(
+    type: GenerationTaskType,
+    id: string,
+    userId: string,
+    allowedStatuses: string[],
+    patch: Partial<T> & { status: string },
+    ttlMs: number,
+    executionPatch?: import("@/lib/server/generation-task-scheduler").GenerationTaskSchedulePatch,
+): Promise<T | null> {
+    const result = await transitionStoredGenerationTaskObserved(type, id, userId, allowedStatuses, patch, ttlMs, executionPatch);
+    if (result && (type === "image" || type === "video")) await recordMediaTaskEvent(type, result, { phase: "state", state: result.status, errorMessage: "error" in patch ? patch.error : undefined });
+    return result;
+}
+
+async function transitionStoredGenerationTaskObserved<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(
     type: GenerationTaskType,
     id: string,
     userId: string,

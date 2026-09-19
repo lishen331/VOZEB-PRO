@@ -70,6 +70,15 @@ describe("canvas surface geometry", () => {
         expect(findConnectionTarget({ x: 449, y: 320 }, { nodeId: source.id, handleType: "source" }, [source, target], 1)).toBe(target.id);
     });
 
+    it("ignores a node the pointer merely crosses, far from its centre and anchor", () => {
+        // Inside target's bounds (500-800 x 220-420) but outside both the
+        // central snap core and the anchor tolerance, so dragging across the
+        // card's far corner must not steal the connection.
+        expect(findConnectionTarget({ x: 780, y: 240 }, { nodeId: source.id, handleType: "source" }, [source, target], 1)).toBeNull();
+        // Dead centre still snaps.
+        expect(findConnectionTarget({ x: 650, y: 320 }, { nodeId: source.id, handleType: "source" }, [source, target], 1)).toBe(target.id);
+    });
+
     it("blocks connection creation menus on the origin and invalid config sources", () => {
         const config = { ...target, id: "config", type: CanvasNodeType.Config };
 

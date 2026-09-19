@@ -1,3 +1,4 @@
+import { recordMediaTaskEvent } from "./media-task-trace";
 import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { generationCapacityRetryAfterSeconds, listStoredGenerationTaskRecords, withGenerationConcurrencyLimit, withGenerationTaskFileMutation, type GenerationTaskType, type StoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
 export { generationCapacityRetryAfterSeconds, withGenerationConcurrencyLimit };
@@ -40,6 +41,24 @@ const REVIEW_PHASES = new Set<GenerationTaskExecutionPhase>(["review_pending", "
 const CANCELLATION_PHASES = new Set<GenerationTaskExecutionPhase>(["cancel_requested", "cancel_polling"]);
 
 export async function scheduleGenerationTask(type: GenerationTaskType, id: string, patch: GenerationTaskSchedulePatch, options: GenerationTaskScheduleOptions = {}) {
+    const result = await scheduleGenerationTaskCore(type, id, patch, options);
+    if (result && (type === "image" || type === "video")) {
+        await recordMediaTaskEvent(
+            type,
+            { ...result.payload, id: result.id, userId: result.userId, surface: typeof result.payload.surface === "string" ? result.payload.surface : undefined },
+            {
+                phase: result.executionPhase === "polling" ? "poll" : "state",
+                state: result.executionPhase,
+                upstreamTaskId: result.upstreamTaskId,
+                channelId: result.channelId,
+                errorCode: result.lastUpstreamStatus,
+                errorMessage: result.resultPayload?.reviewReason,
+            },
+        );
+    }
+    return result;
+}
+async function scheduleGenerationTaskCore(type: GenerationTaskType, id: string, patch: GenerationTaskSchedulePatch, options: GenerationTaskScheduleOptions = {}) {
     const normalized = normalizePatch(patch);
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
@@ -168,6 +187,24 @@ export async function renewGenerationTaskLeases(workerId: string, taskIds: strin
 }
 
 export async function releaseGenerationTaskLease(type: GenerationTaskType, id: string, workerId: string, patch: GenerationTaskSchedulePatch, options: GenerationTaskScheduleOptions = {}) {
+    const result = await releaseGenerationTaskLeaseCore(type, id, workerId, patch, options);
+    if (result && (type === "image" || type === "video")) {
+        await recordMediaTaskEvent(
+            type,
+            { ...result.payload, id: result.id, userId: result.userId, surface: typeof result.payload.surface === "string" ? result.payload.surface : undefined },
+            {
+                phase: result.executionPhase === "polling" ? "poll" : "state",
+                state: result.executionPhase,
+                upstreamTaskId: result.upstreamTaskId,
+                channelId: result.channelId,
+                errorCode: result.lastUpstreamStatus,
+                errorMessage: result.resultPayload?.reviewReason,
+            },
+        );
+    }
+    return result;
+}
+async function releaseGenerationTaskLeaseCore(type: GenerationTaskType, id: string, workerId: string, patch: GenerationTaskSchedulePatch, options: GenerationTaskScheduleOptions = {}) {
     const normalized = normalizePatch(patch);
     const owner = clean(workerId, 160);
     if (getDatabaseProvider() === "postgres") {

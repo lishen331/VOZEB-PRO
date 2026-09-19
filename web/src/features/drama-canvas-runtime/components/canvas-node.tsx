@@ -11,6 +11,7 @@ import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textare
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type Position } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
+import { depthTilt } from "../utils/canvas-depth-tilt";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
@@ -64,6 +65,11 @@ export type CanvasNodeProps = {
     isRelated: boolean;
     isFocusRelated: boolean;
     isConnectionTarget: boolean;
+    /**
+     * Pointer position in world coords while this card is the connection-drag
+     * target. Drives the Depth Card tilt; undefined leaves the card flat.
+     */
+    connectionPointer?: Position;
     isConnecting: boolean;
     editRequestNonce?: number;
     showPanel: boolean;
@@ -124,6 +130,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     isRelated,
     isFocusRelated,
     isConnectionTarget,
+    connectionPointer,
     isConnecting,
     editRequestNonce = 0,
     showPanel,
@@ -177,6 +184,8 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isBatchRoot = data.type === CanvasNodeType.Image && Boolean(data.metadata?.isBatchRoot) && batchCount > 1;
     const isBatchChild = data.type === CanvasNodeType.Image && Boolean(data.metadata?.batchRootId);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
+    // Depth Card tilt, only while this card is the live connection-drag target.
+    const tilt = connectionPointer ? depthTilt(connectionPointer, { x: data.position.x, y: data.position.y, width: data.width, height: data.height }) : null;
     const imageBorderColor = isActive ? selectionBlue : isRelated && !isBatchChild ? theme.node.muted : theme.node.stroke;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const clickStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -463,6 +472,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     hovered ? "canvas-node-glow-active" : "",
                     isConnectionTarget ? "canvas-node-target-pulse" : "",
                     isGenerating ? "canvas-node-generating-ring" : "",
+                    tilt ? "canvas-node-depth-tilt" : "",
                 ]
                     .filter(Boolean)
                     .join(" ")}
@@ -470,6 +480,13 @@ export const CanvasNode = React.memo(function CanvasNode({
                     background: nodeBackground,
                     borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
                     boxShadow: isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated && !isBatchChild ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : undefined,
+                    ...(tilt
+                        ? {
+                              transform: `perspective(900px) rotateX(${tilt.rotateX.toFixed(2)}deg) rotateY(${tilt.rotateY.toFixed(2)}deg)`,
+                              "--canvas-spotlight-x": `${tilt.spotlightX.toFixed(1)}%`,
+                              "--canvas-spotlight-y": `${tilt.spotlightY.toFixed(1)}%`,
+                          }
+                        : null),
                 }}
                 onMouseDown={(event) => {
                     rememberNodePointer(event);

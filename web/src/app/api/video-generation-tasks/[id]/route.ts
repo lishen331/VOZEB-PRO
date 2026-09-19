@@ -1,3 +1,4 @@
+import { recordMediaTaskEvent } from "@/lib/server/media-task-trace";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getVideoTask } from "@/lib/server/video-task-store";
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             return NextResponse.json({ error: "无权访问此任务" }, { status: 403 });
         }
 
+        await recordMediaTaskEvent("video", task, { phase: "poll", state: `api_response:${task.status}`, upstreamTaskId: task.upstream?.id });
         return NextResponse.json({ task });
     } catch (error) {
         console.error("[video-generation-tasks/:id] GET error:", error);

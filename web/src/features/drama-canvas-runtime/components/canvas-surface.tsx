@@ -61,6 +61,7 @@ type CanvasSurfaceProps = {
         | "isRelated"
         | "isFocusRelated"
         | "isConnectionTarget"
+        | "connectionPointer"
         | "isConnecting"
         | "editRequestNonce"
         | "showPanel"
@@ -882,11 +883,7 @@ export function CanvasSurface({
                         })}
                         {connection && connectionStartNode ? (
                             <path
-                                d={previewPath(
-                                    nodeAnchor(connectionStartNode, connection.handleType),
-                                    connection.targetNodeId && nodesById.get(connection.targetNodeId) ? nodeAnchor(nodesById.get(connection.targetNodeId)!, connection.handleType === "source" ? "target" : "source") : connection.world,
-                                    connection.handleType,
-                                )}
+                                d={previewPath(nodeAnchor(connectionStartNode, connection.handleType), connection.world, connection.handleType)}
                                 fill="none"
                                 stroke={theme.node.activeStroke}
                                 strokeWidth={2.5}
@@ -910,6 +907,7 @@ export function CanvasSurface({
                                     isRelated={relatedNodeIds.has(node.id)}
                                     isFocusRelated={activeSelectedNodeIds.has(node.id) || relatedNodeIds.has(node.id)}
                                     isConnectionTarget={connection?.targetNodeId === node.id}
+                                    connectionPointer={connection?.targetNodeId === node.id ? connection.world : undefined}
                                     isConnecting={connection?.nodeId === node.id}
                                     renderPanel={renderPanel}
                                     renderNodeContent={renderNode}
