@@ -78,7 +78,9 @@ describe("one-click-film asset panel UI", () => {
         expect(source).toContain('action: "upload"');
         expect(source).toContain('action: "primary"');
         expect(source).toContain('action: "remove"');
-        expect(source).toContain('aria-label="上传参考图"');
+        expect(source).toContain("OneClickAssetReferenceUpload");
+        const upload = await readFile(resolve(process.cwd(), "src/app/(user)/one-click-film/[id]/one-click-asset-reference-upload.tsx"), "utf8");
+        expect(upload).toContain('aria-label="上传参考图"');
         expect(source).toContain("设为主参考图");
         // 主图判定复用平台既有纯函数，不自己另写一套
         expect(source).toContain("dramaAssetPrimaryReference");

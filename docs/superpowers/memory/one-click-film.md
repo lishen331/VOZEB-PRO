@@ -369,3 +369,7 @@ L 的机位表 `imageService.js:196` 是 `['平视','仰拍','俯拍','侧面']`
 ### 剩余
 L 迁移的功能缺口至此**全部补完**。序列图的真机效果（模型是否稳定输出无边框等分网格）需要在测试环境实拍验证：
 提示词层面的约束已尽力，但模型偶尔画边框是上游行为，必要时再调提示词。
+
+## 2026-09-18 对抗性复审纠正（优先于上文历史结论）
+上文“全部补完”“语义等价”结论撤销。实际发现布局未对齐、集数假入口、手动生成未回写、暂停竞态、网格规划擅自简化等，见 docs/audits/2026-09-18-one-click-film-adversarial-recheck.zh-CN.md。
+用户授权并行修复，禁止push/deploy。分工：根负责前端布局/弹窗/分集/整合；fix_runtime负责sync/media及独立轮询hook；fix_controls负责engine/orchestration/executor与task路由；layout_audit负责网格L提示词及generate-image。未经行为测试、真实浏览器核验和复审不得宣称完成。唯一已批准L差异：不烧角标，标签只在UI显示。

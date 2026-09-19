@@ -1,16 +1,27 @@
+import { syncOneClickProjectGeneration } from "@/lib/server/one-click-film/sync-runner";
+import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
+import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBody } from "@/lib/auth/request";
 import { getDramaProjectForUser, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ code: 401, msg: "请先登录" }, { status: 401 });
     try {
         const { id } = await params;
-        const project = await getDramaProjectForUser(user.id, id);
+        let project = await getDramaProjectForUser(user.id, id);
         if (!project.sourceHandoffId?.startsWith("one-click-film:") && !project.sourceHandoffId?.startsWith("one-click:")) {
             return NextResponse.json({ code: 404, msg: "一键成片项目不存在" }, { status: 404 });
+        }
+        try {
+            const synced = await syncOneClickProjectGeneration({ userId: user.id, project, origin: resolvePublicRequestOrigin(request), cookie: request.headers.get("cookie") || "" });
+            project = { ...project, ...synced, executionProfile: project.executionProfile };
+        } catch (error) {
+            // A user edit won the optimistic lock: never replay the old result patch over it.
+            if (!(error instanceof DramaProjectStoreError) || error.status !== 409) throw error;
+            project = await getDramaProjectForUser(user.id, id);
         }
         return NextResponse.json({ code: 0, data: { project }, msg: "OK" });
     } catch (error) {

@@ -8,8 +8,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { DramaProject } from "@/lib/drama-project-contract";
 import { DRAMA_LAB_SCRIPT_TYPE_PRESETS, DRAMA_LAB_STORY_STYLE_PRESETS } from "@/lib/drama-lab-story-options";
 import { splitDramaSource } from "@/lib/drama-source-splitter";
+import { selectEpisode, replaceEpisode } from "@/lib/one-click/episode-selection";
 import { decodeOneClickRouteId } from "@/lib/one-click/route-id";
 
+import { useOneClickGenerationSync } from "./use-one-click-generation-sync";
 import { OneClickFilmAssetPanel } from "./one-click-film-asset-panel";
 import { OneClickFilmShotCards } from "./one-click-film-shot-cards";
 import { OneClickFilmNavSidebar, type OneClickActiveTask } from "./one-click-film-nav-sidebar";
@@ -19,6 +21,10 @@ export default function OneClickFilmProject() {
     // useParams 返回未解码的路径段，一键成片的 id 含冒号（%3A），直接再编码会双重编码。
     const projectId = decodeOneClickRouteId(id);
     const [project, setProject] = useState<DramaProject>();
+    useOneClickGenerationSync(project, setProject);
+    const [selectedEpisodeId, setSelectedEpisodeId] = useState<string>();
+    const selectedEpisode = selectEpisode(project?.episodes || [], selectedEpisodeId, project?.activeEpisodeId);
+    const episodeId = selectedEpisode?.id;
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
     const [task, setTask] = useState<{ id: string; status: string; progress: number; currentStep?: string; paused?: boolean; steps: Array<{ key: string; label: string; status: string; error?: string }> }>();
@@ -35,6 +41,7 @@ export default function OneClickFilmProject() {
     const [scriptType, setScriptType] = useState("");
     const [storyOutline, setStoryOutline] = useState("");
     const [generatingScript, setGeneratingScript] = useState(false);
+    const [plannedEpisodeCount, setPlannedEpisodeCount] = useState(1);
     /** L §1 的「从剧本库导入」弹窗：列出本人其他一键成片项目的分集剧本。 */
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [libraryLoading, setLibraryLoading] = useState(false);
@@ -60,6 +67,10 @@ export default function OneClickFilmProject() {
             const payload = (await response.json()) as { code?: number; data?: { project?: DramaProject }; msg?: string };
             if (!response.ok || payload.code !== 0 || !payload.data?.project) throw new Error(payload.msg || "项目加载失败");
             setProject(payload.data.project);
+            const restored = selectEpisode(payload.data.project.episodes, undefined, payload.data.project.activeEpisodeId);
+            setSelectedEpisodeId(restored?.id);
+            setEpisodeTitle(restored?.title || "第 1 集");
+            setEpisodeScript(restored?.script || "");
             // 回显项目上已保存的风格/类型与梗概，避免用户每次进来都要重选。
             setStoryStyle(payload.data.project.storyStyle || "");
             setScriptType(payload.data.project.scriptType || "");
@@ -95,9 +106,9 @@ export default function OneClickFilmProject() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    episodeId: project?.episodes[0]?.id,
+                    episodeId: episodeId,
                     clientRequestId: `one-click-ui:${mode}:${projectId}:${Date.now()}`,
-                    ...(mode === "text_framework" ? { options: { mode: "text_framework" } } : {}),
+                    options: { ...(mode === "text_framework" ? { mode } : {}), composeOptions: { resolution: renderResolution, burnSubtitles: renderBurnSubtitles, watermarkText: renderWatermark.trim() } },
                 }),
             });
             const payload = (await response.json()) as { code?: number; data?: { task?: typeof task }; msg?: string };
@@ -142,13 +153,13 @@ export default function OneClickFilmProject() {
     // 也不能引用下方的 episodeId（它定义在 return 之后），所以自己从 project 推导。
     const refreshRenderTask = useCallback(
         async (taskId: string) => {
-            const currentEpisodeId = project?.episodes[0]?.id;
+            const currentEpisodeId = episodeId;
             if (!currentEpisodeId) return;
             const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/episodes/${encodeURIComponent(currentEpisodeId)}/render?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
             const payload = (await response.json()) as { code?: number; data?: typeof renderTask };
             if (response.ok && payload.code === 0 && payload.data) setRenderTask(payload.data);
         },
-        [projectId, project],
+        [projectId, episodeId],
     );
     useEffect(() => {
         if (!renderTask || !["pending", "running"].includes(renderTask.status)) return;
@@ -182,6 +193,7 @@ export default function OneClickFilmProject() {
             const payload = await response.json();
             if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "剧本导入失败");
             setProject(payload.data.project);
+            setSelectedEpisodeId(episodes[0].id);
             setEpisodeTitle(episodes[0].title);
             setEpisodeScript(episodes[0].script);
             message.success(`已导入 ${episodes.length} 集`);
@@ -225,19 +237,23 @@ export default function OneClickFilmProject() {
      * 服务端会把风格/类型翻成中文标签注入模型上下文，并把结果写回本集剧本。
      */
     const generateScript = async () => {
-        if (!episodeId) return;
         if (!storyOutline.trim()) return message.warning("请先填写故事梗概");
         setGeneratingScript(true);
         try {
             const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}/generate-script`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ episodeId, storyOutline: storyOutline.trim(), storyStyle, scriptType }),
+                body: JSON.stringify({ episodeId, episodeCount: plannedEpisodeCount, requestId: crypto.randomUUID(), storyOutline: storyOutline.trim(), storyStyle, scriptType }),
             });
-            const payload = (await response.json()) as { code?: number; data?: { project?: DramaProject; script?: string }; msg?: string };
+            const payload = (await response.json()) as { code?: number; data?: { project?: DramaProject; script?: string; episodeId?: string }; msg?: string };
             if (!response.ok || payload.code !== 0 || !payload.data?.project) throw new Error(payload.msg || "剧本生成失败");
             setProject(payload.data.project);
             if (typeof payload.data.script === "string") setEpisodeScript(payload.data.script);
+            const generatedEpisode = payload.data.project.episodes.find((item) => item.id === payload.data?.episodeId);
+            if (generatedEpisode) {
+                setSelectedEpisodeId(generatedEpisode.id);
+                setEpisodeTitle(generatedEpisode.title);
+            }
             message.success("本集剧本已生成");
         } catch (scriptError) {
             message.error(scriptError instanceof Error ? scriptError.message : "剧本生成失败");
@@ -246,18 +262,47 @@ export default function OneClickFilmProject() {
         }
     };
 
+    const changeEpisode = async (id: string) => {
+        const next = project?.episodes.find((episode) => episode.id === id);
+        if (!next || id === episodeId) return;
+        if (generatingScript || savingEpisode) {
+            message.info("请等待当前集保存或生成结束后切换");
+            return;
+        }
+        if (episodeScript !== (selectedEpisode?.script || "") || episodeTitle !== (selectedEpisode?.title || "第 1 集")) {
+            message.warning("请先保存当前集的剧本，再切换集数");
+            return;
+        }
+        try {
+            const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ activeEpisodeId: id }),
+            });
+            const payload = await response.json();
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "切换剧集失败");
+            setProject(payload.data.project);
+            setSelectedEpisodeId(id);
+            setEpisodeTitle(next.title);
+            setEpisodeScript(next.script);
+            setRenderTask(undefined);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "切换剧集失败");
+        }
+    };
+
     const saveEpisode = async () => {
         if (!project || !episodeScript.trim()) return message.warning("请输入本集剧本");
         setSavingEpisode(true);
         try {
-            const current = project.episodes[0];
+            const current = selectedEpisode;
             const episode = current
                 ? { ...current, title: episodeTitle.trim() || current.title, script: episodeScript.trim() }
-                : { id: `episode-${crypto.randomUUID()}`, episodeNumber: 1, title: episodeTitle.trim() || "第 1 集", script: episodeScript.trim(), outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft", shots: [] };
+                : { id: `episode-${crypto.randomUUID()}`, episodeNumber: 1, title: episodeTitle.trim() || "第 1 集", script: episodeScript.trim(), outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft" as const, shots: [] };
             const response = await fetch(`/api/one-click-film/projects/${encodeURIComponent(projectId)}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ episodes: [episode, ...project.episodes.slice(1)], activeEpisodeId: episode.id }),
+                body: JSON.stringify({ episodes: replaceEpisode(project.episodes, episode), activeEpisodeId: episode.id }),
             });
             const payload = await response.json();
             if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "剧本保存失败");
@@ -281,7 +326,7 @@ export default function OneClickFilmProject() {
                 <Alert type="error" message={error || "项目不存在"} action={<Button onClick={() => void loadProject()}>重新加载</Button>} />
             </main>
         );
-    const episodeId = project.episodes[0]?.id;
+
     // 对应 L `GET /dramas/:id/export`：打包整个项目（含媒体）用于交付。
     // 走一键成片自有的 export 路由，浏览器直接下载 zip。
     /**
@@ -365,7 +410,7 @@ export default function OneClickFilmProject() {
     const activeTasks: OneClickActiveTask[] = [
         ...(task && ["pending", "running"].includes(task.status) ? [{ id: `workflow:${task.id}`, label: task.currentStep ? `一键成片 · ${task.currentStep}` : "一键成片运行中…", cancelable: true }] : []),
         ...(renderTask && ["pending", "running"].includes(renderTask.status) ? [{ id: `render:${renderTask.id}`, label: "本集成片合成中…" }] : []),
-        ...(project?.episodes[0]?.shots || []).flatMap((shot, index) => {
+        ...(selectedEpisode?.shots || []).flatMap((shot, index) => {
             const running = (status?: string) => status === "running" || status === "pending" || status === "queued";
             const items: OneClickActiveTask[] = [];
             if (running(shot.storyboardStatus)) items.push({ id: `sbimg:${shot.id}`, label: `分镜 ${index + 1} 分镜图` });
@@ -381,7 +426,7 @@ export default function OneClickFilmProject() {
      * （不含 featureModule / collaboration / stage 判断），纯数据转换、浏览器端生成，不计费。
      */
     const exportStoryboard = async (kind: "xlsx" | "srt") => {
-        const episode = project?.episodes[0];
+        const episode = selectedEpisode;
         if (!episode) return;
         setExportingStoryboard(kind);
         try {
@@ -419,7 +464,7 @@ export default function OneClickFilmProject() {
         <div className="flex h-full bg-background text-foreground">
             <OneClickFilmNavSidebar
                 project={project}
-                episode={project.episodes[0]}
+                episode={selectedEpisode}
                 activeTasks={activeTasks}
                 onCancelTask={(item) => {
                     if (item.id.startsWith("workflow:")) void cancelWorkflow();
@@ -427,8 +472,8 @@ export default function OneClickFilmProject() {
                 onJumpAnchor={jumpToAnchor}
                 onJumpShot={jumpToShot}
             />
-            <main className="h-full flex-1 overflow-y-auto">
-                <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
+            <main className="h-full min-w-0 flex-1 overflow-y-auto">
+                <div className="mx-auto w-full px-4 py-5 sm:px-6 sm:py-8">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
                         <div>
                             <Link href="/one-click-film" className="inline-flex items-center gap-1 text-sm text-muted-foreground">
@@ -449,9 +494,10 @@ export default function OneClickFilmProject() {
                                     style={{ minWidth: 130 }}
                                     placeholder="选择集数"
                                     value={episodeId}
+                                    disabled={generatingScript || savingEpisode}
                                     aria-label="选择集数"
                                     options={project.episodes.map((item, index) => ({ value: item.id, label: item.title || `第 ${item.episodeNumber ?? index + 1} 集` }))}
-                                    onChange={() => message.info("当前工作区固定处理第 1 集，多集切换将随分集管理一并接入")}
+                                    onChange={changeEpisode}
                                 />
                             ) : null}
                             <Button icon={<RefreshCcw className="size-4" />} aria-label="刷新项目" onClick={() => void loadProject()}>
@@ -541,6 +587,10 @@ export default function OneClickFilmProject() {
                                 <Input.TextArea value={storyOutline} onChange={(event) => setStoryOutline(event.target.value)} rows={3} placeholder="用一段话说明本集要讲什么，AI 依据它生成剧本" aria-label="故事梗概" />
                             </label>
                             <div>
+                                <label className="mr-3 inline-flex items-center gap-2">
+                                    生成集数
+                                    <Input type="number" min={1} max={100} value={plannedEpisodeCount} style={{ width: 80 }} onChange={(event) => setPlannedEpisodeCount(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} />
+                                </label>
                                 <Button loading={generatingScript} aria-label="AI 生成本集剧本" onClick={() => void generateScript()}>
                                     AI 生成本集剧本
                                 </Button>
@@ -633,7 +683,7 @@ export default function OneClickFilmProject() {
                                 <span className="text-xs font-normal text-muted-foreground">根据剧本、角色、场景自动生成分镜头脚本</span>
                             </h2>
                             {/* 对应 L 的「导出分镜表excel」与「导出解说 SRT」，L 也是放在本 section 顶部 */}
-                            {project.episodes[0]?.shots.length ? (
+                            {selectedEpisode?.shots.length ? (
                                 <div className="flex flex-wrap gap-2">
                                     <Button size="small" loading={exportingStoryboard === "xlsx"} aria-label="导出分镜表excel" onClick={() => void exportStoryboard("xlsx")}>
                                         导出分镜表excel
@@ -644,8 +694,8 @@ export default function OneClickFilmProject() {
                                 </div>
                             ) : null}
                         </div>
-                        {project.episodes[0] ? (
-                            <OneClickFilmShotCards projectId={projectId} project={project} episode={project.episodes[0]} onProjectChange={setProject} />
+                        {selectedEpisode ? (
+                            <OneClickFilmShotCards key={episodeId} projectId={projectId} project={project} episode={selectedEpisode} onProjectChange={setProject} />
                         ) : (
                             <p className="mt-3 text-sm text-muted-foreground">当前项目还没有分集，请先添加分集。</p>
                         )}

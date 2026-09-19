@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { store, schedule } = vi.hoisted(() => ({ store: { create: vi.fn(), get: vi.fn(), getByRequest: vi.fn(), update: vi.fn() }, schedule: vi.fn() }));
+const { store, schedule } = vi.hoisted(() => ({ store: { create: vi.fn(), get: vi.fn(), getByRequest: vi.fn(), update: vi.fn(), mutate: vi.fn() }, schedule: vi.fn() }));
 vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: schedule }));
-vi.mock("@/lib/server/generation-task-store", () => ({ createStoredGenerationTask: store.create, getStoredGenerationTask: store.get, getStoredGenerationTaskByRequest: store.getByRequest, updateStoredGenerationTask: store.update }));
+vi.mock("@/lib/server/generation-task-store", () => ({
+    createStoredGenerationTask: store.create,
+    getStoredGenerationTask: store.get,
+    getStoredGenerationTaskByRequest: store.getByRequest,
+    updateStoredGenerationTask: store.update,
+    mutateStoredGenerationTask: store.mutate,
+}));
 
 import { advanceOneClickFilm, cancelOneClickFilm, oneClickFilmTaskView, retryOneClickFilm, startOneClickFilm } from "./service";
 import type { OneClickFilmTask } from "./types";
@@ -12,6 +18,12 @@ beforeEach(() => {
     vi.clearAllMocks();
     store.create.mockImplementation(async (_t: string, t: OneClickFilmTask) => t);
     store.update.mockImplementation(async (_t: string, t: OneClickFilmTask) => t);
+    store.mutate.mockImplementation(async (_t: string, id: string, _ttl: number, mutate: (t: OneClickFilmTask) => OneClickFilmTask | null) => {
+        const current = await store.get("render", id);
+        const next = mutate(structuredClone(current));
+        if (next) store.get.mockResolvedValue(next);
+        return next;
+    });
     schedule.mockResolvedValue(undefined);
 });
 

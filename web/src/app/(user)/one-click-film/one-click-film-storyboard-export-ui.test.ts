@@ -20,7 +20,7 @@ describe("one-click-film storyboard export UI", () => {
 
     it("only offers export once the episode has shots", async () => {
         const source = await readFile(workspacePath, "utf8");
-        expect(source).toContain("project.episodes[0]?.shots.length ?");
+        expect(source).toContain("selectedEpisode?.shots.length ?");
     });
 
     it("reuses the shared export builders instead of hand-rolling a format", async () => {

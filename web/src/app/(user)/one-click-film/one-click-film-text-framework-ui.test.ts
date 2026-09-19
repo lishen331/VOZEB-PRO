@@ -36,7 +36,8 @@ describe("one-click-film text framework entry", () => {
 
     it("sends the mode through options rather than faking it client-side", async () => {
         const source = await readFile(projectPath, "utf8");
-        expect(source).toContain('{ options: { mode: "text_framework" } }');
+        expect(source).toContain('mode === "text_framework" ? { mode }');
+        expect(source).toContain("composeOptions:");
         // 请求编号带上模式，避免两个入口撞同一个 clientRequestId 被当成重复请求
         expect(source).toContain("one-click-ui:${mode}");
     });

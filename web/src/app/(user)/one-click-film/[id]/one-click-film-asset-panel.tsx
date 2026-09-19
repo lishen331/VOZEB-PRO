@@ -1,8 +1,9 @@
 "use client";
 
 import { Button, Checkbox, Empty, Input, InputNumber, message, Modal, Segmented, Select, Tag, Tooltip } from "antd";
-import { FolderOpen, ImageIcon, Layers, Library, Plus, ScanText, Sparkles, Star, Trash2, Upload, UserRound } from "lucide-react";
+import { FolderOpen, ImageIcon, Layers, Library, Plus, ScanText, Sparkles, Star, Trash2, UserRound } from "lucide-react";
 import { useState } from "react";
+import { OneClickAssetReferenceUpload } from "./one-click-asset-reference-upload";
 import type { DramaAssetReference, DramaNamedAsset, DramaProject, DramaVoiceProfile } from "@/lib/drama-project-contract";
 
 /**
@@ -81,7 +82,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
     const [editing, setEditing] = useState<PanelAsset>();
     const [busy, setBusy] = useState<string>();
     const [creatingName, setCreatingName] = useState("");
-    const [draft, setDraft] = useState<{ name: string; description: string; appearance: string; imagePrompt: string }>();
+    const [draft, setDraft] = useState<{ name: string; description: string; appearance: string; imagePrompt: string; role: string; type: string; time: string }>();
     const [voiceDraft, setVoiceDraft] = useState<{ voice: string; speed: number; instructions: string }>();
     const [picker, setPicker] = useState<{ asset: PanelAsset; items: Array<{ id: string; title: string; coverUrl?: string }> }>();
     const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
@@ -117,7 +118,11 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                 if (saved?.project) {
                     onProjectChange(saved.project as DramaProject);
                     const refreshed = ((saved.project as DramaProject)[kind] as PanelAsset[]).find((item) => item.id === asset.id);
-                    if (refreshed && editing?.id === asset.id) setEditing(refreshed);
+                    if (refreshed && editing?.id === asset.id) {
+                        setEditing(refreshed);
+                        if (action === "describe" || action === "prompt")
+                            setDraft((current) => (current ? { ...current, description: refreshed.description || "", appearance: refreshed.appearance || "", imagePrompt: refreshed.polishedPrompt || refreshed.imagePrompt || "" } : current));
+                    }
                 }
             }
             message.success("资产 AI 操作完成");
@@ -206,6 +211,11 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                     description: draft.description,
                     appearance: draft.appearance,
                     imagePrompt: draft.imagePrompt,
+                    polishedPrompt: draft.imagePrompt,
+                    ...(kind === "scenes" ? { singleImagePrompt: draft.imagePrompt } : {}),
+                    role: draft.role,
+                    type: draft.type,
+                    time: draft.time,
                     // 仅角色有音色配置；空音色传 null 表示清除，回落平台默认。
                     ...(kind === "characters" ? { voiceProfile: voiceDraft?.voice ? voiceDraft : null } : {}),
                 }),
@@ -446,9 +456,17 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
             </div>
 
             {assets.length ? (
-                <ul className="mt-4 grid gap-3">
+                <ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4" data-testid="asset-card-grid">
                     {assets.map((asset) => (
-                        <li key={asset.id} className="rounded-lg border p-3" data-testid={`one-click-asset-${asset.id}`}>
+                        <li key={asset.id} className="min-w-0 rounded-lg border p-3" data-testid={`one-click-asset-${asset.id}`}>
+                            <div className="mb-3 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded bg-muted/40">
+                                {dramaAssetPrimaryReference(asset)?.url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={dramaAssetPrimaryReference(asset)!.url} alt={`${asset.name || "资产"}预览`} className="h-full w-full object-contain" />
+                                ) : (
+                                    <ImageIcon className="size-8 text-muted-foreground" />
+                                )}
+                            </div>
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -466,7 +484,15 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                         aria-label={`编辑${KIND_LABEL[kind]} ${asset.name || asset.id}`}
                                         onClick={() => {
                                             setEditing(asset);
-                                            setDraft({ name: asset.name || "", description: asset.description || "", appearance: asset.appearance || "", imagePrompt: asset.polishedPrompt || asset.imagePrompt || "" });
+                                            setDraft({
+                                                name: asset.name || "",
+                                                description: asset.description || "",
+                                                appearance: asset.appearance || "",
+                                                imagePrompt: (kind === "scenes" ? asset.singleImagePrompt : undefined) || asset.polishedPrompt || asset.imagePrompt || "",
+                                                role: asset.role || "",
+                                                type: asset.type || "",
+                                                time: asset.time || "",
+                                            });
                                             setVoiceDraft({ voice: asset.voiceProfile?.voice || "", speed: asset.voiceProfile?.speed ?? 1, instructions: asset.voiceProfile?.instructions || "" });
                                         }}
                                     >
@@ -529,24 +555,123 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
             )}
 
             {editing ? (
-                <Modal open width={680} title={`${KIND_LABEL[kind]} · ${editing.name || "未命名"}`} onCancel={() => setEditing(undefined)} footer={null} destroyOnHidden>
-                    <div className="grid gap-3">
+                <Modal
+                    open
+                    width="75%"
+                    style={{ top: 32, minWidth: "min(360px, calc(100vw - 32px))" }}
+                    styles={{ body: { maxHeight: "calc(100dvh - 180px)", overflowY: "auto", paddingRight: 8 } }}
+                    title={`编辑${KIND_LABEL[kind]} · ${editing.name || "未命名"}`}
+                    onCancel={() => setEditing(undefined)}
+                    footer={
+                        <>
+                            <Button onClick={() => setEditing(undefined)}>取消</Button>
+                            <Button type="primary" loading={busy === `${editing.id}:save`} onClick={() => void saveAsset()} aria-label="保存资产">
+                                保存
+                            </Button>
+                        </>
+                    }
+                    destroyOnHidden
+                >
+                    <div className="grid gap-4 [&>label]:grid [&>label]:grid-cols-[90px_minmax(0,1fr)] [&>label]:items-start [&>label]:gap-3 [&>label]:text-sm">
+                        <div className="grid grid-cols-[90px_minmax(0,1fr)] gap-3 text-sm">
+                            <span>参考图</span>
+                            <OneClickAssetReferenceUpload
+                                reference={dramaAssetPrimaryReference(editing)}
+                                busy={!!busy}
+                                onUpload={(files) => void uploadReferences(editing, files)}
+                                onExtract={() => void runAi(editing, "describe")}
+                                onRemove={() => {
+                                    const reference = dramaAssetPrimaryReference(editing);
+                                    if (reference) void runReferenceAction(editing, { action: "remove", referenceId: reference.id }, "remove");
+                                }}
+                            />
+                        </div>
                         <label className="grid gap-1 text-sm">
-                            名称
+                            {kind === "scenes" ? "地点" : "名称"}
                             <Input value={draft?.name ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, name: event.target.value } : current))} aria-label="资产名称" />
                         </label>
-                        <label className="grid gap-1 text-sm">
-                            描述
-                            <Input.TextArea rows={3} value={draft?.description ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, description: event.target.value } : current))} aria-label="资产描述" />
+                        {kind === "characters" ? (
+                            <label>
+                                身份/定位
+                                <Select
+                                    value={draft?.role || undefined}
+                                    placeholder="请选择角色类型"
+                                    options={[
+                                        { value: "main", label: "主角" },
+                                        { value: "supporting", label: "配角" },
+                                        { value: "minor", label: "次要角色" },
+                                    ]}
+                                    onChange={(role) => setDraft((current) => (current ? { ...current, role } : current))}
+                                    aria-label="角色身份定位"
+                                />
+                            </label>
+                        ) : (
+                            <label>
+                                {kind === "props" ? "类型" : "时间"}
+                                <Input
+                                    value={kind === "props" ? draft?.type : draft?.time}
+                                    onChange={(event) => setDraft((current) => (current ? { ...current, [kind === "props" ? "type" : "time"]: event.target.value } : current))}
+                                    aria-label={kind === "props" ? "道具类型" : "场景时间"}
+                                />
+                            </label>
+                        )}
+                        {kind === "characters" ? (
+                            <label>
+                                外貌描述
+                                <Input.TextArea
+                                    autoSize={{ minRows: 4, maxRows: 10 }}
+                                    value={draft?.appearance ?? ""}
+                                    onChange={(event) => setDraft((current) => (current ? { ...current, appearance: event.target.value } : current))}
+                                    aria-label="资产外貌"
+                                />
+                            </label>
+                        ) : null}
+                        <label>
+                            {kind === "characters" ? "简介" : kind === "scenes" ? "场景描述" : "描述"}
+                            <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} value={draft?.description ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, description: event.target.value } : current))} aria-label="资产描述" />
                         </label>
-                        <label className="grid gap-1 text-sm">
-                            外貌 / 外观
-                            <Input.TextArea rows={3} value={draft?.appearance ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, appearance: event.target.value } : current))} aria-label="资产外貌" />
+                        <label>
+                            {kind === "scenes" ? "单图提示词" : "图生提示词"}
+                            <div className="min-w-0">
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                    <span className="text-xs text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
+                                    <Button size="small" loading={busy === `${editing.id}:prompt`} onClick={() => void runAi(editing, "prompt")}>
+                                        重新生成提示词
+                                    </Button>
+                                </div>
+                                <Input.TextArea
+                                    autoSize={{ minRows: 5, maxRows: 16 }}
+                                    value={draft?.imagePrompt ?? ""}
+                                    onChange={(event) => setDraft((current) => (current ? { ...current, imagePrompt: event.target.value } : current))}
+                                    aria-label="资产生图提示词"
+                                />
+                            </div>
                         </label>
-                        <label className="grid gap-1 text-sm">
-                            生图提示词（AI 生成后写回，也可手工修改）
-                            <Input.TextArea rows={4} value={draft?.imagePrompt ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, imagePrompt: event.target.value } : current))} aria-label="资产生图提示词" />
-                        </label>
+                        {kind === "characters" ? (
+                            <>
+                                <label>
+                                    视觉锚点
+                                    <div>
+                                        <Button size="small" loading={busy === `${editing.id}:anchor`} onClick={() => void runAi(editing, "anchor")}>
+                                            提炼视觉锚点
+                                        </Button>
+                                        {editing.profile ? (
+                                            <Input.TextArea className="mt-2" rows={4} readOnly value={JSON.stringify(editing.profile, null, 2)} aria-label="角色视觉锚点" />
+                                        ) : (
+                                            <p className="mt-2 text-xs text-muted-foreground">暂无锚点，点击「提炼视觉锚点」自动提炼</p>
+                                        )}
+                                    </div>
+                                </label>
+                                <label>
+                                    多阶段造型
+                                    <div>
+                                        <Button size="small" loading={busy === `${editing.id}:stages`} onClick={() => void runAi(editing, "stages")}>
+                                            AI 生成造型
+                                        </Button>
+                                    </div>
+                                </label>
+                            </>
+                        ) : null}
                         {kind === "characters" ? (
                             <div className="grid gap-2 rounded border p-3 text-sm">
                                 <b className="text-sm">配音音色（供 TTS 使用）</b>
@@ -585,11 +710,6 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                 <p className="text-xs text-muted-foreground">对白配音会按说话人匹配到角色并使用这里的音色；清空音色即回落平台默认。</p>
                             </div>
                         ) : null}
-                        <div className="flex justify-end">
-                            <Button type="primary" loading={busy === `${editing.id}:save`} onClick={() => void saveAsset()} aria-label="保存资产">
-                                保存资产
-                            </Button>
-                        </div>
                         {editing.stages?.length ? (
                             <div className="grid gap-1 text-sm">
                                 阶段造型
@@ -603,29 +723,15 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                             </div>
                         ) : null}
                         <div className="grid gap-2 text-sm">
-                            <div className="flex items-center justify-between gap-2">
-                                <span>参考图（{dramaAssetReferences(editing).length}）</span>
-                                <label className="cursor-pointer rounded border px-3 py-1 text-xs" aria-label="上传参考图">
-                                    <Upload className="mr-1 inline size-3" />
-                                    上传参考图
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        className="hidden"
-                                        onChange={(event) => {
-                                            void uploadReferences(editing, event.target.files);
-                                            event.target.value = "";
-                                        }}
-                                    />
-                                </label>
-                            </div>
+                            <span>历史参考图（{dramaAssetReferences(editing).length}）</span>
                             {dramaAssetReferences(editing).length ? (
                                 <ul className="grid gap-2">
                                     {dramaAssetReferences(editing).map((reference: DramaAssetReference) => {
                                         const isPrimary = dramaAssetPrimaryReference(editing)?.id === reference.id;
                                         return (
                                             <li key={reference.id} className="flex items-center justify-between gap-2 rounded border p-2">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={reference.url} alt={reference.label || "历史参考图"} className="h-16 w-20 shrink-0 object-contain" />
                                                 <span className="min-w-0 truncate text-xs">
                                                     {reference.label || reference.id}
                                                     {isPrimary ? (
@@ -676,7 +782,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                     <button type="button" className="grid w-full gap-2 text-left" aria-label={`取用素材 ${item.title}`} disabled={busy === `${picker.asset.id}:apply`} onClick={() => void applyFromLibrary(item.id)}>
                                         {item.coverUrl ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={item.coverUrl} alt={item.title} className="h-28 w-full rounded object-cover" />
+                                            <img src={item.coverUrl} alt={item.title} className="h-28 w-full rounded object-contain" />
                                         ) : (
                                             <span className="flex h-28 items-center justify-center rounded bg-muted text-xs text-muted-foreground">无预览</span>
                                         )}

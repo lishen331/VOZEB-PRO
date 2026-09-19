@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Empty, Input, Popconfirm, Segmented, Select, Switch, Tag, Tooltip, message } from "antd";
+import { Button, Checkbox, Empty, Image, Input, Popconfirm, Select, Switch, Tag, Tooltip, message } from "antd";
 import { Aperture, ArrowUpToLine, Clapperboard, FileText, Film, ImageIcon, Link2, LoaderCircle, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";
@@ -10,6 +10,7 @@ import { runBatchMedia, type BatchMediaKind, type BatchMediaProgress } from "@/l
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "@/app/(user)/drama-lab/[id]/drama-lab-video-task-recovery";
 import { recoverVideoGenerationTask } from "@/services/api/video-core";
 
+import { OneClickShotMediaUpload } from "./one-click-shot-media-upload";
 import { OneClickFilmShotEditor, type OneClickFilmShotEditorTab } from "./one-click-film-shot-editor";
 
 type Props = {
@@ -496,7 +497,7 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                 {episode.shots.map((shot, index) => (
                     <li key={shot.id} id={`one-click-shot-${shot.id}`} className="rounded-lg border p-3" data-testid={`one-click-shot-card-${shot.id}`}>
                         <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="font-medium">
                                         分镜 {index + 1} · {shot.title || "未命名"}
@@ -539,52 +540,96 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                     </div>
                                 ) : null}
 
-                                {shot.creationMode === "universal" ? (
-                                    <div className="mt-2 rounded-md border border-border bg-muted/30 p-2">
-                                        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                            <span>片段描述</span>
-                                            <span title="全能生视频链路：由片段描述与 @ 引用的资产共同驱动">（@ 可引用本集角色 / 场景 / 道具）</span>
+                                <div className="mt-3 grid min-w-0 grid-cols-1 items-start gap-3 lg:grid-cols-3">
+                                    <section aria-label="分镜脚本" className="min-w-0">
+                                        <h3 className="mb-2 text-sm font-medium">分镜脚本</h3>
+                                        <div className="h-64 overflow-y-auto rounded border p-3 text-sm whitespace-pre-wrap">
+                                            {shot.description || shot.sourceText || "暂无描述"}
+                                            {shot.dialogue ? <p className="mt-3">对白：{shot.dialogue}</p> : null}
+                                            {shot.narration ? <p className="mt-3">旁白：{shot.narration}</p> : null}
                                         </div>
-                                        <Input.TextArea
-                                            rows={5}
-                                            value={universalDrafts[shot.id] ?? shot.universalSegmentText ?? ""}
-                                            onChange={(event) => setUniversalDrafts((prev) => ({ ...prev, [shot.id]: event.target.value }))}
-                                            placeholder="例如：@图片1 为夜景街道，@图片2 从餐厅冲出停在光斑里，低头操作手机…"
-                                            aria-label={`分镜 ${index + 1} 全能片段描述`}
-                                        />
-                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                            <Button
-                                                size="small"
-                                                type="primary"
-                                                loading={universalBusy?.shotId === shot.id && universalBusy.mode === "generate"}
-                                                aria-label={`生成分镜 ${index + 1} 全能提示词`}
-                                                onClick={() => void runUniversalPrompt(shot, "generate")}
-                                            >
-                                                生成全能提示词
-                                            </Button>
-                                            <Button size="small" loading={universalBusy?.shotId === shot.id && universalBusy.mode === "polish"} aria-label={`润色分镜 ${index + 1} 全能提示词`} onClick={() => void runUniversalPrompt(shot, "polish")}>
-                                                润色全能提示词
-                                            </Button>
-                                            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                <Switch size="small" checked={forceNoRef} onChange={setForceNoRef} aria-label="不查图片强制生成/润色" />
-                                                不查图片强制生成/润色
-                                            </label>
+                                    </section>
+                                    <section aria-label="分镜参考图" className="min-w-0">
+                                        <h3 className="mb-2 text-sm font-medium">{shot.creationMode === "universal" ? "全能参考" : "分镜图"}</h3>
+                                        {shot.creationMode === "universal" ? (
+                                            <div className="flex h-64 flex-col overflow-y-auto rounded-md border border-border bg-muted/30 p-2">
+                                                <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                    <span>片段描述</span>
+                                                    <span title="全能生视频链路：由片段描述与 @ 引用的资产共同驱动">（@ 可引用本集角色 / 场景 / 道具）</span>
+                                                </div>
+                                                <Input.TextArea
+                                                    rows={5}
+                                                    value={universalDrafts[shot.id] ?? shot.universalSegmentText ?? ""}
+                                                    onChange={(event) => setUniversalDrafts((prev) => ({ ...prev, [shot.id]: event.target.value }))}
+                                                    placeholder="例如：@图片1 为夜景街道，@图片2 从餐厅冲出停在光斑里，低头操作手机…"
+                                                    aria-label={`分镜 ${index + 1} 全能片段描述`}
+                                                />
+                                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                    <Button
+                                                        size="small"
+                                                        type="primary"
+                                                        loading={universalBusy?.shotId === shot.id && universalBusy.mode === "generate"}
+                                                        aria-label={`生成分镜 ${index + 1} 全能提示词`}
+                                                        onClick={() => void runUniversalPrompt(shot, "generate")}
+                                                    >
+                                                        生成全能提示词
+                                                    </Button>
+                                                    <Button
+                                                        size="small"
+                                                        loading={universalBusy?.shotId === shot.id && universalBusy.mode === "polish"}
+                                                        aria-label={`润色分镜 ${index + 1} 全能提示词`}
+                                                        onClick={() => void runUniversalPrompt(shot, "polish")}
+                                                    >
+                                                        润色全能提示词
+                                                    </Button>
+                                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                        <Switch size="small" checked={forceNoRef} onChange={setForceNoRef} aria-label="不查图片强制生成/润色" />
+                                                        不查图片强制生成/润色
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        ) : shot.storyboardFrameMode === "first_last" ? (
+                                            <div className="grid h-64 grid-cols-2 gap-2">
+                                                <div className="flex min-w-0 flex-col items-center justify-center overflow-hidden rounded border bg-muted/30">
+                                                    <span className="text-xs">首帧</span>
+                                                    <OneClickShotMediaUpload projectId={projectId} episodeId={episode.id} shotId={shot.id} target="first" onProjectChange={onProjectChange} />
+                                                    {shot.frames?.first?.url ? <Image src={shot.frames.first.url} alt="首帧" height={210} className="object-contain" /> : <Empty image={null} description="暂无首帧" />}
+                                                    <Button size="small" onClick={() => openEditor(shot, "frames")}>
+                                                        查看提示词
+                                                    </Button>
+                                                </div>
+                                                <div className="flex min-w-0 flex-col items-center justify-center overflow-hidden rounded border bg-muted/30">
+                                                    <span className="text-xs">尾帧</span>
+                                                    <OneClickShotMediaUpload projectId={projectId} episodeId={episode.id} shotId={shot.id} target="last" onProjectChange={onProjectChange} />
+                                                    {shot.frames?.last?.url ? <Image src={shot.frames.last.url} alt="尾帧" height={210} className="object-contain" /> : <Empty image={null} description="暂无尾帧" />}
+                                                    <Button size="small" onClick={() => openEditor(shot, "frames")}>
+                                                        查看提示词
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex h-64 min-w-0 items-center justify-center overflow-hidden rounded border bg-muted/30">
+                                                {shot.storyboardImageUrl ? <Image src={shot.storyboardImageUrl} alt="分镜参考图" height={240} className="object-contain" /> : <Empty image={null} description="暂无分镜图" />}
+                                            </div>
+                                        )}
+                                    </section>
+                                    <section aria-label="分镜视频" className="min-w-0">
+                                        <h3 className="mb-2 text-sm font-medium">分镜视频</h3>
+                                        <div className="flex h-64 min-w-0 items-center justify-center overflow-hidden rounded border bg-muted/30">
+                                            {shot.videoUrl ? <video src={shot.videoUrl} controls preload="metadata" className="h-full w-full object-contain" /> : <Empty image={null} description="暂无分镜视频" />}
                                         </div>
-                                    </div>
-                                ) : null}
+                                    </section>
+                                </div>
 
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                                    <Segmented
-                                        size="small"
-                                        value={shot.creationMode === "universal" ? "universal" : shot.storyboardFrameMode === "first_last" ? "first_last" : "single"}
-                                        onChange={(value) => void setMode(shot, value as "single" | "first_last" | "universal")}
-                                        options={[
-                                            { value: "single", label: "经典" },
-                                            { value: "first_last", label: "首尾帧" },
-                                            { value: "universal", label: "全能" },
-                                        ]}
-                                        aria-label={`分镜 ${index + 1} 创作模式`}
-                                    />
+                                    <Button size="small" aria-label={`分镜 ${index + 1} 创作模式`} onClick={() => void setMode(shot, shot.creationMode === "universal" ? (shot.storyboardFrameMode === "first_last" ? "first_last" : "single") : "universal")}>
+                                        {shot.creationMode === "universal" ? "切换成经典分镜" : "切换成全能模式"}
+                                    </Button>
+                                    {shot.creationMode !== "universal" ? (
+                                        <Checkbox checked={shot.storyboardFrameMode === "first_last"} onChange={(event) => void setMode(shot, event.target.checked ? "first_last" : "single")}>
+                                            首尾帧
+                                        </Checkbox>
+                                    ) : null}
                                     {shot.creationMode === "universal" ? null : (
                                         <Tooltip title="一次生成多机位网格图，完成后自动裁成候选，在编辑弹窗「生成记录」里挑一格。裁剪为本地处理，不额外计费">
                                             <Select
@@ -601,9 +646,11 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                             />
                                         </Tooltip>
                                     )}
+                                    <OneClickShotMediaUpload projectId={projectId} episodeId={episode.id} shotId={shot.id} target="image" disabled={busyShotId === shot.id} onProjectChange={onProjectChange} />
                                     <Button size="small" icon={<ImageIcon className="size-4" />} loading={busyShotId === shot.id} aria-label={`生成分镜 ${index + 1} 分镜图`} onClick={() => void generate(shot, "image")}>
                                         生成分镜图
                                     </Button>
+                                    <OneClickShotMediaUpload projectId={projectId} episodeId={episode.id} shotId={shot.id} target="video" disabled={busyShotId === shot.id} onProjectChange={onProjectChange} />
                                     <Button size="small" icon={<Clapperboard className="size-4" />} loading={busyShotId === shot.id} aria-label={`生成分镜 ${index + 1} 视频`} onClick={() => void generate(shot, "video")}>
                                         生成视频
                                     </Button>
@@ -661,13 +708,22 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                     ) : null}
                                 </div>
                             </div>
-                            <div className="flex shrink-0 items-center gap-1">
+                            <div className="flex shrink-0 flex-wrap items-center gap-1">
                                 <Tooltip title="编辑分镜">
                                     <Button size="small" type="text" icon={<Pencil className="size-4" />} aria-label={`编辑分镜 ${index + 1}`} onClick={() => openEditor(shot)} />
                                 </Tooltip>
                                 <Tooltip title={shot.storyboardFrameMode === "first_last" ? "查看并编辑首尾帧提示词" : "查看并编辑本镜图片 / 视频提示词"}>
                                     <Button size="small" type="text" icon={<FileText className="size-4" />} aria-label={`查看分镜 ${index + 1} 提示词`} onClick={() => openEditor(shot, shot.storyboardFrameMode === "first_last" ? "frames" : "prompts")} />
                                 </Tooltip>
+                                <Button size="small" onClick={() => openEditor(shot, "config")}>
+                                    分镜配置
+                                </Button>
+                                <Button size="small" onClick={() => openEditor(shot, "bindings")}>
+                                    关联资产
+                                </Button>
+                                <Button size="small" onClick={() => openEditor(shot, "records")}>
+                                    历史记录
+                                </Button>
                                 <Tooltip title="在此分镜前插入">
                                     <Button size="small" type="text" icon={<ArrowUpToLine className="size-4" />} loading={busyShotId === shot.id} aria-label={`在分镜 ${index + 1} 前插入`} onClick={() => void insertBefore(shot)} />
                                 </Tooltip>

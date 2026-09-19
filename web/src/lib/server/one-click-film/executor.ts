@@ -61,7 +61,7 @@ async function runComposeForEpisodes(task: Parameters<OneClickFilmExecutor>[0]["
     const childTaskIds: string[] = [];
     const outputRefs: Array<Record<string, unknown>> = [];
     for (const episodeId of episodeIds) {
-        const child = await createDramaLabFinalVideoTask({ userId: task.userId, projectId: task.projectId, episodeId, clientRequestId: `${task.id}:compose:${episodeId}` });
+        const child = await createDramaLabFinalVideoTask({ userId: task.userId, projectId: task.projectId, episodeId, clientRequestId: `${task.id}:compose:${episodeId}`, composeOptions: task.workflow.options.composeOptions });
         const advanced = await executeDramaLabFinalVideoTask(child.id);
         if (advanced.status === "error") throw new Error(advanced.error || `成片合成失败（分集 ${episodeId}）`);
         childTaskIds.push(advanced.id);

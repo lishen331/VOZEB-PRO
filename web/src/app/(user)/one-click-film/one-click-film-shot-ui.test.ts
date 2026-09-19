@@ -37,7 +37,8 @@ describe("one-click-film shot card UI", () => {
         expect(cards).toContain("查看分镜");
         expect(cards).toContain('openEditor(shot, shot.storyboardFrameMode === "first_last" ? "frames" : "prompts")');
         expect(cards).toContain("initialTab={editingTab}");
-        expect(editor).toContain("defaultActiveKey={initialTab}");
+        expect(editor).toContain("item.key === initialTab");
+        expect(editor).not.toContain("<Tabs");
     });
 
     it("makes 故事风格 / 剧本类型 real by sending them to a generator route", async () => {
@@ -179,10 +180,10 @@ describe("one-click-film shot card UI", () => {
 
     it("offers L's three creation modes and persists the switch", async () => {
         const source = await readFile(cardsPath, "utf8");
-        expect(source).toContain("<Segmented");
-        expect(source).toContain('{ value: "single", label: "经典" }');
-        expect(source).toContain('{ value: "first_last", label: "首尾帧" }');
-        expect(source).toContain('{ value: "universal", label: "全能" }');
+        expect(source).not.toContain("<Segmented");
+        expect(source).toContain("切换成经典分镜");
+        expect(source).toContain("<Checkbox");
+        expect(source).toContain("切换成全能模式");
         // 切换必须落库：经典/首尾帧靠 storyboardFrameMode，全能靠 creationMode
         expect(source).toContain("storyboardFrameMode: mode");
         expect(source).toContain('creationMode: "universal"');

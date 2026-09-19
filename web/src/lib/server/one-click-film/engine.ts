@@ -82,17 +82,20 @@ export function oneClickFilmTaskView(task: OneClickFilmTask): OneClickFilmTaskVi
         paused: task.workflow.paused === true ? true : undefined,
     };
 }
-export async function advanceOneClickFilmWorkflow(task: OneClickFilmTask, executor: OneClickFilmExecutor) {
+export async function advanceOneClickFilmWorkflow(task: OneClickFilmTask, executor: OneClickFilmExecutor, maxSteps = Infinity) {
     task.workflow.childTaskIds = [...new Set(task.workflow.childTaskIds)];
     if (task.status === "success" || task.status === "cancelled" || task.status === "error") return task;
     // L 的「暂停」只挡住"启动下一步"，已提交的子任务照常跑完，不撤单也不退款。
     if (task.workflow.paused) return task;
+    let executedSteps = 0;
     for (let index = task.workflow.currentStepIndex; index < task.workflow.steps.length; index += 1) {
         const step = task.workflow.steps[index];
         if (step.status === "success" || step.status === "skipped") {
             task.workflow.currentStepIndex = index + 1;
             continue;
         }
+        if (task.workflow.paused || executedSteps >= maxSteps) break;
+        executedSteps += 1;
         step.status = "running";
         step.attempts += 1;
         task.status = "running";

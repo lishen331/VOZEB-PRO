@@ -1,3 +1,4 @@
+import { planOneClickSequenceGrid } from "@/lib/server/one-click-film/sequence-grid-planner";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -8,7 +9,7 @@ import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { maintenanceWorkerContextHeaders, requestRuntimeCredential } from "@/lib/server/maintenance-auth";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
-import { buildSequenceGridPrompt, sequenceGridPanelCount, sequenceGridPanels } from "@/lib/server/one-click-film/sequence-grid";
+import { sequenceGridPanelCount } from "@/lib/server/one-click-film/sequence-grid";
 import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";
 
 export const runtime = "nodejs";
@@ -40,15 +41,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const sequenceMode: DramaLabStoryboardSequenceMode = requestedMode === "quad_grid" || requestedMode === "nine_grid" || requestedMode === "single" ? requestedMode : prepared.shot.storyboardSequenceMode || "single";
         const panelCount = sequenceGridPanelCount(sequenceMode);
 
-        /**
-         * 网格提示词。
-         *
-         * 与 L 的一处**承载差异**：L 为每格单独调一次 AI 生成帧提示词（4 或 9 次文本调用），
-         * V 复用本镜那一条已备好的关键帧提示词作为共同画面描述，只让机位逐格不同。
-         * 这样同一瞬间的多机位语义与 L 一致，但不额外产生 4~9 次文本模型费用；
-         * 分格的差异化由 sequenceGridPanels 的机位表提供，而不是由多次模型调用提供。
-         */
-        const prompt = panelCount ? buildSequenceGridPrompt({ mode: sequenceMode, panelPrompts: sequenceGridPanels(sequenceMode).map(() => prepared.prompt) }) : prepared.prompt;
         const settings = await getAuthSettings();
         const model = settings.defaultModels.imageModel;
         if (!model) throw new DramaLabShotGenerationError("后台尚未配置可用的默认图片模型", 503);
@@ -58,6 +50,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const origin = resolveInternalOrigin(resolvePublicRequestOrigin(request));
         const credential = requestRuntimeCredential(request, user.id);
         const workerHeaders = credential ? maintenanceWorkerContextHeaders(credential) : null;
+
+        const prompt = panelCount ? await planOneClickSequenceGrid({ project, episodeId, shotId, mode: sequenceMode }, { userId: user.id, origin, cookie: credential || "", requestId }) : prepared.prompt;
 
         const response = await fetchInternalApi(`${origin}/api/image-tasks`, {
             method: "POST",

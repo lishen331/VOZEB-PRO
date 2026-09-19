@@ -42,6 +42,7 @@ export type OneClickFilmWorkflow = {
      * 否则关掉页面后 worker 会继续往下跑。
      */
     paused?: boolean;
+    advanceLease?: { token: string; expiresAt: number };
 };
 
 export type OneClickFilmTask = {

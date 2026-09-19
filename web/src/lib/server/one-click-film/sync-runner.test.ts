@@ -209,3 +209,35 @@ describe("one-click-film sequence grid split trigger", () => {
         expect(split).not.toHaveBeenCalled();
     });
 });
+
+describe("manual generation write-back", () => {
+    it.each(["first", "key", "last"] as const)("writes back successful %s frame and preserves its prompt", async (frameType) => {
+        mocks.getImageTask.mockResolvedValue({ id: "frame-1", status: "success", result: { serverUrl: "/frame.png", width: 1024, height: 768 } });
+        const result = await call(shot({ frames: { [frameType]: { prompt: "frame prompt", description: "pose", taskId: "frame-1", status: "running", source: "generated" } } }));
+        expect(result.shot.frames?.[frameType]).toMatchObject({ status: "success", url: "/frame.png", width: 1024, prompt: "frame prompt" });
+        expect(result.shot.frames?.[frameType]?.history).toHaveLength(1);
+    });
+    it("preserves a manually selected historical image after the task was already consumed", async () => {
+        mocks.getImageTask.mockResolvedValue({ id: "img-1", status: "success", result: { serverUrl: "/new.png" } });
+        const result = await call(shot({ storyboardTaskId: "img-1", storyboardStatus: "success", storyboardImageUrl: "/chosen-old.png", storyboardHistory: [{ id: "image:img-1", taskId: "img-1", url: "/new.png", prompt: "p", createdAt: "2026-09-18" }] }));
+        expect(result.shot.storyboardImageUrl).toBe("/chosen-old.png");
+        expect(result.changed).toBe(false);
+    });
+    it("preserves a manually selected historical video after consumption", async () => {
+        mocks.getVideoTask.mockResolvedValue({ id: "vid-1", status: "success", result: { url: "/new.mp4" } });
+        const result = await call(shot({ generationTaskId: "vid-1", generationStatus: "success", videoUrl: "/chosen.mp4", videoHistory: [{ id: "video:vid-1", taskId: "vid-1", url: "/new.mp4", prompt: "p", createdAt: "2026-09-18" }] }));
+        expect(result.shot.videoUrl).toBe("/chosen.mp4");
+        expect(result.changed).toBe(false);
+    });
+    it("marks lost active frame tasks failed instead of leaving an eternal spinner", async () => {
+        mocks.getImageTask.mockResolvedValue(null);
+        const result = await call(shot({ frames: { first: { prompt: "p", taskId: "lost", status: "running" } } }));
+        expect(result.shot.frames?.first?.status).toBe("error");
+        expect(result.shot.frames?.first?.taskId).toBeUndefined();
+    });
+    it("never overwrites a locked frame", async () => {
+        mocks.getImageTask.mockResolvedValue({ id: "frame-1", status: "success", result: { serverUrl: "/new.png" } });
+        const result = await call(shot({ frames: { first: { prompt: "p", taskId: "frame-1", status: "success", url: "/locked.png", locked: true } } }));
+        expect(result.shot.frames?.first?.url).toBe("/locked.png");
+    });
+});

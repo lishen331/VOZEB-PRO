@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
     getAuthSettings: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     advanceDramaLabWorkflow: vi.fn(),
+    advanceOneClickFilm: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(),
     generationCapacityRetryAfterSeconds: vi.fn(),
 }));
@@ -95,6 +96,8 @@ vi.mock("@/lib/server/generation-task-cancellation-service", () => ({
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
 vi.mock("@/lib/server/drama-lab-workflow-task-service", () => ({ advanceDramaLabWorkflow: mocks.advanceDramaLabWorkflow }));
+
+vi.mock("@/lib/server/one-click-film/worker", () => ({ advanceOneClickFilm: mocks.advanceOneClickFilm, createOneClickFilmExecutor: vi.fn(() => "executor") }));
 
 import { runGenerationTaskRecoveryBatch } from "./generation-task-recovery-service";
 import { SchoolServiceError } from "./school-access-service";
@@ -156,6 +159,17 @@ describe("generation task recovery service", () => {
         expect(mocks.queryVideoTaskUpstream).not.toHaveBeenCalled();
         expect(mocks.release).toHaveBeenCalledWith("video", queued.id, "worker-one", expect.objectContaining({ executionPhase: "polling", upstreamTaskId: "upstream-video", lastUpstreamStatus: "submitted" }));
         expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0 });
+    });
+
+    it("requeues one-click workflow after each durable step until terminal completion", async () => {
+        mocks.claim.mockResolvedValue([{ ...lease(), id: "one-click", userId: "u", type: "render", payload: { taskKind: "one-click-film-workflow" }, status: "running", executionPhase: "polling" }]);
+        for (let index = 1; index <= 7; index++) {
+            mocks.advanceOneClickFilm.mockResolvedValue({ id: "one-click", status: index === 7 ? "success" : "running", workflow: { currentStepIndex: index } });
+            const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+            expect(mocks.advanceOneClickFilm).toHaveBeenLastCalledWith("one-click", "u", "executor");
+            expect(mocks.release).toHaveBeenLastCalledWith("render", "one-click", "worker-one", expect.objectContaining(index === 7 ? { executionPhase: "completed", nextPollAt: undefined } : { executionPhase: "polling", nextPollAt: expect.any(Number) }));
+            expect(index === 7 ? result.completed : result.pending).toBe(1);
+        }
     });
 
     it("advances a durable Drama Lab workflow parent from the shared worker", async () => {

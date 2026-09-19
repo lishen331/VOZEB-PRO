@@ -73,7 +73,7 @@ describe("buildSequenceGridPrompt", () => {
         expect(prompt).toContain("eye-level shot");
         expect(prompt).toContain("side-angle profile shot");
         // 面板顺序必须与象限一一对应，否则挑到的机位跟标注不符。
-        expect(prompt.indexOf("top-left cell")).toBeLessThan(prompt.indexOf("bottom-right cell"));
+        expect(prompt.indexOf("top-left quadrant")).toBeLessThan(prompt.indexOf("bottom-right quadrant"));
     });
 
     it("keeps the no-border and no-text constraints that make cropping usable", () => {
@@ -94,7 +94,7 @@ describe("buildSequenceGridPrompt", () => {
         const prompt = buildSequenceGridPrompt({ mode: "nine_grid", panelPrompts: nine });
         expect(prompt).toContain("3x3 grid");
         expect(prompt).toContain("EXACTLY 9 equal-sized panels");
-        expect(prompt).toContain("center cell");
+        expect(prompt).toContain("center, low-angle");
     });
 
     it("fails loudly on a panel-count mismatch instead of silently dropping prompts", () => {

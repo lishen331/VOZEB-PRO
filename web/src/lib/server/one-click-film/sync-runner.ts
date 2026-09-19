@@ -27,8 +27,8 @@ export class OneClickSyncError extends Error {
  * - 任务记录丢失（重启/过期）→ 解绑 taskId 并记 error，避免分镜被永久锁死；
  * - 回写只允许项目所有者（商单不走教学版协作成员表）。
  *
- * 尚未覆盖（相对创作工坊那份 439 行）：写冲突重试、任务上下文错配检测、
- * 首尾帧候选与 needs_review 的完整分支。这些保持"未迁移"，不在此处假装等价。
+ * 首/关键/尾帧独立回写；已消费的任务不会再次覆盖用户选择的历史结果。
+ * 乐观锁冲突交回调用方重新读取，绝不将旧 patch 重放到新的用户选择上。
  */
 export type OneClickSyncResult = { project: DramaProject; shot: DramaShot; changed: boolean };
 
@@ -48,10 +48,11 @@ export async function syncOneClickShotGeneration(input: {
 
     await applyImagePatch(shot, patch);
     await applyVideoPatch(shot, patch);
+    await applyFramePatch(shot, patch);
 
     if (!Object.keys(patch).length) return { project: input.project, shot, changed: false };
 
-    let project = await persistDramaLabShotUpdate({ userId: input.userId, project: input.project, episodeId: input.episodeId, shotId: input.shotId, patch });
+    let project = await persistDramaLabShotUpdate({ userId: input.userId, project: input.project, episodeId: input.episodeId, shotId: input.shotId, patch, retryOnConflict: false });
     let next = findShot(project, input.episodeId, input.shotId).shot;
 
     /**
@@ -92,6 +93,7 @@ export async function syncOneClickShotGeneration(input: {
 async function applyImagePatch(shot: DramaShot, patch: Partial<DramaShot>) {
     const taskId = shot.storyboardTaskId?.trim();
     if (!taskId) return;
+    if (shot.storyboardStatus === "success" && shot.storyboardHistory?.some((entry) => entry.taskId === taskId)) return;
     const task = await getImageTask(taskId);
     if (!task) {
         if (isActive(shot.storyboardStatus)) {
@@ -145,6 +147,7 @@ async function applyImagePatch(shot: DramaShot, patch: Partial<DramaShot>) {
 async function applyVideoPatch(shot: DramaShot, patch: Partial<DramaShot>) {
     const taskId = shot.generationTaskId?.trim();
     if (!taskId) return;
+    if (shot.generationStatus === "success" && shot.videoHistory?.some((entry) => entry.taskId === taskId)) return;
     const task = await getVideoTask(taskId);
     if (!task) {
         if (isActive(shot.generationStatus) || shot.generationNeedsReview) {
@@ -210,4 +213,50 @@ function positive(value: unknown) {
 function stableUrl(value: unknown) {
     const url = typeof value === "string" ? value.trim() : "";
     return url && !url.startsWith("data:") && !url.startsWith("blob:") ? url : "";
+}
+
+async function applyFramePatch(shot: DramaShot, patch: Partial<DramaShot>) {
+    for (const frameType of ["first", "key", "last"] as const) {
+        const frame = shot.frames?.[frameType];
+        const taskId = frame?.taskId?.trim();
+        if (!frame || !taskId || frame.locked) continue;
+        if (frame.status === "success" && frame.history?.some((entry) => entry.taskId === taskId)) continue;
+        const task = await getImageTask(taskId);
+        let next = frame;
+        if (!task && isActive(frame.status)) {
+            next = { ...frame, taskId: undefined, status: "error", error: "帧图任务记录不存在，请重新生成" };
+        } else if (task?.status === "success") {
+            const url = stableUrl(task.result?.serverUrl) || stableUrl(task.result?.remoteUrl) || stableUrl(task.result?.dataUrl);
+            if (url) {
+                next = {
+                    ...frame,
+                    status: "success",
+                    url,
+                    width: positive(task.result?.width),
+                    height: positive(task.result?.height),
+                    error: undefined,
+                    history: appendHistoryIdempotently(frame.history, { id: `frame:${frameType}:${task.id}`, taskId: task.id, url, prompt: frame.prompt, createdAt: new Date().toISOString() }),
+                };
+            } else if (frame.status !== "error") {
+                next = { ...frame, status: "error", error: "帧图任务没有返回可持久化图片地址" };
+            }
+        } else if (task?.status === "error" || task?.status === "cancelled") {
+            const error = task.error || (task.status === "cancelled" ? "帧图任务已取消" : "帧图生成失败");
+            if (frame.status !== task.status || frame.error !== error) next = { ...frame, status: task.status, error };
+        }
+        if (next !== frame) patch.frames = { ...(patch.frames || shot.frames), [frameType]: next };
+    }
+}
+
+/** Owner-only project reads call this to settle manually submitted and batch tasks too. */
+export async function syncOneClickProjectGeneration(input: { userId: string; project: DramaProject; origin?: string; cookie?: string }) {
+    let project = input.project;
+    for (const episode of input.project.episodes) {
+        for (const shot of episode.shots) {
+            if (!shot.storyboardTaskId && !shot.generationTaskId && !Object.values(shot.frames || {}).some((frame) => frame?.taskId)) continue;
+            const result = await syncOneClickShotGeneration({ ...input, project, episodeId: episode.id, shotId: shot.id });
+            project = result.project;
+        }
+    }
+    return project;
 }

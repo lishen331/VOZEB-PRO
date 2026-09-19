@@ -1,4 +1,4 @@
-import { createStoredGenerationTask, getStoredGenerationTask, getStoredGenerationTaskByRequest, updateStoredGenerationTask } from "@/lib/server/generation-task-store";
+import { createStoredGenerationTask, getStoredGenerationTask, getStoredGenerationTaskByRequest, mutateStoredGenerationTask } from "@/lib/server/generation-task-store";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { advanceOneClickFilmWorkflow, cancelOneClickFilmWorkflow, createOneClickFilmWorkflow, oneClickFilmTaskView, pauseOneClickFilmWorkflow, resumeOneClickFilmWorkflow } from "./engine";
 import { ONE_CLICK_FILM_SOURCE, type OneClickFilmExecutor, type OneClickFilmStartInput, type OneClickFilmTask } from "./types";
@@ -31,65 +31,84 @@ export async function advanceOneClickFilm(taskId: string, userId: string, execut
     const found = await getOneClickFilmTask(taskId, userId);
     if (!found) return null;
     return withLock(found.id, async () => {
-        const current = (await getOneClickFilmTask(found.id, userId)) || found;
-        let next: OneClickFilmTask;
+        // The store uses Postgres row locks or a shared data-file lock; the token fences stale workers.
+        const token = crypto.randomUUID();
+        const claimed = await mutateStoredGenerationTask<OneClickFilmTask>("render", found.id, TTL_MS, (current) => {
+            if (current.userId !== userId || current.source !== ONE_CLICK_FILM_SOURCE || current.workflow.paused || ["success", "error", "cancelled"].includes(current.status)) return null;
+            if (current.workflow.advanceLease && current.workflow.advanceLease.expiresAt > Date.now()) return null;
+            return { ...current, workflow: { ...current.workflow, advanceLease: { token, expiresAt: Date.now() + 120_000 } } };
+        });
+        if (!claimed) return getOneClickFilmTask(found.id, userId);
+        const heartbeat = setInterval(() => {
+            void mutateStoredGenerationTask<OneClickFilmTask>("render", found.id, TTL_MS, (current) => {
+                if (current.workflow.advanceLease?.token !== token) return null;
+                current.workflow.advanceLease.expiresAt = Date.now() + 120_000;
+                return current;
+            }).catch(() => {
+                /* Completion still requires the stored token after a renewal failure. */
+            });
+        }, 30_000);
         try {
-            next = await advanceOneClickFilmWorkflow(structuredClone(current), executor);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "一键成片步骤失败";
-            next = structuredClone(current);
-            next.status = "error";
-            next.error = message;
-            next.workflow.error = message;
-            const index = next.workflow.currentStepIndex;
-            if (next.workflow.steps[index]) next.workflow.steps[index] = { ...next.workflow.steps[index], status: "error", error: message };
-            next.updatedAt = Date.now();
+            let next: OneClickFilmTask;
+            try {
+                // Check durable controls between steps, rather than executing the whole pipeline from a snapshot.
+                next = await advanceOneClickFilmWorkflow(structuredClone(claimed), executor, 1);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "一键成片步骤失败";
+                next = structuredClone(claimed);
+                next.status = "error";
+                next.error = message;
+                next.workflow.error = message;
+                const index = next.workflow.currentStepIndex;
+                if (next.workflow.steps[index]) next.workflow.steps[index] = { ...next.workflow.steps[index], status: "error", error: message };
+            }
+            const persisted = await mutateStoredGenerationTask<OneClickFilmTask>("render", found.id, TTL_MS, (current) => {
+                if (current.workflow.advanceLease?.token !== token) return null;
+                return { ...current, status: next.status, error: next.error, workflow: { ...next.workflow, paused: current.workflow.paused, advanceLease: undefined }, updatedAt: Date.now() };
+            });
+            return persisted || getOneClickFilmTask(found.id, userId);
+        } finally {
+            clearInterval(heartbeat);
         }
-        await updateStoredGenerationTask("render", next, TTL_MS);
-        return next;
+    });
+}
+
+async function control(taskId: string, userId: string, change: (task: OneClickFilmTask) => OneClickFilmTask) {
+    return mutateStoredGenerationTask<OneClickFilmTask>("render", taskId, TTL_MS, (current) => {
+        if (current.userId !== userId || current.source !== ONE_CLICK_FILM_SOURCE) return null;
+        return change(current);
     });
 }
 export async function cancelOneClickFilm(taskId: string, userId: string) {
-    const t = await getOneClickFilmTask(taskId, userId);
-    if (!t) return null;
-    const next = cancelOneClickFilmWorkflow(structuredClone(t));
-    await updateStoredGenerationTask("render", next, TTL_MS);
-    return next;
+    return control(taskId, userId, (task) => {
+        const next = cancelOneClickFilmWorkflow(task);
+        next.workflow.advanceLease = undefined;
+        return next;
+    });
 }
-/** 对应 L 的「暂停」：置暂停位后 worker 不再启动下一步。 */
 export async function pauseOneClickFilm(taskId: string, userId: string) {
-    const t = await getOneClickFilmTask(taskId, userId);
-    if (!t) return null;
-    const next = pauseOneClickFilmWorkflow(structuredClone(t));
-    await updateStoredGenerationTask("render", next, TTL_MS);
-    return next;
+    return control(taskId, userId, pauseOneClickFilmWorkflow);
 }
-
-/** 对应 L 的「继续」：清暂停位并重新入队，避免等到下一次自然轮询。 */
 export async function continueOneClickFilm(taskId: string, userId: string) {
-    const t = await getOneClickFilmTask(taskId, userId);
-    if (!t) return null;
-    if (!t.workflow.paused) return t;
-    const next = resumeOneClickFilmWorkflow(structuredClone(t));
-    await updateStoredGenerationTask("render", next, TTL_MS);
-    await scheduleGenerationTask("render", next.id, { executionPhase: "created", nextPollAt: Date.now() });
+    const next = await control(taskId, userId, resumeOneClickFilmWorkflow);
+    if (next && !["success", "error", "cancelled"].includes(next.status)) await scheduleGenerationTask("render", next.id, { executionPhase: "created", nextPollAt: Date.now() });
     return next;
 }
-
 export async function retryOneClickFilm(taskId: string, userId: string) {
-    const t = await getOneClickFilmTask(taskId, userId);
-    if (!t || !(t.status === "error" || t.status === "cancelled")) return t;
-    const next = structuredClone(t);
-    const failed = next.workflow.steps.findIndex((s) => s.status === "error" || s.status === "cancelled");
-    const index = failed < 0 ? next.workflow.currentStepIndex : failed;
-    next.status = "pending";
-    next.error = undefined;
-    next.workflow.error = undefined;
-    next.workflow.currentStepIndex = Math.max(0, index);
-    next.workflow.steps = next.workflow.steps.map((s, i) => (i >= index && (s.status === "error" || s.status === "cancelled") ? { ...s, status: "pending", error: undefined, startedAt: undefined } : s));
-    next.updatedAt = Date.now();
-    await updateStoredGenerationTask("render", next, TTL_MS);
-    await scheduleGenerationTask("render", next.id, { executionPhase: "created", nextPollAt: Date.now() });
+    const next = await control(taskId, userId, (task) => {
+        if (!["error", "cancelled"].includes(task.status)) return task;
+        const failed = task.workflow.steps.findIndex((s) => s.status === "error" || s.status === "cancelled");
+        const index = failed < 0 ? task.workflow.currentStepIndex : failed;
+        task.status = "pending";
+        task.error = undefined;
+        task.workflow.error = undefined;
+        task.workflow.paused = undefined;
+        task.workflow.advanceLease = undefined;
+        task.workflow.currentStepIndex = Math.max(0, index);
+        task.workflow.steps = task.workflow.steps.map((s, i) => (i >= index && (s.status === "error" || s.status === "cancelled") ? { ...s, status: "pending", error: undefined, startedAt: undefined } : s));
+        return task;
+    });
+    if (next && next.status === "pending") await scheduleGenerationTask("render", next.id, { executionPhase: "created", nextPollAt: Date.now() });
     return next;
 }
 export const resumeOneClickFilm = retryOneClickFilm;

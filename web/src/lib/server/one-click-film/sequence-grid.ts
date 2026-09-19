@@ -4,7 +4,7 @@ import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-
  * 序列图模式（四宫格 / 九宫格）的纯逻辑：机位表、网格提示词、切图几何。
  *
  * 这个模式的价值是"一次上游调用换多个候选构图"：模型输出一张 2x2 或 3x3 拼贴，
- * 每格是**同一瞬间的不同机位**（不是连续剧情），随后本地按象限裁开，
+ * 每格沿 L 的首帧→关键帧→尾帧时间线，分别规划不同机位，随后本地按象限裁开，
  * 每格变成一个可挑选的候选分镜图。裁剪是纯本地操作，不调模型、不计费。
  *
  * 必须拆的原因在下游：分镜图要当生视频的首帧/参考图。把一张拼贴喂给视频模型，
@@ -29,10 +29,10 @@ const NINE_ANGLES = [
     { label: "俯拍", en: "high-angle downward shot (bird's eye)" },
     { label: "侧面左", en: "left profile side shot" },
     { label: "侧面右", en: "right profile side shot" },
-    { label: "背面", en: "back view shot" },
-    { label: "极端仰拍", en: "extreme low-angle shot" },
-    { label: "极端俯拍", en: "extreme high-angle shot" },
-    { label: "斜侧45度", en: "45-degree oblique shot" },
+    { label: "背面", en: "rear shot from behind the character" },
+    { label: "极端仰拍", en: "extreme low angle (worm's eye view)" },
+    { label: "极端俯拍", en: "extreme high angle (aerial top-down view)" },
+    { label: "斜侧45度", en: "diagonal 45-degree angle shot" },
 ] as const;
 
 export type SequenceGridPanel = {
@@ -86,21 +86,40 @@ export function buildSequenceGridPrompt(input: { mode: DramaLabStoryboardSequenc
     const panels = sequenceGridPanels(input.mode);
     if (!panels.length) return "";
     if (input.panelPrompts.length !== panels.length) throw new Error(`序列图需要 ${panels.length} 条面板提示词，收到 ${input.panelPrompts.length} 条`);
-    const cols = input.mode === "quad_grid" ? 2 : 3;
-    const grid = `${cols}x${cols}`;
-    const positions = ["top-left", "top-center", "top-right", "middle-left", "center", "middle-right", "bottom-left", "bottom-center", "bottom-right"];
-    const quadPositions = ["top-left", "top-right", "bottom-left", "bottom-right"];
-    const positionOf = (index: number) => (cols === 2 ? quadPositions[index] : positions[index]);
-
-    const body = panels.map((panel, index) => `[Panel ${panel.index + 1} - ${positionOf(panel.index)} cell, ${panel.angleEn}]: ${input.panelPrompts[index].trim()}`).join("\n");
-
-    return [
-        input.styleHead?.trim() || "",
-        `Create a ${grid} grid storyboard image with EXACTLY ${panels.length} equal-sized panels arranged in ${cols} rows and ${cols} columns. Each panel occupies exactly one cell of the grid. NO borders of any color (black, white, gray), NO dividing lines, NO frames between panels — the panels must be seamlessly adjacent with no gaps or separators.`,
-        "Each panel uses a DIFFERENT camera angle to show the same moment from varied perspectives — this is intentional and required. Keep character appearance, wardrobe, lighting and art style identical across all panels.",
-        body,
-        `CRITICAL LAYOUT RULES: The image MUST be divided into ${panels.length} equal cells in a ${grid} grid. Do NOT arrange panels in a single strip. Do NOT add any borders, frames or captions. Do NOT draw any text, labels or panel numbers inside the image. Each panel is self-contained; only the camera angle differs.`,
-    ]
-        .filter(Boolean)
+    const rowNames = ["TOP ROW", "MIDDLE ROW", "BOTTOM ROW"];
+    const colNames = ["left", "center", "right"];
+    const rowBlocks = rowNames
+        .map(
+            (row, r) =>
+                row +
+                " (left to right):\n" +
+                panels
+                    .slice(r * 3, r * 3 + 3)
+                    .map((panel) => `[Panel ${panel.index + 1} - ${colNames[panel.index % 3]}, ${panel.angleEn}]: ${input.panelPrompts[panel.index]}`)
+                    .join("\n"),
+        )
         .join("\n\n");
+    const core =
+        input.mode === "quad_grid"
+            ? `Create a 2x2 grid storyboard image with EXACTLY 4 equal-sized panels arranged in 2 rows and 2 columns (like a coordinate quadrant layout). Each panel occupies exactly one quadrant of the image. NO borders of any color (black, white, gray), NO dividing lines, NO frames between panels — the 4 panels must be seamlessly adjacent with no gaps or separators.
+
+Each panel uses a DIFFERENT camera angle to show the same scene from varied perspectives — this is intentional and required.
+
+TOP ROW (left to right):
+[Panel 1 - top-left quadrant, ${panels[0].angleEn}, initial state]: ${input.panelPrompts[0]}
+[Panel 2 - top-right quadrant, ${panels[1].angleEn}, key action moment]: ${input.panelPrompts[1]}
+
+BOTTOM ROW (left to right):
+[Panel 3 - bottom-left quadrant, ${panels[2].angleEn}, action continuation]: ${input.panelPrompts[2]}
+[Panel 4 - bottom-right quadrant, ${panels[3].angleEn}, final state]: ${input.panelPrompts[3]}
+
+CRITICAL LAYOUT RULES: The image MUST be divided into 4 equal quadrants in a 2x2 grid. Do NOT arrange panels in a single strip. Do NOT add any black or dark borders/frames around the panels. Each panel is self-contained with consistent character appearance and art style. The camera angle MUST visually differ between panels as specified above.`
+            : `Create a 3x3 grid storyboard image with EXACTLY 9 equal-sized panels arranged in 3 rows and 3 columns. Each panel occupies exactly one cell of the 3×3 grid. NO borders of any color (black, white, gray), NO dividing lines, NO frames between panels — all 9 panels must be seamlessly adjacent with no gaps or separators.
+
+Each panel uses a DIFFERENT camera angle to show the same scene from varied cinematic perspectives — this is intentional and required.
+
+${rowBlocks}
+
+CRITICAL LAYOUT RULES: The image MUST be divided into 9 equal cells in a 3×3 grid. Do NOT arrange panels in a single strip. Do NOT add any borders or frames. Each panel is self-contained with consistent character appearance and art style. The camera angle MUST visually differ between panels as specified above.`;
+    return [input.styleHead?.trim(), core, "Do NOT draw any text, labels or panel numbers inside the image."].filter(Boolean).join("\n\n");
 }
