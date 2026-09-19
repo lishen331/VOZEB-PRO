@@ -2,14 +2,27 @@
  * Rotating status lines shown while a node is generating, plus the pure
  * typewriter timing math behind them.
  */
-export const CANVAS_GENERATING_LINES = ["正在理解你的创意…", "正在构思画面…", "正在打磨细节…", "正在调整光影…", "马上就好…"] as const;
+export const CANVAS_GENERATING_LINES = [
+    "正在理解你的创意…",
+    "正在拆解画面结构…",
+    "正在构思镜头语言…",
+    "正在推敲构图比例…",
+    "正在调配色彩基调…",
+    "正在铺设光影层次…",
+    "正在雕刻材质纹理…",
+    "正在打磨边缘细节…",
+    "正在校准人物神态…",
+    "正在渲染最终画面…",
+    "正在做最后一遍检查…",
+    "马上就好…",
+] as const;
 
 /** Per-character type-in speed, ms. */
-export const TYPE_MS = 55;
+export const TYPE_MS = 80;
 /** Per-character delete speed, ms. Deleting reads better when it's faster. */
-export const ERASE_MS = 28;
+export const ERASE_MS = 40;
 /** Dwell once a line is fully typed, ms. */
-export const HOLD_MS = 1500;
+export const HOLD_MS = 2200;
 
 export type TypewriterFrame = {
     /** Visible prefix of the current line. */

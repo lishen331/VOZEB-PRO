@@ -177,8 +177,7 @@
         }
     }
 
-    /* In-card generating effect. Independent of the border sweep above: that
-       one paints the card edge, this fills the card body, so they layer. */
+    /* Flat dark fill behind spinner + caption. */
     .canvas-node-generating-shader {
         position: absolute;
         inset: 0;
@@ -186,51 +185,5 @@
         overflow: hidden;
         pointer-events: none;
         background: #0b1220;
-    }
-
-    /* Two drifting radial blobs. Animating only transform keeps this on the
-       compositor, so N generating cards stay cheap. */
-    .canvas-node-generating-shader::before {
-        content: "";
-        position: absolute;
-        inset: -30%;
-        background: radial-gradient(circle at 30% 35%, rgb(55 151 255 / 85%) 0%, rgb(55 151 255 / 0%) 45%), radial-gradient(circle at 70% 65%, rgb(16 185 129 / 55%) 0%, rgb(16 185 129 / 0%) 40%);
-        filter: blur(14px);
-        animation: canvasNodeShaderDrift 7s ease-in-out infinite;
-    }
-
-    /* Sheen sweeping across the blobs, offset in phase so the two don't beat. */
-    .canvas-node-generating-shader::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(115deg, rgb(255 255 255 / 0%) 35%, rgb(255 255 255 / 14%) 50%, rgb(255 255 255 / 0%) 65%);
-        animation: canvasNodeShaderSheen 3.2s linear infinite;
-    }
-
-    @keyframes canvasNodeShaderDrift {
-        0%,
-        100% {
-            transform: translate3d(-6%, -4%, 0) scale(1.05);
-        }
-        50% {
-            transform: translate3d(6%, 5%, 0) scale(1.15);
-        }
-    }
-
-    @keyframes canvasNodeShaderSheen {
-        0% {
-            transform: translateX(-100%);
-        }
-        100% {
-            transform: translateX(100%);
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .canvas-node-generating-shader::before,
-        .canvas-node-generating-shader::after {
-            animation: none;
-        }
     }
 }
