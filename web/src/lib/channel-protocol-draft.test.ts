@@ -240,3 +240,28 @@ image_url`,
         ).toBe("none");
     });
 });
+
+describe("reference capability unknown semantics", () => {
+    const operation = { capability: "video", models: ["premium/video"], config: { createPath: "/video/submit", requestTemplate: '{"model":"{{model}}","input":{"prompt":"{{prompt}}"}}', resultField: "data.result_url" } };
+    it("does not coerce absent or null AI capability fields to false", () => {
+        const draft = protocolDraftFromUnknown({ baseUrl: "https://example.test", operations: [{ ...operation, config: { ...operation.config, supportsReferenceImage: null } }] });
+        expect(draft?.operations).toHaveLength(1);
+        expect(draft?.operations[0].config).not.toHaveProperty("supportsReferenceImage");
+        expect(draft?.operations[0].config).not.toHaveProperty("supportsReferenceVideo");
+    });
+    it("preserves an explicit true or false statement from structured analysis", () => {
+        const draft = protocolDraftFromUnknown({ baseUrl: "https://example.test", operations: [{ ...operation, config: { ...operation.config, supportsReferenceImage: true, supportsReferenceVideo: false } }] });
+        expect(draft?.operations[0].config).toMatchObject({ supportsReferenceImage: true, supportsReferenceVideo: false });
+    });
+    it("does not treat a text-only cURL example as evidence against reference support", () => {
+        const draft = parseDeterministicProtocolDraft({
+            text: `curl --url https://example.test/v1/videos --data '{"model":"premium/video","prompt":"hello","duration":5}'
+{"id":"video-task","status":"success","video_url":"https://example.test/result.mp4"}`,
+        });
+        expect(draft).not.toBeNull();
+        for (const operation of draft!.operations) {
+            expect(operation.config).not.toHaveProperty("supportsReferenceVideo", false);
+            expect(operation.config).not.toHaveProperty("supportsReferenceImage", false);
+        }
+    });
+});

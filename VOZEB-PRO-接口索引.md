@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-20。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **420** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-21。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **420** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -24,7 +24,7 @@
 ## 接口总览
 
 - Route 文件：**420**
-- 方法出现次数：DELETE 62、GET 208、HEAD 6、PATCH 57、POST 240、PUT 16
+- 方法出现次数：DELETE 62、GET 209、HEAD 6、PATCH 57、POST 240、PUT 16
 - 一级域：`admin` 128、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
@@ -61,7 +61,7 @@
 | GET | `/api/admin/binding-verifications/fixtures/[index]` | 管理员 | [route.ts](web/src/app/api/admin/binding-verifications/fixtures/[index]/route.ts) | [binding-verification-fixtures](web/src/lib/server/binding-verification-fixtures.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / binding-verifications / fixtures / [index]：查询 |
 | DELETE, GET, POST | `/api/admin/cdk` | 管理员 | [route.ts](web/src/app/api/admin/cdk/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 兑换码：查询、删除、提交/执行 |
 | DELETE, PATCH | `/api/admin/cdk/[id]` | 管理员 | [route.ts](web/src/app/api/admin/cdk/[id]/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 兑换码 / 单项：更新、删除 |
-| POST | `/api/admin/channel-protocol-draft` | 管理员 | [route.ts](web/src/app/api/admin/channel-protocol-draft/route.ts) | [channel-protocol-assistant](web/src/lib/server/channel-protocol-assistant.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 渠道协议草案：提交/执行 |
+| GET, POST | `/api/admin/channel-protocol-draft` | 管理员 | [route.ts](web/src/app/api/admin/channel-protocol-draft/route.ts) | [channel-protocol-assistant](web/src/lib/server/channel-protocol-assistant.ts)<br>[protocol-analysis-history](web/src/lib/server/protocol-analysis-history.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 渠道协议草案：查询、提交/执行 |
 | GET, POST | `/api/admin/commercial-orders` | 管理员 | [route.ts](web/src/app/api/admin/commercial-orders/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / commercial-orders：查询、提交/执行 |
 | GET, PATCH | `/api/admin/commercial-orders/[id]` | 管理员 | [route.ts](web/src/app/api/admin/commercial-orders/[id]/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / commercial-orders / 单项：查询、更新 |
 | POST | `/api/admin/commercial-orders/[id]/review` | 管理员 | [route.ts](web/src/app/api/admin/commercial-orders/[id]/review/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / commercial-orders / 单项 / 审核：提交/执行 |

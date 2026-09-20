@@ -1,4 +1,12 @@
 export const BINDING_VERIFICATION_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS protocol_analysis_history (
+    id text PRIMARY KEY,
+    channel_id text NOT NULL,
+    model text NOT NULL,
+    payload jsonb NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS protocol_analysis_history_scope_idx ON protocol_analysis_history(channel_id,model,created_at DESC);
 CREATE TABLE IF NOT EXISTS binding_verifications (
     id text PRIMARY KEY,
     user_id text NOT NULL,

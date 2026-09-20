@@ -58,6 +58,7 @@ const POSTGRES_TABLES = [
     "generation_log_assets",
     "generation_tasks",
     "binding_verifications",
+    "protocol_analysis_history",
     "generation_concurrency_reservations",
     "generation_worker_heartbeats",
     "generation_webhook_events",
@@ -158,6 +159,7 @@ const POSTGRES_TABLES = [
 const POSTGRES_SCHEMA_OBJECTS = [
     "binding_verifications_passed_idx",
     "binding_verifications_user_idx",
+    "protocol_analysis_history_scope_idx",
     "user_account_id_seq",
     "users_account_id_idx",
     "users_username_lower_idx",

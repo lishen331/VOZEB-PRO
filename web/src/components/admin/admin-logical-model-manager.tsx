@@ -19,6 +19,7 @@ type Props = {
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
+    onSettingsRevisionChange?: (revision: number) => void;
     onChannelChange?: (channelId: string, patch: Partial<SystemModelChannel>) => void;
     onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels; practiceDefaultModels: SystemDefaultModels }) => void;
 };
@@ -42,7 +43,7 @@ export function resolvePracticeWorkflowModelOptions(logicalModels: LogicalModel[
     return logicalModels.filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, "open-source-practice")).map((model) => ({ label: model.name, value: model.id }));
 }
 
-export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, onChange, onChannelChange }: Props) {
+export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, onChange, onChannelChange, onSettingsRevisionChange }: Props) {
     const { message } = App.useApp();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [editingId, setEditingId] = useState("");
@@ -355,13 +356,27 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     upstreamModel={verificationBinding.upstreamModel}
                     channel={verificationChannel}
                     configRevision={verificationProjection}
-                    beforeStart={() => saveBindingVerificationDraft(verificationModel, verificationBinding, verificationChannel)}
+                    beforeStart={async () => {
+                        const revision = await saveBindingVerificationDraft(verificationModel, verificationBinding, verificationChannel);
+                        onSettingsRevisionChange?.(revision);
+                    }}
                     beforeConfirm={() => assertBindingVerificationSaved(verificationModel, verificationBinding, verificationChannel)}
                     onVerified={() => {
                         setDraft((current) => (current?.id === verificationModel.id ? { ...current, bindings: current.bindings.map((binding) => (binding.id === verificationBinding.id ? { ...binding, enabled: true } : binding)) } : current));
                         setVerificationOpen(false);
                         message.success("当前绑定草稿已启用，请保存模型及渠道配置");
                     }}
+                    onAnalyzeAndVerify={
+                        onChannelChange
+                            ? async (patch) => {
+                                  const scoped = scopeProtocolPatchToBinding(verificationChannel, verificationBinding, verificationModel.capability, patch);
+                                  const nextChannel = { ...verificationChannel, ...scoped };
+                                  const revision = await saveBindingVerificationDraft(verificationModel, verificationBinding, nextChannel);
+                                  onSettingsRevisionChange?.(revision);
+                                  onChannelChange(verificationChannel.id, scoped);
+                              }
+                            : undefined
+                    }
                     onProtocolChange={
                         onChannelChange
                             ? (patch) => {

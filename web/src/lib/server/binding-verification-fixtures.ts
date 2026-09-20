@@ -14,3 +14,28 @@ export async function bindingVerificationFixtures() {
         ),
     );
 }
+
+let referenceVideo: Promise<Buffer> | undefined;
+/** Local fixture encoding only; this never calls a model or incurs provider generation fees. */
+export function bindingVerificationVideoFixture() {
+    referenceVideo ??= (async () => {
+        const { mkdtemp, writeFile, readFile, rm } = await import("node:fs/promises");
+        const { join } = await import("node:path");
+        const { tmpdir } = await import("node:os");
+        const { runFfmpeg } = await import("./ffmpeg");
+        const dir = await mkdtemp(join(tmpdir(), "binding-video-fixture-"));
+        try {
+            const input = join(dir, "reference.png"),
+                output = join(dir, "reference.mp4");
+            await writeFile(input, (await bindingVerificationFixtures())[0]);
+            await runFfmpeg(["-v", "error", "-loop", "1", "-i", input, "-t", "5", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", output]);
+            return await readFile(output);
+        } finally {
+            await rm(dir, { recursive: true, force: true });
+        }
+    })().catch((error) => {
+        referenceVideo = undefined;
+        throw error;
+    });
+    return referenceVideo;
+}

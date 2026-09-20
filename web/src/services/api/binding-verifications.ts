@@ -13,6 +13,7 @@ export type BindingVerificationTest = {
     result?: { url?: string; text?: string; mimeType?: string };
     diagnostics?: unknown;
     fixtureUrls?: string[];
+    input?: import("@/lib/binding-verification-input").BindingVerificationInput;
 };
 export async function readBindingVerification(url: string, options: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<BindingVerificationTest> {
     const response = await fetcher(url, options);
@@ -23,8 +24,8 @@ export async function readBindingVerification(url: string, options: RequestInit 
     return payload.test;
 }
 export const getBindingVerification = (id: string, signal?: AbortSignal) => readBindingVerification(`/api/admin/binding-verifications/${encodeURIComponent(id)}`, { signal });
-export const createBindingVerification = (logicalModelId: string, bindingId: string) =>
-    readBindingVerification("/api/admin/binding-verifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ logicalModelId, bindingId }) });
+export const createBindingVerification = (logicalModelId: string, bindingId: string, input?: import("@/lib/binding-verification-input").BindingVerificationInput) =>
+    readBindingVerification("/api/admin/binding-verifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ logicalModelId, bindingId, input }) });
 function canonical(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(canonical);
     if (value && typeof value === "object")
@@ -105,7 +106,7 @@ export async function saveBindingVerificationDraft(model: LogicalModel, binding:
     const nextChannel = config ? { ...savedChannel, advancedConfig: { ...savedChannel.advancedConfig!, modelConfigs: { ...savedChannel.advancedConfig?.modelConfigs, [key]: config } } } : savedChannel;
     const nextBinding = { ...savedBinding, capabilityProfile: binding.capabilityProfile };
     if (bindingVerificationProjection(model, binding, channel) !== bindingVerificationProjection(savedModel, nextBinding, nextChannel)) throw new Error("渠道地址、鉴权或通用配置有未保存修改，请先单独保存渠道；此按钮仅保存当前模型协议和绑定能力");
-    if (bindingVerificationProjection(model, binding, channel) === bindingVerificationProjection(savedModel, savedBinding, savedChannel)) return;
+    if (bindingVerificationProjection(model, binding, channel) === bindingVerificationProjection(savedModel, savedBinding, savedChannel)) return payload.settingsRevision as number;
     const result = await fetch("/api/admin/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -117,4 +118,7 @@ export async function saveBindingVerificationDraft(model: LogicalModel, binding:
     });
     const saved = await result.json();
     if (!result.ok) throw new Error(saved.error || "保存失败，未发起测试");
+    const revision = saved.settingsRevision ?? saved.settings?.settingsRevision;
+    if (typeof revision !== "number") throw new Error("保存响应缺少配置版本，请刷新核对后再测试");
+    return revision;
 }
