@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, ListChecks, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, ListChecks, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
@@ -68,6 +68,7 @@ export const nodeContentRenderers = {
     [CanvasNodeType.Task]: TaskNodeContent,
     [CanvasNodeType.BrandKit]: BrandKitNodeContent,
     [CanvasNodeType.Group]: GroupNodeContent,
+    [CanvasNodeType.Container]: ContainerNodeContent,
 } satisfies Record<CanvasNodeType, (props: NodeContentRendererProps) => ReactNode>;
 
 export function BriefNodeContent({ node, theme }: NodeContentRendererProps) {
@@ -170,6 +171,33 @@ export function BrandKitNodeContent({ node, theme }: NodeContentRendererProps) {
                     避免：{kit.avoid.join("；")}
                 </p>
             ) : null}
+        </div>
+    );
+}
+
+/**
+ * 生成组 frame. Deliberately hollow: members are real nodes painted on top, so the
+ * body must not draw over them and must not swallow their clicks. Only the header
+ * strip is interactive (drag + double-click rename); the body is pointer-transparent.
+ */
+export function ContainerNodeContent({ node, theme }: NodeContentRendererProps) {
+    const childCount = node.metadata?.containerChildIds?.length || 0;
+    const label = node.metadata?.containerLabel || node.title || "生成组";
+
+    return (
+        <div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-3xl" style={{ background: "transparent", color: theme.node.text }}>
+            <div
+                className="pointer-events-auto flex h-10 shrink-0 items-center gap-2 rounded-t-3xl px-4"
+                style={{ background: theme.node.fill, borderBottom: `1px solid ${theme.node.stroke}` }}
+                data-canvas-container-header
+            >
+                <BoxSelect className="size-3.5 shrink-0" style={{ color: theme.node.activeStroke }} />
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold">{label}</span>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: theme.node.subtleSurface, color: theme.node.subtleText }}>
+                    {childCount} 个节点
+                </span>
+            </div>
+            <div className="min-h-0 flex-1" />
         </div>
     );
 }

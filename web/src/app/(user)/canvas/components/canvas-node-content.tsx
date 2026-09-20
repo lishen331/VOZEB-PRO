@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
 import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -12,6 +12,7 @@ import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
 import { CanvasNodeType, type CanvasGroupMemberSnapshot, type CanvasNodeData } from "../types";
+import { CANVAS_CONTAINER } from "../constants";
 import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
 import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-group";
 import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
@@ -48,6 +49,9 @@ export function NodeContent(props: NodeContentRendererProps) {
     // A group is a container, not a generation target — it must never fall into
     // the status branches below even if a stray status lands on its metadata.
     if (props.node.type === CanvasNodeType.Group) return <GroupNodeContent {...props} />;
+    // A container is a frame, not a generation target — a stray status must never
+    // paint a spinner or error card over it.
+    if (props.node.type === CanvasNodeType.Container) return <ContainerNodeContent {...props} />;
     if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
     if (props.node.metadata?.status === "needs_review") return <ReviewContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
@@ -68,6 +72,7 @@ export const nodeContentRenderers = {
     [CanvasNodeType.Task]: TaskNodeContent,
     [CanvasNodeType.BrandKit]: BrandKitNodeContent,
     [CanvasNodeType.Group]: GroupNodeContent,
+    [CanvasNodeType.Container]: ContainerNodeContent,
 } satisfies Record<CanvasNodeType, (props: NodeContentRendererProps) => ReactNode>;
 
 export function BriefNodeContent({ node, theme }: NodeContentRendererProps) {
@@ -170,6 +175,33 @@ export function BrandKitNodeContent({ node, theme }: NodeContentRendererProps) {
                     避免：{kit.avoid.join("；")}
                 </p>
             ) : null}
+        </div>
+    );
+}
+
+/**
+ * 生成组 frame. Deliberately hollow: members are real nodes painted on top, so the
+ * body must not draw over them and must not swallow their clicks. Only the header
+ * strip is interactive (drag + double-click rename); the body is pointer-transparent.
+ */
+export function ContainerNodeContent({ node, theme }: NodeContentRendererProps) {
+    const childCount = node.metadata?.containerChildIds?.length || 0;
+    const label = node.metadata?.containerLabel || node.title || "生成组";
+
+    return (
+        <div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-3xl" style={{ background: "transparent", color: theme.node.text }}>
+            <div
+                className="pointer-events-auto flex shrink-0 items-center gap-2 rounded-t-3xl px-4"
+                style={{ height: CANVAS_CONTAINER.headerHeight, background: theme.node.fill, borderBottom: `1px solid ${theme.node.stroke}` }}
+                data-canvas-container-header
+            >
+                <BoxSelect className="size-3.5 shrink-0" style={{ color: theme.node.activeStroke }} />
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold">{label}</span>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: theme.node.subtleSurface, color: theme.node.subtleText }}>
+                    {childCount} 个节点
+                </span>
+            </div>
+            <div className="min-h-0 flex-1" />
         </div>
     );
 }

@@ -324,6 +324,7 @@ const CANVAS_NODE_TYPE_LABELS = {
     [CanvasNodeType.Task]: "Agent 任务",
     [CanvasNodeType.BrandKit]: "品牌规范",
     [CanvasNodeType.Group]: "分镜组",
+    [CanvasNodeType.Container]: "生成组",
 } satisfies Record<CanvasNodeType, string>;
 
 function ToolbarAction({ title, icon, onClick, active = false, danger = false, theme }: ToolbarTool & { theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
