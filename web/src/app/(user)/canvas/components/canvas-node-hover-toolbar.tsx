@@ -208,7 +208,9 @@ export function CanvasNodeHoverToolbar({
         ...(isText ? [{ id: "increaseFont", title: "增大字号", label: "放大", icon: <Plus className="size-4" />, onClick: () => onIncreaseFont(node) }] : []),
         ...(isImage && !hasImage ? [{ id: "uploadImage", title: "上传图片", label: "上传图片", icon: <Upload className="size-4" />, onClick: () => onUpload(node) }] : []),
         ...(isVideo ? [{ id: "uploadVideo", title: hasVideo ? "替换视频" : "上传视频", label: hasVideo ? "替换视频" : "上传视频", icon: <Video className="size-4" />, onClick: () => onUpload(node) }] : []),
-        ...(hasVideo && (node.metadata?.upstreamPrompt?.trim() || node.metadata?.prompt?.trim()) ? [{ id: "copyVideoPrompt", title: "复制生成该视频的提示词", label: "复制提示词", icon: <Copy className="size-4" />, onClick: () => copyImagePrompt(node) }] : []),
+        ...(hasVideo && (node.metadata?.upstreamPrompt?.trim() || node.metadata?.prompt?.trim())
+            ? [{ id: "copyVideoPrompt", title: "复制生成该视频的提示词", label: "复制提示词", icon: <Copy className="size-4" />, onClick: () => copyImagePrompt(node) }]
+            : []),
         ...(isAudio ? [{ id: "uploadAudio", title: hasAudio ? "替换音频" : "上传音频", label: hasAudio ? "替换音频" : "上传音频", icon: <Music2 className="size-4" />, onClick: () => onUpload(node) }] : []),
         ...(hasImage && !isPanorama ? imageTools.map((tool) => ({ id: tool.id, title: tool.title, label: tool.label, icon: tool.icon, active: tool.active, onClick: tool.onClick })) : []),
     ];
