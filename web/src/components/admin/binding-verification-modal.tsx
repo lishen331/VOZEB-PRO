@@ -23,6 +23,7 @@ type Props = {
     channel?: SystemModelChannel;
     configRevision?: string;
     beforeStart?: () => Promise<void>;
+    beforeConfirm?: () => Promise<void>;
     onProtocolChange?: (patch: Partial<SystemModelChannel>) => boolean | void;
 };
 export function verificationFixtureCount(capability: LogicalModelCapability) {
@@ -37,7 +38,7 @@ export function BindingVerificationModal(props: Props) {
     // Isolate state by saved binding; closing the modal deliberately does not unmount it.
     return <BindingVerificationSession key={`${props.logicalModelId}:${props.bindingId}:${props.upstreamModel}`} {...props} />;
 }
-function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId, bindingId, capability, channelName, upstreamModel, channel, onProtocolChange, beforeStart, configRevision = "" }: Props) {
+function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId, bindingId, capability, channelName, upstreamModel, channel, onProtocolChange, beforeStart, beforeConfirm, configRevision = "" }: Props) {
     const copyText = useCopyText();
     const [test, setTest] = useState<BindingVerificationTest | null>(null);
     const [restoring, setRestoring] = useState(true);
@@ -154,7 +155,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
         verifiedRef.current = true;
         setSubmitting(true);
         try {
-            await beforeStart?.();
+            await (beforeConfirm || beforeStart)?.();
             setConfirmed(false);
             onVerified(test!.id);
         } catch (cause) {
@@ -193,7 +194,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                 </div>
             }
         >
-            <Alert className="mb-3" type="warning" showIcon title="测试会产生实际上游调用费用" description="仅使用已保存配置，请先保存草稿。不会自动切换渠道、降低规格或重复提交未知结果；失败的绑定不能启用。" />
+            <Alert className="mb-3" type="warning" showIcon title="测试会产生实际上游调用费用" description="点击测试将先保存当前模型协议和绑定能力，无需退出弹窗。不会自动切换渠道、降低规格或重复提交未知结果；失败的绑定不能启用。" />
             {error ? (
                 <Alert
                     className="mb-3"
@@ -256,7 +257,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                             </p>
                             {!supported ? <Alert type="info" title="当前验证流程暂不支持音频绑定" /> : null}
                             <Button type="primary" block loading={submitting || (test?.status === "running" && !uncertain)} disabled={busy || uncertain || test?.status === "needs_review" || !supported} onClick={() => void start()}>
-                                {test ? "重新测试（产生费用）" : "开始测试（产生费用）"}
+                                {test ? "保存并重新测试（产生费用）" : "保存并测试（产生费用）"}
                             </Button>
                         </section>
                         <section className="min-w-0 space-y-3">
@@ -301,7 +302,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                     <Alert type="info" title="测试进行中，请等待结果后编辑协议" description="修改配置前需要保留并核对当前测试结果，关闭弹窗不会取消上游任务。" />
                 ) : channel && onProtocolChange ? (
                     <div className="space-y-3">
-                        <Alert type="info" showIcon title={`仅编辑当前上游模型：${upstreamModel}`} description="助手生成协议建议后，只提取当前模型的接口配置到草稿，不覆盖其他模型或渠道鉴权。保存渠道配置后必须重新测试。" />
+                        <Alert type="info" showIcon title={`仅编辑当前上游模型：${upstreamModel}`} description="助手生成协议建议后，只提取当前模型的接口配置到草稿，不覆盖其他模型或渠道鉴权。应用后点击保存并测试，无需退出弹窗。" />
                         <AdminChannelProtocolSetup
                             channel={{ ...channel, advancedConfig: { ...applyChannelProtocol(channel, "custom").advancedConfig!, protocol: "custom" } }}
                             protocolLocked

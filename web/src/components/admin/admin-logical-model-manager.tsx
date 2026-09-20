@@ -4,7 +4,7 @@ import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Modal,
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
-import { assertBindingVerificationSaved, bindingVerificationProjection } from "@/services/api/binding-verifications";
+import { saveBindingVerificationDraft, assertBindingVerificationSaved, bindingVerificationProjection } from "@/services/api/binding-verifications";
 import { BindingVerificationModal } from "./binding-verification-modal";
 import { normalizeModelId } from "@/lib/model-capability";
 import { BindingHttp1Control } from "./binding-http1-control";
@@ -50,7 +50,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
     const [verificationTarget, setVerificationTarget] = useState<{ modelId: string; bindingId: string } | null>(null);
     const [verificationOpen, setVerificationOpen] = useState(false);
     const [verificationRevision, setVerificationRevision] = useState(0);
-    const verificationModel = logicalModels.find((model) => model.id === verificationTarget?.modelId);
+    const verificationModel = draft?.id === verificationTarget?.modelId ? draft : logicalModels.find((model) => model.id === verificationTarget?.modelId);
     const verificationBinding = verificationModel?.bindings.find((binding) => binding.id === verificationTarget?.bindingId);
     const verificationChannel = channels.find((channel) => channel.id === verificationBinding?.channelId);
     const verificationProjection = verificationModel && verificationBinding && verificationChannel ? bindingVerificationProjection(verificationModel, verificationBinding, verificationChannel) : "";
@@ -332,13 +332,6 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                                 message.warning("当前启用前验证仅支持文本、图片和视频，音频绑定保持关闭");
                                                 return;
                                             }
-                                            const saved = logicalModels.find((model) => model.id === draft.id);
-                                            const savedBinding = saved?.bindings.find((item) => item.id === binding.id);
-                                            const targetChannel = channels.find((item) => item.id === binding.channelId);
-                                            if (!saved || !savedBinding || !targetChannel || bindingVerificationProjection(saved, savedBinding, targetChannel) !== bindingVerificationProjection(draft, binding, targetChannel)) {
-                                                message.warning("请先保存模型草稿，再保存渠道配置，然后重新打开绑定测试");
-                                                return;
-                                            }
                                             setVerificationTarget({ modelId: draft.id, bindingId: binding.id });
                                             setVerificationOpen(true);
                                         }}
@@ -362,7 +355,8 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     upstreamModel={verificationBinding.upstreamModel}
                     channel={verificationChannel}
                     configRevision={verificationProjection}
-                    beforeStart={() => assertBindingVerificationSaved(verificationModel, verificationBinding, verificationChannel)}
+                    beforeStart={() => saveBindingVerificationDraft(verificationModel, verificationBinding, verificationChannel)}
+                    beforeConfirm={() => assertBindingVerificationSaved(verificationModel, verificationBinding, verificationChannel)}
                     onVerified={() => {
                         setDraft((current) => (current?.id === verificationModel.id ? { ...current, bindings: current.bindings.map((binding) => (binding.id === verificationBinding.id ? { ...binding, enabled: true } : binding)) } : current));
                         setVerificationOpen(false);
@@ -373,8 +367,8 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                             ? (patch) => {
                                   try {
                                       onChannelChange(verificationChannel.id, scopeProtocolPatchToBinding(verificationChannel, verificationBinding, verificationModel.capability, patch));
-                                      setVerificationOpen(false);
-                                      message.success("仅当前上游模型的协议草稿已更新，请保存渠道配置后重新测试");
+
+                                      message.success("当前模型协议草稿已更新，请点击保存并测试");
                                   } catch (error) {
                                       message.error(error instanceof Error ? error.message : "协议草稿无法应用");
                                       return false;

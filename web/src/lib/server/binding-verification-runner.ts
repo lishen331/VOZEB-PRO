@@ -183,7 +183,15 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                     if (run.taskId) throw new Error("原测试任务已丢失，禁止自动重提");
                     const references = run.fixtureUrls.map((url) => ({ type: "image" as const, url }));
                     const preset = resolveGlobalAiOpcPreset(resolved.config.advancedConfig, resolved.config.model);
-                    assertReferenceCapabilities(resolved.config.advancedConfig, references);
+                    assertReferenceCapabilities(
+                        {
+                            ...resolved.config.advancedConfig!,
+                            supportsReferenceImage: resolved.config.capabilityProfile?.supportsReferenceImage ?? Boolean(preset ? preset.supportsReferenceImage : resolved.config.advancedConfig?.supportsReferenceImage),
+                            supportsReferenceVideo: resolved.config.capabilityProfile?.supportsReferenceVideo ?? Boolean(preset ? preset.supportsReferenceVideo : resolved.config.advancedConfig?.supportsReferenceVideo),
+                            supportsReferenceAudio: resolved.config.capabilityProfile?.supportsReferenceAudio ?? Boolean(preset ? preset.supportsReferenceAudio : resolved.config.advancedConfig?.supportsReferenceAudio),
+                        },
+                        references,
+                    );
                     assertVideoReferenceRoles(resolved.config.advancedConfig, references, preset?.videoReferenceRoles);
                     assertReferenceUrls(resolved.config.advancedConfig, references, Boolean(preset));
                     task = await createVideoTask({

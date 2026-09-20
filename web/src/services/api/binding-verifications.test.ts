@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bindingVerificationFixturePreviewUrl, bindingVerificationDiagnosticsJson, assertBindingVerificationSaved, bindingVerificationProjection, bindingVerificationSessionKey, hasUnsavedBindingSecrets } from "./binding-verifications";
+import {
+    saveBindingVerificationDraft,
+    bindingVerificationFixturePreviewUrl,
+    bindingVerificationDiagnosticsJson,
+    assertBindingVerificationSaved,
+    bindingVerificationProjection,
+    bindingVerificationSessionKey,
+    hasUnsavedBindingSecrets,
+} from "./binding-verifications";
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import type { LogicalModel, SystemModelChannel } from "@/lib/auth/store";
 const binding = { id: "b", channelId: "c", upstreamModel: "m", enabled: false, priority: 1 };
@@ -46,4 +54,19 @@ describe("binding configuration projection", () => {
         expect(hasUnsavedBindingSecrets(channel)).toBe(false);
         expect(bindingVerificationProjection(model, binding, { ...channel, apiKey: "secret" })).not.toContain("secret");
     });
+});
+
+it("saves only target protocol and capability profile, retaining disabled state and revision", async () => {
+    const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ settingsRevision: 19, settings: { logicalModels: [model], systemChannels: [channel] } })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ settingsRevision: 20 })));
+    vi.stubGlobal("fetch", fetcher);
+    await saveBindingVerificationDraft(model, { ...binding, enabled: true, capabilityProfile: { supportsReferenceImage: true } }, channel);
+    const sent = JSON.parse(fetcher.mock.calls[1][1].body);
+    expect(sent.settingsRevision).toBe(19);
+    expect(sent.logicalModels[0].bindings[0].enabled).toBe(false);
+    expect(sent.logicalModels[0].bindings[0].capabilityProfile.supportsReferenceImage).toBe(true);
+    expect(sent.systemChannels[0].baseUrl).toBe(channel.baseUrl);
+    vi.unstubAllGlobals();
 });
