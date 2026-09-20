@@ -145,7 +145,7 @@ export function AuthForm({
                 message.success(isRegister ? "注册成功" : "登录成功");
             }
             const featureModules = usePublicSessionStore.getState().payload?.settings?.featureModules || initialFeatureModules;
-            const destination = isRegister ? nextPath || (featureModules?.["creative-agent"] === false ? "/practice" : "/create") : resolveLoginDestination(payload.user, nextPath, featureModules);
+            const destination = resolveLoginDestination(payload.user, nextPath, featureModules);
             if (!isRegister && nextPath && destination !== nextPath) message.warning("当前账号无权访问原目标，已进入默认工作区");
             window.location.replace(destination);
         } catch (error) {
