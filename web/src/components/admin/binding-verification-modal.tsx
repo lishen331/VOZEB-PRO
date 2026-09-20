@@ -9,7 +9,7 @@ import { AdminChannelProtocolSetup } from "./admin-channel-protocol-setup";
 import type { LogicalModelCapability, SystemModelChannel } from "@/lib/auth/store";
 import { BATCH_MEDIA_POLL_INTERVAL_MS } from "@/lib/one-click/batch-media";
 
-import { bindingVerificationDiagnosticsJson, bindingVerificationSessionKey, createBindingVerification, getBindingVerification, type BindingVerificationTest } from "@/services/api/binding-verifications";
+import { bindingVerificationFixturePreviewUrl, bindingVerificationDiagnosticsJson, bindingVerificationSessionKey, createBindingVerification, getBindingVerification, type BindingVerificationTest } from "@/services/api/binding-verifications";
 export { readBindingVerification } from "@/services/api/binding-verifications";
 type Props = {
     open: boolean;
@@ -53,7 +53,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
     const busy = restoring || submitting || test?.status === "running";
     const supported = capability !== "audio";
     const count = verificationFixtureCount(capability);
-    const fixtures = Array.from({ length: count }, (_, index) => test?.fixtureUrls?.[index] || `/api/admin/binding-verifications/fixtures/${index}`);
+    const fixtures = Array.from({ length: count }, (_, index) => bindingVerificationFixturePreviewUrl(index));
     const prompt =
         capability === "video"
             ? "结合三张参考图，让橙色小球缓慢经过蓝色方块和绿色圆环，保持物体外观一致，镜头连续稳定。"

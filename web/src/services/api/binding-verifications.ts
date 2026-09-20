@@ -79,3 +79,9 @@ export async function bindingVerificationSessionKey(modelId: string, bindingId: 
 export function bindingVerificationDiagnosticsJson(test: BindingVerificationTest) {
     return JSON.stringify({ id: test.id, platformTaskId: test.platformTaskId, upstreamTaskId: test.upstreamTaskId, status: test.status, phase: test.phase, error: test.error, diagnostics: test.diagnostics }, null, 2);
 }
+
+/** UI previews use same-origin URLs; provider-fetch URLs may use a different deployment origin. */
+export function bindingVerificationFixturePreviewUrl(index: number) {
+    if (!Number.isInteger(index) || index < 0 || index > 2) throw new Error("无效的验证参考图编号");
+    return `/api/admin/binding-verifications/fixtures/${index}`;
+}

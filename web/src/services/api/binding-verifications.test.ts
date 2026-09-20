@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bindingVerificationDiagnosticsJson, assertBindingVerificationSaved, bindingVerificationProjection, bindingVerificationSessionKey, hasUnsavedBindingSecrets } from "./binding-verifications";
+import { bindingVerificationFixturePreviewUrl, bindingVerificationDiagnosticsJson, assertBindingVerificationSaved, bindingVerificationProjection, bindingVerificationSessionKey, hasUnsavedBindingSecrets } from "./binding-verifications";
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import type { LogicalModel, SystemModelChannel } from "@/lib/auth/store";
 const binding = { id: "b", channelId: "c", upstreamModel: "m", enabled: false, priority: 1 };
 const model: LogicalModel = { id: "l", name: "label", enabled: true, capability: "video", bindings: [binding] };
 const channel: SystemModelChannel = { id: "c", name: "C", apiKey: "", apiFormat: "openai", baseUrl: "https://fixture.invalid", models: ["m"], enabled: true, advancedConfig: emptyAdvancedConfig() };
 describe("binding configuration projection", () => {
+    it("previews immutable fixtures on the current origin, not the provider HTTP origin", () => {
+        expect(bindingVerificationFixturePreviewUrl(0)).toBe("/api/admin/binding-verifications/fixtures/0");
+        expect(() => bindingVerificationFixturePreviewUrl(3)).toThrow();
+    });
     it("exports only public diagnostic fields and includes both task IDs", () => {
         const data = { id: "test", platformTaskId: "platform", upstreamTaskId: "provider", status: "failed" as const, phase: "query", diagnostics: { error: "safe" }, channel: { apiKey: "private" } };
         const json = bindingVerificationDiagnosticsJson(data);
