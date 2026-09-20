@@ -1,3 +1,5 @@
+import { assertBindingVerificationChanges } from "@/lib/server/binding-verification-policy";
+import { hasPassedBindingVerification } from "@/lib/server/binding-verification-store";
 import { NextResponse } from "next/server";
 
 import { AuthInputError, getFreshAuthSettings, isAuthInputError, setAuthSettings, type AuthSettings, type SiteSocialKey, type SiteSocialSettings } from "@/lib/auth/store";
@@ -73,6 +75,11 @@ export async function PATCH(request: Request) {
             const practiceDefaults = { ...currentSettings.practiceDefaultModels, ...body.practiceDefaultModels };
             const practiceErrors = practiceDefaultModelValidationErrors(practiceDefaults, logicalModels, channels);
             if (practiceErrors.length) throw new AuthInputError(practiceErrors[0]);
+            try {
+                await assertBindingVerificationChanges(currentSettings, { logicalModels, systemChannels: channels }, hasPassedBindingVerification);
+            } catch (error) {
+                throw new AuthInputError(error instanceof Error ? error.message : "绑定验证失败", 400);
+            }
             patch.logicalModels = logicalModels;
             patch.defaultModels = normalizedDefaults;
             patch.practiceDefaultModels = normalizeDefaultModelsConfig(practiceDefaults, logicalModels, channels, "open-source-practice", { allowFallback: false });

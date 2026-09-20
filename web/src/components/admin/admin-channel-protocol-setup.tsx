@@ -19,7 +19,7 @@ const capabilityOptions: Array<{ label: string; value: LogicalModelCapability }>
     { label: "音频", value: "audio" },
 ];
 
-export function AdminChannelProtocolSetup({ channel, protocolLocked = false, onChange }: { channel: SystemModelChannel; protocolLocked?: boolean; onChange: (patch: Partial<SystemModelChannel>) => void }) {
+export function AdminChannelProtocolSetup({ channel, protocolLocked = false, onChange }: { channel: SystemModelChannel; protocolLocked?: boolean; onChange: (patch: Partial<SystemModelChannel>) => boolean | void }) {
     const { message } = App.useApp();
     const protocol = channel.advancedConfig?.protocol || "auto";
     const definition = channelProtocolDefinition(protocol);
@@ -84,12 +84,13 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, onC
             modelConfigs,
             operationConfigs,
         };
-        onChange({
+        const applied = onChange({
             baseUrl: draft.baseUrl || channel.baseUrl,
             apiFormat: draft.apiFormat,
             models: Array.from(new Set([...channel.models, ...discoveredModels])),
             advancedConfig: nextAdvanced,
         });
+        if (applied === false) return;
         message.success(drafts.length > 1 ? "当前协议已应用；其他上游地址请分别建立或编辑渠道" : "整套协议已应用；同步模型目录后会自动继承对应能力配置");
     };
     const updateAuth = (patch: Partial<SystemChannelAdvancedConfig>) => onChange({ advancedConfig: { ...channel.advancedConfig!, ...patch } });

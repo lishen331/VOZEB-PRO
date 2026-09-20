@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-19。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **417** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-20。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **420** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**417**
-- 方法出现次数：DELETE 62、GET 206、HEAD 6、PATCH 57、POST 239、PUT 16
-- 一级域：`admin` 125、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**420**
+- 方法出现次数：DELETE 62、GET 208、HEAD 6、PATCH 57、POST 240、PUT 16
+- 一级域：`admin` 128、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（125）
+### `admin`（128）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -56,6 +56,9 @@
 | DELETE, PATCH | `/api/admin/billing/promotions/[id]` | 管理员 | [route.ts](web/src/app/api/admin/billing/promotions/[id]/route.ts) | [promotion-service](web/src/lib/server/promotion-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 促销 / 单项：更新、删除 |
 | GET, POST | `/api/admin/billing/reconciliation` | 管理员 | [route.ts](web/src/app/api/admin/billing/reconciliation/route.ts) | [payment-reconciliation-service](web/src/lib/server/payment-reconciliation-service.ts)<br>[billing-errors](web/src/lib/server/billing-errors.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 对账：查询、提交/执行 |
 | GET | `/api/admin/billing/summary` | 管理员 | [route.ts](web/src/app/api/admin/billing/summary/route.ts) | [billing-service](web/src/lib/server/billing-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 汇总：查询 |
+| POST | `/api/admin/binding-verifications` | 管理员 | [route.ts](web/src/app/api/admin/binding-verifications/route.ts) | [binding-verification-runner](web/src/lib/server/binding-verification-runner.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / binding-verifications：提交/执行 |
+| GET | `/api/admin/binding-verifications/[id]` | 管理员 | [route.ts](web/src/app/api/admin/binding-verifications/[id]/route.ts) | [binding-verification-store](web/src/lib/server/binding-verification-store.ts)<br>[binding-verification-runner](web/src/lib/server/binding-verification-runner.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / binding-verifications / 单项：查询 |
+| GET | `/api/admin/binding-verifications/fixtures/[index]` | 管理员 | [route.ts](web/src/app/api/admin/binding-verifications/fixtures/[index]/route.ts) | [binding-verification-fixtures](web/src/lib/server/binding-verification-fixtures.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / binding-verifications / fixtures / [index]：查询 |
 | DELETE, GET, POST | `/api/admin/cdk` | 管理员 | [route.ts](web/src/app/api/admin/cdk/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 兑换码：查询、删除、提交/执行 |
 | DELETE, PATCH | `/api/admin/cdk/[id]` | 管理员 | [route.ts](web/src/app/api/admin/cdk/[id]/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 兑换码 / 单项：更新、删除 |
 | POST | `/api/admin/channel-protocol-draft` | 管理员 | [route.ts](web/src/app/api/admin/channel-protocol-draft/route.ts) | [channel-protocol-assistant](web/src/lib/server/channel-protocol-assistant.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 渠道协议草案：提交/执行 |
@@ -142,7 +145,7 @@
 | GET | `/api/admin/schools/[id]/compute/ledger` | 管理员 | [route.ts](web/src/app/api/admin/schools/[id]/compute/ledger/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / schools / 单项 / compute / ledger：查询 |
 | GET | `/api/admin/schools/[id]/members` | 管理员 | [route.ts](web/src/app/api/admin/schools/[id]/members/route.ts) | [admin-school-member-points-service](web/src/lib/server/admin-school-member-points-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / schools / 单项 / members：查询 |
 | POST | `/api/admin/schools/[id]/members/[membershipId]/points-adjustments` | 管理员 | [route.ts](web/src/app/api/admin/schools/[id]/members/[membershipId]/points-adjustments/route.ts) | [admin-school-member-points-service](web/src/lib/server/admin-school-member-points-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、积分/商业事务 | 管理后台 / schools / 单项 / members / [membershipId] / points-adjustments：提交/执行 |
-| GET, PATCH | `/api/admin/settings` | 管理员 | [route.ts](web/src/app/api/admin/settings/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[site-metadata](web/src/lib/server/site-metadata.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置：查询、更新 |
+| GET, PATCH | `/api/admin/settings` | 管理员 | [route.ts](web/src/app/api/admin/settings/route.ts) | [binding-verification-store](web/src/lib/server/binding-verification-store.ts)<br>[admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[binding-verification-policy](web/src/lib/server/binding-verification-policy.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置：查询、更新 |
 | POST | `/api/admin/settings/channels/[id]/api-key` | 管理员 | [route.ts](web/src/app/api/admin/settings/channels/[id]/api-key/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置 / 模型渠道 / 单项 / API Key：提交/执行 |
 | GET | `/api/admin/settings/events` | 管理员 | [route.ts](web/src/app/api/admin/settings/events/route.ts) | [settings-events](web/src/lib/server/settings-events.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置 / 事件：查询 |
 | GET, POST | `/api/admin/users` | 管理员 | [route.ts](web/src/app/api/admin/users/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 用户：查询、提交/执行 |
@@ -176,7 +179,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| DELETE, GET, HEAD, PATCH, POST, PUT | `/api/ai/system/[channelId]/[...path]` | 混合 | [route.ts](web/src/app/api/ai/system/[channelId]/[...path]/route.ts) | [generation-charge-service](web/src/lib/server/generation-charge-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts)<br>[media-proxy-service](web/src/lib/server/media-proxy-service.ts) | 模型上游、积分、媒体代理 | 模型代理 / 系统渠道 / 指定渠道 / 指定路径：查询、读取元数据、更新、删除、提交/执行、替换 |
+| DELETE, GET, HEAD, PATCH, POST, PUT | `/api/ai/system/[channelId]/[...path]` | 混合 | [route.ts](web/src/app/api/ai/system/[channelId]/[...path]/route.ts) | [binding-verification-store](web/src/lib/server/binding-verification-store.ts)<br>[generation-charge-service](web/src/lib/server/generation-charge-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | 模型上游、积分、媒体代理 | 模型代理 / 系统渠道 / 指定渠道 / 指定路径：查询、读取元数据、更新、删除、提交/执行、替换 |
 
 ### `announcements`（1）
 

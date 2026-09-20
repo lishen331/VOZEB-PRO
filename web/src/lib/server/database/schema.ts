@@ -1,3 +1,4 @@
+import { BINDING_VERIFICATION_SCHEMA_SQL } from "./schema-binding-verifications";
 import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
 import { POSTGRESQL_COMMERCIAL_FEATURES_SCHEMA_SQL } from "./schema-commercial-features";
 import { POSTGRESQL_IP_LIBRARY_SCHEMA_SQL } from "./schema-ip-library";
@@ -9,6 +10,7 @@ import { DRAMA_LAB_SCHEMA_SQL } from "./schema-drama-lab";
 const FULL_ADMIN_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
 
 export const POSTGRESQL_SCHEMA_SQL = `
+${BINDING_VERIFICATION_SCHEMA_SQL}
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version text PRIMARY KEY,
     applied_at timestamptz NOT NULL DEFAULT now()

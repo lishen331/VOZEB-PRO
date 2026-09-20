@@ -1,3 +1,4 @@
+import { bindingVerificationRequestHeaders } from "./binding-verification-authority";
 import { currentMediaTraceHeaders, observeMediaFetch } from "./media-task-trace";
 import { Agent, fetch as undiciFetch } from "undici";
 
@@ -36,6 +37,7 @@ export function isInternalApiBaseUrl(baseUrl: string) {
 }
 
 export async function fetchInternalApi(input: string | URL, init?: RequestInit): Promise<Response> {
+    init = { ...init, headers: bindingVerificationRequestHeaders(String(input), init?.headers) };
     const body = await toUndiciRequestBody(init?.body);
     return observeMediaFetch(
         String(input),

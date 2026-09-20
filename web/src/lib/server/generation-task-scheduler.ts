@@ -107,6 +107,7 @@ export async function claimDueGenerationTasks(input: { workerId: string; now?: n
                       OR (task_type = 'text' AND status = 'success' AND payload->'storyBatch'->>'status' IN ('pending', 'persisting'))
                       OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'))
                       OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')))
+                      AND NOT (payload ? 'bindingVerificationId')
                       AND task_type = ANY($6::text[])
                       AND expires_at > $1
                       AND next_poll_at IS NOT NULL AND next_poll_at <= $1
@@ -148,7 +149,8 @@ export async function getNextGenerationTaskDueAt(now = Date.now()) {
                     OR (task_type = 'text' AND status = 'success' AND payload->'storyBatch'->>'status' IN ('pending', 'persisting'))
                     OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'))
                     OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')))
-               AND task_type = ANY($1::text[])
+               AND NOT (payload ? 'bindingVerificationId')
+                      AND task_type = ANY($1::text[])
                AND expires_at > $2
                AND next_poll_at IS NOT NULL`,
             [[...SCHEDULABLE_TYPES], new Date(now)],
@@ -306,6 +308,7 @@ function isDue(task: StoredGenerationTaskRecord, now: number, taskIds: string[])
 }
 
 function isSchedulable(task: StoredGenerationTaskRecord, now: number) {
+    if (task.payload.bindingVerificationId) return false;
     const active = (task.status === "pending" || task.status === "running") && ACTIVE_PHASES.has(task.executionPhase || "created");
     const dramaStoryPersistence = task.type === "text" && task.status === "success" && ["pending", "persisting"].includes(String((task.payload as { storyBatch?: { status?: string } }).storyBatch?.status || ""));
     const review = task.type === "agent" && task.status === "success" && REVIEW_PHASES.has(task.executionPhase || "created");

@@ -1,3 +1,5 @@
+import { updateBindingVerification, recordBindingVerificationDiagnostic } from "@/lib/server/binding-verification-store";
+import { authorizeBindingVerificationProxy, assertBindingVerificationSubmission } from "@/lib/server/binding-verification-authority";
 import { readGenerationMediaClaim } from "@/lib/server/generation-media-authorization";
 import { getStoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
 import { bindingUsesHttp1 } from "@/lib/server/binding-http-transport";
@@ -80,7 +82,15 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     if (!userId) return NextResponse.json({ error: "请先登录" }, { status: 401 });
 
     const { channelId, path } = await context.params;
-    const settings = await getAuthSettings();
+    let settings = await getAuthSettings();
+    let verification: Awaited<ReturnType<typeof authorizeBindingVerificationProxy>> = null;
+    try {
+        const scopedVerification = await authorizeBindingVerificationProxy(request, settings, currentUser, channelId);
+        verification = scopedVerification;
+        if (scopedVerification) settings = scopedVerification.settings;
+    } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : "绑定验证授权失败" }, { status: 403 });
+    }
     const channel = settings.systemChannels.find((item) => item.id === channelId && item.enabled);
     if (!channel || !channelConnectionReady(channel)) return NextResponse.json({ error: "默认接口未配置或已停用" }, { status: 404 });
 
@@ -167,6 +177,14 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
         },
     });
     if (!access.allowed) return NextResponse.json({ error: access.error }, { status: access.status });
+    if (verification && access.operation === "create") {
+        try {
+            const evidence = await assertBindingVerificationSubmission(verification.run, globalAdaptation?.body || requestBody.body);
+            await updateBindingVerification(verification.run.id, { diagnostics: { ...verification.run.diagnostics, ...evidence } });
+        } catch (error) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : "实际请求不满足验证条件" }, { status: 422 });
+        }
+    }
     if (access.operation !== "create") {
         const owned = await userOwnsGenerationUpstreamTask({ userId, capability: access.capability, channelId: channel.id, upstreamModel, upstreamTaskId: access.upstreamTaskId });
         if (!owned) return NextResponse.json({ error: "任务不存在或无权访问" }, { status: 404 });
@@ -251,8 +269,23 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
         const outboundBody = injectRunningHubWorkflowApiKey(globalAdaptation?.body || requestBody.body, globalAdaptation?.path || path, modelConfig?.protocol || channel.advancedConfig?.protocol, channel.apiKey);
         const outboundInit: RequestInit = { method: request.method, headers, body: outboundBody, cache: "no-store", redirect: "manual", signal: request.signal };
         upstream = await observeMediaFetch(target, outboundInit, () => fetchSafeOutbound(target, outboundInit, { http1Compatibility }), diagnosticContext);
+        if (verification)
+            await recordBindingVerificationDiagnostic(
+                verification.run.id,
+                {
+                    phase: access.operation,
+                    url: target,
+                    method: request.method,
+                    status: upstream.status,
+                    contentType: upstream.headers.get("content-type"),
+                    requestId: upstream.headers.get("x-request-id") || upstream.headers.get("x-oneapi-request-id") || upstream.headers.get("request-id"),
+                    transportPolicy: http1Compatibility ? "http/1.1" : "default",
+                },
+                [channel.apiKey],
+            );
     } catch (error) {
         await refundConsumedPoints();
+        if (verification) await recordBindingVerificationDiagnostic(verification.run.id, { phase: "upstream_error", url: target, errorMessage: error instanceof Error ? error.message : String(error) }, [channel.apiKey]);
         console.error("System API proxy request failed", error instanceof Error ? error.message : error);
         return NextResponse.json({ error: DEFAULT_CHANNEL_CONNECT_ERROR }, { status: 502, headers: responseHeaders(new Headers(), null, refundedPointsRemaining) });
     }
@@ -276,6 +309,18 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     if (isJsonResponse(upstream)) {
         try {
             const body = diagnosticContext ? await readObservedResponseBody(upstream, (event) => persistMediaDiagnostic(diagnosticContext, { ...event, url: target }), request.signal) : await upstream.arrayBuffer();
+            if (verification && !upstream.ok) {
+                try {
+                    const failure = JSON.parse(Buffer.from(body).toString("utf8"));
+                    await recordBindingVerificationDiagnostic(
+                        verification.run.id,
+                        { phase: "provider_error", status: upstream.status, errorMessage: typeof failure.error === "string" ? failure.error : failure.error?.message || failure.message || failure.msg || "" },
+                        [channel.apiKey],
+                    );
+                } catch {
+                    /* Non-JSON provider errors are reported by the generation adapter. */
+                }
+            }
             if (upstream.ok) pointsSettled = true;
             return new Response(body, {
                 status: upstream.status,

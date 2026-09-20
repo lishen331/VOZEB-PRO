@@ -2,8 +2,11 @@
 
 import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Modal, Segmented, Select, Space, Switch, Tag } from "antd";
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
+import { assertBindingVerificationSaved, bindingVerificationProjection } from "@/services/api/binding-verifications";
+import { BindingVerificationModal } from "./binding-verification-modal";
+import { normalizeModelId } from "@/lib/model-capability";
 import { BindingHttp1Control } from "./binding-http1-control";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import { AdminModelConnectionTest } from "@/components/admin/admin-model-connection-test";
@@ -16,6 +19,7 @@ type Props = {
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
+    onChannelChange?: (channelId: string, patch: Partial<SystemModelChannel>) => void;
     onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels; practiceDefaultModels: SystemDefaultModels }) => void;
 };
 
@@ -38,11 +42,21 @@ export function resolvePracticeWorkflowModelOptions(logicalModels: LogicalModel[
     return logicalModels.filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, "open-source-practice")).map((model) => ({ label: model.name, value: model.id }));
 }
 
-export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, onChange }: Props) {
+export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, onChange, onChannelChange }: Props) {
     const { message } = App.useApp();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [editingId, setEditingId] = useState("");
     const [draft, setDraft] = useState<LogicalModel | null>(null);
+    const [verificationTarget, setVerificationTarget] = useState<{ modelId: string; bindingId: string } | null>(null);
+    const [verificationOpen, setVerificationOpen] = useState(false);
+    const [verificationRevision, setVerificationRevision] = useState(0);
+    const verificationModel = logicalModels.find((model) => model.id === verificationTarget?.modelId);
+    const verificationBinding = verificationModel?.bindings.find((binding) => binding.id === verificationTarget?.bindingId);
+    const verificationChannel = channels.find((channel) => channel.id === verificationBinding?.channelId);
+    const verificationProjection = verificationModel && verificationBinding && verificationChannel ? bindingVerificationProjection(verificationModel, verificationBinding, verificationChannel) : "";
+    useEffect(() => {
+        setVerificationRevision((value) => value + 1);
+    }, [verificationProjection]);
     const [query, setQuery] = useState("");
     const [capabilityFilter, setCapabilityFilter] = useState<LogicalModelCapability | "all">("all");
     const [defaultPool, setDefaultPool] = useState<"production" | "open-source-practice">("production");
@@ -313,6 +327,21 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                         binding={binding}
                                         capability={draft.capability}
                                         channels={channels}
+                                        onRequestVerification={() => {
+                                            if (draft.capability === "audio") {
+                                                message.warning("当前启用前验证仅支持文本、图片和视频，音频绑定保持关闭");
+                                                return;
+                                            }
+                                            const saved = logicalModels.find((model) => model.id === draft.id);
+                                            const savedBinding = saved?.bindings.find((item) => item.id === binding.id);
+                                            const targetChannel = channels.find((item) => item.id === binding.channelId);
+                                            if (!saved || !savedBinding || !targetChannel || bindingVerificationProjection(saved, savedBinding, targetChannel) !== bindingVerificationProjection(draft, binding, targetChannel)) {
+                                                message.warning("请先保存模型草稿，再保存渠道配置，然后重新打开绑定测试");
+                                                return;
+                                            }
+                                            setVerificationTarget({ modelId: draft.id, bindingId: binding.id });
+                                            setVerificationOpen(true);
+                                        }}
                                         onChange={(patch) => setDraft((current) => (current ? { ...current, bindings: current.bindings.map((item) => (item.id === binding.id ? { ...item, ...patch } : item)) } : current))}
                                     />
                                 ))}
@@ -321,11 +350,57 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     </>
                 ) : null}
             </Drawer>
+            {verificationModel && verificationBinding && verificationChannel ? (
+                <BindingVerificationModal
+                    key={`${verificationModel.id}:${verificationBinding.id}:${verificationRevision}`}
+                    open={verificationOpen}
+                    onCancel={() => setVerificationOpen(false)}
+                    logicalModelId={verificationModel.id}
+                    bindingId={verificationBinding.id}
+                    capability={verificationModel.capability}
+                    channelName={verificationChannel.name}
+                    upstreamModel={verificationBinding.upstreamModel}
+                    channel={verificationChannel}
+                    configRevision={verificationProjection}
+                    beforeStart={() => assertBindingVerificationSaved(verificationModel, verificationBinding, verificationChannel)}
+                    onVerified={() => {
+                        setDraft((current) => (current?.id === verificationModel.id ? { ...current, bindings: current.bindings.map((binding) => (binding.id === verificationBinding.id ? { ...binding, enabled: true } : binding)) } : current));
+                        setVerificationOpen(false);
+                        message.success("当前绑定草稿已启用，请保存模型及渠道配置");
+                    }}
+                    onProtocolChange={
+                        onChannelChange
+                            ? (patch) => {
+                                  try {
+                                      onChannelChange(verificationChannel.id, scopeProtocolPatchToBinding(verificationChannel, verificationBinding, verificationModel.capability, patch));
+                                      setVerificationOpen(false);
+                                      message.success("仅当前上游模型的协议草稿已更新，请保存渠道配置后重新测试");
+                                  } catch (error) {
+                                      message.error(error instanceof Error ? error.message : "协议草稿无法应用");
+                                      return false;
+                                  }
+                              }
+                            : undefined
+                    }
+                />
+            ) : null}
         </section>
     );
 }
 
-function BindingEditor({ binding, capability, channels, onChange }: { binding: LogicalModelBinding; capability: LogicalModelCapability; channels: SystemModelChannel[]; onChange: (patch: Partial<LogicalModelBinding>) => void }) {
+function BindingEditor({
+    binding,
+    capability,
+    channels,
+    onChange,
+    onRequestVerification,
+}: {
+    binding: LogicalModelBinding;
+    capability: LogicalModelCapability;
+    channels: SystemModelChannel[];
+    onRequestVerification: () => void;
+    onChange: (patch: Partial<LogicalModelBinding>) => void;
+}) {
     const channel = channels.find((item) => item.id === binding.channelId);
     const profile = binding.capabilityProfile || {};
     const effectiveAsync = profile.supportsAsync ?? (capability === "image" || capability === "video");
@@ -369,7 +444,12 @@ function BindingEditor({ binding, capability, channels, onChange }: { binding: L
                     <InputNumber className="w-full" min={1} max={10000} precision={0} value={binding.weight || 100} onChange={(weight) => onChange({ weight: Number(weight) || 100 })} />
                 </LabeledControl>
                 <div className="flex h-8 items-center">
-                    <Switch size="small" checked={binding.enabled} aria-label={`${channel?.name || "渠道"}绑定启用状态`} onChange={(enabled) => onChange({ enabled })} />
+                    <Switch
+                        size="small"
+                        checked={binding.enabled}
+                        aria-label={`${channel?.name || "渠道"}绑定启用状态`}
+                        onChange={(enabled) => (bindingToggleNeedsVerification(binding, channel, enabled, capability) ? onRequestVerification() : onChange({ enabled }))}
+                    />
                 </div>
             </div>
             <div className="mt-3 rounded-md border border-stone-200/80 bg-white/70 p-3 dark:border-stone-800 dark:bg-stone-950/40">
@@ -459,4 +539,22 @@ function BindingEditor({ binding, capability, channels, onChange }: { binding: L
 
 function cloneLogicalModel(model: LogicalModel): LogicalModel {
     return { ...model, bindings: model.bindings.map((binding) => ({ ...binding, capabilityProfile: binding.capabilityProfile ? { ...binding.capabilityProfile } : undefined })) };
+}
+
+export function bindingToggleNeedsVerification(binding: LogicalModelBinding, channel: SystemModelChannel | undefined, enabled: boolean, capability: LogicalModelCapability) {
+    return enabled && !binding.enabled && channel?.advancedConfig?.protocol !== "runninghub";
+}
+
+export function scopeProtocolPatchToBinding(channel: SystemModelChannel, binding: LogicalModelBinding, capability: LogicalModelCapability, patch: Partial<SystemModelChannel>): Partial<SystemModelChannel> {
+    if (patch.baseUrl !== undefined && patch.baseUrl !== channel.baseUrl) throw new Error("助手建议修改渠道级 Base URL，请先在渠道设置中人工处理");
+    const advanced = channel.advancedConfig;
+    const next = patch.advancedConfig;
+    for (const key of ["authMode", "authHeader", "authPrefix"] as const) {
+        if (next?.[key] !== undefined && next[key] !== advanced?.[key]) throw new Error("助手建议修改渠道级鉴权，请先在渠道设置中人工处理");
+    }
+    const key = normalizeModelId(binding.upstreamModel);
+    const targeted = next?.modelConfigs?.[key];
+    const config = targeted && JSON.stringify(targeted) !== JSON.stringify(advanced?.modelConfigs?.[key]) ? targeted : next?.operationConfigs?.[capability];
+    if (!advanced || !config || config.capability !== capability) throw new Error("协议草稿未包含当前模型能力的接口，请检查分析结果");
+    return { advancedConfig: { ...advanced, modelConfigs: { ...advanced.modelConfigs, [key]: { ...config, capability, protocol: "custom", apiFormat: patch.apiFormat || channel.apiFormat } } } };
 }

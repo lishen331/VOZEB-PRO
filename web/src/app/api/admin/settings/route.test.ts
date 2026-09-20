@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
     getFreshAuthSettings: vi.fn(),
     setAuthSettings: vi.fn(),
     safeRecordAuditLog: vi.fn(async () => undefined),
+    hasPassedBindingVerification: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -14,6 +15,7 @@ vi.mock("@/lib/auth/store", async (importOriginal) => {
 });
 vi.mock("@/lib/server/audit-log-store", () => ({ auditActorFromRequest: vi.fn(() => ({ id: "admin" })), safeRecordAuditLog: mocks.safeRecordAuditLog }));
 
+vi.mock("@/lib/server/binding-verification-store", () => ({ hasPassedBindingVerification: mocks.hasPassedBindingVerification }));
 import { GET, PATCH } from "./route";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/auth/store";
 
@@ -27,11 +29,20 @@ const savedSettings = {
 describe("admin settings model routing", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.hasPassedBindingVerification.mockResolvedValue(true);
         mocks.getCurrentUser.mockResolvedValue({ id: "admin", role: "admin", status: "active", adminPermissions: ["system.manage", "billing.manage", "upstream.manage"] });
         mocks.getFreshAuthSettings.mockResolvedValue(savedSettings);
         mocks.setAuthSettings.mockImplementation(async (patch) => ({ ...savedSettings, ...patch }));
     });
 
+    it("rejects a client trying to enable an unverified binding", async () => {
+        mocks.hasPassedBindingVerification.mockResolvedValue(false);
+        mocks.getFreshAuthSettings.mockResolvedValue({ ...savedSettings, logicalModels: savedSettings.logicalModels.map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: false })) })) });
+        const response = await PATCH(request({ logicalModels: savedSettings.logicalModels }));
+        expect(response.status).toBe(400);
+        expect((await response.json()).error).toContain("验证");
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
+    });
     it.each([true, false])("saves and returns binding HTTP/1.1 setting %s", async (enabled) => {
         const logicalModels = savedSettings.logicalModels.map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, capabilityProfile: { http1Compatibility: enabled } })) }));
         const response = await PATCH(request({ logicalModels }));
