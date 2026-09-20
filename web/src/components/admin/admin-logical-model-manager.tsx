@@ -546,7 +546,6 @@ export function bindingToggleNeedsVerification(binding: LogicalModelBinding, cha
 }
 
 export function scopeProtocolPatchToBinding(channel: SystemModelChannel, binding: LogicalModelBinding, capability: LogicalModelCapability, patch: Partial<SystemModelChannel>): Partial<SystemModelChannel> {
-    if (patch.baseUrl !== undefined && patch.baseUrl !== channel.baseUrl) throw new Error("助手建议修改渠道级 Base URL，请先在渠道设置中人工处理");
     const advanced = channel.advancedConfig;
     const next = patch.advancedConfig;
     for (const key of ["authMode", "authHeader", "authPrefix"] as const) {
