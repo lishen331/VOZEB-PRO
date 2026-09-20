@@ -117,7 +117,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                         {onRemoveReference ? (
                                             <button
                                                 type="button"
-                                                className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border backdrop-blur"
+                                                className="absolute right-0.5 top-0.5 z-10 grid size-6 place-items-center rounded-full border shadow-sm backdrop-blur transition hover:scale-110"
                                                 style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                                                 onClick={(event) => {
                                                     event.stopPropagation();
@@ -127,7 +127,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                 onPointerDown={stopCanvasInteraction}
                                                 aria-label={`取消引用 ${reference.label}`}
                                             >
-                                                <X className="size-2.5" aria-hidden />
+                                                <X className="size-3.5" aria-hidden />
                                             </button>
                                         ) : null}
                                     </div>
@@ -316,7 +316,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                 {onRemoveReference ? (
                                                     <button
                                                         type="button"
-                                                        className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border backdrop-blur"
+                                                        className="absolute right-0.5 top-0.5 z-10 grid size-6 place-items-center rounded-full border shadow-sm backdrop-blur transition hover:scale-110"
                                                         style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                                                         onClick={(event) => {
                                                             event.stopPropagation();
@@ -326,7 +326,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                         onPointerDown={stopCanvasInteraction}
                                                         aria-label={`取消引用 ${reference.label}`}
                                                     >
-                                                        <X className="size-2.5" aria-hidden />
+                                                        <X className="size-3.5" aria-hidden />
                                                     </button>
                                                 ) : null}
                                             </div>
