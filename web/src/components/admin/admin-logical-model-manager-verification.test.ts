@@ -44,4 +44,17 @@ describe("binding enable interaction", () => {
         expect(patch.advancedConfig?.modelConfigs?.m.createPath).toBe("/image/submit");
         expect(patch.advancedConfig?.modelConfigs?.m.queryPath).toBe("/image/fetch/:task_id");
     });
+    it("ignores channel auth suggestions while preserving channel and sibling configuration", () => {
+        const advanced = applyChannelProtocol(channel, "custom").advancedConfig!;
+        const current = { ...channel, advancedConfig: { ...advanced, authMode: "custom-header" as const, authHeader: "X-Existing-Key", authPrefix: "Existing", modelConfigs: { other: { capability: "image" as const, createPath: "/other" } } } };
+        const patch = scopeProtocolPatchToBinding(current, binding, "image", {
+            baseUrl: "https://ignored.test",
+            advancedConfig: { ...current.advancedConfig, authMode: "bearer", authHeader: "Authorization", authPrefix: "Bearer", operationConfigs: { image: { capability: "image", createPath: "/image/submit", queryPath: "/image/fetch/:task_id" } } },
+        });
+        expect(patch).not.toHaveProperty("baseUrl");
+        expect(patch.advancedConfig).toEqual({
+            ...current.advancedConfig,
+            modelConfigs: { ...current.advancedConfig.modelConfigs, m: { capability: "image", createPath: "/image/submit", queryPath: "/image/fetch/:task_id", protocol: "custom", apiFormat: "openai" } },
+        });
+    });
 });

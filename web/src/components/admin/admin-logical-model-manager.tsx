@@ -548,9 +548,7 @@ export function bindingToggleNeedsVerification(binding: LogicalModelBinding, cha
 export function scopeProtocolPatchToBinding(channel: SystemModelChannel, binding: LogicalModelBinding, capability: LogicalModelCapability, patch: Partial<SystemModelChannel>): Partial<SystemModelChannel> {
     const advanced = channel.advancedConfig;
     const next = patch.advancedConfig;
-    for (const key of ["authMode", "authHeader", "authPrefix"] as const) {
-        if (next?.[key] !== undefined && next[key] !== advanced?.[key]) throw new Error("助手建议修改渠道级鉴权，请先在渠道设置中人工处理");
-    }
+    // Binding drafts may only update model configuration; preserve channel URL and authentication.
     const key = normalizeModelId(binding.upstreamModel);
     const targeted = next?.modelConfigs?.[key];
     const config = targeted && JSON.stringify(targeted) !== JSON.stringify(advanced?.modelConfigs?.[key]) ? targeted : next?.operationConfigs?.[capability];
