@@ -97,7 +97,13 @@ export async function assertBindingVerificationSubmission(run: import("./binding
         const fixtures = await bindingVerificationFixtures();
         referenceCount = fixtures.slice(0, expected).filter((bytes) => serialized.includes(bytes.toString("base64"))).length;
     }
-    if (run.input) referenceCount = run.input.references.filter((reference) => submittedUrls.has(reference.url) || run.referenceEvidence?.some((evidence) => evidence.url === reference.url && binaryDigests.has(evidence.sha256))).length;
+    if (run.input)
+        referenceCount = run.input.references.filter(
+            (reference) =>
+                submittedUrls.has(reference.url) ||
+                run.referenceUrlMappings?.some((mapping) => mapping.original === reference.url && submittedUrls.has(mapping.submitted)) ||
+                run.referenceEvidence?.some((evidence) => evidence.url === reference.url && binaryDigests.has(evidence.sha256)),
+        ).length;
     if ((run.input ? referenceCount : Math.max(referenceCount, imageFiles)) < expected) throw new Error(`实际提交报文未包含要求的 ${expected} 个参考素材，实际请求不得丢弃输入`);
     if (run.capability === "video") {
         let payload: unknown;

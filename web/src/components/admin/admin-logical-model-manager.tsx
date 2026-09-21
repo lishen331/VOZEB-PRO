@@ -2,7 +2,7 @@
 
 import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Modal, Segmented, Select, Space, Switch, Tag } from "antd";
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import { saveBindingVerificationDraft, assertBindingVerificationSaved, bindingVerificationProjection } from "@/services/api/binding-verifications";
 import { BindingVerificationModal } from "./binding-verification-modal";
@@ -49,14 +49,12 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
     const [draft, setDraft] = useState<LogicalModel | null>(null);
     const [verificationTarget, setVerificationTarget] = useState<{ modelId: string; bindingId: string } | null>(null);
     const [verificationOpen, setVerificationOpen] = useState(false);
-    const [verificationRevision, setVerificationRevision] = useState(0);
+
     const verificationModel = draft?.id === verificationTarget?.modelId ? draft : logicalModels.find((model) => model.id === verificationTarget?.modelId);
     const verificationBinding = verificationModel?.bindings.find((binding) => binding.id === verificationTarget?.bindingId);
     const verificationChannel = channels.find((channel) => channel.id === verificationBinding?.channelId);
     const verificationProjection = verificationModel && verificationBinding && verificationChannel ? bindingVerificationProjection(verificationModel, verificationBinding, verificationChannel) : "";
-    useEffect(() => {
-        setVerificationRevision((value) => value + 1);
-    }, [verificationProjection]);
+
     const [query, setQuery] = useState("");
     const [capabilityFilter, setCapabilityFilter] = useState<LogicalModelCapability | "all">("all");
     const [defaultPool, setDefaultPool] = useState<"production" | "open-source-practice">("production");
@@ -345,7 +343,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             </Drawer>
             {verificationModel && verificationBinding && verificationChannel ? (
                 <BindingVerificationModal
-                    key={`${verificationModel.id}:${verificationBinding.id}:${verificationRevision}`}
+                    key={`${verificationModel.id}:${verificationBinding.id}`}
                     open={verificationOpen}
                     onCancel={() => setVerificationOpen(false)}
                     logicalModelId={verificationModel.id}

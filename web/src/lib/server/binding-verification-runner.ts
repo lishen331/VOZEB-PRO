@@ -1,5 +1,8 @@
 import { parseBindingVerificationInput } from "@/lib/binding-verification-input";
 import { bindingVerificationFixtures } from "./binding-verification-fixtures";
+import { writePersistentMediaDataUrl } from "./reference-asset-store";
+import { createExternalMediaReadUrl } from "./object-storage-service";
+import { getLocalMediaRegistration } from "./local-media-registry";
 export { bindingVerificationFixtures } from "./binding-verification-fixtures";
 import { createHash, randomBytes } from "node:crypto";
 import { imageReferenceToDataUrl } from "@/app/api/image-tasks/image-task-support";
@@ -73,6 +76,7 @@ export async function startBindingVerification(input: { logicalModelId: string; 
     if (!hasAdminPermission(input.user, "upstream.manage")) throw new Error("需要上游配置管理员权限");
     const resolved = await target(input.logicalModelId, input.bindingId);
     const capability = resolved.model.capability as BindingVerificationRun["capability"];
+    const fixtureUrls = Array.from({ length: capability === "video" ? 3 : 1 }, (_, index) => `${input.publicOrigin}/api/admin/binding-verifications/fixtures/${index}`);
     const requestedInput = input.input === undefined ? undefined : parseBindingVerificationInput(input.input, capability);
     return createBindingVerification({
         userId: input.user.id,
@@ -85,7 +89,7 @@ export async function startBindingVerification(input: { logicalModelId: string; 
         status: "running",
         phase: "queued",
         ...(requestedInput ? { input: requestedInput } : {}),
-        fixtureUrls: Array.from({ length: capability === "video" ? 3 : 1 }, (_, i) => `${input.publicOrigin}/api/admin/binding-verifications/fixtures/${i}`),
+        fixtureUrls: fixtureUrls.slice(0, capability === "video" ? 3 : 1),
         diagnostics: {
             channelId: resolved.channel.id,
             upstreamModel: resolved.binding.upstreamModel,
@@ -210,7 +214,9 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                 let task = run.taskId ? await getVideoTask(run.taskId) : null;
                 if (!task) {
                     if (run.taskId) throw new Error("原测试任务已丢失，禁止自动重提");
-                    const references = run.input?.references || run.fixtureUrls.map((url) => ({ type: "image" as const, url }));
+                    const originalReferences = run.input?.references || run.fixtureUrls.map((url) => ({ type: "image" as const, url }));
+                    const references = await publishVerificationFixtures(originalReferences, publicOrigin, user.id);
+                    await updateBindingVerification(id, { referenceUrlMappings: references.map((reference, index) => ({ original: originalReferences[index].url, submitted: reference.url })) });
                     const preset = resolveGlobalAiOpcPreset(resolved.config.advancedConfig, resolved.config.model);
                     assertReferenceCapabilities(
                         {
@@ -346,4 +352,36 @@ async function inspectSavedMedia(url: string, capability: "image" | "video", ori
     } finally {
         await rm(dir, { recursive: true, force: true });
     }
+}
+
+export async function publishVerificationFixtures(
+    references: Array<{ type: "image" | "video"; url: string }>,
+    origin: string,
+    userId: string,
+    dependencies: {
+        write?: typeof writePersistentMediaDataUrl;
+        registration?: typeof getLocalMediaRegistration;
+        externalUrl?: typeof createExternalMediaReadUrl;
+    } = {},
+) {
+    const write = dependencies.write || writePersistentMediaDataUrl;
+    const registrationFor = dependencies.registration || getLocalMediaRegistration;
+    const externalUrlFor = dependencies.externalUrl || createExternalMediaReadUrl;
+    const result = [];
+    for (const reference of references) {
+        const source = new URL(reference.url);
+        const match = source.pathname.match(/^\/api\/admin\/binding-verifications\/fixtures\/([012])$/);
+        if (reference.type !== "image" || source.origin !== new URL(origin).origin || !match) {
+            result.push(reference);
+            continue;
+        }
+        const bytes = (await bindingVerificationFixtures())[Number(match[1])];
+        const asset = await write(`data:image/png;base64,${bytes.toString("base64")}`, "image", { ownerUserId: userId, source: "binding-verification-fixture", originalName: `binding-reference-${match[1]}.png` });
+        const registration = await registrationFor(asset.token);
+        if (!registration || registration.storageProvider !== "object") throw new Error("系统验证图未保存到 OSS，请检查对象存储配置；尚未提交上游");
+        const url = await externalUrlFor(new Request(origin), registration);
+        if (!url || new URL(url).protocol !== "https:" || new URL(url).origin === new URL(origin).origin) throw new Error("OSS 未返回 HTTPS 对象直链；尚未提交上游");
+        result.push({ ...reference, url });
+    }
+    return result;
 }

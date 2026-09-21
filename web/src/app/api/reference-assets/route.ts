@@ -6,6 +6,8 @@ import { creativeUploadLimitMessage, creativeUploadMaxBytes, isCreativeUploadMim
 import { writePersistentMediaDataUrl, writeReferenceMediaDataUrl } from "@/lib/server/reference-asset-store";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-access";
+import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
+import { createExternalMediaReadUrl } from "@/lib/server/object-storage-service";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
 
@@ -33,9 +35,11 @@ export async function POST(request: Request) {
             .split("/")
             .map((part) => encodeURIComponent(part))
             .join("/")}`;
+        const registration = asset.storage === "object" ? await getLocalMediaRegistration(asset.token) : null;
+        const objectUrl = registration ? await createExternalMediaReadUrl(request, registration) : null;
         return NextResponse.json({
             url: browserUrl,
-            upstreamUrl: asset.url || createSignedReferenceAssetUrl(asset.token, origin, currentUser.id) || undefined,
+            upstreamUrl: objectUrl || asset.url || createSignedReferenceAssetUrl(asset.token, origin, currentUser.id) || undefined,
             token: asset.token,
             key: asset.token,
             storage: asset.storage,

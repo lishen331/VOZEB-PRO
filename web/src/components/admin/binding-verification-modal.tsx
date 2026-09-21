@@ -1,8 +1,8 @@
 "use client";
 
 import { Alert, Button, Checkbox, Empty, Image, Input, Modal, Space, Spin, Tabs, Tag, Select } from "antd";
-import { uploadImage } from "@/services/image-storage";
-import { uploadMediaFile } from "@/services/file-storage";
+import { uploadBindingVerificationReference } from "@/services/api/binding-verification-reference-upload";
+import { Upload } from "lucide-react";
 import { saveAs } from "file-saver";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { useEffect, useRef, useState } from "react";
@@ -81,9 +81,8 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
         try {
             const type = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
             if (!type || (type === "video" && capability !== "video")) throw new Error("请选择当前能力支持的图片或视频");
-            const stored = type === "image" ? await uploadImage(file) : await uploadMediaFile(file, "video");
-            const url = new URL(stored.remoteUrl || stored.url, window.location.origin).href;
-            changeReferences((items) => [...items, { type, url }]);
+            const stored = await uploadBindingVerificationReference(file, type);
+            changeReferences((items) => [...items, { type: stored.type, url: stored.url }]);
         } catch (cause) {
             setError(cause instanceof Error ? cause.message : "素材上传失败");
         } finally {
@@ -273,19 +272,21 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                                     </div>
                                 ))}
                                 <Space wrap>
-                                    <label className="text-sm">
-                                        上传参考素材
-                                        <input
-                                            type="file"
-                                            disabled={busy}
-                                            accept={capability === "video" ? "image/*,video/*" : "image/*"}
-                                            onChange={(event) => {
-                                                const file = event.target.files?.[0];
-                                                if (file) void uploadReference(file);
-                                                event.target.value = "";
-                                            }}
-                                        />
-                                    </label>
+                                    <Button icon={<Upload className="size-4" />} loading={uploading} disabled={busy} onClick={() => document.getElementById(`binding-reference-upload-${bindingId}`)?.click()}>
+                                        上传图片或视频
+                                    </Button>
+                                    <input
+                                        id={`binding-reference-upload-${bindingId}`}
+                                        className="hidden"
+                                        type="file"
+                                        disabled={busy}
+                                        accept={capability === "video" ? "image/*,video/*" : "image/*"}
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            if (file) void uploadReference(file);
+                                            event.target.value = "";
+                                        }}
+                                    />
                                     <Button disabled={busy} onClick={() => changeReferences((items) => [...items, { type: "image", url: "" }])}>
                                         添加图片
                                     </Button>
@@ -367,27 +368,22 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                         </Space>
                         <pre className="whitespace-pre-wrap break-all rounded-lg bg-stone-50 p-4 text-xs dark:bg-stone-900">{test ? bindingVerificationDiagnosticsJson(test) : "尚未提交测试，无诊断记录。"}</pre>
                     </div>
-                ) : busy || uncertain || test?.status === "needs_review" ? (
-                    <Alert type="info" title="测试进行中，请等待结果后编辑协议" description="修改配置前需要保留并核对当前测试结果，关闭弹窗不会取消上游任务。" />
-                ) : channel && onProtocolChange ? (
-                    <div className="space-y-3">
-                        <Alert type="info" showIcon title={`仅编辑当前上游模型：${upstreamModel}`} description="助手生成协议建议后，只提取当前模型的接口配置到草稿，不覆盖其他模型或渠道鉴权。应用后点击保存并测试，无需退出弹窗。" />
-                        <AdminChannelProtocolSetup
-                            channel={{ ...channel, advancedConfig: { ...applyChannelProtocol(channel, "custom").advancedConfig!, protocol: "custom" } }}
-                            protocolLocked
-                            onChange={(patch) => {
-                                if (submittingRef.current || busy || uncertain || test?.status === "needs_review") return false;
-                                if (onProtocolChange(patch) === false) return false;
-                                setConfirmed(false);
-                                setTest(null);
-                                setUncertain(false);
-                                setTab("test");
-                            }}
-                        />
+                ) : null}
+                {channel && onProtocolChange ? (
+                    <div hidden={tab !== "protocol"}>
+                        <fieldset disabled={busy || uncertain || test?.status === "needs_review"}>
+                            <AdminChannelProtocolSetup
+                                channel={{ ...channel, advancedConfig: { ...applyChannelProtocol(channel, "custom").advancedConfig!, protocol: "custom" } }}
+                                protocolLocked
+                                onChange={(patch) => {
+                                    if (submittingRef.current || busy || uncertain || test?.status === "needs_review") return false;
+                                    if (onProtocolChange(patch) === false) return false;
+                                    setConfirmed(false);
+                                }}
+                            />
+                        </fieldset>
                     </div>
-                ) : (
-                    <Alert type="info" showIcon title="请在渠道设置中使用现有自定义协议助手" description="此绑定尚未接入渠道草稿编辑回调。请返回渠道设置，分析并保存协议草稿后重新验证；此处不会模拟分析或修改线上配置。" />
-                )}
+                ) : null}
             </div>
         </Modal>
     );

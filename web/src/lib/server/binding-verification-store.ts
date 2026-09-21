@@ -19,6 +19,7 @@ export type BindingVerificationRun = {
     upstreamTaskId?: string;
     busyUntil?: number;
     fixtureUrls: string[];
+    referenceUrlMappings?: Array<{ original: string; submitted: string }>;
     referenceEvidence?: Array<{ url: string; sha256: string }>;
     input?: import("@/lib/binding-verification-input").BindingVerificationInput;
     error?: string;
@@ -64,7 +65,10 @@ export async function getBindingVerification(id: string) {
     }
     return (await readJsonDataFile<BindingVerificationRun[]>(FILE, [])).find((row) => row.id === id) || null;
 }
-export async function updateBindingVerification(id: string, patch: Partial<Pick<BindingVerificationRun, "status" | "phase" | "taskId" | "upstreamTaskId" | "busyUntil" | "fixtureUrls" | "referenceEvidence" | "error" | "result" | "diagnostics">>) {
+export async function updateBindingVerification(
+    id: string,
+    patch: Partial<Pick<BindingVerificationRun, "status" | "phase" | "taskId" | "upstreamTaskId" | "busyUntil" | "fixtureUrls" | "referenceUrlMappings" | "referenceEvidence" | "error" | "result" | "diagnostics">>,
+) {
     const delta = { ...patch, updatedAt: Date.now() };
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();

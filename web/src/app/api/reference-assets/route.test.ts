@@ -5,11 +5,15 @@ const mocks = vi.hoisted(() => ({
     writePersistent: vi.fn(),
     writeTemporary: vi.fn(),
     createSignedUrl: vi.fn(),
+    getRegistration: vi.fn(),
+    externalUrl: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/reference-asset-store", () => ({ writePersistentMediaDataUrl: mocks.writePersistent, writeReferenceMediaDataUrl: mocks.writeTemporary }));
 vi.mock("@/lib/server/reference-asset-access", () => ({ createSignedReferenceAssetUrl: mocks.createSignedUrl }));
+vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration: mocks.getRegistration }));
+vi.mock("@/lib/server/object-storage-service", () => ({ createExternalMediaReadUrl: mocks.externalUrl }));
 
 import { POST } from "./route";
 
@@ -18,6 +22,8 @@ describe("reference asset upload boundary", () => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.writePersistent.mockResolvedValue({ token: "permanent/asset.mp4", bytes: 4, mimeType: "video/mp4", storage: "local" });
+        mocks.getRegistration.mockResolvedValue({ storageProvider: "object" });
+        mocks.externalUrl.mockResolvedValue(null);
         mocks.createSignedUrl.mockReturnValue("https://drama.example/api/reference-assets/permanent/asset.mp4?expires=1&signature=test");
     });
 
