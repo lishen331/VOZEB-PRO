@@ -171,14 +171,14 @@ function alignVideoProviderFields(payload: Record<string, unknown>, values: Temp
                 return [key, normalizedKey === "seconds" && typeof current === "string" ? String(value) : value];
             }
             const referenceValueKey = VIDEO_REFERENCE_VALUE_KEYS[normalizedKey];
-            if (referenceValueKey) return [key, values[referenceValueKey]];
+            if (referenceValueKey && shouldAlignReferenceTemplateValue(current)) return [key, values[referenceValueKey]];
             return [key, current && typeof current === "object" && !Array.isArray(current) ? alignVideoProviderFields(current as Record<string, unknown>, values) : current];
         }),
     );
 }
 
 function shouldAlignReferenceTemplateValue(value: unknown): boolean {
-    if (typeof value === "string") return !value.trim() || value.includes("{{") || /^https?:\/\/\.{3}(?:\/|$)/i.test(value.trim());
+    if (typeof value === "string") return !value.trim() || value.includes("{{") || /^https?:\/\/(?:\.{3}|(?:your-cdn|example)\.com)(?:\/|$)/i.test(value.trim());
     if (Array.isArray(value)) return !value.length || value.some(shouldAlignReferenceTemplateValue);
     if (!value || typeof value !== "object") return false;
     return Object.values(value).some(shouldAlignReferenceTemplateValue);
