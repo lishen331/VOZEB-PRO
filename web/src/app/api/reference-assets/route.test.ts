@@ -13,6 +13,13 @@ vi.mock("@/lib/server/reference-asset-access", () => ({ createSignedReferenceAss
 
 import { POST } from "./route";
 
+// A2 后上传按真实字节嗅探校验，测试固件必须是真的 magic bytes（取值经 file-type
+// v22 实测）。旧固件用 "AAAA"/[1,2,3,4] 这类假字节，靠已删除的"嗅探失败回退信任
+// 声明类型"才通过；回退删除后必须换成真字节，测试意图（尺寸上限、响应体形状、
+// multipart 不做 base64 膨胀）保持不变。
+const REAL_PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]), Buffer.from("IHDR"), Buffer.alloc(20)]);
+const REAL_MP4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42"), Buffer.alloc(40)]);
+
 describe("reference asset upload boundary", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -26,7 +33,7 @@ describe("reference asset upload boundary", () => {
             new Request("http://localhost/api/reference-assets", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "video", persistent: true, dataUrl: "data:video/mp4;base64,AAAA", originalName: "产品展示.mp4" }),
+                body: JSON.stringify({ type: "video", persistent: true, dataUrl: `data:video/mp4;base64,${REAL_MP4.toString("base64")}`, originalName: "产品展示.mp4" }),
             }),
         );
         expect(response.status).toBe(200);
@@ -44,7 +51,7 @@ describe("reference asset upload boundary", () => {
             new Request("http://localhost/api/reference-assets", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "image", persistent: true, dataUrl: "data:image/png;base64,AAAA" }),
+                body: JSON.stringify({ type: "image", persistent: true, dataUrl: `data:image/png;base64,${REAL_PNG.toString("base64")}` }),
             }),
         );
 
@@ -62,12 +69,12 @@ describe("reference asset upload boundary", () => {
         const form = new FormData();
         form.append("type", "image");
         form.append("persistent", "true");
-        form.append("file", new File([new Uint8Array([1, 2, 3, 4])], "图层.png", { type: "image/png" }));
+        form.append("file", new File([REAL_PNG], "图层.png", { type: "image/png" }));
 
         const response = await POST(new Request("http://localhost/api/reference-assets", { method: "POST", body: form }));
 
         expect(response.status).toBe(200);
-        expect(mocks.writePersistent).toHaveBeenCalledWith("data:image/png;base64,AQIDBA==", "image", {
+        expect(mocks.writePersistent).toHaveBeenCalledWith(`data:image/png;base64,${REAL_PNG.toString("base64")}`, "image", {
             ownerUserId: "user-one",
             source: "user-upload",
             originalName: "图层.png",

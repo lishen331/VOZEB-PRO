@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { fileTypeFromBuffer } from "file-type";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { creativeUploadLimitMessage, creativeUploadMaxBytes, isCreativeUploadMimeType } from "@/lib/creative-upload";
+import { creativeUploadLimitMessage, creativeUploadMaxBytes } from "@/lib/creative-upload";
+import { validateUploadBytes } from "@/lib/server/upload-media-validation";
 import { writePersistentMediaDataUrl, writeReferenceMediaDataUrl } from "@/lib/server/reference-asset-store";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-access";
@@ -65,32 +65,37 @@ async function readUploadInput(request: Request): Promise<UploadInput> {
         if (file.size > creativeUploadMaxBytes(fileType)) throw new RequestBodyTooLargeError(creativeUploadLimitMessage(fileType));
         const type = mediaType(form.get("type"));
         const bytes = Buffer.from(await file.arrayBuffer());
-        const mimeType = await resolveMultipartMimeType(bytes, type, file.type);
+        // A2: 字节嗅探为准，不再回退信任声明的 file.type。用嗅探得到的规范
+        // mime 重建 dataUrl，使落盘扩展名与出站 Content-Type 与真实字节一致。
+        const { mimeType } = await validateUploadBytesOrReject(bytes, type);
         const dataUrl = `data:${mimeType};base64,${bytes.toString("base64")}`;
         return { dataUrl, type, persistent: String(form.get("persistent") || "") === "true", originalName: file.name || undefined };
     }
 
     const result = await readJsonBodyResult<{ dataUrl?: unknown; type?: unknown; persistent?: unknown; originalName?: unknown }>(request, 28 * 1024 * 1024);
     if (!result.ok) throw result.status === 413 ? new RequestBodyTooLargeError(result.message) : new UploadInputError(result.message, result.status);
-    const dataUrl = typeof result.data.dataUrl === "string" ? result.data.dataUrl : "";
-    if (!dataUrl) throw new UploadInputError("缺少参考素材");
+    const rawDataUrl = typeof result.data.dataUrl === "string" ? result.data.dataUrl : "";
+    if (!rawDataUrl) throw new UploadInputError("缺少参考素材");
+    const type = mediaType(result.data.type);
+    // A2: dataUrl 分支同样以字节嗅探为准，而非仅信任 data: 头里的声明类型。
+    const separator = rawDataUrl.indexOf(",");
+    const encoded = separator >= 0 ? rawDataUrl.slice(separator + 1).replace(/\s/g, "") : "";
+    const bytes = encoded ? Buffer.from(encoded, "base64") : Buffer.alloc(0);
+    const { mimeType } = await validateUploadBytesOrReject(bytes, type);
     return {
-        dataUrl,
-        type: mediaType(result.data.type),
+        dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`,
+        type,
         persistent: result.data.persistent === true,
         originalName: typeof result.data.originalName === "string" ? result.data.originalName : undefined,
     };
 }
 
-async function resolveMultipartMimeType(bytes: Buffer, type: UploadInput["type"], declaredMime: string) {
-    const detectedMime = (await fileTypeFromBuffer(bytes))?.mime?.toLowerCase() || "";
-    if (detectedMime) {
-        if (!isCreativeUploadMimeType(detectedMime) || !detectedMime.startsWith(`${type}/`)) throw new UploadInputError("参考素材格式不正确");
-        return detectedMime;
+async function validateUploadBytesOrReject(bytes: Buffer, type: UploadInput["type"]) {
+    try {
+        return await validateUploadBytes(bytes, type);
+    } catch {
+        throw new UploadInputError("参考素材格式不正确");
     }
-    const normalizedDeclaredMime = declaredMime.split(";", 1)[0]?.trim().toLowerCase() || "";
-    if (!isCreativeUploadMimeType(normalizedDeclaredMime) || !normalizedDeclaredMime.startsWith(`${type}/`)) throw new UploadInputError("参考素材格式不正确");
-    return normalizedDeclaredMime;
 }
 
 function mediaType(value: FormDataEntryValue | unknown): UploadInput["type"] {
