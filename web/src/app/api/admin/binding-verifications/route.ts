@@ -11,10 +11,10 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
     if (!hasAdminPermission(user, "upstream.manage")) return NextResponse.json({ error: "需要上游配置管理员权限" }, { status: 403 });
     try {
-        const body = await readJsonBody<{ logicalModelId?: unknown; bindingId?: unknown; input?: unknown }>(request);
+        const body = await readJsonBody<{ logicalModelId?: unknown; bindingId?: unknown }>(request);
         if (typeof body.logicalModelId !== "string" || typeof body.bindingId !== "string") return NextResponse.json({ error: "缺少逻辑模型与绑定 ID" }, { status: 400 });
         const publicOrigin = resolvePublicRequestOrigin(request);
-        const run = await startBindingVerification({ logicalModelId: body.logicalModelId, bindingId: body.bindingId, input: body.input, user, publicOrigin });
+        const run = await startBindingVerification({ logicalModelId: body.logicalModelId, bindingId: body.bindingId, user, publicOrigin });
         after(() => advanceBindingVerification(run.id, user, publicOrigin, request.headers.get("cookie") || "").then(() => undefined));
         return NextResponse.json({ test: publicBindingVerification(run) }, { status: 202 });
     } catch (error) {

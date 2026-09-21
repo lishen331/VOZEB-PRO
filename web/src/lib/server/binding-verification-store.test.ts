@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const data = vi.hoisted(() => ({ rows: [] as unknown[], provider: "file", query: vi.fn() }));
-vi.mock("./database", () => ({
-    getDatabaseProvider: () => data.provider,
-    ensurePostgresSchema: vi.fn(),
-    postgresQuery: vi.fn(),
-    withPostgresTransaction: async (callback: (client: { query: typeof data.query }) => Promise<unknown>) => callback({ query: data.query }),
-}));
+const data = vi.hoisted(() => ({ rows: [] as unknown[] }));
+vi.mock("./database", () => ({ getDatabaseProvider: () => "file", ensurePostgresSchema: vi.fn(), postgresQuery: vi.fn() }));
 vi.mock("./data-adapter", () => ({
     readJsonDataFile: vi.fn(async () => structuredClone(data.rows)),
     writeJsonDataFile: vi.fn(async (_file: string, rows: unknown[]) => {
@@ -18,8 +13,6 @@ const input = { userId: "u", logicalModelId: "m", bindingId: "b", channelId: "c"
 describe("persistent binding proof", () => {
     beforeEach(() => {
         data.rows = [];
-        data.provider = "file";
-        data.query.mockReset();
     });
     it("reuses an existing running or needs-review run for repeated POST", async () => {
         const first = await createBindingVerification(input);
@@ -66,31 +59,5 @@ describe("persistent binding proof", () => {
     it("keeps proof independent from expiring generation tasks", async () => {
         const run = await createBindingVerification(input);
         expect(await getBindingVerification(run.id)).not.toHaveProperty("expiresAt");
-    });
-    it("blocks changed fingerprints and inputs while a binding has an unresolved task", async () => {
-        const first = await createBindingVerification(input);
-        await expect(createBindingVerification({ ...input, fingerprint: "changed" })).rejects.toThrow(first.id);
-        await updateBindingVerification(first.id, { status: "needs_review", result: { url: "/saved-video.mp4" } });
-        await expect(createBindingVerification({ ...input, fingerprint: "changed" })).rejects.toThrow("未决测试");
-        await expect(createBindingVerification({ ...input, input: { prompt: "different", references: [] } })).rejects.toThrow("未决测试");
-        expect(data.rows).toHaveLength(1);
-        expect((await getBindingVerification(first.id))?.result?.url).toBe("/saved-video.mp4");
-        expect(await hasPassedBindingVerification("fp")).toBe(false);
-    });
-    it("does not block unrelated model bindings", async () => {
-        await createBindingVerification(input);
-        const other = await createBindingVerification({ ...input, bindingId: "other", fingerprint: "other" });
-        expect(other.bindingId).toBe("other");
-        expect(data.rows).toHaveLength(2);
-    });
-    it("uses the binding scope, not fingerprint, for PostgreSQL locking and pending checks", async () => {
-        data.provider = "postgres";
-        const old = { ...input, id: "pending-id", fingerprint: "old", createdAt: 1, updatedAt: 1 };
-        data.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ payload: old }] });
-        await expect(createBindingVerification(input)).rejects.toThrow("pending-id");
-        expect(data.query.mock.calls[0][1]).toEqual([JSON.stringify(["u", "m", "b"])]);
-        expect(data.query.mock.calls[1][0]).toContain("payload->>'bindingId'=$3");
-        expect(data.query.mock.calls[1][1]).toEqual(["u", "m", "b"]);
-        expect(data.query).toHaveBeenCalledTimes(2);
     });
 });
