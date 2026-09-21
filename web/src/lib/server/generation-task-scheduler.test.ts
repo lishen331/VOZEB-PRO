@@ -132,7 +132,8 @@ describe("generation task scheduler", () => {
         expect(String(mocks.transactionQuery.mock.calls[0]?.[0])).toContain("FOR UPDATE SKIP LOCKED");
         expect(mocks.transactionQuery.mock.calls[0]?.[1]).toEqual([new Date(1_000), 20, "worker-one", ["due"], new Date(91_000), ["image", "video", "audio", "text", "agent", "render"]]);
         expect(String(mocks.postgresQuery.mock.calls[0]?.[0])).toContain("worker_id = $3");
-        expect(mocks.postgresQuery.mock.calls[0]?.[1]).toHaveLength(15);
+        // D6: release 查询在末尾追加 upstream_request_id（$16），参数从 15 增至 16。
+        expect(mocks.postgresQuery.mock.calls[0]?.[1]).toHaveLength(16);
         expect(String(mocks.postgresQuery.mock.calls[1]?.[0])).toContain("min(GREATEST(next_poll_at");
         expect(mocks.postgresQuery.mock.calls[1]?.[1]).toEqual([["image", "video", "audio", "text", "agent", "render"], new Date(1_000)]);
     });

@@ -16,6 +16,7 @@ export type GenerationTaskLease = Pick<
     | "executionProfile"
     | "executionPhase"
     | "upstreamTaskId"
+    | "upstreamRequestId"
     | "channelId"
     | "provider"
     | "queryPath"
@@ -29,7 +30,7 @@ export type GenerationTaskLease = Pick<
     | "lastHeartbeatAt"
 >;
 
-export type GenerationTaskSchedulePatch = Partial<Pick<GenerationTaskLease, "executionPhase" | "upstreamTaskId" | "channelId" | "provider" | "queryPath" | "submittedAt" | "nextPollAt" | "lastPollAt" | "lastUpstreamStatus" | "resultPayload">>;
+export type GenerationTaskSchedulePatch = Partial<Pick<GenerationTaskLease, "executionPhase" | "upstreamTaskId" | "upstreamRequestId" | "channelId" | "provider" | "queryPath" | "submittedAt" | "nextPollAt" | "lastPollAt" | "lastUpstreamStatus" | "resultPayload">>;
 type GenerationTaskScheduleOptions = { cancellation?: boolean; resetUpstreamIdentity?: boolean };
 
 // Drama Lab workflow parents are persisted as render tasks. They use the
@@ -67,11 +68,13 @@ async function scheduleGenerationTaskCore(type: GenerationTaskType, id: string, 
              SET execution_phase = COALESCE($3, execution_phase), upstream_task_id = COALESCE($4, upstream_task_id),
                  channel_id = COALESCE($5, channel_id), provider = COALESCE($6, provider), query_path = COALESCE($7, query_path),
                  submitted_at = COALESCE($8, submitted_at), next_poll_at = $9, last_poll_at = COALESCE($10, last_poll_at),
-                 last_upstream_status = COALESCE($11, last_upstream_status), result_payload = COALESCE($12::jsonb, result_payload)
+                 last_upstream_status = COALESCE($11, last_upstream_status), result_payload = COALESCE($12::jsonb, result_payload),
+                 upstream_request_id = COALESCE($14, upstream_request_id)
              WHERE id = $1 AND task_type = $2
                AND ($13::boolean OR status <> 'cancelled' OR execution_phase NOT IN ('cancel_requested', 'cancel_polling'))
              RETURNING *`,
-            [...scheduleValues(id, type, normalized), options.cancellation === true],
+            // D6: upstream_request_id 作为 $14 追加在末尾，不移动任何既有位置参数下标。
+            [...scheduleValues(id, type, normalized), options.cancellation === true, normalized.upstreamRequestId || null],
         );
         return result.rows[0] ? mapLease(result.rows[0]) : null;
     }
@@ -218,11 +221,13 @@ async function releaseGenerationTaskLeaseCore(type: GenerationTaskType, id: stri
                  submitted_at = CASE WHEN $15::boolean THEN NULL ELSE COALESCE($9, submitted_at) END, next_poll_at = $10,
                  last_poll_at = CASE WHEN $15::boolean THEN NULL ELSE COALESCE($11, last_poll_at) END,
                  last_upstream_status = COALESCE($12, last_upstream_status), result_payload = CASE WHEN $15::boolean THEN $13::jsonb ELSE COALESCE($13::jsonb, result_payload) END,
+                 upstream_request_id = CASE WHEN $15::boolean THEN NULL ELSE COALESCE($16, upstream_request_id) END,
                  worker_id = NULL, lease_until = NULL
              WHERE id = $1 AND task_type = $2 AND worker_id = $3
                AND ($14::boolean OR status <> 'cancelled' OR execution_phase NOT IN ('cancel_requested', 'cancel_polling'))
              RETURNING *`,
-            [id, type, owner, ...scheduleValues("", type, normalized).slice(2), options.cancellation === true, options.resetUpstreamIdentity === true],
+            // D6: upstream_request_id 作为 $16 追加在末尾；reset 时随其它上游身份一并清空。
+            [id, type, owner, ...scheduleValues("", type, normalized).slice(2), options.cancellation === true, options.resetUpstreamIdentity === true, normalized.upstreamRequestId || null],
         );
         return result.rows[0] ? mapLease(result.rows[0]) : null;
     }
@@ -234,7 +239,7 @@ async function releaseGenerationTaskLeaseCore(type: GenerationTaskType, id: stri
             const patched = applyPatch(task, normalized);
             const updated = {
                 ...patched,
-                ...(options.resetUpstreamIdentity ? { upstreamTaskId: undefined, queryPath: undefined, submittedAt: undefined, lastPollAt: undefined, resultPayload: normalized.resultPayload } : {}),
+                ...(options.resetUpstreamIdentity ? { upstreamTaskId: undefined, upstreamRequestId: undefined, queryPath: undefined, submittedAt: undefined, lastPollAt: undefined, resultPayload: normalized.resultPayload } : {}),
                 workerId: undefined,
                 leaseUntil: undefined,
             };
@@ -276,6 +281,7 @@ function normalizePatch(patch: GenerationTaskSchedulePatch): GenerationTaskSched
     return {
         executionPhase: isPhase(patch.executionPhase) ? patch.executionPhase : undefined,
         upstreamTaskId: clean(patch.upstreamTaskId, 500),
+        upstreamRequestId: clean(patch.upstreamRequestId, 500),
         channelId: clean(patch.channelId, 160),
         provider: clean(patch.provider, 80),
         queryPath: clean(patch.queryPath, 1000),
@@ -292,6 +298,7 @@ function applyPatch(task: StoredGenerationTaskRecord, patch: GenerationTaskSched
         ...task,
         ...(patch.executionPhase ? { executionPhase: patch.executionPhase } : {}),
         ...(patch.upstreamTaskId ? { upstreamTaskId: patch.upstreamTaskId } : {}),
+        ...(patch.upstreamRequestId ? { upstreamRequestId: patch.upstreamRequestId } : {}),
         ...(patch.channelId ? { channelId: patch.channelId } : {}),
         ...(patch.provider ? { provider: patch.provider } : {}),
         ...(patch.queryPath ? { queryPath: patch.queryPath } : {}),
@@ -330,6 +337,7 @@ function mapLease(row: Record<string, unknown>): GenerationTaskLease {
         executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
         executionPhase: isPhase(row.execution_phase) ? row.execution_phase : "created",
         upstreamTaskId: clean(row.upstream_task_id, 500),
+        upstreamRequestId: clean(row.upstream_request_id, 500),
         channelId: clean(row.channel_id, 160),
         provider: clean(row.provider, 80),
         queryPath: clean(row.query_path, 1000),
