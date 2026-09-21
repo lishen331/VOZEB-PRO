@@ -79,6 +79,7 @@ export function AdminChannelsSection({ controller }: { controller: AdminDashboar
                     onFetchModels={fetchModelsForChannel}
                     onFetchAll={fetchAllModels}
                     onPersist={(next, successText) => saveSettings(next, successText)}
+                    onSettingsRevisionChange={(settingsRevision) => setSettings((current) => ({ ...current, settingsRevision }))}
                 />
             </div>
         </Panel>

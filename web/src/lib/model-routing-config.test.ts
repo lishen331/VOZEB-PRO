@@ -72,7 +72,7 @@ describe("model routing config", () => {
             { ...channel("practice", ["writer-practice"]), purpose: "open-source-practice" as const },
             { ...channel("shared", ["writer-shared"]), purpose: "shared" as const },
         ];
-        const models = normalizeLogicalModelsConfig(undefined, channels);
+        const models = normalizeLogicalModelsConfig(undefined, channels).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(isLogicalModelResolvable(models, channels, "text", "writer", "production")).toBe(true);
         expect(isLogicalModelResolvable(models, channels, "text", "writer-practice", "production")).toBe(false);
@@ -85,7 +85,7 @@ describe("model routing config", () => {
         const source = channel("one", ["opaque-a", "stable-video-diffusion"]);
         source.advancedConfig = { modelCapabilities: { "opaque-a": "image", "stable-video-diffusion": "video" } } as never;
 
-        const models = deriveLogicalModelsConfig([source]);
+        const models = deriveLogicalModelsConfig([source]).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(models.find((model) => model.id === "opaque-a")?.capability).toBe("image");
         expect(models.find((model) => model.id === "stable-video-diffusion")?.capability).toBe("video");
@@ -179,7 +179,7 @@ describe("model routing config", () => {
             },
         } as never;
 
-        const models = deriveLogicalModelsConfig([source]);
+        const models = deriveLogicalModelsConfig([source]).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(models.map((model) => model.id)).toEqual(["gpt-4.1", "tts-1"]);
         expect(Array.from(channelDetectedCapabilities(source))).toEqual(["text", "audio"]);
@@ -356,7 +356,7 @@ describe("model routing config", () => {
         const visionChannel = channel("one", ["vision", "writer"]);
         visionChannel.advancedConfig = { modelConfigs: { vision: { capability: "text", supportsImageInput: true } } } as never;
         const channels = [visionChannel];
-        const models = normalizeLogicalModelsConfig(undefined, channels);
+        const models = normalizeLogicalModelsConfig(undefined, channels).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
         const defaults = normalizeDefaultModelsConfig({ imageUnderstandingModel: "vision" } as never, models, channels);
 
         expect(defaults).toMatchObject({ visionModel: "vision" });
@@ -372,7 +372,7 @@ describe("model routing config", () => {
                 "reference-only": { capability: "text", supportsReferenceImage: true },
             },
         } as never;
-        const models = normalizeLogicalModelsConfig(undefined, [source]);
+        const models = normalizeLogicalModelsConfig(undefined, [source]).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(logicalModelSupportsImageInput(models, [source], "text", "vision")).toBe(true);
         expect(logicalModelSupportsImageInput(models, [source], "text", "reference-only")).toBe(false);
@@ -381,7 +381,7 @@ describe("model routing config", () => {
     it("requires an explicit image-input capability for Canvas vision routing", () => {
         const source = channel("newapi", ["gpt-5.6-sol"]);
         source.advancedConfig = { protocol: "newapi" } as never;
-        const models = deriveLogicalModelsConfig([source]);
+        const models = deriveLogicalModelsConfig([source]).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(isVisionModelResolvable(models, [source], "gpt-5.6-sol")).toBe(false);
         expect(normalizeDefaultModelsConfig({ visionModel: "gpt-5.6-sol" }, models, [source]).visionModel).toBe("");

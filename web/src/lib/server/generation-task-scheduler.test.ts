@@ -31,6 +31,11 @@ describe("generation task scheduler", () => {
         mocks.records = [record("due", 900), record("future", 2_000)];
     });
 
+    it("does not claim binding verification jobs outside their scoped admin runner", async () => {
+        mocks.records = [{ ...record("verification", 900), payload: { bindingVerificationId: "run" } }];
+        expect(await claimDueGenerationTasks({ workerId: "ordinary", now: 1_000 })).toEqual([]);
+        expect(await getNextGenerationTaskDueAt(1_000)).toBeUndefined();
+    });
     it("claims each due task once and only renews the current owner lease", async () => {
         const claimed = await claimDueGenerationTasks({ workerId: "worker-one", now: 1_000, leaseMs: 60_000 });
 

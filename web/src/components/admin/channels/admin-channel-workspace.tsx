@@ -23,10 +23,11 @@ type Props = {
     onDeleteChannel: (channelId: string) => Promise<boolean>;
     onFetchModels: (channel: SystemModelChannel) => Promise<void>;
     onFetchAll: () => Promise<void>;
+    onSettingsRevisionChange?: (revision: number) => void;
     onPersist: (settings: ChannelWorkspaceSettings, successText: string) => Promise<boolean>;
 };
 
-export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onChange, onDeleteChannel, onFetchModels, onFetchAll, onPersist }: Props) {
+export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onChange, onDeleteChannel, onFetchModels, onFetchAll, onPersist, onSettingsRevisionChange }: Props) {
     const [activeTab, setActiveTab] = useState("channels");
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<ChannelWorkspaceStatus | "all">("all");
@@ -153,6 +154,8 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
                                 defaultModels={settings.defaultModels}
                                 practiceDefaultModels={settings.practiceDefaultModels}
                                 onChange={(routing) => onChange({ ...settings, ...routing })}
+                                onChannelChange={updateChannel}
+                                onSettingsRevisionChange={onSettingsRevisionChange}
                             />
                         ),
                     },

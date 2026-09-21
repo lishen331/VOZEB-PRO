@@ -19,7 +19,17 @@ export type ChannelProtocolDraftBundle = {
     sourcePages: number;
 };
 
-export async function createChannelProtocolDraft(input: { requestUrl: string; cookie: string; userId: string; documentationUrl?: string; documentationText?: string; examples?: string; useTextModel?: boolean }): Promise<ChannelProtocolDraftBundle> {
+export async function createChannelProtocolDraft(input: {
+    requestUrl: string;
+    cookie: string;
+    userId: string;
+    documentationUrl?: string;
+    documentationText?: string;
+    examples?: string;
+    useTextModel?: boolean;
+    targetModel?: string;
+    referenceTypes?: Array<"image" | "video" | "audio">;
+}): Promise<ChannelProtocolDraftBundle> {
     const documentationUrl = cleanUrl(input.documentationUrl);
     let documentSource = { groups: [] as Array<{ text: string; sourceUrls: string[] }>, warnings: [] as string[], sourcePages: 0 };
     try {
@@ -58,13 +68,13 @@ export class ProtocolDraftError extends Error {
     }
 }
 
-async function assistProtocolDraftWithTextModel(input: { requestUrl: string; cookie: string; userId: string }, source: string, fallback: ChannelProtocolDraft | null) {
+async function assistProtocolDraftWithTextModel(input: { requestUrl: string; cookie: string; userId: string; targetModel?: string; referenceTypes?: Array<"image" | "video" | "audio"> }, source: string, fallback: ChannelProtocolDraft | null) {
     const settings = await getAuthSettings();
     const logicalModel = settings.defaultModels.textModel;
     const candidates = resolveLogicalModelCandidates(settings, "text", logicalModel);
     if (!logicalModel || !candidates.length) return null;
     const origin = resolveInternalOrigin(new URL(input.requestUrl).origin);
-    const prompt = protocolAssistantPrompt(source, fallback);
+    const prompt = protocolAssistantPrompt(source, fallback, input);
     for (const candidate of candidates) {
         const headers = {
             "Content-Type": "application/json",
@@ -117,8 +127,8 @@ function deduplicateDrafts(drafts: ChannelProtocolDraft[]) {
     return Array.from(unique.values());
 }
 
-function protocolAssistantPrompt(source: string, fallback?: ChannelProtocolDraft | null) {
-    return `从下面文档分析整套声明式 API 协议包，不要只分析一个模型或一条接口。\n要求：\n1. 根对象只允许 baseUrl、apiFormat、authMode、authHeader、authPrefix、modelCatalogPaths、operations、summary。\n2. modelCatalogPaths 收集文档中所有模型目录相对路径，包含分页入口；不能写完整 URL。operations 必须覆盖文档明确提供的全部 text/image/video/audio 能力。\n3. 每个 operation 只允许 capability、apiFormat、models、config。models 收集该能力在文档中明确列出的全部模型；文档未静态列出模型但提供模型目录时允许为空。\n4. config 只允许 capability、createPath、editPath、imageToVideoPath、queryPath、cancelPath、cancelMethod、requestTemplate、resultField、statusField、durationRange、referenceRule、supportsReferenceImage、supportsReferenceVideo、supportsReferenceAudio。cancelMethod 只能是 POST 或 DELETE。\n5. 所有路径必须是以 / 开头的相对 API 路径，不能是完整 URL；任务 ID 使用 :task_id。图片独立编辑端点写 editPath，视频独立图生视频端点写 imageToVideoPath。\n6. requestTemplate 必须是 JSON 对象字符串，动态值只能使用 {{model}}、{{prompt}}、{{input}}、{{text}}、{{messages}}、{{size}}、{{width}}、{{height}}、{{quality}}、{{n}}、{{count}}、{{num_images}}、{{batch_size}}、{{ratio}}、{{aspect_ratio}}、{{resolution}}、{{duration}}、{{seconds}}、{{image}}、{{images}}、{{video}}、{{videos}}、{{audio}}、{{audios}}、{{references}}、{{content}}、{{first_frame}}、{{first_frame_url}}、{{last_frame}}、{{last_frame_url}}、{{generate_audio}}、{{voice}}、{{format}}、{{response_format}}、{{speed}}。\n7. apiFormat 只能是 openai/gemini；authMode 只能是 none/bearer/x-api-key/custom-header；capability 只能是 text/image/video/audio。\n8. 必须提取创建、查询、取消、状态和结果字段，文档没有证据的字段留空，不得猜测。不得输出代码、脚本、Cookie、Authorization 或 API Key。\n${fallback ? `本地确定性解析结果，可校正并补全：${JSON.stringify(fallback)}\n` : ""}\n文档：\n${source}`;
+export function protocolAssistantPrompt(source: string, fallback?: ChannelProtocolDraft | null, context?: { targetModel?: string; referenceTypes?: Array<"image" | "video" | "audio"> }) {
+    return `从下面文档分析整套声明式 API 协议包，不要只分析一个模型或一条接口。\n要求：\n1. 根对象只允许 baseUrl、apiFormat、authMode、authHeader、authPrefix、modelCatalogPaths、operations、summary。\n2. modelCatalogPaths 收集文档中所有模型目录相对路径，包含分页入口；不能写完整 URL。operations 必须覆盖文档明确提供的全部 text/image/video/audio 能力。\n3. 每个 operation 只允许 capability、apiFormat、models、config。models 收集该能力在文档中明确列出的全部模型；文档未静态列出模型但提供模型目录时允许为空。\n4. config 只允许 capability、createPath、editPath、imageToVideoPath、queryPath、cancelPath、cancelMethod、requestTemplate、resultField、statusField、durationRange、referenceRule、supportsReferenceImage、supportsReferenceVideo、supportsReferenceAudio。cancelMethod 只能是 POST 或 DELETE。\n5. 所有路径必须是以 / 开头的相对 API 路径，不能是完整 URL；任务 ID 使用 :task_id。图片独立编辑端点写 editPath，视频独立图生视频端点写 imageToVideoPath。\n6. requestTemplate 必须是 JSON 对象字符串，动态值只能使用 {{model}}、{{prompt}}、{{input}}、{{text}}、{{messages}}、{{size}}、{{width}}、{{height}}、{{quality}}、{{n}}、{{count}}、{{num_images}}、{{batch_size}}、{{ratio}}、{{aspect_ratio}}、{{resolution}}、{{duration}}、{{seconds}}、{{image}}、{{images}}、{{video}}、{{videos}}、{{audio}}、{{audios}}、{{references}}、{{content}}、{{first_frame}}、{{first_frame_url}}、{{last_frame}}、{{last_frame_url}}、{{generate_audio}}、{{voice}}、{{format}}、{{response_format}}、{{speed}}。\n7. apiFormat 只能是 openai/gemini；authMode 只能是 none/bearer/x-api-key/custom-header；capability 只能是 text/image/video/audio。\n8. 必须提取创建、查询、取消、状态和结果字段，文档没有证据的字段留空，不得猜测。不得输出代码、脚本、Cookie、Authorization 或 API Key。\n9. 文本示例只是该场景的例子，不是完整能力清单。没有出现图片/视频/音频参数，不等于不支持。supportsReferenceImage/Video/Audio 只在文档有明确证据时填写 true 或 false，未确认时省略，绝不能默认 false。\n10. 阅读能力说明、参数表和不同场景的完整字段定义。参考素材必须准确映射到有来源依据的参数路径、类型和请求模板占位符；仅声明支持而没有字段定义时，在 summary 明确列出来源和所缺的字段、格式、数量限制，不猜 input_images/videos 等字段，不虚构数量或计费规则。\n11. summary 必须区分官方声明、示例已展示、尚待确认；若提供当前模型与输入类型，优先检查该模型的这些输入能否完整映射。说明缺项不等于模型不可用。\n${context?.targetModel ? `当前目标模型：${redactProtocolSecrets(context.targetModel)}\n` : ""}${context?.referenceTypes?.length ? `拟验证输入类型：${Array.from(new Set(context.referenceTypes)).join("、")}。仅分析映射，不执行生成。\n` : ""}${fallback ? `本地确定性解析结果，可校正并补全：${JSON.stringify(fallback)}\n` : ""}\n文档：\n${source}`;
 }
 
 function cleanUrl(value?: string) {

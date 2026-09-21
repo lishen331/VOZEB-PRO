@@ -19,6 +19,8 @@
 
 ## 协作同步门禁
 
+- GitHub 发布必须由用户对本次改动明确授权；历史授权不得沿用。默认只允许本地修改、测试和本地提交，禁止擅自 push、远端合并或部署。用户说修复不代表授权发布。
+
 - 当前协作主线是 `origin/develop`，允许直接推送 `develop`；不得按旧文档改推 `main` 或使用不存在的 `delivery` 远端。
 - 推送 `develop` 后由 `.github/workflows/staging-image.yml` 自动构建测试镜像、推送 GHCR，并通过 GitHub Actions 的 SSH Secret 部署到测试服务器；本地不得把 SSH 私钥、服务器 `.env` 或凭据写入仓库。
 - 每次执行 `git pull` 或把 `git fetch` 得到的变更整合到当前分支后，必须从仓库根目录运行 `pwsh -NoProfile -File .\过程文件\更新开发地图.ps1`，再运行 `pwsh -NoProfile -File .\过程文件\验证开发文档.ps1`。

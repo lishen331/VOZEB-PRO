@@ -1,0 +1,72 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+    saveBindingVerificationDraft,
+    bindingVerificationFixturePreviewUrl,
+    bindingVerificationDiagnosticsJson,
+    assertBindingVerificationSaved,
+    bindingVerificationProjection,
+    bindingVerificationSessionKey,
+    hasUnsavedBindingSecrets,
+} from "./binding-verifications";
+import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
+import type { LogicalModel, SystemModelChannel } from "@/lib/auth/store";
+const binding = { id: "b", channelId: "c", upstreamModel: "m", enabled: false, priority: 1 };
+const model: LogicalModel = { id: "l", name: "label", enabled: true, capability: "video", bindings: [binding] };
+const channel: SystemModelChannel = { id: "c", name: "C", apiKey: "", apiFormat: "openai", baseUrl: "https://fixture.invalid", models: ["m"], enabled: true, advancedConfig: emptyAdvancedConfig() };
+describe("binding configuration projection", () => {
+    it("previews immutable fixtures on the current origin, not the provider HTTP origin", () => {
+        expect(bindingVerificationFixturePreviewUrl(0)).toBe("/api/admin/binding-verifications/fixtures/0");
+        expect(() => bindingVerificationFixturePreviewUrl(3)).toThrow();
+    });
+    it("exports only public diagnostic fields and includes both task IDs", () => {
+        const data = { id: "test", platformTaskId: "platform", upstreamTaskId: "provider", status: "failed" as const, phase: "query", diagnostics: { error: "safe" }, channel: { apiKey: "private" } };
+        const json = bindingVerificationDiagnosticsJson(data);
+        expect(JSON.parse(json)).toMatchObject({ id: "test", platformTaskId: "platform", upstreamTaskId: "provider" });
+        expect(json).not.toContain("private");
+        expect(json).not.toContain("channel");
+    });
+    afterEach(() => vi.unstubAllGlobals());
+    it("compares saved configuration canonically and blocks secret edits before requesting", async () => {
+        const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ settings: { logicalModels: [model], systemChannels: [{ ...channel, advancedConfig: Object.fromEntries(Object.entries(channel.advancedConfig!).reverse()) }] } })));
+        vi.stubGlobal("fetch", fetcher);
+        await expect(assertBindingVerificationSaved(model, binding, channel)).resolves.toBeUndefined();
+        await expect(assertBindingVerificationSaved(model, binding, { ...channel, clearApiKey: true })).rejects.toThrow("密钥");
+        expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+    it("hashes session keys without persisting configuration values", async () => {
+        const key = await bindingVerificationSessionKey("l", "b", "private-template");
+        expect(key).not.toContain("private-template");
+        expect(key).toMatch(/:[a-f0-9]{64}$/);
+    });
+    it("ignores object order, labels and unrelated model configuration", () => {
+        const changed = { ...channel, name: "new", models: ["m", "other"], advancedConfig: { ...channel.advancedConfig!, modelConfigs: { other: { capability: "image" as const, createPath: "/other" } } } };
+        expect(bindingVerificationProjection(model, binding, channel)).toBe(bindingVerificationProjection({ ...model, name: "other" }, { ...binding, priority: 8 }, changed));
+    });
+    it("tracks actual bound model operation", () => {
+        expect(bindingVerificationProjection(model, binding, channel)).not.toBe(
+            bindingVerificationProjection(model, binding, { ...channel, advancedConfig: { ...channel.advancedConfig!, modelConfigs: { m: { capability: "video", createPath: "/new" } } } }),
+        );
+    });
+    it("blocks pending secret changes without embedding secret values in projections", () => {
+        expect(hasUnsavedBindingSecrets({ ...channel, apiKey: "secret" })).toBe(true);
+        expect(hasUnsavedBindingSecrets({ ...channel, clearApiKey: true })).toBe(true);
+        expect(hasUnsavedBindingSecrets({ ...channel, webhookSecret: "secret" })).toBe(true);
+        expect(hasUnsavedBindingSecrets(channel)).toBe(false);
+        expect(bindingVerificationProjection(model, binding, { ...channel, apiKey: "secret" })).not.toContain("secret");
+    });
+});
+
+it("saves only target protocol and capability profile, retaining disabled state and revision", async () => {
+    const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ settingsRevision: 19, settings: { logicalModels: [model], systemChannels: [channel] } })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ settingsRevision: 20 })));
+    vi.stubGlobal("fetch", fetcher);
+    await saveBindingVerificationDraft(model, { ...binding, enabled: true, capabilityProfile: { supportsReferenceImage: true } }, channel);
+    const sent = JSON.parse(fetcher.mock.calls[1][1].body);
+    expect(sent.settingsRevision).toBe(19);
+    expect(sent.logicalModels[0].bindings[0].enabled).toBe(false);
+    expect(sent.logicalModels[0].bindings[0].capabilityProfile.supportsReferenceImage).toBe(true);
+    expect(sent.systemChannels[0].baseUrl).toBe(channel.baseUrl);
+    vi.unstubAllGlobals();
+});

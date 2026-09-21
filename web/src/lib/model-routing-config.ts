@@ -71,7 +71,7 @@ export function synchronizeLogicalModelsWithChannels(existingModels: LogicalMode
                     id: text(stored?.id, 120) || `${channel.id}:${rawModelName(upstreamModel)}`,
                     channelId: channel.id,
                     upstreamModel,
-                    enabled: stored?.enabled !== false,
+                    enabled: stored ? stored.enabled !== false : channel.advancedConfig?.protocol === "runninghub",
                     priority: clampPriority(stored?.priority, channelIndex + 1),
                     ...(weight !== undefined ? { weight } : {}),
                     ...(capabilityProfile ? { capabilityProfile } : {}),
