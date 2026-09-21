@@ -113,7 +113,8 @@ jobs:
           bundle="$RUNNER_TEMP/vozeb-staging-image.tar.gz"
           docker save "$image" | gzip -1 > "$bundle"
           remote_dir="/tmp/vozeb-staging-${GITHUB_RUN_ID}"
-          ssh_opts=(-i "$key_file" -p "$STAGING_SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts_file" -o ServerAliveInterval=30 -o ServerAliveCountMax=20)`n          scp_opts=(-i "$key_file" -P "$STAGING_SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts_file" -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
+          ssh_opts=(-i "$key_file" -p "$STAGING_SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts_file" -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
+          scp_opts=(-i "$key_file" -P "$STAGING_SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts_file" -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
           ssh "${ssh_opts[@]}" "$STAGING_SSH_USER@$STAGING_SSH_HOST" "rm -rf '$remote_dir' && mkdir -p '$remote_dir/chunks'"
           part_prefix="$RUNNER_TEMP/vozeb-image-part-"
           split -b 64m -d -a 5 "$bundle" "$part_prefix"
