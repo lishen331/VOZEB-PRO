@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     getInstallStatus: vi.fn(),
     serializeCurrentUser: vi.fn(),
     serializePublicSettings: vi.fn(),
+    serializePublicIdentitySettings: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/store", () => ({
@@ -17,6 +18,7 @@ vi.mock("@/lib/auth/session", () => ({
     getCurrentUser: mocks.getCurrentUser,
     serializeCurrentUser: mocks.serializeCurrentUser,
     serializePublicSettings: mocks.serializePublicSettings,
+    serializePublicIdentitySettings: mocks.serializePublicIdentitySettings,
 }));
 
 vi.mock("@/lib/server/install-status", () => ({
@@ -65,11 +67,18 @@ describe("public session route before installation", () => {
         mocks.getCurrentUser.mockResolvedValue(null);
         mocks.getInstallStatus.mockResolvedValue({ ready: true, firstAdminRequired: false, database: { configured: true, healthy: true, schemaReady: true } });
         mocks.getAuthSettings.mockResolvedValue({ site: { title: "站点" } });
-        mocks.serializePublicSettings.mockReturnValue({ site: { title: "站点" } });
+        // A1-b: 未登录分支必须走身份序列化器（只含 site/featureModules），不得下发
+        // logicalModels/systemChannels 等重配置。
+        mocks.serializePublicIdentitySettings.mockReturnValue({ site: { title: "站点" }, featureModules: {} });
 
         const response = await GET();
 
-        await expect(response.json()).resolves.toMatchObject({ user: null, settings: { site: { title: "站点" } }, install: { ready: true } });
+        const body = await response.json();
+        expect(body).toMatchObject({ user: null, settings: { site: { title: "站点" } }, install: { ready: true } });
+        expect(body.settings).not.toHaveProperty("logicalModels");
+        expect(body.settings).not.toHaveProperty("systemChannels");
+        expect(mocks.serializePublicIdentitySettings).toHaveBeenCalledTimes(1);
+        expect(mocks.serializePublicSettings).not.toHaveBeenCalled();
         expect(mocks.getInstallStatus).toHaveBeenCalledTimes(1);
         expect(mocks.getAuthSettings).toHaveBeenCalledTimes(1);
     });

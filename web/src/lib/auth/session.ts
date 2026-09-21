@@ -104,7 +104,11 @@ export function serializeCurrentUser(user: CurrentUser) {
     };
 }
 
-export function serializePublicSettings(settings: AuthSettings) {
+// A1/A1-b: 身份侧的最小引导配置——首屏侧栏可见项、落地路由 resolveLandingSlug
+// 都依赖 featureModules，站点品牌依赖 site。这部分小、且未登录也可安全下发。
+// 重配置（logicalModels/systemChannels 等）走 serializePublicSettings，仅登录用户
+// 与目录接口才下发。见 docs/plans/2026-09-20-capacity-phase1-fix-implementation.zh-CN.md 步骤 3/5。
+export function serializePublicIdentitySettings(settings: AuthSettings) {
     return {
         site: {
             title: settings.site.title,
@@ -123,6 +127,12 @@ export function serializePublicSettings(settings: AuthSettings) {
         registrationEnabled: false,
         emailRegistrationEnabled: settings.emailRegistrationEnabled,
         featureModules: { ...settings.featureModules },
+    };
+}
+
+export function serializePublicSettings(settings: AuthSettings) {
+    return {
+        ...serializePublicIdentitySettings(settings),
         practiceScriptSettings: { enabled: settings.practiceScriptSettings.enabled, defaultFormat: settings.practiceScriptSettings.defaultFormat },
         modelPointCosts: { ...settings.modelPointCosts },
         generationPointMultipliers: {

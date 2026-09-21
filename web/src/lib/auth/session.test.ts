@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { DEFAULT_SETTINGS } from "./store-foundation";
 import type { AuthSettings } from "./store-types";
-import { serializePublicSettings, setSessionCookie } from "./session";
+import { serializePublicIdentitySettings, serializePublicSettings, setSessionCookie } from "./session";
 
 afterEach(() => {
     delete process.env.VOZEB_PRO_COOKIE_SECURE;
@@ -118,6 +118,23 @@ describe("serializePublicSettings", () => {
         expect(result.registrationEnabled).toBe(false);
         expect(result.site.loginPage).toEqual(settings.site.loginPage);
         expect(result.site.socials).toEqual(settings.site.socials);
+    });
+});
+
+describe("serializePublicIdentitySettings", () => {
+    it("carries site + featureModules but omits the heavy catalog config", () => {
+        // A1-b：未登录/身份侧只下发引导所需的最小配置。logicalModels 与
+        // systemChannels 绝不能出现，否则匿名请求又能拉走重配置。
+        const settings: AuthSettings = structuredClone(DEFAULT_SETTINGS);
+        const result = serializePublicIdentitySettings(settings);
+
+        expect(result.site).toBeTruthy();
+        expect(result).toHaveProperty("featureModules");
+        expect(result.registrationEnabled).toBe(false);
+        expect(result).not.toHaveProperty("logicalModels");
+        expect(result).not.toHaveProperty("systemChannels");
+        expect(result).not.toHaveProperty("modelPointCosts");
+        expect(result).not.toHaveProperty("defaultModels");
     });
 });
 
