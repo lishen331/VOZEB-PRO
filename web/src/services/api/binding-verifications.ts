@@ -13,6 +13,7 @@ export type BindingVerificationTest = {
     result?: { url?: string; text?: string; mimeType?: string };
     diagnostics?: unknown;
     fixtureUrls?: string[];
+    input?: import("@/lib/binding-verification-input").BindingVerificationInput;
 };
 export async function readBindingVerification(url: string, options: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<BindingVerificationTest> {
     const response = await fetcher(url, options);
@@ -23,8 +24,8 @@ export async function readBindingVerification(url: string, options: RequestInit 
     return payload.test;
 }
 export const getBindingVerification = (id: string, signal?: AbortSignal) => readBindingVerification(`/api/admin/binding-verifications/${encodeURIComponent(id)}`, { signal });
-export const createBindingVerification = (logicalModelId: string, bindingId: string) =>
-    readBindingVerification("/api/admin/binding-verifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ logicalModelId, bindingId }) });
+export const createBindingVerification = (logicalModelId: string, bindingId: string, input?: import("@/lib/binding-verification-input").BindingVerificationInput) =>
+    readBindingVerification("/api/admin/binding-verifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ logicalModelId, bindingId, input }) });
 function canonical(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(canonical);
     if (value && typeof value === "object")

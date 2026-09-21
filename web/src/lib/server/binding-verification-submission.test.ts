@@ -18,7 +18,7 @@ const run: BindingVerificationRun = {
 };
 describe("binding verification wire evidence", () => {
     it("rejects adapters which drop two video references", async () => {
-        await expect(assertBindingVerificationSubmission(run, JSON.stringify({ images: run.fixtureUrls.slice(0, 1), seconds: 5, resolution: "480p" }))).rejects.toThrow("参考图");
+        await expect(assertBindingVerificationSubmission(run, JSON.stringify({ images: run.fixtureUrls.slice(0, 1), seconds: 5, resolution: "480p" }))).rejects.toThrow("参考素材");
     });
     it("rejects silently modified video parameters", async () => {
         await expect(assertBindingVerificationSubmission(run, JSON.stringify({ images: run.fixtureUrls, seconds: 8, resolution: "720p" }))).rejects.toThrow("480p");

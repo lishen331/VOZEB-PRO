@@ -19,31 +19,38 @@ export type BindingVerificationRun = {
     upstreamTaskId?: string;
     busyUntil?: number;
     fixtureUrls: string[];
+    referenceEvidence?: Array<{ url: string; sha256: string }>;
+    input?: import("@/lib/binding-verification-input").BindingVerificationInput;
     error?: string;
     result?: { url?: string; text?: string; mimeType?: string };
     diagnostics?: Record<string, unknown>;
 };
 const FILE = "binding-verifications.json";
 
+function reusePendingVerification(existing: BindingVerificationRun, requested: BindingVerificationRun) {
+    if (existing.fingerprint !== requested.fingerprint || JSON.stringify(existing.input) !== JSON.stringify(requested.input)) throw new Error(`当前绑定仍有未决测试 ${existing.id}；请先恢复并核对原任务，不能通过修改配置或输入重新生成。`);
+    return existing;
+}
+
 export async function createBindingVerification(input: Omit<BindingVerificationRun, "id" | "createdAt" | "updatedAt">) {
     const run: BindingVerificationRun = { ...input, id: randomUUID(), createdAt: Date.now(), updatedAt: Date.now() };
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         return withPostgresTransaction(async (client) => {
-            await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [JSON.stringify([run.userId, run.logicalModelId, run.bindingId, run.fingerprint])]);
-            const existing = await client.query<{ payload: BindingVerificationRun }>("SELECT payload FROM binding_verifications WHERE user_id=$1 AND fingerprint=$2 AND status IN ('running','needs_review') ORDER BY created_at DESC LIMIT 1", [
-                run.userId,
-                run.fingerprint,
-            ]);
-            if (existing.rows[0]) return existing.rows[0].payload;
+            await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [JSON.stringify([run.userId, run.logicalModelId, run.bindingId])]);
+            const existing = await client.query<{ payload: BindingVerificationRun }>(
+                "SELECT payload FROM binding_verifications WHERE user_id=$1 AND payload->>'logicalModelId'=$2 AND payload->>'bindingId'=$3 AND status IN ('running','needs_review') ORDER BY created_at DESC LIMIT 1",
+                [run.userId, run.logicalModelId, run.bindingId],
+            );
+            if (existing.rows[0]) return reusePendingVerification(existing.rows[0].payload, run);
             await client.query("INSERT INTO binding_verifications (id,user_id,fingerprint,status,payload) VALUES ($1,$2,$3,$4,$5::jsonb)", [run.id, run.userId, run.fingerprint, run.status, JSON.stringify(run)]);
             return run;
         });
     }
     return withJsonDataFileLock(FILE, async () => {
         const rows = await readJsonDataFile<BindingVerificationRun[]>(FILE, []);
-        const existing = rows.find((row) => row.userId === run.userId && row.logicalModelId === run.logicalModelId && row.bindingId === run.bindingId && row.fingerprint === run.fingerprint && (row.status === "running" || row.status === "needs_review"));
-        if (existing) return existing;
+        const existing = rows.find((row) => row.userId === run.userId && row.logicalModelId === run.logicalModelId && row.bindingId === run.bindingId && (row.status === "running" || row.status === "needs_review"));
+        if (existing) return reusePendingVerification(existing, run);
         rows.push(run);
         await writeJsonDataFile(FILE, rows);
         return run;
@@ -57,7 +64,7 @@ export async function getBindingVerification(id: string) {
     }
     return (await readJsonDataFile<BindingVerificationRun[]>(FILE, [])).find((row) => row.id === id) || null;
 }
-export async function updateBindingVerification(id: string, patch: Partial<Pick<BindingVerificationRun, "status" | "phase" | "taskId" | "upstreamTaskId" | "busyUntil" | "fixtureUrls" | "error" | "result" | "diagnostics">>) {
+export async function updateBindingVerification(id: string, patch: Partial<Pick<BindingVerificationRun, "status" | "phase" | "taskId" | "upstreamTaskId" | "busyUntil" | "fixtureUrls" | "referenceEvidence" | "error" | "result" | "diagnostics">>) {
     const delta = { ...patch, updatedAt: Date.now() };
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();

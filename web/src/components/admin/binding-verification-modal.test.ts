@@ -11,9 +11,9 @@ vi.mock("antd", async (importOriginal) => ({
 describe("binding verification safety", () => {
     it("renders the real fixed video fixture inputs, cost notice and disabled enable action", () => {
         const html = renderToStaticMarkup(createElement(BindingVerificationModal, { open: true, onCancel: vi.fn(), onVerified: vi.fn(), logicalModelId: "m", bindingId: "b", capability: "video", channelName: "渠道", upstreamModel: "模型" }));
-        expect(html).toContain("/api/admin/binding-verifications/fixtures/2");
+        expect(html).toContain("AI 协议助手");
         expect(html).toContain("实际上游调用费用");
-        expect(html).toContain("480P");
+        expect(html).toContain("生成结果与诊断");
         expect(html).toMatch(/<button[^>]*disabled=""[^>]*><span>启用此绑定/);
     });
     it("requires passed status, actual result and explicit confirmation", () => {

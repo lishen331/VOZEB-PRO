@@ -1,6 +1,8 @@
+import { parseBindingVerificationInput } from "@/lib/binding-verification-input";
 import { bindingVerificationFixtures } from "./binding-verification-fixtures";
 export { bindingVerificationFixtures } from "./binding-verification-fixtures";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { imageReferenceToDataUrl } from "@/app/api/image-tasks/image-task-support";
 import { mkdtemp, readFile, rm, writeFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -46,6 +48,7 @@ export function publicBindingVerification(run: BindingVerificationRun) {
         ...(run.result ? { result: run.result } : {}),
         ...(run.diagnostics ? { diagnostics: run.diagnostics } : {}),
         fixtureUrls: run.fixtureUrls,
+        ...(run.input ? { input: run.input } : {}),
     };
 }
 async function target(logicalModelId: string, bindingId: string) {
@@ -66,10 +69,11 @@ async function target(logicalModelId: string, bindingId: string) {
     });
     return { settings, model, binding, channel, config, fingerprint: bindingVerificationFingerprint(model, binding, channel) };
 }
-export async function startBindingVerification(input: { logicalModelId: string; bindingId: string; user: PublicUser; publicOrigin: string }) {
+export async function startBindingVerification(input: { logicalModelId: string; bindingId: string; user: PublicUser; publicOrigin: string; input?: unknown }) {
     if (!hasAdminPermission(input.user, "upstream.manage")) throw new Error("需要上游配置管理员权限");
     const resolved = await target(input.logicalModelId, input.bindingId);
     const capability = resolved.model.capability as BindingVerificationRun["capability"];
+    const requestedInput = input.input === undefined ? undefined : parseBindingVerificationInput(input.input, capability);
     return createBindingVerification({
         userId: input.user.id,
         logicalModelId: resolved.model.id,
@@ -80,8 +84,16 @@ export async function startBindingVerification(input: { logicalModelId: string; 
         token: randomBytes(32).toString("hex"),
         status: "running",
         phase: "queued",
+        ...(requestedInput ? { input: requestedInput } : {}),
         fixtureUrls: Array.from({ length: capability === "video" ? 3 : 1 }, (_, i) => `${input.publicOrigin}/api/admin/binding-verifications/fixtures/${i}`),
-        diagnostics: { channelId: resolved.channel.id, upstreamModel: resolved.binding.upstreamModel, referenceCount: capability === "video" ? 3 : 1, ...(capability === "video" ? { resolution: "480p", durationSeconds: 5 } : {}), fallback: false },
+        diagnostics: {
+            channelId: resolved.channel.id,
+            upstreamModel: resolved.binding.upstreamModel,
+            referenceCount: requestedInput ? requestedInput.references.length : capability === "video" ? 3 : 1,
+            referenceTypes: requestedInput?.references.map((item) => item.type),
+            ...(capability === "video" ? { resolution: "480p", durationSeconds: 5 } : {}),
+            fallback: false,
+        },
     });
 }
 
@@ -95,7 +107,12 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
         return current;
     }
     const resolved = await target(current.logicalModelId, current.bindingId);
-    if (resolved.fingerprint !== current.fingerprint) return (await updateBindingVerification(id, { status: "failed", phase: "stale", error: "绑定配置已变更，请重新运行测试" }))!;
+    if (resolved.fingerprint !== current.fingerprint)
+        return (await updateBindingVerification(id, {
+            status: current.taskId ? "needs_review" : "failed",
+            phase: "stale",
+            error: current.taskId ? "绑定配置已变更，但原生成任务尚需核对；禁止通过修改配置重复生成。" : "绑定配置已变更，尚未提交上游，请重新运行测试",
+        }))!;
     const timeout = resolveModelRequestTimeoutMs(resolved.config, current.capability);
     const run = await claimBindingVerification(id, Date.now() + timeout);
     if (!run) return (await getBindingVerification(id))!;
@@ -104,8 +121,8 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
         await withBindingVerificationScope({ id: run.id, token: run.token, channelId: run.channelId, origin }, async () => {
             assertCapabilityConstraints(run.capability === "text" ? { ...resolved.config.capabilityProfile, supportsReferenceImage: true } : resolved.config.capabilityProfile, {
                 capability: run.capability,
-                referenceTypes: ["image"],
-                referenceCount: run.capability === "video" ? 3 : 1,
+                referenceTypes: run.input ? run.input.references.map((item) => item.type) : ["image"],
+                referenceCount: run.input ? run.input.references.length : run.capability === "video" ? 3 : 1,
                 ...(run.capability === "video" ? { durationSeconds: 5, resolution: "480p", aspectRatio: "16:9" } : {}),
             });
             if (run.capability === "video" && resolveUpstreamVideoDuration(5, 5, { ...resolved.config.capabilityProfile, durationRange: resolved.config.advancedConfig?.durationRange }) !== 5)
@@ -125,10 +142,12 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                         messages: [
                             {
                                 role: "user",
-                                content: [
-                                    { type: "text", text: "请准确描述这张图片中的物体、形状和颜色。" },
-                                    { type: "image_url", image_url: { url: `data:image/png;base64,${fixtures[0].toString("base64")}` } },
-                                ],
+                                content: run.input
+                                    ? [{ type: "text" as const, text: run.input.prompt }, ...run.input.references.map((reference) => ({ type: "image_url" as const, image_url: { url: reference.url } }))]
+                                    : [
+                                          { type: "text", text: "请准确描述这张图片中的物体、形状和颜色。" },
+                                          { type: "image_url", image_url: { url: `data:image/png;base64,${fixtures[0].toString("base64")}` } },
+                                      ],
                             },
                         ],
                     });
@@ -150,17 +169,27 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                 let task = run.taskId ? await getImageTask(run.taskId) : null;
                 if (!task) {
                     if (run.taskId) throw new Error("原测试任务已丢失，禁止自动重提");
+                    const preparedReferences = run.input
+                        ? await Promise.all(
+                              run.input.references.map(async (reference, index) => {
+                                  const name = `reference-${index + 1}`;
+                                  const dataUrl = await imageReferenceToDataUrl({ name, dataUrl: "", url: reference.url }, name, origin, cookie);
+                                  return { name, dataUrl, url: reference.url };
+                              }),
+                          )
+                        : [{ name: "binding-reference.png", dataUrl: `data:image/png;base64,${fixtures[0].toString("base64")}`, url: run.fixtureUrls[0] }];
+                    await updateBindingVerification(id, { referenceEvidence: preparedReferences.map((reference) => ({ url: reference.url, sha256: bindingReferenceContentDigest(reference.dataUrl) })) });
                     task = await createImageTask({
                         ...bindingContext,
                         userId: user.id,
                         username: user.username,
                         displayName: user.displayName,
-                        kind: "edit",
+                        kind: run.input && !run.input.references.length ? "generation" : "edit",
                         source: "image-workbench",
                         config: { ...resolved.config, size: "auto" },
                         candidateConfigs: [],
-                        prompt: PROMPT,
-                        references: [{ name: "binding-reference.png", dataUrl: `data:image/png;base64,${fixtures[0].toString("base64")}`, url: run.fixtureUrls[0] }],
+                        prompt: run.input?.prompt || PROMPT,
+                        references: preparedReferences,
                     });
                     await updateBindingVerification(id, { taskId: task.id, phase: "submitting" });
                 }
@@ -181,7 +210,7 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                 let task = run.taskId ? await getVideoTask(run.taskId) : null;
                 if (!task) {
                     if (run.taskId) throw new Error("原测试任务已丢失，禁止自动重提");
-                    const references = run.fixtureUrls.map((url) => ({ type: "image" as const, url }));
+                    const references = run.input?.references || run.fixtureUrls.map((url) => ({ type: "image" as const, url }));
                     const preset = resolveGlobalAiOpcPreset(resolved.config.advancedConfig, resolved.config.model);
                     assertReferenceCapabilities(
                         {
@@ -202,7 +231,7 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                         config: resolved.config,
                         upstream: { id: "", provider: "generation", model: resolved.config.model },
                         requestedDurationSeconds: 5,
-                        prompt: PROMPT,
+                        prompt: run.input?.prompt || PROMPT,
                         references,
                         source: "video-task",
                     });
@@ -212,7 +241,7 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                         origin,
                         cookie,
                         resolved.config,
-                        "结合三张参考图，让橙色小球缓慢经过蓝色方块和绿色圆环，保持物体外观一致，镜头连续稳定。",
+                        run.input?.prompt || "结合三张参考图，让橙色小球缓慢经过蓝色方块和绿色圆环，保持物体外观一致，镜头连续稳定。",
                         { size: "16:9", vquality: "480p", videoSeconds: 5, videoGenerateAudio: false },
                         references,
                         resolved.settings.generationPointMultipliers,
@@ -228,6 +257,8 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                 if (step.state === "result_ready") {
                     const completed = await persistVideoTaskResult(task, step.resultUrl, origin, cookie);
                     if (!completed?.result?.url) throw new Error("视频产物保存失败");
+                    // A successful upstream artifact must survive local metadata validation failure.
+                    await updateBindingVerification(id, { result: { url: completed.result.url }, phase: "validating_result" });
                     const metadata = await inspectSavedMedia(completed.result.url, "video", origin, cookie, timeout);
                     result = { url: completed.result.url, mimeType: metadata.mimeType };
                     await updateBindingVerification(id, { diagnostics: { ...(await getBindingVerification(id))?.diagnostics, ...metadata } });
@@ -241,7 +272,14 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
             } else await updateBindingVerification(id, { phase: "polling", busyUntil: 0 });
         });
     } catch (error) {
-        const uncertain = error instanceof GenerationSubmissionUncertainError;
+        const existingResult = (await getBindingVerification(id))?.result;
+        const uncertain = error instanceof GenerationSubmissionUncertainError || Boolean(existingResult?.url);
+        if (error instanceof BindingVerificationMediaSpecificationError) {
+            await updateBindingVerification(id, {
+                diagnostics: { ...(await getBindingVerification(id))?.diagnostics, actualMedia: error.metadata, specificationMismatch: true },
+                ...(existingResult ? { result: { ...existingResult, mimeType: error.metadata.mimeType } } : {}),
+            });
+        }
         const message = error instanceof Error ? error.message : "绑定验证失败";
         const { redactDiagnosticText } = await import("./media-task-diagnostics");
         const safe = redactDiagnosticText(message, [resolved.channel.apiKey, run.token]);
@@ -249,6 +287,29 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
         await updateBindingVerification(id, { status: uncertain ? "needs_review" : "failed", phase: uncertain ? "needs_review" : "failed", error: safe, busyUntil: 0 });
     }
     return (await getBindingVerification(id))!;
+}
+
+export function bindingReferenceContentDigest(dataUrl: string): string {
+    const match = dataUrl.match(/^data:image\/[^;,]+;base64,([\s\S]+)$/);
+    if (!match) throw new Error("无法校验参考图片的二进制内容");
+    const bytes = Buffer.from(match[1], "base64");
+    if (!bytes.length) throw new Error("参考图片内容为空");
+    return createHash("sha256").update(bytes).digest("hex");
+}
+
+type VerificationVideoMetadata = { mimeType: string; width: number; height: number; durationSeconds: number; bytes: number };
+export class BindingVerificationMediaSpecificationError extends Error {
+    constructor(
+        message: string,
+        readonly metadata: VerificationVideoMetadata,
+    ) {
+        super(message);
+    }
+}
+export function assertBindingVerificationVideoSpecification(metadata: VerificationVideoMetadata, frameSeconds: number) {
+    if (!metadata.width || !metadata.height || Math.min(metadata.width, metadata.height) !== 480) throw new BindingVerificationMediaSpecificationError("上游已生成视频，但实际分辨率不是 480p；产物已保留，需人工核对，禁止自动重提。", metadata);
+    if (!Number.isFinite(metadata.durationSeconds) || !Number.isFinite(frameSeconds) || frameSeconds <= 0 || Math.abs(metadata.durationSeconds - 5) > frameSeconds)
+        throw new BindingVerificationMediaSpecificationError("上游已生成视频，但实际时长不是 5 秒（允许一帧封装误差）；产物已保留，需人工核对，禁止自动重提。", metadata);
 }
 
 export async function validateBindingVerificationMedia(bytes: Buffer, capability: "image" | "video", path?: string) {
@@ -267,10 +328,10 @@ export async function validateBindingVerificationMedia(bytes: Buffer, capability
     const duration = Number(stream?.duration || data.format?.duration);
     const [n, d] = (stream?.avg_frame_rate || "0/1").split("/").map(Number);
     const frameSeconds = d / n;
-    if (!stream?.width || !stream.height || Math.min(stream.width, stream.height) !== 480) throw new Error("视频实际分辨率不是 480p");
-    if (!Number.isFinite(duration) || !Number.isFinite(frameSeconds) || Math.abs(duration - 5) > frameSeconds) throw new Error("视频实际时长不是 5 秒（允许一帧封装误差）");
+    const metadata = { mimeType: detected.mime, width: stream?.width || 0, height: stream?.height || 0, durationSeconds: duration, bytes: (await stat(path)).size };
     await runFfmpeg(["-v", "error", "-xerror", "-i", path, "-map", "0:v:0", "-f", "null", "-"]);
-    return { mimeType: detected.mime, width: stream.width, height: stream.height, durationSeconds: duration, bytes: (await stat(path)).size };
+    assertBindingVerificationVideoSpecification(metadata, frameSeconds);
+    return metadata;
 }
 async function inspectSavedMedia(url: string, capability: "image" | "video", origin: string, cookie: string, timeoutMs: number) {
     const dir = await mkdtemp(join(tmpdir(), "vozeb-binding-verification-"));

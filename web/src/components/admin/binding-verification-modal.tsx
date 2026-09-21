@@ -1,9 +1,12 @@
 "use client";
 
-import { Alert, Button, Checkbox, Empty, Image, Input, Modal, Space, Spin, Tabs, Tag } from "antd";
+import { Alert, Button, Checkbox, Empty, Image, Input, Modal, Space, Spin, Tabs, Tag, Select } from "antd";
+import { uploadImage } from "@/services/image-storage";
+import { uploadMediaFile } from "@/services/file-storage";
 import { saveAs } from "file-saver";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { useEffect, useRef, useState } from "react";
+import type { BindingVerificationInput } from "@/lib/binding-verification-input";
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { AdminChannelProtocolSetup } from "./admin-channel-protocol-setup";
 import type { LogicalModelCapability, SystemModelChannel } from "@/lib/auth/store";
@@ -45,23 +48,48 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
     const storageKey = useRef("");
     const [confirmed, setConfirmed] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [uncertain, setUncertain] = useState(false);
     const [error, setError] = useState("");
     const [refresh, setRefresh] = useState(0);
-    const [tab, setTab] = useState("test");
+    const [tab, setTab] = useState("protocol");
     const submittingRef = useRef(false);
     const verifiedRef = useRef(false);
-    const busy = restoring || submitting || test?.status === "running";
+    const busy = restoring || submitting || uploading || test?.status === "running";
     const supported = capability !== "audio";
     const count = verificationFixtureCount(capability);
     const fixtures = Array.from({ length: count }, (_, index) => bindingVerificationFixturePreviewUrl(index));
-    const prompt =
+    const defaultPrompt =
         capability === "video"
             ? "结合三张参考图，让橙色小球缓慢经过蓝色方块和绿色圆环，保持物体外观一致，镜头连续稳定。"
             : capability === "image"
               ? "参考图片中的橙色小球，生成同一小球在白色桌面上的画面，保持颜色与形状一致。"
               : "观察参考图，描述主要物体的颜色、形状和相对位置。";
 
+    const inputsEdited = useRef(false);
+    const [prompt, setPrompt] = useState(defaultPrompt);
+    const [references, setReferences] = useState<Array<{ type: "image" | "video"; url: string }>>(() =>
+        typeof window === "undefined" ? [] : fixtures.slice(0, capability === "video" ? 2 : capability === "image" ? 1 : 0).map((url) => ({ type: "image", url: new URL(url, window.location.origin).href })),
+    );
+    const changeReferences = (update: (items: BindingVerificationInput["references"]) => BindingVerificationInput["references"]) => {
+        inputsEdited.current = true;
+        setReferences(update);
+    };
+    const uploadReference = async (file: File) => {
+        if (busy || submittingRef.current) return;
+        setUploading(true);
+        try {
+            const type = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
+            if (!type || (type === "video" && capability !== "video")) throw new Error("请选择当前能力支持的图片或视频");
+            const stored = type === "image" ? await uploadImage(file) : await uploadMediaFile(file, "video");
+            const url = new URL(stored.remoteUrl || stored.url, window.location.origin).href;
+            changeReferences((items) => [...items, { type, url }]);
+        } catch (cause) {
+            setError(cause instanceof Error ? cause.message : "素材上传失败");
+        } finally {
+            setUploading(false);
+        }
+    };
     useEffect(() => {
         let cancelled = false;
         const controller = new AbortController();
@@ -122,7 +150,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
         };
     }, [open, restoring, test?.id, test?.status, refresh]);
 
-    const start = async () => {
+    const start = async (prepare?: () => Promise<void>, selectedInput: BindingVerificationInput = { prompt, references }) => {
         if (submittingRef.current || busy || uncertain || test?.status === "needs_review" || !supported) return;
         submittingRef.current = true;
         verifiedRef.current = false;
@@ -131,10 +159,12 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
         setError("");
         let submitted = false;
         try {
-            await beforeStart?.();
+            if (prepare) await prepare();
+            else await beforeStart?.();
+            setTab("test");
             submitted = true;
             // Do not abort POST on close: losing its response could lose the server's test ID.
-            const next = await createBindingVerification(logicalModelId, bindingId);
+            const next = await createBindingVerification(logicalModelId, bindingId, selectedInput);
             setTest(next);
             try {
                 if (storageKey.current) sessionStorage.setItem(storageKey.current, next.id);
@@ -215,7 +245,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                 onChange={setTab}
                 items={[
                     { key: "protocol", label: "AI 协议助手" },
-                    { key: "test", label: "测试与生成结果" },
+                    { key: "test", label: "生成结果与诊断" },
                     { key: "diagnostics", label: "诊断记录" },
                 ]}
             />
@@ -225,21 +255,62 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                         <section className="min-w-0 space-y-3">
                             <div className="flex items-center justify-between">
                                 <b>测试输入</b>
-                                <Tag>{count} 张固定参考图</Tag>
+                                <Tag>{references.length} 个参考素材</Tag>
                             </div>
-                            <Image.PreviewGroup>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {fixtures.map((url, index) => (
-                                        <div key={index}>
-                                            <Image src={url} alt={`参考图 ${index + 1}`} />
-                                            <div className={muted}>参考图 {index + 1}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </Image.PreviewGroup>
+                            <div className="space-y-2">
+                                {references.map((reference, index) => (
+                                    <div key={index} className="flex gap-2">
+                                        <Select
+                                            value={reference.type}
+                                            disabled={busy}
+                                            options={[{ value: "image", label: "图片" }, ...(capability === "video" ? [{ value: "video", label: "视频" }] : [])]}
+                                            onChange={(type) => changeReferences((items) => items.map((item, i) => (i === index ? { ...item, type } : item)))}
+                                        />
+                                        <Input value={reference.url} disabled={busy} placeholder="参考素材公开 URL" onChange={(event) => changeReferences((items) => items.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)))} />
+                                        <Button disabled={busy} onClick={() => changeReferences((items) => items.filter((_, i) => i !== index))}>
+                                            移除
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Space wrap>
+                                    <label className="text-sm">
+                                        上传参考素材
+                                        <input
+                                            type="file"
+                                            disabled={busy}
+                                            accept={capability === "video" ? "image/*,video/*" : "image/*"}
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0];
+                                                if (file) void uploadReference(file);
+                                                event.target.value = "";
+                                            }}
+                                        />
+                                    </label>
+                                    <Button disabled={busy} onClick={() => changeReferences((items) => [...items, { type: "image", url: "" }])}>
+                                        添加图片
+                                    </Button>
+                                    {capability === "video" ? (
+                                        <Button disabled={busy} onClick={() => changeReferences((items) => [...items, { type: "video", url: "" }])}>
+                                            添加视频
+                                        </Button>
+                                    ) : null}
+                                    <Button disabled={busy} onClick={() => setReferences(fixtures.slice(0, 2).map((url) => ({ type: "image", url: new URL(url, window.location.origin).href })))}>
+                                        使用示例图片
+                                    </Button>
+                                </Space>
+                            </div>
                             <label className="block text-sm">
                                 默认提示词
-                                <Input.TextArea readOnly rows={4} value={prompt} className="mt-2" />
+                                <Input.TextArea
+                                    disabled={busy}
+                                    rows={4}
+                                    value={prompt}
+                                    onChange={(event) => {
+                                        inputsEdited.current = true;
+                                        setPrompt(event.target.value);
+                                    }}
+                                    className="mt-2"
+                                />
                             </label>
                             <div>
                                 {capability === "video" ? (
@@ -252,9 +323,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                                     <Tag>{capability === "image" ? "输出 1 张图片" : "图片理解 → 文本"}</Tag>
                                 )}
                             </div>
-                            <p className={muted}>
-                                {capability === "video" ? "三张参考图全部传入，结果保存、可播放且规格一致后才通过。" : capability === "image" ? "参考图传入，生成图片可解码并保存后才通过。" : "必须支持图片理解并返回非空正文，纯文本模型不满足此验收要求。"}
-                            </p>
+                            <p className={muted}>{capability === "video" ? "按本轮输入验证，一次成功即停止；不会自动重复提交。" : capability === "image" ? "本轮只输出一张图片，参考素材必须完整传入。" : "按本轮输入返回非空文本，参考素材可选。"}</p>
                             {!supported ? <Alert type="info" title="当前验证流程暂不支持音频绑定" /> : null}
                             <Button type="primary" block loading={submitting || (test?.status === "running" && !uncertain)} disabled={busy || uncertain || test?.status === "needs_review" || !supported} onClick={() => void start()}>
                                 {test ? "保存并重新测试（产生费用）" : "保存并测试（产生费用）"}
@@ -298,7 +367,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                         </Space>
                         <pre className="whitespace-pre-wrap break-all rounded-lg bg-stone-50 p-4 text-xs dark:bg-stone-900">{test ? bindingVerificationDiagnosticsJson(test) : "尚未提交测试，无诊断记录。"}</pre>
                     </div>
-                ) : busy ? (
+                ) : busy || uncertain || test?.status === "needs_review" ? (
                     <Alert type="info" title="测试进行中，请等待结果后编辑协议" description="修改配置前需要保留并核对当前测试结果，关闭弹窗不会取消上游任务。" />
                 ) : channel && onProtocolChange ? (
                     <div className="space-y-3">
@@ -307,10 +376,12 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                             channel={{ ...channel, advancedConfig: { ...applyChannelProtocol(channel, "custom").advancedConfig!, protocol: "custom" } }}
                             protocolLocked
                             onChange={(patch) => {
+                                if (submittingRef.current || busy || uncertain || test?.status === "needs_review") return false;
                                 if (onProtocolChange(patch) === false) return false;
                                 setConfirmed(false);
                                 setTest(null);
-                                setUncertain(true);
+                                setUncertain(false);
+                                setTab("test");
                             }}
                         />
                     </div>

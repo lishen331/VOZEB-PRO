@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { bindingVerificationFixtures, validateBindingVerificationMedia, publicBindingVerification } from "./binding-verification-runner";
+import {
+    bindingVerificationFixtures,
+    validateBindingVerificationMedia,
+    publicBindingVerification,
+    assertBindingVerificationVideoSpecification,
+    BindingVerificationMediaSpecificationError,
+    bindingReferenceContentDigest,
+} from "./binding-verification-runner";
 import { withBindingVerificationScope, bindingVerificationRequestHeaders } from "./binding-verification-authority";
 describe("binding verification isolation", () => {
     it("does not attach authority outside the server scope", () => {
@@ -40,5 +47,28 @@ describe("binding verification isolation", () => {
         });
         expect(r).not.toHaveProperty("token");
         expect(r).not.toHaveProperty("fingerprint");
+    });
+    it("retains actual metadata for the known ModelBay nominal-480p result without passing it", () => {
+        const metadata = { mimeType: "video/mp4", width: 864, height: 496, durationSeconds: 5.062, bytes: 721881 };
+        try {
+            assertBindingVerificationVideoSpecification(metadata, 1 / 24);
+            throw new Error("expected mismatch");
+        } catch (error) {
+            expect(error).toBeInstanceOf(BindingVerificationMediaSpecificationError);
+            expect((error as BindingVerificationMediaSpecificationError).metadata).toEqual(metadata);
+            expect((error as Error).message).toContain("禁止自动重提");
+        }
+    });
+    it("accepts only the expected dimensions and duration tolerance", () => {
+        const metadata = { mimeType: "video/mp4", width: 864, height: 480, durationSeconds: 5, bytes: 500 };
+        expect(() => assertBindingVerificationVideoSpecification(metadata, 1 / 24)).not.toThrow();
+        expect(() => assertBindingVerificationVideoSpecification({ ...metadata, durationSeconds: 8 }, 1 / 24)).toThrow(BindingVerificationMediaSpecificationError);
+        expect(() => assertBindingVerificationVideoSpecification(metadata, Infinity)).toThrow(BindingVerificationMediaSpecificationError);
+    });
+    it("computes binary evidence from the actual image bytes rather than the source URL", () => {
+        const a = bindingReferenceContentDigest("data:image/png;base64,YWJj");
+        expect(a).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        expect(bindingReferenceContentDigest("data:image/jpeg;base64,YWJj")).toBe(a);
+        expect(() => bindingReferenceContentDigest("https://example.test/image.png")).toThrow();
     });
 });
