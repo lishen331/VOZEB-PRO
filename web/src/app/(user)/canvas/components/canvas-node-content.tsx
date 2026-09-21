@@ -34,6 +34,7 @@ export type NodeContentRendererProps = {
     batchRecovering: boolean;
     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
     onContentChange: (nodeId: string, content: string) => void;
+    onContainerLabelChange?: (nodeId: string, label: string) => void;
     onStopEditing: () => void;
     mentionReferences: CanvasResourceReference[];
     onRetry?: (node: CanvasNodeData) => void;
@@ -184,9 +185,16 @@ export function BrandKitNodeContent({ node, theme }: NodeContentRendererProps) {
  * body must not draw over them and must not swallow their clicks. Only the header
  * strip is interactive (drag + double-click rename); the body is pointer-transparent.
  */
-export function ContainerNodeContent({ node, theme }: NodeContentRendererProps) {
+export function ContainerNodeContent({ node, theme, onContainerLabelChange }: NodeContentRendererProps) {
     const childCount = node.metadata?.containerChildIds?.length || 0;
     const label = node.metadata?.containerLabel || node.title || "生成组";
+    const [renaming, setRenaming] = useState(false);
+    const [draft, setDraft] = useState(label);
+
+    const commitRename = () => {
+        setRenaming(false);
+        if (draft.trim() !== label) onContainerLabelChange?.(node.id, draft);
+    };
 
     return (
         <div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-3xl" style={{ background: "transparent", color: theme.node.text }}>
@@ -196,7 +204,40 @@ export function ContainerNodeContent({ node, theme }: NodeContentRendererProps) 
                 data-canvas-container-header
             >
                 <BoxSelect className="size-3.5 shrink-0" style={{ color: theme.node.activeStroke }} />
-                <span className="min-w-0 flex-1 truncate text-xs font-semibold">{label}</span>
+                {renaming ? (
+                    <input
+                        autoFocus
+                        // data-canvas-no-drag keeps the surface from treating typing as a drag.
+                        data-canvas-no-drag
+                        value={draft}
+                        aria-label="生成组名称"
+                        className="min-w-0 flex-1 bg-transparent text-xs font-semibold outline-none"
+                        style={{ color: theme.node.text }}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(event) => {
+                            event.stopPropagation();
+                            if (event.key === "Enter") commitRename();
+                            if (event.key === "Escape") {
+                                setDraft(label);
+                                setRenaming(false);
+                            }
+                        }}
+                        onPointerDown={(event) => event.stopPropagation()}
+                    />
+                ) : (
+                    <span
+                        className="min-w-0 flex-1 cursor-text truncate text-xs font-semibold"
+                        title="双击重命名"
+                        onDoubleClick={(event) => {
+                            event.stopPropagation();
+                            setDraft(label);
+                            setRenaming(true);
+                        }}
+                    >
+                        {label}
+                    </span>
+                )}
                 <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: theme.node.subtleSurface, color: theme.node.subtleText }}>
                     {childCount} 个节点
                 </span>
