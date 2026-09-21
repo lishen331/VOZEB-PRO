@@ -161,20 +161,20 @@ function renderTemplateValue(value: unknown, values: TemplateValues): unknown {
     return value.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key: string) => String(values[key] ?? match));
 }
 
-function alignVideoProviderFields(payload: Record<string, unknown>, values: TemplateValues) {
-    const next = { ...payload };
-    for (const [key, current] of Object.entries(next)) {
-        const normalizedKey = normalizeFieldKey(key);
-        const dynamicValueKey = VIDEO_DYNAMIC_VALUE_KEYS[normalizedKey];
-        if (dynamicValueKey && values[dynamicValueKey] !== undefined) {
-            const value = values[dynamicValueKey];
-            next[key] = normalizedKey === "seconds" && typeof current === "string" ? String(value) : value;
-            continue;
-        }
-        const referenceValueKey = VIDEO_REFERENCE_VALUE_KEYS[normalizedKey];
-        if (referenceValueKey && shouldAlignReferenceTemplateValue(current)) next[key] = values[referenceValueKey];
-    }
-    return next;
+function alignVideoProviderFields(payload: Record<string, unknown>, values: TemplateValues): Record<string, unknown> {
+    return Object.fromEntries(
+        Object.entries(payload).map(([key, current]) => {
+            const normalizedKey = normalizeFieldKey(key);
+            const dynamicValueKey = VIDEO_DYNAMIC_VALUE_KEYS[normalizedKey];
+            if (dynamicValueKey && values[dynamicValueKey] !== undefined) {
+                const value = values[dynamicValueKey];
+                return [key, normalizedKey === "seconds" && typeof current === "string" ? String(value) : value];
+            }
+            const referenceValueKey = VIDEO_REFERENCE_VALUE_KEYS[normalizedKey];
+            if (referenceValueKey) return [key, values[referenceValueKey]];
+            return [key, current && typeof current === "object" && !Array.isArray(current) ? alignVideoProviderFields(current as Record<string, unknown>, values) : current];
+        }),
+    );
 }
 
 function shouldAlignReferenceTemplateValue(value: unknown): boolean {
@@ -303,7 +303,11 @@ const REFERENCE_FIELD_KEYS = new Set([
     "references",
     "referenceimage",
     "referenceimages",
+    "referenceimageurls",
+    "referencevideourls",
     "firstframeurl",
+    "startimage",
+    "endimage",
     "firstframeimage",
     "firstimage",
     "lastframeurl",
@@ -345,23 +349,28 @@ const VIDEO_REFERENCE_VALUE_KEYS: Record<string, string> = {
     firstframeurl: "first_frame",
     firstframeimage: "first_frame",
     firstimage: "first_frame",
+    startimage: "first_frame",
     lastframeurl: "last_frame",
     lastframeimage: "last_frame",
     lastimage: "last_frame",
+    endimage: "last_frame",
     images: "images",
     imageurls: "images",
     inputimages: "images",
     inputreference: "images",
     inputreferences: "images",
     referenceimages: "images",
+    referenceimageurls: "images",
     video: "video",
     referencevideo: "video",
     videos: "videos",
     referencevideos: "videos",
+    referencevideourls: "videos",
     audio: "audio",
     referenceaudio: "audio",
     audios: "audios",
     referenceaudios: "audios",
+    referenceaudiourls: "audios",
     refassets: "references",
     reference: "references",
     references: "references",

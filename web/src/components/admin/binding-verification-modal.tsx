@@ -374,11 +374,13 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                         <fieldset disabled={busy || uncertain || test?.status === "needs_review"}>
                             <AdminChannelProtocolSetup
                                 channel={{ ...channel, advancedConfig: { ...applyChannelProtocol(channel, "custom").advancedConfig!, protocol: "custom" } }}
+                                targetModel={upstreamModel}
                                 protocolLocked
                                 onChange={(patch) => {
                                     if (submittingRef.current || busy || uncertain || test?.status === "needs_review") return false;
                                     if (onProtocolChange(patch) === false) return false;
                                     setConfirmed(false);
+                                    setTab("test");
                                 }}
                             />
                         </fieldset>

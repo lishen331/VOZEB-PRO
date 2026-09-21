@@ -19,7 +19,7 @@ const capabilityOptions: Array<{ label: string; value: LogicalModelCapability }>
     { label: "音频", value: "audio" },
 ];
 
-export function AdminChannelProtocolSetup({ channel, protocolLocked = false, onChange }: { channel: SystemModelChannel; protocolLocked?: boolean; onChange: (patch: Partial<SystemModelChannel>) => boolean | void }) {
+export function AdminChannelProtocolSetup({ channel, protocolLocked = false, targetModel, onChange }: { channel: SystemModelChannel; protocolLocked?: boolean; targetModel?: string; onChange: (patch: Partial<SystemModelChannel>) => boolean | void }) {
     const { message } = App.useApp();
     const protocol = channel.advancedConfig?.protocol || "auto";
     const definition = channelProtocolDefinition(protocol);
@@ -63,6 +63,10 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, onC
         const operationConfigs = { ...(advanced.operationConfigs || {}) };
         const discoveredModels: string[] = [];
         draft.operations.forEach((operation) => {
+            if (targetModel) {
+                if (operation.models.some((model) => normalizeModelId(model) === normalizeModelId(targetModel))) modelConfigs[normalizeModelId(targetModel)] = operation.config;
+                return;
+            }
             operationConfigs[operation.capability] = operation.config;
             operation.models.forEach((model) => {
                 const key = normalizeModelId(model);
@@ -72,6 +76,10 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, onC
                 modelConfigs[key] = operation.config;
             });
         });
+        if (targetModel && !modelConfigs[normalizeModelId(targetModel)]) {
+            message.error(`分析结果没有当前模型 ${targetModel} 的明确配置，请先选择包含该模型的协议`);
+            return;
+        }
         const nextAdvanced: SystemChannelAdvancedConfig = {
             ...advanced,
             protocol: "custom",
@@ -233,7 +241,7 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, onC
                                 ))}
                             </div>
                             <Button className="mt-2" type="primary" size="small" onClick={applyDraft}>
-                                {drafts.length > 1 ? "应用当前协议" : "应用全部配置"}
+                                {targetModel ? `应用到当前模型：${targetModel}` : drafts.length > 1 ? "应用当前协议" : "应用全部配置"}
                             </Button>
                         </div>
                     ) : null}
