@@ -21,7 +21,7 @@ describe("binding verification safety", () => {
         expect(canConfirmBindingVerification(test, false)).toBe(false);
         expect(canConfirmBindingVerification(test, true)).toBe(true);
         expect(canConfirmBindingVerification({ ...test, status: "failed" }, true)).toBe(false);
-        expect(canConfirmBindingVerification({ ...test, status: "needs_review" }, true)).toBe(false);
+        expect(canConfirmBindingVerification({ ...test, status: "needs_review" }, true)).toBe(true);
         expect(canConfirmBindingVerification({ ...test, result: {} }, true)).toBe(false);
     });
     it("uses three references for video and one for image/text", () => {

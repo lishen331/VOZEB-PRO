@@ -1,3 +1,4 @@
+import { reviewBindingVerification, type ReviewAction } from "./binding-verification-review";
 import { randomUUID } from "node:crypto";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery, withPostgresTransaction } from "./database";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "./data-adapter";
@@ -40,7 +41,7 @@ export async function createBindingVerification(input: Omit<BindingVerificationR
         return withPostgresTransaction(async (client) => {
             await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [JSON.stringify([run.userId, run.logicalModelId, run.bindingId])]);
             const existing = await client.query<{ payload: BindingVerificationRun }>(
-                "SELECT payload FROM binding_verifications WHERE user_id=$1 AND payload->>'logicalModelId'=$2 AND payload->>'bindingId'=$3 AND status IN ('running','needs_review') ORDER BY created_at DESC LIMIT 1",
+                "SELECT payload FROM binding_verifications WHERE user_id=$1 AND payload->>'logicalModelId'=$2 AND payload->>'bindingId'=$3 AND status IN ('running','needs_review') AND COALESCE(payload->'diagnostics'->>'retryAuthorized','false') <> 'true' ORDER BY created_at DESC LIMIT 1",
                 [run.userId, run.logicalModelId, run.bindingId],
             );
             if (existing.rows[0]) return reusePendingVerification(existing.rows[0].payload, run);
@@ -50,7 +51,9 @@ export async function createBindingVerification(input: Omit<BindingVerificationR
     }
     return withJsonDataFileLock(FILE, async () => {
         const rows = await readJsonDataFile<BindingVerificationRun[]>(FILE, []);
-        const existing = rows.find((row) => row.userId === run.userId && row.logicalModelId === run.logicalModelId && row.bindingId === run.bindingId && (row.status === "running" || row.status === "needs_review"));
+        const existing = rows.find(
+            (row) => row.userId === run.userId && row.logicalModelId === run.logicalModelId && row.bindingId === run.bindingId && (row.status === "running" || row.status === "needs_review") && row.diagnostics?.retryAuthorized !== true,
+        );
         if (existing) return reusePendingVerification(existing, run);
         rows.push(run);
         await writeJsonDataFile(FILE, rows);
@@ -146,4 +149,26 @@ export async function recordBindingVerificationDiagnostic(id: string, event: Rec
     const sanitized = Object.fromEntries(Object.entries(event).map(([key, value]) => [key, typeof value === "string" ? redactDiagnosticText(value, secrets) : value]));
     const existing = Array.isArray(run.diagnostics?.events) ? (run.diagnostics.events as import("./media-task-diagnostics").MediaDiagnosticEvent[]) : [];
     await updateBindingVerification(id, { diagnostics: { ...run.diagnostics, events: appendDiagnosticEvent(existing, sanitized) } });
+}
+
+export async function decideBindingVerification(id: string, userId: string, action: ReviewAction, confirmed: boolean) {
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        return withPostgresTransaction(async (client) => {
+            const rows = await client.query<{ payload: BindingVerificationRun }>("SELECT payload FROM binding_verifications WHERE id=$1 FOR UPDATE", [id]);
+            if (!rows.rows[0]) throw new Error("验证记录不存在");
+            const next = { ...reviewBindingVerification(rows.rows[0].payload, action, userId, confirmed), updatedAt: Date.now() };
+            await client.query("UPDATE binding_verifications SET status=$2,payload=$3::jsonb WHERE id=$1", [id, next.status, JSON.stringify(next)]);
+            return next;
+        });
+    }
+    return withJsonDataFileLock(FILE, async () => {
+        const rows = await readJsonDataFile<BindingVerificationRun[]>(FILE, []);
+        const index = rows.findIndex((row) => row.id === id);
+        if (index < 0) throw new Error("验证记录不存在");
+        const next = { ...reviewBindingVerification(rows[index], action, userId, confirmed), updatedAt: Date.now() };
+        rows[index] = next as BindingVerificationRun;
+        await writeJsonDataFile(FILE, rows);
+        return next;
+    });
 }

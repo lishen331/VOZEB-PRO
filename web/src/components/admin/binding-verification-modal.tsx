@@ -13,7 +13,8 @@ import type { LogicalModelCapability, SystemModelChannel } from "@/lib/auth/stor
 import { BATCH_MEDIA_POLL_INTERVAL_MS } from "@/lib/one-click/batch-media";
 
 import { bindingVerificationFixturePreviewUrl, bindingVerificationDiagnosticsJson, bindingVerificationSessionKey, createBindingVerification, getBindingVerification, type BindingVerificationTest } from "@/services/api/binding-verifications";
-export { readBindingVerification } from "@/services/api/binding-verifications";
+import { readBindingVerification } from "@/services/api/binding-verifications";
+export { readBindingVerification };
 type Props = {
     open: boolean;
     onCancel: () => void;
@@ -33,7 +34,7 @@ export function verificationFixtureCount(capability: LogicalModelCapability) {
     return capability === "video" ? 3 : 1;
 }
 export function canConfirmBindingVerification(test: BindingVerificationTest | null, confirmed: boolean) {
-    return confirmed && test?.status === "passed" && Boolean(test.result?.url || test.result?.text?.trim());
+    return confirmed && (test?.status === "passed" || test?.status === "needs_review") && Boolean(test.result?.url || test.result?.text?.trim());
 }
 const labels = { running: "验证中", passed: "验证通过", failed: "验证失败", needs_review: "结果待核对" };
 
@@ -55,7 +56,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
     const [tab, setTab] = useState("protocol");
     const submittingRef = useRef(false);
     const verifiedRef = useRef(false);
-    const busy = restoring || submitting || uploading || test?.status === "running";
+    const busy = restoring || submitting || uploading;
     const supported = capability !== "audio";
     const count = verificationFixtureCount(capability);
     const fixtures = Array.from({ length: count }, (_, index) => bindingVerificationFixturePreviewUrl(index));
@@ -150,7 +151,13 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
     }, [open, restoring, test?.id, test?.status, refresh]);
 
     const start = async (prepare?: () => Promise<void>, selectedInput: BindingVerificationInput = { prompt, references }) => {
-        if (submittingRef.current || busy || uncertain || test?.status === "needs_review" || !supported) return;
+        if (submittingRef.current || busy || !supported) return;
+        if (test || uncertain) {
+            const accepted = await new Promise<boolean>((resolve) =>
+                Modal.confirm({ title: "确认重新生成？", content: "将再次产生费用；若原任务状态未知，它可能仍在上游运行。旧结果和诊断保留，不会取消原任务。", onOk: () => resolve(true), onCancel: () => resolve(false) }),
+            );
+            if (!accepted || submittingRef.current) return;
+        }
         submittingRef.current = true;
         verifiedRef.current = false;
         setSubmitting(true);
@@ -158,6 +165,8 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
         setError("");
         let submitted = false;
         try {
+            if (test && (test.status === "running" || test.status === "needs_review")) await reviewVerification(test.id, "allow-retry");
+            setUncertain(false);
             if (prepare) await prepare();
             else await beforeStart?.();
             setTab("test");
@@ -180,11 +189,12 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
     };
     const result = test?.result;
     const confirm = async () => {
-        if (!canConfirmBindingVerification(test, confirmed) || uncertain || busy || verifiedRef.current) return;
+        if (!canConfirmBindingVerification(test, confirmed) || busy || verifiedRef.current) return;
         verifiedRef.current = true;
         setSubmitting(true);
         try {
             await (beforeConfirm || beforeStart)?.();
+            if (test!.status === "needs_review") setTest(await reviewVerification(test!.id, "accept-result"));
             setConfirmed(false);
             onVerified(test!.id);
         } catch (cause) {
@@ -216,7 +226,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                     <span className={muted}>关闭只停止查询，不取消上游任务；重新打开可继续查看。</span>
                     <Space>
                         <Button onClick={onCancel}>暂不启用</Button>
-                        <Button type="primary" disabled={!canConfirmBindingVerification(test, confirmed) || uncertain || submitting} onClick={confirm}>
+                        <Button type="primary" disabled={!canConfirmBindingVerification(test, confirmed) || submitting} onClick={confirm}>
                             启用此绑定
                         </Button>
                     </Space>
@@ -326,7 +336,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                             </div>
                             <p className={muted}>{capability === "video" ? "按本轮输入验证，一次成功即停止；不会自动重复提交。" : capability === "image" ? "本轮只输出一张图片，参考素材必须完整传入。" : "按本轮输入返回非空文本，参考素材可选。"}</p>
                             {!supported ? <Alert type="info" title="当前验证流程暂不支持音频绑定" /> : null}
-                            <Button type="primary" block loading={submitting || (test?.status === "running" && !uncertain)} disabled={busy || uncertain || test?.status === "needs_review" || !supported} onClick={() => void start()}>
+                            <Button type="primary" block loading={submitting} disabled={busy || !supported} onClick={() => void start()}>
                                 {test ? "保存并重新测试（产生费用）" : "保存并测试（产生费用）"}
                             </Button>
                         </section>
@@ -350,9 +360,9 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                                 {test ? ` · 测试编号：${test.id}` : ""}
                             </div>
                             {test?.error ? <Alert type="error" title={test.error} /> : null}
-                            {test?.status === "needs_review" ? <Alert type="warning" title="结果需核对，不能启用或自动重交" /> : null}
-                            <Checkbox checked={confirmed} disabled={!canConfirmBindingVerification(test, true) || uncertain || submitting} onChange={(event) => setConfirmed(event.target.checked)}>
-                                我已查看真实生成结果，确认内容与规格符合要求
+                            {test?.status === "needs_review" ? <Alert type="warning" title="结果需人工核对；可以接受差异并启用，也可以确认费用后重新生成" /> : null}
+                            <Checkbox checked={confirmed} disabled={!canConfirmBindingVerification(test, true) || submitting} onChange={(event) => setConfirmed(event.target.checked)}>
+                                我已查看真实结果，接受已提示的规格差异并确认可用
                             </Checkbox>
                         </section>
                     </div>
@@ -371,13 +381,13 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                 ) : null}
                 {channel && onProtocolChange ? (
                     <div hidden={tab !== "protocol"}>
-                        <fieldset disabled={busy || uncertain || test?.status === "needs_review"}>
+                        <fieldset disabled={busy}>
                             <AdminChannelProtocolSetup
                                 channel={{ ...channel, advancedConfig: { ...applyChannelProtocol(channel, "custom").advancedConfig!, protocol: "custom" } }}
                                 targetModel={upstreamModel}
                                 protocolLocked
                                 onChange={(patch) => {
-                                    if (submittingRef.current || busy || uncertain || test?.status === "needs_review") return false;
+                                    if (submittingRef.current || busy) return false;
                                     if (onProtocolChange(patch) === false) return false;
                                     setConfirmed(false);
                                     setTab("test");
@@ -389,4 +399,8 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
             </div>
         </Modal>
     );
+}
+
+async function reviewVerification(id: string, action: "accept-result" | "allow-retry") {
+    return readBindingVerification(`/api/admin/binding-verifications/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, confirmed: true }) });
 }
