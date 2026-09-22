@@ -133,6 +133,17 @@ jobs:
             exit 1
           fi
           cd /opt/vozeb-pro/staging
+          # Persist the deployed image into .env so a later manual
+          # `docker compose restart`/`up` on the server reuses this exact
+          # image instead of rolling back to a stale VOZEB_PRO_IMAGE value.
+          if grep -q '^VOZEB_PRO_IMAGE=' .env; then
+            tmp="$(mktemp)"
+            sed "s|^VOZEB_PRO_IMAGE=.*|VOZEB_PRO_IMAGE=${IMAGE}|" .env > "$tmp"
+            cat "$tmp" > .env
+            rm -f "$tmp"
+          else
+            printf 'VOZEB_PRO_IMAGE=%s\n' "$IMAGE" >> .env
+          fi
           VOZEB_PRO_IMAGE="$IMAGE" docker compose up -d --pull never --no-deps app generation-worker
           REMOTE
 
