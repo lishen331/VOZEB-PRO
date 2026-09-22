@@ -62,7 +62,7 @@ export async function createPlatformCourse(actorId: string, input: PlatformCours
         id: randomUUID(),
         title: requiredText(input.title, "课程标题", 160),
         summary: text(input.summary, 500),
-        content: objectValue(input.content),
+        content: mergeCourseContent(objectValue(input.content), input.category, input.validUntil),
         status: "draft",
         createdByUserId: actorId,
         createdAt: now,
@@ -79,10 +79,13 @@ export async function updatePlatformCourse(actorId: string, courseId: string, in
     if (!existing) throw new SchoolServiceError(404, "课程不存在");
     if (input.content !== undefined) await validateCourseCover(actorId, input.content, existing.content);
     if (existing.status === "disabled" && input.status === "published") throw new SchoolServiceError(409, "停用课程请使用恢复操作");
+    const needsContentMerge = input.content !== undefined || input.category !== undefined || input.validUntil !== undefined;
     const patch = {
         ...(input.title === undefined ? {} : { title: requiredText(input.title, "课程标题", 160) }),
         ...(input.summary === undefined ? {} : { summary: text(input.summary, 500) }),
-        ...(input.content === undefined ? {} : { content: objectValue(input.content) }),
+        ...(needsContentMerge
+            ? { content: mergeCourseContent(input.content === undefined ? objectValue(existing.content) : objectValue(input.content), input.category, input.validUntil) }
+            : {}),
         ...(input.status === undefined ? {} : { status: input.status }),
         updatedAt: new Date().toISOString(),
     };
@@ -95,7 +98,7 @@ export async function getPlatformCourseTree(actorId: string, courseId: string) {
     await requireEducationAdmin(actorId);
     const tree = await createSchoolDomainRepository().getPlatformCourseTree(courseId);
     if (!tree) throw new SchoolServiceError(404, "课程不存在");
-    return tree;
+    return { ...tree, ...deriveCourseContentFields((tree.content as Record<string, unknown>) || {}) };
 }
 
 export async function getSchoolCourseTree(userId: string, assignmentId: string) {
@@ -106,7 +109,9 @@ export async function getSchoolCourseTree(userId: string, assignmentId: string) 
     const course = await repository.getPlatformCourse(assignment.courseId);
     if (!course || course.status !== "published") throw new SchoolServiceError(404, "学校课程不存在");
     if (!context.canManageSchool && !(await repository.hasVisibleCourseAssignment(context.school.id, context.membership.id, context.membership.role, assignmentId))) throw new SchoolServiceError(404, "学校课程不存在");
-    return repository.getPlatformCourseTree(course.id, { schoolCourseAssignmentId: assignmentId });
+    const tree = await repository.getPlatformCourseTree(course.id, { schoolCourseAssignmentId: assignmentId });
+    if (!tree) throw new SchoolServiceError(404, "学校课程不存在");
+    return { ...tree, ...deriveCourseContentFields((tree.content as Record<string, unknown>) || {}) };
 }
 
 export async function createPlatformChapter(actorId: string, courseId: string, input: { title: string; description?: string; sortOrder?: number }) {
@@ -690,12 +695,25 @@ async function validateCourseCover(actorId: string, content: unknown, existing?:
     if (!media || media.storageClass !== "permanent" || media.type !== "image" || (key !== previousKey && media.ownerUserId !== actorId)) throw new SchoolServiceError(400, "请选择当前管理员上传的永久图片封面");
 }
 
+function deriveCourseContentFields(content: Record<string, unknown>) {
+    const coverStorageKey = typeof content.coverStorageKey === "string" ? content.coverStorageKey : undefined;
+    const category = typeof content.category === "string" ? content.category : undefined;
+    const validUntil = typeof content.validUntil === "string" ? content.validUntil : null;
+    return {
+        ...(coverStorageKey ? { coverUrl: `/api/reference-assets/${coverStorageKey}` } : {}),
+        ...(category ? { category } : {}),
+        ...(validUntil ? { validUntil } : {}),
+    };
+}
+
 function toPlatformCourse(record: PlatformCourseRecord): PlatformCourse {
+    const content = (record.content as Record<string, unknown>) || {};
     return {
         id: record.id,
         title: record.title,
         summary: record.summary,
-        content: record.content as Record<string, unknown>,
+        content,
+        ...deriveCourseContentFields(content),
         status: record.status,
         ...(record.deletedAt ? { deletedAt: record.deletedAt } : {}),
         ...(record.deletedByUserId ? { deletedByUserId: record.deletedByUserId } : {}),
@@ -793,6 +811,21 @@ function text(value: unknown, max: number) {
 
 function objectValue(value: unknown): JsonValue {
     return value && typeof value === "object" && !Array.isArray(value) ? (structuredClone(value as Record<string, unknown>) as JsonValue) : {};
+}
+
+function mergeCourseContent(base: JsonValue, category: unknown, validUntil: unknown): JsonValue {
+    const content = (base && typeof base === "object" && !Array.isArray(base) ? { ...(base as Record<string, unknown>) } : {}) as Record<string, unknown>;
+    if (category !== undefined) {
+        const categoryText = text(category, 60);
+        if (categoryText) content.category = categoryText;
+        else delete content.category;
+    }
+    if (validUntil !== undefined) {
+        if (validUntil === null || validUntil === "") delete content.validUntil;
+        else if (typeof validUntil === "string" && !Number.isNaN(Date.parse(validUntil))) content.validUntil = validUntil;
+        else throw new SchoolServiceError(400, "有效期无效");
+    }
+    return content as JsonValue;
 }
 
 function arrayValue(value: unknown): JsonValue {

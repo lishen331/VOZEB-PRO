@@ -1,8 +1,9 @@
 "use client";
 
 import { App, Button, Checkbox, Drawer, Form, Input, Pagination, Spin, Tabs, Tag } from "antd";
-import { BookOpen, CheckCircle2, ClipboardList, Eye, RefreshCw, Send } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock, Eye, RefreshCw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 import type { CourseLesson, SchoolCommercialOrder, SchoolContentReference, SchoolCourseAssignment, TeachingAssignment, TeachingSubmission } from "@/lib/school-domain";
 import { listCanvasProjectSummaries } from "@/services/api/canvas-projects";
@@ -23,6 +24,7 @@ const PAGE_SIZE = 12;
 
 export default function LearningPage() {
     const { message } = App.useApp();
+    const router = useRouter();
     const context = useSchoolContextStore((state) => state.context);
     const [form] = Form.useForm<SubmissionForm>();
     const [commercialForm] = Form.useForm<CommercialSubmissionForm>();
@@ -32,7 +34,6 @@ export default function LearningPage() {
     const [submissions, setSubmissions] = useState<Record<string, TeachingSubmission | undefined>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [viewingCourse, setViewingCourse] = useState<SchoolCourseAssignment | null>(null);
     const [viewingLesson, setViewingLesson] = useState<{ course: SchoolCourseAssignment; item: CourseLesson; index: number } | null>(null);
     const [courseTrees, setCourseTrees] = useState<Record<string, Awaited<ReturnType<typeof coursesApi.getSchoolCourseTree>>>>({});
     const [submitting, setSubmitting] = useState<TeachingAssignment | null>(null);
@@ -318,18 +319,26 @@ export default function LearningPage() {
             children: (
                 <ResponsiveGrid empty={!courses.length && !loading} emptyText="暂无班级课程">
                     {courses.map((item) => (
-                        <article key={item.id} className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-                            <h2 className="truncate text-sm font-medium">{item.course.title}</h2>
-                            <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-zinc-500">{item.course.summary || "暂无摘要"}</p>
-                            <div className="mt-3 flex items-center justify-between gap-2">
-                                <span className="text-xs text-zinc-500">
-                                    {item.course.chapterCount} 章 · {item.course.lessonCount} 个课时
-                                </span>
-                                <Button size="small" icon={<BookOpen className="size-3.5" />} onClick={() => setViewingCourse(item)}>
-                                    查看课程
-                                </Button>
+                        <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => router.push(`/learning/courses/${item.id}`)}
+                            className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 dark:border-zinc-800 dark:bg-zinc-950"
+                        >
+                            <div className="relative aspect-video w-full overflow-hidden bg-zinc-100 dark:bg-zinc-900">
+                                {item.course.coverUrl ? <img src={item.course.coverUrl} alt={item.course.title} className="h-full w-full object-cover" /> : null}
+                                {item.course.category ? (
+                                    <span className="absolute left-2.5 top-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">{item.course.category}</span>
+                                ) : null}
                             </div>
-                        </article>
+                            <div className="flex flex-1 flex-col gap-2 p-3.5">
+                                <h2 className="line-clamp-2 min-h-10 text-sm font-medium leading-5">{item.course.title}</h2>
+                                <div className="mt-auto flex items-center gap-1 text-xs text-zinc-400">
+                                    <Clock className="size-3.5" />
+                                    {item.course.lessonCount} 课时
+                                </div>
+                            </div>
+                        </button>
                     ))}
                 </ResponsiveGrid>
             ),
@@ -435,10 +444,6 @@ export default function LearningPage() {
                     </>
                 )}
             </div>
-
-            <Drawer title={viewingCourse?.course.title || "课程详情"} open={Boolean(viewingCourse)} destroyOnHidden size="min(720px, 100vw)" onClose={() => setViewingCourse(null)}>
-                {viewingCourse ? <CourseDetail assignment={viewingCourse} /> : null}
-            </Drawer>
 
             <Drawer title={viewingLesson ? outlineTitle(viewingLesson.item) || `课时 ${viewingLesson.index + 1}` : "课时详情"} open={Boolean(viewingLesson)} destroyOnHidden size="min(620px, 100vw)" onClose={() => setViewingLesson(null)}>
                 {viewingLesson ? (
@@ -741,17 +746,6 @@ function DescriptionBlock({ title, value, empty }: { title: string; value: strin
 function ResponsiveGrid({ children, empty, emptyText }: { children: ReactNode; empty: boolean; emptyText: string }) {
     if (empty) return <EmptyText text={emptyText} />;
     return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{children}</div>;
-}
-
-function CourseDetail({ assignment }: { assignment: SchoolCourseAssignment }) {
-    // 课程附件统一作为课程资料展示，平台与本校来源在课程树中区分。
-    const body = typeof assignment.course.content.body === "string" ? assignment.course.content.body : "";
-    return (
-        <div className="space-y-5">
-            <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{body || assignment.course.summary || "暂无正文"}</p>
-            <SchoolCourseTree assignmentId={assignment.id} />
-        </div>
-    );
 }
 
 function ResourceList({ values, emptyText }: { values: unknown[]; emptyText: string }) {
