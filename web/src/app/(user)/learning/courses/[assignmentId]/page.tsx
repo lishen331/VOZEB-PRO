@@ -68,9 +68,7 @@ export default function LearningCourseDetailPage() {
                 <BackRow onBack={() => router.push("/learning")} title={course.title} />
 
                 <div className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
-                    <div className="aspect-video w-full flex-none overflow-hidden rounded-xl bg-zinc-100 sm:w-70 dark:bg-zinc-900">
-                        {coverUrl ? <img src={coverUrl} alt={course.title} className="h-full w-full object-cover" /> : null}
-                    </div>
+                    <div className="aspect-video w-full flex-none overflow-hidden rounded-xl bg-zinc-100 sm:w-70 dark:bg-zinc-900">{coverUrl ? <img src={coverUrl} alt={course.title} className="h-full w-full object-cover" /> : null}</div>
                     <div className="flex min-w-0 flex-1 flex-col gap-3">
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="text-lg font-semibold text-zinc-950 sm:text-xl dark:text-zinc-100">{course.title}</h1>

@@ -83,9 +83,7 @@ export async function updatePlatformCourse(actorId: string, courseId: string, in
     const patch = {
         ...(input.title === undefined ? {} : { title: requiredText(input.title, "课程标题", 160) }),
         ...(input.summary === undefined ? {} : { summary: text(input.summary, 500) }),
-        ...(needsContentMerge
-            ? { content: mergeCourseContent(input.content === undefined ? objectValue(existing.content) : objectValue(input.content), input.category, input.validUntil) }
-            : {}),
+        ...(needsContentMerge ? { content: mergeCourseContent(input.content === undefined ? objectValue(existing.content) : objectValue(input.content), input.category, input.validUntil) } : {}),
         ...(input.status === undefined ? {} : { status: input.status }),
         updatedAt: new Date().toISOString(),
     };

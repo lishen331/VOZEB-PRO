@@ -326,9 +326,7 @@ export default function LearningPage() {
                         >
                             <div className="relative aspect-video w-full overflow-hidden bg-zinc-100 dark:bg-zinc-900">
                                 {item.course.coverUrl ? <img src={item.course.coverUrl} alt={item.course.title} className="h-full w-full object-cover" /> : null}
-                                {item.course.category ? (
-                                    <span className="absolute left-2.5 top-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">{item.course.category}</span>
-                                ) : null}
+                                {item.course.category ? <span className="absolute left-2.5 top-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">{item.course.category}</span> : null}
                             </div>
                             <div className="flex flex-1 flex-col gap-2 p-3.5">
                                 <h2 className="line-clamp-2 min-h-10 text-sm font-medium leading-5">{item.course.title}</h2>
