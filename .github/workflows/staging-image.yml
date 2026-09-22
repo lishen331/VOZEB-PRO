@@ -113,14 +113,16 @@ jobs:
           # public, so no registry login is needed there). The server's egress to
           # GHCR is fast but occasionally stalls on a single layer; `docker pull`
           # caches completed layers, so a bounded retry loop resumes where it left
-          # off and reliably finishes. This replaces pushing the 1.24GB image over
-          # the runner's heavily throttled (~50KB/s) SSH upload, which never
-          # completed within the job window.
+          # off and reliably finishes. Per-attempt timeout is 120s: a stalled layer
+          # (the pull hangs on tail without returning) is killed and retried quickly
+          # instead of burning a full 5 minutes each time it blips. This replaces
+          # pushing the 1.24GB image over the runner's heavily throttled (~50KB/s)
+          # SSH upload, which never completed within the job window.
           ssh "${ssh_opts[@]}" "$STAGING_SSH_USER@$STAGING_SSH_HOST" "IMAGE='$image' bash -s" <<'REMOTE'
           set -euo pipefail
           pulled=""
           for attempt in $(seq 1 8); do
-            if timeout 300 docker pull "$IMAGE"; then
+            if timeout 120 docker pull "$IMAGE"; then
               pulled="yes"
               printf 'Image pull succeeded on attempt %s/8\n' "$attempt"
               break

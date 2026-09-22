@@ -14,7 +14,6 @@ import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { ProductionGroupMemberPanel } from "@/components/school/production-group-member-panel";
-import { SchoolCourseTree } from "@/components/school/school-course-tree";
 import { SubmissionReferenceList } from "@/components/school/submission-reference-list";
 
 type ReferenceCandidate = { reference: SchoolContentReference; title: string; detail: string };
