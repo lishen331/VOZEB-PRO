@@ -534,7 +534,7 @@ function cloneLogicalModel(model: LogicalModel): LogicalModel {
 }
 
 export function bindingToggleNeedsVerification(binding: LogicalModelBinding, channel: SystemModelChannel | undefined, enabled: boolean, capability: LogicalModelCapability) {
-    return enabled && !binding.enabled && channel?.advancedConfig?.protocol !== "runninghub";
+    return capability !== "audio" && enabled && !binding.enabled && channel?.advancedConfig?.protocol !== "runninghub";
 }
 
 export function scopeProtocolPatchToBinding(channel: SystemModelChannel, binding: LogicalModelBinding, capability: LogicalModelCapability, patch: Partial<SystemModelChannel>): Partial<SystemModelChannel> {
