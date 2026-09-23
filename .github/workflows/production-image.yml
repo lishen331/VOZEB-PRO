@@ -1,4 +1,4 @@
-name: Production image
+﻿name: Production image
 
 on:
   push:
@@ -180,8 +180,23 @@ jobs:
             -o UserKnownHostsFile="$known_hosts_file" \
             compose.production.yml \
             "${target}:/opt/vozeb-pro/production/compose.production.yml"
-          docker save "$image" | gzip -1 | ssh "${ssh_args[@]}" "$target" 'gunzip | docker load'
-
+          ssh "${ssh_args[@]}" "$target" "IMAGE='$image' bash -s" <<'REMOTE'
+          set -euo pipefail
+          pulled=""
+          for attempt in $(seq 1 8); do
+            if timeout 300 docker pull "$IMAGE"; then
+              pulled="yes"
+              printf 'Production image pull succeeded on attempt %s/8\n' "$attempt"
+              break
+            fi
+            printf 'Production image pull attempt %s/8 stalled; retrying (completed layers are cached)\n' "$attempt" >&2
+            sleep 5
+          done
+          if [ -z "$pulled" ]; then
+            printf 'Production image pull failed after 8 attempts.\n' >&2
+            exit 1
+          fi
+          REMOTE
           old_image="$(ssh "${ssh_args[@]}" "$target" \
             "docker inspect --format '{{.Config.Image}}' vozeb-pro 2>/dev/null || true")"
 
