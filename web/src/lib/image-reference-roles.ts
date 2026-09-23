@@ -10,6 +10,7 @@ export const IMAGE_REFERENCE_ROLE_LABELS = {
     lighting: "光线/色彩参考",
     product: "商品结构参考",
     prop: "道具参考",
+    face: "人脸参考",
 } as const;
 
 export type ImageReferenceRole = keyof typeof IMAGE_REFERENCE_ROLE_LABELS;
@@ -28,6 +29,7 @@ export const IMAGE_REFERENCE_ROLE_CONSTRAINTS: Record<Exclude<ImageReferenceRole
     lighting: "仅参考光线方向、色彩关系与氛围",
     product: "仅参考商品结构、比例、材质与关键细节",
     prop: "仅参考道具外观、结构与使用状态",
+    face: "严格保持参考图中人物的面部一致性：五官形状与比例、脸型轮廓、眼距、鼻梁高度、嘴唇厚度等面部结构特征必须与参考图一致，仅允许表情与面部朝向变化",
 };
 
 export function normalizeImageReferenceRoles(value: Record<string, ImageReferenceRole | ImageReferenceRole[] | undefined> | undefined): ImageReferenceRoles {

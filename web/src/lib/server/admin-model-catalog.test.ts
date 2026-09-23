@@ -86,6 +86,34 @@ describe("admin model catalog", () => {
         ]);
     });
 
+    it("trusts a Chinese catalog category over an endpoint shape that merely lists openai-video", () => {
+        const payload = {
+            data: [
+                { id: "gpt-image-2", object: "model", category: "生图", supported_endpoint_types: ["edit", "generate", "openai-video"] },
+                { id: "gpt-image-2.5-sunburst", object: "model", category: "生图", supported_endpoint_types: ["image-generation", "openai", "openai-video"] },
+                { id: "nano-banana-pro-2k", object: "model", category: "生图", supported_endpoint_types: ["image-generation", "gemini", "openai"] },
+                { id: "doubao-seedance-2-0-260128", object: "model", category: "视频", supported_endpoint_types: ["sora-2 官方异步端点"] },
+                { id: "MiniMax-H3", object: "model", category: "视频", supported_endpoint_types: ["openai-video"] },
+                { id: "Kimi-K2-0905", object: "model", category: "文本", supported_endpoint_types: ["openai"] },
+            ],
+        };
+
+        expect(Object.fromEntries(parseModelCatalog(payload, "provider", "newapi").map((entry) => [entry.id, entry.capability]))).toEqual({
+            "gpt-image-2": "image",
+            "gpt-image-2.5-sunburst": "image",
+            "nano-banana-pro-2k": "image",
+            "doubao-seedance-2-0-260128": "video",
+            "MiniMax-H3": "video",
+            "Kimi-K2-0905": "text",
+        });
+        expect(parseModelConfigs(payload, "newapi")["gpt-image-2"]).toMatchObject({ capability: "image" });
+    });
+
+    it("keeps a lone openai-video endpoint shape as video but lets an explicit image endpoint win over it", () => {
+        expect(parseModelCatalog({ data: [{ id: "opaque-shape-only", supported_endpoint_types: ["openai-video"] }] }, "provider", "newapi")).toEqual([{ id: "opaque-shape-only", capability: "video", source: "provider" }]);
+        expect(parseModelCatalog({ data: [{ id: "opaque-mixed-shape", supported_endpoint_types: ["image-generation", "openai-video"] }] }, "provider", "newapi")).toEqual([{ id: "opaque-mixed-shape", capability: "image", source: "provider" }]);
+    });
+
     it("uses a single-capability protocol catalog before model-name inference", () => {
         const payload = { data: [{ id: "opaque-model", object: "model" }] };
 

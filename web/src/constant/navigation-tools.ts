@@ -1,4 +1,4 @@
-import { BookMarked, Clapperboard, Compass, FileText, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
+import { BookMarked, Clapperboard, Compass, FileText, Film, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
 
 import type { SchoolContext } from "@/lib/school-domain";
 import { featureModuleForNavigationSlug, type FeatureModuleSettings } from "@/lib/feature-modules";
@@ -99,6 +99,14 @@ const practiceNavigationTool = {
     icon: Sparkles,
 } as const;
 
+const oneClickFilmNavigationTool = {
+    slug: "one-click-film",
+    label: "一键成片",
+    description: "完整短剧一键成片工作流",
+    group: "projects",
+    icon: Film,
+} as const;
+
 const dramaWorkflowLabNavigationTool = {
     slug: "drama-lab",
     label: "创作工坊",
@@ -170,13 +178,13 @@ export function schoolNavigationTools(context: SchoolContext | null) {
     return [teacherNavigationTool, ...(context.canManageSchool ? ([schoolManagementNavigationTool] as const) : [])] as const;
 }
 
-export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school" | "drama-lab";
+export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school" | "drama-lab" | "one-click-film";
 export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
 export function navigationToolsForContext(context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
     const schoolTools = schoolNavigationTools(context);
     // 默认包含创作工坊（如果环境变量启用）
-    const candidates = [...(schoolTools.length ? [practiceNavigationTool] : []), ...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool]), ...schoolTools];
+    const candidates = [...(schoolTools.length ? [practiceNavigationTool] : []), ...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool, oneClickFilmNavigationTool]), ...schoolTools];
     return candidates.filter((tool) => {
         const featureModule = featureModuleForNavigationSlug(tool.slug);
         return !featureModule || options.featureModules?.[featureModule] !== false;
@@ -186,4 +194,36 @@ export function navigationToolsForContext(context: SchoolContext | null = null, 
 export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
     const slug = pathname.split("/").filter(Boolean)[0];
     return navigationToolsForContext(context, options).find((tool) => tool.slug === slug);
+}
+
+/**
+ * The slug of the first entry a user sees top-to-bottom in the sidebar, given
+ * which feature modules are enabled. Single source of truth for "where should a
+ * landing redirect send someone": the sidebar (app-sidebar.tsx) renders groups
+ * in `navigationGroups` order and, within each group, keeps the relative order
+ * of `navigationToolsForContext`. Sorting that same list by group index (stable)
+ * and taking the first element reproduces the sidebar's top item exactly, so the
+ * destination can never be a page whose nav entry is hidden.
+ *
+ * Returns null only when every module is disabled — callers fall back to /help.
+ */
+export function resolveLandingSlug(context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
+    const tools = navigationToolsForContext(context, options);
+    if (!tools.length) return null;
+    const groupOrder = new Map(navigationGroups.map((group, index) => [group.id, index] as const));
+    // school tools use a group id absent from navigationGroups; the sidebar
+    // appends that group last, so unknown groups sort after all known ones.
+    const afterKnownGroups = navigationGroups.length;
+    const rank = (group: string) => groupOrder.get(group as NavigationGroupId) ?? afterKnownGroups;
+    let first = tools[0];
+    let firstRank = rank(first.group);
+    for (const tool of tools) {
+        // Strict `<` preserves original order on ties, matching the sidebar's
+        // stable within-group ordering.
+        if (rank(tool.group) < firstRank) {
+            first = tool;
+            firstRank = rank(tool.group);
+        }
+    }
+    return first.slug;
 }

@@ -1,3 +1,5 @@
+import { bindingVerificationRequestHeaders } from "./binding-verification-authority";
+import { currentMediaTraceHeaders, observeMediaFetch } from "./media-task-trace";
 import { Agent, fetch as undiciFetch } from "undici";
 
 import { GENERATION_TRANSPORT_TIMEOUT_MS } from "@/lib/server/generation-http-lifecycle";
@@ -35,8 +37,13 @@ export function isInternalApiBaseUrl(baseUrl: string) {
 }
 
 export async function fetchInternalApi(input: string | URL, init?: RequestInit): Promise<Response> {
+    init = { ...init, headers: bindingVerificationRequestHeaders(String(input), init?.headers) };
     const body = await toUndiciRequestBody(init?.body);
-    return undiciFetch(input, { ...init, body, dispatcher: internalDispatcher } as Parameters<typeof undiciFetch>[1]) as unknown as Promise<Response>;
+    return observeMediaFetch(
+        String(input),
+        init,
+        () => undiciFetch(input, { ...init, headers: currentMediaTraceHeaders(String(input), init?.headers), body, dispatcher: internalDispatcher } as Parameters<typeof undiciFetch>[1]) as unknown as Promise<Response>,
+    );
 }
 
 function normalizeOrigin(value: string) {

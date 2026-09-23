@@ -222,6 +222,8 @@ export type LogicalModelCapabilityProfile = {
     supportsAsync?: boolean;
     supportsCancel?: boolean;
     supportsWebhook?: boolean;
+    /** Force HTTP/1.1 only for this logical-model/channel binding. */
+    http1Compatibility?: boolean;
     timeoutMs?: number;
     concurrencyLimit?: number;
     unitCost?: number;

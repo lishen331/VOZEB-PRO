@@ -10,8 +10,9 @@ import { imagePreviewUrl } from "@/lib/media-image-url";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
-import { CanvasNodeType, type CanvasNodeData } from "../types";
+import { CanvasNodeType, type CanvasGroupMemberSnapshot, type CanvasNodeData } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
+import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
 
 function canvasGroupColumns(count: number) {
     if (count <= 1) return 1;
@@ -208,10 +209,35 @@ export function GroupNodeContent({ node, theme }: NodeContentRendererProps) {
 
 export function LoadingContent({ theme }: Pick<NodeContentRendererProps, "theme">) {
     return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.activeStroke }}>
-            <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />
-            <span className="text-[10px] tracking-[0.2em]">生成中</span>
+        <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden" style={{ color: theme.node.activeStroke }}>
+            <div className="canvas-node-generating-shader" aria-hidden />
+            <div className="relative size-8 animate-spin rounded-full border-2" style={{ borderColor: "rgb(255 255 255 / 25%)", borderTopColor: "#3797ff" }} aria-hidden />
+            <GeneratingCaption />
         </div>
+    );
+}
+
+/**
+ * Rotating anthropomorphic status line with a typewriter reveal. Ticks a
+ * single elapsed counter and derives the frame from it, so the animation is a
+ * pure function of time — no per-character state machine to fall out of sync.
+ */
+function GeneratingCaption() {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        const started = Date.now();
+        const id = window.setInterval(() => setElapsed(Date.now() - started), TYPE_MS);
+        return () => window.clearInterval(id);
+    }, []);
+
+    const { text } = typewriterFrame(elapsed);
+
+    return (
+        <span className="relative min-h-4 px-4 text-center text-[11px] leading-4 text-white/90" aria-live="polite">
+            {text}
+            <span className="canvas-node-caret" aria-hidden />
+        </span>
     );
 }
 
@@ -357,7 +383,7 @@ export function ImageNodeContent(props: NodeContentRendererProps) {
                 <EmptyImageContent {...props} isBatchRoot={false} />
             );
         return (
-            <BatchFrame batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} onToggleBatch={props.onToggleBatch}>
+            <BatchFrame batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} snapshots={props.node.metadata?.batchMemberSnapshots} onToggleBatch={props.onToggleBatch}>
                 {content}
             </BatchFrame>
         );
@@ -379,7 +405,7 @@ export function ImageNodeContent(props: NodeContentRendererProps) {
     );
 }
 
-export function EmptyImageContent({ theme, isBatchRoot, batchCount, batchExpanded, batchOpening, batchRecovering, onToggleBatch }: NodeContentRendererProps) {
+export function EmptyImageContent({ node, theme, isBatchRoot, batchCount, batchExpanded, batchOpening, batchRecovering, onToggleBatch }: NodeContentRendererProps) {
     const content = (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.placeholder }}>
             <div className="flex size-14 items-center justify-center rounded-2xl border" style={{ background: theme.node.subtleSurface, borderColor: theme.node.subtleBorder, color: theme.node.subtleText }}>
@@ -390,7 +416,7 @@ export function EmptyImageContent({ theme, isBatchRoot, batchCount, batchExpande
     );
     if (isBatchRoot)
         return (
-            <BatchFrame batchCount={batchCount} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} onToggleBatch={onToggleBatch}>
+            <BatchFrame batchCount={batchCount} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} snapshots={node.metadata?.batchMemberSnapshots} onToggleBatch={onToggleBatch}>
                 {content}
             </BatchFrame>
         );
@@ -508,7 +534,7 @@ export function ImageContent({
     }, [node.metadata?.content, reportDimensions]);
 
     return (
-        <BatchFrame batchCount={isBatchRoot ? batchCount : 0} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} onToggleBatch={onToggleBatch}>
+        <BatchFrame batchCount={isBatchRoot ? batchCount : 0} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} snapshots={node.metadata?.batchMemberSnapshots} onToggleBatch={onToggleBatch}>
             <div className="h-full w-full overflow-hidden rounded-3xl" style={{ background: theme.node.fill }}>
                 <img
                     ref={imageRef}
@@ -540,20 +566,31 @@ export function ImageContent({
                 </button>
             ) : null}
             {isBatchChild ? (
-                <button
-                    type="button"
-                    className="absolute right-3 top-3 z-30 flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium opacity-0 shadow-[0_8px_20px_rgba(68,64,60,.13)] backdrop-blur-md transition group-hover/batch:opacity-100 hover:scale-[1.02]"
-                    style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onSetBatchPrimary?.();
-                    }}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => event.stopPropagation()}
-                >
-                    <Star className="size-3.5 text-[#2f80ff]" />
-                    设为主图
-                </button>
+                node.metadata?.isBatchPrimary ? (
+                    <div
+                        className="absolute right-3 top-3 z-30 flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium opacity-0 shadow-[0_8px_20px_rgba(68,64,60,.13)] backdrop-blur-md transition group-hover/batch:opacity-100"
+                        style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.placeholder }}
+                        aria-disabled="true"
+                    >
+                        <Star className="size-3.5 fill-[#2f80ff] text-[#2f80ff]" />
+                        当前主图
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        className="absolute right-3 top-3 z-30 flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium opacity-0 shadow-[0_8px_20px_rgba(68,64,60,.13)] backdrop-blur-md transition group-hover/batch:opacity-100 hover:scale-[1.02]"
+                        style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onSetBatchPrimary?.();
+                        }}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onPointerDown={(event) => event.stopPropagation()}
+                    >
+                        <Star className="size-3.5 text-[#2f80ff]" />
+                        设为主图
+                    </button>
+                )
             ) : null}
         </BatchFrame>
     );
@@ -583,6 +620,7 @@ export function BatchFrame({
     batchExpanded,
     batchOpening,
     batchRecovering,
+    snapshots = [],
     onToggleBatch,
     children,
 }: {
@@ -590,14 +628,21 @@ export function BatchFrame({
     batchExpanded: boolean;
     batchOpening: boolean;
     batchRecovering: boolean;
+    snapshots?: CanvasGroupMemberSnapshot[];
     onToggleBatch?: () => void;
     children: ReactNode;
 }) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
+    const [hovered, setHovered] = useState(false);
     const isBatchRoot = batchCount > 1;
+    // Behind-card previews: prefer real child thumbnails, fall back to blank cards while they load.
+    const behindCards = snapshots.length ? snapshots.slice(0, 5) : Array.from({ length: Math.min(batchCount - 1, 5) }, () => null);
+    const fanned = hovered && !batchExpanded;
     return (
         <div
             className="group/batch relative h-full w-full overflow-visible"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
             onDoubleClick={
                 isBatchRoot
                     ? (event) => {
@@ -609,21 +654,28 @@ export function BatchFrame({
         >
             {isBatchRoot ? (
                 <div className="pointer-events-none absolute inset-0 overflow-visible">
-                    {Array.from({ length: Math.min(batchCount - 1, 5) }).map((_, index) => (
-                        <div
-                            key={index}
-                            className="absolute rounded-[inherit] border shadow-[0_14px_34px_rgba(68,64,60,.16)] transition-all duration-300 group-hover/batch:translate-x-2"
-                            style={{
-                                inset: 0,
-                                background: `linear-gradient(135deg, ${theme.node.panel}, ${theme.node.fill})`,
-                                borderColor: theme.node.stroke,
-                                opacity: batchExpanded && !batchOpening ? 0.34 : 1,
-                                transform:
-                                    batchOpening || batchRecovering ? `translate(${54 + index * 22}px, ${20 + index * 12}px) rotate(${8 + index * 5}deg) scale(.98)` : `translate(${34 + index * 18}px, ${14 + index * 10}px) rotate(${6 + index * 4}deg)`,
-                                zIndex: -index - 1,
-                            }}
-                        />
-                    ))}
+                    {behindCards.map((snapshot, index) => {
+                        const spread = behindCards.length > 1 ? index / (behindCards.length - 1) - 0.5 : 0;
+                        const restTransform = batchOpening || batchRecovering ? `translate(${8 + index * 6}px, ${26 + index * 20}px) scale(.98)` : `translate(${6 + index * 5}px, ${18 + index * 16}px)`;
+                        const fannedTransform = `translate(${spread * (58 + behindCards.length * 12)}px, ${34 + index * 6}px) rotate(${spread * 16}deg)`;
+                        return (
+                            <div
+                                key={snapshot?.id || index}
+                                className="absolute overflow-hidden rounded-[inherit] border shadow-[0_14px_34px_rgba(68,64,60,.16)] transition-all duration-300"
+                                style={{
+                                    inset: 0,
+                                    background: snapshot?.content ? theme.node.fill : `linear-gradient(135deg, ${theme.node.panel}, ${theme.node.fill})`,
+                                    borderColor: theme.node.stroke,
+                                    opacity: batchExpanded && !batchOpening ? 0.34 : 1,
+                                    transform: fanned ? fannedTransform : restTransform,
+                                    transformOrigin: "top center",
+                                    zIndex: -index - 1,
+                                }}
+                            >
+                                {snapshot?.content ? <img src={imagePreviewUrl(snapshot.content, 320)} alt="" draggable={false} loading="lazy" decoding="async" className="pointer-events-none size-full select-none object-cover" /> : null}
+                            </div>
+                        );
+                    })}
                 </div>
             ) : null}
             {children}

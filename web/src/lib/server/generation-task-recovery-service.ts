@@ -1,3 +1,4 @@
+import { withMediaDiagnosticScope, traceMediaException } from "./media-task-trace";
 import { randomUUID } from "node:crypto";
 
 import { generationTaskNextPollAt, claimDueGenerationTasks, releaseGenerationTaskLease, renewGenerationTaskLeases, scheduleGenerationTask, withGenerationConcurrencyLimit, type GenerationTaskLease } from "@/lib/server/generation-task-scheduler";
@@ -52,6 +53,17 @@ export async function runGenerationTaskRecoveryBatch(input: { origin: string; pu
 }
 
 async function processGenerationTaskLease(lease: GenerationTaskLease, workerId: string, origin: string, publicOrigin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
+    if (lease.type === "image" || lease.type === "video")
+        return withMediaDiagnosticScope(
+            lease.type,
+            { ...lease.payload, id: lease.id, userId: lease.userId, surface: typeof lease.payload.surface === "string" ? lease.payload.surface : undefined, projectId: typeof lease.payload.projectId === "string" ? lease.payload.projectId : undefined },
+            "recovery",
+            () => processObservedGenerationTaskLease(lease, workerId, origin, publicOrigin, cookie, userRequested),
+        );
+    return processObservedGenerationTaskLease(lease, workerId, origin, publicOrigin, cookie, userRequested);
+}
+
+async function processObservedGenerationTaskLease(lease: GenerationTaskLease, workerId: string, origin: string, publicOrigin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
     if (lease.status === "cancelled" && isCancellationExecutionPhase(lease.executionPhase)) return processCancelledLease(lease, workerId, origin);
     if (lease.executionProfile === "open-source-practice" && lease.executionPhase === "queued" && ["image", "video", "audio", "text"].includes(lease.type)) {
         const settings = await getAuthSettings();
@@ -92,6 +104,7 @@ async function processGenerationTaskLeaseCore(lease: GenerationTaskLease, worker
     if (lease.type === "agent") return processAgentLease(lease, workerId, origin, cookie);
     if (lease.type === "render") {
         if (lease.payload?.taskKind === DRAMA_LAB_FINAL_VIDEO_TASK_KIND) return processDramaLabFinalVideoLease(lease, workerId, origin, cookie);
+        if (lease.payload?.taskKind === "one-click-film-workflow") return processOneClickFilmLease(lease, workerId, origin, cookie);
         return processDramaWorkflowLease(lease, workerId, origin, cookie);
     }
     if (lease.type !== "video") {
@@ -101,6 +114,28 @@ async function processGenerationTaskLeaseCore(lease: GenerationTaskLease, worker
     return processVideoLease(lease, workerId, origin, cookie, userRequested);
 }
 
+async function processOneClickFilmLease(lease: GenerationTaskLease, workerId: string, origin: string, cookie: string): Promise<RecoveryResult> {
+    const now = Date.now();
+    try {
+        const { advanceOneClickFilm, createOneClickFilmExecutor } = await import("@/lib/server/one-click-film/worker");
+        const task = await advanceOneClickFilm(lease.id, lease.userId, createOneClickFilmExecutor({ origin, cookie: cookie || maintenanceWorkerContext(lease.userId) }));
+        if (!task) {
+            await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: "one_click_missing" });
+            return "failed";
+        }
+        if (["success", "error", "cancelled"].includes(task.status)) {
+            await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: `one_click_${task.status}` });
+            return task.status === "error" ? "failed" : "completed";
+        }
+        await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "polling", nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }), lastPollAt: now, lastUpstreamStatus: `one_click_${task.status}` });
+        return "pending";
+    } catch (error) {
+        await traceMediaException(error);
+        await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "polling", nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }), lastPollAt: now, lastUpstreamStatus: "one_click_error" });
+        console.warn("One click film recovery deferred", { taskId: lease.id, error: safeError(error) });
+        return "deferred";
+    }
+}
 /** Execute the dedicated final-video snapshot through the same durable render lease. */
 async function processDramaLabFinalVideoLease(lease: GenerationTaskLease, workerId: string, origin: string, cookie: string): Promise<RecoveryResult> {
     const now = Date.now();
@@ -113,6 +148,7 @@ async function processDramaLabFinalVideoLease(lease: GenerationTaskLease, worker
         await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "polling", nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }), lastPollAt: now, lastUpstreamStatus: `final_video_${task.status}` });
         return "pending";
     } catch (error) {
+        await traceMediaException(error);
         await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "polling", nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }), lastPollAt: now, lastUpstreamStatus: "final_video_error" });
         console.warn("Drama Lab final video recovery deferred", { taskId: lease.id, error: safeError(error) });
         return "deferred";
@@ -147,6 +183,7 @@ async function processDramaWorkflowLease(lease: GenerationTaskLease, workerId: s
         });
         return "pending";
     } catch (error) {
+        await traceMediaException(error);
         const count = errorCount(lease.lastUpstreamStatus) + 1;
         await releaseGenerationTaskLease("render", lease.id, workerId, {
             executionPhase: "polling",
@@ -218,6 +255,7 @@ async function processCancelledLease(lease: GenerationTaskLease, workerId: strin
         );
         return "pending";
     } catch (error) {
+        await traceMediaException(error);
         const count = errorCount(lease.lastUpstreamStatus) + 1;
         await releaseGenerationTaskLease(
             lease.type,
@@ -375,6 +413,7 @@ async function processAgentLease(lease: GenerationTaskLease, workerId: string, o
             try {
                 await validateGenerationContextIpReferences(run.userId, { surface: run.surface, projectId: run.projectId });
             } catch (error) {
+                await traceMediaException(error);
                 if (!(error instanceof SchoolServiceError)) throw error;
                 await updateAgentRunById(run.id, { status: "failed", executionId: undefined }, { type: "run.failed", data: { message: error.message } }, ["planning", "running"]);
                 await releaseGenerationTaskLease("agent", run.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "ip_authorization_failed" });
@@ -395,6 +434,7 @@ async function processAgentLease(lease: GenerationTaskLease, workerId: string, o
         });
         return "pending";
     } catch (error) {
+        await traceMediaException(error);
         const latest = await getAgentRun(run.id);
         if (latest?.status === "failed") {
             await releaseGenerationTaskLease("agent", run.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "failed" });
@@ -431,6 +471,7 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
             try {
                 await materializeDramaLabStoryTask(task);
             } catch (error) {
+                await traceMediaException(error);
                 // The text result is durable even if project persistence is
                 // temporarily unavailable. The story task endpoint retries
                 // materialization on the next poll.
@@ -463,6 +504,7 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
         try {
             await validateGenerationContextIpReferences(task.userId, task);
         } catch (error) {
+            await traceMediaException(error);
             if (!(error instanceof SchoolServiceError)) throw error;
             const failed = await transitionTextTask(task, ["pending", "running"], { status: "error", error: error.message, config: { ...task.config, apiKey: "" } });
             if (failed) await refundTextTask(failed);
@@ -527,6 +569,7 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
         });
         return "pending";
     } catch (error) {
+        await traceMediaException(error);
         const latest = await getTextTask(task.id);
         const upstreamTaskId = latest?.upstream?.id || lease.upstreamTaskId;
         const count = errorCount(lease.lastUpstreamStatus) + 1;
@@ -610,6 +653,7 @@ async function processImageLease(lease: GenerationTaskLease, workerId: string, o
         try {
             await validateGenerationContextIpReferences(task.userId, task);
         } catch (error) {
+            await traceMediaException(error);
             if (!(error instanceof SchoolServiceError)) throw error;
             await markImageTaskFailed(task, error.message);
             await releaseGenerationTaskLease("image", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "ip_authorization_failed" });
@@ -695,6 +739,7 @@ async function processImageLease(lease: GenerationTaskLease, workerId: string, o
         });
         return "pending";
     } catch (error) {
+        await traceMediaException(error);
         const latest = await getImageTask(task.id);
         const count = errorCount(lease.lastUpstreamStatus) + 1;
         const upstreamTaskId = latest?.upstream?.id || lease.upstreamTaskId;
@@ -748,6 +793,7 @@ async function persistImageLease(task: ImageTask, lease: GenerationTaskLease, wo
         await releaseGenerationTaskLease("image", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "persisted" });
         return "completed";
     } catch (error) {
+        await traceMediaException(error);
         const count = errorCount(lease.lastUpstreamStatus) + 1;
         const now = Date.now();
         const persistenceStartedAt = persistenceRecoveryStartedAt(lease, now);
@@ -827,6 +873,7 @@ async function processAudioLease(lease: GenerationTaskLease, workerId: string, o
         try {
             await validateGenerationContextIpReferences(task.userId, task);
         } catch (error) {
+            await traceMediaException(error);
             if (!(error instanceof SchoolServiceError)) throw error;
             await markAudioTaskFailed(task, error.message);
             await releaseGenerationTaskLease("audio", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "ip_authorization_failed" });
@@ -877,6 +924,7 @@ async function processAudioLease(lease: GenerationTaskLease, workerId: string, o
         });
         return "pending";
     } catch (error) {
+        await traceMediaException(error);
         const latest = await getAudioTask(task.id);
         const upstreamTaskId = latest?.upstream?.id || lease.upstreamTaskId;
         const count = errorCount(lease.lastUpstreamStatus) + 1;
@@ -924,6 +972,7 @@ async function persistAudioLease(task: AudioTask, lease: GenerationTaskLease, wo
         await releaseGenerationTaskLease("audio", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "persisted" });
         return "completed";
     } catch (error) {
+        await traceMediaException(error);
         const count = errorCount(lease.lastUpstreamStatus) + 1;
         const now = Date.now();
         const persistenceStartedAt = persistenceRecoveryStartedAt(lease, now);
@@ -1021,6 +1070,7 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
         });
         return "pending";
     } catch (error) {
+        await traceMediaException(error);
         // 如果是鉴权错误且没有提供 cookie，使用 workerUserId 重试一次
         if (error instanceof Error && error.name === "VideoQueryAuthError" && !cookie) {
             try {
@@ -1115,6 +1165,7 @@ async function persistVideoLease(task: VideoTask, lease: GenerationTaskLease, wo
         await releaseGenerationTaskLease("video", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "persisted" });
         return "completed";
     } catch (error) {
+        await traceMediaException(error);
         const count = errorCount(lease.lastUpstreamStatus) + 1;
         const now = Date.now();
         const persistenceStartedAt = persistenceRecoveryStartedAt(lease, now);

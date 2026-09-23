@@ -15,6 +15,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
+// This matrix verifies the existing provider contracts after binding admission.
+// Admission rejection and proof integrity have their own settings/verification tests.
+vi.mock("@/lib/server/binding-verification-store", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/server/binding-verification-store")>();
+    return { ...actual, hasPassedBindingVerification: vi.fn(async () => true) };
+});
 vi.mock("@/lib/auth/store", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@/lib/auth/store")>();
     return { ...actual, consumeUserPoints: mocks.consumeUserPoints, refundUserPoints: mocks.refundUserPoints };

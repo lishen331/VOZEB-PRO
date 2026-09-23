@@ -1,3 +1,4 @@
+import { recordMediaTaskEvent } from "@/lib/server/media-task-trace";
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -40,6 +41,7 @@ export async function GET(request: Request, context: RouteContext) {
     const settledTask = shouldRefund ? await refundImageTask(task) : task;
     const refreshedUser = shouldRefund ? await getCurrentUser(request) : currentUser;
 
+    await recordMediaTaskEvent("image", settledTask, { phase: "poll", state: `api_response:${executionPhase}`, upstreamTaskId: settledTask.upstream?.id });
     return NextResponse.json(
         {
             task: {

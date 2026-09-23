@@ -29,6 +29,7 @@ const CanvasAssistantPanel = dynamic(() => import("../components/canvas-assistan
 import { CanvasRefreshShell, ConnectionCreateMenu, NodeCreateMenu } from "./canvas-page-elements";
 import { getInputSummary, isHiddenBatchChild } from "./canvas-page-utils";
 import { CANVAS_GROUP_MIN_MEMBERS, canvasGroupCandidates, isHiddenCanvasGroupMember } from "../utils/canvas-storyboard-group";
+import type { CanvasPanelPlacement } from "../utils/canvas-panel-placement";
 
 export default function CanvasPage() {
     const [mounted, setMounted] = useState(false);
@@ -330,6 +331,13 @@ function VozebProCanvasPage() {
         [setSelectedNodeIds, setSelectedConnectionId, setToolbarNodeId, setDialogNodeId],
     );
     const handleNodeViewImage = useCallback((node: CanvasNodeData) => setPreviewNodeId(node.id), [setPreviewNodeId]);
+    // Lifted out of CanvasNode so the hover toolbar — a sibling, not a child —
+    // can step aside when a panel claims the band above its node. Keyed by node
+    // id so a stale placement never leaks onto a different node's toolbar.
+    const [panelPlacement, setPanelPlacement] = useState<{ nodeId: string; placement: CanvasPanelPlacement } | null>(null);
+    const handlePanelPlacementChange = useCallback((nodeId: string, placement: CanvasPanelPlacement) => {
+        setPanelPlacement((current) => (current?.nodeId === nodeId && current.placement === placement ? current : { nodeId, placement }));
+    }, []);
     const nodeProps = useMemo(
         () => ({
             onHoverStart: handleNodeHoverStart,
@@ -342,8 +350,9 @@ function VozebProCanvasPage() {
             onOpenPanel: handleNodeOpenPanel,
             onImageDimensions: handleImageDimensions,
             onViewImage: handleNodeViewImage,
+            onPanelPlacementChange: handlePanelPlacementChange,
         }),
-        [handleNodeHoverStart, handleNodeHoverEnd, handleNodeContentChange, toggleBatchExpanded, setBatchPrimary, handleNodeRetry, generateImageFromTextNode, handleNodeOpenPanel, handleImageDimensions, handleNodeViewImage],
+        [handleNodeHoverStart, handleNodeHoverEnd, handleNodeContentChange, toggleBatchExpanded, setBatchPrimary, handleNodeRetry, generateImageFromTextNode, handleNodeOpenPanel, handleImageDimensions, handleNodeViewImage, handlePanelPlacementChange],
     );
     const getNodeViewProps = useCallback(
         (node: CanvasNodeData) => ({
@@ -409,6 +418,17 @@ function VozebProCanvasPage() {
         ),
         [runningNodeId, configInputsById, mentionReferencesByNodeId, handleConfigNodeChange, confirmStopGeneration, setDialogNodeId, nodesRef, handleGenerateNode],
     );
+    const handleNodeContextMenu = useCallback(
+        (event: React.MouseEvent, id: string) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setDialogNodeId(null);
+            setEditingNodeId(null);
+            setToolbarNodeId(null);
+            setContextMenu({ type: "node", x: event.clientX, y: event.clientY, nodeId: id });
+        },
+        [setDialogNodeId, setEditingNodeId, setToolbarNodeId, setContextMenu],
+    );
     const canGroupSelection = useMemo(() => canvasGroupCandidates(nodes, selectedNodeIds).length >= CANVAS_GROUP_MIN_MEMBERS, [nodes, selectedNodeIds]);
     const selectedGroupCount = useMemo(() => nodes.filter((node) => node.type === CanvasNodeType.Group && selectedNodeIds.has(node.id)).length, [nodes, selectedNodeIds]);
     const contextMenuNode = contextMenu?.type === "node" ? nodes.find((node) => node.id === contextMenu.nodeId) : undefined;
@@ -445,7 +465,7 @@ function VozebProCanvasPage() {
                     onRetrySave={() => retryProjectSave(projectId)}
                     canUndo={historyState.canUndo}
                     canRedo={historyState.canRedo}
-                    onWorkbench={() => router.push("/create")}
+                    onWorkbench={() => router.push("/canvas")}
                     onDeleteProject={deleteCurrentProject}
                     onImportImage={() => handleUploadRequest()}
                     onUndo={undoCanvas}
@@ -502,8 +522,11 @@ function VozebProCanvasPage() {
                     }}
                     onViewportCommit={(next) => {
                         setViewport(next);
+                        // The context menu is screen-anchored, so a viewport change
+                        // orphans it — close it. The node-create menu is anchored to
+                        // a world position and scale-compensated, so it correctly
+                        // follows pan/zoom and must survive this commit.
                         setContextMenu(null);
-                        setNodeCreatePosition(null);
                     }}
                     onConnect={({ source, target }) => connectNodes({ nodeId: source, handleType: "source" }, target)}
                     onConnectionCreate={({ nodeId, handleType, position }) => setPendingConnectionCreate({ connection: { nodeId, handleType }, position })}
@@ -516,14 +539,7 @@ function VozebProCanvasPage() {
                         setNodeCreatePosition(position);
                     }}
                     onPaneContextMenu={(event) => preventCanvasContextMenu(event as React.MouseEvent)}
-                    onNodeContextMenu={(event, id) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setDialogNodeId(null);
-                        setEditingNodeId(null);
-                        setToolbarNodeId(null);
-                        setContextMenu({ type: "node", x: event.clientX, y: event.clientY, nodeId: id });
-                    }}
+                    onNodeContextMenu={handleNodeContextMenu}
                     onEdgeContextMenu={(event, id) => {
                         setSelectedConnectionId(id);
                         setSelectedNodeIds(new Set());
@@ -559,6 +575,7 @@ function VozebProCanvasPage() {
                 <CanvasNodeHoverToolbar
                     node={isNodeDragging || nodeImageSettingsOpen ? null : toolbarNode}
                     viewport={viewport}
+                    panelPlacement={toolbarNode && panelPlacement?.nodeId === toolbarNode.id ? panelPlacement.placement : "bottom"}
                     onKeep={keepNodeToolbar}
                     onInfo={(node) => setInfoNodeId(node.id)}
                     onEditText={openTextEditor}

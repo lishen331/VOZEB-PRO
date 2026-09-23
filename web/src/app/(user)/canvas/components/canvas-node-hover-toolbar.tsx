@@ -2,19 +2,26 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { App, Modal, Segmented, Tooltip } from "antd";
-import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, MessageSquare, Minus, Music2, Pencil, Plus, RefreshCw, Settings2, Trash2, Upload, Video } from "lucide-react";
+import { Copy, Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, MessageSquare, Minus, Music2, Pencil, Plus, RefreshCw, Settings2, Trash2, Upload, Video } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes, getDataUrlByteSize } from "@/lib/image-utils";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type ViewportTransform } from "../types";
+import type { CanvasPanelPlacement } from "../utils/canvas-panel-placement";
 import { ImageToolSettingsModal, type ImageToolbarSettingsTool } from "./canvas-image-toolbar-settings-modal";
 import { IMAGE_QUICK_TOOLS_STORAGE_KEY, buildImageToolbarTools, defaultImageQuickToolIds, readImageQuickToolsConfig, type ImageQuickToolId } from "./canvas-image-toolbar-tools";
 
 type CanvasNodeHoverToolbarProps = {
     node: CanvasNodeData | null;
     viewport: ViewportTransform;
+    /**
+     * Where this node's edit panel sits. "top" means the panel has claimed the
+     * band above the node — this toolbar's default spot — so the toolbar moves
+     * below the node instead of overlapping the panel's controls.
+     */
+    panelPlacement?: CanvasPanelPlacement;
     onKeep: (nodeId: string) => void;
     onInfo: (node: CanvasNodeData) => void;
     onEditText: (node: CanvasNodeData) => void;
@@ -54,6 +61,7 @@ type ToolbarTool = {
 export function CanvasNodeHoverToolbar({
     node,
     viewport,
+    panelPlacement = "bottom",
     onKeep,
     onInfo,
     onEditText,
@@ -120,11 +128,26 @@ export function CanvasNodeHoverToolbar({
 
     if (!node) return null;
 
-    const left = viewport.x + (node.position.x + node.width / 2) * viewport.k;
-    const top = viewport.y + node.position.y * viewport.k - 12;
+    // Position is expressed in CSS so it tracks pan/zoom with zero lag. The
+    // --canvas-* variables are published imperatively by canvas-surface on every
+    // gesture frame; the React `viewport` prop only catches up ~140ms after a
+    // gesture ends, which made the toolbar drift and then snap into place.
+    const nodeCenterX = node.position.x + node.width / 2;
+    const left = `calc(var(--canvas-pan-x, ${viewport.x}px) + ${nodeCenterX} * var(--canvas-zoom, ${viewport.k}) * 1px)`;
+    // The panel and this toolbar both default to the band above the node. When
+    // the panel takes that band, anchor to the node's bottom edge instead — the
+    // strip directly below a node is otherwise empty (resize handles sit at the
+    // corners, connection dots on the left/right).
+    const panelAbove = panelPlacement === "top";
+    const anchorWorldY = panelAbove ? node.position.y + node.height : node.position.y;
+    const anchorOffset = panelAbove ? "+ 12px" : "- 12px";
+    const top = `calc(var(--canvas-pan-y, ${viewport.y}px) + ${anchorWorldY} * var(--canvas-zoom, ${viewport.k}) * 1px ${anchorOffset})`;
     const safeViewportWidth = toolbarMetrics.viewportWidth || 0;
     const safeToolbarWidth = Math.min(toolbarMetrics.width || 0, Math.max(0, safeViewportWidth - 32));
-    const toolbarLeft = safeViewportWidth && safeToolbarWidth ? Math.min(Math.max(left, safeToolbarWidth / 2 + 16), safeViewportWidth - safeToolbarWidth / 2 - 16) : left;
+    // Keep the toolbar fully on screen. Done in CSS so the clamp re-evaluates
+    // mid-gesture along with `left` above; the bounds still come from the real
+    // measured toolbar width, which only JS can know.
+    const toolbarLeft = safeViewportWidth && safeToolbarWidth ? `clamp(${safeToolbarWidth / 2 + 16}px, ${left}, ${safeViewportWidth - safeToolbarWidth / 2 - 16}px)` : left;
     const isImage = isCanvasImageNodeType(node.type);
     const isPanorama = node.type === CanvasNodeType.Panorama;
     const isVideo = node.type === CanvasNodeType.Video;
@@ -185,6 +208,9 @@ export function CanvasNodeHoverToolbar({
         ...(isText ? [{ id: "increaseFont", title: "增大字号", label: "放大", icon: <Plus className="size-4" />, onClick: () => onIncreaseFont(node) }] : []),
         ...(isImage && !hasImage ? [{ id: "uploadImage", title: "上传图片", label: "上传图片", icon: <Upload className="size-4" />, onClick: () => onUpload(node) }] : []),
         ...(isVideo ? [{ id: "uploadVideo", title: hasVideo ? "替换视频" : "上传视频", label: hasVideo ? "替换视频" : "上传视频", icon: <Video className="size-4" />, onClick: () => onUpload(node) }] : []),
+        ...(hasVideo && (node.metadata?.upstreamPrompt?.trim() || node.metadata?.prompt?.trim())
+            ? [{ id: "copyVideoPrompt", title: "复制生成该视频的提示词", label: "复制提示词", icon: <Copy className="size-4" />, onClick: () => copyImagePrompt(node) }]
+            : []),
         ...(isAudio ? [{ id: "uploadAudio", title: hasAudio ? "替换音频" : "上传音频", label: hasAudio ? "替换音频" : "上传音频", icon: <Music2 className="size-4" />, onClick: () => onUpload(node) }] : []),
         ...(hasImage && !isPanorama ? imageTools.map((tool) => ({ id: tool.id, title: tool.title, label: tool.label, icon: tool.icon, active: tool.active, onClick: tool.onClick })) : []),
     ];
@@ -217,7 +243,7 @@ export function CanvasNodeHoverToolbar({
                 ref={toolbarRef}
                 data-canvas-hover-toolbar
                 className="hide-scrollbar absolute z-[70] flex h-10 max-w-[calc(100vw-32px)] items-center overflow-x-auto overflow-y-hidden rounded-xl border shadow-[0_7px_22px_rgba(15,23,42,.10)]"
-                style={{ left: toolbarLeft, top, transform: "translate(-50%, -100%)", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                style={{ left: toolbarLeft, top, transform: panelAbove ? "translate(-50%, 0)" : "translate(-50%, -100%)", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                 onMouseEnter={() => onKeep(node.id)}
                 onMouseDown={(event) => event.stopPropagation()}
                 onPointerDown={(event) => event.stopPropagation()}

@@ -17,18 +17,19 @@ export function isDramaShotFrameType(value: unknown): value is DramaShotFrameTyp
     return typeof value === "string" && FRAME_TYPES.includes(value as DramaShotFrameType);
 }
 
-export async function prepareDramaLabFrame(input: { userId: string; origin: string; cookie: string; requestId: string; project: DramaProject; episodeId: string; shotId: string; frameType: DramaShotFrameType }) {
+export async function prepareDramaLabFrame(input: { userId: string; origin: string; cookie: string; requestId: string; project: DramaProject; episodeId: string; shotId: string; frameType: DramaShotFrameType; useFirstFrameLayout?: boolean }) {
     const { episode, shot } = findShot(input.project, input.episodeId, input.shotId);
     assertBindings(input.project, shot);
     assertDramaLabShotAssetReferences(input.project, shot);
     const promptKey = `${input.frameType}_frame_prompt` as "first_frame_prompt" | "key_frame_prompt" | "last_frame_prompt";
     const template = await resolveDramaLabPrompt(promptKey);
     const previousShot = previousDramaLabShot(episode.shots, shot);
-    const references = buildDramaLabFrameReferences(input.project, shot, input.frameType, previousShot);
-    const context = frameContext(input.project, episode, shot, input.frameType, previousShot);
+    const useFirstFrameLayout = input.useFirstFrameLayout !== false;
+    const references = buildDramaLabFrameReferences(input.project, shot, input.frameType, previousShot, { useFirstFrameLayout });
+    const context = frameContext(input.project, episode, shot, input.frameType, previousShot, useFirstFrameLayout);
     const systemPrompt = withDramaLabPromptContract(
         `${renderDramaLabFrameTemplate(template.template, input.project)}\n\n${context}`,
-        `只返回 JSON 对象，字段严格为 prompt 和 description。prompt 必须是可直接交给图片模型的中文提示词。只允许本镜 characterIds 中角色，不得引入未绑定资产；角色外貌只能引用参考图；场景必须是纯空间描述；道具必须符合时代真实尺度。${input.frameType === "last" ? "尾帧必须读取首帧布局并根据 declared movement 做自然取景演化。" : ""}`,
+        `只返回 JSON 对象，字段严格为 prompt 和 description。prompt 必须是可直接交给图片模型的中文提示词。只允许本镜 characterIds 中角色，不得引入未绑定资产；角色外貌只能引用参考图；场景必须是纯空间描述；道具必须符合时代真实尺度。${input.frameType === "last" && useFirstFrameLayout ? "尾帧必须读取首帧布局并根据 declared movement 做自然取景演化。" : ""}`,
     );
     const userPrompt = JSON.stringify({
         task: `${input.frameType} frame prompt planning`,
@@ -103,7 +104,7 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
     throw latestError instanceof Error ? latestError : new DramaLabShotGenerationError("帧提示词规划失败", 502);
 }
 
-function frameContext(project: DramaProject, episode: DramaProject["episodes"][number], shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot) {
+function frameContext(project: DramaProject, episode: DramaProject["episodes"][number], shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot, useFirstFrameLayout = true) {
     const characters = shot.characterIds.flatMap((id) => project.characters.find((asset) => asset.id === id) || []);
     const stageContext = boundCharacterStageContext(characters, episode);
     const anchorContext = characters.flatMap((character) => {
@@ -134,7 +135,7 @@ function frameContext(project: DramaProject, episode: DramaProject["episodes"][n
         shot.layoutDescription ? `空间布局锚点：${shot.layoutDescription}` : "",
         shot.dialogue ? `对白：${shot.dialogue}` : "",
         shot.narration ? `旁白：${shot.narration}` : "",
-        frameType === "last" && shot.frames?.first?.prompt ? `首帧布局参考：${shot.frames.first.prompt}` : "",
+        useFirstFrameLayout && frameType === "last" && shot.frames?.first?.prompt ? `首帧布局参考：${shot.frames.first.prompt}` : "",
         frameType === "first" && previousShot?.continuity?.actionEnd ? `上一镜动作终点：${previousShot.continuity.actionEnd}` : "",
         frameType === "first" && previousShot?.frames?.last?.prompt ? `上一镜尾帧连续性参考：${previousShot.frames.last.prompt}` : "",
     ]
@@ -142,12 +143,23 @@ function frameContext(project: DramaProject, episode: DramaProject["episodes"][n
         .join("\n");
 }
 
-export function buildDramaLabFrameReferences(project: DramaProject, shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot): DramaLabGenerationReference[] {
+/**
+ * 生成帧图时的参考图。
+ *
+ * `useFirstFrameLayout` 对应 L 的「首帧站位」勾选（`lastFrameUseFirstLayoutLock`）：
+ * 勾选时尾帧生成会附带首帧图作构图与左右站位参考；取消后仅用场景/角色/道具参考，
+ * 便于调整出场人物。**默认 true**，保持创作工坊既有行为不变。
+ *
+ * 注意只影响"本镜首帧 → 关键帧/尾帧"这一条；"上一镜尾帧 → 本镜首帧"的跨镜连续性
+ * 不受它控制，那是 L 的「上镜尾帧」按钮语义，两者不是同一件事。
+ */
+export function buildDramaLabFrameReferences(project: DramaProject, shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot, options: { useFirstFrameLayout?: boolean } = {}): DramaLabGenerationReference[] {
+    const useFirstFrameLayout = options.useFirstFrameLayout !== false;
     const references = shotReferences(project, shot);
     const continuityReference =
         frameType === "first" && previousShot?.frames?.last?.url
             ? { id: `previous-last-frame-${previousShot.id}`, url: previousShot.frames.last.url, label: `${previousShot.title} 尾帧`, width: previousShot.frames.last.width, height: previousShot.frames.last.height }
-            : (frameType === "key" || frameType === "last") && shot.frames?.first?.url
+            : useFirstFrameLayout && (frameType === "key" || frameType === "last") && shot.frames?.first?.url
               ? { id: `first-frame-${shot.id}`, url: shot.frames.first.url, label: `${shot.title} 首帧`, width: shot.frames.first.width, height: shot.frames.first.height }
               : undefined;
     if (!continuityReference) return references;

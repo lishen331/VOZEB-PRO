@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { SiteLogo } from "@/components/layout/site-logo";
-import { navigationGroups, navigationToolsForContext, type NavigationToolSlug } from "@/constant/navigation-tools";
+import { navigationGroups, navigationToolsForContext, resolveLandingSlug, type NavigationToolSlug } from "@/constant/navigation-tools";
 import type { FeatureModuleSettings } from "@/lib/feature-modules";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
@@ -30,7 +30,8 @@ export function MobileNavDrawer({ open, activeToolSlug, featureModules, onClose 
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
     const tools = navigationToolsForContext(context, { featureModules });
-    const homePath = featureModules["creative-agent"] === false ? "/practice" : "/create";
+    const landingSlug = resolveLandingSlug(context, { featureModules });
+    const homePath = landingSlug ? `/${landingSlug}` : "/help";
     const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = (schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups).filter((group) => tools.some((tool) => tool.group === group.id));
 

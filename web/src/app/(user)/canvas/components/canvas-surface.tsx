@@ -7,7 +7,19 @@ import { canvasThemes, type CanvasBackgroundMode, type CanvasTheme } from "@/lib
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasNode, type CanvasNodeProps } from "./canvas-node";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type Position, type ViewportTransform } from "../types";
-import { canvasEdgeHitStrokeWidth, edgePath, expandCanvasDragNodeIds, findConnectionTarget, isBlockedConnectionDrop, isCanvasVideoControlPoint, nodeAnchor, previewPath, samePosition, selectNodesInBounds, worldFromScreen } from "../utils/canvas-surface-geometry";
+import {
+    canvasEdgeHitStrokeWidth,
+    edgePath,
+    expandCanvasDragNodeIds,
+    findConnectionTarget,
+    isBlockedConnectionDrop,
+    isCanvasVideoControlPoint,
+    nodeAnchor,
+    previewPath,
+    samePosition,
+    selectNodesInBounds,
+    worldFromScreen,
+} from "../utils/canvas-surface-geometry";
 import { buildCanvasSpatialIndex, canvasNodeBounds, canvasNodesBounds, type CanvasBounds } from "../utils/canvas-spatial-index";
 
 type CanvasPointerEvent = ReactMouseEvent | ReactPointerEvent;
@@ -49,6 +61,7 @@ type CanvasSurfaceProps = {
         | "isRelated"
         | "isFocusRelated"
         | "isConnectionTarget"
+        | "connectionPointer"
         | "isConnecting"
         | "editRequestNonce"
         | "showPanel"
@@ -161,6 +174,7 @@ export function CanvasSurface({
     const displayViewportRef = useRef(viewport);
     const viewportDirtyRef = useRef(false);
     const previousViewportPropRef = useRef(viewport);
+    const lastCommittedViewportRef = useRef(viewport);
     const animationFrameRef = useRef<number | null>(null);
     const frameActionsRef = useRef(new Map<string, () => void>());
     const wheelFrameRef = useRef<WheelFrame | null>(null);
@@ -276,6 +290,11 @@ export function CanvasSurface({
         const propChanged = !sameViewport(previousViewportPropRef.current, viewport);
         previousViewportPropRef.current = viewport;
         if (!propChanged || sameViewport(displayViewportRef.current, viewport)) return;
+        // The incoming prop is the echo of a value we ourselves committed. During
+        // a fast wheel/pinch the live ref has already moved past this snapshot, so
+        // re-applying it would snap the viewport back to a stale value. Only an
+        // external viewport change (zoom controls, reset, undo/redo) should win.
+        if (sameViewport(viewport, lastCommittedViewportRef.current)) return;
         if (wheelCommitTimerRef.current) clearTimeout(wheelCommitTimerRef.current);
         wheelCommitTimerRef.current = null;
         viewportDirtyRef.current = false;
@@ -285,7 +304,27 @@ export function CanvasSurface({
 
     const applyViewportStyles = useCallback(
         (next: ViewportTransform) => {
-            if (worldLayerRef.current) worldLayerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+            if (worldLayerRef.current) {
+                worldLayerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+                // Published for descendants that must stay a constant on-screen
+                // size despite the scale(k) above (node panels, create menu).
+                // Written here rather than derived from React state because pan
+                // and wheel-zoom drive this imperatively via previewViewport and
+                // only commit to state ~140ms later — a state-derived inverse
+                // scale would lag a whole gesture behind.
+                worldLayerRef.current.style.setProperty("--canvas-zoom", String(next.k));
+            }
+            // Screen-space siblings of this surface (the node hover toolbar) need
+            // the same values, but CSS variables only inherit downward — so publish
+            // them on our parent, which is the common ancestor. Same imperative
+            // reasoning as above: reading these from React state would make the
+            // toolbar visibly lag behind the canvas for a whole gesture.
+            const sharedScope = surfaceRef.current?.parentElement;
+            if (sharedScope) {
+                sharedScope.style.setProperty("--canvas-zoom", String(next.k));
+                sharedScope.style.setProperty("--canvas-pan-x", `${next.x}px`);
+                sharedScope.style.setProperty("--canvas-pan-y", `${next.y}px`);
+            }
             if (!backgroundLayerRef.current) return;
             const gridSize = canvasGridSize(backgroundMode, next.k);
             backgroundLayerRef.current.style.backgroundSize = `${gridSize}px ${gridSize}px`;
@@ -338,6 +377,7 @@ export function CanvasSurface({
         }
         const commit = () => {
             viewportCommitHandleRef.current = null;
+            lastCommittedViewportRef.current = next;
             startTransition(() => {
                 setDisplayViewport((current) => (sameViewport(current, next) ? current : next));
                 onViewportCommit(next);
@@ -707,11 +747,15 @@ export function CanvasSurface({
 
     const previewNodeResize = useCallback(
         (id: string, width: number, height: number, position?: Position) => {
+            // Claim the resize synchronously, before the rAF runs. The clear-effect
+            // keyed on `nodes` wipes localTransforms unless this ref is already set;
+            // on a fast drag `nodes` can change before the first frame fires, so
+            // setting it inside the rAF left a gap where the node snapped back.
+            resizingNodeIdRef.current = id;
             scheduleFrame(`resize:${id}`, () => {
                 const current = localTransformsRef.current[id] || nodesRef.current.find((node) => node.id === id);
                 if (!current) return;
                 const next = { ...localTransformsRef.current, [id]: { position: position || current.position, width, height } };
-                resizingNodeIdRef.current = id;
                 localTransformsRef.current = next;
                 setLocalTransforms(next);
             });
@@ -764,7 +808,14 @@ export function CanvasSurface({
         flushFrame();
         commitViewport();
     }, [commitViewport, flushFrame]);
-    const worldStyle: CSSProperties = { transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`, transformOrigin: "0 0", willChange: "transform" };
+    const worldStyle: CSSProperties = {
+        transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`,
+        transformOrigin: "0 0",
+        willChange: "transform",
+        // Keep in sync with applyViewportStyles — this covers the first paint
+        // and any React-driven re-render; that function covers live gestures.
+        ["--canvas-zoom" as string]: String(displayViewport.k),
+    };
     const canvasStyle: CSSProperties = { background: theme.canvas.backdrop, color: theme.node.text, touchAction: "none", cursor: temporaryPan || interactionMode === "pan" ? "grab" : "default" };
     const gridSize = canvasGridSize(backgroundMode, displayViewport.k);
     const selectionStyle = boxSelection
@@ -846,11 +897,7 @@ export function CanvasSurface({
                         })}
                         {connection && connectionStartNode ? (
                             <path
-                                d={previewPath(
-                                    nodeAnchor(connectionStartNode, connection.handleType),
-                                    connection.targetNodeId && nodesById.get(connection.targetNodeId) ? nodeAnchor(nodesById.get(connection.targetNodeId)!, connection.handleType === "source" ? "target" : "source") : connection.world,
-                                    connection.handleType,
-                                )}
+                                d={previewPath(nodeAnchor(connectionStartNode, connection.handleType), connection.world, connection.handleType)}
                                 fill="none"
                                 stroke={theme.node.activeStroke}
                                 strokeWidth={2.5}
@@ -874,6 +921,7 @@ export function CanvasSurface({
                                     isRelated={relatedNodeIds.has(node.id)}
                                     isFocusRelated={activeSelectedNodeIds.has(node.id) || relatedNodeIds.has(node.id)}
                                     isConnectionTarget={connection?.targetNodeId === node.id}
+                                    connectionPointer={connection?.targetNodeId === node.id ? connection.world : undefined}
                                     isConnecting={connection?.nodeId === node.id}
                                     renderPanel={renderPanel}
                                     renderNodeContent={renderNode}
@@ -881,7 +929,7 @@ export function CanvasSurface({
                                     onConnectStart={handleConnectStart}
                                     onResize={previewNodeResize}
                                     onResizeEnd={commitNodeResize}
-                                    onContextMenu={(event, id) => onNodeContextMenu(event, id)}
+                                    onContextMenu={onNodeContextMenu}
                                 />
                             );
                         })}

@@ -133,6 +133,9 @@ export type PlatformCourseSummary = {
     title: string;
     summary: string;
     content: Record<string, unknown>;
+    coverUrl?: string;
+    category?: string;
+    validUntil?: string | null;
     chapterCount: number;
     lessonCount: number;
     materialCount: number;
@@ -144,7 +147,10 @@ export type PlatformCourseSummary = {
 };
 export type PlatformCourseDetail = PlatformCourseSummary & { chapters: CourseChapter[] };
 export type PlatformCourse = PlatformCourseSummary;
-export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "content">;
+export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "content"> & {
+    category?: string;
+    validUntil?: string | null;
+};
 export type PlatformCoursePatch = Partial<PlatformCourseInput> & { status?: PlatformCourseStatus };
 export type SchoolCourseAssignment = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string; course: PlatformCourse };
 export type CourseOfferingInput = { classId: string; teacherMembershipId: string; status?: SchoolStatus };

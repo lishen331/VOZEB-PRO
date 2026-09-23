@@ -137,7 +137,7 @@ describe("checkRateLimit", () => {
 
     it("limits repeated local media access", async () => {
         const identity = `local-media:${crypto.randomUUID()}`;
-        for (let index = 0; index < 240; index += 1) expect((await checkLocalMediaRateLimit(identity, new Request("http://localhost"))).allowed).toBe(true);
+        for (let index = 0; index < 600; index += 1) expect((await checkLocalMediaRateLimit(identity, new Request("http://localhost"))).allowed).toBe(true);
         expect((await checkLocalMediaRateLimit(identity, new Request("http://localhost"))).allowed).toBe(false);
     });
 

@@ -11,9 +11,27 @@ import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textare
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type Position } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
+import { resolveCanvasPanelPlacement, type CanvasPanelPlacement } from "../utils/canvas-panel-placement";
+import { depthTilt } from "../utils/canvas-depth-tilt";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
+
+/**
+ * Both undefined, or within half a pixel. getBoundingClientRect yields
+ * fractional CSS pixels, so `===` on a derived length never settles and every
+ * measurement would queue another state update.
+ */
+function sameOptionalLength(a: number | undefined, b: number | undefined) {
+    if (a === undefined || b === undefined) return a === b;
+    return Math.abs(a - b) < 0.5;
+}
+
+// Keeps the node's edit panel a constant on-screen size. It lives inside the
+// world layer (so canvas panning moves it for free, via that layer's imperative
+// transform), and this cancels out the layer's scale(k). --canvas-zoom is
+// published by canvas-surface's applyViewportStyles on every gesture frame.
+const PANEL_INVERSE_ZOOM = "translateX(-50%) scale(calc(1 / var(--canvas-zoom, 1)))";
 
 // Edge-glow pointer tracking (ported from the react-bits BorderGlow pattern,
 // minus its mesh-gradient border swap which would fight the card's real
@@ -58,6 +76,11 @@ export type CanvasNodeProps = {
     isRelated: boolean;
     isFocusRelated: boolean;
     isConnectionTarget: boolean;
+    /**
+     * Pointer position in world coords while this card is the connection-drag
+     * target. Drives the Depth Card tilt; undefined leaves the card flat.
+     */
+    connectionPointer?: Position;
     isConnecting: boolean;
     editRequestNonce?: number;
     showPanel: boolean;
@@ -87,6 +110,12 @@ export type CanvasNodeProps = {
     onImageDimensions?: (nodeId: string, naturalWidth: number, naturalHeight: number) => void;
     onViewImage?: (node: CanvasNodeData) => void;
     onContextMenu: (event: React.MouseEvent, nodeId: string) => void;
+    /**
+     * Publishes which side the edit panel settled on. The hover toolbar is a
+     * sibling of this component pinned to the same band above the node, so it
+     * needs to know when the panel has claimed that band.
+     */
+    onPanelPlacementChange?: (nodeId: string, placement: CanvasPanelPlacement) => void;
 };
 
 import {
@@ -118,6 +147,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     isRelated,
     isFocusRelated,
     isConnectionTarget,
+    connectionPointer,
     isConnecting,
     editRequestNonce = 0,
     showPanel,
@@ -147,17 +177,21 @@ export const CanvasNode = React.memo(function CanvasNode({
     onImageDimensions,
     onViewImage,
     onContextMenu,
+    onPanelPlacementChange,
 }: CanvasNodeProps) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const [hovered, setHovered] = useState(false);
     const [isEditingContent, setIsEditingContent] = useState(false);
-    const [panelPlacement, setPanelPlacement] = useState<"top" | "bottom">("bottom");
+    const [panelPlacement, setPanelPlacement] = useState<CanvasPanelPlacement>("bottom");
     const [panelMaxHeight, setPanelMaxHeight] = useState<number>();
     const [panelMaxWidth, setPanelMaxWidth] = useState<number>();
     const [panelOffsetX, setPanelOffsetX] = useState(0);
     const nodeRef = useRef<HTMLDivElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const panelOffsetXRef = useRef(0);
+    // Mirrors panelPlacement so the measurement callback reads the latest value
+    // without taking it as a dependency, which would rebuild the observer.
+    const panelPlacementRef = useRef<CanvasPanelPlacement>("bottom");
     const hasImageContent = isCanvasImageNodeType(data.type) && Boolean(data.metadata?.content);
     const hasVideoContent = data.type === CanvasNodeType.Video && Boolean(data.metadata?.content);
     const hasAudioContent = data.type === CanvasNodeType.Audio && Boolean(data.metadata?.content);
@@ -171,6 +205,8 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isBatchRoot = data.type === CanvasNodeType.Image && Boolean(data.metadata?.isBatchRoot) && batchCount > 1;
     const isBatchChild = data.type === CanvasNodeType.Image && Boolean(data.metadata?.batchRootId);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
+    // Depth Card tilt, only while this card is the live connection-drag target.
+    const tilt = connectionPointer ? depthTilt(connectionPointer, { x: data.position.x, y: data.position.y, width: data.width, height: data.height }) : null;
     const imageBorderColor = isActive ? selectionBlue : isRelated && !isBatchChild ? theme.node.muted : theme.node.stroke;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const clickStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -226,6 +262,21 @@ export const CanvasNode = React.memo(function CanvasNode({
         return () => window.removeEventListener("pointerdown", handleOutsidePointerDown, true);
     }, [isEditingContent]);
 
+    // The window listeners for an in-flight resize must outlive React renders.
+    // handleResizeUp transitively depends on canvas-client-page's inline
+    // onNodesCommit arrow, so ANY parent re-render gives it a new identity. A
+    // cleanup effect keyed on that identity used to rip the listeners off
+    // mid-drag: a fast drag throws the pointer outside the node box, which fires
+    // onMouseLeave -> onHoverEnd -> setHoveredNodeId -> parent re-render -> new
+    // handleResizeUp -> cleanup -> resize dies and the cursor falls back to the
+    // surface's grab cursor. Registering these stable wrappers instead (identity
+    // fixed for the component's lifetime) decouples the listener lifecycle from
+    // rendering entirely; only mouseup or unmount detaches them.
+    const resizeMoveRef = useRef<(event: MouseEvent) => void>(() => {});
+    const resizeUpRef = useRef<() => void>(() => {});
+    const stableResizeMoveRef = useRef((event: MouseEvent) => resizeMoveRef.current(event));
+    const stableResizeUpRef = useRef(() => resizeUpRef.current());
+
     const handleResizeMove = useCallback(
         (event: MouseEvent) => {
             if (!resizeRef.current.isResizing) return;
@@ -266,16 +317,41 @@ export const CanvasNode = React.memo(function CanvasNode({
             resizeRef.current.currentWidth = width;
             resizeRef.current.currentHeight = height;
             resizeRef.current.currentPosition = position;
-            onResize(data.id, width, height, position);
+            // Preview via a compositor-only transform instead of committing real
+            // width/height to React state every frame. The DOM box keeps its
+            // start size; scaling from origin (0,0) makes the visual size equal
+            // width×height while skipping layout reflow entirely — the resized
+            // node (and image) never relayouts mid-drag. Real dimensions are
+            // committed once on mouseup. Thumbnails distort slightly while
+            // dragging, which is acceptable (the underlying asset is unchanged).
+            const element = nodeRef.current;
+            if (element) {
+                const sx = width / (resizeRef.current.startWidth || 1);
+                const sy = height / (resizeRef.current.startHeight || 1);
+                element.style.transformOrigin = "0 0";
+                element.style.transform = `translate(${position.x}px, ${position.y}px) scale(${sx}, ${sy})`;
+            }
         },
-        [data.id, onResize, scale],
+        [scale],
     );
 
     const handleResizeUp = useCallback(() => {
         if (!resizeRef.current.isResizing) return;
         resizeRef.current.isResizing = false;
-        window.removeEventListener("mousemove", handleResizeMove);
-        window.removeEventListener("mouseup", handleResizeUp);
+        window.removeEventListener("mousemove", stableResizeMoveRef.current);
+        window.removeEventListener("mouseup", stableResizeUpRef.current);
+        document.body.style.cursor = "";
+        // Restore the plain (unscaled) transform and set the committed size
+        // imperatively first, so the frame before React re-renders already
+        // matches the final layout — no flash between clearing scale and the
+        // state commit landing.
+        const element = nodeRef.current;
+        if (element) {
+            element.style.transformOrigin = "";
+            element.style.transform = `translate(${resizeRef.current.currentPosition.x}px, ${resizeRef.current.currentPosition.y}px)`;
+            element.style.width = `${resizeRef.current.currentWidth}px`;
+            element.style.height = `${resizeRef.current.currentHeight}px`;
+        }
         onResizeEnd?.(data.id, resizeRef.current.currentWidth, resizeRef.current.currentHeight, resizeRef.current.currentPosition);
     }, [data.id, handleResizeMove, onResizeEnd]);
 
@@ -297,8 +373,15 @@ export const CanvasNode = React.memo(function CanvasNode({
             currentHeight: data.height,
             currentPosition: data.position,
         };
-        window.addEventListener("mousemove", handleResizeMove);
-        window.addEventListener("mouseup", handleResizeUp);
+        resizeMoveRef.current = handleResizeMove;
+        resizeUpRef.current = handleResizeUp;
+        // Pin the resize cursor for the whole gesture. Without this the cursor
+        // reverts to whatever sits under the pointer once a fast drag throws it
+        // off the small handle (the surface's grab cursor), which reads as the
+        // resize turning into the pan tool.
+        document.body.style.cursor = resizeRef.current.corner === "top-left" || resizeRef.current.corner === "bottom-right" ? "nwse-resize" : "nesw-resize";
+        window.addEventListener("mousemove", stableResizeMoveRef.current);
+        window.addEventListener("mouseup", stableResizeUpRef.current);
     };
 
     const handleNodeDoubleClick = (event: React.MouseEvent) => {
@@ -373,7 +456,9 @@ export const CanvasNode = React.memo(function CanvasNode({
         const usableBottom = Math.min(surfaceRect.bottom, viewportBottom, toolbarRect ? toolbarRect.top - 16 : surfaceRect.bottom);
         const availableWidth = Math.max(0, usableRight - usableLeft);
         const renderedScale = Math.max(nodeRect.width / (nodeElement.offsetWidth || 1), 0.01);
-        const nextMaxWidth = availableWidth > 0 ? availableWidth / renderedScale : undefined;
+        // The panel renders 1:1 on screen thanks to PANEL_INVERSE_ZOOM, so the
+        // usable width applies directly instead of being divided by the zoom.
+        const nextMaxWidth = availableWidth > 0 ? availableWidth : undefined;
         const currentOffset = panelOffsetXRef.current * renderedScale;
         const centeredPanelLeft = panelRect.left - currentOffset;
         const centeredPanelRight = panelRect.right - currentOffset;
@@ -383,12 +468,20 @@ export const CanvasNode = React.memo(function CanvasNode({
         const maximumCenter = usableRight - renderedPanelWidth / 2;
         const desiredCenter = minimumCenter <= maximumCenter ? Math.min(maximumCenter, Math.max(minimumCenter, centeredPanelCenter)) : (usableLeft + usableRight) / 2;
         const nextOffsetX = (desiredCenter - centeredPanelCenter) / renderedScale;
-        const spaceAbove = Math.max(0, nodeRect.top - usableTop - 16);
-        const spaceBelow = Math.max(0, usableBottom - nodeRect.bottom);
-        const nextPlacement = panelRect.bottom > usableBottom && spaceAbove >= 96 ? "top" : "bottom";
-        const availableSpace = nextPlacement === "top" ? spaceAbove : spaceBelow;
+        // scrollHeight is the panel's intrinsic content height. Unlike
+        // panelRect.bottom it does not depend on which side the panel is pinned
+        // to, so the placement decision can no longer feed itself.
+        const { placement: nextPlacement, maxHeight: nextMaxHeight } = resolveCanvasPanelPlacement({
+            nodeTop: nodeRect.top,
+            nodeBottom: nodeRect.bottom,
+            usableTop,
+            usableBottom,
+            panelHeight: panelElement.scrollHeight,
+            currentPlacement: panelPlacementRef.current,
+        });
+        panelPlacementRef.current = nextPlacement;
         setPanelPlacement((current) => (current === nextPlacement ? current : nextPlacement));
-        if (availableSpace > 0) setPanelMaxHeight((current) => (current === availableSpace ? current : availableSpace));
+        setPanelMaxHeight((current) => (sameOptionalLength(current, nextMaxHeight) ? current : nextMaxHeight));
         if (nextMaxWidth) setPanelMaxWidth((current) => (current !== undefined && Math.abs(current - nextMaxWidth) < 0.1 ? current : nextMaxWidth));
         panelOffsetXRef.current = nextOffsetX;
         setPanelOffsetX((current) => (Math.abs(current - nextOffsetX) < 0.1 ? current : nextOffsetX));
@@ -396,29 +489,60 @@ export const CanvasNode = React.memo(function CanvasNode({
 
     useLayoutEffect(() => {
         if (!showPanel || !panelRef.current) return;
+        // The observer watches the panel, and measuring can resize the panel, so
+        // coalesce to one measurement per frame. Without this a burst of resize
+        // records each queues its own synchronous re-measure.
+        let frame: number | null = null;
+        const scheduleMeasure = () => {
+            if (frame !== null) return;
+            frame = requestAnimationFrame(() => {
+                frame = null;
+                updatePanelPlacement();
+            });
+        };
         updatePanelPlacement();
-        const observer = new ResizeObserver(updatePanelPlacement);
+        const observer = new ResizeObserver(scheduleMeasure);
         observer.observe(panelRef.current);
         const surfaceElement = nodeRef.current?.closest<HTMLElement>("[data-canvas-surface]");
         if (surfaceElement) observer.observe(surfaceElement);
         const visualViewport = window.visualViewport;
-        window.addEventListener("resize", updatePanelPlacement);
-        visualViewport?.addEventListener("resize", updatePanelPlacement);
-        visualViewport?.addEventListener("scroll", updatePanelPlacement);
+        window.addEventListener("resize", scheduleMeasure);
+        visualViewport?.addEventListener("resize", scheduleMeasure);
+        visualViewport?.addEventListener("scroll", scheduleMeasure);
         return () => {
+            if (frame !== null) cancelAnimationFrame(frame);
             observer.disconnect();
-            window.removeEventListener("resize", updatePanelPlacement);
-            visualViewport?.removeEventListener("resize", updatePanelPlacement);
-            visualViewport?.removeEventListener("scroll", updatePanelPlacement);
+            window.removeEventListener("resize", scheduleMeasure);
+            visualViewport?.removeEventListener("resize", scheduleMeasure);
+            visualViewport?.removeEventListener("scroll", scheduleMeasure);
         };
     }, [showPanel, data.id, data.position.x, data.position.y, updatePanelPlacement]);
 
+    // Report to the page which band the panel occupies. Reports "bottom" while
+    // the panel is closed so the toolbar returns to its default spot above the
+    // node rather than keeping the last open panel's placement.
     useEffect(() => {
+        onPanelPlacementChange?.(data.id, showPanel ? panelPlacement : "bottom");
+    }, [data.id, onPanelPlacementChange, panelPlacement, showPanel]);
+
+    // Keep the refs pointing at the latest handlers so the stable wrappers always
+    // call current logic, without the listener registration depending on their
+    // identity.
+    resizeMoveRef.current = handleResizeMove;
+    resizeUpRef.current = handleResizeUp;
+
+    // Unmount-only cleanup. Deliberately empty deps: keying this on the handler
+    // identities is exactly what used to kill an in-flight resize on any parent
+    // re-render (see the stable-wrapper comment above).
+    useEffect(() => {
+        const move = stableResizeMoveRef.current;
+        const up = stableResizeUpRef.current;
         return () => {
-            window.removeEventListener("mousemove", handleResizeMove);
-            window.removeEventListener("mouseup", handleResizeUp);
+            window.removeEventListener("mousemove", move);
+            window.removeEventListener("mouseup", up);
+            document.body.style.cursor = "";
         };
-    }, [handleResizeMove, handleResizeUp]);
+    }, []);
 
     return (
         <div
@@ -455,6 +579,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     hovered ? "canvas-node-glow-active" : "",
                     isConnectionTarget ? "canvas-node-target-pulse" : "",
                     isGenerating ? "canvas-node-generating-ring" : "",
+                    tilt ? "canvas-node-depth-tilt" : "",
                 ]
                     .filter(Boolean)
                     .join(" ")}
@@ -462,6 +587,13 @@ export const CanvasNode = React.memo(function CanvasNode({
                     background: nodeBackground,
                     borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
                     boxShadow: isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated && !isBatchChild ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : undefined,
+                    ...(tilt
+                        ? {
+                              transform: `perspective(900px) rotateX(${tilt.rotateX.toFixed(2)}deg) rotateY(${tilt.rotateY.toFixed(2)}deg)`,
+                              "--canvas-spotlight-x": `${tilt.spotlightX.toFixed(1)}%`,
+                              "--canvas-spotlight-y": `${tilt.spotlightY.toFixed(1)}%`,
+                          }
+                        : null),
                 }}
                 onMouseDown={(event) => {
                     rememberNodePointer(event);
@@ -540,8 +672,14 @@ export const CanvasNode = React.memo(function CanvasNode({
                     data-canvas-no-drag
                     data-canvas-node-panel
                     data-canvas-node-panel-placement={panelPlacement}
-                    className={`absolute left-1/2 z-[70] w-[560px] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
-                    style={{ marginLeft: panelOffsetX, maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)", maxWidth: panelMaxWidth }}
+                    className={`absolute left-1/2 z-[70] flex w-[560px] max-w-[calc(100vw-2rem)] flex-col ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
+                    style={{
+                        marginLeft: panelOffsetX,
+                        maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)",
+                        maxWidth: panelMaxWidth,
+                        transform: PANEL_INVERSE_ZOOM,
+                        transformOrigin: panelPlacement === "top" ? "bottom center" : "top center",
+                    }}
                 >
                     {renderPanel(data)}
                 </div>

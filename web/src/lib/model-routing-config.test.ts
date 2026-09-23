@@ -72,7 +72,7 @@ describe("model routing config", () => {
             { ...channel("practice", ["writer-practice"]), purpose: "open-source-practice" as const },
             { ...channel("shared", ["writer-shared"]), purpose: "shared" as const },
         ];
-        const models = normalizeLogicalModelsConfig(undefined, channels);
+        const models = normalizeLogicalModelsConfig(undefined, channels).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(isLogicalModelResolvable(models, channels, "text", "writer", "production")).toBe(true);
         expect(isLogicalModelResolvable(models, channels, "text", "writer-practice", "production")).toBe(false);
@@ -85,7 +85,7 @@ describe("model routing config", () => {
         const source = channel("one", ["opaque-a", "stable-video-diffusion"]);
         source.advancedConfig = { modelCapabilities: { "opaque-a": "image", "stable-video-diffusion": "video" } } as never;
 
-        const models = deriveLogicalModelsConfig([source]);
+        const models = deriveLogicalModelsConfig([source]).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(models.find((model) => model.id === "opaque-a")?.capability).toBe("image");
         expect(models.find((model) => model.id === "stable-video-diffusion")?.capability).toBe("video");
@@ -115,7 +115,47 @@ describe("model routing config", () => {
         } as never;
         const existing: LogicalModel[] = [{ id: "opaque-media", name: "opaque-media", capability: "text", enabled: true, bindings: [{ id: "old", channelId: "newapi", upstreamModel: "opaque-media", enabled: true, priority: 1 }] }];
 
-        expect(synchronizeLogicalModelsWithChannels(existing, [source])[0]?.capability).toBe("image");
+        expect(synchronizeLogicalModelsWithChannels(existing, [source], "detect")[0]?.capability).toBe("image");
+    });
+
+    it("keeps an administrator capability edit when saving and re-detects only on an explicit resync", () => {
+        const source = channel("newapi", ["opaque-media"]);
+        source.advancedConfig = {
+            protocol: "newapi",
+            modelCapabilities: { "opaque-media": "image" },
+            modelConfigs: { "opaque-media": { capability: "image", source: "manual" } },
+        } as never;
+        const edited: LogicalModel[] = [{ id: "opaque-media", name: "opaque-media", capability: "video", enabled: true, bindings: [{ id: "old", channelId: "newapi", upstreamModel: "opaque-media", enabled: true, priority: 1 }] }];
+
+        // A plain save normalizes routing structure without touching the chosen capability,
+        // and stays stable when the saved value is read back and normalized again.
+        const saved = synchronizeLogicalModelsWithChannels(edited, [source]);
+        expect(saved[0]?.capability).toBe("video");
+        expect(normalizeLogicalModelsConfig(saved, [source])[0]?.capability).toBe("video");
+
+        expect(synchronizeLogicalModelsWithChannels(edited, [source], "detect")[0]?.capability).toBe("image");
+    });
+
+    it("still prunes stale bindings and adds new channel models while preserving capability", () => {
+        const channels = [channel("one", ["opaque-media", "opaque-extra"])];
+        const edited: LogicalModel[] = [
+            {
+                id: "opaque-media",
+                name: "opaque-media",
+                capability: "audio",
+                enabled: true,
+                bindings: [
+                    { id: "live", channelId: "one", upstreamModel: "opaque-media", enabled: true, priority: 1 },
+                    { id: "gone", channelId: "deleted-channel", upstreamModel: "opaque-media", enabled: true, priority: 2 },
+                ],
+            },
+        ];
+
+        const saved = synchronizeLogicalModelsWithChannels(edited, channels);
+
+        expect(saved.find((model) => model.id === "opaque-media")?.capability).toBe("audio");
+        expect(saved.find((model) => model.id === "opaque-media")?.bindings).toEqual([{ id: "live", channelId: "one", upstreamModel: "opaque-media", enabled: true, priority: 1 }]);
+        expect(saved.some((model) => model.id === "opaque-extra")).toBe(true);
     });
 
     it("uses single-capability protocol catalogs for opaque model names", () => {
@@ -139,7 +179,7 @@ describe("model routing config", () => {
             },
         } as never;
 
-        const models = deriveLogicalModelsConfig([source]);
+        const models = deriveLogicalModelsConfig([source]).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(models.map((model) => model.id)).toEqual(["gpt-4.1", "tts-1"]);
         expect(Array.from(channelDetectedCapabilities(source))).toEqual(["text", "audio"]);
@@ -316,7 +356,7 @@ describe("model routing config", () => {
         const visionChannel = channel("one", ["vision", "writer"]);
         visionChannel.advancedConfig = { modelConfigs: { vision: { capability: "text", supportsImageInput: true } } } as never;
         const channels = [visionChannel];
-        const models = normalizeLogicalModelsConfig(undefined, channels);
+        const models = normalizeLogicalModelsConfig(undefined, channels).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
         const defaults = normalizeDefaultModelsConfig({ imageUnderstandingModel: "vision" } as never, models, channels);
 
         expect(defaults).toMatchObject({ visionModel: "vision" });
@@ -332,7 +372,7 @@ describe("model routing config", () => {
                 "reference-only": { capability: "text", supportsReferenceImage: true },
             },
         } as never;
-        const models = normalizeLogicalModelsConfig(undefined, [source]);
+        const models = normalizeLogicalModelsConfig(undefined, [source]).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(logicalModelSupportsImageInput(models, [source], "text", "vision")).toBe(true);
         expect(logicalModelSupportsImageInput(models, [source], "text", "reference-only")).toBe(false);
@@ -341,7 +381,7 @@ describe("model routing config", () => {
     it("requires an explicit image-input capability for Canvas vision routing", () => {
         const source = channel("newapi", ["gpt-5.6-sol"]);
         source.advancedConfig = { protocol: "newapi" } as never;
-        const models = deriveLogicalModelsConfig([source]);
+        const models = deriveLogicalModelsConfig([source]).map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: true })) }));
 
         expect(isVisionModelResolvable(models, [source], "gpt-5.6-sol")).toBe(false);
         expect(normalizeDefaultModelsConfig({ visionModel: "gpt-5.6-sol" }, models, [source]).visionModel).toBe("");

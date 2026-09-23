@@ -11,9 +11,16 @@ import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textare
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type Position } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
+import { depthTilt } from "../utils/canvas-depth-tilt";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
+
+// Keeps the node's edit panel a constant on-screen size. It lives inside the
+// world layer (so canvas panning moves it for free, via that layer's imperative
+// transform), and this cancels out the layer's scale(k). --canvas-zoom is
+// published by canvas-surface's applyViewportStyles on every gesture frame.
+const PANEL_INVERSE_ZOOM = "translateX(-50%) scale(calc(1 / var(--canvas-zoom, 1)))";
 
 // Edge-glow pointer tracking (ported from the react-bits BorderGlow pattern,
 // minus its mesh-gradient border swap which would fight the card's real
@@ -58,6 +65,11 @@ export type CanvasNodeProps = {
     isRelated: boolean;
     isFocusRelated: boolean;
     isConnectionTarget: boolean;
+    /**
+     * Pointer position in world coords while this card is the connection-drag
+     * target. Drives the Depth Card tilt; undefined leaves the card flat.
+     */
+    connectionPointer?: Position;
     isConnecting: boolean;
     editRequestNonce?: number;
     showPanel: boolean;
@@ -118,6 +130,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     isRelated,
     isFocusRelated,
     isConnectionTarget,
+    connectionPointer,
     isConnecting,
     editRequestNonce = 0,
     showPanel,
@@ -171,6 +184,8 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isBatchRoot = data.type === CanvasNodeType.Image && Boolean(data.metadata?.isBatchRoot) && batchCount > 1;
     const isBatchChild = data.type === CanvasNodeType.Image && Boolean(data.metadata?.batchRootId);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
+    // Depth Card tilt, only while this card is the live connection-drag target.
+    const tilt = connectionPointer ? depthTilt(connectionPointer, { x: data.position.x, y: data.position.y, width: data.width, height: data.height }) : null;
     const imageBorderColor = isActive ? selectionBlue : isRelated && !isBatchChild ? theme.node.muted : theme.node.stroke;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const clickStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -373,7 +388,9 @@ export const CanvasNode = React.memo(function CanvasNode({
         const usableBottom = Math.min(surfaceRect.bottom, viewportBottom, toolbarRect ? toolbarRect.top - 16 : surfaceRect.bottom);
         const availableWidth = Math.max(0, usableRight - usableLeft);
         const renderedScale = Math.max(nodeRect.width / (nodeElement.offsetWidth || 1), 0.01);
-        const nextMaxWidth = availableWidth > 0 ? availableWidth / renderedScale : undefined;
+        // The panel renders 1:1 on screen thanks to PANEL_INVERSE_ZOOM, so the
+        // usable width applies directly instead of being divided by the zoom.
+        const nextMaxWidth = availableWidth > 0 ? availableWidth : undefined;
         const currentOffset = panelOffsetXRef.current * renderedScale;
         const centeredPanelLeft = panelRect.left - currentOffset;
         const centeredPanelRight = panelRect.right - currentOffset;
@@ -455,6 +472,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     hovered ? "canvas-node-glow-active" : "",
                     isConnectionTarget ? "canvas-node-target-pulse" : "",
                     isGenerating ? "canvas-node-generating-ring" : "",
+                    tilt ? "canvas-node-depth-tilt" : "",
                 ]
                     .filter(Boolean)
                     .join(" ")}
@@ -462,6 +480,13 @@ export const CanvasNode = React.memo(function CanvasNode({
                     background: nodeBackground,
                     borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
                     boxShadow: isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated && !isBatchChild ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : undefined,
+                    ...(tilt
+                        ? {
+                              transform: `perspective(900px) rotateX(${tilt.rotateX.toFixed(2)}deg) rotateY(${tilt.rotateY.toFixed(2)}deg)`,
+                              "--canvas-spotlight-x": `${tilt.spotlightX.toFixed(1)}%`,
+                              "--canvas-spotlight-y": `${tilt.spotlightY.toFixed(1)}%`,
+                          }
+                        : null),
                 }}
                 onMouseDown={(event) => {
                     rememberNodePointer(event);
@@ -540,8 +565,14 @@ export const CanvasNode = React.memo(function CanvasNode({
                     data-canvas-no-drag
                     data-canvas-node-panel
                     data-canvas-node-panel-placement={panelPlacement}
-                    className={`absolute left-1/2 z-[70] w-[500px] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-y-auto ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
-                    style={{ marginLeft: panelOffsetX, maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)", maxWidth: panelMaxWidth }}
+                    className={`absolute left-1/2 z-[70] flex w-[500px] max-w-[calc(100vw-2rem)] flex-col ${panelPlacement === "top" ? "bottom-full pb-4" : "top-full pt-4"}`}
+                    style={{
+                        marginLeft: panelOffsetX,
+                        maxHeight: panelMaxHeight ? `${panelMaxHeight}px` : "calc(100dvh - 1rem)",
+                        maxWidth: panelMaxWidth,
+                        transform: PANEL_INVERSE_ZOOM,
+                        transformOrigin: panelPlacement === "top" ? "bottom center" : "top center",
+                    }}
                 >
                     {renderPanel(data)}
                 </div>

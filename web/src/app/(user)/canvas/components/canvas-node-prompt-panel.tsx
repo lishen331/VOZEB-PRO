@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { FileText, Image as ImageIcon, LoaderCircle, Maximize2, Minimize2, Music2, Square, Video, X } from "lucide-react";
+import { FileText, Image as ImageIcon, Maximize2, Minimize2, Music2, Square, Video, X } from "lucide-react";
 import { Button, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
@@ -33,7 +33,6 @@ const stopCanvasInteraction = (event: SyntheticEvent) => event.stopPropagation()
  * split the row evenly and clipped labels like 镜头关闭 mid-word.
  */
 const COMPOSER_PRIMARY_BUTTON_CLASS = "canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3";
-const COMPOSER_COMPACT_BUTTON_CLASS = "canvas-composer-settings !h-10 !w-auto !max-w-[11rem] !flex-none !shrink-0 !justify-start !rounded-full !px-3";
 
 type CanvasNodePromptPanelProps = {
     node: CanvasNodeData;
@@ -102,13 +101,13 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
 
     return (
         <div
-            className="rounded-2xl border p-3 shadow-2xl backdrop-blur"
+            className="flex max-h-full min-h-0 flex-col rounded-2xl border p-3 shadow-2xl backdrop-blur"
             style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
             onWheel={(event) => event.stopPropagation()}
         >
-            <div className="relative rounded-xl border" style={{ background: theme.node.fill, borderColor: theme.node.stroke }}>
+            <div className="relative flex min-h-0 flex-1 flex-col rounded-xl border" style={{ background: theme.node.fill, borderColor: theme.node.stroke }}>
                 {textReferences.length ? (
                     <div className="flex flex-wrap items-start gap-1.5 px-3 pt-2" aria-label="引用的连接节点">
                         {textReferences.map((reference) => {
@@ -129,7 +128,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                         {onRemoveReference ? (
                                             <button
                                                 type="button"
-                                                className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border backdrop-blur"
+                                                className="absolute right-0.5 top-0.5 z-10 grid size-6 place-items-center rounded-full border shadow-sm backdrop-blur transition hover:scale-110"
                                                 style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                                                 onClick={(event) => {
                                                     event.stopPropagation();
@@ -139,7 +138,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                 onPointerDown={stopCanvasInteraction}
                                                 aria-label={`取消引用 ${reference.label}`}
                                             >
-                                                <X className="size-2.5" aria-hidden />
+                                                <X className="size-3.5" aria-hidden />
                                             </button>
                                         ) : null}
                                     </div>
@@ -159,7 +158,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     onSubmit={submit}
                     aria-label="节点提示词"
                     data-canvas-prompt-scroll="node"
-                    className="thin-scrollbar h-36 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-3 py-2 pr-11 text-sm leading-5 outline-none"
+                    className="thin-scrollbar h-36 max-h-full min-h-16 w-full flex-1 resize-none overflow-y-auto overscroll-contain bg-transparent px-3 py-2 pr-11 text-sm leading-5 outline-none"
                     style={{ color: theme.node.text }}
                     placeholder={promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
                 />
@@ -182,9 +181,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 </Tooltip>
             </div>
 
-            <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+            <div className="mt-2 flex min-w-0 shrink-0 flex-wrap items-center gap-2">
                 <div className="canvas-composer-tools flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                     {mode === "image" ? (
                         <>
                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))} capability="image" onMissingConfig={() => openConfigDialog(true)} />
@@ -196,15 +194,13 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 onOpenChange={onImageSettingsOpenChange}
                                 fixedSizeLabel={isPanorama ? "全景 2:1" : undefined}
                             />
-                            {referenceRoleImages.length ? (
-                                <CanvasImageReferenceRolesPopover
-                                    references={referenceRoleImages}
-                                    roles={node.metadata?.imageReferenceRoles}
-                                    onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })}
-                                    buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS}
-                                />
-                            ) : null}
-                            {!isPanorama ? <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS} /> : null}
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
+                                {referenceRoleImages.length ? (
+                                    <CanvasImageReferenceRolesPopover references={referenceRoleImages} roles={node.metadata?.imageReferenceRoles} onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })} iconOnly />
+                                ) : null}
+                                {!isPanorama ? <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} iconOnly /> : null}
+                            </div>
                         </>
                     ) : mode === "video" ? (
                         <>
@@ -217,29 +213,39 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasVideoConfigPatch(key, value))}
                                 onMetadataChange={(patch) => onConfigChange(node.id, patch)}
                             />
-                            <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName={COMPOSER_COMPACT_BUTTON_CLASS} />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
+                                <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} iconOnly />
+                            </div>
                         </>
                     ) : mode === "audio" ? (
                         <>
                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasAudioSettingsPopover config={config} buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS} onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))} />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
+                            </div>
                         </>
                     ) : (
-                        <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                        <>
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
+                            </div>
+                        </>
                     )}
                 </div>
                 <Button
                     type="primary"
-                    className="canvas-generate-button !h-10 !min-w-16 shrink-0 !rounded-full !px-3"
-                    danger={isRunning}
+                    className="canvas-generate-button canvas-metal-button !h-10 !min-w-16 shrink-0 !rounded-full !px-3"
+                    data-generating={isRunning ? "true" : undefined}
                     disabled={!isRunning && !prompt.trim()}
                     onClick={() => (isRunning ? onStop(node.id) : submit())}
                     aria-label={isRunning ? "停止生成" : "生成"}
                 >
-                    <span className="flex items-center gap-1.5">
+                    <span className="relative z-10 flex items-center gap-1.5">
                         {isRunning ? (
                             <>
-                                <LoaderCircle className="size-4 animate-spin" />
                                 <Square className="size-3.5 fill-current" />
                                 <span className="text-xs font-medium">停止</span>
                             </>
@@ -303,7 +309,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                 {onRemoveReference ? (
                                                     <button
                                                         type="button"
-                                                        className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border backdrop-blur"
+                                                        className="absolute right-0.5 top-0.5 z-10 grid size-6 place-items-center rounded-full border shadow-sm backdrop-blur transition hover:scale-110"
                                                         style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                                                         onClick={(event) => {
                                                             event.stopPropagation();
@@ -313,7 +319,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                                         onPointerDown={stopCanvasInteraction}
                                                         aria-label={`取消引用 ${reference.label}`}
                                                     >
-                                                        <X className="size-2.5" aria-hidden />
+                                                        <X className="size-3.5" aria-hidden />
                                                     </button>
                                                 ) : null}
                                             </div>

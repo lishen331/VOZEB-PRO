@@ -12,15 +12,24 @@ const DEFAULT_MODEL_FIELDS: ReadonlyArray<{ capability: LogicalModelCapability; 
     { capability: "audio", key: "audioModel" },
 ];
 
-export function normalizeLogicalModelsConfig(models: LogicalModel[] | undefined, channels: SystemModelChannel[]) {
-    return synchronizeLogicalModelsWithChannels(Array.isArray(models) ? models : [], channels);
+/**
+ * How `synchronizeLogicalModelsWithChannels` decides each logical model's capability.
+ *
+ * `preserve` keeps the capability already stored on the logical model, so plain saves
+ * only prune and normalize routing structure. `detect` re-derives it from the channel
+ * catalog, which is what the explicit resync actions ask for.
+ */
+export type LogicalModelSyncMode = "preserve" | "detect";
+
+export function normalizeLogicalModelsConfig(models: LogicalModel[] | undefined, channels: SystemModelChannel[], mode: LogicalModelSyncMode = "preserve") {
+    return synchronizeLogicalModelsWithChannels(Array.isArray(models) ? models : [], channels, mode);
 }
 
 export function deriveLogicalModelsConfig(channels: SystemModelChannel[]): LogicalModel[] {
-    return synchronizeLogicalModelsWithChannels([], channels);
+    return synchronizeLogicalModelsWithChannels([], channels, "detect");
 }
 
-export function synchronizeLogicalModelsWithChannels(existingModels: LogicalModel[], channels: SystemModelChannel[]): LogicalModel[] {
+export function synchronizeLogicalModelsWithChannels(existingModels: LogicalModel[], channels: SystemModelChannel[], mode: LogicalModelSyncMode = "preserve"): LogicalModel[] {
     const catalog = new Map<
         string,
         {
@@ -62,7 +71,7 @@ export function synchronizeLogicalModelsWithChannels(existingModels: LogicalMode
                     id: text(stored?.id, 120) || `${channel.id}:${rawModelName(upstreamModel)}`,
                     channelId: channel.id,
                     upstreamModel,
-                    enabled: stored?.enabled !== false,
+                    enabled: stored ? stored.enabled !== false : channel.advancedConfig?.protocol === "runninghub",
                     priority: clampPriority(stored?.priority, channelIndex + 1),
                     ...(weight !== undefined ? { weight } : {}),
                     ...(capabilityProfile ? { capabilityProfile } : {}),
@@ -72,15 +81,15 @@ export function synchronizeLogicalModelsWithChannels(existingModels: LogicalMode
         return {
             id,
             name: text(existing?.name, 120) || catalogModel.upstreamModel,
-            capability: catalogModel.authoritative || !existing ? catalogModel.capability : normalizeCapability(existing.capability),
+            capability: !existing || (mode === "detect" && catalogModel.authoritative) ? catalogModel.capability : normalizeCapability(existing.capability),
             enabled: existing?.enabled !== false,
             bindings,
         };
     });
 }
 
-export function mergeChannelModelsIntoLogicalModels(logicalModels: LogicalModel[], channels: SystemModelChannel[]) {
-    return synchronizeLogicalModelsWithChannels(logicalModels, channels);
+export function mergeChannelModelsIntoLogicalModels(logicalModels: LogicalModel[], channels: SystemModelChannel[], mode: LogicalModelSyncMode = "detect") {
+    return synchronizeLogicalModelsWithChannels(logicalModels, channels, mode);
 }
 
 export function normalizeDefaultModelsConfig(
@@ -228,6 +237,7 @@ export function resolveLogicalModelCapabilityProfile(binding: Pick<LogicalModelB
         supportsAsync: booleanValue(stored.supportsAsync, capability === "video" || capability === "image"),
         supportsCancel: booleanValue(stored.supportsCancel),
         supportsWebhook: booleanValue(stored.supportsWebhook),
+        http1Compatibility: booleanValue(stored.http1Compatibility),
         timeoutMs: timeoutMilliseconds(stored.timeoutMs),
         concurrencyLimit: positiveInteger(stored.concurrencyLimit),
         unitCost: positiveNumber(stored.unitCost),
@@ -276,6 +286,7 @@ function normalizeStoredCapabilityProfile(value: unknown): LogicalModelCapabilit
         supportsAsync: optionalBoolean(input.supportsAsync),
         supportsCancel: optionalBoolean(input.supportsCancel),
         supportsWebhook: optionalBoolean(input.supportsWebhook),
+        http1Compatibility: optionalBoolean(input.http1Compatibility),
         timeoutMs: timeoutMilliseconds(input.timeoutMs),
         concurrencyLimit: positiveInteger(input.concurrencyLimit),
         unitCost: positiveNumber(input.unitCost),

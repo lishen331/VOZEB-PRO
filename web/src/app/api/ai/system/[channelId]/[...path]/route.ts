@@ -1,3 +1,12 @@
+import { updateBindingVerification, recordBindingVerificationDiagnostic } from "@/lib/server/binding-verification-store";
+import { authorizeBindingVerificationProxy, assertBindingVerificationSubmission } from "@/lib/server/binding-verification-authority";
+import { readGenerationMediaClaim } from "@/lib/server/generation-media-authorization";
+import { getStoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
+import { bindingUsesHttp1 } from "@/lib/server/binding-http-transport";
+import { readObservedResponseBody } from "@/lib/server/media-response-body";
+import { persistMediaDiagnostic } from "@/lib/server/media-task-diagnostic-store";
+import { observeMediaFetch, MEDIA_TRACE_HEADER } from "@/lib/server/media-task-trace";
+import { resolveMediaDiagnosticContext } from "@/lib/server/media-task-diagnostic-store";
 import { createHash, randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
@@ -73,7 +82,15 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     if (!userId) return NextResponse.json({ error: "请先登录" }, { status: 401 });
 
     const { channelId, path } = await context.params;
-    const settings = await getAuthSettings();
+    let settings = await getAuthSettings();
+    let verification: Awaited<ReturnType<typeof authorizeBindingVerificationProxy>> = null;
+    try {
+        const scopedVerification = await authorizeBindingVerificationProxy(request, settings, currentUser, channelId);
+        verification = scopedVerification;
+        if (scopedVerification) settings = scopedVerification.settings;
+    } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : "绑定验证授权失败" }, { status: 403 });
+    }
     const channel = settings.systemChannels.find((item) => item.id === channelId && item.enabled);
     if (!channel || !channelConnectionReady(channel)) return NextResponse.json({ error: "默认接口未配置或已停用" }, { status: 404 });
 
@@ -160,6 +177,14 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
         },
     });
     if (!access.allowed) return NextResponse.json({ error: access.error }, { status: access.status });
+    if (verification && access.operation === "create") {
+        try {
+            const evidence = await assertBindingVerificationSubmission(verification.run, globalAdaptation?.body || requestBody.body);
+            await updateBindingVerification(verification.run.id, { diagnostics: { ...verification.run.diagnostics, ...evidence } });
+        } catch (error) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : "实际请求不满足验证条件" }, { status: 422 });
+        }
+    }
     if (access.operation !== "create") {
         const owned = await userOwnsGenerationUpstreamTask({ userId, capability: access.capability, channelId: channel.id, upstreamModel, upstreamTaskId: access.upstreamTaskId });
         if (!owned) return NextResponse.json({ error: "任务不存在或无权访问" }, { status: 404 });
@@ -236,19 +261,31 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     }
     request.signal.addEventListener("abort", () => void refundConsumedPoints(), { once: true });
 
+    const diagnosticContext = await resolveMediaDiagnosticContext(request.headers.get(MEDIA_TRACE_HEADER) || "", userId, channelId);
+    const http1Compatibility = bindingUsesHttp1(settings.logicalModels || [], access.logicalModelId, channelId, upstreamModel);
+    if (diagnosticContext) await persistMediaDiagnostic(diagnosticContext, { phase: "transport_policy", transportPolicy: http1Compatibility ? "http/1.1" : "default", model: upstreamModel });
     let upstream: Response;
     try {
         const outboundBody = injectRunningHubWorkflowApiKey(globalAdaptation?.body || requestBody.body, globalAdaptation?.path || path, modelConfig?.protocol || channel.advancedConfig?.protocol, channel.apiKey);
-        upstream = await fetchSafeOutbound(target, {
-            method: request.method,
-            headers,
-            body: outboundBody,
-            cache: "no-store",
-            redirect: "manual",
-            signal: request.signal,
-        });
+        const outboundInit: RequestInit = { method: request.method, headers, body: outboundBody, cache: "no-store", redirect: "manual", signal: request.signal };
+        upstream = await observeMediaFetch(target, outboundInit, () => fetchSafeOutbound(target, outboundInit, { http1Compatibility }), diagnosticContext);
+        if (verification)
+            await recordBindingVerificationDiagnostic(
+                verification.run.id,
+                {
+                    phase: access.operation,
+                    url: target,
+                    method: request.method,
+                    status: upstream.status,
+                    contentType: upstream.headers.get("content-type"),
+                    requestId: upstream.headers.get("x-request-id") || upstream.headers.get("x-oneapi-request-id") || upstream.headers.get("request-id"),
+                    transportPolicy: http1Compatibility ? "http/1.1" : "default",
+                },
+                [channel.apiKey],
+            );
     } catch (error) {
         await refundConsumedPoints();
+        if (verification) await recordBindingVerificationDiagnostic(verification.run.id, { phase: "upstream_error", url: target, errorMessage: error instanceof Error ? error.message : String(error) }, [channel.apiKey]);
         console.error("System API proxy request failed", error instanceof Error ? error.message : error);
         return NextResponse.json({ error: DEFAULT_CHANNEL_CONNECT_ERROR }, { status: 502, headers: responseHeaders(new Headers(), null, refundedPointsRemaining) });
     }
@@ -271,7 +308,19 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     }
     if (isJsonResponse(upstream)) {
         try {
-            const body = await upstream.arrayBuffer();
+            const body = diagnosticContext ? await readObservedResponseBody(upstream, (event) => persistMediaDiagnostic(diagnosticContext, { ...event, url: target }), request.signal) : await upstream.arrayBuffer();
+            if (verification && !upstream.ok) {
+                try {
+                    const failure = JSON.parse(Buffer.from(body).toString("utf8"));
+                    await recordBindingVerificationDiagnostic(
+                        verification.run.id,
+                        { phase: "provider_error", status: upstream.status, errorMessage: typeof failure.error === "string" ? failure.error : failure.error?.message || failure.message || failure.msg || "" },
+                        [channel.apiKey],
+                    );
+                } catch {
+                    /* Non-JSON provider errors are reported by the generation adapter. */
+                }
+            }
             if (upstream.ok) pointsSettled = true;
             return new Response(body, {
                 status: upstream.status,
@@ -338,6 +387,11 @@ async function proxySystemMediaRequest(request: Request, channel: SystemMediaCha
     if (request.method !== "GET" && request.method !== "HEAD") return NextResponse.json({ error: "Media proxy only supports GET and HEAD" }, { status: 405 });
     const rawUrl = new URL(request.url).searchParams.get("url") || "";
     if (!(await authorizeGenerationMediaProxyRequest(request, { userId, channelId: channel.id, url: rawUrl }))) return NextResponse.json({ error: "媒体路径未获任务授权" }, { status: 403 });
+    const claim = readGenerationMediaClaim(request, { userId, channelId: channel.id, url: rawUrl });
+    const record = claim ? await getStoredGenerationTaskRecord(claim.taskType, claim.taskId) : null;
+    const config = record?.payload.config as { logicalModel?: string; model?: string } | undefined;
+    const currentSettings = await getAuthSettings();
+    const http1Compatibility = config ? bindingUsesHttp1(currentSettings.logicalModels || [], config.logicalModel || config.model || "", channel.id, config.model || "") : false;
     const target = mediaTargetRequest(channel.baseUrl, channel.apiFormat, rawUrl, isGlobalAiOpcChannel(channel.advancedConfig));
     if (!target) return NextResponse.json({ error: "Invalid media url" }, { status: 400 });
     if (!(await isSafeOutboundUrl(target.url, { allowCredentials: false }))) return NextResponse.json({ error: "媒体地址不允许访问内网或保留地址" }, { status: 400 });
@@ -362,7 +416,7 @@ async function proxySystemMediaRequest(request: Request, channel: SystemMediaCha
             fetcher: (nextMethod, nextRange) => {
                 const requestHeaders = new Headers(headers);
                 if (nextRange) requestHeaders.set("range", nextRange);
-                return fetchSystemMedia(target, nextMethod, requestHeaders, signal);
+                return fetchSystemMedia(target, nextMethod, requestHeaders, signal, http1Compatibility);
             },
         });
         const response = new Response(media.body, {
@@ -383,7 +437,7 @@ async function proxySystemMediaRequest(request: Request, channel: SystemMediaCha
     }
 }
 
-async function fetchSystemMedia(target: { url: string; includeAuth: boolean }, method: "GET" | "HEAD", baseHeaders: Headers, signal: AbortSignal) {
+async function fetchSystemMedia(target: { url: string; includeAuth: boolean }, method: "GET" | "HEAD", baseHeaders: Headers, signal: AbortSignal, http1Compatibility = false) {
     let currentUrl = target.url;
     let includeAuth = target.includeAuth;
     for (let redirects = 0; redirects <= MAX_SYSTEM_MEDIA_REDIRECTS; redirects += 1) {
@@ -391,7 +445,7 @@ async function fetchSystemMedia(target: { url: string; includeAuth: boolean }, m
         const headers = includeAuth ? new Headers(baseHeaders) : new Headers();
         const range = baseHeaders.get("range");
         if (range) headers.set("range", range);
-        const upstream = await fetchSafeOutbound(currentUrl, { method, headers, cache: "no-store", redirect: "manual", signal });
+        const upstream = await fetchSafeOutbound(currentUrl, { method, headers, cache: "no-store", redirect: "manual", signal }, { http1Compatibility });
         if (!isRedirectStatus(upstream.status)) return upstream;
         const location = upstream.headers.get("location");
         await upstream.body?.cancel().catch(() => undefined);

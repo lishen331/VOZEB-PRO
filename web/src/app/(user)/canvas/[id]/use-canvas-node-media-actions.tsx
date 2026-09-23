@@ -116,23 +116,30 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
         const rootId = child.metadata?.batchRootId;
         if (!rootId || !child.metadata?.content) return;
         setNodes((prev) =>
-            prev.map((node) =>
-                node.id === rootId
-                    ? {
-                          ...node,
-                          width: child.width,
-                          height: child.height,
-                          metadata: {
-                              ...node.metadata,
-                              content: child.metadata?.content,
-                              primaryImageId: child.id,
-                              naturalWidth: child.metadata?.naturalWidth,
-                              naturalHeight: child.metadata?.naturalHeight,
-                              freeResize: child.metadata?.freeResize,
-                          },
-                      }
-                    : node,
-            ),
+            prev.map((node) => {
+                if (node.id === rootId) {
+                    return {
+                        ...node,
+                        width: child.width,
+                        height: child.height,
+                        metadata: {
+                            ...node.metadata,
+                            content: child.metadata?.content,
+                            primaryImageId: child.id,
+                            naturalWidth: child.metadata?.naturalWidth,
+                            naturalHeight: child.metadata?.naturalHeight,
+                            freeResize: child.metadata?.freeResize,
+                        },
+                    };
+                }
+                // Mirror the primary flag onto the batch children so each card's button can reflect its own state.
+                if (node.metadata?.batchRootId === rootId) {
+                    const isPrimary = node.id === child.id;
+                    if (Boolean(node.metadata?.isBatchPrimary) === isPrimary) return node;
+                    return { ...node, metadata: { ...node.metadata, isBatchPrimary: isPrimary } };
+                }
+                return node;
+            }),
         );
     }, []);
 

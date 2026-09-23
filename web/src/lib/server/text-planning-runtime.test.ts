@@ -16,6 +16,38 @@ const mockedWorkerHeaders = vi.mocked(maintenanceWorkerContextHeaders);
 const tool = { name: "make_plan", description: "创建计划", parameters: { type: "object", properties: { result: { type: "string" } } } };
 
 describe("text planning runtime protocol matrix", () => {
+    it("exposes the budget to custom request templates without inventing their wire schema", async () => {
+        mockedFetch.mockResolvedValue(Response.json({ result: { ok: true } }));
+        await requestStructuredText({ ...requestInput(candidate("custom", { createPath: "/plan", requestTemplate: '{"limits":{"output":"{{max_tokens}}"},"prompt":"{{prompt}}"}', resultField: "result" })), maxTokens: 2400 });
+        expect(requestBody()).toMatchObject({ limits: { output: 2400 } });
+        expect(requestBody()).not.toHaveProperty("max_tokens");
+    });
+    it("retains maxTokens on JSON repair attempts", async () => {
+        mockedFetch.mockResolvedValueOnce(Response.json({ choices: [{ message: { content: "invalid" } }] })).mockResolvedValueOnce(chatJsonResponse());
+        await requestStructuredText({ ...requestInput(candidate("newapi")), maxTokens: 2400 });
+        expect(mockedFetch).toHaveBeenCalledTimes(2);
+        for (const [, init] of mockedFetch.mock.calls) expect(JSON.parse(String(init?.body)).max_tokens).toBe(2400);
+    });
+    it.each([0, -1, 1.5, NaN, Infinity])("rejects invalid output budget %s before calling a provider", async (maxTokens) => {
+        await expect(requestStructuredText({ ...requestInput(candidate("newapi")), maxTokens })).rejects.toThrow("maxTokens must be");
+        expect(mockedFetch).not.toHaveBeenCalled();
+    });
+
+    it.each(["chat", "responses", "gemini"] as const)("maps explicit maxTokens to %s without losing existing fields", async (protocol) => {
+        const configured = protocol === "chat" ? candidate("newapi") : protocol === "responses" ? candidate("compatible", { createPath: "/responses" }) : candidate("compatible", { apiFormat: "gemini" });
+        const reply = protocol === "chat" ? { choices: [{ message: { content: "{}" } }] } : protocol === "responses" ? { output_text: "{}" } : { candidates: [{ content: { parts: [{ text: "{}" }] } }] };
+        mockedFetch.mockImplementation(async () => Response.json(reply));
+        await requestStructuredText({ ...requestInput(configured), maxTokens: 2400 });
+        const body = requestBody();
+        if (protocol === "chat") expect(body.max_tokens).toBe(2400);
+        if (protocol === "responses") expect(body.max_output_tokens).toBe(2400);
+        if (protocol === "gemini") expect(body.generationConfig).toEqual({ responseMimeType: "application/json", maxOutputTokens: 2400 });
+        await requestStructuredText(requestInput(configured));
+        expect(requestBody()).not.toHaveProperty("max_tokens");
+        expect(requestBody()).not.toHaveProperty("max_output_tokens");
+        expect(requestBody().generationConfig || {}).not.toHaveProperty("maxOutputTokens");
+    });
+
     it("preserves multimodal image parts for chat and responses planning requests", async () => {
         mockedFetch.mockResolvedValue(Response.json({ choices: [{ message: { tool_calls: [{ function: { name: "make_plan", arguments: "{}" } }] } }] }));
         const messages: Array<{ role: string; content: TextPlanningMessageContent }> = [

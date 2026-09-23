@@ -57,6 +57,7 @@ const POSTGRES_TABLES = [
     "generation_logs",
     "generation_log_assets",
     "generation_tasks",
+    "binding_verifications",
     "generation_concurrency_reservations",
     "generation_worker_heartbeats",
     "generation_webhook_events",
@@ -155,6 +156,8 @@ const POSTGRES_TABLES = [
 ] as const;
 
 const POSTGRES_SCHEMA_OBJECTS = [
+    "binding_verifications_passed_idx",
+    "binding_verifications_user_idx",
     "user_account_id_seq",
     "users_account_id_idx",
     "users_username_lower_idx",
@@ -259,6 +262,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "generation_log_assets_log_idx",
     "generation_tasks_user_status_idx",
     "generation_tasks_expires_idx",
+    "generation_tasks_diagnostic_expiry_idx",
     "generation_tasks_user_client_request_idx",
     "generation_tasks_channel_upstream_idx",
     "generation_tasks_conversation_idx",

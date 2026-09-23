@@ -336,7 +336,7 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
                         const result = modelMap.get(channel.id);
                         return result ? { ...channel, ...adminModelsChannelPatch(channel, result) } : channel;
                     });
-                    const logicalModels = synchronizeLogicalModelsWithChannels(current.logicalModels, systemChannels);
+                    const logicalModels = synchronizeLogicalModelsWithChannels(current.logicalModels, systemChannels, "detect");
                     return { ...current, systemChannels, logicalModels, defaultModels: normalizeDefaultModelsConfig(current.defaultModels, logicalModels, systemChannels) };
                 });
             }

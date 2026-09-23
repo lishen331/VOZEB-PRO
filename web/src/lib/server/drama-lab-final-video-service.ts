@@ -10,6 +10,8 @@ import { join } from "node:path";
 import { downloadMediaToFile } from "@/lib/server/media-download";
 import { runFfmpeg, runFfprobe } from "@/lib/server/ffmpeg";
 import { writeReferenceMediaFile } from "@/lib/server/reference-asset-store";
+import { DEFAULT_FINAL_VIDEO_COMPOSE_OPTIONS, buildFinalVideoComposeArgs, buildFinalVideoSrt, finalVideoNeedsTranscode, normalizeFinalVideoComposeOptions, type FinalVideoComposeOptions } from "@/lib/server/final-video-compose-args";
+import { resolveFinalVideoFontPath } from "@/lib/server/final-video-font";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 export const DRAMA_LAB_FINAL_VIDEO_TASK_KIND = "drama_lab_final_video" as const;
@@ -23,7 +25,7 @@ export class DramaLabFinalVideoError extends Error {
     }
 }
 
-type FinalVideoInput = { userId: string; projectId: string; episodeId: string; clientRequestId?: string };
+type FinalVideoInput = { userId: string; projectId: string; episodeId: string; clientRequestId?: string; composeOptions?: unknown };
 type FinalVideoTaskStatus = "pending" | "running" | "success" | "error" | "cancelled" | "needs_review";
 type FinalVideoShotSnapshot = {
     shotId: string;
@@ -48,6 +50,12 @@ export type DramaLabFinalVideoSnapshot = {
     ratio: string;
     shotIds: string[];
     shots: FinalVideoShotSnapshot[];
+    /**
+     * 分辨率 / 烧字幕 / 水印。此前这些只是快照字段、从不进 ffmpeg（哑参数），
+     * 现在由 `buildFinalVideoComposeArgs` 真正消费。
+     * 放进快照参与 inputHash：换了配置就该算一次新的成片请求，不能命中旧结果。
+     */
+    composeOptions: FinalVideoComposeOptions;
     inputHash: string;
 };
 export type DramaLabFinalVideoTask = {
@@ -74,6 +82,8 @@ export type FinalVideoExecutionDeps = {
     ffprobe?: typeof runFfprobe;
     writeArtifact?: typeof writeReferenceMediaFile;
     tempRoot?: string;
+    /** 注入字体解析，便于在没装 CJK 字体的开发机上测试水印分支。 */
+    resolveFontPath?: typeof resolveFinalVideoFontPath;
 };
 
 export async function executeDramaLabFinalVideoTask(taskId: string, deps: FinalVideoExecutionDeps = {}) {
@@ -100,8 +110,24 @@ export async function executeDramaLabFinalVideoTask(taskId: string, deps: FinalV
         }
         const concatFile = join(workdir, "inputs.txt");
         await writeFile(concatFile, files.map((file) => `file '${file.replace(/'/g, "'\\''")}'`).join("\n"), "utf8");
+        const composeOptions = current.inputSnapshot.composeOptions || DEFAULT_FINAL_VIDEO_COMPOSE_OPTIONS;
+        const srt = composeOptions.burnSubtitles ? buildFinalVideoSrt(current.inputSnapshot.shots) : "";
+        if (srt) await writeFile(join(workdir, "subtitles.srt"), `\uFEFF${srt}`, "utf8");
+        // 没字体就不打文字水印，避免 drawtext 直接让整次合成失败。
+        const fontFile = composeOptions.watermarkText ? await (deps.resolveFontPath || resolveFinalVideoFontPath)() : undefined;
+        // 只有真正可执行的处理才转码：分辨率变了、有字幕文件、或水印有字体。
+        const needsSecondPass = finalVideoNeedsTranscode(composeOptions, Boolean(srt)) && (composeOptions.resolution !== "source" || Boolean(srt) || Boolean(fontFile));
+
         const output = join(workdir, "final.mp4");
-        await ffmpeg(["-y", "-f", "concat", "-safe", "0", "-i", concatFile, "-c", "copy", output], { cwd: workdir });
+        if (needsSecondPass) {
+            // 先拼流再处理：一次 filtergraph 走完整片，避免逐镜转码放大画质损失。
+            const joined = join(workdir, "joined.mp4");
+            await ffmpeg(["-y", "-f", "concat", "-safe", "0", "-i", concatFile, "-c", "copy", joined], { cwd: workdir });
+            await ffmpeg(buildFinalVideoComposeArgs({ inputPath: joined, outputPath: output, options: composeOptions, subtitleFileName: srt ? "subtitles.srt" : undefined, fontFile }), { cwd: workdir });
+        } else {
+            // 无配置时保持改造前的单次调用，不额外多跑一趟 ffmpeg。
+            await ffmpeg(["-y", "-f", "concat", "-safe", "0", "-i", concatFile, "-c", "copy", output], { cwd: workdir });
+        }
         const afterFfmpeg = await getStoredGenerationTask<DramaLabFinalVideoTask>("render", taskId);
         if (afterFfmpeg?.status === "cancelled") return afterFfmpeg;
         const probe = await ffprobe(["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_type,width,height", "-of", "json", output], { cwd: workdir });
@@ -201,17 +227,20 @@ export async function createDramaLabFinalVideoTask(input: FinalVideoInput) {
     const episode = project.episodes.find((item) => item.id === input.episodeId);
     if (!episode) throw new DramaLabFinalVideoError("短剧剧集不存在", 404);
     await assertDramaLabStageAllowed(input.userId, input.projectId, "final_export", { episodeId: input.episodeId, resourceType: "episode", resourceId: input.episodeId });
+    // 归一化一次给两处快照共用：非法值一律回落到"保持源尺寸 / 不烧字幕 / 无水印"，
+    // 即改造前的行为。
+    const composeOptions = normalizeFinalVideoComposeOptions(input.composeOptions);
     const requestId = input.clientRequestId?.trim() || undefined;
     if (requestId) {
         const existing = await getStoredGenerationTaskByRequest<DramaLabFinalVideoTask>("render", input.userId, requestId);
         if (existing && existing.taskKind === DRAMA_LAB_FINAL_VIDEO_TASK_KIND) {
             if (existing.projectId !== input.projectId || existing.episodeId !== input.episodeId) throw new DramaLabFinalVideoError("请求标识已用于其他剧集", 409);
-            const nextSnapshot = buildFinalVideoSnapshot(project, episode, ownerUserId, input.userId);
+            const nextSnapshot = buildFinalVideoSnapshot(project, episode, ownerUserId, input.userId, composeOptions);
             if (existing.inputSnapshot.inputHash !== nextSnapshot.inputHash) throw new DramaLabFinalVideoError("当前请求的素材已变化，请重新提交", 409);
             return existing;
         }
     }
-    const snapshot = buildFinalVideoSnapshot(project, episode, ownerUserId, input.userId);
+    const snapshot = buildFinalVideoSnapshot(project, episode, ownerUserId, input.userId, composeOptions);
     const now = Date.now();
     const task: DramaLabFinalVideoTask = {
         id: randomUUID(),
@@ -234,7 +263,7 @@ export async function createDramaLabFinalVideoTask(input: FinalVideoInput) {
     return created;
 }
 
-function buildFinalVideoSnapshot(project: DramaProject, episode: DramaEpisode, ownerUserId: string, requesterUserId: string): DramaLabFinalVideoSnapshot {
+function buildFinalVideoSnapshot(project: DramaProject, episode: DramaEpisode, ownerUserId: string, requesterUserId: string, composeOptions: FinalVideoComposeOptions): DramaLabFinalVideoSnapshot {
     const shots = [...(episode.shots || [])]
         .sort((a, b) => a.order - b.order)
         .map((shot) => {
@@ -254,6 +283,7 @@ function buildFinalVideoSnapshot(project: DramaProject, episode: DramaEpisode, o
         ratio: project.ratio,
         shotIds: shots.map((shot) => shot.shotId),
         shots,
+        composeOptions,
     };
     return { ...base, inputHash: createHash("sha256").update(JSON.stringify(base)).digest("hex") };
 }

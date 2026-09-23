@@ -36,6 +36,8 @@ export type TextPlanningMessageContent = string | Array<{ type: "text"; text: st
 export type TextPlanningMediaInput = { type: "image" | "video"; url: string };
 
 export type StructuredTextRequest = {
+    /** Optional output budget; omitted keeps existing provider defaults. */
+    maxTokens?: number;
     mediaInputs?: TextPlanningMediaInput[];
     origin: string;
     cookie: string;
@@ -103,6 +105,7 @@ export async function requestStructuredText(input: StructuredTextRequest): Promi
     const startedAt = Date.now();
     const messages = planningMessages(input);
     const requests = planningProtocolRequests(input, messages);
+    for (const request of requests) applyOutputTokenLimit(request, input.maxTokens);
     try {
         for (const [index, request] of requests.entries()) {
             try {
@@ -133,17 +136,34 @@ export function resetTextPlanningRuntime() {
     states.clear();
 }
 
-function planningProtocolRequests(input: StructuredTextRequest, messages: Array<{ role: string; content: TextPlanningMessageContent }>) {
-    const promptRequest = planningProtocolRequest(input.candidate, messages, "json", undefined, input.stream === true);
-    if (input.allowRepair === false) {
-        return input.preferNativeTools && promptRequest.protocol !== "custom" ? [planningProtocolRequest(input.candidate, messages, "tool", input.tool), promptRequest] : [promptRequest];
-    }
-    const recoveryRequest = planningProtocolRequest(input.candidate, planningMessages(input, true), "repair");
-    if (!input.preferNativeTools || promptRequest.protocol === "custom") return [promptRequest, recoveryRequest];
-    return [planningProtocolRequest(input.candidate, messages, "tool", input.tool), promptRequest, recoveryRequest];
+/** Apply to every tool/JSON/repair attempt, without changing callers that omit the budget. */
+function applyOutputTokenLimit(request: ProtocolRequest, maxTokens?: number) {
+    if (maxTokens === undefined) return;
+    if (!Number.isSafeInteger(maxTokens) || maxTokens <= 0) throw new Error("maxTokens must be a positive safe integer");
+    if (request.protocol === "responses") request.body.max_output_tokens = maxTokens;
+    else if (request.protocol === "gemini") request.body.generationConfig = { ...(request.body.generationConfig as Record<string, unknown> | undefined), maxOutputTokens: maxTokens };
+    else if (request.protocol === "chat") request.body.max_tokens = maxTokens;
+    // Custom adapters own their wire schema; never invent an unsupported parameter.
 }
 
-function planningProtocolRequest(candidate: TextPlanningCandidate, messages: Array<{ role: string; content: TextPlanningMessageContent }>, variant: ProtocolRequest["variant"], tool?: TextPlanningTool, requestedStream = false): ProtocolRequest {
+function planningProtocolRequests(input: StructuredTextRequest, messages: Array<{ role: string; content: TextPlanningMessageContent }>) {
+    const promptRequest = planningProtocolRequest(input.candidate, messages, "json", undefined, input.stream === true, input.maxTokens);
+    if (input.allowRepair === false) {
+        return input.preferNativeTools && promptRequest.protocol !== "custom" ? [planningProtocolRequest(input.candidate, messages, "tool", input.tool, false, input.maxTokens), promptRequest] : [promptRequest];
+    }
+    const recoveryRequest = planningProtocolRequest(input.candidate, planningMessages(input, true), "repair", undefined, false, input.maxTokens);
+    if (!input.preferNativeTools || promptRequest.protocol === "custom") return [promptRequest, recoveryRequest];
+    return [planningProtocolRequest(input.candidate, messages, "tool", input.tool, false, input.maxTokens), promptRequest, recoveryRequest];
+}
+
+function planningProtocolRequest(
+    candidate: TextPlanningCandidate,
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>,
+    variant: ProtocolRequest["variant"],
+    tool?: TextPlanningTool,
+    requestedStream = false,
+    maxTokens?: number,
+): ProtocolRequest {
     const resolved = resolveTextProtocol({
         model: candidate.upstreamModel,
         apiFormat: candidate.channel.apiFormat,
@@ -159,7 +179,7 @@ function planningProtocolRequest(candidate: TextPlanningCandidate, messages: Arr
     const streamFormat = streaming?.format || (resolved.kind === "gemini" ? "ndjson" : "sse");
     if (resolved.kind === "responses") return responsesRequest(candidate.upstreamModel, messages, stream ? streamPath : resolved.path, variant === "tool" ? tool : undefined, variant, stream);
     if (resolved.kind === "gemini") return geminiRequest(candidate.upstreamModel, messages, stream ? streamPath : resolved.path, variant === "tool" ? tool : undefined, variant, stream, streamFormat);
-    if (resolved.kind === "custom") return customRequest(candidate.upstreamModel, stream ? streamPath : resolved.path, resolved.requestTemplate!, resolved.resultField!, messages, variant, stream, streamFormat);
+    if (resolved.kind === "custom") return customRequest(candidate.upstreamModel, stream ? streamPath : resolved.path, resolved.requestTemplate!, resolved.resultField!, messages, variant, stream, streamFormat, maxTokens);
     return chatRequest(candidate.upstreamModel, messages, stream ? streamPath : resolved.path, variant === "tool" ? tool : undefined, variant, stream, streamFormat);
 }
 
@@ -247,11 +267,12 @@ function customRequest(
     variant: ProtocolRequest["variant"],
     stream = false,
     streamFormat: ProtocolRequest["streamFormat"] = "sse",
+    maxTokens?: number,
 ): ProtocolRequest {
     const prompt = messages.map((message) => `${message.role}: ${message.content}`).join("\n\n");
     const promptJsonValue = messages.find((message) => message.role === "user")?.content || "";
     const promptJson = typeof promptJsonValue === "string" ? promptJsonValue : promptJsonValue.map((part) => (part.type === "text" ? part.text : part.image_url.url)).join(" ");
-    const values = { model, messages, prompt, input: prompt, text: prompt, prompt_json: parsePromptJsonValue(promptJson), stream };
+    const values = { model, messages, prompt, input: prompt, text: prompt, prompt_json: parsePromptJsonValue(promptJson), stream, ...(maxTokens === undefined ? {} : { max_tokens: maxTokens, maxTokens }) };
     return { protocol: "custom", variant, path: configuredPath, body: buildProviderRequest(requestTemplate, values, values), resultField, ...(stream ? { stream: true, streamFormat } : {}) };
 }
 

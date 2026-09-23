@@ -205,8 +205,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                         type: resultType,
                         title: effectivePrompt.slice(0, 32) || (isPanoramaNode ? "Generated Panorama" : "Generated Image"),
                         position: {
-                            x: rootNode.position.x + rootNode.width + 120 + (index % 2) * (imageConfig.width + 36),
-                            y: rootNode.position.y + Math.floor(index / 2) * (imageConfig.height + rowGap),
+                            x: rootNode.position.x + rootNode.width + 120,
+                            y: rootNode.position.y + index * (imageConfig.height + rowGap),
                         },
                         width: imageConfig.width,
                         height: imageConfig.height,

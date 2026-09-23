@@ -116,7 +116,7 @@ export type CanvasNodeMetadata = {
     prompt?: string;
     sourcePrompt?: string;
     upstreamPrompt?: string;
-    imageReferenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop")[]>;
+    imageReferenceRoles?: import("@/lib/image-reference-roles").ImageReferenceRoles;
     status?: CanvasNodeStatus;
     errorDetails?: string;
     fontSize?: number;
@@ -187,7 +187,11 @@ export type CanvasNodeMetadata = {
     batchChildIds?: string[];
     batchUsesReferenceImages?: boolean;
     primaryImageId?: string;
+    /** On a batch child: true when this child is the batch root's current primary image. Mirrors root.primaryImageId. */
+    isBatchPrimary?: boolean;
     imageBatchExpanded?: boolean;
+    /** On a batch root: thumbnail cache of the batch children so the collapsed card stack can preview them without the hidden child nodes. */
+    batchMemberSnapshots?: CanvasGroupMemberSnapshot[];
     /** On a Group node: ordered member node ids driving the storyboard grid. */
     groupMemberIds?: string[];
     /** On a member node: id of the Group node that currently owns it. */

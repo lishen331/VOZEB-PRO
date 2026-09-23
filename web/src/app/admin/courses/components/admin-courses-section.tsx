@@ -1,7 +1,8 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Button, Form, Input, Modal, Pagination, Select, Table, Tag } from "antd";
+import { App, AutoComplete, Button, DatePicker, Form, Input, Modal, Pagination, Select, Table, Tag } from "antd";
+import dayjs from "dayjs";
 import { BookOpen, GitBranch, Pencil, Plus, RefreshCw, RotateCcw, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -16,7 +17,7 @@ import { CourseTreeEditor } from "./course-tree-editor";
 export const COURSE_ATTACHMENT_ACCEPT = ".docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
 
 const PAGE_SIZE = 12;
-type CourseForm = { title: string; summary?: string; body?: string };
+type CourseForm = { title: string; summary?: string; body?: string; category?: string; validUntil?: dayjs.Dayjs | null };
 
 export function AdminCoursesSection() {
     const { message, modal } = App.useApp();
@@ -89,7 +90,13 @@ export function AdminCoursesSection() {
         setEditing(course || null);
         setCoverKey(textField(course?.content, "coverStorageKey"));
         coverUploads.current = [];
-        form.setFieldsValue({ title: course?.title || "", summary: course?.summary || "", body: textField(course?.content, "body") });
+        form.setFieldsValue({
+            title: course?.title || "",
+            summary: course?.summary || "",
+            body: textField(course?.content, "body"),
+            category: course?.category || "",
+            validUntil: course?.validUntil ? dayjs(course.validUntil) : null,
+        });
         setEditorOpen(true);
     };
 
@@ -97,7 +104,13 @@ export function AdminCoursesSection() {
         if (uploadingCover || saving) return;
         setSaving(true);
         try {
-            const input: PlatformCourseInput = { title: values.title.trim(), summary: values.summary?.trim() || "", content: { ...editing?.content, body: values.body?.trim() || "", coverStorageKey: coverKey } };
+            const input: PlatformCourseInput = {
+                title: values.title.trim(),
+                summary: values.summary?.trim() || "",
+                content: { ...editing?.content, body: values.body?.trim() || "", coverStorageKey: coverKey },
+                category: values.category?.trim() || "",
+                validUntil: values.validUntil ? values.validUntil.endOf("day").toISOString() : null,
+            };
             if (editing) await coursesApi.updatePlatformCourse(editing.id, input);
             else await coursesApi.createPlatformCourse(input);
             try {
@@ -238,6 +251,8 @@ export function AdminCoursesSection() {
         </div>
     );
 
+    const categoryOptions = [...new Set(items.map((course) => course.category).filter((value): value is string => Boolean(value)))].map((value) => ({ value }));
+
     const columns: TableColumnsType<PlatformCourse> = [
         {
             title: "课程",
@@ -356,6 +371,14 @@ export function AdminCoursesSection() {
                     </Form.Item>
                     <Form.Item label="课程介绍" name="body">
                         <Input.TextArea rows={5} maxLength={12000} showCount />
+                    </Form.Item>
+                    <Form.Item label="类别" name="category">
+                        <AutoComplete options={categoryOptions} filterOption={(input, option) => (option?.value ?? "").toLowerCase().includes(input.toLowerCase())} placeholder="输入或选择已有类别">
+                            <Input maxLength={60} allowClear />
+                        </AutoComplete>
+                    </Form.Item>
+                    <Form.Item label="有效期" name="validUntil" extra="留空表示永久有效">
+                        <DatePicker className="w-full" allowClear placeholder="选择到期日期，留空为永久" />
                     </Form.Item>
                 </Form>
             </Modal>

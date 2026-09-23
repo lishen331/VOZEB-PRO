@@ -118,7 +118,7 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
     return (
         <div className={`relative h-full w-full ${containerClassName || ""}`}>
             {showOverlay ? (
-                <div ref={overlayRef} className={`${className || ""} pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words`} style={{ ...style, color: theme.node.text }}>
+                <div ref={overlayRef} className={`${className || ""} pointer-events-none absolute inset-0 whitespace-pre-wrap break-words`} style={{ ...style, color: theme.node.text, scrollbarWidth: "none" }}>
                     <MentionHighlightText value={value || props.placeholder?.toString() || ""} labels={activeLabels} references={references} placeholder={!value} />
                 </div>
             ) : null}

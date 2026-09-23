@@ -37,11 +37,16 @@ describe("learning center", () => {
         expect(source).toContain('size="min(720px, 100vw)"');
         expect(source).toContain("afterOpenChange");
         expect(source).toContain('Boolean(submission) && (item.status === "closed"');
-        expect(source).toContain("课程附件");
         expect(source).not.toContain('<Drawer title={viewingCourse?.title || "课程详情"} open={Boolean(viewingCourse)} destroyOnHidden width=');
         expect(source).not.toContain("typeof window");
         expect(source).not.toContain("forceRender");
         expect(source).not.toContain("教学进度");
         expect(source).not.toContain("结算");
+        // Course cards navigate to a dedicated detail route instead of an in-page Drawer.
+        expect(source).toContain("/learning/courses/");
+        const detail = await readFile(resolve(process.cwd(), "src/app/(user)/learning/courses/[assignmentId]/page.tsx"), "utf8");
+        expect(detail).toContain("getSchoolCourseTree");
+        expect(detail).toContain("SchoolCourseTree");
+        expect(detail).toContain("课程列表");
     });
 });

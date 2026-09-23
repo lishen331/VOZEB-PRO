@@ -1,3 +1,4 @@
+import { BINDING_VERIFICATION_SCHEMA_SQL } from "./schema-binding-verifications";
 import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
 import { POSTGRESQL_COMMERCIAL_FEATURES_SCHEMA_SQL } from "./schema-commercial-features";
 import { POSTGRESQL_IP_LIBRARY_SCHEMA_SQL } from "./schema-ip-library";
@@ -9,6 +10,7 @@ import { DRAMA_LAB_SCHEMA_SQL } from "./schema-drama-lab";
 const FULL_ADMIN_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
 
 export const POSTGRESQL_SCHEMA_SQL = `
+${BINDING_VERIFICATION_SCHEMA_SQL}
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version text PRIMARY KEY,
     applied_at timestamptz NOT NULL DEFAULT now()
@@ -344,6 +346,9 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_workflow_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_code text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_adapter_version integer;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS business_code text;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS diagnostic_events jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS diagnostic_expires_at timestamptz;
+CREATE INDEX IF NOT EXISTS generation_tasks_diagnostic_expiry_idx ON generation_tasks (diagnostic_expires_at) WHERE diagnostic_expires_at IS NOT NULL;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS task_origin text NOT NULL DEFAULT 'user';
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_phase;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_phase CHECK (execution_phase IN ('queued', 'created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting', 'cancel_requested', 'cancel_polling', 'needs_review', 'review_pending', 'reviewing', 'review_unavailable', 'completed'));

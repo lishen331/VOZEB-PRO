@@ -121,4 +121,69 @@
             animation: none;
         }
     }
+
+    /* Blinking caret trailing the generating caption's typewriter text. */
+    .canvas-node-caret {
+        display: inline-block;
+        width: 1px;
+        height: 0.85em;
+        margin-left: 2px;
+        vertical-align: text-bottom;
+        background: currentColor;
+        animation: canvasNodeCaretBlink 1s step-end infinite;
+    }
+
+    @keyframes canvasNodeCaretBlink {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-caret {
+            animation: none;
+        }
+    }
+
+    /* Depth Card tilt, applied while this card is the connection-drag target.
+       The transform itself is written inline per-frame from pointer position;
+       this rule supplies the easing, the 3D context and the cursor spotlight. */
+    .canvas-node-depth-tilt {
+        transform-style: preserve-3d;
+        transition:
+            transform 120ms ease-out,
+            box-shadow 160ms ease-out;
+        will-change: transform;
+    }
+
+    /* Spotlight tracks the pointer via the two vars set inline. */
+    .canvas-node-depth-tilt::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        background: radial-gradient(circle at var(--canvas-spotlight-x, 50%) var(--canvas-spotlight-y, 50%), rgb(255 255 255 / 22%) 0%, rgb(255 255 255 / 0%) 55%);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-depth-tilt {
+            transform: none !important;
+            transition: none;
+        }
+    }
+
+    /* Flat dark fill behind spinner + caption. */
+    .canvas-node-generating-shader {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        overflow: hidden;
+        pointer-events: none;
+        background: #0b1220;
+    }
 }

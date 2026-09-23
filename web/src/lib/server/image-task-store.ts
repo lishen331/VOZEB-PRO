@@ -68,7 +68,7 @@ export type ImageTask = GenerationTaskContext & {
     /** 无限练习工作流参数（width/height 等），提交 RunningHub 时并入 businessInput。 */
     workflowInput?: Record<string, unknown>;
     references: ImageTaskReference[];
-    referenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop")[]>;
+    referenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop" | "face")[]>;
     mask?: ImageTaskReference;
     result?: StoredImageTaskMediaResult & { results?: StoredImageTaskMediaResult[] };
     upstream?: { id: string; mediaBaseUrl: string; pollBaseUrl: string; explicitPollUrl?: string };

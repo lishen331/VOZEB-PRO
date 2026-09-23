@@ -1,3 +1,4 @@
+import { withMediaDiagnosticScope } from "@/lib/server/media-task-trace";
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -126,6 +127,10 @@ import {
 } from "./image-task-support";
 
 export async function runOpenAiImageTask(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false): Promise<ImageTaskRunResult> {
+    return withMediaDiagnosticScope("image", task, "provider", () => runObservedOpenAiImageTask(task, origin, publicOrigin, cookie, singleStep));
+}
+
+async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false): Promise<ImageTaskRunResult> {
     const config = task.config;
     const quality = normalizeQuality(config.quality || "");
     const requestSize = resolveRequestSize(quality, config.size || "auto");
@@ -157,17 +162,18 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
         }
     } else {
         headers.set("content-type", "application/json");
+        const generationBody = {
+            model: config.model,
+            prompt: task.upstreamPrompt || withSystemPrompt(config, withImageOutputInstructions(config, task.prompt)),
+            ...(config.outputMode === "layers" ? {} : { n: 1 }),
+            ...(quality ? { quality } : {}),
+            ...(requestSize ? { size: requestSize } : {}),
+            ...(allowProtocolFallback || responseFormat !== "url" ? { response_format: responseFormat, output_format: IMAGE_OUTPUT_FORMAT } : {}),
+        };
         response = await imageSubmissionFetch(config, url, {
             method: "POST",
             headers,
-            body: JSON.stringify({
-                model: config.model,
-                prompt: task.upstreamPrompt || withSystemPrompt(config, withImageOutputInstructions(config, task.prompt)),
-                ...(config.outputMode === "layers" ? {} : { n: 1 }),
-                ...(quality ? { quality } : {}),
-                ...(requestSize ? { size: requestSize } : {}),
-                ...(allowProtocolFallback || responseFormat !== "url" ? { response_format: responseFormat, output_format: IMAGE_OUTPUT_FORMAT } : {}),
-            }),
+            body: JSON.stringify(generationBody),
             cache: "no-store",
         });
         if (!response.ok) {

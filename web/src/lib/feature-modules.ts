@@ -1,11 +1,12 @@
 import type { LucideIcon } from "lucide-react";
-import { BookMarked, Clapperboard, CircleHelp, Compass, FileText, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
+import { BookMarked, Clapperboard, CircleHelp, Compass, FileText, Film, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
 
 export const FEATURE_MODULE_IDS = [
     "creative-agent",
     "canvas",
     "drama",
     "drama-lab",
+    "one-click-film",
     "drama-lab-resource-editor",
     "practice",
     "works",
@@ -68,6 +69,7 @@ export const FEATURE_MODULES: readonly FeatureModuleDefinition[] = [
     { id: "canvas", name: "画布", description: "节点式多媒体创作", group: "projects", icon: Maximize2, pathPrefixes: ["/canvas"], routeRoot: "canvas" },
     { id: "drama", name: "短剧", description: "剧本、分镜与成片项目", group: "projects", icon: Clapperboard, pathPrefixes: ["/drama"], routeRoot: "drama" },
     { id: "drama-lab", name: "创作工坊", description: "独立短剧生产工作流", group: "projects", icon: FlaskConical, pathPrefixes: ["/drama-lab"], routeRoot: "drama-lab" },
+    { id: "one-click-film", name: "一键成片", description: "完整短剧一键成片工作流", group: "projects", icon: Film, pathPrefixes: ["/one-click-film"], routeRoot: "one-click-film" },
     { id: "drama-lab-resource-editor", name: "本剧资源库编辑弹窗", description: "短剧剧本信息页资源卡片编辑入口（仅控制显示）", group: "projects", icon: FlaskConical, pathPrefixes: [] },
     { id: "practice", name: "练习", description: "学校场景下的创作练习", group: "projects", icon: Sparkles, pathPrefixes: ["/practice"], routeRoot: "practice" },
     { id: "works", name: "作品", description: "作品发布、审核与分享", group: "assets", icon: GalleryVerticalEnd, pathPrefixes: ["/works"], routeRoot: "works" },

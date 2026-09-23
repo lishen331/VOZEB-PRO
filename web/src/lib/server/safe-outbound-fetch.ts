@@ -22,7 +22,7 @@ export class UnsafeOutboundUrlError extends Error {
     }
 }
 
-export async function fetchSafeOutbound(input: string | URL, init: RequestInit = {}, options?: { allowCredentials?: boolean }): Promise<Response> {
+export async function fetchSafeOutbound(input: string | URL, init: RequestInit = {}, options?: { allowCredentials?: boolean; http1Compatibility?: boolean }): Promise<Response> {
     let currentUrl: URL;
     try {
         currentUrl = input instanceof URL ? new URL(input) : new URL(input);
@@ -51,12 +51,12 @@ export async function fetchSafeOutbound(input: string | URL, init: RequestInit =
     throw new UnsafeOutboundUrlError("上游重定向次数过多");
 }
 
-async function fetchPinned(input: URL, init: RequestInit, options?: { allowCredentials?: boolean }) {
+async function fetchPinned(input: URL, init: RequestInit, options?: { allowCredentials?: boolean; http1Compatibility?: boolean }) {
     const target = await resolveSafeOutboundTarget(input, options);
     if (!target) throw new UnsafeOutboundUrlError();
 
     const headers = new Headers(init.headers);
-    const dispatcher = dispatcherFor(target.url, target.address, target.family);
+    const dispatcher = dispatcherFor(target.url, target.address, target.family, options?.http1Compatibility === true);
     const body = await toUndiciRequestBody(init.body);
     return (await undiciFetch(target.url, { ...init, body, headers, dispatcher } as import("undici").RequestInit & { dispatcher: Dispatcher })) as unknown as Response;
 }
@@ -77,10 +77,10 @@ function redirectedRequestInit(currentUrl: URL, nextUrl: URL, status: number, in
     return { ...init, headers };
 }
 
-function dispatcherFor(url: URL, address: string, family: 4 | 6) {
+function dispatcherFor(url: URL, address: string, family: 4 | 6, http1Compatibility = false) {
     const proxyUrl = isPublicIpAddress(address) ? resolveServerProxyUrl() : "";
     const servername = /^\d+(?:\.\d+){3}$/.test(url.hostname) || url.hostname.includes(":") ? undefined : url.hostname;
-    const key = [proxyUrl, url.protocol, url.host, address, family].join("|");
+    const key = [proxyUrl, url.protocol, url.host, address, family, http1Compatibility ? "http1" : "default"].join("|");
     const now = Date.now();
     cleanupDispatchers(now);
     const cached = dispatchers.get(key);
@@ -103,6 +103,7 @@ function dispatcherFor(url: URL, address: string, family: 4 | 6) {
     };
     const dispatcher: Dispatcher = proxyUrl
         ? new ProxyAgent({
+              ...(http1Compatibility ? { allowH2: false } : {}),
               uri: proxyUrl,
               requestTls: servername ? { servername } : undefined,
               connectTimeout: 10_000,
@@ -111,6 +112,7 @@ function dispatcherFor(url: URL, address: string, family: 4 | 6) {
               bodyTimeout: GENERATION_TRANSPORT_TIMEOUT_MS,
           })
         : new Agent({
+              ...(http1Compatibility ? { allowH2: false } : {}),
               connect,
               connectTimeout: 10_000,
               connections: 8,

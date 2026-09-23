@@ -1,0 +1,100 @@
+{
+    "_source": "LocalMiniDrama backend-node/src/services/angleService.js inferPhotographyParams —— 规则表从源码抽取，并对大量样本与 L 真实输出逐一比对一致，非手抄。",
+    "lightingRules": [
+        {
+            "pattern": "霓虹|赛博|neon|cyberpunk",
+            "value": "neon"
+        },
+        {
+            "pattern": "逆光|背光|backlit|轮廓光|rim light",
+            "value": "backlit"
+        },
+        {
+            "pattern": "戏剧|明暗|强对比|chiaroscuro|dramatic|noir",
+            "value": "dramatic"
+        },
+        {
+            "pattern": "黄金时段|黄昏|金色光|夕阳|落日|golden",
+            "value": "golden_hour"
+        },
+        {
+            "pattern": "蓝调|蓝光|暮色|blue hour|twilight",
+            "value": "blue_hour"
+        },
+        {
+            "pattern": "夜晚|夜景|深夜|午夜|night",
+            "value": "night"
+        },
+        {
+            "pattern": "顶光|头顶|top light",
+            "value": "top"
+        },
+        {
+            "pattern": "底光|脚灯|underlight",
+            "value": "under"
+        },
+        {
+            "pattern": "侧光|side light|侧面光",
+            "value": "side"
+        },
+        {
+            "pattern": "柔光|散射|soft light|soft",
+            "value": "soft"
+        },
+        {
+            "pattern": "顺光|正面光|front light",
+            "value": "front"
+        },
+        {
+            "pattern": "自然光|日光|阳光|natural light|sunlight",
+            "value": "natural"
+        },
+        {
+            "pattern": "白天|清晨|午后|daytime|morning|afternoon",
+            "value": "natural"
+        }
+    ],
+    "movementAliases": [
+        {
+            "keys": ["固定", "不动", "static", "locked"],
+            "value": "static"
+        },
+        {
+            "keys": ["推镜", "推进", "推", "push in", "dolly in", "push"],
+            "value": "push"
+        },
+        {
+            "keys": ["拉镜", "拉出", "拉", "pull back", "dolly out", "pull"],
+            "value": "pull"
+        },
+        {
+            "keys": ["横移", "横摇", "摇镜", "摇", "pan"],
+            "value": "pan"
+        },
+        {
+            "keys": ["纵摇", "上摇", "下摇", "tilt"],
+            "value": "tilt"
+        },
+        {
+            "keys": ["跟镜", "跟拍", "跟随", "track"],
+            "value": "tracking"
+        },
+        {
+            "keys": ["升镜", "向上", "crane up"],
+            "value": "crane_up"
+        },
+        {
+            "keys": ["降镜", "向下", "crane down"],
+            "value": "crane_dn"
+        },
+        {
+            "keys": ["环绕", "绕", "orbit", "arc"],
+            "value": "orbit"
+        },
+        {
+            "keys": ["手持", "handheld"],
+            "value": "handheld"
+        }
+    ],
+    "movementEnums": ["static", "push", "pull", "pan", "tilt", "tracking", "crane_up", "crane_dn", "orbit", "handheld"]
+}

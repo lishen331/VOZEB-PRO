@@ -12,7 +12,7 @@ import { isFullscreenWorkspacePath } from "@/components/layout/app-workspace-pat
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { SiteLogo } from "@/components/layout/site-logo";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
-import { navigationToolForPathname } from "@/constant/navigation-tools";
+import { navigationToolForPathname, resolveLandingSlug } from "@/constant/navigation-tools";
 import type { FeatureModuleSettings } from "@/lib/feature-modules";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
@@ -32,13 +32,13 @@ export function AppWorkspaceShell({ children, featureModules }: { children: Reac
     const publicSettings = usePublicSessionStore((state) => state.payload?.settings);
     const site = publicSettings?.site || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const effectiveFeatureModules = publicSettings?.featureModules || featureModules;
-    const homePath = effectiveFeatureModules["creative-agent"] === false ? "/practice" : "/create";
+    const schoolContext = useSchoolContextStore((state) => state.context);
+    // First visible sidebar entry — matches where a login redirect lands. Falls
+    // back to /help only if every module (and the module-less 主页) is gone.
+    const landingSlug = resolveLandingSlug(schoolContext, { featureModules: effectiveFeatureModules });
+    const homePath = landingSlug ? `/${landingSlug}` : "/help";
     const siteTitle = resolveSiteTitle(site.title);
-    const tool = navigationToolForPathname(
-        pathname,
-        useSchoolContextStore((state) => state.context),
-        { featureModules: effectiveFeatureModules },
-    );
+    const tool = navigationToolForPathname(pathname, schoolContext, { featureModules: effectiveFeatureModules });
     const fullscreen = isFullscreenWorkspacePath(pathname);
     const rootSlug = pathname.split("/").filter(Boolean)[0] || "";
     const pageTitle = tool?.label || PAGE_TITLES[rootSlug] || "工作空间";

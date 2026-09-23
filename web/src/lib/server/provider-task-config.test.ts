@@ -154,3 +154,12 @@ describe("provider task config", () => {
         expect(() => assertReferenceUrls(config, [{ url: "https://drama.example/api/generation-log-assets/permanent/2026/07/25/images/file.png" }])).toThrow("站内参考素材");
     });
 });
+
+it("replaces documented nested reference examples with the current request inputs", () => {
+    const template =
+        '{"model":"{{model}}","input":{"prompt":"{{prompt}}","start_image":"https://example.com/first.png","end_image":"https://example.com/last.png","reference_image_urls":["https://example.com/a.png"],"reference_video_urls":["https://example.com/v.mp4"]}}';
+    expect(buildVideoProviderRequest(template, {}, { model: "premium/seedance-2", prompt: "test", first_frame: "", last_frame: "", images: ["https://oss.example/1.png", "https://oss.example/2.png"], videos: [] })).toEqual({
+        model: "premium/seedance-2",
+        input: { prompt: "test", reference_image_urls: ["https://oss.example/1.png", "https://oss.example/2.png"] },
+    });
+});

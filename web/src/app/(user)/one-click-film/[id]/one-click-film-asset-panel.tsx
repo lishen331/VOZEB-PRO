@@ -1,0 +1,837 @@
+"use client";
+
+import { Button, Checkbox, Empty, Input, InputNumber, message, Modal, Segmented, Select, Tag, Tooltip } from "antd";
+import { FolderOpen, ImageIcon, Layers, Library, Plus, ScanText, Sparkles, Star, Trash2, UserRound } from "lucide-react";
+import { useState } from "react";
+import { OneClickAssetReferenceUpload } from "./one-click-asset-reference-upload";
+import type { DramaAssetReference, DramaNamedAsset, DramaProject, DramaVoiceProfile } from "@/lib/drama-project-contract";
+
+/**
+ * 面板按 kind 统一处理三类资产，但 `voiceProfile` 在契约里只挂在 `DramaCharacter` 上。
+ * 这里用别名表达"可能带音色的资产"，音色控件只在 kind === "characters" 时渲染。
+ */
+type PanelAsset = DramaNamedAsset & { voiceProfile?: DramaVoiceProfile };
+import { audioVoiceOptions } from "@/lib/audio-generation";
+import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
+
+type AssetKind = "characters" | "scenes" | "props";
+
+type Props = {
+    projectId: string;
+    /**
+     * 受控的资产类别。
+     *
+     * L 的资源管理是「角色 / 道具 / 场景」三个并列可折叠子卡，各自有独立锚点
+     * （anchor-characters / anchor-props / anchor-scenes）；V 这里是单面板 + Segmented 切换，
+     * 所以把 kind 提升给父组件，侧栏点击对应步骤时既滚动到本区、又切到对应页签，
+     * 否则那三个锚点会指向不存在的 DOM，跳转就是死的。
+     */
+    kind?: AssetKind;
+    onKindChange?: (kind: AssetKind) => void;
+    project: DramaProject;
+    onProjectChange: (project: DramaProject) => void;
+};
+
+import { findAffectedShots } from "@/lib/one-click/affected-shots";
+
+async function callJson(url: string, init?: RequestInit) {
+    const response = await fetch(url, init);
+    const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: Record<string, unknown>; msg?: string };
+    if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "请求失败");
+    return payload.data;
+}
+
+const KIND_LABEL: Record<AssetKind, string> = { characters: "角色", scenes: "场景", props: "道具" };
+
+/** L 的 assetType 用单数，与集合键不同名。 */
+const KIND_ASSET_TYPE: Record<AssetKind, string> = { characters: "character", scenes: "scene", props: "prop" };
+
+/**
+ * 资产面板（角色 / 场景 / 道具）。
+ *
+ * AI 能力对应 L 的四个端点，统一走一键成片自有的 assets/:assetId/ai：
+ * describe = extract-from-image、prompt = generate-prompt、
+ * anchor = extract-anchors、stages = generate-stages。
+ *
+ * L 的角色默认四视图，场景/道具默认单图 —— 这里沿用同一约定。
+ */
+export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, kind: controlledKind, onKindChange }: Props) {
+    const [innerKind, setInnerKind] = useState<AssetKind>("characters");
+    /**
+     * 栅格开关，对应 L 的 `propUseQuadGrid` / `sceneUseQuadGrid`（两个独立 ref，默认单图）。
+     *
+     * 角色不在此列：L 角色区没有这个勾选，四视图写死在后端角色提示词里
+     * （工业角色参考表，且明确禁止 2×2 网格），所以角色恒走 four_view。
+     */
+    const [quadGrid, setQuadGrid] = useState<{ props: boolean; scenes: boolean }>({ props: false, scenes: false });
+    /** 正在重新生成受影响分镜图的资产 id，以及进度，对应 L 的 regenSbImagesForAsset / regenSbImagesProgress。 */
+    const [regenAssetId, setRegenAssetId] = useState<string>();
+    const [regenProgress, setRegenProgress] = useState<{ current: number; total: number }>();
+    const kind = controlledKind ?? innerKind;
+    /** 当前类别要请求的版式。 */
+    const layoutForKind = (asset?: Pick<PanelAsset, "generationLayout">) => {
+        if (kind === "characters") return "four_view";
+        // 到这里 kind 已被收窄为 "props" | "scenes"，无需再判非角色
+        if (quadGrid[kind]) return "four_view";
+        return (asset?.generationLayout as "single" | "four_view" | undefined) || "single";
+    };
+    const setKind = (next: AssetKind) => {
+        setInnerKind(next);
+        onKindChange?.(next);
+    };
+    const [editing, setEditing] = useState<PanelAsset>();
+    const [busy, setBusy] = useState<string>();
+    const [creatingName, setCreatingName] = useState("");
+    const [draft, setDraft] = useState<{ name: string; description: string; appearance: string; imagePrompt: string; role: string; type: string; time: string }>();
+    const [voiceDraft, setVoiceDraft] = useState<{ voice: string; speed: number; instructions: string }>();
+    const [picker, setPicker] = useState<{ asset: PanelAsset; items: Array<{ id: string; title: string; coverUrl?: string }> }>();
+    const base = `/api/one-click-film/projects/${encodeURIComponent(projectId)}`;
+    const assets = (project[kind] || []) as PanelAsset[];
+
+    const runAi = async (asset: PanelAsset, action: "describe" | "prompt" | "anchor" | "stages") => {
+        setBusy(`${asset.id}:${action}`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/ai`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    kind,
+                    action,
+                    // L：角色固定四视图，场景/道具跟随资产自身设置（默认单图）
+                    generationLayout: kind === "characters" ? "four_view" : asset.generationLayout || "single",
+                    requestId: `one-click-film-asset-${action}:${projectId}:${asset.id}`,
+                }),
+            });
+
+            // 把 AI 产出写回项目，字段与 L 对齐：描述 / 提示词 / 视觉锚点 / 阶段造型
+            const patch: Partial<PanelAsset> = {};
+            if (typeof data?.description === "string" && data.description.trim()) patch.description = data.description;
+            if (typeof data?.appearance === "string" && data.appearance.trim()) patch.appearance = data.appearance;
+            if (typeof data?.polishedPrompt === "string" && data.polishedPrompt.trim()) patch.polishedPrompt = data.polishedPrompt;
+            if (typeof data?.imagePrompt === "string" && data.imagePrompt.trim()) patch.imagePrompt = data.imagePrompt;
+            if (data?.profile && typeof data.profile === "object") patch.profile = data.profile as PanelAsset["profile"];
+            if (Array.isArray(data?.stages)) patch.stages = data.stages as PanelAsset["stages"];
+
+            if (Object.keys(patch).length) {
+                const nextAssets = assets.map((item) => (item.id === asset.id ? { ...item, ...patch } : item));
+                const saved = await callJson(base, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [kind]: nextAssets }) });
+                if (saved?.project) {
+                    onProjectChange(saved.project as DramaProject);
+                    const refreshed = ((saved.project as DramaProject)[kind] as PanelAsset[]).find((item) => item.id === asset.id);
+                    if (refreshed && editing?.id === asset.id) {
+                        setEditing(refreshed);
+                        if (action === "describe" || action === "prompt")
+                            setDraft((current) => (current ? { ...current, description: refreshed.description || "", appearance: refreshed.appearance || "", imagePrompt: refreshed.polishedPrompt || refreshed.imagePrompt || "" } : current));
+                    }
+                }
+            }
+            message.success("资产 AI 操作完成");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产 AI 操作失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /**
+     * 资产设定图生成。对应 L 的 `generate-image` / `generate-four-view-image`。
+     * 走一键成片自有路由（服务端显式写 featureModule），计费归属 one-click-film。
+     */
+    const generateImage = async (asset: PanelAsset) => {
+        setBusy(`${asset.id}:image`);
+        try {
+            await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/generate-image`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, generationLayout: layoutForKind(asset) }),
+            });
+            message.success(kind === "characters" ? "角色四视图任务已创建" : "资产设定图任务已创建");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产设定图任务创建失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /** 读取本地文件为 dataUrl，交服务端持久化（不在前端直接落库）。 */
+    const readAsDataUrl = (file: File) =>
+        new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(new Error("读取图片失败"));
+            reader.readAsDataURL(file);
+        });
+
+    /**
+     * 参考图操作，对应 L 的 upload-image / PUT image（设为主图）/ 移除。
+     * 服务端负责持久化与主图排序，这里只负责交互。
+     */
+    const runReferenceAction = async (asset: PanelAsset, body: Record<string, unknown>, key: string) => {
+        setBusy(`${asset.id}:${key}`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/references`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, ...body }),
+            });
+            if (data?.project) {
+                onProjectChange(data.project as DramaProject);
+                const refreshed = ((data.project as DramaProject)[kind] as PanelAsset[]).find((item) => item.id === asset.id);
+                if (refreshed && editing?.id === asset.id) setEditing(refreshed);
+            }
+            message.success("参考图已更新");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "参考图操作失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    const uploadReferences = async (asset: PanelAsset, files: FileList | null) => {
+        const selected = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
+        if (!selected.length) return;
+        const uploads = await Promise.all(selected.map(async (file) => ({ dataUrl: await readAsDataUrl(file), name: file.name })));
+        await runReferenceAction(asset, { action: "upload", uploads }, "upload");
+    };
+
+    /**
+     * 保存资产字段。服务端 `PUT assets/:assetId` 只接受白名单字段，
+     * 不会碰 references / primaryReferenceId（那些由参考图链路独占维护）。
+     */
+    const saveAsset = async () => {
+        if (!editing || !draft) return;
+        setBusy(`${editing.id}:save`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(editing.id)}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    kind,
+                    name: draft.name,
+                    description: draft.description,
+                    appearance: draft.appearance,
+                    imagePrompt: draft.imagePrompt,
+                    polishedPrompt: draft.imagePrompt,
+                    ...(kind === "scenes" ? { singleImagePrompt: draft.imagePrompt } : {}),
+                    role: draft.role,
+                    type: draft.type,
+                    time: draft.time,
+                    // 仅角色有音色配置；空音色传 null 表示清除，回落平台默认。
+                    ...(kind === "characters" ? { voiceProfile: voiceDraft?.voice ? voiceDraft : null } : {}),
+                }),
+            });
+            if (data?.project) {
+                onProjectChange(data.project as DramaProject);
+                const refreshed = ((data.project as DramaProject)[kind] as PanelAsset[]).find((item) => item.id === editing.id);
+                if (refreshed) setEditing(refreshed);
+            }
+            message.success("资产已保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产保存失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /**
+     * 存入素材库，对应 L `add-to-library` / `add-to-material-library`。
+     * V 只有统一素材库，靠 metadata.dramaAssetType 区分类别。
+     */
+    const saveToLibrary = async (asset: PanelAsset) => {
+        setBusy(`${asset.id}:library`);
+        try {
+            await callJson(`${base}/assets/${encodeURIComponent(asset.id)}/library`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, action: "save" }),
+            });
+            message.success("已存入素材库");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "存入素材库失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /** 打开素材库挑选器，只列当前类别的图片素材。 */
+    const openPicker = async (asset: PanelAsset) => {
+        setBusy(`${asset.id}:picker`);
+        try {
+            const response = await fetch(`/api/library-assets?kind=image&pageSize=50&dramaAssetType=${KIND_ASSET_TYPE[kind]}`, { cache: "no-store" });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: { assets?: Array<{ id: string; title: string; coverUrl?: string }> }; msg?: string };
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "素材库读取失败");
+            setPicker({ asset, items: payload.data?.assets || [] });
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "素材库读取失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /** 取用素材库图片作为主参考图，对应 L `image-from-library`。 */
+    const applyFromLibrary = async (libraryAssetId: string) => {
+        if (!picker) return;
+        setBusy(`${picker.asset.id}:apply`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(picker.asset.id)}/library`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, action: "apply", libraryAssetId }),
+            });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            setPicker(undefined);
+            message.success("已取用素材库图片");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "取用素材失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+    /**
+     * 从本集剧本提取资产，对应 L `POST /episodes/:episode_id/{characters,props}/extract`。
+     * 服务端按名称去重后直接落库，避免同名资产产生第二个锚点。
+     */
+    const extractAssets = async () => {
+        const episodeId = project.activeEpisodeId || project.episodes[0]?.id;
+        if (!episodeId) {
+            message.warning("请先添加分集并填写剧本");
+            return;
+        }
+        setBusy("__extract__");
+        try {
+            const data = await callJson(`${base}/extract-assets`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ episodeId, assetType: KIND_ASSET_TYPE[kind] }),
+            });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            const added = Number(data?.added) || 0;
+            if (added) message.success(`已提取 ${added} 个${KIND_LABEL[kind]}`);
+            else message.info(`没有发现新的${KIND_LABEL[kind]}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产提取失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+    /**
+     * 重新生成受该资产影响的分镜图，对应 L 的 `onRegenAffectedSbImages`。
+     *
+     * 改了资产设定图后，引用它的分镜图就过时了。这里串行提交（不并发），
+     * 因为它通常只涉及几个分镜，串行的进度显示更贴合 L 的 `current/total`。
+     * 复用一键成片自有的单镜生图路由，计费归属仍是 one-click-film。
+     */
+    const regenerateAffectedShots = async (asset: PanelAsset) => {
+        const affected = findAffectedShots(project, kind, asset.id);
+        if (!affected.length) {
+            message.info("没有分镜引用该资产");
+            return;
+        }
+        setRegenAssetId(asset.id);
+        setRegenProgress({ current: 0, total: affected.length });
+        let failed = 0;
+        try {
+            for (const [position, item] of affected.entries()) {
+                try {
+                    await callJson(`${base}/shots/${encodeURIComponent(item.shot.id)}/generate-image?episodeId=${encodeURIComponent(item.episodeId)}`, { method: "POST" });
+                } catch {
+                    failed += 1;
+                }
+                setRegenProgress({ current: position + 1, total: affected.length });
+            }
+            const refreshed = await callJson(base, { cache: "no-store" });
+            if (refreshed?.project) onProjectChange(refreshed.project as DramaProject);
+            if (failed) message.warning(`已提交 ${affected.length - failed}/${affected.length} 个分镜图任务，${failed} 个失败`);
+            else message.success(`已提交 ${affected.length} 个分镜图任务`);
+        } finally {
+            setRegenAssetId(undefined);
+            setRegenProgress(undefined);
+        }
+    };
+
+    /**
+     * 批量生成设定图，对应 L `POST /characters/batch-generate-images`。
+     * L 的硬上限是单次 10 个，这里只取前 10 个并提示，避免一次点掉大量额度。
+     */
+    const batchGenerate = async () => {
+        const pending = assets.filter((item) => !dramaAssetPrimaryReference(item));
+        const targets = (pending.length ? pending : assets).slice(0, 10);
+        if (!targets.length) {
+            message.warning(`还没有可生成的${KIND_LABEL[kind]}`);
+            return;
+        }
+        setBusy("__batch__");
+        try {
+            const data = await callJson(`${base}/assets/batch-generate-images`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, assetIds: targets.map((item) => item.id), generationLayout: layoutForKind() }),
+            });
+            const created = Number(data?.created) || 0;
+            const failed = Number(data?.failed) || 0;
+            if (failed) message.warning(`已提交 ${created} 个任务，${failed} 个失败`);
+            else message.success(`已提交 ${created} 个任务`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "批量生成失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /** 手工新增资产。之前只能靠 executor assets 步自动提取，用户无法自己加。 */
+    const createAsset = async () => {
+        const name = creatingName.trim();
+        if (!name) {
+            message.warning(`请输入${KIND_LABEL[kind]}名称`);
+            return;
+        }
+        setBusy("__create__");
+        try {
+            const data = await callJson(`${base}/assets`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind, name }),
+            });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            setCreatingName("");
+            message.success(`已新增${KIND_LABEL[kind]}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产创建失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    /** 删除资产；服务端会同步清掉分镜里的绑定，避免幽灵资产引用。 */
+    const deleteAsset = async (asset: PanelAsset) => {
+        setBusy(`${asset.id}:delete`);
+        try {
+            const data = await callJson(`${base}/assets/${encodeURIComponent(asset.id)}?kind=${kind}`, { method: "DELETE" });
+            if (data?.project) onProjectChange(data.project as DramaProject);
+            if (editing?.id === asset.id) setEditing(undefined);
+            message.success(`已删除${KIND_LABEL[kind]}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "资产删除失败");
+        } finally {
+            setBusy(undefined);
+        }
+    };
+
+    return (
+        <section id="anchor-assets" className="mt-6 rounded-lg border border-border bg-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-semibold">资产准备</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Segmented value={kind} onChange={(value) => setKind(value as AssetKind)} options={(Object.keys(KIND_LABEL) as AssetKind[]).map((item) => ({ value: item, label: KIND_LABEL[item] }))} aria-label="资产类型" />
+                    <Input
+                        size="small"
+                        style={{ width: 160 }}
+                        value={creatingName}
+                        onChange={(event) => setCreatingName(event.target.value)}
+                        onPressEnter={() => void createAsset()}
+                        placeholder={`新增${KIND_LABEL[kind]}名称`}
+                        aria-label={`新增${KIND_LABEL[kind]}名称`}
+                    />
+                    <Button size="small" icon={<Plus className="size-4" />} loading={busy === "__create__"} aria-label={`新增${KIND_LABEL[kind]}`} onClick={() => void createAsset()}>
+                        新增
+                    </Button>
+                    <Button size="small" icon={<ScanText className="size-4" />} loading={busy === "__extract__"} aria-label={`从剧本提取${KIND_LABEL[kind]}`} onClick={() => void extractAssets()}>
+                        从剧本提取
+                    </Button>
+                    {/* L: 栅格勾选独立于列表，角色区没有此勾选（四视图写死在后端角色提示词） */}
+                    {kind !== "characters" ? (
+                        <Tooltip title={kind === "props" ? "四视图道具（前/侧/后/顶，纯色无缝背景）" : "四宫格场景（正/侧/俯/仰，四格视觉条件统一）"}>
+                            <label className="flex items-center gap-1.5 text-xs">
+                                <Checkbox checked={quadGrid[kind]} aria-label={kind === "props" ? "生成四视图道具" : "生成四宫格场景"} onChange={(event) => setQuadGrid((current) => ({ ...current, [kind]: event.target.checked }))} />
+                                <span>{kind === "props" ? "生成四视图道具（默认单图，纯色无缝背景）" : "生成四宫格场景（默认单图）"}</span>
+                            </label>
+                        </Tooltip>
+                    ) : null}
+                    {assets.length ? (
+                        <Button size="small" icon={<Layers className="size-4" />} loading={busy === "__batch__"} aria-label={`批量生成${KIND_LABEL[kind]}设定图`} onClick={() => void batchGenerate()}>
+                            批量生成
+                        </Button>
+                    ) : null}
+                </div>
+            </div>
+
+            {assets.length ? (
+                <ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4" data-testid="asset-card-grid">
+                    {assets.map((asset) => (
+                        <li key={asset.id} className="min-w-0 rounded-lg border p-3" data-testid={`one-click-asset-${asset.id}`}>
+                            <div className="mb-3 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded bg-muted/40">
+                                {dramaAssetPrimaryReference(asset)?.url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={dramaAssetPrimaryReference(asset)!.url} alt={`${asset.name || "资产"}预览`} className="h-full w-full object-contain" />
+                                ) : (
+                                    <ImageIcon className="size-8 text-muted-foreground" />
+                                )}
+                            </div>
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-medium">{asset.name || "未命名"}</span>
+                                        <Tag>{kind === "characters" ? "四视图" : asset.generationLayout === "four_view" ? "四格" : "单图"}</Tag>
+                                        {asset.primaryReferenceId ? <Tag color="success">已有主参考图</Tag> : null}
+                                        {asset.stages?.length ? <Tag color="processing">{asset.stages.length} 段造型</Tag> : null}
+                                    </div>
+                                    <p className="mt-1 truncate text-sm text-muted-foreground">{asset.description || asset.appearance || "暂无描述"}</p>
+                                </div>
+                                <span className="flex shrink-0 items-center gap-1">
+                                    <Button
+                                        size="small"
+                                        icon={<UserRound className="size-4" />}
+                                        aria-label={`编辑${KIND_LABEL[kind]} ${asset.name || asset.id}`}
+                                        onClick={() => {
+                                            setEditing(asset);
+                                            setDraft({
+                                                name: asset.name || "",
+                                                description: asset.description || "",
+                                                appearance: asset.appearance || "",
+                                                imagePrompt: (kind === "scenes" ? asset.singleImagePrompt : undefined) || asset.polishedPrompt || asset.imagePrompt || "",
+                                                role: asset.role || "",
+                                                type: asset.type || "",
+                                                time: asset.time || "",
+                                            });
+                                            setVoiceDraft({ voice: asset.voiceProfile?.voice || "", speed: asset.voiceProfile?.speed ?? 1, instructions: asset.voiceProfile?.instructions || "" });
+                                        }}
+                                    >
+                                        编辑
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        type="text"
+                                        danger
+                                        icon={<Trash2 className="size-4" />}
+                                        loading={busy === `${asset.id}:delete`}
+                                        aria-label={`删除${KIND_LABEL[kind]} ${asset.name || asset.id}`}
+                                        onClick={() => void deleteAsset(asset)}
+                                    />
+                                </span>
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                <Button size="small" icon={<Sparkles className="size-4" />} loading={busy === `${asset.id}:prompt`} aria-label={`生成${KIND_LABEL[kind]}生图提示词`} onClick={() => void runAi(asset, "prompt")}>
+                                    生成生图提示词
+                                </Button>
+                                <Button
+                                    size="small"
+                                    icon={<ImageIcon className="size-4" />}
+                                    loading={busy === `${asset.id}:image`}
+                                    aria-label={kind === "characters" ? `生成角色四视图 ${asset.name || asset.id}` : `生成${KIND_LABEL[kind]}设定图 ${asset.name || asset.id}`}
+                                    onClick={() => void generateImage(asset)}
+                                >
+                                    {kind === "characters" ? "生成四视图" : "生成设定图"}
+                                </Button>
+                                <Button size="small" icon={<Library className="size-4" />} loading={busy === `${asset.id}:library`} aria-label={`将${KIND_LABEL[kind]} ${asset.name || asset.id} 存入素材库`} onClick={() => void saveToLibrary(asset)}>
+                                    存入素材库
+                                </Button>
+                                <Button size="small" icon={<FolderOpen className="size-4" />} loading={busy === `${asset.id}:picker`} aria-label={`为${KIND_LABEL[kind]} ${asset.name || asset.id} 取用素材库图片`} onClick={() => void openPicker(asset)}>
+                                    取用素材
+                                </Button>
+                                <Button size="small" loading={busy === `${asset.id}:describe`} aria-label={`从参考图提取${KIND_LABEL[kind]}特征`} onClick={() => void runAi(asset, "describe")}>
+                                    从参考图提取特征
+                                </Button>
+                                {kind === "characters" ? (
+                                    <>
+                                        <Button size="small" loading={busy === `${asset.id}:anchor`} aria-label="提炼视觉锚点" onClick={() => void runAi(asset, "anchor")}>
+                                            提炼视觉锚点
+                                        </Button>
+                                        <Button size="small" loading={busy === `${asset.id}:stages`} aria-label="AI 生成阶段造型" onClick={() => void runAi(asset, "stages")}>
+                                            AI 生成造型
+                                        </Button>
+                                    </>
+                                ) : null}
+                            </div>
+                            {/* L 资产卡底部：影响的分镜 + 重新生成分镜图 */}
+                            <AffectedShotsRow project={project} kind={kind} asset={asset} regenerating={regenAssetId === asset.id} progress={regenAssetId === asset.id ? regenProgress : undefined} onRegenerate={() => void regenerateAffectedShots(asset)} />
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <div className="mt-4">
+                    <Empty description={`本项目还没有${KIND_LABEL[kind]}，可先运行资产提取`} />
+                </div>
+            )}
+
+            {editing ? (
+                <Modal
+                    open
+                    width="75%"
+                    style={{ top: 32, minWidth: "min(360px, calc(100vw - 32px))" }}
+                    styles={{ body: { maxHeight: "calc(100dvh - 180px)", overflowY: "auto", paddingRight: 8 } }}
+                    title={`编辑${KIND_LABEL[kind]} · ${editing.name || "未命名"}`}
+                    onCancel={() => setEditing(undefined)}
+                    footer={
+                        <>
+                            <Button onClick={() => setEditing(undefined)}>取消</Button>
+                            <Button type="primary" loading={busy === `${editing.id}:save`} onClick={() => void saveAsset()} aria-label="保存资产">
+                                保存
+                            </Button>
+                        </>
+                    }
+                    destroyOnHidden
+                >
+                    <div className="grid gap-4 [&>label]:grid [&>label]:grid-cols-[90px_minmax(0,1fr)] [&>label]:items-start [&>label]:gap-3 [&>label]:text-sm">
+                        <div className="grid grid-cols-[90px_minmax(0,1fr)] gap-3 text-sm">
+                            <span>参考图</span>
+                            <OneClickAssetReferenceUpload
+                                reference={dramaAssetPrimaryReference(editing)}
+                                busy={!!busy}
+                                onUpload={(files) => void uploadReferences(editing, files)}
+                                onExtract={() => void runAi(editing, "describe")}
+                                onRemove={() => {
+                                    const reference = dramaAssetPrimaryReference(editing);
+                                    if (reference) void runReferenceAction(editing, { action: "remove", referenceId: reference.id }, "remove");
+                                }}
+                            />
+                        </div>
+                        <label className="grid gap-1 text-sm">
+                            {kind === "scenes" ? "地点" : "名称"}
+                            <Input value={draft?.name ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, name: event.target.value } : current))} aria-label="资产名称" />
+                        </label>
+                        {kind === "characters" ? (
+                            <label>
+                                身份/定位
+                                <Select
+                                    value={draft?.role || undefined}
+                                    placeholder="请选择角色类型"
+                                    options={[
+                                        { value: "main", label: "主角" },
+                                        { value: "supporting", label: "配角" },
+                                        { value: "minor", label: "次要角色" },
+                                    ]}
+                                    onChange={(role) => setDraft((current) => (current ? { ...current, role } : current))}
+                                    aria-label="角色身份定位"
+                                />
+                            </label>
+                        ) : (
+                            <label>
+                                {kind === "props" ? "类型" : "时间"}
+                                <Input
+                                    value={kind === "props" ? draft?.type : draft?.time}
+                                    onChange={(event) => setDraft((current) => (current ? { ...current, [kind === "props" ? "type" : "time"]: event.target.value } : current))}
+                                    aria-label={kind === "props" ? "道具类型" : "场景时间"}
+                                />
+                            </label>
+                        )}
+                        {kind === "characters" ? (
+                            <label>
+                                外貌描述
+                                <Input.TextArea
+                                    autoSize={{ minRows: 4, maxRows: 10 }}
+                                    value={draft?.appearance ?? ""}
+                                    onChange={(event) => setDraft((current) => (current ? { ...current, appearance: event.target.value } : current))}
+                                    aria-label="资产外貌"
+                                />
+                            </label>
+                        ) : null}
+                        <label>
+                            {kind === "characters" ? "简介" : kind === "scenes" ? "场景描述" : "描述"}
+                            <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} value={draft?.description ?? ""} onChange={(event) => setDraft((current) => (current ? { ...current, description: event.target.value } : current))} aria-label="资产描述" />
+                        </label>
+                        <label>
+                            {kind === "scenes" ? "单图提示词" : "图生提示词"}
+                            <div className="min-w-0">
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                    <span className="text-xs text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
+                                    <Button size="small" loading={busy === `${editing.id}:prompt`} onClick={() => void runAi(editing, "prompt")}>
+                                        重新生成提示词
+                                    </Button>
+                                </div>
+                                <Input.TextArea
+                                    autoSize={{ minRows: 5, maxRows: 16 }}
+                                    value={draft?.imagePrompt ?? ""}
+                                    onChange={(event) => setDraft((current) => (current ? { ...current, imagePrompt: event.target.value } : current))}
+                                    aria-label="资产生图提示词"
+                                />
+                            </div>
+                        </label>
+                        {kind === "characters" ? (
+                            <>
+                                <label>
+                                    视觉锚点
+                                    <div>
+                                        <Button size="small" loading={busy === `${editing.id}:anchor`} onClick={() => void runAi(editing, "anchor")}>
+                                            提炼视觉锚点
+                                        </Button>
+                                        {editing.profile ? (
+                                            <Input.TextArea className="mt-2" rows={4} readOnly value={JSON.stringify(editing.profile, null, 2)} aria-label="角色视觉锚点" />
+                                        ) : (
+                                            <p className="mt-2 text-xs text-muted-foreground">暂无锚点，点击「提炼视觉锚点」自动提炼</p>
+                                        )}
+                                    </div>
+                                </label>
+                                <label>
+                                    多阶段造型
+                                    <div>
+                                        <Button size="small" loading={busy === `${editing.id}:stages`} onClick={() => void runAi(editing, "stages")}>
+                                            AI 生成造型
+                                        </Button>
+                                    </div>
+                                </label>
+                            </>
+                        ) : null}
+                        {kind === "characters" ? (
+                            <div className="grid gap-2 rounded border p-3 text-sm">
+                                <b className="text-sm">配音音色（供 TTS 使用）</b>
+                                <label className="grid gap-1">
+                                    音色
+                                    <Select
+                                        allowClear
+                                        placeholder="使用平台默认音色"
+                                        value={voiceDraft?.voice || undefined}
+                                        onChange={(value) => setVoiceDraft((current) => ({ voice: value || "", speed: current?.speed ?? 1, instructions: current?.instructions || "" }))}
+                                        options={audioVoiceOptions}
+                                        aria-label="角色音色"
+                                    />
+                                </label>
+                                <label className="grid gap-1">
+                                    语速（0.25–4）
+                                    <InputNumber
+                                        min={0.25}
+                                        max={4}
+                                        step={0.05}
+                                        value={voiceDraft?.speed ?? 1}
+                                        onChange={(value) => setVoiceDraft((current) => ({ voice: current?.voice || "", speed: Number(value) || 1, instructions: current?.instructions || "" }))}
+                                        aria-label="角色语速"
+                                    />
+                                </label>
+                                <label className="grid gap-1">
+                                    朗读指令
+                                    <Input.TextArea
+                                        rows={2}
+                                        value={voiceDraft?.instructions || ""}
+                                        onChange={(event) => setVoiceDraft((current) => ({ voice: current?.voice || "", speed: current?.speed ?? 1, instructions: event.target.value }))}
+                                        placeholder="例如：低沉、克制，句尾略上扬"
+                                        aria-label="角色朗读指令"
+                                    />
+                                </label>
+                                <p className="text-xs text-muted-foreground">对白配音会按说话人匹配到角色并使用这里的音色；清空音色即回落平台默认。</p>
+                            </div>
+                        ) : null}
+                        {editing.stages?.length ? (
+                            <div className="grid gap-1 text-sm">
+                                阶段造型
+                                <ul className="grid gap-1">
+                                    {editing.stages.map((stage, index) => (
+                                        <li key={index} className="rounded border p-2 text-xs">
+                                            第 {stage.episodeRange?.[0]}–{stage.episodeRange?.[1]} 集：{stage.appearance}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : null}
+                        <div className="grid gap-2 text-sm">
+                            <span>历史参考图（{dramaAssetReferences(editing).length}）</span>
+                            {dramaAssetReferences(editing).length ? (
+                                <ul className="grid gap-2">
+                                    {dramaAssetReferences(editing).map((reference: DramaAssetReference) => {
+                                        const isPrimary = dramaAssetPrimaryReference(editing)?.id === reference.id;
+                                        return (
+                                            <li key={reference.id} className="flex items-center justify-between gap-2 rounded border p-2">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={reference.url} alt={reference.label || "历史参考图"} className="h-16 w-20 shrink-0 object-contain" />
+                                                <span className="min-w-0 truncate text-xs">
+                                                    {reference.label || reference.id}
+                                                    {isPrimary ? (
+                                                        <Tag className="ml-2" color="success">
+                                                            主参考图
+                                                        </Tag>
+                                                    ) : null}
+                                                </span>
+                                                <span className="flex shrink-0 gap-1">
+                                                    {isPrimary ? null : (
+                                                        <Button
+                                                            size="small"
+                                                            type="text"
+                                                            icon={<Star className="size-3" />}
+                                                            loading={busy === `${editing.id}:primary`}
+                                                            aria-label={`将 ${reference.label || reference.id} 设为主参考图`}
+                                                            onClick={() => void runReferenceAction(editing, { action: "primary", referenceId: reference.id }, "primary")}
+                                                        />
+                                                    )}
+                                                    <Button
+                                                        size="small"
+                                                        type="text"
+                                                        danger
+                                                        icon={<Trash2 className="size-3" />}
+                                                        loading={busy === `${editing.id}:remove`}
+                                                        aria-label={`移除 ${reference.label || reference.id}`}
+                                                        onClick={() => void runReferenceAction(editing, { action: "remove", referenceId: reference.id }, "remove")}
+                                                    />
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">还没有参考图，可上传后设为主参考图。</p>
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">字段由上方 AI 按钮生成并写回项目。</p>
+                    </div>
+                </Modal>
+            ) : null}
+            {picker ? (
+                <Modal open width={720} title={`取用素材库图片 · ${picker.asset.name || "未命名"}`} onCancel={() => setPicker(undefined)} footer={null} destroyOnHidden>
+                    {picker.items.length ? (
+                        <ul className="grid max-h-[60vh] grid-cols-2 gap-3 overflow-y-auto md:grid-cols-3">
+                            {picker.items.map((item) => (
+                                <li key={item.id} className="rounded border p-2">
+                                    <button type="button" className="grid w-full gap-2 text-left" aria-label={`取用素材 ${item.title}`} disabled={busy === `${picker.asset.id}:apply`} onClick={() => void applyFromLibrary(item.id)}>
+                                        {item.coverUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={item.coverUrl} alt={item.title} className="h-28 w-full rounded object-contain" />
+                                        ) : (
+                                            <span className="flex h-28 items-center justify-center rounded bg-muted text-xs text-muted-foreground">无预览</span>
+                                        )}
+                                        <span className="truncate text-xs">{item.title}</span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <Empty description={`素材库还没有${KIND_LABEL[kind]}类图片素材`} />
+                    )}
+                </Modal>
+            ) : null}
+        </section>
+    );
+}
+
+/**
+ * 「影响的分镜」行，对应 L 资产卡底部的 `asset-storyboard-link`。
+ *
+ * 做成独立组件而不是在 `assets.map` 里塞 IIFE：那个 map 是隐式 return，
+ * 没法先声明局部变量，硬塞会导致每次渲染重复计算且难读。
+ */
+function AffectedShotsRow({ project, kind, asset, regenerating, progress, onRegenerate }: { project: DramaProject; kind: AssetKind; asset: PanelAsset; regenerating: boolean; progress?: { current: number; total: number }; onRegenerate: () => void }) {
+    const affected = findAffectedShots(project, kind, asset.id);
+    if (!affected.length) return null;
+    return (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span>影响的分镜：</span>
+            {affected.map((item) => (
+                <button
+                    key={item.shot.id}
+                    type="button"
+                    title={item.shot.title || `分镜 ${item.index}`}
+                    aria-label={`跳转到分镜 ${item.index}`}
+                    className="rounded border border-border bg-muted/40 px-1.5 py-0.5 hover:border-primary hover:text-primary"
+                    onClick={() => document.getElementById(`one-click-shot-${item.shot.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                >
+                    #{item.index}
+                </button>
+            ))}
+            {regenerating && progress ? (
+                <span>
+                    {progress.current}/{progress.total}
+                </span>
+            ) : null}
+            <Button size="small" loading={regenerating} aria-label={`重新生成受该${KIND_LABEL[kind]}影响的分镜图`} onClick={onRegenerate}>
+                重新生成分镜图
+            </Button>
+        </div>
+    );
+}

@@ -210,8 +210,18 @@ export function useAdminDashboardDataActions({ state }: { state: AdminDashboardS
             message.success(successText);
             return true;
         } catch (error) {
-            setSettings((current) => restoreAdminSettingsSaveFailure(current, previous, snapshot));
-            message.error((error as Error & { status?: number })?.status === 409 ? "配置已被其他页面更新，请刷新后再保存" : error instanceof Error ? error.message : "更新设置失败");
+            const status = (error as Error & { status?: number })?.status;
+            if (status === 409) {
+                try {
+                    const freshResponse = await fetch("/api/admin/settings");
+                    const freshPayload = (await freshResponse.json()) as { settings?: AuthSettings };
+                    if (freshPayload.settings) setSettings(freshPayload.settings);
+                } catch {}
+                message.warning("配置已被其他页面更新，已自动刷新为最新版本，请再次保存");
+            } else {
+                setSettings((current) => restoreAdminSettingsSaveFailure(current, previous, snapshot));
+                message.error(error instanceof Error ? error.message : "更新设置失败");
+            }
             return false;
         } finally {
             const settled = finishAdminSettingsSave(settingsSaveCountRef.current);

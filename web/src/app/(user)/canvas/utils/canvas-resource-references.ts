@@ -43,10 +43,14 @@ export function createCanvasResourceReferenceIndex(nodes: CanvasNodeData[], conn
         const source = nodeById.get(connection.fromNodeId);
         const target = nodeById.get(connection.toNodeId);
         if (!source || !target) continue;
-        if (isResourceNode(source)) {
+        // A Group node is a container, not a resource itself — expand it to its member
+        // image nodes (still present but hidden) so downstream nodes can reference them.
+        const sourceResourceNodes =
+            source.type === CanvasNodeType.Group ? (source.metadata?.groupMemberIds || []).map((id) => nodeById.get(id)).filter((node): node is CanvasNodeData => Boolean(node) && isResourceNode(node!)) : isResourceNode(source) ? [source] : [];
+        if (sourceResourceNodes.length) {
             const inputs = inputsByTargetId.get(target.id);
-            if (inputs) inputs.push(source);
-            else inputsByTargetId.set(target.id, [source]);
+            if (inputs) inputs.push(...sourceResourceNodes);
+            else inputsByTargetId.set(target.id, [...sourceResourceNodes]);
         }
         if (target.type === CanvasNodeType.Config && !connectedConfigBySourceId.has(source.id)) connectedConfigBySourceId.set(source.id, target.id);
     }
