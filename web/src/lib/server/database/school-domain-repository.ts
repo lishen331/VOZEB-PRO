@@ -100,8 +100,18 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async getSchoolContextByUserId(userId: string): Promise<SchoolContextRecord | null> {
         const result = await this.db.query(
-            `SELECT s.*, m.id AS membership_id, m.user_id, m.role, m.permissions, m.status AS membership_status,
-                    m.join_source, m.created_at AS membership_created_at, m.updated_at AS membership_updated_at
+            `SELECT s.*, m.id AS membership_id, m.user_id, m.role, m.permissions, m.is_protected_manager, m.status AS membership_status,
+                    m.join_source, m.created_at AS membership_created_at, m.updated_at AS membership_updated_at,
+                    EXISTS (
+                        SELECT 1
+                        FROM rbac_user_role_bindings binding
+                        JOIN rbac_roles role ON role.role_key = binding.role_key
+                        WHERE binding.user_id = m.user_id
+                          AND binding.school_id = m.school_id
+                          AND role.scope = 'school'
+                          AND role.status = 'active'
+                          AND role.permissions @> '["school.manage"]'::jsonb
+                    ) AS can_manage_school
              FROM school_memberships m
              JOIN schools s ON s.id = m.school_id
              WHERE m.user_id = $1`,
@@ -116,12 +126,13 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
             user_id: row.user_id,
             role: row.role,
             permissions: row.permissions,
+            is_protected_manager: row.is_protected_manager,
             status: row.membership_status,
             join_source: row.join_source,
             created_at: row.membership_created_at,
             updated_at: row.membership_updated_at,
         });
-        return { school, membership, canManageSchool: membership.role === "teacher" && membership.permissions.includes("school.manage") };
+        return { school, membership, canManageSchool: membership.role === "teacher" && row.can_manage_school === true };
     }
 
     async getMembership(schoolId: string, membershipId: string, forUpdate = false) {
@@ -141,11 +152,20 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         addUpdate(assignments, values, "permissions", patch.permissions === undefined ? undefined : jsonParam(patch.permissions));
         addUpdate(assignments, values, "status", patch.status);
         const result = await this.db.query(`UPDATE school_memberships SET ${assignments.join(", ")} WHERE school_id = $1 AND id = $2 RETURNING *`, values);
-        return result.rows[0] ? mapMembership(result.rows[0]) : null;
+        const membership = result.rows[0] ? mapMembership(result.rows[0]) : null;
+        if (membership) await syncSchoolRoleBindings(this.db, membership);
+        return membership;
     }
 
     async deleteMembership(schoolId: string, membershipId: string) {
+        const membership = await this.getMembership(schoolId, membershipId, true);
+        if (!membership) return false;
+        await this.db.query("DELETE FROM rbac_user_role_bindings WHERE user_id = $1 AND school_id = $2 AND role_key IN ('school-superadmin', 'teacher', 'student')", [membership.userId, schoolId]);
         const result = await this.db.query("DELETE FROM school_memberships WHERE school_id = $1 AND id = $2", [schoolId, membershipId]);
+        if ((result.rowCount || 0) > 0) {
+            // Removing a school identity must not remove the platform account. Promote school-only accounts to the ToC role.
+            await this.db.query("INSERT INTO rbac_user_role_bindings (user_id, role_key, school_id, protected) VALUES ($1, 'normal-user', NULL, false) ON CONFLICT DO NOTHING", [membership.userId]);
+        }
         return (result.rowCount || 0) > 0;
     }
 
@@ -885,18 +905,21 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
     }
 
     async insertMembership(record: SchoolMembershipRecord) {
-        const result = await this.db.query("INSERT INTO school_memberships (id, school_id, user_id, role, permissions, status, join_source, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *", [
+        const result = await this.db.query("INSERT INTO school_memberships (id, school_id, user_id, role, permissions, is_protected_manager, status, join_source, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *", [
             record.id,
             record.schoolId,
             record.userId,
             record.role,
             jsonParam(record.permissions),
+            Boolean(record.isProtectedManager),
             record.status,
             record.joinSource,
             record.createdAt,
             record.updatedAt,
         ]);
-        return mapMembership(result.rows[0]);
+        const membership = mapMembership(result.rows[0]);
+        await syncSchoolRoleBindings(this.db, membership);
+        return membership;
     }
 
     async insertClass(record: SchoolClassRecord) {
@@ -1157,6 +1180,18 @@ function mapSchool(row: Record<string, unknown>): SchoolRecord {
     return { id: stringValue(row.id), name: stringValue(row.name), profile: jsonValue(row.profile), status: schoolStatus(row.status), createdAt: isoValue(row.created_at), updatedAt: isoValue(row.updated_at) };
 }
 
+
+async function syncSchoolRoleBindings(db: QueryExecutor, membership: SchoolMembershipRecord) {
+    await db.query("DELETE FROM rbac_user_role_bindings WHERE user_id = $1 AND school_id = $2 AND role_key IN ('teacher', 'student')", [membership.userId, membership.schoolId]);
+    await db.query("INSERT INTO rbac_user_role_bindings (user_id, role_key, school_id, protected) VALUES ($1, $2, $3, false) ON CONFLICT DO NOTHING", [membership.userId, membership.role, membership.schoolId]);
+    if (membership.permissions.includes("school.manage")) {
+        await db.query("INSERT INTO rbac_user_role_bindings (user_id, role_key, school_id, protected) VALUES ($1, 'school-superadmin', $2, $3) ON CONFLICT DO NOTHING", [membership.userId, membership.schoolId, Boolean(membership.isProtectedManager)]);
+        await db.query("UPDATE rbac_user_role_bindings SET protected = $3, updated_at = now() WHERE user_id = $1 AND role_key = 'school-superadmin' AND school_id = $2", [membership.userId, membership.schoolId, Boolean(membership.isProtectedManager)]);
+    } else {
+        await db.query("DELETE FROM rbac_user_role_bindings WHERE user_id = $1 AND school_id = $2 AND role_key = 'school-superadmin'", [membership.userId, membership.schoolId]);
+    }
+}
+
 function mapMembership(row: Record<string, unknown>): SchoolMembershipRecord {
     return {
         id: stringValue(row.id),
@@ -1164,6 +1199,7 @@ function mapMembership(row: Record<string, unknown>): SchoolMembershipRecord {
         userId: stringValue(row.user_id),
         role: row.role === "student" ? "student" : "teacher",
         permissions: schoolPermissions(row.permissions),
+        isProtectedManager: row.is_protected_manager === true || row.is_protected_manager === "t",
         status: membershipStatus(row.status),
         joinSource: row.join_source === "import" || row.join_source === "invite" ? row.join_source : "admin",
         createdAt: isoValue(row.created_at),

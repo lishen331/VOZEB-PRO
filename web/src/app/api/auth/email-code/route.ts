@@ -4,7 +4,7 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createEmailVerificationCode, getAuthSettings, isAuthInputError, type EmailCodePurpose } from "@/lib/auth/store";
 import { sendSmtpMail } from "@/lib/mail/smtp";
-import { checkAuthRateLimit } from "@/lib/server/security";
+import { AUTH_LOGIN_RATE_LIMIT, checkAuthRateLimit } from "@/lib/server/security";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         const purpose = body.purpose === "email-change" || body.purpose === "password-reset" ? body.purpose : body.purpose === "register" ? body.purpose : null;
         if (!purpose) return NextResponse.json({ error: "验证码用途不正确" }, { status: 400 });
         const emailKey = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-        const limit = await checkAuthRateLimit(`email-code:${purpose}`, request, emailKey, { maxRequests: 5, windowMs: 60 * 60 * 1000 });
+        const limit = await checkAuthRateLimit(`email-code:${purpose}`, request, emailKey, AUTH_LOGIN_RATE_LIMIT);
         if (!limit.allowed) return NextResponse.json({ error: "验证码发送过于频繁，请稍后重试", retryAfter: Math.ceil((limit.resetAt - Date.now()) / 1000) }, { status: 429 });
 
         const currentUser = await getCurrentUser();

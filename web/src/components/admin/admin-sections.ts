@@ -1,4 +1,4 @@
-import { hasAnyAdminPermission, isActivePlatformAdmin, type AdminPermission } from "@/lib/admin-permissions";
+import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
 
 export const ADMIN_SECTION_KEYS = [
     "overview",
@@ -14,6 +14,8 @@ export const ADMIN_SECTION_KEYS = [
     "dramaLabPlugin",
     "settings",
     "roleOverview",
+    "roleManagement",
+    "administratorManagement",
     "accountDeletion",
     "mediaStorage",
     "externalStorage",
@@ -46,14 +48,29 @@ export const ADMIN_SECTION_KEYS = [
 
 export type AdminSectionKey = (typeof ADMIN_SECTION_KEYS)[number];
 
+export const ADMIN_MENU_PERMISSION_PREFIX = "admin.menu.";
+export type AdminMenuPermission = string;
+
+export function adminMenuPermission(section: AdminSectionKey): AdminMenuPermission {
+    return ADMIN_MENU_PERMISSION_PREFIX + section;
+}
+
+const adminMenuPermissionKeys = new Set<AdminMenuPermission>(ADMIN_SECTION_KEYS.map(adminMenuPermission));
+
+export function normalizeAdminMenuPermissions(value: unknown): AdminMenuPermission[] {
+    if (!Array.isArray(value)) return [];
+    const selected = new Set(value.filter((item): item is AdminMenuPermission => typeof item === "string" && adminMenuPermissionKeys.has(item)));
+    return ADMIN_SECTION_KEYS.filter((section) => selected.has(adminMenuPermission(section))).map(adminMenuPermission);
+}
+
 export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPermission[]> = {
-    overview: ["analytics.read"],
+    overview: ["analytics.read", "commerce.manage", "generation.read", "billing.read", "billing.manage"],
     schools: ["education.manage"],
     schoolCompute: ["education.manage", "billing.manage"],
     courses: ["education.manage"],
     commercialOrders: ["education.manage"],
-    users: ["users.read"],
-    logs: ["generation.read"],
+    users: ["users.read", "users.manage"],
+    logs: ["generation.read", "generation.manage"],
     generationOperations: ["generation.manage"],
     products: ["commerce.manage"],
     promotions: ["commerce.manage"],
@@ -72,7 +89,9 @@ export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPe
     site: ["system.manage"],
     settings: ["system.manage", "upstream.manage"],
     roleOverview: ["system.manage"],
-    accountDeletion: ["system.manage"],
+    roleManagement: ["administrators.manage"],
+    administratorManagement: ["administrators.manage"],
+    accountDeletion: ["users.manage"],
     mediaStorage: ["system.manage"],
     externalStorage: ["system.manage"],
     backup: ["system.manage"],
@@ -104,17 +123,47 @@ export function adminSectionHref(section: AdminSectionKey, currentHref = "/admin
     return `${url.pathname}${url.search}${url.hash}`;
 }
 
-export function canAccessAdminSection(user: { role?: unknown; status?: unknown; adminPermissions?: unknown }, section: AdminSectionKey) {
-    if (section === "schools") return isActivePlatformAdmin(user);
+export function adminMenuPermissionsFromLegacy(value: unknown): AdminMenuPermission[] {
+    const direct = normalizeAdminMenuPermissions(value);
+    if (direct.length) return direct;
+    const permissions = Array.isArray(value) ? value : [];
+    const hasLegacyPermission = hasAnyAdminPermission({ role: "admin", status: "active", adminPermissions: permissions });
+    if (!hasLegacyPermission) return [];
+    return ADMIN_SECTION_KEYS.filter((section) => {
+        const required = ADMIN_SECTION_PERMISSIONS[section];
+        return required.length ? required.some((permission) => permissions.includes(permission)) : true;
+    }).map(adminMenuPermission);
+}
+
+export function adminDutiesFromMenuPermissions(value: unknown): AdminPermission[] {
+    const menuPermissions = normalizeAdminMenuPermissions(value);
+    const duties = new Set<AdminPermission>();
+    menuPermissions.forEach((permission) => {
+        const section = permission.slice(ADMIN_MENU_PERMISSION_PREFIX.length) as AdminSectionKey;
+        ADMIN_SECTION_PERMISSIONS[section].forEach((duty) => duties.add(duty));
+    });
+    return [...duties];
+}
+
+export function normalizePlatformMenuPermissions(value: unknown): AdminMenuPermission[] {
+    const direct = normalizeAdminMenuPermissions(value);
+    if (direct.length) return direct;
+    return adminMenuPermissionsFromLegacy(value);
+}
+
+export function canAccessAdminSection(user: { role?: unknown; status?: unknown; adminPermissions?: unknown; adminMenuPermissions?: unknown }, section: AdminSectionKey) {
+    const menuPermissions = normalizeAdminMenuPermissions(user.adminMenuPermissions);
+    if (menuPermissions.length) return menuPermissions.includes(adminMenuPermission(section));
     const permissions = ADMIN_SECTION_PERMISSIONS[section];
     return hasAnyAdminPermission(user, permissions.length ? permissions : undefined);
 }
 
-export function allowedAdminSections(user: { role?: unknown; status?: unknown; adminPermissions?: unknown }) {
+export function allowedAdminSections(user: { role?: unknown; status?: unknown; adminPermissions?: unknown; adminMenuPermissions?: unknown }) {
     return ADMIN_SECTION_KEYS.filter((section) => canAccessAdminSection(user, section));
 }
 
-export function resolveAdminSection(user: { role?: unknown; status?: unknown; adminPermissions?: unknown }, requested: AdminSectionKey) {
+export function resolveAdminSection(user: { role?: unknown; status?: unknown; adminPermissions?: unknown; adminMenuPermissions?: unknown }, requested: AdminSectionKey) {
     if (canAccessAdminSection(user, requested)) return requested;
     return allowedAdminSections(user)[0];
+
 }

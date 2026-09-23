@@ -1,6 +1,6 @@
 import type { SchoolContext } from "@/lib/school-domain";
 import { getPublicUsersByIds } from "@/lib/auth/store";
-import { isActivePlatformAdmin } from "@/lib/admin-permissions";
+import { hasAllAdminPermissions, isActivePlatformAdmin, type AdminPermission } from "@/lib/admin-permissions";
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
 
 export class SchoolServiceError extends Error {
@@ -40,9 +40,9 @@ export async function requireSchoolManager(userId: string) {
     return context;
 }
 
-export async function requirePlatformAdmin(userId: string) {
+export async function requirePlatformAdmin(userId: string, requiredPermissions: readonly AdminPermission[] = []) {
     const user = (await getPublicUsersByIds([userId]))[0];
-    if (!isActivePlatformAdmin(user)) throw new SchoolServiceError(403, "当前账号没有平台管理员权限");
+    if (!isActivePlatformAdmin(user) || !hasAllAdminPermissions(user, requiredPermissions)) throw new SchoolServiceError(403, requiredPermissions.length ? "当前账号没有所需的平台职责权限" : "当前账号没有平台管理员权限");
     return user;
 }
 

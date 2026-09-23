@@ -4,7 +4,7 @@ import { Button, Grid, Input, Popconfirm, Table } from "antd";
 import { Plus, Search, Trash2 } from "lucide-react";
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
-import { hasAdminPermission, hasAllAdminPermissions } from "@/lib/admin-permissions";
+import { hasAdminPermission } from "@/lib/admin-permissions";
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
 import { USER_PAGE_SIZE } from "./use-admin-dashboard-controller";
 
@@ -12,19 +12,18 @@ export function AdminUsersSection({ controller }: { controller: AdminDashboardCo
     const { currentUser, userSearch, setUserSearch, selectedUserIds, setSelectedUserIds, bulkDeletingUsers, activeSection, filteredUsers, usersLoading, userPage, setUserPage, userTotal, bulkDeleteUsers, openCreateUserEditor, userColumns } = controller;
     const screens = Grid.useBreakpoint();
     const canManageUsers = hasAdminPermission(currentUser, "users.manage");
-    const canManageAdministrators = hasAdminPermission(currentUser, "administrators.manage");
-    const canCreateUser = canManageUsers || canManageAdministrators;
-    const canDeleteRecord = (record: (typeof filteredUsers)[number]) => record.id !== currentUser.id && (record.role === "admin" ? canManageAdministrators && hasAllAdminPermissions(currentUser, record.adminPermissions) : canManageUsers);
+    const canCreateUser = canManageUsers;
+    const canDeleteRecord = (record: (typeof filteredUsers)[number]) => record.id !== currentUser.id && !record.schoolName && canManageUsers;
     if (activeSection !== "users") return null;
     return (
         <Panel>
             <PanelHeader
                 title="用户管理"
-                description="调整角色、账号状态和积分余额。"
+                description="查看学校归属；仅在此创建和维护普通用户。"
                 actions={
                     canCreateUser ? (
                         <Button icon={<Plus className="size-4" />} onClick={openCreateUserEditor}>
-                            {canManageUsers ? "新增用户" : "新增管理员"}
+                            新增用户
                         </Button>
                     ) : null
                 }
@@ -74,7 +73,7 @@ export function AdminUsersSection({ controller }: { controller: AdminDashboardCo
                           }
                         : undefined
                 }
-                scroll={screens.sm ? { x: 1370 } : undefined}
+                scroll={screens.sm ? { x: 1480 } : undefined}
                 size="middle"
             />
         </Panel>

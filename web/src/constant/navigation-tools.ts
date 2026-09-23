@@ -1,7 +1,7 @@
 import { BookMarked, Clapperboard, Compass, FileText, Film, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
 
 import type { SchoolContext } from "@/lib/school-domain";
-import { featureModuleForNavigationSlug, type FeatureModuleSettings } from "@/lib/feature-modules";
+import { featureModuleForNavigationSlug, isUserNavigationMenuPermission, type FeatureModuleSettings, type UserNavigationMenuPermission } from "@/lib/feature-modules";
 
 export const navigationGroups = [
     { id: "practice", label: "练习" },
@@ -181,17 +181,25 @@ export function schoolNavigationTools(context: SchoolContext | null) {
 export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school" | "drama-lab" | "one-click-film";
 export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
-export function navigationToolsForContext(context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
+export type NavigationToolOptions = { featureModules?: FeatureModuleSettings; menuPermissions?: readonly UserNavigationMenuPermission[]; includeDramaWorkflowLab?: boolean };
+
+export function navigationToolsForContext(context: SchoolContext | null = null, options: NavigationToolOptions = {}) {
     const schoolTools = schoolNavigationTools(context);
     // 默认包含创作工坊（如果环境变量启用）
     const candidates = [...(schoolTools.length ? [practiceNavigationTool] : []), ...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool, oneClickFilmNavigationTool]), ...schoolTools];
     return candidates.filter((tool) => {
         const featureModule = featureModuleForNavigationSlug(tool.slug);
-        return !featureModule || options.featureModules?.[featureModule] !== false;
+        const menuAllowed = !options.menuPermissions || (featureModule !== undefined && isUserNavigationMenuPermission(featureModule) && options.menuPermissions.includes(featureModule));
+        return (!featureModule || options.featureModules?.[featureModule] !== false) && menuAllowed;
     });
 }
 
-export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
+export function navigationHomePath(context: SchoolContext | null = null, options: NavigationToolOptions = {}) {
+    const firstTool = navigationToolsForContext(context, options)[0];
+    return firstTool ? `/${firstTool.slug}` : "/create";
+}
+
+export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null, options: NavigationToolOptions = {}) {
     const slug = pathname.split("/").filter(Boolean)[0];
     return navigationToolsForContext(context, options).find((tool) => tool.slug === slug);
 }
@@ -207,7 +215,7 @@ export function navigationToolForPathname(pathname: string, context: SchoolConte
  *
  * Returns null only when every module is disabled — callers fall back to /help.
  */
-export function resolveLandingSlug(context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
+export function resolveLandingSlug(context: SchoolContext | null = null, options: NavigationToolOptions = {}) {
     const tools = navigationToolsForContext(context, options);
     if (!tools.length) return null;
     const groupOrder = new Map(navigationGroups.map((group, index) => [group.id, index] as const));

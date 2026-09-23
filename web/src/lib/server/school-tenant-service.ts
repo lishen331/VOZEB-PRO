@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { getPublicUsersByIds } from "@/lib/auth/store";
+import { getPublicUsersByIds, updateUserByAdmin } from "@/lib/auth/store";
 import type { PublicUser } from "@/lib/auth/store";
 import { hasAdminPermission } from "@/lib/admin-permissions";
 import type { CreateSchoolInput, PageResult, SchoolAdministratorSummary, SchoolClass, SchoolClassDetail, SchoolClassInput, SchoolDetail, SchoolMember, SchoolMemberPatch, SchoolStatus, SchoolSummary, UpdateSchoolInput } from "@/lib/school-domain";
@@ -22,9 +22,11 @@ export async function listSchoolsByAdmin(actorId: string, input: { page?: number
 
 export async function getSchoolByAdmin(actorId: string, schoolId: string): Promise<SchoolDetail> {
     await requireEducationAdmin(actorId);
-    const school = await createSchoolDomainRepository().getSchool(schoolId);
+    const repository = createSchoolDomainRepository();
+    const school = await repository.getSchool(schoolId);
     if (!school) throw new SchoolServiceError(404, "学校不存在");
-    return toSchoolDetail(school);
+    const administrator = await findFirstAdministrator(repository, schoolId);
+    return { ...toSchoolDetail(school), administrator: administrator ? administratorSummary(administrator.user) : undefined };
 }
 
 export async function createSchoolByAdmin(actorId: string, input: CreateSchoolInput): Promise<SchoolDetail> {
@@ -38,7 +40,30 @@ export async function createSchoolByAdmin(actorId: string, input: CreateSchoolIn
 
 export async function updateSchoolByAdmin(actorId: string, schoolId: string, input: UpdateSchoolInput): Promise<SchoolDetail> {
     await requireEducationAdmin(actorId);
-    return updateSchool(schoolId, input);
+    const source = inputRecord(input);
+    const administrator = source.administrator === undefined ? undefined : administratorPatch(source.administrator);
+    const repository = administrator === undefined ? undefined : createSchoolDomainRepository();
+    const current = repository ? await findFirstAdministrator(repository, schoolId) : null;
+    if (administrator !== undefined) {
+        if (!current) throw new SchoolServiceError(409, "学校没有可用的首位管理员");
+        if (administrator.username !== undefined && administrator.username !== current.user.username) {
+            throw new SchoolServiceError(400, "学校管理员账号不可修改");
+        }
+    }
+    await updateSchool(schoolId, input);
+    if (administrator !== undefined && current) {
+        await updateUserByAdmin(
+            actorId,
+            current.manager.userId,
+            {
+                displayName: administrator.displayName,
+                email: administrator.email,
+                password: administrator.password,
+            },
+            { requiredPermission: "education.manage" },
+        );
+    }
+    return getSchoolByAdmin(actorId, schoolId);
 }
 
 export async function updateSchoolProfile(managerId: string, input: Pick<UpdateSchoolInput, "name" | "profile">): Promise<SchoolDetail> {
@@ -75,6 +100,9 @@ export async function updateSchoolMember(managerId: string, membershipId: string
         const nextRole = normalizedPatch.role || membership.role;
         const nextStatus = normalizedPatch.status || membership.status;
         const nextPermissions = normalizedPatch.permissions === undefined ? membership.permissions : normalizedPatch.permissions;
+        if (membership.isProtectedManager && (!nextPermissions.includes("school.manage") || nextRole !== "teacher" || nextStatus !== "active")) {
+            throw new SchoolServiceError(403, "学校首位管理员不能降级、停用或删除");
+        }
         if (nextPermissions.includes("school.manage") && (nextRole !== "teacher" || nextStatus !== "active")) throw new SchoolServiceError(400, "只有可用老师可以担任学校管理员");
         if (membership.permissions.includes("school.manage") && (!nextPermissions.includes("school.manage") || nextRole !== "teacher" || nextStatus !== "active")) {
             if ((await countActiveManagers(transaction, context.school.id)) <= 1) throw new SchoolServiceError(409, "学校必须保留至少一位可用管理员");
@@ -93,6 +121,7 @@ export async function removeSchoolMember(managerId: string, membershipId: string
         if (!(await transaction.getSchool(context.school.id, true))) throw new SchoolServiceError(404, "学校不存在");
         const membership = await transaction.getMembership(context.school.id, membershipId, true);
         if (!membership) throw new SchoolServiceError(404, "学校成员不存在");
+        if (membership.isProtectedManager) throw new SchoolServiceError(403, "学校首位管理员不能降级、停用或删除");
         if (membership.permissions.includes("school.manage") && (await countActiveManagers(transaction, context.school.id)) <= 1) throw new SchoolServiceError(409, "学校必须保留至少一位可用管理员");
         try {
             return await transaction.deleteMembership(context.school.id, membershipId);
@@ -248,6 +277,22 @@ function administratorSummary(user: PublicUser | undefined): SchoolAdministrator
     return user ? { accountId: user.accountId, username: user.username, displayName: user.displayName, email: user.email } : undefined;
 }
 
+async function findFirstAdministrator(repository: SchoolDomainRepository, schoolId: string) {
+    const manager = (await repository.listFirstManagers([schoolId]))[0];
+    if (!manager) return null;
+    const user = (await getPublicUsersByIds([manager.userId]))[0];
+    return user ? { manager, user } : null;
+}
+
+function administratorPatch(value: unknown): NonNullable<UpdateSchoolInput["administrator"]> {
+    const source = inputRecord(value, "管理员资料无效");
+    return {
+        ...(source.username === undefined ? {} : { username: requiredText(source.username, "管理员用户名", 80) }),
+        ...(source.displayName === undefined ? {} : { displayName: optionalText(source.displayName, "管理员姓名", 120) }),
+        ...(source.email === undefined ? {} : { email: optionalText(source.email, "管理员邮箱", 160) }),
+        ...(source.password === undefined ? {} : { password: optionalText(source.password, "初始密码", 200) }),
+    };
+}
 async function mapMemberPage(result: { items: SchoolMembershipRecord[]; total: number; page: number; pageSize: number }): Promise<PageResult<SchoolMember>> {
     const users = await getPublicUsersByIds(result.items.map((member) => member.userId));
     const usersById = new Map(users.map((user) => [user.id, user]));
@@ -285,6 +330,7 @@ function toSchoolMember(member: SchoolMembershipRecord, user: PublicUser | undef
         displayName: user.displayName,
         email: user.email,
         role: member.role,
+        isProtectedManager: Boolean(member.isProtectedManager),
         permissions: member.permissions,
         status: member.status,
         joinSource: member.joinSource,

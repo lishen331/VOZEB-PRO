@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     requireSchoolManager: vi.fn(),
-    getPublicUsersByIds: vi.fn(),
+    getPublicUsersByIds: vi.fn(), updateUserByAdmin: vi.fn(),
     createSchoolWithAdministrator: vi.fn(),
     getSchool: vi.fn(),
     getMembership: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock("./school-access-service", async (load) => {
     const actual = await load<typeof import("./school-access-service")>();
     return { ...actual, requireSchoolManager: mocks.requireSchoolManager };
 });
-vi.mock("@/lib/auth/store", () => ({ getPublicUsersByIds: mocks.getPublicUsersByIds }));
+vi.mock("@/lib/auth/store", () => ({ getPublicUsersByIds: mocks.getPublicUsersByIds, updateUserByAdmin: mocks.updateUserByAdmin }));
 vi.mock("./school-member-provisioning-service", () => ({ createSchoolWithAdministrator: mocks.createSchoolWithAdministrator }));
 vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepository: () => repository }));
 
@@ -35,6 +35,7 @@ import {
     createSchoolClass,
     listSchoolClasses,
     listSchoolsByAdmin,
+    listSchoolMembers,
     removeSchoolClass,
     removeSchoolMember,
     replaceSchoolClassMembers,
@@ -106,6 +107,15 @@ describe("school tenant service", () => {
         expect(mocks.getPublicUsersByIds).toHaveBeenCalledTimes(2);
     });
 
+    it("returns the protected manager marker to the school management UI", async () => {
+        mocks.listMembers.mockResolvedValue({ items: [{ ...member("manager-a", "teacher", ["school.manage"]), isProtectedManager: true }], total: 1, page: 1, pageSize: 20 });
+        mocks.getPublicUsersByIds.mockResolvedValue([{ id: "manager-a-user", accountId: "0007", username: "teacher_a", displayName: "甲老师" }]);
+
+        await expect(listSchoolMembers("manager-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({
+            items: [{ id: "manager-a", role: "teacher", isProtectedManager: true }],
+        });
+    });
+
     it("returns 404 instead of exposing a membership from another school", async () => {
         mocks.getMembership.mockResolvedValue(null);
 
@@ -125,6 +135,7 @@ describe("school tenant service", () => {
 
     it("takes the same school lock before removing a member", async () => {
         mocks.getMembership.mockResolvedValue(member("student-a", "student", []));
+
         mocks.deleteMembership.mockResolvedValue(true);
         await expect(removeSchoolMember("manager-a", "student-a")).resolves.toBe(true);
         expect(mocks.getSchool.mock.invocationCallOrder[0]).toBeLessThan(mocks.getMembership.mock.invocationCallOrder[0]);
@@ -147,6 +158,30 @@ describe("school tenant service", () => {
         mocks.getMembership.mockResolvedValue(member("teacher-a", "teacher", []));
         await expect(updateSchoolMember("manager-a", "teacher-a", { role: "owner", permissions: ["school.manage", "root"], status: "pending" } as never)).rejects.toMatchObject({ status: 400 });
         expect(mocks.updateMembership).not.toHaveBeenCalled();
+    });
+
+    it("updates the first school administrator without changing a blank password", async () => {
+        const adminUser = { id: "education-admin", role: "admin", status: "active", adminPermissions: ["education.manage"] };
+        const administratorUser = { id: "manager-user", accountId: "0007", username: "teacher_a", displayName: "旧管理员", email: "old@example.com" };
+        mocks.getPublicUsersByIds
+            .mockResolvedValueOnce([adminUser])
+            .mockResolvedValueOnce([administratorUser])
+            .mockResolvedValueOnce([adminUser])
+            .mockResolvedValueOnce([administratorUser]);
+        mocks.listFirstManagers.mockResolvedValue([{ ...member("manager-a", "teacher", ["school.manage"]), userId: "manager-user" }]);
+        mocks.updateSchool.mockResolvedValue({ id: "school-a", name: "甲学校", profile: {}, status: "active", createdAt: now, updatedAt: now });
+
+        await updateSchoolByAdmin("education-admin", "school-a", {
+            name: "甲学校",
+            administrator: { username: "teacher_a", displayName: "新管理员", email: "new@example.com", password: "" },
+        });
+
+        expect(mocks.updateUserByAdmin).toHaveBeenCalledWith(
+            "education-admin",
+            "manager-user",
+            { displayName: "新管理员", email: "new@example.com", password: "" },
+            { requiredPermission: "education.manage" },
+        );
     });
 
     it("does not let a school manager change the platform-controlled school status", async () => {
@@ -188,6 +223,18 @@ describe("school tenant service", () => {
         expect(mocks.replaceClassMembers).toHaveBeenCalledWith("school-a", "class-a", ["teacher-a", "student-a"]);
         expect(mocks.transact).toHaveBeenCalledOnce();
     });
+    it("does not allow the protected first manager to be disabled, demoted, or removed", async () => {
+        const firstManager = { ...member("manager-a", "teacher", ["school.manage"]), isProtectedManager: true };
+        mocks.getMembership.mockResolvedValue(firstManager);
+
+        await expect(updateSchoolMember("manager-a", "manager-a", { status: "disabled" })).rejects.toMatchObject({ status: 403 });
+        await expect(updateSchoolMember("manager-a", "manager-a", { permissions: [] })).rejects.toMatchObject({ status: 403 });
+        await expect(removeSchoolMember("manager-a", "manager-a")).rejects.toMatchObject({ status: 403 });
+
+        expect(mocks.updateMembership).not.toHaveBeenCalled();
+        expect(mocks.deleteMembership).not.toHaveBeenCalled();
+    });
+
 });
 
 function managerContext() {

@@ -13,7 +13,7 @@ import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { SiteLogo } from "@/components/layout/site-logo";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { navigationToolForPathname, resolveLandingSlug } from "@/constant/navigation-tools";
-import type { FeatureModuleSettings } from "@/lib/feature-modules";
+import type { FeatureModuleSettings, UserNavigationMenuPermission } from "@/lib/feature-modules";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
@@ -24,7 +24,7 @@ const PAGE_TITLES: Record<string, string> = {
     profile: "个人中心",
 };
 
-export function AppWorkspaceShell({ children, featureModules }: { children: ReactNode; featureModules: FeatureModuleSettings }) {
+export function AppWorkspaceShell({ children, featureModules, menuPermissions }: { children: ReactNode; featureModules: FeatureModuleSettings; menuPermissions: readonly UserNavigationMenuPermission[] }) {
     useNetworkReconnect(); // BUG-10: show toast on offline/reconnect
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -35,10 +35,14 @@ export function AppWorkspaceShell({ children, featureModules }: { children: Reac
     const schoolContext = useSchoolContextStore((state) => state.context);
     // First visible sidebar entry — matches where a login redirect lands. Falls
     // back to /help only if every module (and the module-less 主页) is gone.
-    const landingSlug = resolveLandingSlug(schoolContext, { featureModules: effectiveFeatureModules });
+    const landingSlug = resolveLandingSlug(schoolContext, { featureModules: effectiveFeatureModules, menuPermissions });
     const homePath = landingSlug ? `/${landingSlug}` : "/help";
     const siteTitle = resolveSiteTitle(site.title);
-    const tool = navigationToolForPathname(pathname, schoolContext, { featureModules: effectiveFeatureModules });
+    const tool = navigationToolForPathname(
+        pathname,
+        schoolContext,
+        { featureModules: effectiveFeatureModules, menuPermissions },
+    );
     const fullscreen = isFullscreenWorkspacePath(pathname);
     const rootSlug = pathname.split("/").filter(Boolean)[0] || "";
     const pageTitle = tool?.label || PAGE_TITLES[rootSlug] || "工作空间";
@@ -52,7 +56,7 @@ export function AppWorkspaceShell({ children, featureModules }: { children: Reac
 
     return (
         <div className="workspace-shell flex h-dvh min-h-0 overflow-hidden bg-white text-foreground dark:bg-[#111316]">
-            <AppSidebar activeToolSlug={tool?.slug} expanded={sidebarExpanded} featureModules={effectiveFeatureModules} />
+            <AppSidebar activeToolSlug={tool?.slug} expanded={sidebarExpanded} featureModules={effectiveFeatureModules} menuPermissions={menuPermissions} />
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[#eaecf0] bg-white/96 px-3 backdrop-blur-xl sm:px-4 lg:px-7 dark:border-[#292d33] dark:bg-[#111316]/95">
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -90,7 +94,7 @@ export function AppWorkspaceShell({ children, featureModules }: { children: Reac
                     <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111316]">{children}</div>
                 </FeatureModuleGate>
             </div>
-            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={tool?.slug} featureModules={effectiveFeatureModules} onClose={() => setMobileNavOpen(false)} />
+            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={tool?.slug} featureModules={effectiveFeatureModules} menuPermissions={menuPermissions} onClose={() => setMobileNavOpen(false)} />
         </div>
     );
 }

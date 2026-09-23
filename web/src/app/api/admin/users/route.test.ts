@@ -52,12 +52,25 @@ describe("admin users route", () => {
         expect(mocks.listPublicUsersPage).not.toHaveBeenCalled();
     });
 
-    it("passes pagination, search, role and status to the server list", async () => {
+    it("lists only ordinary and school users, ignoring administrator-role filters", async () => {
         const response = await GET(request("?page=2&pageSize=20&keyword=%E7%AE%A1%E7%90%86%E5%91%98&role=admin&status=active"));
 
         expect(response.status).toBe(200);
-        expect(mocks.listPublicUsersPage).toHaveBeenCalledWith({ page: 2, pageSize: 20, keyword: "管理员", role: "admin", status: "active" });
+        expect(mocks.listPublicUsersPage).toHaveBeenCalledWith({ page: 2, pageSize: 20, keyword: "管理员", role: "user", status: "active" });
         expect(await response.json()).toMatchObject({ total: 51, page: 2, summary: { total: 80, usersWithPlan: 12 } });
+    });
+
+    it("rejects administrator fields when creating a user", async () => {
+        const response = await POST(
+            new Request("http://localhost/api/admin/users", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ username: "new-user", password: "new-password", role: "admin" }),
+            }),
+        );
+
+        expect(response.status).toBe(400);
+        expect(mocks.createUserByAdmin).not.toHaveBeenCalled();
     });
 });
 

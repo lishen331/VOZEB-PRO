@@ -4,7 +4,7 @@ import { createCdkCodes, deleteCdkCodes, isAuthInputError, listCdkCodes, type Cd
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-log-store";
-import { hasAdminPermission } from "@/lib/admin-permissions";
+import { hasAdminPermission, hasAnyAdminPermission } from "@/lib/admin-permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
     const currentUser = await getCurrentUser();
     if (!currentUser) return NextResponse.json({ error: "请先登录" }, { status: 401 });
-    if (!hasAdminPermission(currentUser, "billing.read")) return NextResponse.json({ error: "当前管理员没有查看财务数据的职责权限" }, { status: 403 });
+    if (!hasAnyAdminPermission(currentUser, ["billing.read", "billing.manage"])) return NextResponse.json({ error: "当前管理员没有查看财务数据的职责权限" }, { status: 403 });
 
     const page = Number(request.nextUrl.searchParams.get("page") || 1);
     const pageSize = Number(request.nextUrl.searchParams.get("pageSize") || 20);

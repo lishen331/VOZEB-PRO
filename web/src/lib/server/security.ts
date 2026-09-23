@@ -19,10 +19,10 @@ export type RateLimitResult = {
 };
 
 export type GenerationRateLimitType = "text" | "image" | "video" | "audio" | "agent" | "render";
-export type AuthRateLimitDimension = "ip" | "account" | "device" | "global";
+export type AuthRateLimitDimension = "account" | "device";
 export type AuthRateLimitResult = RateLimitResult & { dimension?: AuthRateLimitDimension };
 
-export const AUTH_LOGIN_RATE_LIMIT: RateLimitConfig = { maxRequests: 8, windowMs: 15 * 60 * 1000 };
+export const AUTH_LOGIN_RATE_LIMIT: RateLimitConfig = { maxRequests: 8, windowMs: 2 * 60 * 1000 };
 
 const generationRateLimits: Record<GenerationRateLimitType, RateLimitConfig> = {
     agent: { maxRequests: 10, windowMs: 60 * 1000 },
@@ -65,19 +65,14 @@ export function getClientIp(request: Request) {
 
 export async function checkAuthRateLimit(scope: string, request: Request, account: unknown, config: RateLimitConfig): Promise<AuthRateLimitResult> {
     const identities: Array<[AuthRateLimitDimension, string, RateLimitConfig]> = [];
-    const ip = getClientIp(request);
-    if (ip !== "unknown") identities.push(["ip", ip, config]);
-    else identities.push(["global", "unknown-client", { ...config, maxRequests: config.maxRequests * 20 }]);
     const device = authDeviceFingerprint(request);
-    const deviceIdentity = device || "anonymous";
-    identities.push(["device", deviceIdentity, config]);
+    identities.push(["device", device || "anonymous", config]);
     const normalizedAccount = normalizeAuthIdentity(account);
-    const accountSource = ip !== "unknown" ? `ip:${ip}` : `device:${deviceIdentity}`;
-    if (normalizedAccount) identities.push(["account", `${normalizedAccount}:${accountSource}`, config]);
-
+    if (normalizedAccount) identities.push(["account", normalizedAccount, config]);
     let combined: AuthRateLimitResult = { allowed: true, remaining: config.maxRequests, resetAt: Date.now() + config.windowMs };
     for (const [dimension, identity, dimensionConfig] of identities) {
-        const result = await checkRateLimit(`auth:${normalizeAuthScope(scope)}:${dimension}:${identity}`, dimensionConfig);
+        const key = "auth:" + normalizeAuthScope(scope) + ":" + dimension + ":" + identity;
+        const result = await checkRateLimit(key, dimensionConfig);
         if (!result.allowed) return { ...result, dimension };
         if (result.remaining < combined.remaining) combined = { ...result, dimension };
     }

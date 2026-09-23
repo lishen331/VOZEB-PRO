@@ -3,6 +3,8 @@ import type { NextResponse } from "next/server";
 
 import { deleteSession, getPublicUsersByIds, getUserBySession, sessionMaxAgeSeconds, type AuthSettings, type PublicUser } from "./store";
 import { authorizedWorkerUserId } from "@/lib/server/maintenance-auth";
+import { adminDutiesFromMenuPermissions } from "@/components/admin/admin-sections";
+import { getPlatformAdminMenuPermissions } from "@/lib/server/platform-admin-menu-service";
 import { getTrustedProxyHops } from "@/lib/server/trusted-proxy";
 import { parseSessionCookie } from "./store-normalizers";
 
@@ -17,11 +19,22 @@ async function getSessionCookieValue() {
 
 export async function getCurrentUser(request?: Request) {
     const sessionUser = await getUserBySession(await getSessionCookieValue());
-    if (sessionUser || !request) return sessionUser;
+    if (sessionUser) return hydrateCurrentUser(sessionUser);
+    if (!request) return null;
     const workerUserId = authorizedWorkerUserId(request);
     if (!workerUserId) return null;
     const workerUser = (await getPublicUsersByIds([workerUserId]))[0];
-    return workerUser?.status === "active" ? workerUser : null;
+    return workerUser?.status === "active" ? hydrateCurrentUser(workerUser) : null;
+}
+
+async function hydrateCurrentUser(user: CurrentUser): Promise<CurrentUser> {
+    if (user.role !== "admin") return user;
+    const adminMenuPermissions = await getPlatformAdminMenuPermissions(user.id, user.adminMenuPermissions?.length ? user.adminMenuPermissions : user.adminPermissions);
+    return {
+        ...user,
+        adminPermissions: adminDutiesFromMenuPermissions(adminMenuPermissions),
+        adminMenuPermissions,
+    };
 }
 
 export async function clearCurrentSession() {
@@ -89,6 +102,7 @@ export function serializeCurrentUser(user: CurrentUser) {
         avatarUrl: user.avatarUrl,
         role: user.role,
         adminPermissions: [...user.adminPermissions],
+        adminMenuPermissions: user.adminMenuPermissions ? [...user.adminMenuPermissions] : undefined,
         status: user.status,
         planId: user.planId,
         planName: user.planName,

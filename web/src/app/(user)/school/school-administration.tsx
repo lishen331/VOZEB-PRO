@@ -246,7 +246,7 @@ function MembersPanel() {
 
     const memberActions = (member: SchoolMember) => (
         <div className="flex flex-wrap justify-end gap-1">
-            {member.role === "teacher" ? (
+            {member.role === "teacher" && !member.isProtectedManager ? (
                 <Button
                     type="text"
                     size="small"
@@ -256,10 +256,10 @@ function MembersPanel() {
                     {member.permissions.includes("school.manage") ? "取消管理" : "设为管理"}
                 </Button>
             ) : null}
-            <Button type="text" size="small" onClick={() => void update(member, { status: member.status === "active" ? "disabled" : "active" }, member.status === "active" ? "成员已禁用" : "成员已启用")}>
+            <Button type="text" size="small" disabled={member.isProtectedManager} onClick={() => void update(member, { status: member.status === "active" ? "disabled" : "active" }, member.status === "active" ? "成员已禁用" : "成员已启用")}>
                 {member.status === "active" ? "禁用" : "启用"}
             </Button>
-            <Button danger type="text" size="small" icon={<Trash2 className="size-3.5" />} onClick={() => remove(member)}>
+            <Button danger type="text" size="small" disabled={member.isProtectedManager} icon={<Trash2 className="size-3.5" />} onClick={() => remove(member)}>
                 移出
             </Button>
         </div>
@@ -267,8 +267,8 @@ function MembersPanel() {
 
     const columns: TableColumnsType<SchoolMember> = [
         { title: "成员", render: (_, member) => <MemberIdentity member={member} /> },
-        { title: "身份", dataIndex: "role", width: 100, render: (value: SchoolMemberRole) => roleLabel(value) },
-        { title: "权限", width: 130, render: (_, member) => (member.permissions.includes("school.manage") ? <Tag color="blue">学校管理员</Tag> : <span className="text-zinc-400">普通成员</span>) },
+        { title: "身份", dataIndex: "role", width: 100, render: (_, member) => (member.isProtectedManager ? "学校超管" : roleLabel(member.role)) },
+        { title: "权限", width: 130, render: (_, member) => (member.isProtectedManager ? <Tag color="purple">学校超管</Tag> : member.permissions.includes("school.manage") ? <Tag color="blue">学校管理员</Tag> : <span className="text-zinc-400">普通成员</span>) },
         { title: "状态", dataIndex: "status", width: 90, render: (value: SchoolMembershipStatus) => <StatusTag status={value} /> },
         { title: "操作", width: 280, align: "right", render: (_, member) => memberActions(member) },
     ];
@@ -361,8 +361,8 @@ function MembersPanel() {
                             <StatusTag status={member.status} />
                         </div>
                         <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
-                            <span>{roleLabel(member.role)}</span>
-                            {member.permissions.includes("school.manage") ? <Tag color="blue">学校管理员</Tag> : null}
+                            <span>{member.isProtectedManager ? "学校超管" : roleLabel(member.role)}</span>
+                            {member.isProtectedManager ? null : member.permissions.includes("school.manage") ? <Tag color="blue">学校管理员</Tag> : null}
                         </div>
                         <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">{memberActions(member)}</div>
                     </div>

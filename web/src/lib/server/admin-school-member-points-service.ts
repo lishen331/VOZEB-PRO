@@ -14,7 +14,7 @@ import { mutateFileSchoolDomainInsideLock, SCHOOL_DOMAIN_DATA_FILE } from "@/lib
 import { SchoolServiceError, requirePlatformAdmin } from "@/lib/server/school-access-service";
 
 export async function listSchoolMembersByAdmin(actorId: string, schoolId: string, query: AdminSchoolMemberQuery = {}): Promise<PageResult<AdminSchoolMemberPoints>> {
-    await requirePlatformAdmin(actorId);
+    await requirePlatformAdmin(actorId, ["education.manage"]);
     const repository = createSchoolDomainRepository();
     if (!(await repository.getSchool(schoolId))) throw new SchoolServiceError(404, "学校不存在");
     const page = await repository.listMembers(schoolId, query);
@@ -26,7 +26,7 @@ export async function listSchoolMembersByAdmin(actorId: string, schoolId: string
 type AdminSchoolMemberPointsAdjustmentServiceResult = AdminSchoolMemberPointsAdjustmentResult & { schoolName: string };
 
 export async function adjustSchoolMemberPointsByAdmin(actorId: string, schoolId: string, membershipId: string, input: AdminSchoolMemberPointsAdjustmentInput): Promise<AdminSchoolMemberPointsAdjustmentServiceResult> {
-    await requirePlatformAdmin(actorId);
+    await requirePlatformAdmin(actorId, ["education.manage", "billing.manage"]);
     const normalized = normalizeAdjustment(input);
     const amount = normalized.operation === "credit" ? normalized.amount : -normalized.amount;
     const result = isPostgresDatabaseEnabled() ? await adjustPostgres(actorId, schoolId, membershipId, amount, normalized) : await adjustFile(actorId, schoolId, membershipId, amount, normalized);

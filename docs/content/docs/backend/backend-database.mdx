@@ -46,7 +46,7 @@ Schema 初始化在同一个事务中执行，并对已存在的业务表采用�
 - `vozeb_pro_object_storage_settings`：S3 兼容外部存储单例配置，保存启用状态、Endpoint、Region、Bucket、对象前缀、path-style 模式及加密后的 Access Key/Secret Key；管理接口只返回密钥是否已配置，不回传明文。
 - `vozeb_pro_system_model_channels`：系统模型渠道、分别加密保存的 API Key 与渠道生成回调密钥、模型列表和高级配置；`purpose` 明确区分 `production/open-source-practice/shared`，旧渠道按 `shared` 读取；RunningHub 使用管理员配置的官方异步任务、上传和查询路径，不猜测模型目录；后台不保存渠道验证记录。
 - `vozeb_pro_entitlement_plans`：商业套餐权益、每日额度、调用限制和功能标记；新用户不再通过套餐获得注册初始积分。
-- `vozeb_pro_users`：用户账号、角色、状态、头像存储键、最多 160 字的个人简介、当前套餐、积分余额和密码哈希；`admin_permissions` JSONB 保存管理员的显式职责列表，并由 CHECK 约束保证为数组，普通用户保持空数组。管理员 TOTP MFA 使用 `mfa_secret_ciphertext` 保存 AES-GCM 密文，`mfa_enabled_at` 表示已完成验证并启用，CHECK 约束禁止启用时间存在但密文缺失。公开注册还原子保存当时的服务条款版本/链接、隐私政策版本/链接和同意时间，五个留痕字段必须同时为空或同时存在。管理员代建账号不伪造用户同意记录。公开创作者接口只按用户名返回允许公开的资料字段，不暴露邮箱、内部用户 ID、职责、MFA 密文或协议留痕。
+- `vozeb_pro_users`：用户账号、角色、状态、头像存储键、最多 160 字的个人简介、当前套餐、积分余额和密码哈希；`admin_permissions` JSONB 保存管理员的显式职责列表，并由 CHECK 约束保证为数组，普通用户保持空数组。平台 RBAC 的有效角色另由 `rbac_user_role_bindings` 管理，平台角色更新时会同步本字段以兼容现有职责校验。管理员 TOTP MFA 使用 `mfa_secret_ciphertext` 保存 AES-GCM 密文，`mfa_enabled_at` 表示已完成验证并启用，CHECK 约束禁止启用时间存在但密文缺失。公开注册还原子保存当时的服务条款版本/链接、隐私政策版本/链接和同意时间，五个留痕字段必须同时为空或同时存在。管理员代建账号不伪造用户同意记录。公开创作者接口只按用户名返回允许公开的资料字段，不暴露邮箱、内部用户 ID、职责、MFA 密文或协议留痕。
 - `vozeb_pro_sessions`：登录会话 token 哈希和过期时间。
 - `vozeb_pro_account_deletion_requests`：账号注销申请、用户资料快照、申请状态、管理员处理备注与处理人快照；同一用户同一时间只能存在一条待处理申请，受理不会自动停用账号或删除业务数据。
 - `vozeb_pro_rate_limits`：PostgreSQL 多实例共享的接口限流窗口，保存哈希后的业务键、原子请求计数和重置时间；数据库不可用时服务端临时退回进程内保护。
@@ -128,10 +128,15 @@ Agent Run 的状态与任务数组继续保存在 `generation_tasks.payload`，�
 
 - `vozeb_pro_audit_logs`：登录、后台操作、CDK 兑换等安全审计记录。
 
+### 权限与角色
+
+- `vozeb_pro_rbac_roles`：平台、学校和前台用户的角色目录，保存角色名称、作用域、权限 JSON、启停状态及系统角色标识。系统默认角色不能停用或删除；平台角色使用现有管理员职责键，学校管理员角色仅使用 `school.manage`。
+- `vozeb_pro_rbac_user_role_bindings`：用户与角色绑定，平台角色的 `school_id` 为空，学校角色始终绑定学校；唯一索引阻止相同用户、角色与学校作用域重复绑定。`protected` 标记保护平台超管及学校首位管理员，禁止通过管理功能停用、删除或降级。
+
 ### 学校多租户与产教域（16 张表）
 
 - `vozeb_pro_schools`：学校租户根，主键为 `id`；`(status, updated_at DESC)` 支持平台按状态分页。成员、邀请码、班级和课程分配等租户子记录使用级联外键；已承接商单使用默认限制外键，不会随学校静默删除。
-- `vozeb_pro_school_memberships`：账号与学校的唯一成员关系，外键连接 `schools` 与 `users`；`UNIQUE (user_id)` 保证一个账号只能属于一所学校，`UNIQUE (school_id, id)` 为后续同租户复合外键提供目标。`(school_id, status, updated_at DESC)` 与 `(school_id, role, updated_at DESC)` 支持本校成员定向筛选。
+- `vozeb_pro_school_memberships`：账号与学校的唯一成员关系，外键连接 `schools` 与 `users`；`UNIQUE (user_id)` 保证一个账号只能属于一所学校，`UNIQUE (school_id, id)` 为后续同租户复合外键提供目标。`is_protected_manager` 标记每校首位学校管理员，禁止降级、停用或删除，并同步至 RBAC 绑定保护标记。`(school_id, status, updated_at DESC)` 与 `(school_id, role, updated_at DESC)` 支持本校成员定向筛选。
 - `vozeb_pro_school_invite_codes`：老师/学生邀请码只保存摘要；`UNIQUE (school_id, role)` 保证每校每种身份只有一条当前记录，`UNIQUE (code_digest)` 防止跨校摘要冲突，学校状态时间索引用于定向读取和轮换。
 - `vozeb_pro_school_classes`：本校班级，`UNIQUE (school_id, id)` 支持同租户复合引用，`(school_id, status, updated_at DESC)` 支持学校后台分页。
 - `vozeb_pro_school_class_members`：班级与成员关联，`UNIQUE (class_id, membership_id)` 防止重复加入；`(school_id, class_id)`、`(school_id, membership_id)` 复合外键同时约束班级和成员属于同一学校，对应两个学校定向索引支持按班级或成员读取。

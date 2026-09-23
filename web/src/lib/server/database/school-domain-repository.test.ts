@@ -230,6 +230,7 @@ describe("PostgreSQL school domain repository", () => {
         await expect(repository.listClassMembers(id("school-a"), id("class-delete"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         await expect(repository.deleteMembership(id("school-a"), id("other"))).resolves.toBe(false);
         await expect(repository.deleteMembership(id("school-b"), id("other"))).resolves.toBe(true);
+        await expect(postgresQuery("SELECT role_key, school_id FROM rbac_user_role_bindings WHERE user_id = $1 AND role_key = 'normal-user'", [id("other-user")])).resolves.toMatchObject({ rows: [{ role_key: "normal-user", school_id: null }] });
     });
 
     postgresIt("rolls back a failed transaction", async () => {
@@ -302,6 +303,11 @@ describe("PostgreSQL school domain repository", () => {
         const assignmentId = id("readable-assignment");
         const otherAssignmentId = id("readable-other-assignment");
 
+        await postgresQuery("INSERT INTO users (id, username, display_name, password_hash) VALUES ($1, $2, $3, $4), ($5, $6, $7, $8), ($9, $10, $11, $12)", [
+            id("readable-teacher-user"), `repo_readable_teacher_${suffix.replaceAll("-", "").slice(0, 10)}`, "可读老师", "integration-test-only",
+            id("readable-student-user"), `repo_readable_student_${suffix.replaceAll("-", "").slice(0, 10)}`, "可读学生", "integration-test-only",
+            id("readable-other-student-user"), `repo_readable_other_${suffix.replaceAll("-", "").slice(0, 10)}`, "外校学生", "integration-test-only",
+        ]);
         await repository.insertSchool(school(schoolId, "可读学校"));
         await repository.insertSchool(school(otherSchoolId, "其他学校"));
         await repository.insertMembership(membership(id("readable-teacher"), schoolId, id("readable-teacher-user"), "teacher"));

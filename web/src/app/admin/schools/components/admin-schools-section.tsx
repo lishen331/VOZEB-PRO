@@ -83,6 +83,10 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
                 status: detail.status,
                 city: typeof profile.city === "string" ? profile.city : "",
                 contact: typeof profile.contact === "string" ? profile.contact : "",
+                administratorUsername: detail.administrator?.username || "",
+                administratorDisplayName: detail.administrator?.displayName || "",
+                administratorEmail: detail.administrator?.email || "",
+                administratorPassword: "",
             });
         } catch (detailError) {
             message.error(detailError instanceof Error ? detailError.message : "学校资料加载失败");
@@ -104,7 +108,17 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
         const profile = { city: values.city?.trim() || "", contact: values.contact?.trim() || "" };
         try {
             if (editing) {
-                const patch: UpdateSchoolInput = { name: values.name, status: values.status, profile };
+                const patch: UpdateSchoolInput = {
+                    name: values.name,
+                    status: values.status,
+                    profile,
+                    administrator: {
+                        username: values.administratorUsername?.trim(),
+                        displayName: values.administratorDisplayName?.trim(),
+                        email: values.administratorEmail?.trim(),
+                        password: values.administratorPassword || undefined,
+                    },
+                };
                 await adminEducationApi.updateSchool(editing.id, patch);
                 message.success("学校资料已更新");
             } else {
@@ -314,6 +328,19 @@ function SchoolEditorForm({ form, editing, onFinish }: { form: FormInstance<Scho
                     <Input maxLength={120} />
                 </Form.Item>
                 {editing ? (
+                    <>
+                        <Form.Item label="管理员用户名" name="administratorUsername">
+                            <Input autoComplete="off" disabled />
+                        </Form.Item>
+                        <Form.Item label="管理员姓名" name="administratorDisplayName">
+                            <Input />
+                        </Form.Item>
+                        <Form.Item label="管理员邮箱" name="administratorEmail">
+                            <Input type="email" />
+                        </Form.Item>
+                        <Form.Item label="初始密码" name="administratorPassword" extra="留空则不修改密码">
+                            <Input.Password autoComplete="new-password" />
+                        </Form.Item>
                     <Form.Item label="学校状态" name="status" className="sm:col-span-2">
                         <Select
                             options={[
@@ -322,6 +349,7 @@ function SchoolEditorForm({ form, editing, onFinish }: { form: FormInstance<Scho
                             ]}
                         />
                     </Form.Item>
+                    </>
                 ) : (
                     <>
                         <Form.Item label="管理员用户名" name="administratorUsername" rules={[{ required: true, message: "请填写管理员用户名" }]}>
@@ -335,6 +363,12 @@ function SchoolEditorForm({ form, editing, onFinish }: { form: FormInstance<Scho
                         </Form.Item>
                         <Form.Item label="初始密码" name="administratorPassword" rules={[{ required: true, message: "请填写初始密码" }]}>
                             <Input.Password autoComplete="new-password" />
+                        </Form.Item>
+                        <Form.Item label="学校状态" name="status" className="sm:col-span-2">
+                            <Select disabled>
+                                <Select.Option value="active">可用</Select.Option>
+                                <Select.Option value="disabled">停用</Select.Option>
+                            </Select>
                         </Form.Item>
                     </>
                 )}

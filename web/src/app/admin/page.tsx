@@ -41,6 +41,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 bio: currentUser.bio,
                 role: currentUser.role,
                 adminPermissions: currentUser.adminPermissions,
+                adminMenuPermissions: currentUser.adminMenuPermissions,
                 status: currentUser.status,
                 planId: currentUser.planId,
                 planName: currentUser.planName,

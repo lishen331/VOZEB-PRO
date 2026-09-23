@@ -7,7 +7,9 @@ import { AuthUserHydrator } from "@/components/auth/auth-user-hydrator";
 import { AppWorkspaceShell } from "@/components/layout/app-workspace-shell";
 import { SchoolContextHydrator } from "@/components/school/school-context-hydrator";
 import { getSchoolContextForUser } from "@/lib/server/school-access-service";
+import { getUserNavigationMenuPermissions } from "@/lib/server/user-navigation-permissions";
 import { getAuthenticatedPageAccess } from "@/lib/server/page-access";
+import { isUserNavigationPathAllowed } from "@/lib/feature-modules";
 import { getFreshAuthSettings } from "@/lib/auth/store";
 import { loginHref } from "@/lib/login-navigation";
 
@@ -24,7 +26,10 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
     }
     const user = access.user;
     const schoolContext = await getSchoolContextForUser(user.id);
-    const featureModules = (await getFreshAuthSettings()).featureModules;
+    const activeSchoolId = schoolContext?.school.status === "active" && schoolContext.membership.status === "active" ? schoolContext.school.id : undefined;
+    const [featureModules, menuPermissions] = await Promise.all([getFreshAuthSettings().then((settings) => settings.featureModules), getUserNavigationMenuPermissions(user.id, activeSchoolId)]);
+    const requestedPath = (await headers()).get("x-vozeb-login-next")?.split("?")[0] || "";
+    if (requestedPath && !isUserNavigationPathAllowed(requestedPath, menuPermissions, featureModules, schoolContext)) redirect("/create");
 
     return (
         <AuthUserHydrator
@@ -50,7 +55,7 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
             }}
         >
             <SchoolContextHydrator context={schoolContext}>
-                <AppWorkspaceShell featureModules={featureModules}>{children}</AppWorkspaceShell>
+                <AppWorkspaceShell featureModules={featureModules} menuPermissions={menuPermissions}>{children}</AppWorkspaceShell>
             </SchoolContextHydrator>
         </AuthUserHydrator>
     );

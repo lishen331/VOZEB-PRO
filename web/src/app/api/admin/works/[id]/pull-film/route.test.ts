@@ -30,7 +30,7 @@ describe("PATCH /api/admin/works/[id]/pull-film", () => {
         mocks.currentUser
             .mockResolvedValueOnce(null)
             .mockResolvedValueOnce({ id: "ordinary-user", role: "user", status: "active" })
-            .mockResolvedValueOnce({ id: "school-admin", role: "user", status: "active", schoolRole: "manager" })
+            .mockResolvedValueOnce({ id: "school-superadmin", role: "user", status: "active", schoolRole: "manager" })
             .mockResolvedValueOnce({ id: "teacher", role: "user", status: "active", schoolRole: "teacher" })
             .mockResolvedValueOnce({ id: "student", role: "user", status: "active", schoolRole: "student" });
 

@@ -1,3 +1,9 @@
+import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
+import { DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS } from "@/lib/feature-modules";
+
+const RBAC_ALL_PLATFORM_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
+const RBAC_DEFAULT_USER_MENU_PERMISSIONS_JSON = JSON.stringify(DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS);
+
 export const POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS schools (
     id text PRIMARY KEY,
@@ -16,6 +22,7 @@ CREATE TABLE IF NOT EXISTS school_memberships (
     user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role text NOT NULL CHECK (role IN ('teacher', 'student')),
     permissions jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(permissions) = 'array'),
+    is_protected_manager boolean NOT NULL DEFAULT false,
     status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
     join_source text NOT NULL DEFAULT 'admin' CHECK (join_source IN ('admin', 'import', 'invite')),
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -26,6 +33,7 @@ CREATE TABLE IF NOT EXISTS school_memberships (
 
 CREATE INDEX IF NOT EXISTS school_memberships_school_status_updated_idx ON school_memberships (school_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS school_memberships_school_role_updated_idx ON school_memberships (school_id, role, updated_at DESC);
+ALTER TABLE school_memberships ADD COLUMN IF NOT EXISTS is_protected_manager boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS school_invite_codes (
     id text PRIMARY KEY,
@@ -326,4 +334,138 @@ CREATE TABLE IF NOT EXISTS commercial_order_deliveries (
 
 CREATE INDEX IF NOT EXISTS commercial_order_deliveries_school_status_updated_idx ON commercial_order_deliveries (school_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS commercial_order_deliveries_school_order_created_idx ON commercial_order_deliveries (school_id, order_id, created_at DESC);
+
+-- RBAC role catalogue. User roles remain scoped: platform roles have no school_id,
+-- while school roles always retain the membership's tenant boundary.
+CREATE TABLE IF NOT EXISTS rbac_roles (
+    role_key text PRIMARY KEY,
+    name text NOT NULL UNIQUE,
+    scope text NOT NULL CHECK (scope IN ('platform', 'school', 'user')),
+    permissions jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(permissions) = 'array'),
+    status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+    is_builtin boolean NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS rbac_user_role_bindings (
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_key text NOT NULL REFERENCES rbac_roles(role_key) ON DELETE RESTRICT,
+    school_id text REFERENCES schools(id) ON DELETE CASCADE,
+    protected boolean NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE rbac_user_role_bindings DROP CONSTRAINT IF EXISTS rbac_user_role_bindings_pkey;
+CREATE UNIQUE INDEX IF NOT EXISTS rbac_user_role_bindings_scope_unique_idx
+ON rbac_user_role_bindings (user_id, role_key, coalesce(school_id, ''));
+
+-- A platform administrator has exactly one platform role. Keep protected roles,
+-- then custom roles, before removing historical duplicate default bindings.
+WITH ranked_platform_bindings AS (
+    SELECT ctid,
+           row_number() OVER (
+               PARTITION BY user_id
+               ORDER BY protected DESC,
+                        CASE WHEN role_key = 'platform-admin' THEN 1 ELSE 0 END,
+                        created_at ASC,
+                        role_key ASC
+           ) AS binding_rank
+    FROM rbac_user_role_bindings
+    WHERE school_id IS NULL
+)
+DELETE FROM rbac_user_role_bindings binding
+USING ranked_platform_bindings duplicate_binding
+WHERE binding.ctid = duplicate_binding.ctid
+  AND duplicate_binding.binding_rank > 1;
+
+CREATE UNIQUE INDEX IF NOT EXISTS rbac_user_role_bindings_platform_user_unique_idx
+ON rbac_user_role_bindings (user_id)
+WHERE school_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS rbac_user_role_bindings_role_idx
+ON rbac_user_role_bindings (role_key, school_id, user_id);
+
+INSERT INTO rbac_roles (role_key, name, scope, permissions, is_builtin)
+VALUES
+    ('platform-superadmin', '平台超管', 'platform', '${RBAC_ALL_PLATFORM_PERMISSIONS_JSON}'::jsonb, true),
+    ('platform-admin', '平台管理员', 'platform', '${RBAC_ALL_PLATFORM_PERMISSIONS_JSON}'::jsonb, false),
+    ('school-superadmin', '学校超管', 'school', '["school.manage"]'::jsonb, true),
+    ('teacher', '老师', 'school', '${RBAC_DEFAULT_USER_MENU_PERMISSIONS_JSON}'::jsonb, true),
+    ('student', '学生', 'school', '${RBAC_DEFAULT_USER_MENU_PERMISSIONS_JSON}'::jsonb, true),
+    ('normal-user', '普通用户', 'user', '${RBAC_DEFAULT_USER_MENU_PERMISSIONS_JSON}'::jsonb, true)
+ON CONFLICT (role_key) DO UPDATE SET
+    name = EXCLUDED.name,
+    scope = EXCLUDED.scope,
+    is_builtin = EXCLUDED.is_builtin,
+    permissions = CASE WHEN rbac_roles.permissions = '[]'::jsonb THEN EXCLUDED.permissions ELSE rbac_roles.permissions END;
+
+UPDATE rbac_user_role_bindings SET role_key = 'school-superadmin', updated_at = now() WHERE role_key = 'school-admin';
+DELETE FROM rbac_roles WHERE role_key = 'school-admin';
+
+INSERT INTO rbac_user_role_bindings (user_id, role_key, protected)
+SELECT users.id, CASE WHEN users.username = 'admin' THEN 'platform-superadmin' ELSE 'platform-admin' END, users.username = 'admin'
+FROM users
+WHERE users.role = 'admin'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM rbac_user_role_bindings existing_binding
+      WHERE existing_binding.user_id = users.id
+        AND existing_binding.school_id IS NULL
+  )
+ON CONFLICT DO NOTHING;
+
+UPDATE users user_record
+SET admin_permissions = role.permissions,
+    updated_at = now()
+FROM rbac_user_role_bindings binding
+JOIN rbac_roles role ON role.role_key = binding.role_key AND role.scope = 'platform'
+WHERE binding.user_id = user_record.id
+  AND user_record.role = 'admin'
+  AND binding.school_id IS NULL;
+
+WITH first_school_managers AS (
+    SELECT id,
+           row_number() OVER (PARTITION BY school_id ORDER BY created_at ASC, id ASC) AS manager_rank
+    FROM school_memberships
+    WHERE role = 'teacher'
+      AND permissions @> '["school.manage"]'::jsonb
+)
+UPDATE school_memberships membership
+SET is_protected_manager = true
+FROM first_school_managers manager
+WHERE membership.id = manager.id
+  AND manager.manager_rank = 1
+  AND membership.is_protected_manager = false;
+
+
+INSERT INTO rbac_user_role_bindings (user_id, role_key, school_id, protected)
+SELECT membership.user_id, 'school-superadmin', membership.school_id, membership.is_protected_manager
+FROM school_memberships membership
+WHERE membership.role = 'teacher'
+  AND membership.permissions @> '["school.manage"]'::jsonb
+ON CONFLICT DO NOTHING;
+
+UPDATE rbac_user_role_bindings binding
+SET protected = membership.is_protected_manager,
+    updated_at = now()
+FROM school_memberships membership
+WHERE binding.user_id = membership.user_id
+  AND binding.role_key = 'school-superadmin'
+  AND binding.school_id = membership.school_id;
+INSERT INTO rbac_user_role_bindings (user_id, role_key, school_id)
+SELECT membership.user_id, membership.role, membership.school_id
+FROM school_memberships membership
+ON CONFLICT DO NOTHING;
+
+-- School-created accounts are school identities, not foreground normal users.
+-- This is idempotent and only targets the historical admin/import provisioning paths.
+DELETE FROM rbac_user_role_bindings binding
+USING school_memberships membership
+WHERE binding.user_id = membership.user_id
+  AND binding.school_id IS NULL
+  AND binding.role_key = 'normal-user'
+  AND membership.join_source IN ('admin', 'import');
+
 `;

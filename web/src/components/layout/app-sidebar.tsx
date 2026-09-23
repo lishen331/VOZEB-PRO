@@ -6,20 +6,20 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { SiteLogo } from "@/components/layout/site-logo";
 import { navigationGroups, navigationToolsForContext, type NavigationToolSlug } from "@/constant/navigation-tools";
-import type { FeatureModuleSettings } from "@/lib/feature-modules";
+import type { FeatureModuleSettings, UserNavigationMenuPermission } from "@/lib/feature-modules";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
-export function AppSidebar({ activeToolSlug, expanded, featureModules }: { activeToolSlug?: NavigationToolSlug; expanded: boolean; featureModules: FeatureModuleSettings }) {
+export function AppSidebar({ activeToolSlug, expanded, featureModules, menuPermissions }: { activeToolSlug?: NavigationToolSlug; expanded: boolean; featureModules: FeatureModuleSettings; menuPermissions: readonly UserNavigationMenuPermission[] }) {
     const pathname = usePathname();
     const router = useRouter();
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
-    const tools = navigationToolsForContext(context, { featureModules });
+    const tools = navigationToolsForContext(context, { featureModules, menuPermissions });
     const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = (schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups).filter((group) => tools.some((tool) => tool.group === group.id));
 
@@ -75,7 +75,7 @@ export function AppSidebar({ activeToolSlug, expanded, featureModules }: { activ
                 })}
             </nav>
 
-            {featureModules["help-center"] !== false ? (
+            {featureModules["help-center"] !== false && menuPermissions.includes("help-center") ? (
                 <div className={cn("shrink-0 border-t border-[#eaecf0] dark:border-[#292d33]", expanded ? "px-3 pb-3 pt-3.5" : "p-2")}>
                     <Link
                         href="/help"

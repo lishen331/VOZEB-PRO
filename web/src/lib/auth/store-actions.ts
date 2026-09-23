@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { inferModelCapability } from "@/lib/model-capability";
 import { lockAuthMutation } from "@/lib/server/auth-mutation-lock";
-import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction } from "@/lib/server/database";
+import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { adjustPermanentPointsInPostgresTransaction, consumePoints, creditPermanentPointsInAuthDb, refundPoints, walletClock } from "@/lib/server/points-wallet-service";
 import { decryptSecretValue, encryptSecretValue } from "@/lib/server/secret-crypto";
 import {
@@ -175,8 +175,18 @@ export async function listPublicUsersPage(input?: { page?: number; pageSize?: nu
             { now: clock.now.toISOString(), date: clock.date },
         );
         const usersById = new Map(details.map((record) => [record.user.id, publicUserFromAuthenticatedRecord(record, clock.expiresAt)]));
+        const userIds = result.items.map((user) => user.id);
+        const schoolRows = userIds.length
+            ? (
+                  await postgresQuery<{ user_id: string; school_name: string }>(
+                      "SELECT membership.user_id, school.name AS school_name FROM school_memberships membership JOIN schools school ON school.id = membership.school_id WHERE membership.user_id = ANY($1::text[])",
+                      [userIds],
+                  )
+              ).rows
+            : [];
+        const schoolNames = new Map(schoolRows.map((row) => [row.user_id, row.school_name]));
         return {
-            users: result.items.map((user) => usersById.get(user.id)).filter((user): user is PublicUser => Boolean(user)),
+            users: result.items.map((user) => usersById.get(user.id)).filter((user): user is PublicUser => Boolean(user)).map((user) => ({ ...user, schoolName: schoolNames.get(user.id) })),
             total: result.total,
             page: result.page,
             pageSize: result.pageSize,

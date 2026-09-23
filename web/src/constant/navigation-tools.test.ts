@@ -56,6 +56,26 @@ describe("user navigation order", () => {
         expect(navigationToolForPathname("/drama-lab", null, { includeDramaWorkflowLab: false })).toBeUndefined();
     });
 
+    it("applies role menu permissions to teaching and learning centers", () => {
+        const featureModules = normalizeFeatureModuleSettings(undefined);
+        expect(navigationToolsForContext(context("teacher", false), { featureModules, menuPermissions: ["teaching"] }).map((tool) => tool.slug)).toContain("teaching");
+        expect(navigationToolsForContext(context("teacher", false), { featureModules, menuPermissions: [] }).map((tool) => tool.slug)).not.toContain("teaching");
+        expect(navigationToolsForContext(context("student", false), { featureModules, menuPermissions: ["learning"] }).map((tool) => tool.slug)).toContain("learning");
+        expect(navigationToolsForContext(context("student", false), { featureModules, menuPermissions: [] }).map((tool) => tool.slug)).not.toContain("learning");
+    });
+
+    it("requires both the role menu permission and the global plugin switch", () => {
+        const featureModules = normalizeFeatureModuleSettings({ "creative-agent": false });
+        const tools = navigationToolsForContext(context("student", false), {
+            featureModules,
+            menuPermissions: ["creative-agent", "community", "learning"],
+        });
+        expect(tools.map((tool) => tool.slug)).not.toContain("create");
+        expect(tools.map((tool) => tool.slug)).toContain("community");
+        expect(tools.map((tool) => tool.slug)).toContain("learning");
+        expect(tools.map((tool) => tool.slug)).not.toContain("school");
+    });
+
     it("puts the standalone practice section first and removes empty disabled groups", () => {
         const featureModules = normalizeFeatureModuleSettings({
             "creative-agent": false,

@@ -91,6 +91,10 @@ export async function createUser(input: { username: string; email?: string; emai
                 createdAt: now,
                 updatedAt: now,
             });
+            await client.query(
+                "INSERT INTO rbac_user_role_bindings (user_id, role_key) VALUES ($1, 'normal-user') ON CONFLICT DO NOTHING",
+                [user.id],
+            );
             if (referralCode) {
                 try {
                     await bindReferralRelationshipAfterRegistration(client, {
@@ -190,6 +194,7 @@ export async function createOrdinaryUsersForSchool(schoolId: string, rows: Schoo
                     userId: user.id,
                     role: input.role,
                     permissions: options.firstManager && index === 0 ? ["school.manage"] : [],
+                    isProtectedManager: options.firstManager && index === 0,
                     status: "active",
                     joinSource: options.joinSource || "admin",
                     createdAt: now,
@@ -252,6 +257,7 @@ export async function createOrdinaryUsersForSchool(schoolId: string, rows: Schoo
                                 userId: user.id,
                                 role: inputs[index].role,
                                 permissions: options.firstManager && index === 0 ? ["school.manage"] : [],
+                                isProtectedManager: options.firstManager && index === 0,
                                 status: "active",
                                 joinSource: options.joinSource || "admin",
                                 createdAt: now,
@@ -355,6 +361,10 @@ export async function createFirstAdmin(input: { username: string; email?: string
                 createdAt: now,
                 updatedAt: now,
             });
+            await client.query(
+                "INSERT INTO rbac_user_role_bindings (user_id, role_key, school_id, protected) VALUES ($1, 'platform-superadmin', NULL, true) ON CONFLICT DO NOTHING",
+                [user.id],
+            );
             const record = (await repos.users.getPublicDetails([user.id], { now, date: clock.date }))[0];
             if (!record) throw new AuthInputError("管理员创建失败");
             return publicUserFromAuthenticatedRecord(record, clock.expiresAt);
@@ -433,6 +443,12 @@ export async function createUserByAdmin(input: {
                 createdAt: now,
                 updatedAt: now,
             });
+            if (user.role === "user") {
+                await client.query(
+                    "INSERT INTO rbac_user_role_bindings (user_id, role_key) VALUES ($1, 'normal-user') ON CONFLICT DO NOTHING",
+                    [user.id],
+                );
+            }
             if (pointsBalance) {
                 await adjustPermanentPointsInPostgresTransaction(client, {
                     userId: user.id,

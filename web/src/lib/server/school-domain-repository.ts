@@ -34,6 +34,7 @@ export type SchoolMembershipRecord = {
     userId: string;
     role: SchoolMemberRole;
     permissions: SchoolPermission[];
+    isProtectedManager?: boolean;
     status: SchoolMembershipStatus;
     joinSource: "admin" | "import" | "invite";
     createdAt: string;

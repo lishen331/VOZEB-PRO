@@ -9,7 +9,7 @@ import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-lo
 import { savePaymentProviderConfig } from "@/lib/server/payment-config-store";
 import { getPaymentConfigSummary } from "@/lib/server/payment-config-status";
 import { BillingInputError } from "@/lib/server/billing-errors";
-import { hasAdminPermission } from "@/lib/admin-permissions";
+import { hasAdminPermission, hasAnyAdminPermission } from "@/lib/admin-permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
     const currentUser = await getCurrentUser();
     if (!currentUser) return NextResponse.json({ error: "请先登录" }, { status: 401 });
-    if (!hasAdminPermission(currentUser, "billing.read")) return NextResponse.json({ error: "当前管理员没有查看支付配置的职责权限" }, { status: 403 });
+    if (!hasAnyAdminPermission(currentUser, ["billing.read", "billing.manage"])) return NextResponse.json({ error: "当前管理员没有查看支付配置的职责权限" }, { status: 403 });
 
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
     return NextResponse.json({ paymentConfig: await getPaymentConfigSummary(origin) });

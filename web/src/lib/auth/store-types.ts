@@ -502,6 +502,7 @@ export type PublicUser = {
     avatarUrl?: string;
     role: UserRole;
     adminPermissions: AdminPermission[];
+    adminMenuPermissions?: string[];
     status: UserStatus;
     planId: string;
     planName: string;
@@ -514,6 +515,8 @@ export type PublicUser = {
     createdAt: string;
     updatedAt: string;
     lastLoginAt?: string;
+    /** Read-only tenant identity for platform user operations. */
+    schoolName?: string;
 };
 
 export type PublicUserSummary = {

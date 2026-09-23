@@ -1,4 +1,4 @@
-import { isActivePlatformAdmin } from "@/lib/admin-permissions";
+import { hasAdminPermission } from "@/lib/admin-permissions";
 import { getCurrentUser } from "@/lib/auth/session";
 import { normalizeSchoolMemberRole, type AdminSchoolMemberQuery, type SchoolMemberRole, type SchoolMembershipStatus } from "@/lib/school-domain";
 import { schoolApiError, schoolApiFailure, schoolApiOk } from "@/lib/server/school-api-response";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser();
     if (!user) return schoolApiError(401, "请先登录");
-    if (!isActivePlatformAdmin(user)) return schoolApiError(403, "当前账号没有平台管理员权限");
+    if (!hasAdminPermission(user, "education.manage")) return schoolApiError(403, "当前管理员没有产教运营职责权限");
     const schoolId = (await context.params).id;
     const params = new URL(request.url).searchParams;
     const roleValue = params.get("role");

@@ -101,6 +101,7 @@ describe("admin school member points service", () => {
 
     it("lists school-scoped members with public account and wallet balances", async () => {
         const result = await listSchoolMembersByAdmin("admin-1", "school-1", { page: 1, pageSize: 20, keyword: "1001", role: "student", status: "active" });
+        expect(mocks.requirePlatformAdmin).toHaveBeenCalledWith("admin-1", ["education.manage"]);
         expect(mocks.createSchoolDomainRepository().listMembers).toHaveBeenCalledWith("school-1", { page: 1, pageSize: 20, keyword: "1001", role: "student", status: "active" });
         expect(result.items[0]).toMatchObject({ id: "membership-1", userId: "user-1", accountId: "1001", permanentPoints: 20, dailyPoints: 5, totalPoints: 25, accountStatus: "active" });
     });
@@ -114,6 +115,7 @@ describe("admin school member points service", () => {
         mocks.readJsonDataFile.mockResolvedValue({ users: [user("user-1")], pointRecords: [], dailyPlanPointWallets: [], settings: {} });
         mocks.normalizeDb.mockImplementation((value: unknown) => value);
         const result = await adjustSchoolMemberPointsByAdmin("admin-1", "school-1", "membership-1", { operation: "credit", amount: 12.5, reason: "合同额度修正", idempotencyKey: "adjust-1" });
+        expect(mocks.requirePlatformAdmin).toHaveBeenCalledWith("admin-1", ["education.manage", "billing.manage"]);
         expect(mocks.withJsonDataFileLocks).toHaveBeenCalledWith(["auth.json", "school-domain.json"], expect.any(Function));
         expect(mocks.mutateAuthDb).not.toHaveBeenCalled();
         expect(mocks.adjustPermanentPointsInAuthDb).toHaveBeenCalledWith(

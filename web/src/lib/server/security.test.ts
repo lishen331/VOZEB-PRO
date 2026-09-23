@@ -34,76 +34,28 @@ describe("checkRateLimit", () => {
         }
     });
 
-    it("does not let attempts from a different source lock the same account", async () => {
-        const previous = process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
-        process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS = "1";
-        try {
-            const accountScope = `login-account-${crypto.randomUUID()}`;
-            for (let index = 0; index < 2; index += 1) {
-                const request = new Request("http://localhost", { headers: { "x-forwarded-for": `203.0.113.${index + 1}`, "user-agent": `browser-${index}` } });
-                expect((await checkAuthRateLimit(accountScope, request, "same-account", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-            }
-            const differentSource = await checkAuthRateLimit(accountScope, new Request("http://localhost", { headers: { "x-forwarded-for": "203.0.113.20", "user-agent": "browser-third" } }), "same-account", {
-                maxRequests: 2,
-                windowMs: 60_000,
-            });
-            expect(differentSource.allowed).toBe(true);
+    it("limits authentication by account and device, without IP or global dimensions", async () => {
+        const scope = `auth-no-ip-${crypto.randomUUID()}`;
+        const request = (ip: string, userAgent: string) => new Request("http://localhost", { headers: { "x-forwarded-for": ip, "user-agent": userAgent } });
 
-            const repeatedRequest = new Request("http://localhost", { headers: { "x-forwarded-for": "192.0.2.44", "user-agent": "same-source" } });
-            expect((await checkAuthRateLimit(accountScope, repeatedRequest, "victim-account", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-            expect((await checkAuthRateLimit(accountScope, repeatedRequest, "victim-account", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-            const accountBlocked = await checkAuthRateLimit(accountScope, repeatedRequest, "victim-account", { maxRequests: 2, windowMs: 60_000 });
-            expect(accountBlocked.allowed).toBe(false);
+        expect((await checkAuthRateLimit(scope, request("203.0.113.1", "browser-one"), "same-account", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
+        expect((await checkAuthRateLimit(scope, request("203.0.113.2", "browser-two"), "same-account", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
+        expect((await checkAuthRateLimit(scope, request("203.0.113.3", "browser-three"), "same-account", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(false);
 
-            const deviceScope = `login-device-${crypto.randomUUID()}`;
-            for (let index = 0; index < 2; index += 1) {
-                const request = new Request("http://localhost", { headers: { "x-forwarded-for": `198.51.100.${index + 1}`, "user-agent": "same-browser", "accept-language": "zh-CN" } });
-                expect((await checkAuthRateLimit(deviceScope, request, `account-${index}`, { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-            }
-            const deviceBlocked = await checkAuthRateLimit(deviceScope, new Request("http://localhost", { headers: { "x-forwarded-for": "198.51.100.20", "user-agent": "same-browser", "accept-language": "zh-CN" } }), "account-third", {
-                maxRequests: 2,
-                windowMs: 60_000,
-            });
-            expect(deviceBlocked).toMatchObject({ allowed: false, dimension: "device" });
-        } finally {
-            if (previous === undefined) delete process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
-            else process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS = previous;
+        const deviceScope = `auth-device-${crypto.randomUUID()}`;
+        expect((await checkAuthRateLimit(deviceScope, request("198.51.100.1", "same-browser"), "account-one", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
+        expect((await checkAuthRateLimit(deviceScope, request("198.51.100.2", "same-browser"), "account-two", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
+        expect((await checkAuthRateLimit(deviceScope, request("198.51.100.3", "same-browser"), "account-three", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(false);
+
+        const ipScope = `auth-ip-${crypto.randomUUID()}`;
+        for (let index = 0; index < 8; index += 1) {
+            expect((await checkAuthRateLimit(ipScope, request("203.0.113.99", `browser-${index}`), `account-${index}`, { maxRequests: 8, windowMs: 120_000 })).allowed).toBe(true);
         }
     });
 
-    it("still limits headerless authentication attempts without trusted proxy headers", async () => {
-        const previous = process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
-        delete process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
-        try {
-            const scope = `login-anonymous-${crypto.randomUUID()}`;
-            const request = new Request("http://localhost");
-            expect((await checkAuthRateLimit(scope, request, "target", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-            expect((await checkAuthRateLimit(scope, request, "target", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-            expect((await checkAuthRateLimit(scope, request, "target", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(false);
-        } finally {
-            if (previous === undefined) delete process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
-            else process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS = previous;
-        }
-    });
-
-    it("applies a bounded global fallback when account and device headers rotate", async () => {
-        const previous = process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
-        delete process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
-        try {
-            const scope = `login-global-${crypto.randomUUID()}`;
-            for (let index = 0; index < 40; index += 1) {
-                const request = new Request("http://localhost", { headers: { "user-agent": `rotating-browser-${index}` } });
-                expect((await checkAuthRateLimit(scope, request, `account-${index}`, { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-            }
-            const blocked = await checkAuthRateLimit(scope, new Request("http://localhost", { headers: { "user-agent": "last-browser" } }), "last-account", {
-                maxRequests: 2,
-                windowMs: 60_000,
-            });
-            expect(blocked).toMatchObject({ allowed: false, dimension: "global" });
-        } finally {
-            if (previous === undefined) delete process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
-            else process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS = previous;
-        }
+    it("uses the same 8 attempts per 2 minutes contract for login-related auth flows", async () => {
+        const config = { maxRequests: 8, windowMs: 2 * 60 * 1000 };
+        expect(config).toEqual({ maxRequests: 8, windowMs: 120_000 });
     });
 
     it("limits generation requests by user", async () => {

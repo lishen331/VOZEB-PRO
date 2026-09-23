@@ -39,9 +39,6 @@ export type UserEditorValue = {
     displayName: string;
     email?: string;
     password?: string;
-    role: UserRole;
-    adminPermissions: PublicUser["adminPermissions"];
-    permissionPreset?: string;
     status: UserStatus;
     pointsBalance: number;
 };
