@@ -109,7 +109,7 @@ export async function getSchoolCourseTree(userId: string, assignmentId: string) 
     if (!context.canManageSchool && !(await repository.hasVisibleCourseAssignment(context.school.id, context.membership.id, context.membership.role, assignmentId))) throw new SchoolServiceError(404, "学校课程不存在");
     const tree = await repository.getPlatformCourseTree(course.id, { schoolCourseAssignmentId: assignmentId });
     if (!tree) throw new SchoolServiceError(404, "学校课程不存在");
-    return { ...tree, ...deriveCourseContentFields((tree.content as Record<string, unknown>) || {}) };
+    return withAssignmentCover({ ...tree, ...deriveCourseContentFields((tree.content as Record<string, unknown>) || {}) }, assignmentId);
 }
 
 export async function createPlatformChapter(actorId: string, courseId: string, input: { title: string; description?: string; sortOrder?: number }) {
@@ -326,7 +326,7 @@ export async function listSchoolCourses(userId: string, input: { page?: number; 
     const items = await Promise.all(
         result.items.map(async (assignment) => {
             const course = await repository.getPlatformCourse(assignment.courseId);
-            return course ? ({ ...assignment, course: toPlatformCourse(course) } satisfies SchoolCourseAssignment) : null;
+            return course ? ({ ...assignment, course: withAssignmentCover(toPlatformCourse(course), assignment.id) } satisfies SchoolCourseAssignment) : null;
         }),
     );
     return { ...result, items: items.filter((item): item is SchoolCourseAssignment => Boolean(item)) };
@@ -386,7 +386,7 @@ export async function listTeachingCourses(userId: string, input: { page?: number
     const items = await Promise.all(
         result.items.map(async (assignment) => {
             const course = await repository.getPlatformCourse(assignment.courseId);
-            return course ? ({ ...assignment, course: toPlatformCourse(course) } satisfies SchoolCourseAssignment) : null;
+            return course ? ({ ...assignment, course: withAssignmentCover(toPlatformCourse(course), assignment.id) } satisfies SchoolCourseAssignment) : null;
         }),
     );
     return { ...result, items: items.filter((item): item is SchoolCourseAssignment => Boolean(item)) };
@@ -702,6 +702,13 @@ function deriveCourseContentFields(content: Record<string, unknown>) {
         ...(category ? { category } : {}),
         ...(validUntil ? { validUntil } : {}),
     };
+}
+
+// School-scoped viewers (students/teachers) cannot read the raw reference-asset
+// cover URL — that media is private to the admin who uploaded it. Point their
+// coverUrl at the assignment-scoped route, which authorizes by course visibility.
+function withAssignmentCover<T extends PlatformCourse>(course: T, assignmentId: string): T {
+    return course.coverUrl ? { ...course, coverUrl: `/api/school/courses/${encodeURIComponent(assignmentId)}/cover` } : course;
 }
 
 function toPlatformCourse(record: PlatformCourseRecord): PlatformCourse {
