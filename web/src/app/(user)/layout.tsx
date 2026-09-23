@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
 import { AuthUserHydrator } from "@/components/auth/auth-user-hydrator";
+import { resolveLandingSlug } from "@/constant/navigation-tools";
 import { AppWorkspaceShell } from "@/components/layout/app-workspace-shell";
 import { SchoolContextHydrator } from "@/components/school/school-context-hydrator";
 import { getSchoolContextForUser } from "@/lib/server/school-access-service";
@@ -29,7 +30,10 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
     const activeSchoolId = schoolContext?.school.status === "active" && schoolContext.membership.status === "active" ? schoolContext.school.id : undefined;
     const [featureModules, menuPermissions] = await Promise.all([getFreshAuthSettings().then((settings) => settings.featureModules), getUserNavigationMenuPermissions(user.id, activeSchoolId)]);
     const requestedPath = (await headers()).get("x-vozeb-login-next")?.split("?")[0] || "";
-    if (requestedPath && !isUserNavigationPathAllowed(requestedPath, menuPermissions, featureModules, schoolContext)) redirect("/create");
+    if (requestedPath && !isUserNavigationPathAllowed(requestedPath, menuPermissions, featureModules, schoolContext)) {
+        const landingSlug = resolveLandingSlug(schoolContext, { featureModules, menuPermissions });
+        redirect(landingSlug ? `/${landingSlug}` : "/");
+    }
 
     return (
         <AuthUserHydrator

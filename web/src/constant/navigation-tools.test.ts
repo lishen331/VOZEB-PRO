@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SchoolContext } from "@/lib/school-domain";
 
-import { landingNavigationTools, navigationGroups, navigationToolForPathname, navigationTools, navigationToolsForContext, roleNavigationOverview, schoolNavigationTools } from "./navigation-tools";
+import { landingNavigationTools, navigationGroups, navigationToolForPathname, navigationTools, navigationToolsForContext, resolveLandingSlug, roleNavigationOverview, schoolNavigationTools } from "./navigation-tools";
 import { normalizeFeatureModuleSettings } from "@/lib/feature-modules";
 
 describe("user navigation order", () => {
@@ -62,6 +62,14 @@ describe("user navigation order", () => {
         expect(navigationToolsForContext(context("teacher", false), { featureModules, menuPermissions: [] }).map((tool) => tool.slug)).not.toContain("teaching");
         expect(navigationToolsForContext(context("student", false), { featureModules, menuPermissions: ["learning"] }).map((tool) => tool.slug)).toContain("learning");
         expect(navigationToolsForContext(context("student", false), { featureModules, menuPermissions: [] }).map((tool) => tool.slug)).not.toContain("learning");
+    });
+
+    it("lands on the first visible menu when Agent is not permitted", () => {
+        const featureModules = normalizeFeatureModuleSettings(undefined);
+        const menuPermissions = ["canvas", "community"] as const;
+
+        expect(navigationToolsForContext(null, { featureModules, menuPermissions }).map((tool) => tool.slug)).not.toContain("create");
+        expect(resolveLandingSlug(null, { featureModules, menuPermissions })).toBe("canvas");
     });
 
     it("requires both the role menu permission and the global plugin switch", () => {
