@@ -255,7 +255,11 @@ function jsonArray(value: unknown): unknown[] {
 }
 
 function toRole(row: RbacRoleRow): PlatformRbacRole {
-    const all = USER_NAVIGATION_ROLE_KEYS.includes(row.role_key as UserNavigationRoleKey) ? normalizeUserNavigationMenuPermissions(jsonArray(row.permissions)) : row.scope === "platform" ? normalizePlatformMenuPermissions(jsonArray(row.permissions)) : jsonArray(row.permissions);
+    const all = USER_NAVIGATION_ROLE_KEYS.includes(row.role_key as UserNavigationRoleKey)
+        ? normalizeUserNavigationMenuPermissions(jsonArray(row.permissions))
+        : row.scope === "platform"
+          ? normalizePlatformMenuPermissions(jsonArray(row.permissions))
+          : jsonArray(row.permissions);
     return {
         key: row.role_key,
         name: row.name,

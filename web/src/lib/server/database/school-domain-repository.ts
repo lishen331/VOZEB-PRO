@@ -1180,7 +1180,6 @@ function mapSchool(row: Record<string, unknown>): SchoolRecord {
     return { id: stringValue(row.id), name: stringValue(row.name), profile: jsonValue(row.profile), status: schoolStatus(row.status), createdAt: isoValue(row.created_at), updatedAt: isoValue(row.updated_at) };
 }
 
-
 async function syncSchoolRoleBindings(db: QueryExecutor, membership: SchoolMembershipRecord) {
     await db.query("DELETE FROM rbac_user_role_bindings WHERE user_id = $1 AND school_id = $2 AND role_key IN ('teacher', 'student')", [membership.userId, membership.schoolId]);
     await db.query("INSERT INTO rbac_user_role_bindings (user_id, role_key, school_id, protected) VALUES ($1, $2, $3, false) ON CONFLICT DO NOTHING", [membership.userId, membership.role, membership.schoolId]);

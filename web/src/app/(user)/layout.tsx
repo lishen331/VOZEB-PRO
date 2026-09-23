@@ -55,7 +55,9 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
             }}
         >
             <SchoolContextHydrator context={schoolContext}>
-                <AppWorkspaceShell featureModules={featureModules} menuPermissions={menuPermissions}>{children}</AppWorkspaceShell>
+                <AppWorkspaceShell featureModules={featureModules} menuPermissions={menuPermissions}>
+                    {children}
+                </AppWorkspaceShell>
             </SchoolContextHydrator>
         </AuthUserHydrator>
     );

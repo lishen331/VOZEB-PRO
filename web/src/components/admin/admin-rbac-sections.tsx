@@ -200,16 +200,20 @@ export function AdminRoleManagementSection({ active }: { active: boolean }) {
                     <Form.Item label="角色名称" name="name" rules={[{ required: true, message: "请输入角色名称" }]}>
                         <Input maxLength={50} disabled={Boolean(editing && isDefaultRole(editing))} />
                     </Form.Item>
-                    <Form.Item label={isUserNavigationRoleKey(editing?.key) ? "前台菜单权限" : editing?.scope === "school" ? "学校权限" : "菜单权限"} name="permissions" rules={creating || editing?.scope === "platform" || isUserNavigationRoleKey(editing?.key) ? [{ required: true, message: "请选择至少一项权限" }] : []}>
-                            <Tree
-                                checkable
-                                checkStrictly
-                                defaultExpandAll
-                                checkedKeys={treeCheckState}
-                                treeData={permissionTree as never}
-                                onCheck={(_, info) => form.setFieldValue("permissions", updatePermissionTreeSelection(permissionTree, selectedPermissions, String(info.node.key), info.checked))}
-                            />
-                        </Form.Item>
+                    <Form.Item
+                        label={isUserNavigationRoleKey(editing?.key) ? "前台菜单权限" : editing?.scope === "school" ? "学校权限" : "菜单权限"}
+                        name="permissions"
+                        rules={creating || editing?.scope === "platform" || isUserNavigationRoleKey(editing?.key) ? [{ required: true, message: "请选择至少一项权限" }] : []}
+                    >
+                        <Tree
+                            checkable
+                            checkStrictly
+                            defaultExpandAll
+                            checkedKeys={treeCheckState}
+                            treeData={permissionTree as never}
+                            onCheck={(_, info) => form.setFieldValue("permissions", updatePermissionTreeSelection(permissionTree, selectedPermissions, String(info.node.key), info.checked))}
+                        />
+                    </Form.Item>
                 </Form>
             </Modal>
         </Panel>

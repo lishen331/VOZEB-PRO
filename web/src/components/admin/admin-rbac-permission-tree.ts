@@ -2,7 +2,7 @@ export type PermissionTreeNode = { key: string; children?: readonly PermissionTr
 
 export function permissionTreeCheckState(tree: readonly PermissionTreeNode[], permissions: readonly string[]) {
     const leafKeys = new Set<string>();
-    const collectLeafKeys = (nodes: readonly PermissionTreeNode[]) => nodes.forEach((node) => node.children?.length ? collectLeafKeys(node.children) : leafKeys.add(node.key));
+    const collectLeafKeys = (nodes: readonly PermissionTreeNode[]) => nodes.forEach((node) => (node.children?.length ? collectLeafKeys(node.children) : leafKeys.add(node.key)));
     collectLeafKeys(tree);
     const selected = new Set(permissions.filter((key) => leafKeys.has(key)));
     const checked = [...selected];
@@ -32,9 +32,9 @@ export function updatePermissionTreeSelection(tree: readonly PermissionTreeNode[
     tree.forEach(visit);
     if (!target) return permissions.filter((key) => leafKeys.includes(key));
     const targetLeafKeys: string[] = [];
-    const collectTargetLeafKeys = (node: PermissionTreeNode) => node.children?.length ? node.children.forEach(collectTargetLeafKeys) : targetLeafKeys.push(node.key);
+    const collectTargetLeafKeys = (node: PermissionTreeNode) => (node.children?.length ? node.children.forEach(collectTargetLeafKeys) : targetLeafKeys.push(node.key));
     collectTargetLeafKeys(target);
     const next = new Set(permissions.filter((key) => leafKeys.includes(key)));
-    targetLeafKeys.forEach((key) => checked ? next.add(key) : next.delete(key));
+    targetLeafKeys.forEach((key) => (checked ? next.add(key) : next.delete(key)));
     return leafKeys.filter((key) => next.has(key));
 }

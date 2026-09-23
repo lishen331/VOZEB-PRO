@@ -38,11 +38,7 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
     const landingSlug = resolveLandingSlug(schoolContext, { featureModules: effectiveFeatureModules, menuPermissions });
     const homePath = landingSlug ? `/${landingSlug}` : "/help";
     const siteTitle = resolveSiteTitle(site.title);
-    const tool = navigationToolForPathname(
-        pathname,
-        schoolContext,
-        { featureModules: effectiveFeatureModules, menuPermissions },
-    );
+    const tool = navigationToolForPathname(pathname, schoolContext, { featureModules: effectiveFeatureModules, menuPermissions });
     const fullscreen = isFullscreenWorkspacePath(pathname);
     const rootSlug = pathname.split("/").filter(Boolean)[0] || "";
     const pageTitle = tool?.label || PAGE_TITLES[rootSlug] || "工作空间";

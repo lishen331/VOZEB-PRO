@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     requireSchoolManager: vi.fn(),
-    getPublicUsersByIds: vi.fn(), updateUserByAdmin: vi.fn(),
+    getPublicUsersByIds: vi.fn(),
+    updateUserByAdmin: vi.fn(),
     createSchoolWithAdministrator: vi.fn(),
     getSchool: vi.fn(),
     getMembership: vi.fn(),
@@ -163,11 +164,7 @@ describe("school tenant service", () => {
     it("updates the first school administrator without changing a blank password", async () => {
         const adminUser = { id: "education-admin", role: "admin", status: "active", adminPermissions: ["education.manage"] };
         const administratorUser = { id: "manager-user", accountId: "0007", username: "teacher_a", displayName: "旧管理员", email: "old@example.com" };
-        mocks.getPublicUsersByIds
-            .mockResolvedValueOnce([adminUser])
-            .mockResolvedValueOnce([administratorUser])
-            .mockResolvedValueOnce([adminUser])
-            .mockResolvedValueOnce([administratorUser]);
+        mocks.getPublicUsersByIds.mockResolvedValueOnce([adminUser]).mockResolvedValueOnce([administratorUser]).mockResolvedValueOnce([adminUser]).mockResolvedValueOnce([administratorUser]);
         mocks.listFirstManagers.mockResolvedValue([{ ...member("manager-a", "teacher", ["school.manage"]), userId: "manager-user" }]);
         mocks.updateSchool.mockResolvedValue({ id: "school-a", name: "甲学校", profile: {}, status: "active", createdAt: now, updatedAt: now });
 
@@ -176,12 +173,7 @@ describe("school tenant service", () => {
             administrator: { username: "teacher_a", displayName: "新管理员", email: "new@example.com", password: "" },
         });
 
-        expect(mocks.updateUserByAdmin).toHaveBeenCalledWith(
-            "education-admin",
-            "manager-user",
-            { displayName: "新管理员", email: "new@example.com", password: "" },
-            { requiredPermission: "education.manage" },
-        );
+        expect(mocks.updateUserByAdmin).toHaveBeenCalledWith("education-admin", "manager-user", { displayName: "新管理员", email: "new@example.com", password: "" }, { requiredPermission: "education.manage" });
     });
 
     it("does not let a school manager change the platform-controlled school status", async () => {
@@ -234,7 +226,6 @@ describe("school tenant service", () => {
         expect(mocks.updateMembership).not.toHaveBeenCalled();
         expect(mocks.deleteMembership).not.toHaveBeenCalled();
     });
-
 });
 
 function managerContext() {

@@ -304,9 +304,18 @@ describe("PostgreSQL school domain repository", () => {
         const otherAssignmentId = id("readable-other-assignment");
 
         await postgresQuery("INSERT INTO users (id, username, display_name, password_hash) VALUES ($1, $2, $3, $4), ($5, $6, $7, $8), ($9, $10, $11, $12)", [
-            id("readable-teacher-user"), `repo_readable_teacher_${suffix.replaceAll("-", "").slice(0, 10)}`, "可读老师", "integration-test-only",
-            id("readable-student-user"), `repo_readable_student_${suffix.replaceAll("-", "").slice(0, 10)}`, "可读学生", "integration-test-only",
-            id("readable-other-student-user"), `repo_readable_other_${suffix.replaceAll("-", "").slice(0, 10)}`, "外校学生", "integration-test-only",
+            id("readable-teacher-user"),
+            `repo_readable_teacher_${suffix.replaceAll("-", "").slice(0, 10)}`,
+            "可读老师",
+            "integration-test-only",
+            id("readable-student-user"),
+            `repo_readable_student_${suffix.replaceAll("-", "").slice(0, 10)}`,
+            "可读学生",
+            "integration-test-only",
+            id("readable-other-student-user"),
+            `repo_readable_other_${suffix.replaceAll("-", "").slice(0, 10)}`,
+            "外校学生",
+            "integration-test-only",
         ]);
         await repository.insertSchool(school(schoolId, "可读学校"));
         await repository.insertSchool(school(otherSchoolId, "其他学校"));

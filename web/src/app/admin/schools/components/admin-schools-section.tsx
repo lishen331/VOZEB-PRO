@@ -341,14 +341,14 @@ function SchoolEditorForm({ form, editing, onFinish }: { form: FormInstance<Scho
                         <Form.Item label="初始密码" name="administratorPassword" extra="留空则不修改密码">
                             <Input.Password autoComplete="new-password" />
                         </Form.Item>
-                    <Form.Item label="学校状态" name="status" className="sm:col-span-2">
-                        <Select
-                            options={[
-                                { value: "active", label: "可用" },
-                                { value: "disabled", label: "停用" },
-                            ]}
-                        />
-                    </Form.Item>
+                        <Form.Item label="学校状态" name="status" className="sm:col-span-2">
+                            <Select
+                                options={[
+                                    { value: "active", label: "可用" },
+                                    { value: "disabled", label: "停用" },
+                                ]}
+                            />
+                        </Form.Item>
                     </>
                 ) : (
                     <>

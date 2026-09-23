@@ -268,7 +268,11 @@ function MembersPanel() {
     const columns: TableColumnsType<SchoolMember> = [
         { title: "成员", render: (_, member) => <MemberIdentity member={member} /> },
         { title: "身份", dataIndex: "role", width: 100, render: (_, member) => (member.isProtectedManager ? "学校超管" : roleLabel(member.role)) },
-        { title: "权限", width: 130, render: (_, member) => (member.isProtectedManager ? <Tag color="purple">学校超管</Tag> : member.permissions.includes("school.manage") ? <Tag color="blue">学校管理员</Tag> : <span className="text-zinc-400">普通成员</span>) },
+        {
+            title: "权限",
+            width: 130,
+            render: (_, member) => (member.isProtectedManager ? <Tag color="purple">学校超管</Tag> : member.permissions.includes("school.manage") ? <Tag color="blue">学校管理员</Tag> : <span className="text-zinc-400">普通成员</span>),
+        },
         { title: "状态", dataIndex: "status", width: 90, render: (value: SchoolMembershipStatus) => <StatusTag status={value} /> },
         { title: "操作", width: 280, align: "right", render: (_, member) => memberActions(member) },
     ];

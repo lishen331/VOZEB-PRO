@@ -19,7 +19,9 @@ export async function PATCH(request: Request, context: Context) {
         const administrator = await updatePlatformAdministrator(user.id, id, await readJsonBody<{ displayName?: unknown; email?: unknown; password?: unknown; roleKey?: unknown; status?: unknown }>(request));
         await safeRecordAuditLog({ action: "admin.rbac.administrator.update", actor: auditActorFromRequest(request, user), target: { type: "user", id, label: administrator.username } });
         return NextResponse.json({ administrator });
-    } catch (error) { return failure(error, "更新管理员失败"); }
+    } catch (error) {
+        return failure(error, "更新管理员失败");
+    }
 }
 
 export async function DELETE(request: Request, context: Context) {
@@ -31,7 +33,9 @@ export async function DELETE(request: Request, context: Context) {
         await deletePlatformAdministrator(user.id, id);
         await safeRecordAuditLog({ action: "admin.rbac.administrator.delete", actor: auditActorFromRequest(request, user), target: { type: "user", id } });
         return NextResponse.json({ ok: true });
-    } catch (error) { return failure(error, "删除管理员失败"); }
+    } catch (error) {
+        return failure(error, "删除管理员失败");
+    }
 }
 
 function failure(error: unknown, fallback: string) {

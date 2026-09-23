@@ -165,5 +165,4 @@ export function allowedAdminSections(user: { role?: unknown; status?: unknown; a
 export function resolveAdminSection(user: { role?: unknown; status?: unknown; adminPermissions?: unknown; adminMenuPermissions?: unknown }, requested: AdminSectionKey) {
     if (canAccessAdminSection(user, requested)) return requested;
     return allowedAdminSections(user)[0];
-
 }

@@ -186,7 +186,10 @@ export async function listPublicUsersPage(input?: { page?: number; pageSize?: nu
             : [];
         const schoolNames = new Map(schoolRows.map((row) => [row.user_id, row.school_name]));
         return {
-            users: result.items.map((user) => usersById.get(user.id)).filter((user): user is PublicUser => Boolean(user)).map((user) => ({ ...user, schoolName: schoolNames.get(user.id) })),
+            users: result.items
+                .map((user) => usersById.get(user.id))
+                .filter((user): user is PublicUser => Boolean(user))
+                .map((user) => ({ ...user, schoolName: schoolNames.get(user.id) })),
             total: result.total,
             page: result.page,
             pageSize: result.pageSize,

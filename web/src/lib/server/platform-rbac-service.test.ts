@@ -108,19 +108,9 @@ describe("platform RBAC role invariants", () => {
         await updatePlatformRbacRole("platform-superadmin", { permissions: ["admin.menu.users", "admin.menu.roleManagement"] });
 
         const roleUpdate = client.query.mock.calls.find(([sql]) => String(sql).includes("UPDATE rbac_roles SET"));
-        expect(roleUpdate?.[1]).toEqual([
-            "platform-superadmin",
-            "Platform Superadmin",
-            JSON.stringify(["admin.menu.roleManagement", "admin.menu.users"]),
-            "active",
-            expect.any(String),
-        ]);
+        expect(roleUpdate?.[1]).toEqual(["platform-superadmin", "Platform Superadmin", JSON.stringify(["admin.menu.roleManagement", "admin.menu.users"]), "active", expect.any(String)]);
         const userUpdate = client.query.mock.calls.find(([sql]) => String(sql).includes("UPDATE users user_record SET"));
-        expect(userUpdate?.[1]).toEqual([
-            "platform-superadmin",
-            JSON.stringify(["administrators.manage", "users.read", "users.manage"]),
-            expect.any(String),
-        ]);
+        expect(userUpdate?.[1]).toEqual(["platform-superadmin", JSON.stringify(["administrators.manage", "users.read", "users.manage"]), expect.any(String)]);
     });
 
     it("treats the former platform-admin role as a normal editable role", async () => {
