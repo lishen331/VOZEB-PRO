@@ -233,6 +233,11 @@
     width: 18px;
 }
 
+.primarySmallAction {
+    display: contents;
+    margin: 0;
+}
+
 .primarySmallButton {
     align-items: center;
     border-radius: 16px;
@@ -1036,7 +1041,7 @@
     .brand {
         font-size: 15px;
     }
-    .headerActions > .primarySmallButton {
+    .headerActions > .primarySmallAction > .primarySmallButton {
         display: none;
     }
     .themeButton,
