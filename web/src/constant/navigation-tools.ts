@@ -189,7 +189,9 @@ export function navigationToolsForContext(context: SchoolContext | null = null, 
     const candidates = [...(schoolTools.length ? [practiceNavigationTool] : []), ...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool, oneClickFilmNavigationTool]), ...schoolTools];
     return candidates.filter((tool) => {
         const featureModule = featureModuleForNavigationSlug(tool.slug);
-        const menuAllowed = !options.menuPermissions || (featureModule !== undefined && isUserNavigationMenuPermission(featureModule) && options.menuPermissions.includes(featureModule));
+        // School management is authorized by the active teacher's school.manage
+        // capability in schoolNavigationTools, rather than a foreground menu item.
+        const menuAllowed = !options.menuPermissions || !featureModule || !isUserNavigationMenuPermission(featureModule) || options.menuPermissions.includes(featureModule);
         return (!featureModule || options.featureModules?.[featureModule] !== false) && menuAllowed;
     });
 }

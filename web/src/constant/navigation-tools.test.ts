@@ -60,6 +60,8 @@ describe("user navigation order", () => {
         const featureModules = normalizeFeatureModuleSettings(undefined);
         expect(navigationToolsForContext(context("teacher", false), { featureModules, menuPermissions: ["teaching"] }).map((tool) => tool.slug)).toContain("teaching");
         expect(navigationToolsForContext(context("teacher", false), { featureModules, menuPermissions: [] }).map((tool) => tool.slug)).not.toContain("teaching");
+        expect(navigationToolsForContext(context("teacher", true), { featureModules, menuPermissions: ["teaching"] }).map((tool) => tool.slug)).toContain("school");
+        expect(navigationToolsForContext(context("teacher", true), { featureModules: normalizeFeatureModuleSettings({ "school-management": false }), menuPermissions: ["teaching"] }).map((tool) => tool.slug)).not.toContain("school");
         expect(navigationToolsForContext(context("student", false), { featureModules, menuPermissions: ["learning"] }).map((tool) => tool.slug)).toContain("learning");
         expect(navigationToolsForContext(context("student", false), { featureModules, menuPermissions: [] }).map((tool) => tool.slug)).not.toContain("learning");
     });
