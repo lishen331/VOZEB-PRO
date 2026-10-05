@@ -1,5 +1,6 @@
 ﻿import type { SystemModelChannel } from "@/lib/auth/store";
 import { recordChannelRuntimeFailure, recordChannelRuntimeSuccess } from "@/lib/server/channel-runtime-health";
+import { CHANNEL_SATURATED_MESSAGE, releaseChannelReservations, reserveChannelSlot } from "@/lib/server/channel-concurrency";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { buildProviderRequest, isProviderBusinessError, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
@@ -14,7 +15,7 @@ export type TextPlanningCandidate = {
     channelId: string;
     upstreamModel: string;
     channel: SystemModelChannel;
-    capabilityProfile?: { timeoutMs?: number };
+    capabilityProfile?: { timeoutMs?: number; concurrencyLimit?: number };
 };
 export type TextPlanningTool = { name: string; description: string; parameters: Record<string, unknown> };
 export type TextPlanningCall = { arguments: string; headers: Headers; protocol: TextPlanningProtocol; elapsedMs: number; transport?: "stream" | "complete"; fallbackReason?: string };
@@ -101,7 +102,24 @@ export function preferredTextPlanningProtocol(candidate: TextPlanningCandidate):
     return planningProtocolRequest(candidate, [], "json").protocol;
 }
 
+/** Holds one channel slot for the whole synchronous call; a saturated channel is skipped without cooling it. */
 export async function requestStructuredText(input: StructuredTextRequest): Promise<TextPlanningCall> {
+    const limit = input.candidate.capabilityProfile?.concurrencyLimit;
+    if (!limit) return requestStructuredTextUnreserved(input);
+    const reservationId = `planning:${crypto.randomUUID()}`;
+    if (!(await reserveChannelSlot("text", input.candidate.channelId, input.candidate.upstreamModel, reservationId, limit))) throw new TextPlanningRequestError(CHANNEL_SATURATED_MESSAGE, 429, true);
+    try {
+        return await requestStructuredTextUnreserved(input);
+    } finally {
+        try {
+            await releaseChannelReservations([reservationId]);
+        } catch (error) {
+            console.error("Channel reservation release failed", { reservationId, error });
+        }
+    }
+}
+
+async function requestStructuredTextUnreserved(input: StructuredTextRequest): Promise<TextPlanningCall> {
     const startedAt = Date.now();
     const messages = planningMessages(input);
     const requests = planningProtocolRequests(input, messages);
@@ -114,7 +132,7 @@ export async function requestStructuredText(input: StructuredTextRequest): Promi
                 return await readStructuredResponse(input, request, response, startedAt);
             } catch (error) {
                 if (input.stream && input.streamFallback !== false && index === 0 && shouldFallbackFromStream(error)) {
-                    const fallback = await requestStructuredText({ ...input, stream: false, streamFallback: false });
+                    const fallback = await requestStructuredTextUnreserved({ ...input, stream: false, streamFallback: false });
                     return { ...fallback, fallbackReason: error instanceof Error ? error.message : "上游不支持流式规划" };
                 }
                 if (index === requests.length - 1 || (!shouldFallbackFromNativeTool(error, request) && !shouldRepairStructuredResponse(error, request))) throw error;

@@ -1,4 +1,5 @@
 import { recordMediaTaskEvent } from "./media-task-trace";
+import { releaseTerminalTaskReservations } from "./channel-concurrency";
 import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { resolveGenerationReviewReason } from "@/lib/server/generation-task-review-reason";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
@@ -677,6 +678,7 @@ export async function transitionStoredGenerationTask<T extends { id: string; use
     executionPatch?: import("@/lib/server/generation-task-scheduler").GenerationTaskSchedulePatch,
 ): Promise<T | null> {
     const result = await transitionStoredGenerationTaskObserved(type, id, userId, allowedStatuses, patch, ttlMs, executionPatch);
+    await releaseTerminalTaskReservations(result);
     if (result && (type === "image" || type === "video")) await recordMediaTaskEvent(type, result, { phase: "state", state: result.status, errorMessage: "error" in patch ? patch.error : undefined });
     return result;
 }
@@ -757,6 +759,12 @@ async function transitionStoredGenerationTaskObserved<T extends { id: string; us
 }
 
 export async function mutateStoredGenerationTask<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(type: GenerationTaskType, id: string, ttlMs: number, mutate: (current: T) => T | null): Promise<T | null> {
+    const result = await mutateStoredGenerationTaskUnreleased<T>(type, id, ttlMs, mutate);
+    await releaseTerminalTaskReservations(result);
+    return result;
+}
+
+async function mutateStoredGenerationTaskUnreleased<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(type: GenerationTaskType, id: string, ttlMs: number, mutate: (current: T) => T | null): Promise<T | null> {
     const updatedAt = Date.now();
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();

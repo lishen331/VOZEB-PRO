@@ -2,6 +2,7 @@ import type { AuthSettings, LogicalModelCapability, SystemModelChannel } from "@
 import { channelModelCapability, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
 import { channelSupportsModel, rawModelName } from "./generation-channel";
 import { filterHealthyRuntimeCandidates } from "./channel-runtime-health";
+import { channelHasCapacity } from "./channel-concurrency";
 import { channelConnectionReady } from "@/lib/channel-protocol-registry";
 import { resolvePracticeModelAccess, type PracticeExecutionProfile } from "@/lib/practice-domain";
 
@@ -46,14 +47,26 @@ export function resolveLogicalModelCandidates(
         // Text planning tracks health per channel + upstream model in
         // text-planning-runtime. A channel-level cooldown must not hide a healthy
         // backup text model that shares the same gateway.
-        return capability === "text" ? resolved : filterHealthyRuntimeCandidates(resolved, capability);
+        const healthy = capability === "text" ? resolved : filterHealthyRuntimeCandidates(resolved, capability);
+        return filterAvailableConcurrencyCandidates(healthy, capability);
     }
     if (settings.logicalModels.length) return [];
     const ordered = preferredChannelId ? [...settings.systemChannels.filter((channel) => channel.id === preferredChannelId), ...settings.systemChannels.filter((channel) => channel.id !== preferredChannelId)] : settings.systemChannels;
     const resolved = ordered
         .filter((item) => item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item.models, requested) && channelModelCapability(item, requested) === capability)
         .map((channel) => ({ logicalModelId: requested, upstreamModel: requested, channelId: channel.id, channel, capabilityProfile: resolveLogicalModelCapabilityProfile({}, capability, channel, requested) }));
-    return capability === "text" ? resolved : filterHealthyRuntimeCandidates(resolved, capability);
+    const healthy = capability === "text" ? resolved : filterHealthyRuntimeCandidates(resolved, capability);
+    return filterAvailableConcurrencyCandidates(healthy, capability);
+}
+
+// Skip channels already at their upstream concurrency quota so callers fail over
+// to the next candidate instead of queueing. All candidates saturated keeps the
+// first one, mirroring filterHealthyRuntimeCandidates, so the caller still gets a
+// candidate to attempt rather than an empty list it would report as "no model".
+function filterAvailableConcurrencyCandidates(candidates: ResolvedLogicalModel[], capability: LogicalModelCapability) {
+    if (candidates.length < 2) return candidates;
+    const available = candidates.filter((candidate) => channelHasCapacity(capability, candidate.channelId, candidate.upstreamModel, candidate.capabilityProfile?.concurrencyLimit));
+    return available.length ? available : candidates;
 }
 
 export function resolveVisionModelCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, requestedModelId: string, preferredChannelId = "", executionProfile: PracticeExecutionProfile = "production"): ResolvedLogicalModel[] {

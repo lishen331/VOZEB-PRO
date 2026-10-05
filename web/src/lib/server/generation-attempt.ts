@@ -1,5 +1,6 @@
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import { recordChannelRuntimeFailure, recordChannelRuntimeSuccess } from "./channel-runtime-health";
+import { releaseChannelReservations, renewChannelReservations, reserveChannelSlot } from "./channel-concurrency";
 
 export type GenerationAttempt = {
     attemptNo: number;
@@ -12,11 +13,29 @@ export type GenerationAttempt = {
     billingReceiptId?: string;
     error?: string;
     capability?: LogicalModelCapability;
+    reservationId?: string;
 };
 
-export function startGenerationAttempt(attempts: GenerationAttempt[] | undefined, input: Pick<GenerationAttempt, "channelId" | "model" | "capability">) {
-    const attempt: GenerationAttempt = { attemptNo: (attempts?.length || 0) + 1, ...input, status: "running", startedAt: Date.now() };
+export function nextGenerationAttemptNo(attempts: GenerationAttempt[] | undefined) {
+    return (attempts?.length || 0) + 1;
+}
+
+/** One reservation per attempt, so releasing an old attempt can never free a newer one. */
+export function generationReservationId(scope: string, ownerId: string, attemptNo: number) {
+    return `${scope}:${ownerId}#${attemptNo}`;
+}
+
+export function startGenerationAttempt(attempts: GenerationAttempt[] | undefined, input: Pick<GenerationAttempt, "channelId" | "model" | "capability"> & { reservationId?: string }) {
+    const { reservationId, ...attemptInput } = input;
+    const attempt: GenerationAttempt = { attemptNo: nextGenerationAttemptNo(attempts), ...attemptInput, status: "running", startedAt: Date.now() };
+    if (reservationId) attempt.reservationId = reservationId;
     return { attempt, attempts: [...(attempts || []), attempt] };
+}
+
+/** `upstreamModel` must be the provider's model name (`config.model`), not the logical model ID. */
+export async function reserveGenerationAttemptSlot(input: { capability: LogicalModelCapability; channelId?: string; upstreamModel: string; reservationId: string; concurrencyLimit?: number }) {
+    if (!input.channelId || !input.concurrencyLimit) return true;
+    return reserveChannelSlot(input.capability, input.channelId, input.upstreamModel, input.reservationId, input.concurrencyLimit);
 }
 
 export function finishGenerationAttempt(attempts: GenerationAttempt[], attemptNo: number, patch: Pick<GenerationAttempt, "status"> & Partial<Pick<GenerationAttempt, "completedAt" | "pointsCost" | "billingReceiptId" | "error">>) {
@@ -27,6 +46,29 @@ export function finishGenerationAttempt(attempts: GenerationAttempt[], attemptNo
             if (patch.status === "succeeded") recordChannelRuntimeSuccess(attempt.channelId, attempt.capability, completed.completedAt);
             if (patch.status === "failed") recordChannelRuntimeFailure(attempt.channelId, attempt.capability, patch.error, completed.completedAt);
         }
+        if (attempt.status === "running" && attempt.reservationId) void releaseGenerationReservations([attempt.reservationId]);
         return completed;
     });
+}
+
+/** Never throws: a failed release is logged and the reservation expires by TTL. */
+export async function releaseGenerationReservations(reservationIds: Array<string | undefined>) {
+    const ids = reservationIds.filter((id): id is string => Boolean(id));
+    if (!ids.length) return;
+    try {
+        await releaseChannelReservations(ids);
+    } catch (error) {
+        console.error("Channel reservation release failed", { reservationIds: ids, error });
+    }
+}
+
+/** Keeps reservations alive while a long task is still being polled. Never throws. */
+export async function renewGenerationReservations(attempts: GenerationAttempt[] | undefined) {
+    const ids = (attempts || []).filter((attempt) => attempt.status === "running" && attempt.reservationId).map((attempt) => attempt.reservationId as string);
+    if (!ids.length) return;
+    try {
+        await renewChannelReservations(ids);
+    } catch (error) {
+        console.error("Channel reservation renewal failed", { reservationIds: ids, error });
+    }
 }
