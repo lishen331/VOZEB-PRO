@@ -742,7 +742,8 @@ function targetUrl(baseUrl: string, apiFormat: "openai" | "gemini", path: string
     // Seedance providers document `/contents/generations/tasks` from the
     // configured base URL. Do not auto-prefix `/v1` as if this were an OpenAI
     // endpoint; a number of New API relays reject `/v1/contents/...` outright.
-    const usesLiteralPath = protocol === "seedance" || protocol === "volcengine-video" || protocol === "seedance-special" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "runninghub" || protocol === "custom";
+    const usesLiteralPath =
+        protocol === "seedance" || protocol === "modelbay-seedance" || protocol === "volcengine-video" || protocol === "seedance-special" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "runninghub" || protocol === "custom";
     const cleanPath = !usesLiteralPath && (path[0] === "v1" || path[0] === "v1beta") ? path.slice(1) : path;
     const resolvedBaseUrl = protocol === "yumeng" ? normalizeYumengModelCenterBaseUrl(baseUrl) : baseUrl;
     if (isAgnesApiBaseUrl(resolvedBaseUrl) && cleanPath[0]?.toLowerCase() === "agnesapi") {
