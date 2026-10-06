@@ -1,6 +1,7 @@
 import { imageReferenceLabel } from "@/lib/image-reference-prompt";
 import { seedanceReferenceLabel } from "@/lib/seedance-video";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasConnection, type CanvasNodeData } from "../types";
+import { expandCanvasContainerDescendants } from "./canvas-container-group";
 
 type CanvasResourceKind = "image" | "video" | "audio" | "text";
 
@@ -35,6 +36,30 @@ export function getGenerationResourceNodes(nodeId: string, nodes: CanvasNodeData
     return createCanvasResourceReferenceIndex(nodes, connections).resourceNodesFor(nodeId, false);
 }
 
+/**
+ * Resource nodes a single connection contributes, as seen from its target.
+ *
+ * A 生成组 is a frame, not a resource itself: one wire drawn out of the frame
+ * stands in for every resource member inside it, so the user connects a group
+ * once instead of chasing each member. Nested frames expand transitively and
+ * the frame itself is never its own input.
+ *
+ * A storyboard Group keeps its own path: its members are hidden and redrawn as
+ * a snapshot grid, but the nodes are still present, so the same expansion works.
+ */
+function canvasConnectionSourceResourceNodes(source: CanvasNodeData, nodes: CanvasNodeData[], nodeById: Map<string, CanvasNodeData>) {
+    if (source.type === CanvasNodeType.Container) {
+        return [...expandCanvasContainerDescendants(nodes, [source.id])]
+            .filter((id) => id !== source.id)
+            .map((id) => nodeById.get(id))
+            .filter((node): node is CanvasNodeData => Boolean(node) && isResourceNode(node!));
+    }
+    if (source.type === CanvasNodeType.Group) {
+        return (source.metadata?.groupMemberIds || []).map((id) => nodeById.get(id)).filter((node): node is CanvasNodeData => Boolean(node) && isResourceNode(node!));
+    }
+    return isResourceNode(source) ? [source] : [];
+}
+
 export function createCanvasResourceReferenceIndex(nodes: CanvasNodeData[], connections: CanvasConnection[]) {
     const nodeById = new Map(nodes.map((node) => [node.id, node]));
     const inputsByTargetId = new Map<string, CanvasNodeData[]>();
@@ -43,10 +68,7 @@ export function createCanvasResourceReferenceIndex(nodes: CanvasNodeData[], conn
         const source = nodeById.get(connection.fromNodeId);
         const target = nodeById.get(connection.toNodeId);
         if (!source || !target) continue;
-        // A Group node is a container, not a resource itself — expand it to its member
-        // image nodes (still present but hidden) so downstream nodes can reference them.
-        const sourceResourceNodes =
-            source.type === CanvasNodeType.Group ? (source.metadata?.groupMemberIds || []).map((id) => nodeById.get(id)).filter((node): node is CanvasNodeData => Boolean(node) && isResourceNode(node!)) : isResourceNode(source) ? [source] : [];
+        const sourceResourceNodes = canvasConnectionSourceResourceNodes(source, nodes, nodeById);
         if (sourceResourceNodes.length) {
             const inputs = inputsByTargetId.get(target.id);
             if (inputs) inputs.push(...sourceResourceNodes);

@@ -14,8 +14,15 @@ import { isCanvasVideoControlPoint } from "../utils/canvas-surface-geometry";
 import { resolveCanvasPanelPlacement, type CanvasPanelPlacement } from "../utils/canvas-panel-placement";
 import { depthTilt } from "../utils/canvas-depth-tilt";
 
-type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top" | "bottom" | "left" | "right";
 const selectionBlue = "#2f80ff";
+
+/** Cursor for a resize gesture. Edge handles move one axis, corners two. */
+function resizeCursorFor(corner: ResizeCorner) {
+    if (corner === "top" || corner === "bottom") return "ns-resize";
+    if (corner === "left" || corner === "right") return "ew-resize";
+    return corner === "top-left" || corner === "bottom-right" ? "nwse-resize" : "nesw-resize";
+}
 
 /**
  * Both undefined, or within half a pixel. getBoundingClientRect yields
@@ -199,12 +206,16 @@ export const CanvasNode = React.memo(function CanvasNode({
     const hasVideoContent = data.type === CanvasNodeType.Video && Boolean(data.metadata?.content);
     const hasAudioContent = data.type === CanvasNodeType.Audio && Boolean(data.metadata?.content);
     const isConfig = data.type === CanvasNodeType.Config;
+    const isContainer = data.type === CanvasNodeType.Container;
     const isGenerating = data.metadata?.status === "loading";
     // While generating, force an opaque fill even for image/video nodes whose
     // metadata.content still points at the previous render — otherwise a
     // transparent card lets the canvas's connection lines (drawn beneath the
     // node layer) show straight through as diagonal streaks across the card.
-    const nodeBackground = isConfig ? theme.node.panel : (hasImageContent || hasVideoContent) && !isGenerating ? "transparent" : theme.node.fill;
+    // 生成组 is deliberately hollow: its members are real nodes painted on top,
+    // so an opaque body would hide exactly the content the frame exists to
+    // group. Nothing else about the frame (header strip, border) uses this.
+    const nodeBackground = isContainer ? "transparent" : isConfig ? theme.node.panel : (hasImageContent || hasVideoContent) && !isGenerating ? "transparent" : theme.node.fill;
     const isBatchRoot = data.type === CanvasNodeType.Image && Boolean(data.metadata?.isBatchRoot) && batchCount > 1;
     const isBatchChild = data.type === CanvasNodeType.Image && Boolean(data.metadata?.batchRootId);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
@@ -382,7 +393,7 @@ export const CanvasNode = React.memo(function CanvasNode({
         // reverts to whatever sits under the pointer once a fast drag throws it
         // off the small handle (the surface's grab cursor), which reads as the
         // resize turning into the pan tool.
-        document.body.style.cursor = resizeRef.current.corner === "top-left" || resizeRef.current.corner === "bottom-right" ? "nwse-resize" : "nesw-resize";
+        document.body.style.cursor = resizeCursorFor(corner);
         window.addEventListener("mousemove", stableResizeMoveRef.current);
         window.addEventListener("mouseup", stableResizeUpRef.current);
     };
@@ -551,7 +562,7 @@ export const CanvasNode = React.memo(function CanvasNode({
         <div
             ref={nodeRef}
             data-node-id={data.id}
-            className={`node-element absolute flex select-none flex-col transition-shadow duration-200 ${isSelected ? "z-50" : "z-10"}`}
+            className={`node-element absolute flex select-none flex-col transition-shadow duration-200 ${isSelected && !isContainer ? "z-50" : "z-10"}`}
             style={{
                 transform: `translate(${data.position.x}px, ${data.position.y}px)`,
                 width: data.width,
@@ -589,7 +600,12 @@ export const CanvasNode = React.memo(function CanvasNode({
                 style={{
                     background: nodeBackground,
                     borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
-                    boxShadow: isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated && !isBatchChild ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : undefined,
+                    // A 生成组 frame needs a heavier selected state than a plain
+                    // node: a 3px blue line on a 40px-tall image card reads as
+                    // selected, but the same line on a 900px-wide frame reads as a
+                    // stray hairline. Thicker ring plus an inner glow makes the
+                    // frame unambiguously the thing that is selected.
+                    boxShadow: isActive && isContainer && isSelected ? `0 0 0 2px ${selectionBlue}66, inset 0 0 0 1px ${selectionBlue}33, 0 18px 48px rgba(47,128,255,.18)` : isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated && !isBatchChild ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : undefined,
                     ...(tilt
                         ? {
                               transform: `perspective(900px) rotateX(${tilt.rotateX.toFixed(2)}deg) rotateY(${tilt.rotateY.toFixed(2)}deg)`,
@@ -665,6 +681,16 @@ export const CanvasNode = React.memo(function CanvasNode({
                 <ResizeHandle corner="top-right" onMouseDown={handleResizeMouseDown} />
                 <ResizeHandle corner="bottom-left" onMouseDown={handleResizeMouseDown} />
                 <ResizeHandle corner="bottom-right" onMouseDown={handleResizeMouseDown} />
+                {/* 生成组 frames get the full 8-handle ring; members are framed,
+                    not resized through the frame, so edges here move one side. */}
+                {isContainer ? (
+                    <>
+                        <ResizeHandle corner="top" onMouseDown={handleResizeMouseDown} />
+                        <ResizeHandle corner="bottom" onMouseDown={handleResizeMouseDown} />
+                        <ResizeHandle corner="left" onMouseDown={handleResizeMouseDown} />
+                        <ResizeHandle corner="right" onMouseDown={handleResizeMouseDown} />
+                    </>
+                ) : null}
             </div>
 
             <ConnectionHandleDot side="left" visible={hovered || isSelected || isConnecting} onConnectStart={(event) => onConnectStart(event, data.id, "target")} />
