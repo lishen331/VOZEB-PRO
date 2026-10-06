@@ -360,6 +360,11 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                         setVerificationOpen(false);
                         message.success("当前绑定草稿已启用，请保存模型及渠道配置");
                     }}
+                    onEnableWithoutTest={() => {
+                        setDraft((current) => (current?.id === verificationModel.id ? { ...current, bindings: current.bindings.map((binding) => (binding.id === verificationBinding.id ? { ...binding, enabled: true } : binding)) } : current));
+                        setVerificationOpen(false);
+                        message.warning("已启用当前绑定，但尚无成功生成记录，可能无法使用；请保存模型及渠道配置");
+                    }}
                     onProtocolChange={
                         onChannelChange
                             ? (patch) => {

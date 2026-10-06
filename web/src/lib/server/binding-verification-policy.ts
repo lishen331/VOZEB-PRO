@@ -5,6 +5,17 @@ import { resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config
 
 export const BINDING_VERIFICATION_CONTRACT = "binding-media-v1";
 type Settings = Pick<AuthSettings, "logicalModels" | "systemChannels">;
+
+export type BindingVerificationWarning = {
+    modelId: string;
+    modelName: string;
+    bindingId: string;
+    channelId: string;
+    channelName: string;
+    fingerprint: string;
+    message: string;
+};
+
 function canonical(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(canonical);
     if (value && typeof value === "object")
@@ -42,7 +53,19 @@ export function bindingVerificationFingerprint(model: LogicalModel, binding: Log
         .digest("hex");
 }
 
-export async function assertBindingVerificationChanges(before: Settings, after: Settings, hasPassed: (fingerprint: string) => Promise<boolean>): Promise<void> {
+/**
+ * Checks whether an enabled binding has a successful proof for its current execution configuration.
+ *
+ * Verification is advisory at save time: an untested or stale binding may still be enabled so that
+ * operators can test it from the workbench. The returned warnings are deliberately structured for
+ * the admin API/UI and contain only identifiers plus a one-way fingerprint, never credentials or media.
+ */
+export async function assertBindingVerificationChanges(
+    before: Settings,
+    after: Settings,
+    hasPassed: (fingerprint: string) => Promise<boolean>,
+): Promise<BindingVerificationWarning[]> {
+    const warnings: BindingVerificationWarning[] = [];
     for (const model of after.logicalModels) {
         if (model.capability === "audio") continue;
         for (const binding of model.bindings) {
@@ -54,7 +77,17 @@ export async function assertBindingVerificationChanges(before: Settings, after: 
             const priorBinding = priorModel?.bindings.find((b) => b.id === binding.id && b.channelId === binding.channelId && b.upstreamModel === binding.upstreamModel);
             const priorChannel = before.systemChannels.find((c) => c.id === binding.channelId);
             if (priorModel && priorBinding?.enabled && priorChannel && bindingVerificationFingerprint(priorModel, priorBinding, priorChannel) === fingerprint) continue;
-            if (!(await hasPassed(fingerprint))) throw new Error(`模型 ${model.name} 的渠道绑定 ${channel.name} 尚未通过当前配置的生成验证；请先关闭并保存配置，再测试启用。`);
+            if (await hasPassed(fingerprint)) continue;
+            warnings.push({
+                modelId: model.id,
+                modelName: model.name,
+                bindingId: binding.id,
+                channelId: channel.id,
+                channelName: channel.name,
+                fingerprint,
+                message: `模型「${model.name}」的渠道绑定「${channel.name}」尚无当前配置的成功生成记录，启用后可能无法使用；可保存后直接测试，失败时仍可修改并重测。`,
+            });
         }
     }
+    return warnings;
 }

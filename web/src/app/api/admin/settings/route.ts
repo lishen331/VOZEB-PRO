@@ -1,4 +1,4 @@
-import { assertBindingVerificationChanges } from "@/lib/server/binding-verification-policy";
+import { assertBindingVerificationChanges, type BindingVerificationWarning } from "@/lib/server/binding-verification-policy";
 import { hasPassedBindingVerification } from "@/lib/server/binding-verification-store";
 import { NextResponse } from "next/server";
 
@@ -31,6 +31,7 @@ export async function PATCH(request: Request) {
     if (!hasAnyAdminPermission(currentUser)) return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
 
     try {
+        let bindingVerificationWarnings: BindingVerificationWarning[] = [];
         const body = await readJsonBody<Partial<AuthSettings> & { settingsRevision?: number }>(request);
         const requiredPermissions = settingsPermissionsForPatch(body);
         if (!hasAllAdminPermissions(currentUser, requiredPermissions)) return NextResponse.json({ error: "当前管理员没有修改这些设置的职责权限" }, { status: 403 });
@@ -76,7 +77,7 @@ export async function PATCH(request: Request) {
             const practiceErrors = practiceDefaultModelValidationErrors(practiceDefaults, logicalModels, channels);
             if (practiceErrors.length) throw new AuthInputError(practiceErrors[0]);
             try {
-                await assertBindingVerificationChanges(currentSettings, { logicalModels, systemChannels: channels }, hasPassedBindingVerification);
+                bindingVerificationWarnings = await assertBindingVerificationChanges(currentSettings, { logicalModels, systemChannels: channels }, hasPassedBindingVerification);
             } catch (error) {
                 throw new AuthInputError(error instanceof Error ? error.message : "绑定验证失败", 400);
             }
@@ -101,7 +102,7 @@ export async function PATCH(request: Request) {
             target: { type: "settings", id: "auth" },
             metadata: { fields: Object.keys(patch) },
         });
-        return NextResponse.json({ settings: serializeAdminSettingsForUser(settings, currentUser), settingsRevision: settings.settingsRevision ?? 1 });
+        return NextResponse.json({ settings: serializeAdminSettingsForUser(settings, currentUser), settingsRevision: settings.settingsRevision ?? 1, bindingVerificationWarnings });
     } catch (error) {
         await safeRecordAuditLog({
             action: "admin.settings.update",

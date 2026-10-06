@@ -1,5 +1,6 @@
 import { imageReferenceToFile } from "@/app/api/image-tasks/image-task-support";
 import sharp from "sharp";
+import { createHash } from "node:crypto";
 
 type OpenAiVideoFormInput = {
     model: string;
@@ -33,17 +34,21 @@ export async function buildOpenAiVideoFormData(input: OpenAiVideoFormInput) {
     formData.set("character_create", "");
     if (input.imageUrls[0]) {
         const source = await imageReferenceToFile({ dataUrl: input.imageUrls[0], url: input.imageUrls[0] }, "input-reference.png", input.origin, input.cookie);
+        const sourceBytes = Buffer.from(await source.arrayBuffer());
+        // The adapter may resize/re-encode this selected source. Preserve a digest
+        // marker so the proxy can still prove provenance from the multipart body.
+        const sourceDigest = createHash("sha256").update(sourceBytes).digest("hex");
         const [width, height] = [input.width, input.height];
         try {
-            const bytes = await sharp(Buffer.from(await source.arrayBuffer()), { failOn: "error" })
+            const bytes = await sharp(sourceBytes, { failOn: "error" })
                 .rotate()
                 .resize(width, height, { fit: "cover", position: "centre" })
                 .jpeg({ quality: 92 })
                 .toBuffer();
-            formData.set("input_reference", new File([bytes], "input-reference.jpg", { type: "image/jpeg" }));
+            formData.set("input_reference", new File([bytes], `input-reference-${sourceDigest}.jpg`, { type: "image/jpeg" }));
         } catch {
             // Keep the original file available for formats sharp cannot decode.
-            formData.set("input_reference", source);
+            formData.set("input_reference", new File([sourceBytes], `input-reference-${sourceDigest}.png`, { type: source.type || "image/png" }));
         }
     }
     return formData;

@@ -38,8 +38,15 @@ import { runFfprobe, runFfmpeg } from "./ffmpeg";
 import { GenerationSubmissionUncertainError } from "./generation-submission-error";
 import { assertReferenceCapabilities, assertReferenceUrls, assertVideoReferenceRoles } from "./provider-task-config";
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
+import { normalizeOpenAiVideoSeconds } from "@/app/api/video-generation-tasks/video-task-openai";
 
 const PROMPT = "参考图片中的橙色小球，生成同一小球在白色桌面上的画面，保持颜色与形状一致。";
+const REQUESTED_VERIFICATION_VIDEO_SECONDS = 5;
+
+function bindingVerificationVideoDuration(config: Awaited<ReturnType<typeof target>>["config"]) {
+    const usesOpenAiMultipart = config.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
+    return usesOpenAiMultipart ? normalizeOpenAiVideoSeconds(REQUESTED_VERIFICATION_VIDEO_SECONDS) : REQUESTED_VERIFICATION_VIDEO_SECONDS;
+}
 export function publicBindingVerification(run: BindingVerificationRun) {
     return {
         id: run.id,
@@ -95,7 +102,7 @@ export async function startBindingVerification(input: { logicalModelId: string; 
             upstreamModel: resolved.binding.upstreamModel,
             referenceCount: requestedInput ? requestedInput.references.length : capability === "video" ? 3 : 1,
             referenceTypes: requestedInput?.references.map((item) => item.type),
-            ...(capability === "video" ? { resolution: "480p", durationSeconds: 5 } : {}),
+            ...(capability === "video" ? { resolution: "480p", requestedDurationSeconds: REQUESTED_VERIFICATION_VIDEO_SECONDS, durationSeconds: bindingVerificationVideoDuration(resolved.config) } : {}),
             fallback: false,
         },
     });
@@ -118,6 +125,7 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
             error: current.taskId ? "绑定配置已变更，但原生成任务尚需核对；禁止通过修改配置重复生成。" : "绑定配置已变更，尚未提交上游，请重新运行测试",
         }))!;
     const timeout = resolveModelRequestTimeoutMs(resolved.config, current.capability);
+    const videoDurationSeconds = current.capability === "video" ? bindingVerificationVideoDuration(resolved.config) : undefined;
     const run = await claimBindingVerification(id, Date.now() + timeout);
     if (!run) return (await getBindingVerification(id))!;
     const origin = resolveInternalOrigin(publicOrigin);
@@ -127,10 +135,10 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                 capability: run.capability,
                 referenceTypes: run.input ? run.input.references.map((item) => item.type) : ["image"],
                 referenceCount: run.input ? run.input.references.length : run.capability === "video" ? 3 : 1,
-                ...(run.capability === "video" ? { durationSeconds: 5, resolution: "480p", aspectRatio: "16:9" } : {}),
+                ...(run.capability === "video" ? { durationSeconds: videoDurationSeconds, resolution: "480p", aspectRatio: "16:9" } : {}),
             });
-            if (run.capability === "video" && resolveUpstreamVideoDuration(5, 5, { ...resolved.config.capabilityProfile, durationRange: resolved.config.advancedConfig?.durationRange }) !== 5)
-                throw new Error("此绑定不能原样请求 5 秒视频，验证不会改用其他时长");
+            if (run.capability === "video" && resolveUpstreamVideoDuration(videoDurationSeconds, 5, { ...resolved.config.capabilityProfile, durationRange: resolved.config.advancedConfig?.durationRange }) !== videoDurationSeconds)
+                throw new Error(`此绑定不支持验证所需的 ${videoDurationSeconds} 秒视频，验证不会静默改用其他时长`);
             const fixtures = await bindingVerificationFixtures();
             const bindingContext = { bindingVerificationId: run.id };
             let result: BindingVerificationRun["result"];
@@ -217,6 +225,18 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                     const originalReferences = run.input?.references || run.fixtureUrls.map((url) => ({ type: "image" as const, url }));
                     const references = await publishVerificationFixtures(originalReferences, publicOrigin, user.id);
                     await updateBindingVerification(id, { referenceUrlMappings: references.map((reference, index) => ({ original: originalReferences[index].url, submitted: reference.url })) });
+                    // Record source-image digests before provider adapters reshape images into
+                    // multipart files. OpenAI-compatible video adapters carry this digest in
+                    // the multipart filename, allowing the proxy to prove selected-input identity.
+                    const referenceEvidence = await Promise.all(
+                        references.map(async (reference, index) => {
+                            if (reference.type !== "image") return null;
+                            const name = `binding-reference-${index + 1}.png`;
+                            const dataUrl = await imageReferenceToDataUrl({ type: "image", name, dataUrl: "", url: reference.url }, name, origin, cookie);
+                            return { url: originalReferences[index].url, sha256: bindingReferenceContentDigest(dataUrl) };
+                        }),
+                    );
+                    await updateBindingVerification(id, { referenceEvidence: referenceEvidence.filter((item): item is NonNullable<typeof item> => item !== null) });
                     const preset = resolveGlobalAiOpcPreset(resolved.config.advancedConfig, resolved.config.model);
                     assertReferenceCapabilities(
                         {
@@ -236,7 +256,7 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                         displayName: user.displayName,
                         config: resolved.config,
                         upstream: { id: "", provider: "generation", model: resolved.config.model },
-                        requestedDurationSeconds: 5,
+                        requestedDurationSeconds: videoDurationSeconds,
                         prompt: run.input?.prompt || PROMPT,
                         references,
                         source: "video-task",
@@ -248,7 +268,7 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                         cookie,
                         resolved.config,
                         run.input?.prompt || "结合三张参考图，让橙色小球缓慢经过蓝色方块和绿色圆环，保持物体外观一致，镜头连续稳定。",
-                        { size: "16:9", vquality: "480p", videoSeconds: 5, videoGenerateAudio: false },
+                        { size: "16:9", vquality: "480p", videoSeconds: videoDurationSeconds, videoGenerateAudio: false },
                         references,
                         resolved.settings.generationPointMultipliers,
                         `binding-verification:${id}`,
@@ -265,7 +285,7 @@ export async function advanceBindingVerification(id: string, user: PublicUser, p
                     if (!completed?.result?.url) throw new Error("视频产物保存失败");
                     // A successful upstream artifact must survive local metadata validation failure.
                     await updateBindingVerification(id, { result: { url: completed.result.url }, phase: "validating_result" });
-                    const metadata = await inspectSavedMedia(completed.result.url, "video", origin, cookie, timeout);
+                    const metadata = await inspectSavedMedia(completed.result.url, "video", origin, cookie, timeout, videoDurationSeconds);
                     result = { url: completed.result.url, mimeType: metadata.mimeType };
                     await updateBindingVerification(id, { diagnostics: { ...(await getBindingVerification(id))?.diagnostics, ...metadata } });
                 }
@@ -312,13 +332,13 @@ export class BindingVerificationMediaSpecificationError extends Error {
         super(message);
     }
 }
-export function assertBindingVerificationVideoSpecification(metadata: VerificationVideoMetadata, frameSeconds: number) {
+export function assertBindingVerificationVideoSpecification(metadata: VerificationVideoMetadata, frameSeconds: number, expectedDurationSeconds = 5) {
     if (!metadata.width || !metadata.height || Math.min(metadata.width, metadata.height) !== 480) throw new BindingVerificationMediaSpecificationError("上游已生成视频，但实际分辨率不是 480p；产物已保留，需人工核对，禁止自动重提。", metadata);
-    if (!Number.isFinite(metadata.durationSeconds) || !Number.isFinite(frameSeconds) || frameSeconds <= 0 || Math.abs(metadata.durationSeconds - 5) > frameSeconds)
-        throw new BindingVerificationMediaSpecificationError("上游已生成视频，但实际时长不是 5 秒（允许一帧封装误差）；产物已保留，需人工核对，禁止自动重提。", metadata);
+    if (!Number.isFinite(metadata.durationSeconds) || !Number.isFinite(frameSeconds) || frameSeconds <= 0 || Math.abs(metadata.durationSeconds - expectedDurationSeconds) > frameSeconds)
+        throw new BindingVerificationMediaSpecificationError(`上游已生成视频，但实际时长不是 ${expectedDurationSeconds} 秒（允许一帧封装误差）；产物已保留，需人工核对，禁止自动重提。`, metadata);
 }
 
-export async function validateBindingVerificationMedia(bytes: Buffer, capability: "image" | "video", path?: string) {
+export async function validateBindingVerificationMedia(bytes: Buffer, capability: "image" | "video", path?: string, expectedDurationSeconds = 5) {
     if (capability === "image") {
         const metadata = await sharp(bytes, { failOn: "error" }).metadata();
         if (!metadata.width || !metadata.height) throw new Error("图片产物无法解码");
@@ -336,10 +356,10 @@ export async function validateBindingVerificationMedia(bytes: Buffer, capability
     const frameSeconds = d / n;
     const metadata = { mimeType: detected.mime, width: stream?.width || 0, height: stream?.height || 0, durationSeconds: duration, bytes: (await stat(path)).size };
     await runFfmpeg(["-v", "error", "-xerror", "-i", path, "-map", "0:v:0", "-f", "null", "-"]);
-    assertBindingVerificationVideoSpecification(metadata, frameSeconds);
+    assertBindingVerificationVideoSpecification(metadata, frameSeconds, expectedDurationSeconds);
     return metadata;
 }
-async function inspectSavedMedia(url: string, capability: "image" | "video", origin: string, cookie: string, timeoutMs: number) {
+async function inspectSavedMedia(url: string, capability: "image" | "video", origin: string, cookie: string, timeoutMs: number, expectedDurationSeconds = 5) {
     const dir = await mkdtemp(join(tmpdir(), "vozeb-binding-verification-"));
     const file = join(dir, "result");
     try {
@@ -348,7 +368,7 @@ async function inspectSavedMedia(url: string, capability: "image" | "video", ori
             if (!match) throw new Error("产物 data URL 无效");
             await writeFile(file, Buffer.from(match[1], "base64"));
         } else await downloadMediaToFile(url, file, { origin, cookie, maxBytes: creativeUploadMaxBytes(capability), timeoutMs });
-        return await validateBindingVerificationMedia(capability === "image" ? await readFile(file) : Buffer.alloc(0), capability, file);
+        return await validateBindingVerificationMedia(capability === "image" ? await readFile(file) : Buffer.alloc(0), capability, file, expectedDurationSeconds);
     } finally {
         await rm(dir, { recursive: true, force: true });
     }
