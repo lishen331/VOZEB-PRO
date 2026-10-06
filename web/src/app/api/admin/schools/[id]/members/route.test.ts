@@ -12,7 +12,7 @@ const context = { params: Promise.resolve({ id: "school-a" }) };
 describe("admin school members route", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: [] });
+        mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: ["education.manage"] });
         mocks.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
     });
 

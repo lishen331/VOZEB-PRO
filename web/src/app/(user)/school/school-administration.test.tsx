@@ -16,6 +16,8 @@ describe("school administration", () => {
         expect(csvSource).toContain('["username", "displayName", "password", "role"]');
         expect(source).toContain("学校资料");
         expect(source).toContain("成员管理");
+        expect(source).toContain("member.isProtectedManager");
+        expect(source).toContain("学校超管");
         expect(source).toContain("班级管理");
         expect(source).toContain("课程安排");
         expect(source).toContain("商单");

@@ -17,7 +17,7 @@ vi.mock("@/lib/auth/store", () => ({
     isAuthInputError: vi.fn(() => false),
 }));
 vi.mock("@/lib/mail/smtp", () => ({ sendSmtpMail: mocks.sendSmtpMail }));
-vi.mock("@/lib/server/security", () => ({ checkAuthRateLimit: mocks.checkAuthRateLimit }));
+vi.mock("@/lib/server/security", () => ({ AUTH_LOGIN_RATE_LIMIT: { maxRequests: 8, windowMs: 120000 }, checkAuthRateLimit: mocks.checkAuthRateLimit }));
 
 import { POST } from "./route";
 

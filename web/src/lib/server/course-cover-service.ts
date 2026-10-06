@@ -4,7 +4,7 @@ import { writePersistentMediaDataUrl } from "@/lib/server/reference-asset-store"
 import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
 import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
-import { requireSchoolManager, SchoolServiceError } from "@/lib/server/school-access-service";
+import { requireActiveSchoolContext, SchoolServiceError } from "@/lib/server/school-access-service";
 
 export async function uploadCourseCover(adminId: string, bytes: Uint8Array) {
     if (!bytes.length) throw new SchoolServiceError(400, "请选择本地封面图片");
@@ -23,12 +23,15 @@ export async function uploadCourseCover(adminId: string, bytes: Uint8Array) {
 }
 
 export async function readSchoolCourseCover(userId: string, assignmentId: string) {
-    const context = await requireSchoolManager(userId);
+    const context = await requireActiveSchoolContext(userId);
     const repository = createSchoolDomainRepository();
     const assignment = await repository.getSchoolCourseAssignment(context.school.id, assignmentId);
     if (!assignment || assignment.status !== "active") throw new SchoolServiceError(404, "课程封面不存在");
     const course = await repository.getPlatformCourse(assignment.courseId);
     if (!course || course.status !== "published") throw new SchoolServiceError(404, "课程封面不存在");
+    // Cover visibility follows course visibility: managers see every assigned course,
+    // students/teachers only courses assigned to a class they belong to.
+    if (!context.canManageSchool && !(await repository.hasVisibleCourseAssignment(context.school.id, context.membership.id, context.membership.role, assignmentId))) throw new SchoolServiceError(404, "课程封面不存在");
     const key = (course.content as { coverStorageKey?: unknown })?.coverStorageKey;
     if (typeof key !== "string" || !key) throw new SchoolServiceError(404, "课程封面不存在");
     const registration = await getLocalMediaRegistration(key);

@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 
 import { BillingPlansModal } from "@/components/billing/billing-plans-modal";
 import { createAgentPromptHref, type CreateAgentMode } from "@/lib/create-agent-prompt";
@@ -24,7 +23,6 @@ type HomeActions = {
 const HomeActionsContext = createContext<HomeActions | null>(null);
 
 export function HomeActionsProvider({ initialSite, children }: { initialSite: HomeSiteSettings; children: ReactNode }) {
-    const router = useRouter();
     const [billingPlansOpen, setBillingPlansOpen] = useState(false);
     const user = useUserStore((state) => state.user);
     const session = usePublicSessionStore((state) => state.payload);
@@ -43,9 +41,12 @@ export function HomeActionsProvider({ initialSite, children }: { initialSite: Ho
     );
     const authenticated = sessionReady && Boolean(user);
 
-    const openLogin = (nextPath = "/create") => router.push(loginHref(nextPath));
+    // A full navigation makes the server re-evaluate the current session and role menu
+    // after a direct address-bar visit, instead of relying on an App Router transition.
+    const navigate = (path: string) => window.location.assign(path);
+    const openLogin = (nextPath = "/create") => navigate(loginHref(nextPath));
     const openProtectedPath = (path: string) => {
-        if (authenticated) router.push(path);
+        if (authenticated) navigate(path);
         else openLogin(path);
     };
     const startCreating = (prompt = "", mode: CreateAgentMode = "agent") => openProtectedPath(createAgentPromptHref(prompt, { source: "home", mode }));

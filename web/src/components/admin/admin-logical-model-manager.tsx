@@ -2,7 +2,7 @@
 
 import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Modal, Segmented, Select, Space, Switch, Tag } from "antd";
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import { saveBindingVerificationDraft, assertBindingVerificationSaved, bindingVerificationProjection } from "@/services/api/binding-verifications";
 import { BindingVerificationModal } from "./binding-verification-modal";
@@ -19,7 +19,6 @@ type Props = {
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
-    onSettingsRevisionChange?: (revision: number) => void;
     onChannelChange?: (channelId: string, patch: Partial<SystemModelChannel>) => void;
     onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels; practiceDefaultModels: SystemDefaultModels }) => void;
 };
@@ -43,21 +42,19 @@ export function resolvePracticeWorkflowModelOptions(logicalModels: LogicalModel[
     return logicalModels.filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, "open-source-practice")).map((model) => ({ label: model.name, value: model.id }));
 }
 
-export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, onChange, onChannelChange, onSettingsRevisionChange }: Props) {
+export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, onChange, onChannelChange }: Props) {
     const { message } = App.useApp();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [editingId, setEditingId] = useState("");
     const [draft, setDraft] = useState<LogicalModel | null>(null);
     const [verificationTarget, setVerificationTarget] = useState<{ modelId: string; bindingId: string } | null>(null);
     const [verificationOpen, setVerificationOpen] = useState(false);
-    const [verificationRevision, setVerificationRevision] = useState(0);
+
     const verificationModel = draft?.id === verificationTarget?.modelId ? draft : logicalModels.find((model) => model.id === verificationTarget?.modelId);
     const verificationBinding = verificationModel?.bindings.find((binding) => binding.id === verificationTarget?.bindingId);
     const verificationChannel = channels.find((channel) => channel.id === verificationBinding?.channelId);
     const verificationProjection = verificationModel && verificationBinding && verificationChannel ? bindingVerificationProjection(verificationModel, verificationBinding, verificationChannel) : "";
-    useEffect(() => {
-        setVerificationRevision((value) => value + 1);
-    }, [verificationProjection]);
+
     const [query, setQuery] = useState("");
     const [capabilityFilter, setCapabilityFilter] = useState<LogicalModelCapability | "all">("all");
     const [defaultPool, setDefaultPool] = useState<"production" | "open-source-practice">("production");
@@ -346,7 +343,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             </Drawer>
             {verificationModel && verificationBinding && verificationChannel ? (
                 <BindingVerificationModal
-                    key={`${verificationModel.id}:${verificationBinding.id}:${verificationRevision}`}
+                    key={`${verificationModel.id}:${verificationBinding.id}`}
                     open={verificationOpen}
                     onCancel={() => setVerificationOpen(false)}
                     logicalModelId={verificationModel.id}
@@ -356,27 +353,13 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     upstreamModel={verificationBinding.upstreamModel}
                     channel={verificationChannel}
                     configRevision={verificationProjection}
-                    beforeStart={async () => {
-                        const revision = await saveBindingVerificationDraft(verificationModel, verificationBinding, verificationChannel);
-                        onSettingsRevisionChange?.(revision);
-                    }}
+                    beforeStart={() => saveBindingVerificationDraft(verificationModel, verificationBinding, verificationChannel)}
                     beforeConfirm={() => assertBindingVerificationSaved(verificationModel, verificationBinding, verificationChannel)}
                     onVerified={() => {
                         setDraft((current) => (current?.id === verificationModel.id ? { ...current, bindings: current.bindings.map((binding) => (binding.id === verificationBinding.id ? { ...binding, enabled: true } : binding)) } : current));
                         setVerificationOpen(false);
                         message.success("当前绑定草稿已启用，请保存模型及渠道配置");
                     }}
-                    onAnalyzeAndVerify={
-                        onChannelChange
-                            ? async (patch) => {
-                                  const scoped = scopeProtocolPatchToBinding(verificationChannel, verificationBinding, verificationModel.capability, patch);
-                                  const nextChannel = { ...verificationChannel, ...scoped };
-                                  const revision = await saveBindingVerificationDraft(verificationModel, verificationBinding, nextChannel);
-                                  onSettingsRevisionChange?.(revision);
-                                  onChannelChange(verificationChannel.id, scoped);
-                              }
-                            : undefined
-                    }
                     onProtocolChange={
                         onChannelChange
                             ? (patch) => {
@@ -551,7 +534,7 @@ function cloneLogicalModel(model: LogicalModel): LogicalModel {
 }
 
 export function bindingToggleNeedsVerification(binding: LogicalModelBinding, channel: SystemModelChannel | undefined, enabled: boolean, capability: LogicalModelCapability) {
-    return enabled && !binding.enabled && channel?.advancedConfig?.protocol !== "runninghub";
+    return capability !== "audio" && enabled && !binding.enabled && channel?.advancedConfig?.protocol !== "runninghub";
 }
 
 export function scopeProtocolPatchToBinding(channel: SystemModelChannel, binding: LogicalModelBinding, capability: LogicalModelCapability, patch: Partial<SystemModelChannel>): Partial<SystemModelChannel> {

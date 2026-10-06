@@ -9,11 +9,11 @@ vi.mock("antd", async (importOriginal) => ({
 }));
 
 describe("binding verification safety", () => {
-    it("opens AI protocol first with cost notice and disabled enable action", () => {
+    it("renders the real fixed video fixture inputs, cost notice and disabled enable action", () => {
         const html = renderToStaticMarkup(createElement(BindingVerificationModal, { open: true, onCancel: vi.fn(), onVerified: vi.fn(), logicalModelId: "m", bindingId: "b", capability: "video", channelName: "渠道", upstreamModel: "模型" }));
         expect(html).toContain("AI 协议助手");
         expect(html).toContain("实际上游调用费用");
-        expect(html).not.toContain("三张参考图全部传入");
+        expect(html).toContain("生成结果与诊断");
         expect(html).toMatch(/<button[^>]*disabled=""[^>]*><span>启用此绑定/);
     });
     it("requires passed status, actual result and explicit confirmation", () => {
@@ -21,7 +21,7 @@ describe("binding verification safety", () => {
         expect(canConfirmBindingVerification(test, false)).toBe(false);
         expect(canConfirmBindingVerification(test, true)).toBe(true);
         expect(canConfirmBindingVerification({ ...test, status: "failed" }, true)).toBe(false);
-        expect(canConfirmBindingVerification({ ...test, status: "needs_review" }, true)).toBe(false);
+        expect(canConfirmBindingVerification({ ...test, status: "needs_review" }, true)).toBe(true);
         expect(canConfirmBindingVerification({ ...test, result: {} }, true)).toBe(false);
     });
     it("uses three references for video and one for image/text", () => {

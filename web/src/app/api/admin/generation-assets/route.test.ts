@@ -31,6 +31,15 @@ describe("GET /api/admin/generation-assets", () => {
         expect(mocks.getPublicUsersByIds).not.toHaveBeenCalled();
     });
 
+    it("allows business roles to read the dashboard resource summary", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "commerce-admin", role: "admin", status: "active", adminPermissions: ["commerce.manage"] });
+
+        const response = await GET(new Request("http://localhost/api/admin/generation-assets?summaryOnly=1"));
+
+        expect(response.status).toBe(200);
+        expect(mocks.getLocalMediaAssetSummary).toHaveBeenCalledTimes(1);
+    });
+
     it("adds the public account id to registered media owners", async () => {
         mocks.listLocalMediaAssets.mockResolvedValue({ items: [{ id: "asset-one", ownerUserId: "user-one" }], total: 1, page: 1, pageSize: 20, summary: {} });
         mocks.getPublicUsersByIds.mockResolvedValue([{ id: "user-one", accountId: "0001", username: "creator", displayName: "创作者" }]);

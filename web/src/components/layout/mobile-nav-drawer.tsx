@@ -8,7 +8,7 @@ import { useEffect, useRef } from "react";
 
 import { SiteLogo } from "@/components/layout/site-logo";
 import { navigationGroups, navigationToolsForContext, resolveLandingSlug, type NavigationToolSlug } from "@/constant/navigation-tools";
-import type { FeatureModuleSettings } from "@/lib/feature-modules";
+import type { FeatureModuleSettings, UserNavigationMenuPermission } from "@/lib/feature-modules";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
@@ -18,10 +18,11 @@ type MobileNavDrawerProps = {
     open: boolean;
     activeToolSlug?: NavigationToolSlug;
     featureModules: FeatureModuleSettings;
+    menuPermissions: readonly UserNavigationMenuPermission[];
     onClose: () => void;
 };
 
-export function MobileNavDrawer({ open, activeToolSlug, featureModules, onClose }: MobileNavDrawerProps) {
+export function MobileNavDrawer({ open, activeToolSlug, featureModules, menuPermissions, onClose }: MobileNavDrawerProps) {
     const pathname = usePathname();
     const router = useRouter();
     const previousPathnameRef = useRef(pathname);
@@ -29,8 +30,8 @@ export function MobileNavDrawer({ open, activeToolSlug, featureModules, onClose 
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
-    const tools = navigationToolsForContext(context, { featureModules });
-    const landingSlug = resolveLandingSlug(context, { featureModules });
+    const tools = navigationToolsForContext(context, { featureModules, menuPermissions });
+    const landingSlug = resolveLandingSlug(context, { featureModules, menuPermissions });
     const homePath = landingSlug ? `/${landingSlug}` : "/help";
     const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = (schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups).filter((group) => tools.some((tool) => tool.group === group.id));
@@ -90,7 +91,7 @@ export function MobileNavDrawer({ open, activeToolSlug, featureModules, onClose 
                     </div>
                 </div>
             ))}
-            {featureModules["help-center"] !== false ? (
+            {featureModules["help-center"] !== false && menuPermissions.includes("help-center") ? (
                 <div className="mt-5 border-t border-border pt-4">
                     <Link
                         href="/help"

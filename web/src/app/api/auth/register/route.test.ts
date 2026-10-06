@@ -20,7 +20,7 @@ vi.mock("@/lib/auth/store", () => ({
 vi.mock("@/lib/auth/request", () => ({ readJsonBody: mocks.readJsonBody }));
 vi.mock("@/lib/auth/session", () => ({ serializeCurrentUser: vi.fn((user) => user), setSessionCookie: vi.fn() }));
 vi.mock("@/lib/server/install-status", () => ({ getInstallStatus: mocks.getInstallStatus, invalidateInstallStatusCache: vi.fn() }));
-vi.mock("@/lib/server/security", () => ({ checkAuthRateLimit: mocks.checkAuthRateLimit, getClientIp: vi.fn(() => "203.0.113.8") }));
+vi.mock("@/lib/server/security", () => ({ AUTH_LOGIN_RATE_LIMIT: { maxRequests: 8, windowMs: 120000 }, checkAuthRateLimit: mocks.checkAuthRateLimit, getClientIp: vi.fn(() => "203.0.113.8") }));
 vi.mock("@/lib/server/referral-service", () => ({ REFERRAL_COOKIE_NAME: "vozeb_referral" }));
 
 import { POST } from "./route";

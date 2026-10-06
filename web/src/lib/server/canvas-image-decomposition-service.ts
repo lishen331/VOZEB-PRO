@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { getAuthSettings } from "@/lib/auth/store";
 import { normalizeCanvasImageDecomposition, canvasImageDecompositionInstruction, canvasImageDecompositionTool, type CanvasImageDecomposition } from "@/lib/canvas-image-decomposition";
 import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
+import { CHANNEL_SATURATED_MESSAGE, releaseChannelReservations, reserveChannelSlot } from "@/lib/server/channel-concurrency";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveVisionModelCandidates, type ResolvedLogicalModel } from "@/lib/server/logical-model-router";
@@ -38,6 +39,12 @@ export async function decomposeCanvasImage(input: { origin: string; cookie: stri
     let latestError: unknown;
     for (const candidate of rankTextPlanningCandidates(candidates)) {
         const idempotencyKey = systemAiIdempotencyKey("canvas-image-decomposition", input.userId, input.requestId, candidate.channelId, candidate.upstreamModel);
+        const limit = candidate.capabilityProfile?.concurrencyLimit;
+        const reservationId = `decomposition:${crypto.randomUUID()}`;
+        if (limit && !(await reserveChannelSlot("text", candidate.channelId, candidate.upstreamModel, reservationId, limit))) {
+            latestError = new CanvasImageDecompositionError(CHANNEL_SATURATED_MESSAGE, 503);
+            continue;
+        }
         try {
             const call = await requestDecomposition(candidate, source, input.origin, input.cookie, input.userId, model, idempotencyKey);
             const result = parseDecomposition(call.arguments, source.width, source.height);
@@ -46,6 +53,8 @@ export async function decomposeCanvasImage(input: { origin: string; cookie: stri
             latestError = new CanvasImageDecompositionError("Canvas 图片理解模型没有返回可靠的图片分层策略");
         } catch (error) {
             latestError = error;
+        } finally {
+            if (limit) await releaseChannelReservations([reservationId]).catch((error) => console.error("Channel reservation release failed", { reservationId, error }));
         }
     }
     if (latestError instanceof CanvasImageDecompositionError) throw latestError;

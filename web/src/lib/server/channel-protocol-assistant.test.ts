@@ -7,7 +7,7 @@ vi.mock("@/lib/server/safe-outbound-fetch", () => ({
     UnsafeOutboundUrlError: class UnsafeOutboundUrlError extends Error {},
 }));
 
-import { createChannelProtocolDraft, protocolAssistantPrompt, htmlDocumentText } from "./channel-protocol-assistant";
+import { createChannelProtocolDraft, htmlDocumentText } from "./channel-protocol-assistant";
 import { parseDeterministicProtocolDraft } from "../channel-protocol-draft";
 import { extractProtocolHtmlDocument, selectProtocolDocumentLinks } from "./protocol-document-source";
 
@@ -110,14 +110,4 @@ describe("channel protocol document parsing", () => {
         expect(result.drafts[0].baseUrl).toBe("https://api.provider.test/v1");
         expect(result.drafts[0].operations[0].capability).toBe("image");
     });
-});
-
-it("tells AI to retain unknown support and identify missing reference mappings with evidence", () => {
-    const prompt = protocolAssistantPrompt("official text-only example", null, { targetModel: "premium/seedance-2", referenceTypes: ["image", "video"] });
-    expect(prompt).toContain("没有出现图片/视频/音频参数，不等于不支持");
-    expect(prompt).toContain("未确认时省略");
-    expect(prompt).toContain("当前目标模型：premium/seedance-2");
-    expect(prompt).toContain("拟验证输入类型：image、video");
-    expect(prompt).toContain("不猜 input_images/videos");
-    expect(prompt).toContain("仅分析映射，不执行生成");
 });

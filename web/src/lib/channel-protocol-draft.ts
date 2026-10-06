@@ -93,9 +93,9 @@ export function parseDeterministicProtocolDraft(input: { text: string; documenta
                 ...(role !== "cancel" && advanced.statusField ? { statusField: advanced.statusField } : {}),
                 ...(role === "create" && advanced.durationRange ? { durationRange: advanced.durationRange } : {}),
                 ...(role === "create" && advanced.referenceRule ? { referenceRule: advanced.referenceRule } : {}),
-                ...(advanced.supportsReferenceImage === true ? { supportsReferenceImage: true } : {}),
-                ...(advanced.supportsReferenceVideo === true ? { supportsReferenceVideo: true } : {}),
-                ...(advanced.supportsReferenceAudio === true ? { supportsReferenceAudio: true } : {}),
+                supportsReferenceImage: advanced.supportsReferenceImage,
+                supportsReferenceVideo: advanced.supportsReferenceVideo,
+                supportsReferenceAudio: advanced.supportsReferenceAudio,
             };
             return [
                 {
@@ -199,9 +199,9 @@ function operationFromUnknown(value: unknown, defaultApiFormat: ApiCallFormat): 
         ...optionalText("statusField", rawConfig.statusField, 500),
         ...optionalText("durationRange", rawConfig.durationRange, 120),
         ...optionalText("referenceRule", rawConfig.referenceRule, 1_000),
-        ...(typeof rawConfig.supportsReferenceImage === "boolean" ? { supportsReferenceImage: rawConfig.supportsReferenceImage } : {}),
-        ...(typeof rawConfig.supportsReferenceVideo === "boolean" ? { supportsReferenceVideo: rawConfig.supportsReferenceVideo } : {}),
-        ...(typeof rawConfig.supportsReferenceAudio === "boolean" ? { supportsReferenceAudio: rawConfig.supportsReferenceAudio } : {}),
+        supportsReferenceImage: Boolean(rawConfig.supportsReferenceImage),
+        supportsReferenceVideo: Boolean(rawConfig.supportsReferenceVideo),
+        supportsReferenceAudio: Boolean(rawConfig.supportsReferenceAudio),
     };
     const models = Array.isArray(value.models) ? uniqueModels(value.models) : [];
     return [{ capability, apiFormat, models, config }];
@@ -305,15 +305,9 @@ function mergeOperationConfig(current: SystemChannelModelConfig, incoming: Syste
     for (const [key, value] of Object.entries(incoming)) {
         if (value !== undefined && value !== "" && value !== false) Object.assign(merged, { [key]: value });
     }
-    if (current.supportsReferenceImage === true || incoming.supportsReferenceImage === true) merged.supportsReferenceImage = true;
-    else if (current.supportsReferenceImage === false || incoming.supportsReferenceImage === false) merged.supportsReferenceImage = false;
-    else delete merged.supportsReferenceImage;
-    if (current.supportsReferenceVideo === true || incoming.supportsReferenceVideo === true) merged.supportsReferenceVideo = true;
-    else if (current.supportsReferenceVideo === false || incoming.supportsReferenceVideo === false) merged.supportsReferenceVideo = false;
-    else delete merged.supportsReferenceVideo;
-    if (current.supportsReferenceAudio === true || incoming.supportsReferenceAudio === true) merged.supportsReferenceAudio = true;
-    else if (current.supportsReferenceAudio === false || incoming.supportsReferenceAudio === false) merged.supportsReferenceAudio = false;
-    else delete merged.supportsReferenceAudio;
+    merged.supportsReferenceImage = Boolean(current.supportsReferenceImage || incoming.supportsReferenceImage);
+    merged.supportsReferenceVideo = Boolean(current.supportsReferenceVideo || incoming.supportsReferenceVideo);
+    merged.supportsReferenceAudio = Boolean(current.supportsReferenceAudio || incoming.supportsReferenceAudio);
     merged.resultField = mergeFieldPaths(current.resultField, incoming.resultField);
     merged.statusField = mergeFieldPaths(current.statusField, incoming.statusField);
     return merged;

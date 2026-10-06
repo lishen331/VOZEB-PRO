@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
     bindingVerificationFixtures,
     validateBindingVerificationMedia,
@@ -71,4 +71,19 @@ describe("binding verification isolation", () => {
         expect(bindingReferenceContentDigest("data:image/jpeg;base64,YWJj")).toBe(a);
         expect(() => bindingReferenceContentDigest("https://example.test/image.png")).toThrow();
     });
+});
+
+it("publishes only system fixtures through external object storage URLs", async () => {
+    const { publishVerificationFixtures } = await import("./binding-verification-runner");
+    const registration = { storageProvider: "object" as const, externalObjectKey: "fixture.png" } as never;
+    const dependencies = { write: vi.fn(async () => ({ token: "permanent/fixture.png" })) as never, registration: vi.fn(async () => registration) as never, externalUrl: vi.fn(async () => "https://oss.example/fixture.png") as never };
+    await expect(publishVerificationFixtures([{ type: "image", url: "https://app.example/api/admin/binding-verifications/fixtures/0" }], "https://app.example", "user", dependencies)).resolves.toEqual([
+        { type: "image", url: "https://oss.example/fixture.png" },
+    ]);
+    await expect(publishVerificationFixtures([{ type: "image", url: "https://user-cdn.example/image.png" }], "https://app.example", "user", dependencies)).resolves.toEqual([{ type: "image", url: "https://user-cdn.example/image.png" }]);
+});
+it("stops before provider submission when fixture storage is not external", async () => {
+    const { publishVerificationFixtures } = await import("./binding-verification-runner");
+    const dependencies = { write: vi.fn(async () => ({ token: "permanent/fixture.png" })) as never, registration: vi.fn(async () => ({ storageProvider: "local" })) as never };
+    await expect(publishVerificationFixtures([{ type: "image", url: "https://app.example/api/admin/binding-verifications/fixtures/0" }], "https://app.example", "user", dependencies)).rejects.toThrow("OSS");
 });

@@ -1,4 +1,4 @@
-import { isActivePlatformAdmin } from "@/lib/admin-permissions";
+import { hasAllAdminPermissions } from "@/lib/admin-permissions";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { AdminSchoolMemberPointsAdjustmentInput } from "@/lib/school-domain";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request, context: { params: Promise<{ id: string; membershipId: string }> }) {
     const user = await getCurrentUser();
     if (!user) return schoolApiError(401, "请先登录");
-    if (!isActivePlatformAdmin(user)) return schoolApiError(403, "当前账号没有平台管理员权限");
+    if (!hasAllAdminPermissions(user, ["education.manage", "billing.manage"])) return schoolApiError(403, "学校成员积分调整需要产教运营和财务管理职责权限");
     const { id: schoolId, membershipId } = await context.params;
     const parsed = await readJsonBodyResult<AdminSchoolMemberPointsAdjustmentInput>(request);
     if (!parsed.ok || !isSchoolApiObject(parsed.data)) {

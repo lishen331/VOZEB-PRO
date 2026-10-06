@@ -220,8 +220,9 @@ export async function deleteSession(cookieValue: string | undefined) {
 }
 
 type AdminUserPatch = Partial<Pick<PublicUser, "displayName" | "email" | "role" | "adminPermissions" | "status" | "pointsBalance" | "planId">> & { password?: string };
+type AdminUserUpdateOptions = { requiredPermission?: AdminPermission };
 
-export async function updateUserByAdmin(actorId: string, userId: string, patch: AdminUserPatch) {
+export async function updateUserByAdmin(actorId: string, userId: string, patch: AdminUserPatch, options: AdminUserUpdateOptions = {}) {
     if (isPostgresDatabaseEnabled()) {
         await ensurePostgresSchema();
         const clock = walletClock();
@@ -231,7 +232,7 @@ export async function updateUserByAdmin(actorId: string, userId: string, patch: 
             const actor = await repos.users.getById(actorId, true);
             const user = await repos.users.getById(userId, true);
             if (!user) throw new AuthInputError("用户不存在");
-            assertCanUpdateManagedUser(actor, user, patch);
+            assertCanUpdateManagedUser(actor, user, patch, options);
             if (user.id === actorId && patch.status === "disabled") throw new AuthInputError("不能禁用当前登录的管理员账号");
 
             const nextRole = patch.role || user.role;
@@ -296,7 +297,7 @@ export async function updateUserByAdmin(actorId: string, userId: string, patch: 
         const user = db.users.find((item) => item.id === userId);
         if (!user) throw new AuthInputError("用户不存在");
         const actor = db.users.find((item) => item.id === actorId);
-        assertCanUpdateManagedUser(actor, user, patch);
+        assertCanUpdateManagedUser(actor, user, patch, options);
         if (user.id === actorId && patch.status === "disabled") throw new AuthInputError("不能禁用当前登录的管理员账号");
 
         const nextRole = patch.role || user.role;
@@ -389,10 +390,10 @@ export async function deleteUserByAdmin(actorId: string, userId: string, options
     });
 }
 
-function assertCanUpdateManagedUser(actor: StoredUser | null | undefined, user: StoredUser, patch: AdminUserPatch) {
+function assertCanUpdateManagedUser(actor: StoredUser | null | undefined, user: StoredUser, patch: AdminUserPatch, options: AdminUserUpdateOptions = {}) {
     const nextRole = patch.role || user.role;
     const touchesAdministrator = user.role === "admin" || nextRole === "admin" || patch.adminPermissions !== undefined;
-    assertAdminPermission(actor, touchesAdministrator ? "administrators.manage" : "users.manage");
+    assertAdminPermission(actor, touchesAdministrator ? "administrators.manage" : options.requiredPermission || "users.manage");
     if (user.role === "admin" && !hasAllAdminPermissions(actor, user.adminPermissions)) throw new AuthInputError("不能管理职责范围高于当前账号的管理员", 403);
     if (patch.pointsBalance !== undefined || patch.planId !== undefined) assertAdminPermission(actor, "billing.manage");
     if (nextRole === "admin") {

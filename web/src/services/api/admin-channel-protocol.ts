@@ -5,24 +5,8 @@ export type AdminChannelProtocolDraftResult = {
     warnings: string[];
     sourcePages: number;
 };
-export type AdminChannelProtocolInput = { documentationUrl?: string; documentationText?: string; examples?: string; useTextModel?: boolean; referenceTypes?: Array<"image" | "video" | "audio"> };
-export type AdminChannelProtocolHistoryRecord = {
-    id: string;
-    channelId: string;
-    model: string;
-    createdAt: number;
-    input: AdminChannelProtocolInput;
-    result?: AdminChannelProtocolDraftResult;
-    error?: string;
-};
-export async function getAdminChannelProtocolHistory(channelId: string, targetModel: string) {
-    const query = new URLSearchParams({ channelId, targetModel });
-    const response = await fetch(`/api/admin/channel-protocol-draft?${query}`, { cache: "no-store" });
-    const payload = (await response.json()) as { history?: AdminChannelProtocolHistoryRecord[]; error?: string };
-    if (!response.ok) throw new Error(payload.error || "读取协议分析历史失败");
-    return payload.history || [];
-}
-export async function createAdminChannelProtocolDraft(input: AdminChannelProtocolInput & { channelId?: string; targetModel?: string }) {
+
+export async function createAdminChannelProtocolDraft(input: { documentationUrl?: string; documentationText?: string; examples?: string; useTextModel?: boolean }) {
     const response = await fetch("/api/admin/channel-protocol-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -320,8 +320,6 @@ export function useAdminDashboardDataActions({ state }: { state: AdminDashboardS
                     displayName: value.displayName,
                     email: value.email || "",
                     password: value.password || "",
-                    role: value.role,
-                    adminPermissions: value.adminPermissions,
                     status: value.status,
                     pointsBalance: toNumberOrZero(value.pointsBalance),
                 }),

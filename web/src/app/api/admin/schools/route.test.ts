@@ -29,11 +29,11 @@ describe("admin schools route", () => {
         expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(401);
 
         mocks.getCurrentUser.mockResolvedValueOnce({ id: "admin-b", role: "admin", status: "active", adminPermissions: ["users.manage"] });
-        expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(200);
-        expect(mocks.listSchoolsByAdmin).toHaveBeenCalledWith("admin-b", { page: 1, pageSize: 20, keyword: "", status: undefined });
+        expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(403);
+        expect(mocks.listSchoolsByAdmin).not.toHaveBeenCalled();
 
         mocks.getCurrentUser.mockResolvedValueOnce({ id: "admin-c", role: "admin", status: "active", adminPermissions: [] });
-        expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(200);
+        expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(403);
 
         mocks.getCurrentUser.mockResolvedValueOnce({ id: "admin-d", role: "admin", status: "disabled", adminPermissions: ["education.manage"] });
         expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(403);

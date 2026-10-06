@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SchoolContext } from "@/lib/school-domain";
 
-import { landingNavigationTools, navigationGroups, navigationToolForPathname, navigationTools, navigationToolsForContext, roleNavigationOverview, schoolNavigationTools } from "./navigation-tools";
+import { landingNavigationTools, navigationGroups, navigationToolForPathname, navigationTools, navigationToolsForContext, resolveLandingSlug, roleNavigationOverview, schoolNavigationTools } from "./navigation-tools";
 import { normalizeFeatureModuleSettings } from "@/lib/feature-modules";
 
 describe("user navigation order", () => {
@@ -54,6 +54,36 @@ describe("user navigation order", () => {
         expect(navigationToolsForContext(null, { includeDramaWorkflowLab: false }).some((tool) => tool.slug === "drama-lab")).toBe(false);
         expect(navigationToolForPathname("/drama-lab", null)?.slug).toBe("drama-lab");
         expect(navigationToolForPathname("/drama-lab", null, { includeDramaWorkflowLab: false })).toBeUndefined();
+    });
+
+    it("applies role menu permissions to teaching and learning centers", () => {
+        const featureModules = normalizeFeatureModuleSettings(undefined);
+        expect(navigationToolsForContext(context("teacher", false), { featureModules, menuPermissions: ["teaching"] }).map((tool) => tool.slug)).toContain("teaching");
+        expect(navigationToolsForContext(context("teacher", false), { featureModules, menuPermissions: [] }).map((tool) => tool.slug)).not.toContain("teaching");
+        expect(navigationToolsForContext(context("teacher", true), { featureModules, menuPermissions: ["teaching"] }).map((tool) => tool.slug)).toContain("school");
+        expect(navigationToolsForContext(context("teacher", true), { featureModules: normalizeFeatureModuleSettings({ "school-management": false }), menuPermissions: ["teaching"] }).map((tool) => tool.slug)).not.toContain("school");
+        expect(navigationToolsForContext(context("student", false), { featureModules, menuPermissions: ["learning"] }).map((tool) => tool.slug)).toContain("learning");
+        expect(navigationToolsForContext(context("student", false), { featureModules, menuPermissions: [] }).map((tool) => tool.slug)).not.toContain("learning");
+    });
+
+    it("lands on the first visible menu when Agent is not permitted", () => {
+        const featureModules = normalizeFeatureModuleSettings(undefined);
+        const menuPermissions = ["canvas", "community"] as const;
+
+        expect(navigationToolsForContext(null, { featureModules, menuPermissions }).map((tool) => tool.slug)).not.toContain("create");
+        expect(resolveLandingSlug(null, { featureModules, menuPermissions })).toBe("canvas");
+    });
+
+    it("requires both the role menu permission and the global plugin switch", () => {
+        const featureModules = normalizeFeatureModuleSettings({ "creative-agent": false });
+        const tools = navigationToolsForContext(context("student", false), {
+            featureModules,
+            menuPermissions: ["creative-agent", "community", "learning"],
+        });
+        expect(tools.map((tool) => tool.slug)).not.toContain("create");
+        expect(tools.map((tool) => tool.slug)).toContain("community");
+        expect(tools.map((tool) => tool.slug)).toContain("learning");
+        expect(tools.map((tool) => tool.slug)).not.toContain("school");
     });
 
     it("puts the standalone practice section first and removes empty disabled groups", () => {

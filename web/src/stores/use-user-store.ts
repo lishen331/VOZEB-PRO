@@ -13,6 +13,7 @@ export type LocalUser = {
     avatarUrl?: string;
     role: "admin" | "user";
     adminPermissions: AdminPermission[];
+    adminMenuPermissions?: string[];
     status: "active" | "disabled";
     planId: string;
     planName: string;

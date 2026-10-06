@@ -49,6 +49,12 @@ describe("PostgreSQL school domain schema", () => {
         expect(addAssignmentChapter).toBeLessThan(assignmentChapterIndex);
         expect(addAssignmentLesson).toBeLessThan(assignmentLessonIndex);
         expect(ddl).toContain("from pg_constraint");
+        expect(ddl).toContain("alter table school_memberships add column if not exists is_protected_manager boolean not null default false");
+        expect(ddl).toContain("create table if not exists rbac_roles");
+        expect(ddl).toContain("create table if not exists rbac_user_role_bindings");
+        expect(ddl).toContain("platform-superadmin");
+        expect(ddl).toContain("school-superadmin");
+        expect(ddl).toContain("normal-user");
     });
 
     postgresLegacyIt("upgrades legacy course tables without deleting JSON data", async () => {

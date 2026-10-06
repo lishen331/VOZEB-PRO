@@ -2,6 +2,7 @@
 
 import { localAgentReadiness } from "@/components/admin/admin-generation-settings";
 import type { AdminSectionKey } from "@/components/admin/admin-sections";
+import { hasAnyAdminPermission } from "@/lib/admin-permissions";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
@@ -39,6 +40,7 @@ import type { AdminDashboardState } from "./use-admin-dashboard-state";
 export function useAdminDashboardEffects({ state, data, settingsActions }: { state: AdminDashboardState; data: AdminDashboardDataActions; settingsActions: AdminDashboardSettingsActions }) {
     const {
         initialSection,
+        currentUser,
         settings,
         settingsLoading,
         promptSearch,
@@ -127,9 +129,9 @@ export function useAdminDashboardEffects({ state, data, settingsActions }: { sta
 
     useEffect(() => {
         if (activeSection !== "overview") return;
-        void loadGenerationAssetStats();
-        void loadOperationsSummary();
-    }, [activeSection]);
+        if (hasAnyAdminPermission(currentUser, ["analytics.read", "commerce.manage", "generation.read"])) void loadGenerationAssetStats();
+        if (hasAnyAdminPermission(currentUser, ["analytics.read", "commerce.manage"])) void loadOperationsSummary();
+    }, [activeSection, currentUser]);
 
     useEffect(() => {
         if (activeSection !== "logs") return;
@@ -153,6 +155,6 @@ export function useAdminDashboardEffects({ state, data, settingsActions }: { sta
 
     useEffect(() => {
         if (activeSection !== "wallet" && activeSection !== "overview") return;
-        void loadBillingSummary();
-    }, [activeSection]);
+        if (hasAnyAdminPermission(currentUser, ["billing.read", "billing.manage"])) void loadBillingSummary();
+    }, [activeSection, currentUser]);
 }

@@ -42,6 +42,7 @@ export type SchoolMember = {
     displayName: string;
     email?: string;
     role: SchoolMemberRole;
+    isProtectedManager?: boolean;
     permissions: SchoolPermission[];
     status: SchoolMembershipStatus;
     joinSource: "admin" | "import" | "invite";
@@ -76,7 +77,8 @@ export type SchoolMemberCreateInput = { username: string; email?: string; displa
 export type SchoolMemberPatch = { role?: SchoolMemberRole; permissions?: SchoolPermission[]; status?: SchoolMembershipStatus };
 export type SchoolClassInput = { name: string; description?: string };
 export type CreateSchoolInput = { name: string; profile?: Record<string, unknown>; administrator: Omit<SchoolMemberCreateInput, "role"> };
-export type UpdateSchoolInput = { name?: string; profile?: Record<string, unknown>; status?: SchoolStatus };
+export type UpdateSchoolAdministratorInput = { username?: string; displayName?: string; email?: string; password?: string };
+export type UpdateSchoolInput = { name?: string; profile?: Record<string, unknown>; status?: SchoolStatus; administrator?: UpdateSchoolAdministratorInput };
 export type CourseAttachment = {
     title: string;
     url: string;
@@ -133,6 +135,9 @@ export type PlatformCourseSummary = {
     title: string;
     summary: string;
     content: Record<string, unknown>;
+    coverUrl?: string;
+    category?: string;
+    validUntil?: string | null;
     chapterCount: number;
     lessonCount: number;
     materialCount: number;
@@ -144,7 +149,10 @@ export type PlatformCourseSummary = {
 };
 export type PlatformCourseDetail = PlatformCourseSummary & { chapters: CourseChapter[] };
 export type PlatformCourse = PlatformCourseSummary;
-export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "content">;
+export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "content"> & {
+    category?: string;
+    validUntil?: string | null;
+};
 export type PlatformCoursePatch = Partial<PlatformCourseInput> & { status?: PlatformCourseStatus };
 export type SchoolCourseAssignment = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string; course: PlatformCourse };
 export type CourseOfferingInput = { classId: string; teacherMembershipId: string; status?: SchoolStatus };

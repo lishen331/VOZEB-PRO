@@ -44,6 +44,7 @@ export function bindingVerificationFingerprint(model: LogicalModel, binding: Log
 
 export async function assertBindingVerificationChanges(before: Settings, after: Settings, hasPassed: (fingerprint: string) => Promise<boolean>): Promise<void> {
     for (const model of after.logicalModels) {
+        if (model.capability === "audio") continue;
         for (const binding of model.bindings) {
             if (!binding.enabled) continue;
             const channel = after.systemChannels.find((c) => c.id === binding.channelId);

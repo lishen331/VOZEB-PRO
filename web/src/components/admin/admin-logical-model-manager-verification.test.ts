@@ -10,7 +10,7 @@ describe("binding enable interaction", () => {
         expect(bindingToggleNeedsVerification(binding, channel, false, "video")).toBe(false);
         expect(bindingToggleNeedsVerification({ ...binding, enabled: true }, channel, true, "video")).toBe(false);
         expect(bindingToggleNeedsVerification(binding, { ...channel, advancedConfig: { protocol: "runninghub" } as SystemModelChannel["advancedConfig"] }, true, "video")).toBe(false);
-        expect(bindingToggleNeedsVerification(binding, channel, true, "audio")).toBe(true);
+        expect(bindingToggleNeedsVerification(binding, channel, true, "audio")).toBe(false);
     });
     it("only applies the target model operation, preserving sibling and channel-wide configuration", () => {
         const advanced = {

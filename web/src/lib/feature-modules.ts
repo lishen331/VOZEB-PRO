@@ -1,3 +1,4 @@
+import type { SchoolContext } from "@/lib/school-domain";
 import type { LucideIcon } from "lucide-react";
 import { BookMarked, Clapperboard, CircleHelp, Compass, FileText, Film, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
 
@@ -85,6 +86,34 @@ export const FEATURE_MODULES: readonly FeatureModuleDefinition[] = [
     { id: "help-center", name: "帮助中心", description: "前台使用帮助与教程", group: "support", icon: CircleHelp, pathPrefixes: ["/help"], routeRoot: "help" },
 ] as const;
 
+export const USER_NAVIGATION_ROLE_KEYS = ["teacher", "student", "normal-user"] as const;
+export type UserNavigationRoleKey = (typeof USER_NAVIGATION_ROLE_KEYS)[number];
+
+/** Role-controlled foreground menu modules. School modules also require the matching active school identity. */
+export const USER_NAVIGATION_MENU_PERMISSION_GROUPS = [
+    { key: "practice", label: "无限练习", moduleIds: ["practice"] },
+    { key: "create", label: "Agent", moduleIds: ["creative-agent"] },
+    { key: "projects", label: "项目", moduleIds: ["canvas", "drama", "drama-lab", "one-click-film"] },
+    { key: "assets", label: "资产", moduleIds: ["works", "assets", "my-prompts", "prompt-library"] },
+    { key: "community", label: "社区", moduleIds: ["community", "ip-library", "creator-home"] },
+    { key: "school", label: "学校", moduleIds: ["teaching", "learning"] },
+    { key: "support", label: "支持", moduleIds: ["help-center"] },
+] as const satisfies ReadonlyArray<{ key: string; label: string; moduleIds: readonly FeatureModuleId[] }>;
+
+export const USER_NAVIGATION_MENU_PERMISSION_IDS = USER_NAVIGATION_MENU_PERMISSION_GROUPS.flatMap((group) => group.moduleIds);
+export type UserNavigationMenuPermission = (typeof USER_NAVIGATION_MENU_PERMISSION_IDS)[number];
+export const DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS: UserNavigationMenuPermission[] = [...USER_NAVIGATION_MENU_PERMISSION_IDS];
+
+export function normalizeUserNavigationMenuPermissions(value: unknown): UserNavigationMenuPermission[] {
+    if (!Array.isArray(value)) return [...DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS];
+    const selected = new Set(value.filter((item): item is UserNavigationMenuPermission => typeof item === "string" && USER_NAVIGATION_MENU_PERMISSION_IDS.includes(item as UserNavigationMenuPermission)));
+    return USER_NAVIGATION_MENU_PERMISSION_IDS.filter((id) => selected.has(id));
+}
+
+export function isUserNavigationMenuPermission(value: string): value is UserNavigationMenuPermission {
+    return USER_NAVIGATION_MENU_PERMISSION_IDS.includes(value as UserNavigationMenuPermission);
+}
+
 const modulesById = new Map(FEATURE_MODULES.map((module) => [module.id, module]));
 const modulesByRouteRoot = new Map(FEATURE_MODULES.filter((module) => module.routeRoot).map((module) => [module.routeRoot!, module.id]));
 
@@ -108,6 +137,19 @@ export function featureModuleForPathname(pathname: string): FeatureModuleId | un
 
 export function featureModuleForNavigationSlug(slug: string): FeatureModuleId | undefined {
     return featureModuleForPathname(`/${slug}`);
+}
+
+export function isUserNavigationPathAllowed(pathname: string, menuPermissions: readonly UserNavigationMenuPermission[], featureModules: FeatureModuleSettings, schoolContext?: SchoolContext | null) {
+    const moduleId = featureModuleForPathname(pathname);
+    if (!moduleId) return true;
+    if (featureModules[moduleId] === false || !menuPermissions.includes(moduleId as UserNavigationMenuPermission)) return false;
+    if (moduleId === "teaching") return hasActiveSchoolRole(schoolContext, "teacher");
+    if (moduleId === "learning") return hasActiveSchoolRole(schoolContext, "student");
+    return true;
+}
+
+function hasActiveSchoolRole(context: SchoolContext | null | undefined, role: "teacher" | "student") {
+    return context?.school.status === "active" && context.membership.status === "active" && context.membership.role === role;
 }
 
 export function isDramaLabUiFeatureEnabled(settings: Pick<{ featureModules?: Record<string, boolean> }, "featureModules"> | undefined, id: DramaLabUiFeatureId) {

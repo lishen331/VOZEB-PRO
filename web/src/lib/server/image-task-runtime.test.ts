@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 
 const mocks = vi.hoisted(() => ({
@@ -53,6 +53,7 @@ vi.mock("@/lib/server/image-task-store", () => ({
 vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContext: vi.fn(() => "worker-context") }));
 vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaProxyHeaders: mocks.mediaHeaders }));
 
+import { channelInFlight, reserveChannelSlot, resetChannelConcurrency } from "./channel-concurrency";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError } from "./generation-submission-error";
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import { createImageTaskUpstreamStep, markImageTaskFailed, persistImageTaskResult, prepareImageTaskAutomaticRetry, queryImageTaskUpstreamStep } from "./image-task-runtime";
@@ -119,6 +120,46 @@ describe("image task runtime submission safety", () => {
         expect(state.attempts).toEqual([expect.objectContaining({ attemptNo: 1, status: "failed" }), expect.objectContaining({ attemptNo: 2, status: "running" })]);
 
         await expect(prepareImageTaskAutomaticRetry(state, "再次失败")).resolves.toBeNull();
+    });
+
+    describe("channel concurrency limits", () => {
+        beforeEach(() => {
+            vi.stubEnv("VOZEB_PRO_DATABASE_PROVIDER", "file");
+            resetChannelConcurrency();
+            state.config = { ...state.config, capabilityProfile: { concurrencyLimit: 1 } };
+            state.candidateConfigs = (state.candidateConfigs || []).map((config) => ({ ...config, capabilityProfile: { concurrencyLimit: 1 } }));
+        });
+        afterEach(() => vi.unstubAllEnvs());
+
+        it("moves to the next channel when the first one is full, keyed by the upstream model", async () => {
+            await reserveChannelSlot("image", "channel-one", "image-one", "someone-else", 1);
+            mocks.runGemini.mockResolvedValueOnce({ dataUrl: "", pending: { id: "upstream-two", mediaBaseUrl: "https://two.example", pollBaseUrl: "https://two.example" } });
+
+            await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).resolves.toMatchObject({ state: "pending", upstream: { id: "upstream-two" } });
+            expect(mocks.runCustom).not.toHaveBeenCalled();
+            expect(state.config.channelId).toBe("channel-two");
+            expect(state.attempts).toEqual([expect.objectContaining({ attemptNo: 1, channelId: "channel-two", status: "running", reservationId: "image:image-one#1" })]);
+            expect(channelInFlight("image", "channel-two", "image-two")).toBe(1);
+        });
+
+        it("fails fast without an automatic retry when every channel is full", async () => {
+            await reserveChannelSlot("image", "channel-one", "image-one", "other-1", 1);
+            await reserveChannelSlot("image", "channel-two", "image-two", "other-2", 1);
+
+            const step = await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
+            expect(step).toMatchObject({ state: "failed", status: "channel_saturated", error: "当前使用人数较多，请稍后再试" });
+            expect(step).not.toHaveProperty("retryReason");
+            expect(mocks.runCustom).not.toHaveBeenCalled();
+            expect(mocks.runGemini).not.toHaveBeenCalled();
+            expect(state.attempts || []).toHaveLength(0);
+        });
+
+        it("releases the slot as soon as the attempt fails", async () => {
+            mocks.runCustom.mockRejectedValueOnce(new GenerationSubmissionSafeFailure("参数不受支持", 422));
+
+            await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
+            expect(channelInFlight("image", "channel-one", "image-one")).toBe(0);
+        });
     });
 
     it("keeps the submitting phase unavailable until the configured image deadline", async () => {
