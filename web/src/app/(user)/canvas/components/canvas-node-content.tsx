@@ -18,7 +18,7 @@ import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-
 import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
-export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top" | "bottom" | "left" | "right";
 export type NodeContentRendererProps = {
     node: CanvasNodeData;
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -855,6 +855,12 @@ export function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; on
         "top-right": "-right-[14px] -top-[14px] cursor-nesw-resize",
         "bottom-left": "-bottom-[14px] -left-[14px] cursor-nesw-resize",
         "bottom-right": "-bottom-[14px] -right-[14px] cursor-nwse-resize",
+        // Edge midpoints. Only 生成组 frames render these; every other node keeps
+        // its 4 corners so a busy canvas does not sprout 8 handles per card.
+        top: "left-1/2 -top-[14px] -translate-x-1/2 cursor-ns-resize",
+        bottom: "left-1/2 -bottom-[14px] -translate-x-1/2 cursor-ns-resize",
+        left: "top-1/2 -left-[14px] -translate-y-1/2 cursor-ew-resize",
+        right: "top-1/2 -right-[14px] -translate-y-1/2 cursor-ew-resize",
     }[corner];
 
     return <div data-canvas-resize-corner={corner} className={`absolute z-50 size-7 ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;

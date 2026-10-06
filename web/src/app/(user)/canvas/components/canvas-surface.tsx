@@ -37,6 +37,8 @@ type WheelFrame = { clientX: number; clientY: number; deltaY: number };
 
 const CANVAS_EDGE_LOD_THRESHOLD = 256;
 const VIEWPORT_QUERY_PADDING_RATIO = 0.75;
+/** Breathing room between the persistent selection frame and the nodes it wraps. */
+const CANVAS_SELECTION_BOX_PADDING = 10;
 
 type CanvasSurfaceProps = {
     containerRef?: RefObject<HTMLDivElement | null>;
@@ -851,6 +853,29 @@ export function CanvasSurface({
               height: Math.abs(boxSelection.current.y - boxSelection.start.y),
           }
         : undefined;
+    // The marquee above only exists while the pointer is down. Once it lifts,
+    // this frame takes over so a multi-node selection still reads as "these are
+    // selected" — and gives the selection toolbar something to hang off. Drawn in
+    // world space so it tracks pan/zoom for free, and left unfilled so it never
+    // tints the nodes it wraps. A lone 生成组 is excluded: its own body is the box.
+    const persistentSelectionStyle = useMemo(() => {
+        if (boxSelection || selectedNodeIds.size < 2) return undefined;
+        const members = [...selectedNodeIds]
+            .filter((id) => !hiddenNodeIds.has(id))
+            .map((id) => getDisplayNode(id))
+            .filter((node): node is CanvasNodeData => Boolean(node));
+        if (!members.length) return undefined;
+        const left = Math.min(...members.map((node) => node.position.x));
+        const top = Math.min(...members.map((node) => node.position.y));
+        const right = Math.max(...members.map((node) => node.position.x + node.width));
+        const bottom = Math.max(...members.map((node) => node.position.y + node.height));
+        return {
+            left: left - CANVAS_SELECTION_BOX_PADDING,
+            top: top - CANVAS_SELECTION_BOX_PADDING,
+            width: right - left + CANVAS_SELECTION_BOX_PADDING * 2,
+            height: bottom - top + CANVAS_SELECTION_BOX_PADDING * 2,
+        };
+    }, [boxSelection, getDisplayNode, hiddenNodeIds, selectedNodeIds]);
 
     return (
         <div
@@ -958,6 +983,15 @@ export function CanvasSurface({
                                 />
                             );
                         })}
+                        {persistentSelectionStyle ? (
+                            <div
+                                data-canvas-selection-box
+                                className="pointer-events-none absolute rounded-xl border-dashed"
+                                // Counter-scale the outline so it keeps a constant on-screen
+                                // weight at any zoom; the world layer publishes --canvas-zoom.
+                                style={{ ...persistentSelectionStyle, borderColor: theme.canvas.selectionStroke, borderWidth: "calc(1.5px / var(--canvas-zoom, 1))" }}
+                            />
+                        ) : null}
                         {selectionStyle ? <div className="pointer-events-none absolute border" style={{ ...selectionStyle, borderColor: theme.canvas.selectionStroke, background: theme.canvas.selectionFill }} /> : null}
                         {overlay}
                     </div>

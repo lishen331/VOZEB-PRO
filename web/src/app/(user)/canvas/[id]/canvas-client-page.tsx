@@ -15,6 +15,7 @@ import { CanvasNodeEmotionDialog } from "../components/canvas-node-emotion-dialo
 import { CanvasNodeCropDialog } from "../components/canvas-node-crop-dialog";
 import { CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "../components/canvas-node-hover-toolbar";
 import { CanvasNodeMaskEditDialog } from "../components/canvas-node-mask-edit-dialog";
+import { CanvasSelectionToolbar } from "../components/canvas-selection-toolbar";
 import { CanvasNodePromptPanel } from "../components/canvas-node-prompt-panel";
 import { CanvasNodeSplitDialog } from "../components/canvas-node-split-dialog";
 import { CanvasNodeUpscaleDialog } from "../components/canvas-node-upscale-dialog";
@@ -599,7 +600,10 @@ function VozebProCanvasPage() {
                 />
 
                 <CanvasNodeHoverToolbar
-                    node={isNodeDragging || nodeImageSettingsOpen ? null : toolbarNode}
+                    // A 生成组 frame never shows the hover toolbar: its own
+                    // selection toolbar sits in the same band and carries the
+                    // frame's actions (整组执行 / 解组 / 删除).
+                    node={isNodeDragging || nodeImageSettingsOpen || toolbarNode?.type === CanvasNodeType.Container ? null : toolbarNode}
                     viewport={viewport}
                     panelPlacement={toolbarNode && panelPlacement?.nodeId === toolbarNode.id ? panelPlacement.placement : "bottom"}
                     onKeep={keepNodeToolbar}
@@ -626,6 +630,32 @@ function VozebProCanvasPage() {
                     onRetry={(node) => void handleRetryNode(node)}
                     onToggleFreeResize={(node) => toggleNodeFreeResize(node.id)}
                     onDelete={(node) => deleteNodes(new Set([node.id]))}
+                />
+
+                <CanvasSelectionToolbar
+                    nodes={nodes}
+                    selectedNodeIds={selectedNodeIds}
+                    viewport={viewport}
+                    onSaveAssets={() => {
+                        const targets = nodes.filter(
+                            (node) => selectedNodeIds.has(node.id) && (node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Audio || node.type === CanvasNodeType.Image) && node.metadata?.content,
+                        );
+                        void Promise.all(targets.map((node) => saveNodeAsset(node))).catch((error) => message.error(error instanceof Error ? error.message : "素材保存失败"));
+                    }}
+                    onDuplicateSelection={() => {
+                        copySelectedNodes();
+                        pasteCopiedNodes();
+                    }}
+                    onGroupSelection={createContainerFromSelection}
+                    onRunContainer={() => {
+                        const container = nodes.find((node) => node.type === CanvasNodeType.Container && selectedNodeIds.has(node.id));
+                        if (container) void handleGenerateContainer(container.id);
+                    }}
+                    onDissolveContainer={() => {
+                        const container = nodes.find((node) => node.type === CanvasNodeType.Container && selectedNodeIds.has(node.id));
+                        if (container) removeContainer(container.id);
+                    }}
+                    onDeleteSelection={() => deleteNodes(new Set(selectedNodeIds))}
                 />
 
                 <CanvasToolbar
