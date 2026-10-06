@@ -41,9 +41,7 @@ describe("admin settings model routing", () => {
         const response = await PATCH(request({ logicalModels: savedSettings.logicalModels }));
         const payload = await response.json();
         expect(response.status).toBe(200);
-        expect(payload.bindingVerificationWarnings).toEqual([
-            expect.objectContaining({ modelId: "writer", bindingId: "binding", channelId: "one", message: expect.stringContaining("尚无当前配置的成功生成记录") }),
-        ]);
+        expect(payload.bindingVerificationWarnings).toEqual([expect.objectContaining({ modelId: "writer", bindingId: "binding", channelId: "one", message: expect.stringContaining("尚无当前配置的成功生成记录") })]);
         expect(mocks.setAuthSettings).toHaveBeenCalled();
     });
     it.each([true, false])("saves and returns binding HTTP/1.1 setting %s", async (enabled) => {

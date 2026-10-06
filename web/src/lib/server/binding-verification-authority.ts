@@ -155,7 +155,8 @@ export async function assertBindingVerificationSubmission(run: import("./binding
             return [];
         });
         const expectedDurationSeconds = Number(run.diagnostics?.durationSeconds) || 5;
-        if (!resolutions.includes("480") || resolutions.some((v) => /^\d+$/.test(v) && v !== "480") || !durations.length || durations.some((v) => v !== expectedDurationSeconds)) throw new Error(`实际提交报文未严格保持 480p、${expectedDurationSeconds} 秒，禁止降级验证`);
+        if (!resolutions.includes("480") || resolutions.some((v) => /^\d+$/.test(v) && v !== "480") || !durations.length || durations.some((v) => v !== expectedDurationSeconds))
+            throw new Error(`实际提交报文未严格保持 480p、${expectedDurationSeconds} 秒，禁止降级验证`);
     }
 
     return { referenceCount: expected, ...(run.capability === "video" ? { durationSeconds: Number(run.diagnostics?.durationSeconds) || 5, resolution: "480p" } : {}), requestDigest: createHash("sha256").update(serialized).digest("hex") };

@@ -40,11 +40,7 @@ export async function buildOpenAiVideoFormData(input: OpenAiVideoFormInput) {
         const sourceDigest = createHash("sha256").update(sourceBytes).digest("hex");
         const [width, height] = [input.width, input.height];
         try {
-            const bytes = await sharp(sourceBytes, { failOn: "error" })
-                .rotate()
-                .resize(width, height, { fit: "cover", position: "centre" })
-                .jpeg({ quality: 92 })
-                .toBuffer();
+            const bytes = await sharp(sourceBytes, { failOn: "error" }).rotate().resize(width, height, { fit: "cover", position: "centre" }).jpeg({ quality: 92 }).toBuffer();
             formData.set("input_reference", new File([bytes], `input-reference-${sourceDigest}.jpg`, { type: "image/jpeg" }));
         } catch {
             // Keep the original file available for formats sharp cannot decode.

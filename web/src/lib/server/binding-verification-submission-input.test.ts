@@ -44,7 +44,6 @@ it("checks every selected mixed reference rather than a fixed three-image count"
     await expect(assertBindingVerificationSubmission(run, JSON.stringify({ references: input.references.slice(0, 1), resolution: "480p", duration: 5 }))).rejects.toThrow("参考素材");
 });
 
-
 it("matches an OpenAI video input_reference multipart part to the selected source after image re-encoding", async () => {
     const sourceBytes = Buffer.from("the selected original image bytes");
     const transformedBytes = Buffer.from("adapter resized and re-encoded image bytes");
@@ -99,8 +98,17 @@ it("requires one multipart source marker per selected image instead of reusing o
     const run: BindingVerificationRun = {
         ...base,
         capability: "video",
-        input: { prompt: "animate both", references: [{ type: "image", url: first }, { type: "image", url: second }] },
-        referenceEvidence: [{ url: first, sha256 }, { url: second, sha256 }],
+        input: {
+            prompt: "animate both",
+            references: [
+                { type: "image", url: first },
+                { type: "image", url: second },
+            ],
+        },
+        referenceEvidence: [
+            { url: first, sha256 },
+            { url: second, sha256 },
+        ],
     };
     const form = new FormData();
     form.set("seconds", "5");
@@ -109,7 +117,6 @@ it("requires one multipart source marker per selected image instead of reusing o
     form.append("input_reference", new Blob(["transformed once"], { type: "image/jpeg" }), `input-reference-${sha256}.jpg`);
     await expect(assertBindingVerificationSubmission(run, form)).rejects.toThrow("2 个参考素材");
 });
-
 
 it("accepts the real OpenAI multipart size field as 480p and its normalized 8s duration", async () => {
     const sourceBytes = Buffer.from("selected OpenAI multipart source image");

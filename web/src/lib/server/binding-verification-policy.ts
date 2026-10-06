@@ -60,11 +60,7 @@ export function bindingVerificationFingerprint(model: LogicalModel, binding: Log
  * operators can test it from the workbench. The returned warnings are deliberately structured for
  * the admin API/UI and contain only identifiers plus a one-way fingerprint, never credentials or media.
  */
-export async function assertBindingVerificationChanges(
-    before: Settings,
-    after: Settings,
-    hasPassed: (fingerprint: string) => Promise<boolean>,
-): Promise<BindingVerificationWarning[]> {
+export async function assertBindingVerificationChanges(before: Settings, after: Settings, hasPassed: (fingerprint: string) => Promise<boolean>): Promise<BindingVerificationWarning[]> {
     const warnings: BindingVerificationWarning[] = [];
     for (const model of after.logicalModels) {
         if (model.capability === "audio") continue;
