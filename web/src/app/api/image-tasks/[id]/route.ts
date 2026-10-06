@@ -12,6 +12,8 @@ import { generationModelId } from "@/lib/server/generation-channel";
 import { cancellationExecutionPatch, type GenerationCancellationTarget } from "@/lib/server/generation-task-cancellation-service";
 import { refundImageTask } from "@/lib/server/image-task-refund";
 import { getStoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
+import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
+import { queryImageUpstreamTaskIdByRequestId } from "@/app/api/image-tasks/image-task-support";
 import { recoverGenerationTaskFromUpstream } from "@/lib/server/generation-task-user-recovery";
 
 export const runtime = "nodejs";
@@ -74,7 +76,21 @@ export async function POST(request: Request, context: RouteContext) {
     if (task.status !== "running") return NextResponse.json({ error: "当前图片任务无法继续检查" }, { status: 409 });
 
     const schedule = await getStoredGenerationTaskRecord("image", task.id);
-    const upstreamTaskId = task.upstream?.id || schedule?.upstreamTaskId;
+    let upstreamTaskId = task.upstream?.id || schedule?.upstreamTaskId;
+    if (!upstreamTaskId) {
+        // D6 步骤6：本地没有任务 ID，但步骤4 已把上游请求 ID 落库时，允许按请求 ID 向上游查一次。
+        // 查到就回填 upstream_task_id 再走下面的既有轮询逻辑；查不到仍返回 409，不伪造成功。
+        // 渠道开关即 advancedConfig.requestIdQueryPath：未声明的渠道 URL 为空、不发生任何请求，
+        // 行为与改动前完全一致。
+        const requestId = schedule?.upstreamRequestId;
+        if (requestId) {
+            const recoveredId = await queryImageUpstreamTaskIdByRequestId(task.config, requestId, resolveInternalOrigin(new URL(request.url).origin), request.headers.get("cookie") || "");
+            if (recoveredId) {
+                await scheduleGenerationTask("image", task.id, { upstreamTaskId: recoveredId, lastUpstreamStatus: "recovered_by_request_id" });
+                upstreamTaskId = recoveredId;
+            }
+        }
+    }
     if (!upstreamTaskId) return NextResponse.json({ error: "原任务没有保存上游任务 ID，无法安全追回结果" }, { status: 409 });
 
     const rearmed = await recoverGenerationTaskFromUpstream({

@@ -7,6 +7,7 @@ import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 import {
     allowsImageProtocolFallback,
     alternateManagedMediaUrl,
+    configuredImageTaskRequestIdUrl,
     findImageResult,
     ImageQueryContractError,
     imageRequestAspectRatio,
@@ -19,6 +20,7 @@ import {
     parseImagePayloadOrPoll,
     parseImagePayloadCompat,
     parseImageQueryJson,
+    queryImageUpstreamTaskIdByRequestId,
     resolveRequestSize,
     resolveResultSize,
     sanitizeConfigs,
@@ -279,5 +281,69 @@ describe("GlobalAiOpc image task paths", () => {
 
         expect(shouldFallbackToJsonImageEdit(422, message)).toBe(true);
         expect(shouldRetryJsonImageEditPayload(422, message)).toBe(true);
+    });
+});
+
+// D6 步骤6：按上游请求 ID 追回任务。渠道开关即 advancedConfig.requestIdQueryPath：
+// 未声明即关闭，行为与改动前完全一致。
+describe("recovery by upstream request id", () => {
+    afterEach(() => {
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
+
+    function requestIdConfig(requestIdQueryPath?: string) {
+        return {
+            baseUrl: "/api/ai/system/global-image",
+            apiFormat: "openai",
+            advancedConfig: { protocol: "globalaiopc", createPath: "/image2/images", ...(requestIdQueryPath ? { requestIdQueryPath } : {}) },
+        } as never;
+    }
+
+    // 外部 baseUrl 才会走真实出站 fetch；内部代理 baseUrl 走 fetchInternalApi，不经全局 fetch。
+    function externalRequestIdConfig(requestIdQueryPath?: string) {
+        return {
+            baseUrl: "https://upstream.example.com/v1",
+            apiKey: "synthetic-key",
+            apiFormat: "openai",
+            advancedConfig: { protocol: "openai", createPath: "/images/generations", ...(requestIdQueryPath ? { requestIdQueryPath } : {}) },
+        } as never;
+    }
+
+    it("stays disabled for channels that do not declare a request id query path", () => {
+        expect(configuredImageTaskRequestIdUrl(requestIdConfig(), "req-abc123", "http://localhost")).toBe("");
+    });
+
+    it("renders the declared template with the url-encoded request id", () => {
+        expect(configuredImageTaskRequestIdUrl(requestIdConfig("/requests/{{requestId}}"), "req/abc 123", "http://localhost")).toBe(
+            "http://localhost/api/ai/system/global-image/requests/req%2Fabc%20123",
+        );
+    });
+
+    it("does not query the upstream at all when the channel is not enabled", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+
+        await expect(queryImageUpstreamTaskIdByRequestId(externalRequestIdConfig(), "req-abc123", "http://localhost", "session=test")).resolves.toBe("");
+
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("returns the upstream task id resolved from the request id", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response(JSON.stringify({ task_id: "upstream-one" }), { status: 200, headers: { "content-type": "application/json" } })),
+        );
+
+        await expect(queryImageUpstreamTaskIdByRequestId(externalRequestIdConfig("/requests/{{requestId}}"), "req-abc123", "http://localhost", "session=test")).resolves.toBe("upstream-one");
+    });
+
+    it("returns an empty id instead of inventing one when the upstream cannot resolve it", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response(JSON.stringify({ error: { message: "not found" } }), { status: 404, headers: { "content-type": "application/json" } })),
+        );
+
+        await expect(queryImageUpstreamTaskIdByRequestId(externalRequestIdConfig("/requests/{{requestId}}"), "req-abc123", "http://localhost", "session=test")).resolves.toBe("");
     });
 });

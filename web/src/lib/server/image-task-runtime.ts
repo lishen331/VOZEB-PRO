@@ -230,6 +230,7 @@ async function handleImageProviderResult(task: ImageTask, result: ImageTaskRunRe
         await scheduleGenerationTask("image", task.id, {
             executionPhase: "needs_review",
             upstreamTaskId: result.needsReview.upstream.id,
+            upstreamRequestId: result.upstreamRequestId,
             channelId: task.config.channelId,
             provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
             queryPath: result.needsReview.upstream.explicitPollUrl || task.config.advancedConfig?.queryPath,
@@ -246,6 +247,7 @@ async function handleImageProviderResult(task: ImageTask, result: ImageTaskRunRe
         await scheduleGenerationTask("image", task.id, {
             executionPhase: "submitted",
             upstreamTaskId: result.pending.id,
+            upstreamRequestId: result.upstreamRequestId,
             channelId: task.config.channelId,
             provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
             queryPath: result.pending.explicitPollUrl || task.config.advancedConfig?.queryPath,
@@ -274,19 +276,20 @@ async function handleImageProviderResult(task: ImageTask, result: ImageTaskRunRe
         await deletePreparedImageTaskResults(results);
         return { state: "failed", error: error instanceof Error ? error.message : "上游返回的图片文件无效或保存失败", status: "failed" };
     }
-    return readyImageStep(task, first.serverUrl || first.dataUrl);
+    return readyImageStep(task, first.serverUrl || first.dataUrl, result.upstreamRequestId);
 }
 
-async function readyImageStep(task: ImageTask, resultUrl: string): Promise<ImageUpstreamStep> {
+async function readyImageStep(task: ImageTask, resultUrl: string, upstreamRequestId?: string): Promise<ImageUpstreamStep> {
     if (!stableMediaUrl(resultUrl)) return { state: "failed", error: "上游返回的图片文件无效或保存失败", status: "failed" };
-    await persistReadyImageSchedule(task, resultUrl);
+    await persistReadyImageSchedule(task, resultUrl, upstreamRequestId);
     return { state: "result_ready", resultUrl, status: "completed" };
 }
 
-function persistReadyImageSchedule(task: ImageTask, resultUrl: string) {
+function persistReadyImageSchedule(task: ImageTask, resultUrl: string, upstreamRequestId?: string) {
     const submittedAt = Date.now();
     return scheduleGenerationTask("image", task.id, {
         executionPhase: "result_ready",
+        upstreamRequestId,
         channelId: task.config.channelId,
         provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
         submittedAt,

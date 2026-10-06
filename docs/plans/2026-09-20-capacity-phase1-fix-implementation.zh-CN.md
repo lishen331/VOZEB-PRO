@@ -206,7 +206,14 @@ validateUploadBytes(bytes: Buffer, expectedType: "image" | "video" | "audio")
 
 这一步依赖各渠道协议支持度，**必须按渠道开关，不支持的渠道保持现状**。
 
-### 7.1 发送幂等头
+> **实施时更正（2026-10-06，核实代码后）**：本节原文假设"幂等头尚未发送"，与实测不符。
+> `Idempotency-Key` + `X-Client-Request-Id` 早已在 `image-task-support.ts:260` 的 `taskHeaders`
+> 里发送，键为 `image-task:{taskId}:attempt:{n}`，同一 attempt 重试键不变。7.1 因此**无增量代码**。
+> 实测到的真实缺口是：`upstream_request_id` 列与调度器全链路（步骤 4 已建）**没有任何生产者** ——
+> 正常路径拿到 task ID 后把响应头里的上游请求 ID 丢弃，只有"连 task ID 都没有"的兜底分支才读它，
+> 违反第 9 节验收第 2 层"上游返回过的 ID 全部及时落库、无丢弃"。故实际实施的是**生产者 + 消费端**。
+
+### 7.1 发送幂等头（核实后：已完成，无需改动）
 
 把步骤 4 已落库的幂等键作为请求头随提交发给上游（`Idempotency-Key`，或按各渠道协议约定的等价头）。上游若已接单，重试会拿回同一个任务而非新建，这是消掉重复计费风险的唯一办法——没有它，任何自动重试都是盲发。
 
@@ -214,26 +221,57 @@ validateUploadBytes(bytes: Buffer, expectedType: "image" | "video" | "audio")
 
 **日志注意**：不要把请求头整体打印出来，中转 api_key 在同一组头里。只记幂等键本身。
 
+**现状（2026-10-06 核实）**：`taskHeaders`（`image-task-support.ts:253`）已对图片链路发送
+`Idempotency-Key` 与 `X-Client-Request-Id`，值来自 `imagePointsIdempotencyKey(task)`，形态
+`image-task:{taskId}:attempt:{attemptNo}`。文本链路经 `text-task-runtime.ts` 的 `taskHeaders`
+发送，键为 `pointsIdempotencyKey(task, protocol)`。意图一致，无需新增。
+
+### 7.1b 捕获上游请求 ID 并落库（实际增量）
+
+**缺口**：`readUpstreamRequestIdFromHeaders`（`image-task-support.ts:529`）只在
+`parseImagePayloadOrPoll` 的"响应体既无图也无 task ID"兜底分支被调用一次；正常成功路径
+（拿到 task ID）虽然同样带着响应头，却把请求 ID 丢掉了。
+
+**改法**：把捕获上移到所有图片协议的唯一收口 `parseChargedImageResponse`
+（`image-task-support.ts:862`）。该函数已被 openai / custom / gemini 三条路径共同调用，
+且已经在读同一个 `response.headers`（`readBilling`）。捕获结果放进 `ImageTaskResult.upstreamRequestId`
+（独立字段，**不与 `pending.id` / `needsReview.upstream.id` 混存** —— 前者是请求 ID，后者是任务 ID，
+供应商账单通常按请求 ID 对账，语义不同）。
+
+三个写入点随后把它透传给调度器（`image-task-runtime.ts`）：`needs_review` 分支、`submitted` 分支、
+`result_ready` 分支，最终落到 `generation_tasks.upstream_request_id`。
+
+**未做**：文本 / 音频 / 视频三条链路的 `upstream` 记录仍只有 `{ id, createPath }`，没有请求 ID 字段。
+它们的 `response.headers` 在各自 runtime 里可得，但改动面较大，本轮未动。若下一轮要做，
+按图片同样的形状接即可。
+
 ### 7.2 恢复链路利用新列
 
 四条恢复接口当前只在 `upstreamTaskId` 缺失时直接返回 409：
 
-| 接口 | 位置 |
-| --- | --- |
-| 图片 | `web/src/app/api/image-tasks/[id]/route.ts:78` |
-| 视频 | `web/src/app/api/video-tasks/[id]/route.ts:54` |
-| 文本 | `web/src/app/api/text-tasks/[id]/route.ts:65` |
-| 音频 | `web/src/app/api/audio-tasks/[id]/route.ts:69` |
+| 接口 | 位置 | 状态 |
+| --- | --- | --- |
+| 图片 | `web/src/app/api/image-tasks/[id]/route.ts:78` | **已接入**按请求 ID 追回 |
+| 视频 | `web/src/app/api/video-tasks/[id]/route.ts:54` | 未接入（无生产者） |
+| 文本 | `web/src/app/api/text-tasks/[id]/route.ts:65` | 未接入（无生产者） |
+| 音频 | `web/src/app/api/audio-tasks/[id]/route.ts:69` | 未接入（无生产者） |
 
-补一层：若 `upstream_task_id` 为空但 `upstream_request_id` 存在，允许按请求 ID 向上游查询一次，查到就回填 `upstream_task_id`，再走既有轮询逻辑。查不到仍返回 409，不要伪造成功。
+图片接口补的那一层：若 `upstream_task_id` 为空但 `schedule.upstreamRequestId` 存在，
+调用 `queryImageUpstreamTaskIdByRequestId` 按请求 ID 向上游查询一次；查到就回填
+`upstream_task_id`（`lastUpstreamStatus: "recovered_by_request_id"`）再走既有轮询逻辑；
+查不到仍返回 409，**不伪造成功**。
 
-同样按渠道开关：只有实际支持按请求 ID 查询、且已验证过的渠道才启用。
+**渠道开关**：`advancedConfig.requestIdQueryPath`（路径模板，占位符 `{{requestId}}`，
+渲染规则对齐 `queryPath` 的 `{{taskId}}`）。**未声明即关闭** —— URL 为空、不发生任何上游请求，
+接口行为与改动前逐字节一致。文本/音频/视频三条链路因为连生产者都没有，无需开关，
+现状即"保持关闭"。
 
 ### 7.3 测试
 
-- `upstream_request_id` 存在而 `upstream_task_id` 为空时，恢复接口不再直接 409。
-- 上游按请求 ID 查不到时，仍返回 409，不伪造成功。
-- 未启用幂等的渠道，行为与改动前完全一致。
+- `upstream_request_id` 存在而 `upstream_task_id` 为空时，恢复接口不再直接 409。✅
+- 上游按请求 ID 查不到时，仍返回 409，不伪造成功。✅
+- 未启用幂等的渠道，行为与改动前完全一致。✅（渠道未声明 `requestIdQueryPath` 时不发出站请求）
+- 响应头带请求 ID、响应体带 task ID 的正常路径，请求 ID 不再丢失。✅
 
 ### 7.4 回滚
 

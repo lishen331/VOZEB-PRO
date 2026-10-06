@@ -598,6 +598,43 @@ export function configuredImageTaskPollUrl(config: ImageTaskConfig, taskId: stri
     return taskUrl(config, rendered === queryPath ? `${queryPath.replace(/\/+$/, "")}/${encodeURIComponent(taskId)}` : rendered, origin);
 }
 
+// D6 步骤6：按"上游请求 ID"查询的路径。渲染规则与上面的 taskId 版本对齐（同一套模板占位符写法）。
+// 渠道未声明 advancedConfig.requestIdQueryPath 时返回空串，调用方据此保持原有 409 行为——
+// 这是本功能的渠道开关，未验证渠道不受影响。
+export function configuredImageTaskRequestIdUrl(config: ImageTaskConfig, requestId: string, requestUrl: string) {
+    const template = (config.advancedConfig?.requestIdQueryPath || "").trim();
+    if (!template) return "";
+    let origin = "";
+    try {
+        origin = new URL(requestUrl).origin;
+    } catch {
+        return "";
+    }
+    const encoded = encodeURIComponent(requestId);
+    const rendered = template.replace(/\{\{\s*(?:requestId|request_id)\s*\}\}|\{(?:requestId|request_id)\}|:(?:requestId|request_id)\b/gi, encoded);
+    return taskUrl(config, rendered === template ? `${template.replace(/\/+$/, "")}/${encoded}` : rendered, origin);
+}
+
+// 按请求 ID 向上游查一次任务 ID。查到就返回，查不到/未配置/请求失败一律返回空串——
+// 调用方必须把空串当作"仍无法追回"并保持 409，不得伪造成功。
+export async function queryImageUpstreamTaskIdByRequestId(config: ImageTaskConfig, requestId: string, origin: string, cookie: string): Promise<string> {
+    const url = configuredImageTaskRequestIdUrl(config, requestId, origin);
+    if (!url) return "";
+    try {
+        const response = await taskFetch(config, url, {
+            method: "GET",
+            headers: taskHeaders(config, cookie),
+            cache: "no-store",
+            signal: AbortSignal.timeout(Math.min(imageTaskRequestTimeoutMs(config), 60_000)),
+        });
+        if (!response.ok) return "";
+        const payload = await parseImageQueryJson(response);
+        return readImageTaskId(payload, config.advancedConfig?.taskIdField);
+    } catch {
+        return "";
+    }
+}
+
 export function resolveTaskMediaUrl(config: ImageTaskConfig, value: string, baseUrl: string) {
     if (/^(data|blob):/i.test(value)) return value;
     const remoteUrl = resolveGeneratedMediaUrl(value, baseUrl);
@@ -860,8 +897,19 @@ export function readBilling(headers: Headers) {
 }
 
 export async function parseChargedImageResponse(task: ImageTask, response: Response, parse: () => Promise<ImageTaskResult>) {
+    // D6 步骤6：上游响应头回显的请求 ID 一律捕获，与响应体有没有 task ID 无关。
+    // 此前只有"响应体连 task ID 都没有"的兜底分支才读它，正常路径（拿到 task ID）
+    // 会把它丢弃，违反验收第 2 层"上游返回过的请求 ID 全部及时落库、无丢弃"。
+    // 独立字段，不与 pending.id / needsReview.upstream.id（任务 ID）混存：
+    // 供应商账单通常按请求 ID 对账，两者语义不同。
+    const upstreamRequestId = readUpstreamRequestIdFromHeaders(response.headers, task.config);
     try {
-        return { ...(await parse()), ...readBilling(response.headers) };
+        const parsed = await parse();
+        return {
+            ...parsed,
+            ...(upstreamRequestId && parsed.pending?.id !== upstreamRequestId ? { upstreamRequestId } : {}),
+            ...readBilling(response.headers),
+        };
     } catch (error) {
         if (error instanceof GenerationSubmissionUncertainError) await persistChargedImageResponse(task, response.headers);
         else await refundChargedImageResponse(task, response.headers);

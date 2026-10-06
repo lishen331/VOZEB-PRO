@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     getSchedule: vi.fn(),
     recover: vi.fn(),
     schedule: vi.fn(),
+    queryByRequestId: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -14,6 +15,7 @@ vi.mock("next/server", async (importOriginal) => {
 });
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
 vi.mock("@/app/api/image-tasks/image-task-reference-urls", () => ({ requestPublicOrigin: vi.fn(() => "https://public.example.com") }));
+vi.mock("@/app/api/image-tasks/image-task-support", () => ({ queryImageUpstreamTaskIdByRequestId: mocks.queryByRequestId }));
 vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTask, transitionImageTask: vi.fn() }));
 vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationTaskRecoveryBatch: mocks.recover }));
 vi.mock("@/lib/server/generation-task-store", () => ({ getStoredGenerationTaskRecord: mocks.getSchedule }));
@@ -144,6 +146,45 @@ describe("POST /api/image-tasks/[id] recover", () => {
         expect(response.status).toBe(409);
         expect(mocks.schedule).not.toHaveBeenCalled();
         expect(mocks.recover).not.toHaveBeenCalled();
+    });
+
+    // D6 步骤6：本地没任务 ID、但有请求 ID 时，允许按请求 ID 追回一次。
+    it("looks the task up by upstream request id when no task id was saved", async () => {
+        mocks.getImageTask.mockResolvedValueOnce(imageTask()).mockResolvedValueOnce(imageTask());
+        mocks.getSchedule
+            .mockResolvedValueOnce({ executionPhase: "submitting", upstreamRequestId: "req-abc123", queryPath: "/jobs" })
+            .mockResolvedValueOnce({ executionPhase: "polling" })
+            .mockResolvedValueOnce({ executionPhase: "polling" });
+        mocks.queryByRequestId.mockResolvedValue("upstream-from-request-id");
+
+        const response = await POST(recoverRequest(), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.queryByRequestId).toHaveBeenCalledWith(expect.objectContaining({ channelId: "channel" }), "req-abc123", "http://localhost", "session=test");
+        // 回填 upstream_task_id 后才走既有追回逻辑，而不是新建任务。
+        expect(mocks.schedule).toHaveBeenCalledWith("image", "image-one", expect.objectContaining({ upstreamTaskId: "upstream-from-request-id", lastUpstreamStatus: "recovered_by_request_id" }));
+        expect(mocks.recover).toHaveBeenCalledTimes(1);
+    });
+
+    it("still refuses recovery when the upstream cannot resolve the request id", async () => {
+        mocks.getImageTask.mockResolvedValue(imageTask());
+        mocks.getSchedule.mockResolvedValue({ executionPhase: "submitting", upstreamRequestId: "req-abc123" });
+        mocks.queryByRequestId.mockResolvedValue("");
+
+        const response = await POST(recoverRequest(), context);
+
+        expect(response.status).toBe(409);
+        expect(mocks.recover).not.toHaveBeenCalled();
+    });
+
+    it("does not touch the upstream when no request id was persisted", async () => {
+        mocks.getImageTask.mockResolvedValue(imageTask());
+        mocks.getSchedule.mockResolvedValue({ executionPhase: "submitting" });
+
+        const response = await POST(recoverRequest(), context);
+
+        expect(response.status).toBe(409);
+        expect(mocks.queryByRequestId).not.toHaveBeenCalled();
     });
 });
 
