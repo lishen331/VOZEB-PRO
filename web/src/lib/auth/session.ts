@@ -130,9 +130,17 @@ export function serializePublicIdentitySettings(settings: AuthSettings) {
     };
 }
 
-export function serializePublicSettings(settings: AuthSettings) {
+// A1: 目录侧配置——对所有账号完全相同，只随管理员改后台配置而变，因此可缓存、
+// 可共享，由 GET /api/model-catalog 单独下发。体积几乎全部来自 logicalModels 与
+// systemChannels 两棵嵌套树。
+//
+// 不变量：本函数不接受任何用户 / 套餐 / 学校参数，输出必须与身份无关——共享缓存
+// 以此为前提。将来若要用 EntitlementPlan.features 控制模型可见性，不能改这里，
+// 否则缓存会静默串号（Cache-Control: private 只挡共享代理，挡不住教室共享机器上
+// 切换账号）。model-catalog/route.test.ts 有常驻守卫测试钉死这条。
+// 见 docs/plans/2026-09-20-capacity-phase1-fix-design.zh-CN.md 2.3。
+export function serializeModelCatalogSettings(settings: AuthSettings) {
     return {
-        ...serializePublicIdentitySettings(settings),
         practiceScriptSettings: { enabled: settings.practiceScriptSettings.enabled, defaultFormat: settings.practiceScriptSettings.defaultFormat },
         modelPointCosts: { ...settings.modelPointCosts },
         generationPointMultipliers: {
@@ -186,6 +194,15 @@ export function serializePublicSettings(settings: AuthSettings) {
                 hasApiKey: Boolean(channel.apiKey),
                 purpose: channel.purpose || "shared",
             })),
+    };
+}
+
+// 身份侧 + 目录侧的合体视图。前端 store 仍只认 settings 这一个视图（拆分对
+// use-config-store.ts 透明），登录页与旧调用点也靠它保持行为不变。
+export function serializePublicSettings(settings: AuthSettings) {
+    return {
+        ...serializePublicIdentitySettings(settings),
+        ...serializeModelCatalogSettings(settings),
     };
 }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { DEFAULT_SITE_SETTINGS, getAuthSettings } from "@/lib/auth/store";
-import { getCurrentUser, serializeCurrentUser, serializePublicIdentitySettings, serializePublicSettings } from "@/lib/auth/session";
+import { getCurrentUser, serializeCurrentUser, serializePublicIdentitySettings } from "@/lib/auth/session";
 import { getInstallStatus } from "@/lib/server/install-status";
 
 export const runtime = "nodejs";
@@ -17,9 +17,14 @@ export async function GET() {
     if (user) {
         try {
             const settings = await getAuthSettings();
+            // A1: 登录分支也只下发身份侧。目录侧走可缓存的 GET /api/model-catalog，
+            // 前端 use-public-session-store 并行取两个接口后浅合并，所以
+            // use-config-store 看到的 settings 视图不变。
+            // 这是本轮瘦身的主要收益来源：压测里 437KB 几乎全是目录侧，而
+            // points.ts 在每次生成后都会重拉一次本接口。见实施文档步骤 5。
             return NextResponse.json({
                 user: serializeCurrentUser(user),
-                settings: serializePublicSettings(settings),
+                settings: serializePublicIdentitySettings(settings),
                 install: { ready: true, firstAdminRequired: false, database: { healthy: true, schemaReady: true } },
             });
         } catch {
