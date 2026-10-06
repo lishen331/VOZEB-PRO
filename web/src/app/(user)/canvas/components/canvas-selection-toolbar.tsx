@@ -112,13 +112,7 @@ type SelectionTool = {
 function SelectionToolButton({ label, icon, onClick, danger = false, theme }: SelectionTool & { theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
     return (
         <Tooltip title={label} placement="top" mouseEnterDelay={0.2}>
-            <button
-                type="button"
-                aria-label={label}
-                className="group flex h-9 shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium transition"
-                style={{ color: danger ? "#ef4444" : theme.toolbar.item }}
-                onClick={onClick}
-            >
+            <button type="button" aria-label={label} className="group flex h-9 shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium transition" style={{ color: danger ? "#ef4444" : theme.toolbar.item }} onClick={onClick}>
                 {icon}
                 <span className="whitespace-nowrap">{label}</span>
             </button>

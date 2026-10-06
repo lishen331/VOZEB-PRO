@@ -637,7 +637,9 @@ function VozebProCanvasPage() {
                     selectedNodeIds={selectedNodeIds}
                     viewport={viewport}
                     onSaveAssets={() => {
-                        const targets = nodes.filter((node) => selectedNodeIds.has(node.id) && (node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Audio || node.type === CanvasNodeType.Image) && node.metadata?.content);
+                        const targets = nodes.filter(
+                            (node) => selectedNodeIds.has(node.id) && (node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Audio || node.type === CanvasNodeType.Image) && node.metadata?.content,
+                        );
                         void Promise.all(targets.map((node) => saveNodeAsset(node))).catch((error) => message.error(error instanceof Error ? error.message : "素材保存失败"));
                     }}
                     onDuplicateSelection={() => {

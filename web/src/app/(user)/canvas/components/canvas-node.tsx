@@ -605,7 +605,14 @@ export const CanvasNode = React.memo(function CanvasNode({
                     // selected, but the same line on a 900px-wide frame reads as a
                     // stray hairline. Thicker ring plus an inner glow makes the
                     // frame unambiguously the thing that is selected.
-                    boxShadow: isActive && isContainer && isSelected ? `0 0 0 2px ${selectionBlue}66, inset 0 0 0 1px ${selectionBlue}33, 0 18px 48px rgba(47,128,255,.18)` : isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated && !isBatchChild ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : undefined,
+                    boxShadow:
+                        isActive && isContainer && isSelected
+                            ? `0 0 0 2px ${selectionBlue}66, inset 0 0 0 1px ${selectionBlue}33, 0 18px 48px rgba(47,128,255,.18)`
+                            : isActive
+                              ? `0 0 0 1px ${selectionBlue}55`
+                              : isRelated && !isBatchChild
+                                ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)`
+                                : undefined,
                     ...(tilt
                         ? {
                               transform: `perspective(900px) rotateX(${tilt.rotateX.toFixed(2)}deg) rotateY(${tilt.rotateY.toFixed(2)}deg)`,
