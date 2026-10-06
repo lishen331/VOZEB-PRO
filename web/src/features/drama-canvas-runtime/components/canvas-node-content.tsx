@@ -186,11 +186,7 @@ export function ContainerNodeContent({ node, theme }: NodeContentRendererProps) 
 
     return (
         <div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-3xl" style={{ background: "transparent", color: theme.node.text }}>
-            <div
-                className="pointer-events-auto flex h-10 shrink-0 items-center gap-2 rounded-t-3xl px-4"
-                style={{ background: theme.node.fill, borderBottom: `1px solid ${theme.node.stroke}` }}
-                data-canvas-container-header
-            >
+            <div className="pointer-events-auto flex h-10 shrink-0 items-center gap-2 rounded-t-3xl px-4" style={{ background: theme.node.fill, borderBottom: `1px solid ${theme.node.stroke}` }} data-canvas-container-header>
                 <BoxSelect className="size-3.5 shrink-0" style={{ color: theme.node.activeStroke }} />
                 <span className="min-w-0 flex-1 truncate text-xs font-semibold">{label}</span>
                 <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: theme.node.subtleSurface, color: theme.node.subtleText }}>

@@ -315,9 +315,7 @@ describe("recovery by upstream request id", () => {
     });
 
     it("renders the declared template with the url-encoded request id", () => {
-        expect(configuredImageTaskRequestIdUrl(requestIdConfig("/requests/{{requestId}}"), "req/abc 123", "http://localhost")).toBe(
-            "http://localhost/api/ai/system/global-image/requests/req%2Fabc%20123",
-        );
+        expect(configuredImageTaskRequestIdUrl(requestIdConfig("/requests/{{requestId}}"), "req/abc 123", "http://localhost")).toBe("http://localhost/api/ai/system/global-image/requests/req%2Fabc%20123");
     });
 
     it("does not query the upstream at all when the channel is not enabled", async () => {

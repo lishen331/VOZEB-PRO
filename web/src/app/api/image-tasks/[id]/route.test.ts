@@ -151,10 +151,7 @@ describe("POST /api/image-tasks/[id] recover", () => {
     // D6 步骤6：本地没任务 ID、但有请求 ID 时，允许按请求 ID 追回一次。
     it("looks the task up by upstream request id when no task id was saved", async () => {
         mocks.getImageTask.mockResolvedValueOnce(imageTask()).mockResolvedValueOnce(imageTask());
-        mocks.getSchedule
-            .mockResolvedValueOnce({ executionPhase: "submitting", upstreamRequestId: "req-abc123", queryPath: "/jobs" })
-            .mockResolvedValueOnce({ executionPhase: "polling" })
-            .mockResolvedValueOnce({ executionPhase: "polling" });
+        mocks.getSchedule.mockResolvedValueOnce({ executionPhase: "submitting", upstreamRequestId: "req-abc123", queryPath: "/jobs" }).mockResolvedValueOnce({ executionPhase: "polling" }).mockResolvedValueOnce({ executionPhase: "polling" });
         mocks.queryByRequestId.mockResolvedValue("upstream-from-request-id");
 
         const response = await POST(recoverRequest(), context);

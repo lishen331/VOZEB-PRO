@@ -36,9 +36,7 @@ export function canvasNodeGenerationMode(node: CanvasNodeData): CanvasGeneration
 }
 
 export function canvasContainerGeneratableIds(containerId: string, nodes: CanvasNodeData[]) {
-    return nodes
-        .filter((node) => node.metadata?.containerId === containerId && node.metadata?.status !== "loading" && isCanvasGeneratableNode(node))
-        .map((node) => node.id);
+    return nodes.filter((node) => node.metadata?.containerId === containerId && node.metadata?.status !== "loading" && isCanvasGeneratableNode(node)).map((node) => node.id);
 }
 
 export function isCanvasContainerNode(node: CanvasNodeData | null | undefined) {
@@ -119,10 +117,5 @@ export function expandCanvasContainerDescendants(nodes: CanvasNodeData[], select
 
 /** True when `node` lies fully inside the container's frame. */
 export function isInsideCanvasContainer(node: CanvasNodeData, container: CanvasNodeData) {
-    return (
-        node.position.x >= container.position.x &&
-        node.position.y >= container.position.y &&
-        node.position.x + node.width <= container.position.x + container.width &&
-        node.position.y + node.height <= container.position.y + container.height
-    );
+    return node.position.x >= container.position.x && node.position.y >= container.position.y && node.position.x + node.width <= container.position.x + container.width && node.position.y + node.height <= container.position.y + container.height;
 }

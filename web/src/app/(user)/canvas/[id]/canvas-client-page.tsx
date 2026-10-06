@@ -358,7 +358,20 @@ function VozebProCanvasPage() {
             onViewImage: handleNodeViewImage,
             onPanelPlacementChange: handlePanelPlacementChange,
         }),
-        [handleNodeHoverStart, handleNodeHoverEnd, handleNodeContentChange, handleContainerLabelChange, toggleBatchExpanded, setBatchPrimary, handleNodeRetry, generateImageFromTextNode, handleNodeOpenPanel, handleImageDimensions, handleNodeViewImage, handlePanelPlacementChange],
+        [
+            handleNodeHoverStart,
+            handleNodeHoverEnd,
+            handleNodeContentChange,
+            handleContainerLabelChange,
+            toggleBatchExpanded,
+            setBatchPrimary,
+            handleNodeRetry,
+            generateImageFromTextNode,
+            handleNodeOpenPanel,
+            handleImageDimensions,
+            handleNodeViewImage,
+            handlePanelPlacementChange,
+        ],
     );
     const getNodeViewProps = useCallback(
         (node: CanvasNodeData) => ({

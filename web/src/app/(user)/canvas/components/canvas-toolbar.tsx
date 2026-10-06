@@ -1,7 +1,35 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Segmented, Switch } from "antd";
-import { BoxSelect, CircleDot, Download, Eraser, FolderOpen, Globe2, Grid2x2, Hand, Image as ImageIcon, Info, Layers, Moon, MousePointer2, Music2, Palette, Play, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Ungroup, Upload, Video, Workflow } from "lucide-react";
+import {
+    BoxSelect,
+    CircleDot,
+    Download,
+    Eraser,
+    FolderOpen,
+    Globe2,
+    Grid2x2,
+    Hand,
+    Image as ImageIcon,
+    Info,
+    Layers,
+    Moon,
+    MousePointer2,
+    Music2,
+    Palette,
+    Play,
+    Redo2,
+    Settings2,
+    Square,
+    Sun,
+    Trash2,
+    Type,
+    Undo2,
+    Ungroup,
+    Upload,
+    Video,
+    Workflow,
+} from "lucide-react";
 
 import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";

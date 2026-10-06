@@ -30,7 +30,9 @@ export type GenerationTaskLease = Pick<
     | "lastHeartbeatAt"
 >;
 
-export type GenerationTaskSchedulePatch = Partial<Pick<GenerationTaskLease, "executionPhase" | "upstreamTaskId" | "upstreamRequestId" | "channelId" | "provider" | "queryPath" | "submittedAt" | "nextPollAt" | "lastPollAt" | "lastUpstreamStatus" | "resultPayload">>;
+export type GenerationTaskSchedulePatch = Partial<
+    Pick<GenerationTaskLease, "executionPhase" | "upstreamTaskId" | "upstreamRequestId" | "channelId" | "provider" | "queryPath" | "submittedAt" | "nextPollAt" | "lastPollAt" | "lastUpstreamStatus" | "resultPayload">
+>;
 type GenerationTaskScheduleOptions = { cancellation?: boolean; resetUpstreamIdentity?: boolean };
 
 // Drama Lab workflow parents are persisted as render tasks. They use the
