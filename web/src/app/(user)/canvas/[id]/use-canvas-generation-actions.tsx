@@ -17,7 +17,7 @@ import { CANVAS_AGENT_PANEL_MOTION_MS } from "../components/canvas-agent-panel-m
 import { retryCanvasAgentNode } from "../components/canvas-agent-node-retry";
 import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext } from "../components/canvas-node-generation";
 import { type CanvasNodeGenerationMode } from "../components/canvas-node-prompt-panel";
-import { NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
+import { CANVAS_AGENT_ENABLED, NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type CanvasNodeData } from "../types";
 import { applyCameraPrompt } from "../utils/canvas-camera";
 import { canvasContainerGeneratableIds, canvasNodeGenerationMode } from "../utils/canvas-container-group";
@@ -947,6 +947,9 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
 
     const assistantOpen = assistantMounted && !assistantCollapsed;
     const openAgent = () => {
+        // 稳定性考虑暂时关闭（见 constants.ts 的 CANVAS_AGENT_ENABLED）。
+        // 顶栏按钮已置灰不可点，这里再兜一层，防止状态芯片、快捷键等其它入口展开面板。
+        if (!CANVAS_AGENT_ENABLED) return;
         if (agentCloseTimerRef.current) {
             clearTimeout(agentCloseTimerRef.current);
             agentCloseTimerRef.current = null;
@@ -967,7 +970,9 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
     };
 
     useEffect(() => {
-        if (!projectLoaded || autoOpenedAgentRef.current) return;
+        // 自动打开也要受开关约束：只禁按钮是挡不住的，宽屏下项目加载后
+        // 面板会自己挂起来（这正是用户截图里面板打开的原因）。
+        if (!CANVAS_AGENT_ENABLED || !projectLoaded || autoOpenedAgentRef.current) return;
         autoOpenedAgentRef.current = true;
         if (window.matchMedia("(min-width: 1024px)").matches) {
             setAssistantMounted(true);
