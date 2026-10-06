@@ -24,6 +24,9 @@ export type AuthRateLimitResult = RateLimitResult & { dimension?: AuthRateLimitD
 
 export const AUTH_LOGIN_RATE_LIMIT: RateLimitConfig = { maxRequests: 8, windowMs: 2 * 60 * 1000 };
 
+// 学校机房/教室共用 NAT 出口，按一个班约 60 人的同时使用量放宽 IP 维度
+export const GENERATION_SHARED_IP_MULTIPLIER = 60;
+
 const generationRateLimits: Record<GenerationRateLimitType, RateLimitConfig> = {
     agent: { maxRequests: 10, windowMs: 60 * 1000 },
     image: { maxRequests: 20, windowMs: 60 * 1000 },
@@ -98,7 +101,7 @@ export async function checkGenerationRateLimit(userId: string, request: Request,
 
     const clientIp = getClientIp(request);
     if (clientIp === "unknown") return userLimit;
-    const ipLimit = await checkRateLimit(`generation:${type}:ip:${clientIp}`, { ...config, maxRequests: config.maxRequests * 4 });
+    const ipLimit = await checkRateLimit(`generation:${type}:ip:${clientIp}`, { ...config, maxRequests: config.maxRequests * GENERATION_SHARED_IP_MULTIPLIER });
     return ipLimit.allowed ? userLimit : ipLimit;
 }
 

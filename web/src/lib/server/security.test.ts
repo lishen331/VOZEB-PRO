@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { checkAuthRateLimit, checkGenerationRateLimit, checkLocalMediaRateLimit, checkMediaProxyRateLimit, checkPublicMediaRateLimit, checkRateLimit, getClientIp, isSafeOutboundUrl, rateLimitHeaders } from "./security";
+import { GENERATION_SHARED_IP_MULTIPLIER, checkAuthRateLimit, checkGenerationRateLimit, checkLocalMediaRateLimit, checkMediaProxyRateLimit, checkPublicMediaRateLimit, checkRateLimit, getClientIp, isSafeOutboundUrl, rateLimitHeaders } from "./security";
 
 describe("checkRateLimit", () => {
     it("blocks requests beyond the configured window limit", async () => {
@@ -69,7 +69,7 @@ describe("checkRateLimit", () => {
         process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS = "1";
         const clientIp = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
         try {
-            for (let index = 0; index < 24; index += 1) {
+            for (let index = 0; index < 6 * GENERATION_SHARED_IP_MULTIPLIER; index += 1) {
                 const request = new Request("http://localhost", { headers: { "x-forwarded-for": clientIp } });
                 expect((await checkGenerationRateLimit(`user:${crypto.randomUUID()}`, request, "video")).allowed).toBe(true);
             }
