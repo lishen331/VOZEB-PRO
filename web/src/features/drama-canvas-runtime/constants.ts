@@ -31,6 +31,18 @@ export const CANVAS_GROUP_GRID = {
     restoreGap: 24,
 } as const;
 
+/**
+ * 生成组 (Container) geometry. Unlike CANVAS_GROUP_GRID this has no cell sizing:
+ * a container never draws its members, it only frames them where they already sit.
+ * `padding` is the breathing room left around the members' bounding box.
+ */
+export const CANVAS_CONTAINER = {
+    headerHeight: 40,
+    padding: 28,
+    minWidth: 320,
+    minHeight: 220,
+} as const;
+
 export const NODE_DEFAULT_SIZE = {
     [CanvasNodeType.Image]: { width: 340, height: 240, title: "New Generation" },
     [CanvasNodeType.Panorama]: { ...PANORAMA_NODE_SIZE, title: "全景图" },
@@ -42,6 +54,7 @@ export const NODE_DEFAULT_SIZE = {
     [CanvasNodeType.Task]: { width: 340, height: 210, title: "Agent 任务" },
     [CanvasNodeType.BrandKit]: { width: 340, height: 240, title: "品牌规范" },
     [CanvasNodeType.Group]: { width: CANVAS_GROUP_GRID.minWidth, height: CANVAS_GROUP_GRID.minHeight, title: "分镜组" },
+    [CanvasNodeType.Container]: { width: 520, height: 400, title: "生成组" },
 } satisfies Record<CanvasNodeType, { width: number; height: number; title: string }>;
 
 const NODE_SPECS = {
@@ -73,6 +86,7 @@ const NODE_SPECS = {
     [CanvasNodeType.Task]: { ...NODE_DEFAULT_SIZE[CanvasNodeType.Task], metadata: { status: "idle", agentTaskStatus: "pending", agentTaskAttempts: 0 } },
     [CanvasNodeType.BrandKit]: { ...NODE_DEFAULT_SIZE[CanvasNodeType.BrandKit], metadata: { status: "idle" } },
     [CanvasNodeType.Group]: { ...NODE_DEFAULT_SIZE[CanvasNodeType.Group], metadata: { status: "idle", groupMemberIds: [], groupMemberSnapshots: [] } },
+    [CanvasNodeType.Container]: { ...NODE_DEFAULT_SIZE[CanvasNodeType.Container], metadata: { status: "idle", containerChildIds: [] } },
 } satisfies Record<CanvasNodeType, CanvasNodeSpec>;
 
 export function getNodeSpec(type: CanvasNodeType) {

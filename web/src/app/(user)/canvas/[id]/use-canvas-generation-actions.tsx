@@ -20,6 +20,7 @@ import { type CanvasNodeGenerationMode } from "../components/canvas-node-prompt-
 import { NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type CanvasNodeData } from "../types";
 import { applyCameraPrompt } from "../utils/canvas-camera";
+import { canvasContainerGeneratableIds, canvasNodeGenerationMode } from "../utils/canvas-container-group";
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
 import { buildPanoramaPrompt } from "../utils/canvas-panorama";
 import { canvasVideoReferenceMetadata, normalizeCanvasVideoGenerationMode, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
@@ -553,6 +554,42 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
         generateNodeRef.current = handleGenerateNode;
     }, [handleGenerateNode]);
 
+    /**
+     * 整组执行: fire every prompted member of a 生成组 at once.
+     *
+     * Each member runs through the same handleGenerateNode as a solo click, so
+     * per-node config, references and result wiring stay identical. Progress is
+     * read per node from `metadata.status`, not from the single `runningNodeId`
+     * — that one is scalar, so the first member to finish would otherwise clear
+     * the running flag for all of them.
+     *
+     * allSettled, not all: one member failing must not cancel its siblings.
+     */
+    const handleGenerateContainer = useCallback(
+        async (containerNodeId: string) => {
+            const container = nodesRef.current.find((node) => node.id === containerNodeId);
+            if (!container || container.type !== CanvasNodeType.Container) return;
+
+            const targetIds = canvasContainerGeneratableIds(containerNodeId, nodesRef.current);
+            if (!targetIds.length) {
+                message.info("生成组内没有可执行的节点，请先给成员填写提示词");
+                return;
+            }
+
+            message.info(`开始执行生成组内 ${targetIds.length} 个节点`);
+            await Promise.allSettled(
+                targetIds.map((nodeId) => {
+                    const node = nodesRef.current.find((item) => item.id === nodeId);
+                    if (!node) return Promise.resolve();
+                    const mode = canvasNodeGenerationMode(node);
+                    const prompt = (node.metadata?.prompt || node.metadata?.composerContent || "").trim();
+                    return handleGenerateNode(nodeId, mode, prompt);
+                }),
+            );
+        },
+        [handleGenerateNode, message],
+    );
+
     const recoverReviewedNode = useCallback(
         async (node: CanvasNodeData) => {
             const metadata = node.metadata;
@@ -940,6 +977,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
     }, [projectLoaded]);
     return {
         handleGenerateNode,
+        handleGenerateContainer,
         handleRetryNode,
         generateImageFromTextNode,
         insertAssistantImage,

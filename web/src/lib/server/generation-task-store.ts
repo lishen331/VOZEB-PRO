@@ -1253,6 +1253,8 @@ function preserveTaskExecution(previous?: StoredGenerationTaskRecord) {
     return {
         executionPhase: previous.executionPhase,
         upstreamTaskId: previous.upstreamTaskId,
+        // D6 易漏点：不保留会在 upsert 时被冲掉。
+        upstreamRequestId: previous.upstreamRequestId,
         channelId: previous.channelId,
         provider: previous.provider,
         queryPath: previous.queryPath,
@@ -1351,6 +1353,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         taskOrigin: row.task_origin === "admin-workflow-test" || payload.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
         executionPhase,
         upstreamTaskId: cleanUpstreamTaskId(String(row.upstream_task_id || "")),
+        upstreamRequestId: cleanUpstreamTaskId(String(row.upstream_request_id || "")),
         channelId: cleanContextText(String(row.channel_id || "")),
         provider: cleanContextText(String(row.provider || "")),
         queryPath: typeof row.query_path === "string" ? row.query_path.trim().slice(0, 1_000) || undefined : undefined,

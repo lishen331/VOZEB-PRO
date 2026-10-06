@@ -86,6 +86,9 @@ describe("image task runtime submission safety", () => {
         });
         mocks.deleteAsset.mockResolvedValue(undefined);
         mocks.register.mockResolvedValue(undefined);
+        // scheduleGenerationTask 是 async；D6 5.3 在未知提交路径对其结果链了 .catch，
+        // mock 必须返回 promise。
+        mocks.schedule.mockResolvedValue(undefined);
     });
 
     it("does not resubmit after a safe request rejection", async () => {

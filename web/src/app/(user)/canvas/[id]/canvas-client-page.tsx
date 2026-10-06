@@ -29,6 +29,7 @@ const CanvasAssistantPanel = dynamic(() => import("../components/canvas-assistan
 import { CanvasRefreshShell, ConnectionCreateMenu, NodeCreateMenu } from "./canvas-page-elements";
 import { getInputSummary, isHiddenBatchChild } from "./canvas-page-utils";
 import { CANVAS_GROUP_MIN_MEMBERS, canvasGroupCandidates, isHiddenCanvasGroupMember } from "../utils/canvas-storyboard-group";
+import { CANVAS_CONTAINER_MIN_MEMBERS } from "../utils/canvas-container-group";
 import type { CanvasPanelPlacement } from "../utils/canvas-panel-placement";
 
 export default function CanvasPage() {
@@ -242,6 +243,7 @@ function VozebProCanvasPage() {
         handleImageDimensions,
         toggleNodeFreeResize,
         handleNodeContentChange,
+        handleContainerLabelChange,
         toggleBatchExpanded,
         setBatchPrimary,
         openTextEditor,
@@ -282,6 +284,9 @@ function VozebProCanvasPage() {
         closeAgent,
         groupSelectedNodes,
         dissolveGroup,
+        createContainerFromSelection,
+        removeContainer,
+        handleGenerateContainer,
     } = controller;
     const scheduleHoveredNode = useCallback(
         (nodeId: string | null) => {
@@ -343,6 +348,7 @@ function VozebProCanvasPage() {
             onHoverStart: handleNodeHoverStart,
             onHoverEnd: handleNodeHoverEnd,
             onContentChange: handleNodeContentChange,
+            onContainerLabelChange: handleContainerLabelChange,
             onToggleBatch: toggleBatchExpanded,
             onSetBatchPrimary: setBatchPrimary,
             onRetry: handleNodeRetry,
@@ -352,7 +358,20 @@ function VozebProCanvasPage() {
             onViewImage: handleNodeViewImage,
             onPanelPlacementChange: handlePanelPlacementChange,
         }),
-        [handleNodeHoverStart, handleNodeHoverEnd, handleNodeContentChange, toggleBatchExpanded, setBatchPrimary, handleNodeRetry, generateImageFromTextNode, handleNodeOpenPanel, handleImageDimensions, handleNodeViewImage, handlePanelPlacementChange],
+        [
+            handleNodeHoverStart,
+            handleNodeHoverEnd,
+            handleNodeContentChange,
+            handleContainerLabelChange,
+            toggleBatchExpanded,
+            setBatchPrimary,
+            handleNodeRetry,
+            generateImageFromTextNode,
+            handleNodeOpenPanel,
+            handleImageDimensions,
+            handleNodeViewImage,
+            handlePanelPlacementChange,
+        ],
     );
     const getNodeViewProps = useCallback(
         (node: CanvasNodeData) => ({
@@ -431,6 +450,13 @@ function VozebProCanvasPage() {
     );
     const canGroupSelection = useMemo(() => canvasGroupCandidates(nodes, selectedNodeIds).length >= CANVAS_GROUP_MIN_MEMBERS, [nodes, selectedNodeIds]);
     const selectedGroupCount = useMemo(() => nodes.filter((node) => node.type === CanvasNodeType.Group && selectedNodeIds.has(node.id)).length, [nodes, selectedNodeIds]);
+    // 生成组 accepts any node type, so eligibility is just "selected, not already
+    // framed, not hidden" — no image-only filter like canvasGroupCandidates.
+    const canCreateContainer = useMemo(
+        () => nodes.filter((node) => selectedNodeIds.has(node.id) && node.type !== CanvasNodeType.Container && !node.metadata?.containerId && !node.metadata?.batchRootId && !isHiddenCanvasGroupMember(node, nodes)).length >= CANVAS_CONTAINER_MIN_MEMBERS,
+        [nodes, selectedNodeIds],
+    );
+    const selectedContainerIds = useMemo(() => nodes.filter((node) => node.type === CanvasNodeType.Container && selectedNodeIds.has(node.id)).map((node) => node.id), [nodes, selectedNodeIds]);
     const contextMenuNode = contextMenu?.type === "node" ? nodes.find((node) => node.id === contextMenu.nodeId) : undefined;
     if (!projectLoaded) return <CanvasRefreshShell />;
     return (
@@ -608,6 +634,13 @@ function VozebProCanvasPage() {
                     selectedMediaDownloadPending={selectedMediaDownloadPending}
                     canGroupSelection={canGroupSelection}
                     selectedGroupCount={selectedGroupCount}
+                    canCreateContainer={canCreateContainer}
+                    selectedContainerCount={selectedContainerIds.length}
+                    onCreateContainer={createContainerFromSelection}
+                    onRunContainer={() => {
+                        const [first] = selectedContainerIds;
+                        if (first) void handleGenerateContainer(first);
+                    }}
                     canUndo={historyState.canUndo}
                     canRedo={historyState.canRedo}
                     agentOpen={assistantOpen}
@@ -652,6 +685,22 @@ function VozebProCanvasPage() {
                             contextMenuNode?.type === CanvasNodeType.Group
                                 ? () => {
                                       dissolveGroup(contextMenuNode.id);
+                                      setContextMenu(null);
+                                  }
+                                : undefined
+                        }
+                        onRunContainer={
+                            contextMenuNode?.type === CanvasNodeType.Container
+                                ? () => {
+                                      void handleGenerateContainer(contextMenuNode.id);
+                                      setContextMenu(null);
+                                  }
+                                : undefined
+                        }
+                        onRemoveContainer={
+                            contextMenuNode?.type === CanvasNodeType.Container
+                                ? () => {
+                                      removeContainer(contextMenuNode.id);
                                       setContextMenu(null);
                                   }
                                 : undefined

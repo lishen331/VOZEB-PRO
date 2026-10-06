@@ -174,6 +174,13 @@ export type SystemChannelAdvancedConfig = {
     workflowConfigs?: Record<string, RunningHubWorkflowConfig>;
     streaming?: SystemChannelStreamingConfig;
     requestIdHeader?: string;
+    // D6 步骤6：按"上游请求 ID"追回任务的查询路径模板，与按任务 ID 查询的 queryPath 并列、语义不同。
+    // 用于上游已接单并回显请求 ID、但本地没有任务 ID 的场景。含 {{requestId}} 占位符，
+    // 渲染规则同 queryPath 的 {{taskId}}。
+    //
+    // 这是本功能的渠道开关：**未声明即关闭**，恢复接口行为与改动前完全一致（直接 409）。
+    // 只有实际支持按请求 ID 查询、且已人工验证过的渠道才应配置。不要对未验证渠道默认开启。
+    requestIdQueryPath?: string;
     contextWindowTokens?: number;
 };
 

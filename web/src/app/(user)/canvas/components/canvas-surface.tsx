@@ -231,7 +231,32 @@ export function CanvasSurface({
             bottom: (surfaceSize.height - displayViewport.y) / displayViewport.k + paddingY,
         };
     }, [displayViewport, surfaceSize.height, surfaceSize.width]);
-    const renderedNodes = useMemo(() => nodeSpatialIndex.query(viewBounds).map((node) => getDisplayNode(node.id) || node), [getDisplayNode, nodeSpatialIndex, viewBounds]);
+    const renderedNodes = useMemo(() => {
+        const queried = nodeSpatialIndex.query(viewBounds).map((node) => getDisplayNode(node.id) || node);
+        // 生成组 frames must paint behind their members. Query order is per-512px-cell
+        // insertion order, not array order, so a frame and its members can come out
+        // either way round depending on pan/zoom — sort explicitly. Nesting depth
+        // ranks outer frames first so an inner frame still sits above its parent.
+        // Array.prototype.sort is stable, so everything else keeps query order.
+        const depthOf = (node: CanvasNodeData) => {
+            let depth = 0;
+            let ownerId = node.metadata?.containerId;
+            const seen = new Set<string>([node.id]);
+            while (ownerId && !seen.has(ownerId)) {
+                seen.add(ownerId);
+                depth += 1;
+                ownerId = displayNodesRef.current.find((item) => item.id === ownerId)?.metadata?.containerId;
+            }
+            return depth;
+        };
+        return queried.sort((left, right) => {
+            const leftIsFrame = left.type === CanvasNodeType.Container;
+            const rightIsFrame = right.type === CanvasNodeType.Container;
+            if (leftIsFrame !== rightIsFrame) return leftIsFrame ? -1 : 1;
+            if (leftIsFrame && rightIsFrame) return depthOf(left) - depthOf(right);
+            return 0;
+        });
+    }, [getDisplayNode, nodeSpatialIndex, viewBounds]);
     const renderedNodeIds = useMemo(() => new Set(renderedNodes.map((node) => node.id)), [renderedNodes]);
     const denseEdgeLod = connections.length > CANVAS_EDGE_LOD_THRESHOLD;
     const flowConnections = useMemo(() => {

@@ -1,7 +1,35 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Segmented, Switch } from "antd";
-import { CircleDot, Download, Eraser, FolderOpen, Globe2, Grid2x2, Hand, Image as ImageIcon, Info, Layers, Moon, MousePointer2, Music2, Palette, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Ungroup, Upload, Video, Workflow } from "lucide-react";
+import {
+    BoxSelect,
+    CircleDot,
+    Download,
+    Eraser,
+    FolderOpen,
+    Globe2,
+    Grid2x2,
+    Hand,
+    Image as ImageIcon,
+    Info,
+    Layers,
+    Moon,
+    MousePointer2,
+    Music2,
+    Palette,
+    Play,
+    Redo2,
+    Settings2,
+    Square,
+    Sun,
+    Trash2,
+    Type,
+    Undo2,
+    Ungroup,
+    Upload,
+    Video,
+    Workflow,
+} from "lucide-react";
 
 import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
@@ -14,6 +42,10 @@ export function CanvasToolbar({
     selectedMediaDownloadPending,
     canGroupSelection,
     selectedGroupCount,
+    canCreateContainer = false,
+    selectedContainerCount = 0,
+    onCreateContainer,
+    onRunContainer,
     canUndo,
     canRedo,
     agentOpen,
@@ -45,6 +77,11 @@ export function CanvasToolbar({
     selectedMediaDownloadPending: boolean;
     canGroupSelection: boolean;
     selectedGroupCount: number;
+    /** 生成组 (Container) selection state. Optional so existing callers compile unchanged. */
+    canCreateContainer?: boolean;
+    selectedContainerCount?: number;
+    onCreateContainer?: () => void;
+    onRunContainer?: () => void;
     canUndo: boolean;
     canRedo: boolean;
     agentOpen?: boolean;
@@ -184,6 +221,21 @@ export function CanvasToolbar({
                         >
                             <span aria-hidden="true">{formatBatchDownloadCount(selectedMediaCount)}</span>
                         </Button>
+                    </>
+                ) : null}
+                {canCreateContainer || selectedContainerCount > 0 ? (
+                    <>
+                        <Divider theme={theme} />
+                        {canCreateContainer ? (
+                            <ToolbarButton id="tool-container" label="编为生成组" hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onCreateContainer}>
+                                <BoxSelect className="size-4.5" />
+                            </ToolbarButton>
+                        ) : null}
+                        {selectedContainerCount > 0 ? (
+                            <ToolbarButton id="tool-run-container" label="整组执行" hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onRunContainer}>
+                                <Play className="size-4.5" />
+                            </ToolbarButton>
+                        ) : null}
                     </>
                 ) : null}
                 {canGroupSelection || selectedGroupCount > 0 ? (
