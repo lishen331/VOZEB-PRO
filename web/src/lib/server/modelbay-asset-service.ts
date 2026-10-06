@@ -171,11 +171,21 @@ function assetFailure(response: ModelBayAssetResponse, taskId?: string, assetId?
     return new ModelBayAssetError(readErrorMessage(response.error) || `ModelBay 素材状态为 ${readStatus(response.status) || "failed"}`, { code: readErrorCode(response.error), taskId, assetId, response });
 }
 
-function readId(value: unknown) { return typeof value === "string" && value.trim() ? value.trim() : undefined; }
-function readStatus(value: unknown) { return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : undefined; }
-function readLabel(value: unknown) { return typeof value === "string" && value.trim() ? value.trim() : undefined; }
-function readAssetType(value: unknown): ModelBayAssetType | undefined { return value === "image" || value === "video" || value === "audio" ? value : undefined; }
-function readErrorCode(value: unknown) { return value && typeof value === "object" && !Array.isArray(value) && typeof (value as { code?: unknown }).code === "string" ? (value as { code: string }).code : undefined; }
+function readId(value: unknown) {
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+function readStatus(value: unknown) {
+    return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : undefined;
+}
+function readLabel(value: unknown) {
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+function readAssetType(value: unknown): ModelBayAssetType | undefined {
+    return value === "image" || value === "video" || value === "audio" ? value : undefined;
+}
+function readErrorCode(value: unknown) {
+    return value && typeof value === "object" && !Array.isArray(value) && typeof (value as { code?: unknown }).code === "string" ? (value as { code: string }).code : undefined;
+}
 function readErrorMessage(value: unknown): string | undefined {
     if (typeof value === "string") return value;
     if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -184,6 +194,26 @@ function readErrorMessage(value: unknown): string | undefined {
     }
     return undefined;
 }
-function isTerminalAssetStatus(status: string | undefined) { return status === "active" || status === "failed" || status === "deleted" || status === "expired"; }
-function delay(ms: number, signal?: AbortSignal) { return new Promise<void>((resolve, reject) => { const timer = setTimeout(resolve, ms); if (signal) { if (signal.aborted) { clearTimeout(timer); reject(signal.reason); return; } signal.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason); }, { once: true }); } }); }
-
+function isTerminalAssetStatus(status: string | undefined) {
+    return status === "active" || status === "failed" || status === "deleted" || status === "expired";
+}
+function delay(ms: number, signal?: AbortSignal) {
+    return new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, ms);
+        if (signal) {
+            if (signal.aborted) {
+                clearTimeout(timer);
+                reject(signal.reason);
+                return;
+            }
+            signal.addEventListener(
+                "abort",
+                () => {
+                    clearTimeout(timer);
+                    reject(signal.reason);
+                },
+                { once: true },
+            );
+        }
+    });
+}
