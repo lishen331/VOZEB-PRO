@@ -9,7 +9,8 @@ import type { SystemChannelPurpose } from "@/lib/practice-domain";
 import type { FeatureModuleSettings } from "@/lib/feature-modules";
 
 export type ApiCallFormat = "openai" | "gemini";
-export type SystemChannelProtocol = "auto" | "openai" | "yumeng" | "gemini" | "sub2api" | "newapi" | "vozeb-recommended" | "globalaiopc" | "seedance" | "stable-diffusion" | "volcengine-video" | "seedance-special" | "runninghub" | "custom" | "compatible";
+export type SystemChannelProtocol =
+    "auto" | "openai" | "yumeng" | "gemini" | "sub2api" | "newapi" | "vozeb-recommended" | "globalaiopc" | "seedance" | "modelbay-seedance" | "stable-diffusion" | "volcengine-video" | "seedance-special" | "runninghub" | "custom" | "compatible";
 export type SystemChannelAuthMode = "none" | "bearer" | "x-api-key" | "custom-header";
 
 export type SystemChannelModelConfig = {

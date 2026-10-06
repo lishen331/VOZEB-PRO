@@ -95,6 +95,21 @@ const seedanceOperation: ProtocolOperation = {
     supportsReferenceAudio: true,
 };
 
+const modelbayOfficialSeedanceVideoOperation: ProtocolOperation = {
+    capability: "video",
+    createPath: "/doubao/api/v3/contents/generations/tasks",
+    imageToVideoPath: "/doubao/api/v3/contents/generations/tasks",
+    queryPath: "/doubao/api/v3/contents/generations/tasks/:task_id",
+    requestTemplate: '{"model":"{{model}}","content":"{{content}}","ratio":"{{ratio}}","resolution":"{{resolution}}","duration":"{{duration}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}',
+    resultField: "content.video_url",
+    statusField: "status",
+    durationRange: "4-30 秒（2.5）；4-15 秒（2/fast/mini）",
+    referenceRule: "ModelBay official Seedance：真人素材先经 /doubao/api/v3/assets 入库，生成请求使用 asset://<asset_id>；只有 2.5 支持参考视频。",
+    supportsReferenceImage: true,
+    supportsReferenceVideo: true,
+    supportsReferenceAudio: true,
+};
+
 const seedanceSpecialOperation: ProtocolOperation = {
     capability: "video",
     createPath: "/v1/seedance-special/videos",
@@ -182,6 +197,18 @@ export const registeredChannelProtocolDefinitions: ChannelProtocolDefinition[] =
         modelCatalogPaths: ["/models"],
         capabilities: ["video"],
         operations: { video: seedanceOperation },
+        strict: true,
+    },
+    {
+        id: "modelbay-seedance",
+        label: "ModelBay 官方 Seedance",
+        description: "ModelBay 火山原生 Seedance 2/2.5；真人素材先入库，再以 asset:// ID 引用。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://api.modelbay.io",
+        modelCatalogPaths: [],
+        capabilities: ["video"],
+        operations: { video: modelbayOfficialSeedanceVideoOperation },
         strict: true,
     },
     {
