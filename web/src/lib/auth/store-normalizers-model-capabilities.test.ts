@@ -21,6 +21,20 @@ describe("system channel model capabilities", () => {
         expect(normalized?.modelCapabilities).toEqual({ "writer-v1": "text", "image-v1": "image", "video-v1": "video" });
     });
 
+    it("keeps per-model ModelBay and Tuzi Seedance protocols", () => {
+        const normalized = normalizeSystemChannelAdvancedConfig({
+            protocol: "newapi",
+            modelConfigs: {
+                "official/seedance-2": { capability: "video", protocol: "modelbay-seedance", createPath: "/doubao/api/v3/contents/generations/tasks" },
+                "doubao-seedance-2-0-260128": { capability: "video", protocol: "tuzi-seedance", createPath: "/v1/videos" },
+            },
+        } as never);
+
+        expect(normalized?.modelConfigs?.["official/seedance-2"]?.protocol).toBe("modelbay-seedance");
+        expect(normalized?.modelConfigs?.["doubao-seedance-2-0-260128"]?.protocol).toBe("tuzi-seedance");
+        expect(normalizeSystemChannelAdvancedConfig({ protocol: "tuzi-seedance" } as never)?.protocol).toBe("tuzi-seedance");
+    });
+
     it("persists the VOZEB recommended protocol after a settings round-trip", () => {
         expect(normalizeSystemChannelAdvancedConfig({ protocol: "vozeb-recommended" } as never)?.protocol).toBe("vozeb-recommended");
     });

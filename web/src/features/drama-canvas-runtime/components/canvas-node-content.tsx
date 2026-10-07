@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, ListChecks, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
@@ -11,22 +12,19 @@ import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
 import { CanvasNodeType, type CanvasGroupMemberSnapshot, type CanvasNodeData } from "../types";
-import type { CanvasResourceReference } from "../utils/canvas-resource-references";
+import { CANVAS_CONTAINER } from "../constants";
+import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
+import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-group";
 import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
+import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
-function canvasGroupColumns(count: number) {
-    if (count <= 1) return 1;
-    if (count <= 3) return count;
-    if (count <= 6) return 3;
-    if (count <= 12) return 4;
-    return 5;
-}
-
-export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top" | "bottom" | "left" | "right";
 export type NodeContentRendererProps = {
     node: CanvasNodeData;
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     scale?: number;
+    /** Ratcheted zoom tier used for image resolution. Falls back to `scale`. */
+    previewScale?: number;
     isEditingContent: boolean;
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     isBatchRoot: boolean;
@@ -36,6 +34,7 @@ export type NodeContentRendererProps = {
     batchRecovering: boolean;
     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
     onContentChange: (nodeId: string, content: string) => void;
+    onContainerLabelChange?: (nodeId: string, label: string) => void;
     onStopEditing: () => void;
     mentionReferences: CanvasResourceReference[];
     onRetry?: (node: CanvasNodeData) => void;
@@ -48,6 +47,12 @@ export type NodeContentRendererProps = {
 export function NodeContent(props: NodeContentRendererProps) {
     if (props.node.type === CanvasNodeType.Config && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.isBatchRoot) return <ImageNodeContent {...props} />;
+    // A group is a container, not a generation target — it must never fall into
+    // the status branches below even if a stray status lands on its metadata.
+    if (props.node.type === CanvasNodeType.Group) return <GroupNodeContent {...props} />;
+    // A container is a frame, not a generation target — a stray status must never
+    // paint a spinner or error card over it.
+    if (props.node.type === CanvasNodeType.Container) return <ContainerNodeContent {...props} />;
     if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
     if (props.node.metadata?.status === "needs_review") return <ReviewContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
@@ -180,15 +185,59 @@ export function BrandKitNodeContent({ node, theme }: NodeContentRendererProps) {
  * body must not draw over them and must not swallow their clicks. Only the header
  * strip is interactive (drag + double-click rename); the body is pointer-transparent.
  */
-export function ContainerNodeContent({ node, theme }: NodeContentRendererProps) {
+export function ContainerNodeContent({ node, theme, onContainerLabelChange }: NodeContentRendererProps) {
     const childCount = node.metadata?.containerChildIds?.length || 0;
     const label = node.metadata?.containerLabel || node.title || "生成组";
+    const [renaming, setRenaming] = useState(false);
+    const [draft, setDraft] = useState(label);
+
+    const commitRename = () => {
+        setRenaming(false);
+        if (draft.trim() !== label) onContainerLabelChange?.(node.id, draft);
+    };
 
     return (
         <div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-3xl" style={{ background: "transparent", color: theme.node.text }}>
-            <div className="pointer-events-auto flex h-10 shrink-0 items-center gap-2 rounded-t-3xl px-4" style={{ background: theme.node.fill, borderBottom: `1px solid ${theme.node.stroke}` }} data-canvas-container-header>
+            <div
+                className="pointer-events-auto flex shrink-0 items-center gap-2 rounded-t-3xl px-4"
+                style={{ height: CANVAS_CONTAINER.headerHeight, background: theme.node.fill, borderBottom: `1px solid ${theme.node.stroke}` }}
+                data-canvas-container-header
+            >
                 <BoxSelect className="size-3.5 shrink-0" style={{ color: theme.node.activeStroke }} />
-                <span className="min-w-0 flex-1 truncate text-xs font-semibold">{label}</span>
+                {renaming ? (
+                    <input
+                        autoFocus
+                        // data-canvas-no-drag keeps the surface from treating typing as a drag.
+                        data-canvas-no-drag
+                        value={draft}
+                        aria-label="生成组名称"
+                        className="min-w-0 flex-1 bg-transparent text-xs font-semibold outline-none"
+                        style={{ color: theme.node.text }}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(event) => {
+                            event.stopPropagation();
+                            if (event.key === "Enter") commitRename();
+                            if (event.key === "Escape") {
+                                setDraft(label);
+                                setRenaming(false);
+                            }
+                        }}
+                        onPointerDown={(event) => event.stopPropagation()}
+                    />
+                ) : (
+                    <span
+                        className="min-w-0 flex-1 cursor-text truncate text-xs font-semibold"
+                        title="双击重命名"
+                        onDoubleClick={(event) => {
+                            event.stopPropagation();
+                            setDraft(label);
+                            setRenaming(true);
+                        }}
+                    >
+                        {label}
+                    </span>
+                )}
                 <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: theme.node.subtleSurface, color: theme.node.subtleText }}>
                     {childCount} 个节点
                 </span>
@@ -198,38 +247,52 @@ export function ContainerNodeContent({ node, theme }: NodeContentRendererProps) 
     );
 }
 
-export function GroupNodeContent({ node, theme }: NodeContentRendererProps) {
-    const snapshots = node.metadata?.groupMemberSnapshots ?? [];
-    const cols = canvasGroupColumns(snapshots.length || 1);
+export function GroupNodeContent({ node, theme, previewScale, scale }: NodeContentRendererProps) {
+    const snapshots = node.metadata?.groupMemberSnapshots || [];
+    const memberIds = node.metadata?.groupMemberIds || [];
+    const cells = memberIds.length ? memberIds.map((id) => snapshots.find((item) => item.id === id) || { id, content: "", width: 0, height: 0 }) : snapshots;
+    const columns = canvasGroupColumns(cells.length);
+    const rows = canvasGroupRows(cells.length);
+    const cellWidth = Math.max(1, Math.round((node.width - CANVAS_GROUP_CELL_INSET) / columns));
+    const previewWidth = canvasImagePreviewWidthForTier(cellWidth, canvasImageZoomTier(previewScale ?? scale ?? 1));
 
     return (
-        <div className="flex h-full flex-col gap-2 overflow-hidden p-3" style={{ color: theme.node.text }}>
-            <div className="flex shrink-0 items-center gap-1.5 text-xs font-semibold">
-                <span className="truncate">{node.metadata?.groupLabel || node.title || "分镜组"}</span>
-                <span className="ml-auto shrink-0 opacity-45">{snapshots.length} 张</span>
+        <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl" style={{ background: theme.node.fill, color: theme.node.text }}>
+            <div className="flex shrink-0 items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${theme.node.stroke}` }}>
+                <Layers className="size-3.5 shrink-0" style={{ color: theme.node.activeStroke }} />
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold">{node.metadata?.groupLabel || node.title || "分镜组"}</span>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: theme.node.subtleSurface, color: theme.node.subtleText }}>
+                    {cells.length} 张
+                </span>
             </div>
-            {snapshots.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center text-xs" style={{ color: theme.node.placeholder }}>
-                    暂无分镜
-                </div>
-            ) : (
-                <div className="grid min-h-0 flex-1 gap-1" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-                    {snapshots.map((snap) => (
-                        <div key={snap.id} className="overflow-hidden rounded" style={{ background: theme.node.subtleSurface }}>
-                            {snap.content ? (
-                                <img src={snap.content} alt="" draggable={false} className="h-full w-full object-cover" />
+            {cells.length ? (
+                <div className="grid min-h-0 flex-1 gap-1 p-2" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+                    {cells.map((cell, index) => (
+                        <div key={cell.id} className="relative overflow-hidden rounded-lg" style={{ background: theme.node.subtleSurface }}>
+                            {cell.content ? (
+                                <img src={imagePreviewUrl(cell.content, previewWidth)} alt="" draggable={false} loading="eager" decoding="async" className="pointer-events-none size-full select-none object-cover" />
                             ) : (
-                                <div className="flex h-full w-full items-center justify-center" style={{ color: theme.node.placeholder }}>
-                                    <ImageIcon className="size-4 opacity-30" />
-                                </div>
+                                <span className="grid size-full place-items-center" style={{ color: theme.node.placeholder }}>
+                                    <ImageIcon className="size-4" aria-hidden />
+                                </span>
                             )}
+                            <span className="absolute left-1 top-1 rounded px-1 text-[9px] font-semibold leading-4 text-white" style={{ background: "rgba(15,23,42,.55)" }}>
+                                {index + 1}
+                            </span>
                         </div>
                     ))}
+                </div>
+            ) : (
+                <div className="flex min-h-0 flex-1 items-center justify-center text-xs" style={{ color: theme.node.placeholder }}>
+                    空分镜组
                 </div>
             )}
         </div>
     );
 }
+
+/** Grid padding (2*8) plus inter-cell gaps budgeted at the widest supported column count. */
+const CANVAS_GROUP_CELL_INSET = 24;
 
 export function LoadingContent({ theme }: Pick<NodeContentRendererProps, "theme">) {
     return (
@@ -334,6 +397,10 @@ export function UnknownNodeContent({ theme }: Pick<NodeContentRendererProps, "th
 
 export function TextContent({ node, theme, isEditingContent, textareaRef, mentionReferences, onContentChange, onStopEditing, onGenerateImage }: NodeContentRendererProps) {
     const fontSize = node.metadata?.fontSize || 14;
+    const [expanded, setExpanded] = useState(false);
+    const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
+    const content = node.metadata?.content || "";
+    const characterCount = content.replace(/\s/g, "").length;
     const textStyle = {
         fontSize: `${fontSize}px`,
         lineHeight: `${Math.round(fontSize * 1.65)}px`,
@@ -341,31 +408,52 @@ export function TextContent({ node, theme, isEditingContent, textareaRef, mentio
         boxSizing: "border-box",
     } as React.CSSProperties;
     const textClassName = "thin-scrollbar block h-full w-full overflow-y-auto whitespace-pre-wrap break-words border-none bg-transparent pl-4 pr-14 pt-0 pb-4 m-0 font-mono outline-none select-text appearance-none";
+    const stop = (event: React.SyntheticEvent) => event.stopPropagation();
+    const toolbarButtonClassName = "inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium opacity-85 backdrop-blur-md transition hover:scale-[1.02] hover:opacity-100";
+    const toolbarButtonStyle = { background: `${theme.toolbar.panel}dd`, borderColor: theme.node.stroke, color: theme.node.text };
 
     return (
         <div className="flex h-full w-full flex-col overflow-hidden pt-8">
-            <button
-                type="button"
-                className="absolute right-3 top-3 z-20 inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium opacity-85 backdrop-blur-md transition hover:scale-[1.02] hover:opacity-100"
-                style={{ background: `${theme.toolbar.panel}dd`, borderColor: theme.node.stroke, color: theme.node.text }}
-                onClick={(event) => {
-                    event.stopPropagation();
-                    onGenerateImage?.(node);
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-                title="用文本生图"
-                aria-label="用文本生图"
-            >
-                <ImageIcon className="size-3.5" />
-                生图
-            </button>
+            <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+                <button
+                    type="button"
+                    className={toolbarButtonClassName}
+                    style={toolbarButtonStyle}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setExpanded(true);
+                    }}
+                    onMouseDown={stop}
+                    onPointerDown={stop}
+                    title="放大阅读 / 编辑"
+                    aria-label="放大阅读或编辑文字"
+                >
+                    <Maximize2 className="size-3.5" />
+                    放大
+                </button>
+                <button
+                    type="button"
+                    className={toolbarButtonClassName}
+                    style={toolbarButtonStyle}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onGenerateImage?.(node);
+                    }}
+                    onMouseDown={stop}
+                    onPointerDown={stop}
+                    title="用文本生图"
+                    aria-label="用文本生图"
+                >
+                    <ImageIcon className="size-3.5" />
+                    生图
+                </button>
+            </div>
             {isEditingContent ? (
                 <CanvasResourceMentionTextarea
                     ref={textareaRef}
                     className={`${textClassName} resize-none`}
                     style={textStyle}
-                    value={node.metadata?.content || ""}
+                    value={content}
                     references={mentionReferences}
                     highlightLabels
                     onChange={(value) => onContentChange(node.id, value)}
@@ -379,9 +467,62 @@ export function TextContent({ node, theme, isEditingContent, textareaRef, mentio
                 />
             ) : (
                 <div className={textClassName} style={textStyle} onWheel={(event) => event.stopPropagation()}>
-                    {node.metadata?.content ? <CanvasResourceMentionText value={node.metadata.content} references={mentionReferences} /> : <span style={{ color: theme.node.placeholder }}>点击编辑文字</span>}
+                    {content ? <CanvasResourceMentionText value={content} references={mentionReferences} /> : <span style={{ color: theme.node.placeholder }}>点击编辑文字</span>}
                 </div>
             )}
+
+            <div className="contents" onClick={stop} onDoubleClick={stop} onMouseDown={stop} onPointerDown={stop} onWheel={stop} onContextMenu={stop}>
+                {expanded ? (
+                    <Modal
+                        className="canvas-prompt-editor-modal"
+                        open={expanded}
+                        title="编辑文字"
+                        centered
+                        destroyOnHidden
+                        mask={{ closable: false }}
+                        width="min(860px, calc(100vw - 24px))"
+                        onCancel={() => setExpanded(false)}
+                        afterOpenChange={(open) => {
+                            if (!open) return;
+                            requestAnimationFrame(() => {
+                                const textarea = expandedEditorRef.current;
+                                textarea?.focus();
+                                textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+                            });
+                        }}
+                        styles={{
+                            container: { background: theme.node.panel, border: `1px solid ${theme.toolbar.border}`, color: theme.node.text },
+                            header: { background: theme.node.panel, marginBottom: 0, paddingBottom: 8 },
+                            title: { color: theme.node.text },
+                            body: { background: theme.node.panel, padding: "4px 12px 12px" },
+                        }}
+                        footer={null}
+                    >
+                        <div className="min-w-0 overflow-hidden rounded-xl border" style={{ borderColor: theme.node.stroke }}>
+                            <CanvasResourceMentionTextarea
+                                ref={expandedEditorRef}
+                                autoFocus={expanded}
+                                value={content}
+                                references={mentionReferences}
+                                highlightLabels
+                                onChange={(value) => onContentChange(node.id, value)}
+                                aria-label="文字编辑器"
+                                className="thin-scrollbar h-[min(62vh,34rem)] min-h-64 w-full resize-none overflow-y-auto overscroll-contain border-0 px-4 py-3 outline-none"
+                                style={{ background: theme.node.fill, color: theme.node.text, fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.65)}px` }}
+                                placeholder="请输入文字内容"
+                            />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                            <span className="text-xs" style={{ color: theme.node.placeholder }}>
+                                字数 {characterCount}
+                            </span>
+                            <Button icon={<Minimize2 className="size-4" />} onClick={() => setExpanded(false)} aria-label="收起">
+                                收起
+                            </Button>
+                        </div>
+                    </Modal>
+                ) : null}
+            </div>
         </div>
     );
 }
@@ -417,6 +558,7 @@ export function ImageNodeContent(props: NodeContentRendererProps) {
         <ImageContent
             node={props.node}
             scale={props.scale}
+            previewScale={props.previewScale}
             isBatchRoot={props.isBatchRoot}
             batchCount={props.batchCount}
             batchExpanded={props.batchExpanded}
@@ -519,6 +661,7 @@ export function AudioNodeContent({ node, theme }: NodeContentRendererProps) {
 export function ImageContent({
     node,
     scale = 1,
+    previewScale,
     isBatchRoot,
     batchCount,
     batchExpanded,
@@ -530,6 +673,7 @@ export function ImageContent({
 }: {
     node: CanvasNodeData;
     scale?: number;
+    previewScale?: number;
     isBatchRoot: boolean;
     batchCount: number;
     batchExpanded: boolean;
@@ -543,7 +687,7 @@ export function ImageContent({
     const theme = canvasThemes[colorTheme];
     const isBatchChild = Boolean(node.metadata?.batchRootId);
     const imageRef = useRef<HTMLImageElement>(null);
-    const previewWidth = canvasImagePreviewWidth(node.width, scale, node.metadata?.naturalWidth);
+    const previewWidth = canvasImagePreviewWidthForTier(node.width, canvasImageZoomTier(previewScale ?? scale), node.metadata?.naturalWidth);
     const reportDimensions = useCallback(
         (image: HTMLImageElement) => {
             if (node.metadata?.naturalWidth && node.metadata?.naturalHeight) return;
@@ -621,8 +765,7 @@ export function ImageContent({
 }
 
 export function canvasImagePreviewWidth(nodeWidth: number, scale: number, naturalWidth?: number) {
-    const screenWidth = Math.max(1, Math.ceil(nodeWidth * Math.max(scale, 0.01) * (globalThis.devicePixelRatio || 1)));
-    return naturalWidth && naturalWidth > 0 ? Math.min(screenWidth, naturalWidth) : screenWidth;
+    return canvasImagePreviewWidthForTier(nodeWidth, canvasImageZoomTier(scale), naturalWidth);
 }
 
 export function ImageInfoBar({ node }: { node: CanvasNodeData }) {
@@ -712,9 +855,16 @@ export function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; on
         "top-right": "-right-[14px] -top-[14px] cursor-nesw-resize",
         "bottom-left": "-bottom-[14px] -left-[14px] cursor-nesw-resize",
         "bottom-right": "-bottom-[14px] -right-[14px] cursor-nwse-resize",
+        // Full-length edge strips, only on 生成组 frames. A midpoint square here
+        // would cover the left/right connection dots and swallow every wire drag.
+        top: "inset-x-[14px] -top-[6px] h-3 cursor-ns-resize",
+        bottom: "inset-x-[14px] -bottom-[6px] h-3 cursor-ns-resize",
+        left: "inset-y-[14px] -left-[6px] w-3 cursor-ew-resize",
+        right: "inset-y-[14px] -right-[6px] w-3 cursor-ew-resize",
     }[corner];
+    const sizeClass = corner.includes("-") ? "size-7" : "";
 
-    return <div data-canvas-resize-corner={corner} className={`absolute z-50 size-7 ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;
+    return <div data-canvas-resize-corner={corner} className={`absolute z-50 ${sizeClass} ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;
 }
 
 export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "left" | "right"; visible: boolean; onConnectStart: (event: React.MouseEvent | React.PointerEvent) => void }) {
@@ -724,7 +874,7 @@ export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "
         <div
             data-canvas-handle={side === "left" ? "target" : "source"}
             aria-label={side === "left" ? "输入连接点" : "输出连接点"}
-            className={`absolute top-1/2 z-30 flex size-12 -translate-y-1/2 cursor-crosshair items-center justify-center transition-opacity duration-150 ${
+            className={`absolute top-1/2 z-[60] flex size-12 -translate-y-1/2 cursor-crosshair items-center justify-center transition-opacity duration-150 ${
                 side === "left" ? "-left-6" : "-right-6"
             } ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
             onMouseDown={onConnectStart}

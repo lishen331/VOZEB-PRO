@@ -18,6 +18,7 @@ vi.mock("@/services/image-storage", async (importOriginal) => ({
 
 import {
     applyNodeConfigPatch,
+    expandContainerConnection,
     getGenerationCount,
     hydrateAssistantImages,
     hydrateCanvasImages,
@@ -140,6 +141,37 @@ describe("Canvas project hydration", () => {
         await uploadGeneratedCanvasImage({ dataUrl: "/api/generation-log-assets/permanent/result.png", serverUrl: "/api/generation-log-assets/permanent/result.png" });
 
         expect(mocks.uploadImage).toHaveBeenCalledWith("/api/generation-log-assets/permanent/result.png");
+    });
+});
+
+describe("生成组 output wires", () => {
+    const at = (id: string, type: CanvasNodeType, metadata: CanvasNodeData["metadata"] = {}): CanvasNodeData => ({ id, type, title: id, position: { x: 0, y: 0 }, width: 100, height: 100, metadata });
+
+    it("fans one wire out of a frame into a wire from every member, nested frames flattened", () => {
+        const nodes = [
+            at("frame", CanvasNodeType.Container),
+            at("a", CanvasNodeType.Image, { containerId: "frame" }),
+            at("inner", CanvasNodeType.Container, { containerId: "frame" }),
+            at("b", CanvasNodeType.Text, { containerId: "inner" }),
+            at("target", CanvasNodeType.Image),
+        ];
+
+        const wires = expandContainerConnection({ fromNodeId: "frame", toNodeId: "target" }, nodes);
+
+        expect(wires.map((wire) => `${wire.fromNodeId}->${wire.toNodeId}`).sort()).toEqual(["a->target", "b->target"]);
+    });
+
+    it("never wires the drop target to itself when it is also a member", () => {
+        const nodes = [at("frame", CanvasNodeType.Container), at("a", CanvasNodeType.Image, { containerId: "frame" }), at("b", CanvasNodeType.Image, { containerId: "frame" })];
+
+        expect(expandContainerConnection({ fromNodeId: "frame", toNodeId: "b" }, nodes)).toEqual([{ fromNodeId: "a", toNodeId: "b" }]);
+    });
+
+    it("keeps the single wire for an empty frame and for ordinary sources", () => {
+        const nodes = [at("frame", CanvasNodeType.Container), at("x", CanvasNodeType.Image), at("y", CanvasNodeType.Image)];
+
+        expect(expandContainerConnection({ fromNodeId: "frame", toNodeId: "x" }, nodes)).toEqual([{ fromNodeId: "frame", toNodeId: "x" }]);
+        expect(expandContainerConnection({ fromNodeId: "x", toNodeId: "y" }, nodes)).toEqual([{ fromNodeId: "x", toNodeId: "y" }]);
     });
 });
 

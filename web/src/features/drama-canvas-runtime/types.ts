@@ -121,8 +121,6 @@ export type CanvasNodeMetadata = {
     composerContent?: string;
     prompt?: string;
     sourcePrompt?: string;
-    upstreamPrompt?: string;
-    imageReferenceRoles?: import("@/lib/image-reference-roles").ImageReferenceRoles;
     status?: CanvasNodeStatus;
     errorDetails?: string;
     fontSize?: number;
@@ -184,6 +182,8 @@ export type CanvasNodeMetadata = {
     cameraControl?: CameraControlOptions;
     panoramaProjection?: "equirectangular";
     panoramaSourcePrompt?: string;
+    upstreamPrompt?: string;
+    imageReferenceRoles?: import("@/lib/image-reference-roles").ImageReferenceRoles;
     references?: string[];
     naturalWidth?: number;
     naturalHeight?: number;
@@ -204,7 +204,7 @@ export type CanvasNodeMetadata = {
     groupId?: string;
     groupLabel?: string;
     /** On a Group node: thumbnail cache so the grid renders without the hidden members. */
-    groupMemberSnapshots?: { id: string; content: string; width: number; height: number }[];
+    groupMemberSnapshots?: CanvasGroupMemberSnapshot[];
     /**
      * 生成组 (Container) membership. Deliberately NOT reusing groupId/groupMemberIds:
      * isHiddenCanvasGroupMember hides anything whose groupId points at a live Group,

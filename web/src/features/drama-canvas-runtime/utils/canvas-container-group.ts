@@ -1,5 +1,5 @@
 import { CANVAS_CONTAINER } from "../constants";
-import { CanvasNodeType, isCanvasImageNodeType, type CanvasGenerationMode, type CanvasNodeData, type Position } from "../types";
+import { CanvasNodeType, type CanvasGenerationMode, type CanvasNodeData } from "../types";
 import { isHiddenCanvasGroupMember } from "./canvas-storyboard-group";
 
 /** Minimum nodes a box-selection must cover before it can become a 生成组. */
@@ -113,62 +113,6 @@ export function expandCanvasContainerDescendants(nodes: CanvasNodeData[], select
         }
     }
     return result;
-}
-
-/**
- * Nodes that each get their own wire when one is dragged out of a 生成组: every
- * member, nested frames flattened, frames themselves skipped. `excludeId` drops
- * the drop target so a member can't end up wired to itself.
- */
-export function canvasContainerWireSourceIds(containerId: string, nodes: CanvasNodeData[], excludeId?: string) {
-    const byId = new Map(nodes.map((node) => [node.id, node]));
-    return [...expandCanvasContainerDescendants(nodes, [containerId])].filter((id) => id !== excludeId && byId.has(id) && !isCanvasContainerNode(byId.get(id)));
-}
-
-/** Frame tints offered by the 生成组 toolbar. `null` is the theme's own border. */
-export const CANVAS_CONTAINER_COLORS = ["#94a3b8", "#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#a855f7"] as const;
-
-export type CanvasContainerArrangement = "grid" | "row" | "column";
-
-const CANVAS_CONTAINER_ARRANGE_GAP = 32;
-
-/**
- * Re-lays out a container's direct members inside its current top-left corner
- * and returns the new frame plus a move delta per moved node. Nested frames move
- * as a block: the delta is applied to every descendant so their contents follow.
- */
-export function arrangeCanvasContainer(containerId: string, nodes: CanvasNodeData[], arrangement: CanvasContainerArrangement) {
-    const container = nodes.find((node) => node.id === containerId);
-    const members = nodes.filter((node) => node.metadata?.containerId === containerId).sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
-    if (!container || !members.length) return null;
-
-    const { padding, headerHeight } = CANVAS_CONTAINER;
-    const originX = container.position.x + padding;
-    const originY = container.position.y + padding + headerHeight;
-    const columns = arrangement === "row" ? members.length : arrangement === "column" ? 1 : Math.ceil(Math.sqrt(members.length));
-    const columnWidths = Array.from({ length: columns }, (_, column) => Math.max(...members.filter((_, index) => index % columns === column).map((node) => node.width)));
-    const rowCount = Math.ceil(members.length / columns);
-    const rowHeights = Array.from({ length: rowCount }, (_, row) => Math.max(...members.slice(row * columns, row * columns + columns).map((node) => node.height)));
-
-    const deltas = new Map<string, Position>();
-    const arranged = members.map((node, index) => {
-        const column = index % columns;
-        const row = Math.floor(index / columns);
-        const x = originX + columnWidths.slice(0, column).reduce((sum, width) => sum + width + CANVAS_CONTAINER_ARRANGE_GAP, 0);
-        const y = originY + rowHeights.slice(0, row).reduce((sum, height) => sum + height + CANVAS_CONTAINER_ARRANGE_GAP, 0);
-        const delta = { x: x - node.position.x, y: y - node.position.y };
-        expandCanvasContainerDescendants(nodes, [node.id]).forEach((id) => deltas.set(id, delta));
-        return { ...node, position: { x, y } };
-    });
-
-    const frame = canvasContainerFrame(arranged);
-    return { frame: { ...frame, position: container.position }, deltas };
-}
-
-/** Image and video members with content, nested frames included, for 下载. */
-export function canvasContainerMediaNodes(containerId: string, nodes: CanvasNodeData[]) {
-    const ids = expandCanvasContainerDescendants(nodes, [containerId]);
-    return nodes.filter((node) => ids.has(node.id) && node.id !== containerId && Boolean(node.metadata?.content) && (isCanvasImageNodeType(node.type) || node.type === CanvasNodeType.Video));
 }
 
 /** True when `node` lies fully inside the container's frame. */

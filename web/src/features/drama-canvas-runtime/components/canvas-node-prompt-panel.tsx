@@ -27,6 +27,13 @@ export type CanvasNodeGenerationMode = CanvasGenerationMode;
 
 const stopCanvasInteraction = (event: SyntheticEvent) => event.stopPropagation();
 
+/**
+ * Composer toolbar widths. Only the parameter selector claims the leftover row
+ * space; every secondary control sizes to its own label. Giving them all `flex-1`
+ * split the row evenly and clipped labels like 镜头关闭 mid-word.
+ */
+const COMPOSER_PRIMARY_BUTTON_CLASS = "canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3";
+
 type CanvasNodePromptPanelProps = {
     node: CanvasNodeData;
     isRunning: boolean;
@@ -48,11 +55,10 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const hasTextContent = node.type === CanvasNodeType.Text && Boolean(node.metadata?.content?.trim());
     const hasImageContent = isCanvasImageNodeType(node.type) && Boolean(node.metadata?.content);
     const isPanorama = node.type === CanvasNodeType.Panorama;
-    const isEditingExistingContent = hasTextContent || hasImageContent;
     const imageReferenceRoles = mentionReferences.filter((reference) => reference.kind === "image");
     const referenceRoleImages = imageReferenceRoles.length ? imageReferenceRoles : hasImageContent ? [{ nodeId: node.id, kind: "image" as const, label: "\u56fe\u7247 1", title: node.title || "\u5f53\u524d\u56fe\u7247" }] : [];
     const textReferences = mentionReferences.filter((reference) => reference.active && reference.nodeId !== node.id);
-    const [prompt, setPrompt] = useState(isEditingExistingContent ? "" : node.metadata?.prompt || "");
+    const [prompt, setPrompt] = useState(canvasNodePrompt(node));
     const [expanded, setExpanded] = useState(false);
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
     const credits = requestCreditCost({
@@ -67,20 +73,25 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
         videoSeconds: config.videoSeconds,
     });
 
+    // Sync the textarea whenever the stored prompt changes from outside this
+    // panel: undo/redo reverts node.metadata.prompt; a completed generation
+    // writes node.metadata.upstreamPrompt. Both paths need to reflect in the
+    // editor immediately. setPrompt is idempotent so this is safe even if it
+    // fires during streaming (the value won't change then anyway).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
-        setPrompt(isEditingExistingContent ? "" : node.metadata?.prompt || "");
-    }, [isEditingExistingContent, node.id]);
+        setPrompt(canvasNodePrompt(node));
+    }, [node.id, node.metadata?.upstreamPrompt, node.metadata?.prompt]);
 
     const updatePrompt = (value: string) => {
         setPrompt(value);
-        if (!isEditingExistingContent) onPromptChange(node.id, value);
+        if (shouldPersistCanvasNodePrompt(node)) onPromptChange(node.id, value);
     };
 
     const submit = () => {
         const text = prompt.trim();
         if (!text || isRunning) return false;
         onGenerate(node.id, mode, text);
-        setPrompt("");
         return true;
     };
 
@@ -174,24 +185,17 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 <div className="canvas-composer-tools flex min-w-0 flex-1 flex-wrap items-center gap-2">
                     {mode === "image" ? (
                         <>
-                            <ModelPicker
-                                className="min-w-[9rem] flex-1"
-                                config={config}
-                                value={config.model}
-                                onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))}
-                                capability="image"
-                                onMissingConfig={() => openConfigDialog(true)}
-                            />
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))} capability="image" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasImageSettingsPopover
                                 config={config}
                                 placement="topLeft"
-                                buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
+                                buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS}
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasImageConfigPatch(key, value))}
                                 onOpenChange={onImageSettingsOpenChange}
                                 fixedSizeLabel={isPanorama ? "全景 2:1" : undefined}
                             />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
-                                <CanvasPromptLibrary onSelect={updatePrompt} />
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                                 {referenceRoleImages.length ? (
                                     <CanvasImageReferenceRolesPopover references={referenceRoleImages} roles={node.metadata?.imageReferenceRoles} onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })} iconOnly />
                                 ) : null}
@@ -200,44 +204,33 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </>
                     ) : mode === "video" ? (
                         <>
-                            <ModelPicker
-                                className="min-w-[9rem] flex-1"
-                                config={config}
-                                value={config.model}
-                                onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))}
-                                capability="video"
-                                onMissingConfig={() => openConfigDialog(true)}
-                            />
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))} capability="video" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasVideoSettingsPopover
                                 config={config}
                                 metadata={node.metadata}
                                 references={mentionReferences}
-                                buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
+                                buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS}
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasVideoConfigPatch(key, value))}
                                 onMetadataChange={(patch) => onConfigChange(node.id, patch)}
                             />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
-                                <CanvasPromptLibrary onSelect={updatePrompt} />
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                                 <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} iconOnly />
                             </div>
                         </>
                     ) : mode === "audio" ? (
                         <>
-                            <ModelPicker className="min-w-[9rem] flex-1" config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
-                            <CanvasAudioSettingsPopover
-                                config={config}
-                                buttonClassName="canvas-composer-settings !h-10 !min-w-[9rem] !max-w-full !flex-1 !justify-start !rounded-full !px-3"
-                                onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))}
-                            />
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
+                            <CanvasAudioSettingsPopover config={config} buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS} onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))} />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
-                                <CanvasPromptLibrary onSelect={updatePrompt} />
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                             </div>
                         </>
                     ) : (
                         <>
-                            <ModelPicker className="min-w-[9rem] flex-1" config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
-                                <CanvasPromptLibrary onSelect={updatePrompt} />
+                                <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                             </div>
                         </>
                     )}
@@ -364,6 +357,21 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             </div>
         </div>
     );
+}
+
+export function canvasNodePrompt(node: CanvasNodeData) {
+    return node.metadata?.upstreamPrompt?.trim() || node.metadata?.prompt || "";
+}
+
+export function shouldPersistCanvasNodePrompt(node: CanvasNodeData) {
+    return node.type !== CanvasNodeType.Config;
+}
+
+export function appendCanvasLibraryPrompt(currentPrompt: string, selectedPrompt: string) {
+    const selected = selectedPrompt.trim();
+    if (!selected) return currentPrompt;
+    const current = currentPrompt.trimEnd();
+    return current ? `${current}\n\n${selected}` : selected;
 }
 
 function defaultMode(type: CanvasNodeData["type"]): CanvasNodeGenerationMode {

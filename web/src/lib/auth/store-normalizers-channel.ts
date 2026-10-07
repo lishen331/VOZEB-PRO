@@ -14,6 +14,8 @@ const CHANNEL_PROTOCOLS: SystemChannelProtocol[] = [
     "vozeb-recommended",
     "globalaiopc",
     "seedance",
+    "modelbay-seedance",
+    "tuzi-seedance",
     "stable-diffusion",
     "volcengine-video",
     "seedance-special",

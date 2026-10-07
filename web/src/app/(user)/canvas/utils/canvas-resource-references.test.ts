@@ -26,6 +26,23 @@ describe("canvas resource reference index", () => {
         expect(index.forNode("shot").map((reference) => reference.nodeId)).toEqual(["m1", "m2"]);
     });
 
+    it("expands a wire out of a 生成组 frame into every resource member, nested frames included", () => {
+        const outer = node("outer", CanvasNodeType.Container);
+        const inner = node("inner", CanvasNodeType.Container, { containerId: "outer" });
+        const direct = node("direct", CanvasNodeType.Image, { content: "/api/reference-assets/direct.png", containerId: "outer" });
+        const nested = node("nested", CanvasNodeType.Text, { content: "台词", containerId: "inner" });
+        const config = node("config", CanvasNodeType.Config);
+        const connections: CanvasConnection[] = [{ id: "outer-config", fromNodeId: "outer", toNodeId: "config" }];
+        const index = createCanvasResourceReferenceIndex([outer, inner, direct, nested, config], connections);
+
+        expect(
+            index
+                .resourceNodesFor("config", false)
+                .map((item) => item.id)
+                .sort(),
+        ).toEqual(["direct", "nested"]);
+    });
+
     it("reuses the indexed connection graph for config and direct node inputs", () => {
         const images = [imageNode("one"), imageNode("two")];
         const config = node("config", CanvasNodeType.Config);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { canvasReadableImageUrl } from "@/lib/browser-media-url";
 import { SYSTEM, Viewer } from "@photo-sphere-viewer/core";
 import "@photo-sphere-viewer/core/index.css";
 
@@ -20,15 +21,14 @@ export function CanvasPanoramaSurface({ src, alt }: { src: string; alt: string }
             SYSTEM.load();
             viewer = new Viewer({
                 container,
-                panorama: src,
+                panorama: canvasReadableImageUrl(src),
                 navbar: false,
                 mousewheel: true,
                 mousemove: true,
                 touchmoveTwoFingers: false,
                 moveInertia: false,
-                defaultZoomLvl: 50,
-                minFov: 25,
-                maxFov: 110,
+                defaultZoomLvl: 0,
+                maxFov: 120,
             });
             viewer.addEventListener("ready", handleReady);
             viewer.addEventListener("panorama-error", handleError);

@@ -20,6 +20,8 @@ import type { CanvasPageState } from "./use-canvas-page-state";
 
 import type { CanvasFileActions } from "./use-canvas-file-actions";
 
+const CANVAS_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+
 export function useCanvasMediaSessionActions({ state, interactions, files }: { state: CanvasPageState; interactions: CanvasInteractions; files: CanvasFileActions }) {
     const {
         message,
@@ -165,6 +167,7 @@ export function useCanvasMediaSessionActions({ state, interactions, files }: { s
         (event: ReactDragEvent<HTMLDivElement>) => {
             if (!preventFileDragEvent(event)) return;
             const files = droppedFiles(event, (item) => item.type.startsWith("image/") || item.type.startsWith("video/") || isAudioFile(item));
+            if (!files.length) return;
             const oversized = files.find((file) => {
                 const type = creativeUploadTypeFromMime(file.type) || (isAudioFile(file) ? "audio" : "image");
                 return file.size > creativeUploadMaxBytes(type);
@@ -174,7 +177,6 @@ export function useCanvasMediaSessionActions({ state, interactions, files }: { s
                 message.error(creativeUploadLimitMessage(type));
                 return;
             }
-            if (!files.length) return;
 
             const pos = screenToCanvas(event.clientX, event.clientY);
             setSelectedNodeIds(new Set());

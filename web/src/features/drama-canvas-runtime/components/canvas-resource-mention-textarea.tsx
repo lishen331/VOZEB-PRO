@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent, PointerEvent, TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
@@ -14,6 +14,11 @@ import { handleMentionNavigation } from "../utils/canvas-mention-navigation";
 
 export function canvasResourceMentionAtCursor(value: string, cursor: number): MentionAtCursor | undefined {
     return mentionAtCursor(value, cursor);
+}
+
+export function canvasResourceMentionMenuZIndex(modalZIndex?: string) {
+    const parsed = Number.parseInt(modalZIndex || "", 10);
+    return Number.isFinite(parsed) ? parsed + 1 : 120;
 }
 
 type Props = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & {
@@ -32,6 +37,18 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const overlayRef = useRef<HTMLDivElement | null>(null);
+
+    // The overlay is a separate element with its own scroll offset, so the two
+    // layers only stay aligned while we keep copying it across. Every path that
+    // can scroll the textarea — typing, the caret moves below, user scrolling —
+    // has to re-sync, including *after* paint, because moving the caret scrolls
+    // the textarea to reveal it and that lands later than the render effect.
+    const syncOverlayScroll = useCallback(() => {
+        if (!overlayRef.current || !textareaRef.current) return;
+        overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+        overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }, []);
+
     const [mention, setMention] = useState<MentionAtCursor | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [hasSelection, setHasSelection] = useState(false);
@@ -43,9 +60,10 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
             if (!textarea) return;
             textarea.focus();
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            syncOverlayScroll();
         });
         return () => cancelAnimationFrame(frame);
-    }, [autoFocus]);
+    }, [autoFocus, syncOverlayScroll]);
     const candidates = useMemo(() => {
         if (!mention) return [];
         const query = mention.query.trim().toLowerCase();
@@ -61,6 +79,9 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
         requestAnimationFrame(() => {
             textareaRef.current?.focus();
             textareaRef.current?.setSelectionRange(selectionStart, selectionStart);
+            // Setting the selection scrolls the textarea to reveal the caret;
+            // the overlay would otherwise stay at the previous offset.
+            syncOverlayScroll();
         });
     };
 
@@ -89,12 +110,6 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
         updateValue(next, mention.start + insertText.length);
     };
 
-    const syncOverlayScroll = () => {
-        if (!overlayRef.current || !textareaRef.current) return;
-        overlayRef.current.scrollTop = textareaRef.current.scrollTop;
-        overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
-    };
-
     const updateSelectionState = () => {
         const textarea = textareaRef.current;
         setHasSelection(Boolean(textarea && textarea.selectionStart !== textarea.selectionEnd));
@@ -102,8 +117,48 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
 
     const hasActiveLabelInValue = activeLabels.some((label) => value.includes(label));
     const showOverlay = Boolean(value && hasActiveLabelInValue && !hasSelection);
+
+    // The overlay is a separate element with its own scroll offset. It mounts
+    // fresh (scrollTop 0) whenever showOverlay flips on, while the textarea may
+    // already be scrolled — autoFocus parks the caret at the end of a long value,
+    // and typing/pasting scrolls further. Without this sync the visible glyphs
+    // come from the top of the overlay while the caret sits at the bottom of the
+    // textarea, which renders as overlapping/misaligned text. Must run before
+    // paint, so useLayoutEffect rather than useEffect.
+    useLayoutEffect(() => {
+        syncOverlayScroll();
+    }, [syncOverlayScroll, showOverlay, value]);
+
+    // antd's reset.css sets `textarea { font-size: inherit; line-height: inherit }`
+    // outside any cascade layer, so it beats Tailwind's layered `text-*`/`leading-*`
+    // on the textarea but not on the overlay div. Copy the overlay's resolved
+    // metrics onto the textarea inline so both layers lay out identically.
+    const [fontMetrics, setFontMetrics] = useState<CSSProperties>({});
+    useLayoutEffect(() => {
+        const overlay = overlayRef.current;
+        if (!overlay) return;
+        const computed = window.getComputedStyle(overlay);
+        setFontMetrics((current) => {
+            const next = { fontFamily: computed.fontFamily, fontSize: computed.fontSize, fontWeight: computed.fontWeight, lineHeight: computed.lineHeight, letterSpacing: computed.letterSpacing };
+            return Object.entries(next).every(([key, val]) => current[key as keyof CSSProperties] === val) ? current : next;
+        });
+    }, [className, style]);
+
+    // Both layers must break lines at exactly the same character, or every line
+    // after the first divergent wrap point drifts and the text reads as doubled /
+    // mis-spaced. The overlay carries Tailwind's `break-words`
+    // (overflow-wrap: break-word); a <textarea> defaults to overflow-wrap:
+    // normal and to white-space: pre-wrap. Pin all three properties identically
+    // on both layers so mixed CJK/latin runs wrap the same way.
+    const textMetricStyle = {
+        whiteSpace: "pre-wrap",
+        overflowWrap: "break-word",
+        wordBreak: "normal",
+    } as const;
     const mergedStyle = {
+        ...fontMetrics,
         ...(style || {}),
+        ...textMetricStyle,
         color: showOverlay ? "transparent" : style?.color,
         caretColor: theme.node.text,
         ...(showOverlay ? { background: "transparent", backgroundColor: "transparent" } : {}),
@@ -112,11 +167,22 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
 
     return (
         <div className={`relative h-full w-full ${containerClassName || ""}`}>
-            {showOverlay ? (
-                <div ref={overlayRef} className={`${className || ""} pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words`} style={{ ...style, color: theme.node.text }}>
-                    <MentionHighlightText value={value || props.placeholder?.toString() || ""} labels={activeLabels} references={references} placeholder={!value} />
-                </div>
-            ) : null}
+            {/* Always mounted (hidden when unused) so its resolved font metrics can be mirrored onto the textarea. */}
+            {/* Keep the overlay's scrollbar (just invisible) so its content box is as narrow as the textarea's. */}
+            <div
+                ref={overlayRef}
+                aria-hidden
+                className={`${className || ""} pointer-events-none absolute inset-0`}
+                style={{ ...style, ...textMetricStyle, color: theme.node.text, scrollbarColor: "transparent transparent", visibility: showOverlay ? "visible" : "hidden" }}
+            >
+                {showOverlay ? (
+                    <>
+                        <MentionHighlightText value={value || props.placeholder?.toString() || ""} labels={activeLabels} references={references} placeholder={!value} />
+                        {/* A textarea renders an empty last line after a trailing newline; a div does not. */}
+                        {value.endsWith("\n") ? String.fromCharCode(0x200b) : null}
+                    </>
+                ) : null}
+            </div>
             <textarea
                 {...props}
                 autoFocus={autoFocus}
@@ -191,8 +257,13 @@ function MentionHighlightText({ value, labels, references, placeholder }: { valu
 }
 
 function ReferenceToken({ reference }: { reference: CanvasResourceReference }) {
+    // Drawn with an INSET box-shadow instead of Tailwind's `ring-1`. A ring is
+    // painted outside the inline box, and the CJK inline box is taller than the
+    // leading-5 line height, so the ring bled onto the lines above and below and
+    // read as doubled text with wrong spacing. Inset keeps the outline strictly
+    // inside the glyph box, so the highlight lines up with the surrounding text.
     return (
-        <span data-canvas-resource-reference={reference.nodeId} title={reference.title} className="rounded-sm bg-[#2f80ff]/12 text-[#2f80ff] ring-1 ring-[#2f80ff]/24">
+        <span data-canvas-resource-reference={reference.nodeId} title={reference.title} className="rounded-sm bg-[#2f80ff]/12 text-[#2f80ff]" style={{ boxShadow: "inset 0 0 0 1px rgb(47 128 255 / 0.24)" }}>
             {reference.label}
         </span>
     );
@@ -213,7 +284,10 @@ function MentionMenu({
 }) {
     const selectedRef = useRef(false);
     const rect = textarea.getBoundingClientRect();
-    const boundary = textarea.closest(".ant-modal-content")?.getBoundingClientRect() || { left: 8, top: 8, right: window.innerWidth - 8, bottom: window.innerHeight - 8 };
+    const modalContent = textarea.closest(".ant-modal-content");
+    const modalWrap = textarea.closest<HTMLElement>(".ant-modal-wrap");
+    const boundary = modalContent?.getBoundingClientRect() || { left: 8, top: 8, right: window.innerWidth - 8, bottom: window.innerHeight - 8 };
+    const zIndex = canvasResourceMentionMenuZIndex(modalWrap ? window.getComputedStyle(modalWrap).zIndex : undefined);
     const menuWidth = 256;
     const maxMenuHeight = 224;
     const gap = 6;
@@ -233,8 +307,8 @@ function MentionMenu({
     return createPortal(
         <div
             data-canvas-resource-mention-menu="true"
-            className="fixed z-[120] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
-            style={{ left, top, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+            className="fixed max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+            style={{ left, top, zIndex, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
             onPointerDown={stopCanvasInteraction}
             onMouseDown={stopCanvasInteraction}
             onClick={(event) => event.stopPropagation()}

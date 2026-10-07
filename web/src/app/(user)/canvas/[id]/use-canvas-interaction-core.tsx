@@ -11,7 +11,7 @@ import { guardCanvasAgentLiveOps, type CanvasAgentLiveGuard } from "../utils/can
 import { createCanvasResourceReferenceIndex, type CanvasResourceReferenceIndex } from "../utils/canvas-resource-references";
 
 import { PendingConnectionCreate, type CanvasCreatableNodeType, createCanvasNode } from "./canvas-page-elements";
-import { getGenerationCount, normalizeConnection } from "./canvas-page-utils";
+import { expandContainerConnection, getGenerationCount, normalizeConnection } from "./canvas-page-utils";
 
 import type { CanvasPageState } from "./use-canvas-page-state";
 
@@ -105,11 +105,8 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
                 message.warning("配置节点之间不能连接");
                 return;
             }
-            const { fromNodeId, toNodeId } = connection;
-            const exists = connectionsRef.current.some((conn) => conn.fromNodeId === fromNodeId && conn.toNodeId === toNodeId);
-            if (!exists) {
-                setConnections((prev) => [...prev, { id: `conn-${Date.now()}`, fromNodeId, toNodeId }]);
-            }
+            const added = expandContainerConnection(connection, nodesRef.current).filter(({ fromNodeId, toNodeId }) => !connectionsRef.current.some((conn) => conn.fromNodeId === fromNodeId && conn.toNodeId === toNodeId));
+            if (added.length) setConnections((prev) => [...prev, ...added.map((item) => ({ id: nanoid(), ...item }))]);
             setContextMenu(null);
         },
         [message],
@@ -128,7 +125,7 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
                 return;
             }
             setNodes((prev) => [...prev, newNode]);
-            setConnections((prev) => [...prev, { id: nanoid(), ...connection }]);
+            setConnections((prev) => [...prev, ...expandContainerConnection(connection, nodesRef.current).map((item) => ({ id: nanoid(), ...item }))]);
             setSelectedNodeIds(new Set([newNode.id]));
             setSelectedConnectionId(null);
             if (type !== CanvasNodeType.Text && type !== CanvasNodeType.Audio) setDialogNodeId(newNode.id);

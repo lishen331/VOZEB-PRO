@@ -2,18 +2,20 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { AppProviders } from "@/components/layout/app-providers";
-import { appStorageKey } from "@/lib/storage-keys";
 import { absoluteSiteUrl, browserIconHref, getPublicSiteSettings, siteMetadataBase } from "@/lib/server/site-metadata";
 import { buildWebsiteStructuredData, serializeStructuredData } from "@/lib/structured-data";
 import "antd/dist/reset.css";
 import "./globals.css";
 import React from "react";
 
-// Mirrors the canvas-editor-route + effective-theme logic in app-providers.tsx
-// (CANVAS_EDITOR_ROUTE / useCanvasColorTheme). Duplicated here rather than
-// imported because this runs as an inline pre-hydration script and cannot
-// pull in app code — see the comment on CANVAS_EDITOR_ROUTE.
-const themeBootstrapScript = `try{const value=JSON.parse(localStorage.getItem(${JSON.stringify(appStorageKey("theme_store"))})||"{}");const isCanvas=/^\\/(?:canvas|drama-canvas)\\/[^/]+/.test(location.pathname);const theme=isCanvas?(value?.state?.canvasThemeOverride==="light"?"light":"dark"):(value?.state?.theme==="dark"?"dark":"light");document.documentElement.classList.toggle("dark",theme==="dark");document.documentElement.style.colorScheme=theme}catch{}`;
+// The pre-hydration theme script lives in /public/theme-bootstrap.js and is
+// loaded via <script src>. It must run before hydration to avoid a theme
+// flash, and cannot import app code. React 19 only hoists/executes external
+// (src) scripts — inline script content (dangerouslySetInnerHTML or Script
+// children) is never executed on client render, so it must stay a src file.
+// Keep it in sync with the canvas-editor-route + effective-theme logic in
+// app-providers.tsx (CANVAS_EDITOR_ROUTE / useCanvasColorTheme) and the
+// storage prefix in storage-keys.ts (appStorageKey("theme_store")).
 
 export const viewport: Viewport = {
     width: "device-width",
@@ -76,7 +78,7 @@ export default async function RootLayout({
     return (
         <html lang="zh-CN" suppressHydrationWarning className="font-sans">
             <head>
-                <script id="theme-bootstrap" nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+                <script id="theme-bootstrap" src="/theme-bootstrap.js" async nonce={nonce} />
                 <link rel="icon" href={iconHref} />
                 <link rel="shortcut icon" href={iconHref} />
                 <link rel="apple-touch-icon" href={iconHref} />
@@ -87,7 +89,7 @@ export default async function RootLayout({
                     fontFamily: '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif',
                 }}
             >
-                <script id="website-json-ld" nonce={nonce} suppressHydrationWarning type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeStructuredData(websiteStructuredData) }} />
+                <script id="website-json-ld" nonce={nonce} type="application/ld+json" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: serializeStructuredData(websiteStructuredData) }} />
                 <AntdRegistry>
                     <AppProviders>{children}</AppProviders>
                 </AntdRegistry>

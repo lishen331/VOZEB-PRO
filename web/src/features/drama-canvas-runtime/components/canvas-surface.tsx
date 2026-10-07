@@ -37,6 +37,8 @@ type WheelFrame = { clientX: number; clientY: number; deltaY: number };
 
 const CANVAS_EDGE_LOD_THRESHOLD = 256;
 const VIEWPORT_QUERY_PADDING_RATIO = 0.75;
+/** Breathing room between the persistent selection frame and the nodes it wraps. */
+const CANVAS_SELECTION_BOX_PADDING = 10;
 
 type CanvasSurfaceProps = {
     containerRef?: RefObject<HTMLDivElement | null>;
@@ -174,6 +176,7 @@ export function CanvasSurface({
     const displayViewportRef = useRef(viewport);
     const viewportDirtyRef = useRef(false);
     const previousViewportPropRef = useRef(viewport);
+    const lastCommittedViewportRef = useRef(viewport);
     const animationFrameRef = useRef<number | null>(null);
     const frameActionsRef = useRef(new Map<string, () => void>());
     const wheelFrameRef = useRef<WheelFrame | null>(null);
@@ -230,7 +233,32 @@ export function CanvasSurface({
             bottom: (surfaceSize.height - displayViewport.y) / displayViewport.k + paddingY,
         };
     }, [displayViewport, surfaceSize.height, surfaceSize.width]);
-    const renderedNodes = useMemo(() => nodeSpatialIndex.query(viewBounds).map((node) => getDisplayNode(node.id) || node), [getDisplayNode, nodeSpatialIndex, viewBounds]);
+    const renderedNodes = useMemo(() => {
+        const queried = nodeSpatialIndex.query(viewBounds).map((node) => getDisplayNode(node.id) || node);
+        // 生成组 frames must paint behind their members. Query order is per-512px-cell
+        // insertion order, not array order, so a frame and its members can come out
+        // either way round depending on pan/zoom — sort explicitly. Nesting depth
+        // ranks outer frames first so an inner frame still sits above its parent.
+        // Array.prototype.sort is stable, so everything else keeps query order.
+        const depthOf = (node: CanvasNodeData) => {
+            let depth = 0;
+            let ownerId = node.metadata?.containerId;
+            const seen = new Set<string>([node.id]);
+            while (ownerId && !seen.has(ownerId)) {
+                seen.add(ownerId);
+                depth += 1;
+                ownerId = displayNodesRef.current.find((item) => item.id === ownerId)?.metadata?.containerId;
+            }
+            return depth;
+        };
+        return queried.sort((left, right) => {
+            const leftIsFrame = left.type === CanvasNodeType.Container;
+            const rightIsFrame = right.type === CanvasNodeType.Container;
+            if (leftIsFrame !== rightIsFrame) return leftIsFrame ? -1 : 1;
+            if (leftIsFrame && rightIsFrame) return depthOf(left) - depthOf(right);
+            return 0;
+        });
+    }, [getDisplayNode, nodeSpatialIndex, viewBounds]);
     const renderedNodeIds = useMemo(() => new Set(renderedNodes.map((node) => node.id)), [renderedNodes]);
     const denseEdgeLod = connections.length > CANVAS_EDGE_LOD_THRESHOLD;
     const flowConnections = useMemo(() => {
@@ -289,6 +317,11 @@ export function CanvasSurface({
         const propChanged = !sameViewport(previousViewportPropRef.current, viewport);
         previousViewportPropRef.current = viewport;
         if (!propChanged || sameViewport(displayViewportRef.current, viewport)) return;
+        // The incoming prop is the echo of a value we ourselves committed. During
+        // a fast wheel/pinch the live ref has already moved past this snapshot, so
+        // re-applying it would snap the viewport back to a stale value. Only an
+        // external viewport change (zoom controls, reset, undo/redo) should win.
+        if (sameViewport(viewport, lastCommittedViewportRef.current)) return;
         if (wheelCommitTimerRef.current) clearTimeout(wheelCommitTimerRef.current);
         wheelCommitTimerRef.current = null;
         viewportDirtyRef.current = false;
@@ -301,9 +334,11 @@ export function CanvasSurface({
             if (worldLayerRef.current) {
                 worldLayerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
                 // Published for descendants that must stay a constant on-screen
-                // size (node edit panel, node-create menu). Written here rather
-                // than derived from React state because panning/zooming updates
-                // the DOM directly and only commits to state after the gesture.
+                // size despite the scale(k) above (node panels, create menu).
+                // Written here rather than derived from React state because pan
+                // and wheel-zoom drive this imperatively via previewViewport and
+                // only commit to state ~140ms later — a state-derived inverse
+                // scale would lag a whole gesture behind.
                 worldLayerRef.current.style.setProperty("--canvas-zoom", String(next.k));
             }
             // Screen-space siblings of this surface (the node hover toolbar) need
@@ -369,13 +404,14 @@ export function CanvasSurface({
         }
         const commit = () => {
             viewportCommitHandleRef.current = null;
+            lastCommittedViewportRef.current = next;
             startTransition(() => {
                 setDisplayViewport((current) => (sameViewport(current, next) ? current : next));
                 onViewportCommit(next);
             });
         };
-        const requestIdle = (window as Window & { requestIdleCallback?: (callback: () => void) => number }).requestIdleCallback;
-        viewportCommitHandleRef.current = requestIdle ? requestIdle(commit) : requestAnimationFrame(commit);
+        const requestIdle = (window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number }).requestIdleCallback;
+        viewportCommitHandleRef.current = requestIdle ? requestIdle(commit, { timeout: 500 }) : requestAnimationFrame(commit);
     }, [onViewportCommit]);
 
     useEffect(
@@ -738,11 +774,15 @@ export function CanvasSurface({
 
     const previewNodeResize = useCallback(
         (id: string, width: number, height: number, position?: Position) => {
+            // Claim the resize synchronously, before the rAF runs. The clear-effect
+            // keyed on `nodes` wipes localTransforms unless this ref is already set;
+            // on a fast drag `nodes` can change before the first frame fires, so
+            // setting it inside the rAF left a gap where the node snapped back.
+            resizingNodeIdRef.current = id;
             scheduleFrame(`resize:${id}`, () => {
                 const current = localTransformsRef.current[id] || nodesRef.current.find((node) => node.id === id);
                 if (!current) return;
                 const next = { ...localTransformsRef.current, [id]: { position: position || current.position, width, height } };
-                resizingNodeIdRef.current = id;
                 localTransformsRef.current = next;
                 setLocalTransforms(next);
             });
@@ -798,6 +838,7 @@ export function CanvasSurface({
     const worldStyle: CSSProperties = {
         transform: `translate(${displayViewport.x}px, ${displayViewport.y}px) scale(${displayViewport.k})`,
         transformOrigin: "0 0",
+        willChange: "transform",
         // Keep in sync with applyViewportStyles — this covers the first paint
         // and any React-driven re-render; that function covers live gestures.
         ["--canvas-zoom" as string]: String(displayViewport.k),
@@ -812,6 +853,29 @@ export function CanvasSurface({
               height: Math.abs(boxSelection.current.y - boxSelection.start.y),
           }
         : undefined;
+    // The marquee above only exists while the pointer is down. Once it lifts,
+    // this frame takes over so a multi-node selection still reads as "these are
+    // selected" — and gives the selection toolbar something to hang off. Drawn in
+    // world space so it tracks pan/zoom for free, and left unfilled so it never
+    // tints the nodes it wraps. A lone 生成组 is excluded: its own body is the box.
+    const persistentSelectionStyle = useMemo(() => {
+        if (boxSelection || selectedNodeIds.size < 2) return undefined;
+        const members = [...selectedNodeIds]
+            .filter((id) => !hiddenNodeIds.has(id))
+            .map((id) => getDisplayNode(id))
+            .filter((node): node is CanvasNodeData => Boolean(node));
+        if (!members.length) return undefined;
+        const left = Math.min(...members.map((node) => node.position.x));
+        const top = Math.min(...members.map((node) => node.position.y));
+        const right = Math.max(...members.map((node) => node.position.x + node.width));
+        const bottom = Math.max(...members.map((node) => node.position.y + node.height));
+        return {
+            left: left - CANVAS_SELECTION_BOX_PADDING,
+            top: top - CANVAS_SELECTION_BOX_PADDING,
+            width: right - left + CANVAS_SELECTION_BOX_PADDING * 2,
+            height: bottom - top + CANVAS_SELECTION_BOX_PADDING * 2,
+        };
+    }, [boxSelection, getDisplayNode, hiddenNodeIds, selectedNodeIds]);
 
     return (
         <div
@@ -866,7 +930,11 @@ export function CanvasSurface({
                                         stroke="transparent"
                                         strokeWidth={canvasEdgeHitStrokeWidth(displayViewport.k)}
                                         style={{ pointerEvents: "stroke", cursor: "pointer" }}
-                                        onClick={(event) => {
+                                        onPointerDown={(event) => {
+                                            // Select on pointer-down, not click: a click only
+                                            // fires when down+up land on the same element, so
+                                            // the tiniest pointer drift onto the canvas below
+                                            // swallowed the selection intermittently.
                                             event.stopPropagation();
                                             setSelection(new Set(), item.id);
                                         }}
@@ -915,10 +983,19 @@ export function CanvasSurface({
                                     onConnectStart={handleConnectStart}
                                     onResize={previewNodeResize}
                                     onResizeEnd={commitNodeResize}
-                                    onContextMenu={(event, id) => onNodeContextMenu(event, id)}
+                                    onContextMenu={onNodeContextMenu}
                                 />
                             );
                         })}
+                        {persistentSelectionStyle ? (
+                            <div
+                                data-canvas-selection-box
+                                className="pointer-events-none absolute rounded-xl border-dashed"
+                                // Counter-scale the outline so it keeps a constant on-screen
+                                // weight at any zoom; the world layer publishes --canvas-zoom.
+                                style={{ ...persistentSelectionStyle, borderColor: theme.canvas.selectionStroke, borderWidth: "calc(1.5px / var(--canvas-zoom, 1))" }}
+                            />
+                        ) : null}
                         {selectionStyle ? <div className="pointer-events-none absolute border" style={{ ...selectionStyle, borderColor: theme.canvas.selectionStroke, background: theme.canvas.selectionFill }} /> : null}
                         {overlay}
                     </div>

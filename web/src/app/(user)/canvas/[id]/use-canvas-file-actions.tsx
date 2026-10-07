@@ -6,13 +6,13 @@ import { useCallback, useEffect } from "react";
 import { clipboardImageFiles } from "@/lib/clipboard-image-files";
 import { uploadMediaFile } from "@/services/file-storage";
 import { NODE_DEFAULT_SIZE } from "../constants";
-import { CanvasNodeType, type CanvasNodeData, type Position } from "../types";
+import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type Position } from "../types";
 import { fitNodeSize } from "../utils/canvas-node-size";
 
 import { CANVAS_DROP_NODE_OFFSET, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
 import { audioMetadata, imageMetadata, uploadCanvasImage, videoMetadata } from "./canvas-page-utils";
 import { CANVAS_GROUP_MIN_MEMBERS, canvasGroupCandidates, canvasGroupCentroid, canvasGroupMemberSnapshot, canvasGroupRestoreLayout, canvasGroupSize, isHiddenCanvasGroupMember } from "../utils/canvas-storyboard-group";
-import { CANVAS_CONTAINER_MIN_MEMBERS, canvasContainerChildIds, canvasContainerFrame } from "../utils/canvas-container-group";
+import { CANVAS_CONTAINER_MIN_MEMBERS, arrangeCanvasContainer, canvasContainerChildIds, canvasContainerFrame, type CanvasContainerArrangement } from "../utils/canvas-container-group";
 
 import type { CanvasInteractions } from "./use-canvas-interactions";
 import type { CanvasPageState } from "./use-canvas-page-state";
@@ -131,21 +131,7 @@ export function useCanvasFileActions({ state, interactions }: { state: CanvasPag
             return;
         }
 
-        const memberIds = members.map((member) => member.id);
-        const memberIdSet = new Set(memberIds);
-        const centroid = canvasGroupCentroid(members);
-        const size = canvasGroupSize(members.length);
-        const groupId = `${CanvasNodeType.Group}-${nanoid()}`;
-        const groupNode: CanvasNodeData = {
-            id: groupId,
-            type: CanvasNodeType.Group,
-            title: "分镜组",
-            position: { x: centroid.x - size.width / 2, y: centroid.y - size.height / 2 },
-            width: size.width,
-            height: size.height,
-            metadata: { status: "idle", groupMemberIds: memberIds, groupMemberSnapshots: members.map(canvasGroupMemberSnapshot) },
-        };
-
+        const { groupId, groupNode, memberIdSet } = storyboardGroupFor(members);
         setNodes((current) => [...current.map((node) => (memberIdSet.has(node.id) ? { ...node, metadata: { ...node.metadata, groupId } } : node)), groupNode]);
         setSelectedNodeIds(new Set([groupId]));
         setSelectedConnectionId(null);
@@ -203,6 +189,50 @@ export function useCanvasFileActions({ state, interactions }: { state: CanvasPag
             setToolbarNodeId(null);
             setDialogNodeId(null);
             message.success(memberIds.length ? `已解散生成组，保留 ${memberIds.length} 个节点` : "已删除空生成组");
+        },
+        [message],
+    );
+
+    const arrangeContainer = useCallback((containerNodeId: string, arrangement: CanvasContainerArrangement) => {
+        const result = arrangeCanvasContainer(containerNodeId, nodesRef.current, arrangement);
+        if (!result) return;
+        setNodes((current) =>
+            current.map((node) => {
+                if (node.id === containerNodeId) return { ...node, ...result.frame };
+                const delta = result.deltas.get(node.id);
+                return delta ? { ...node, position: { x: node.position.x + delta.x, y: node.position.y + delta.y } } : node;
+            }),
+        );
+    }, []);
+
+    const setContainerColor = useCallback((containerNodeId: string, color: string | undefined) => {
+        setNodes((current) => current.map((node) => (node.id === containerNodeId ? { ...node, metadata: { ...node.metadata, containerColor: color } } : node)));
+    }, []);
+
+    /** 转分镜组: the frame's direct image members become a storyboard Group; the frame goes. */
+    const convertContainerToStoryboard = useCallback(
+        (containerNodeId: string) => {
+            const allNodes = nodesRef.current;
+            const members = allNodes.filter((node) => node.metadata?.containerId === containerNodeId && isCanvasImageNodeType(node.type) && !node.metadata?.groupId);
+            if (members.length < CANVAS_GROUP_MIN_MEMBERS) {
+                message.info(`生成组内至少需要 ${CANVAS_GROUP_MIN_MEMBERS} 张图片才能转分镜组`);
+                return;
+            }
+            const { groupId, groupNode, memberIdSet } = storyboardGroupFor(members);
+            setNodes((current) => [
+                ...current
+                    .filter((node) => node.id !== containerNodeId)
+                    .map((node) => {
+                        if (memberIdSet.has(node.id)) return { ...node, metadata: { ...node.metadata, groupId, containerId: undefined } };
+                        return node.metadata?.containerId === containerNodeId ? { ...node, metadata: { ...node.metadata, containerId: undefined } } : node;
+                    }),
+                groupNode,
+            ]);
+            setSelectedNodeIds(new Set([groupId]));
+            setSelectedConnectionId(null);
+            setToolbarNodeId(null);
+            setDialogNodeId(null);
+            message.success(`已将 ${members.length} 张图片转为分镜组`);
         },
         [message],
     );
@@ -354,7 +384,27 @@ export function useCanvasFileActions({ state, interactions }: { state: CanvasPag
         dissolveGroup,
         createContainerFromSelection,
         removeContainer,
+        arrangeContainer,
+        setContainerColor,
+        convertContainerToStoryboard,
     };
+}
+
+function storyboardGroupFor(members: CanvasNodeData[]) {
+    const memberIds = members.map((member) => member.id);
+    const centroid = canvasGroupCentroid(members);
+    const size = canvasGroupSize(members.length);
+    const groupId = `${CanvasNodeType.Group}-${nanoid()}`;
+    const groupNode: CanvasNodeData = {
+        id: groupId,
+        type: CanvasNodeType.Group,
+        title: "分镜组",
+        position: { x: centroid.x - size.width / 2, y: centroid.y - size.height / 2 },
+        width: size.width,
+        height: size.height,
+        metadata: { status: "idle", groupMemberIds: memberIds, groupMemberSnapshots: members.map(canvasGroupMemberSnapshot) },
+    };
+    return { groupId, groupNode, memberIdSet: new Set(memberIds) };
 }
 
 export type CanvasFileActions = ReturnType<typeof useCanvasFileActions>;

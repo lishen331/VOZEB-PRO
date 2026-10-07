@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, Plus, RefreshCw, Star, Video } from "lucide-react";
 import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -855,15 +855,16 @@ export function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; on
         "top-right": "-right-[14px] -top-[14px] cursor-nesw-resize",
         "bottom-left": "-bottom-[14px] -left-[14px] cursor-nesw-resize",
         "bottom-right": "-bottom-[14px] -right-[14px] cursor-nwse-resize",
-        // Edge midpoints. Only 生成组 frames render these; every other node keeps
-        // its 4 corners so a busy canvas does not sprout 8 handles per card.
-        top: "left-1/2 -top-[14px] -translate-x-1/2 cursor-ns-resize",
-        bottom: "left-1/2 -bottom-[14px] -translate-x-1/2 cursor-ns-resize",
-        left: "top-1/2 -left-[14px] -translate-y-1/2 cursor-ew-resize",
-        right: "top-1/2 -right-[14px] -translate-y-1/2 cursor-ew-resize",
+        // Full-length edge strips, only on 生成组 frames. A midpoint square here
+        // would cover the left/right connection dots and swallow every wire drag.
+        top: "inset-x-[14px] -top-[6px] h-3 cursor-ns-resize",
+        bottom: "inset-x-[14px] -bottom-[6px] h-3 cursor-ns-resize",
+        left: "inset-y-[14px] -left-[6px] w-3 cursor-ew-resize",
+        right: "inset-y-[14px] -right-[6px] w-3 cursor-ew-resize",
     }[corner];
+    const sizeClass = corner.includes("-") ? "size-7" : "";
 
-    return <div data-canvas-resize-corner={corner} className={`absolute z-50 size-7 ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;
+    return <div data-canvas-resize-corner={corner} className={`absolute z-50 ${sizeClass} ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;
 }
 
 export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "left" | "right"; visible: boolean; onConnectStart: (event: React.MouseEvent | React.PointerEvent) => void }) {
@@ -873,7 +874,7 @@ export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "
         <div
             data-canvas-handle={side === "left" ? "target" : "source"}
             aria-label={side === "left" ? "输入连接点" : "输出连接点"}
-            className={`absolute top-1/2 z-30 flex size-12 -translate-y-1/2 cursor-crosshair items-center justify-center transition-opacity duration-150 ${
+            className={`absolute top-1/2 z-[60] flex size-12 -translate-y-1/2 cursor-crosshair items-center justify-center transition-opacity duration-150 ${
                 side === "left" ? "-left-6" : "-right-6"
             } ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
             onMouseDown={onConnectStart}
@@ -883,6 +884,45 @@ export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "
             style={{ touchAction: "none" }}
         >
             <div className="size-3 rounded-full border-2 transition-all hover:scale-125" style={{ background: theme.node.panel, borderColor: theme.node.muted }} />
+        </div>
+    );
+}
+
+/**
+ * 生成组 output handle. A tall rail just outside the frame's right edge: the "+"
+ * follows the pointer's height, and a press anywhere on the rail starts the
+ * wire, so there is no small dot to aim at. Height is tracked as a fraction of
+ * the rail so it is independent of canvas zoom.
+ */
+export function ContainerOutputRail({ visible, onConnectStart }: { visible: boolean; onConnectStart: (event: React.MouseEvent | React.PointerEvent) => void }) {
+    const theme = canvasThemes[useCanvasColorTheme().theme];
+    const [offset, setOffset] = useState(0.5);
+    const track = (event: React.PointerEvent<HTMLDivElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (rect.height) setOffset(Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)));
+    };
+
+    return (
+        <div
+            data-canvas-handle="source"
+            data-canvas-container-rail
+            aria-label="输出连接点：拖出连线"
+            className={`absolute -right-[64px] inset-y-0 z-[60] w-[58px] cursor-crosshair transition-opacity duration-150 ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+            style={{ touchAction: "none" }}
+            onPointerMove={track}
+            onPointerLeave={() => setOffset(0.5)}
+            onMouseDown={onConnectStart}
+            onPointerDown={(event) => {
+                track(event);
+                if (event.pointerType !== "mouse") onConnectStart(event);
+            }}
+        >
+            <div
+                className="pointer-events-none absolute left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border shadow-md transition-[top] duration-75"
+                style={{ top: `${offset * 100}%`, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+            >
+                <Plus className="size-5" />
+            </div>
         </div>
     );
 }

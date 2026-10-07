@@ -83,6 +83,12 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
         setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, content } } : node)));
     }, []);
 
+    /** 生成组 rename. Separate from content so the label never lands in metadata.content. */
+    const handleContainerLabelChange = useCallback((nodeId: string, label: string) => {
+        const trimmed = label.trim();
+        setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, containerLabel: trimmed || undefined } } : node)));
+    }, []);
+
     const toggleBatchExpanded = useCallback((nodeId: string) => {
         const isExpanded = Boolean(nodesRef.current.find((node) => node.id === nodeId)?.metadata?.imageBatchExpanded);
         if (isExpanded) {
@@ -559,6 +565,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
     return {
         toggleNodeFreeResize,
         handleNodeContentChange,
+        handleContainerLabelChange,
         toggleBatchExpanded,
         setBatchPrimary,
         openTextEditor,

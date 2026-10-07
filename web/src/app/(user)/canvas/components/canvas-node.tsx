@@ -147,6 +147,7 @@ import {
     BatchFrame,
     ResizeHandle,
     ConnectionHandleDot,
+    ContainerOutputRail,
 } from "./canvas-node-content";
 
 export const CanvasNode = React.memo(function CanvasNode({
@@ -599,7 +600,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     .join(" ")}
                 style={{
                     background: nodeBackground,
-                    borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
+                    borderColor: hasImageContent ? imageBorderColor : isActive ? selectionBlue : isContainer && data.metadata?.containerColor ? data.metadata.containerColor : isRelated ? theme.node.muted : theme.node.stroke,
                     // A 生成组 frame needs a heavier selected state than a plain
                     // node: a 3px blue line on a 40px-tall image card reads as
                     // selected, but the same line on a 900px-wide frame reads as a
@@ -701,7 +702,11 @@ export const CanvasNode = React.memo(function CanvasNode({
             </div>
 
             <ConnectionHandleDot side="left" visible={hovered || isSelected || isConnecting} onConnectStart={(event) => onConnectStart(event, data.id, "target")} />
-            <ConnectionHandleDot side="right" visible={data.type !== CanvasNodeType.Config && (hovered || isSelected || isConnecting)} onConnectStart={(event) => onConnectStart(event, data.id, "source")} />
+            {isContainer ? (
+                <ContainerOutputRail visible={hovered || isSelected || isConnecting} onConnectStart={(event) => onConnectStart(event, data.id, "source")} />
+            ) : (
+                <ConnectionHandleDot side="right" visible={data.type !== CanvasNodeType.Config && (hovered || isSelected || isConnecting)} onConnectStart={(event) => onConnectStart(event, data.id, "source")} />
+            )}
 
             {showPanel && renderPanel ? (
                 <div

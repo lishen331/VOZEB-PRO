@@ -214,6 +214,8 @@ export type CanvasNodeMetadata = {
     /** On a member node: id of the Container that currently owns it. Members stay visible. */
     containerId?: string;
     containerLabel?: string;
+    /** On a Container: frame tint picked in its toolbar. Unset uses the theme border. */
+    containerColor?: string;
     storageKey?: string;
     remoteUrl?: string;
     serverUrl?: string;

@@ -53,6 +53,7 @@ for (const source of sourceFiles) {
 }
 
 await applyDramaRuntimeAdapters();
+formatWithPrettier(targetRoot);
 try {
     await validateStagingRuntime();
 } catch (error) {
@@ -107,31 +108,46 @@ async function applyDramaRuntimeAdapters() {
     client = replaceRequired(client, "        createAndOpenProject,\n        deleteCurrentProject,\n", "", "canvas project mutation bindings");
     client = replaceRequired(
         client,
-        '                    onWorkbench={() => router.push("/create")}',
+        '                    onWorkbench={() => router.push("/canvas")}',
         `                    onWorkbench={() => {
                         const dramaProjectId = searchParams.get("dramaProjectId") || "";
                         const episodeId = searchParams.get("episodeId") || "";
                         const shotId = searchParams.get("shotId") || "";
+                        // 同一个画布被创作工坊（教学版）和一键成片（商单版）复用，回跳必须按来源分流，
+                        // 否则一键成片用户会被送进创作工坊。
+                        const isOneClickFilm = searchParams.get("source") === "one-click-film";
                         if (!dramaProjectId || !episodeId) {
-                            router.push("/drama-lab");
+                            router.push(isOneClickFilm ? "/one-click-film" : "/drama-lab");
+                            return;
+                        }
+                        const anchor = shotId ? \`#storyboard-shot-\${encodeURIComponent(shotId)}\` : "";
+                        if (isOneClickFilm) {
+                            const oneClickQuery = new URLSearchParams({ episode: episodeId });
+                            if (shotId) oneClickQuery.set("shotId", shotId);
+                            router.push(\`/one-click-film/\${encodeURIComponent(dramaProjectId)}?\${oneClickQuery.toString()}\${anchor}\`);
                             return;
                         }
                         const query = new URLSearchParams({ episode: episodeId, stage: "storyboard" });
-                        router.push(\`/drama-lab/\${encodeURIComponent(dramaProjectId)}/create?\${query.toString()}\${shotId ? \`#storyboard-shot-\${encodeURIComponent(shotId)}\` : ""}\`);
+                        router.push(\`/drama-lab/\${encodeURIComponent(dramaProjectId)}/create?\${query.toString()}\${anchor}\`);
                     }}`,
         "drama workbench navigation",
     );
     if (!client.includes('const focusShotId = searchParams.get("shotId")')) {
-        client = replaceRequired(client, 'import { useEffect, useMemo, useRef, useState } from "react";\n', 'import { useEffect, useMemo, useRef, useState } from "react";\nimport { useSearchParams } from "next/navigation";\n', "shot focus imports");
+        client = replaceRequired(
+            client,
+            'import { useCallback, useEffect, useMemo, useRef, useState } from "react";\n',
+            'import { useCallback, useEffect, useMemo, useRef, useState } from "react";\nimport { useSearchParams } from "next/navigation";\n',
+            "shot focus imports",
+        );
         client = replaceRequired(
             client,
             "    const controller = useCanvasPageController();\n",
-            '    const controller = useCanvasPageController();\n    const searchParams = useSearchParams();\n    const focusShotId = searchParams.get("shotId") || "";\n    const focusedShotRef = useRef("");\n',
+            '    const controller = useCanvasPageController();\n    const searchParams = useSearchParams();\n    const focusShotId = searchParams.get("shotId") || "";\n    const focusAssetType = searchParams.get("assetType") || "";\n    const focusAssetId = searchParams.get("assetId") || "";\n    const focusedTargetRef = useRef("");\n',
             "shot focus state",
         );
         client = replaceRequired(client, "        setSize,\n", "        size,\n        setSize,\n", "shot focus viewport size");
         const marker = "    } = controller;\n";
-        const focusEffect = `    useEffect(() => {\n        if (!projectLoaded || !focusShotId || focusedShotRef.current === \`\${projectId}:\${focusShotId}\`) return;\n        const target = nodes.find((node) => node.id.endsWith(\`:shot:\${focusShotId}\`));\n        if (!target) return;\n        const k = Math.min(1, Math.max(0.45, viewport.k || 0.72));\n        setSelectedNodeIds(new Set([target.id]));\n        setViewport({ x: size.width / 2 - (target.position.x + target.width / 2) * k, y: size.height / 2 - (target.position.y + target.height / 2) * k, k });\n        focusedShotRef.current = \`\${projectId}:\${focusShotId}\`;\n    }, [focusShotId, nodes, projectId, projectLoaded, setSelectedNodeIds, setViewport, size.height, size.width, viewport.k]);\n`;
+        const focusEffect = `    useEffect(() => {\n        const focusKey = focusShotId ? \`\${projectId}:shot:\${focusShotId}\` : focusAssetType && focusAssetId ? \`\${projectId}:\${focusAssetType}:\${focusAssetId}\` : "";\n        if (!projectLoaded || !focusKey || focusedTargetRef.current === focusKey) return;\n        const target = focusShotId ? nodes.find((node) => node.id.endsWith(\`:shot:\${focusShotId}\`)) : nodes.find((node) => node.id.endsWith(\`:\${focusAssetType}:\${focusAssetId}\`));\n        if (!target) return;\n        const k = Math.min(1, Math.max(0.45, viewport.k || 0.72));\n        setSelectedNodeIds(new Set([target.id]));\n        setViewport({ x: size.width / 2 - (target.position.x + target.width / 2) * k, y: size.height / 2 - (target.position.y + target.height / 2) * k, k });\n        focusedTargetRef.current = focusKey;\n    }, [focusAssetId, focusAssetType, focusShotId, nodes, projectId, projectLoaded, setSelectedNodeIds, setViewport, size.height, size.width, viewport.k]);\n`;
         if (!client.includes(marker)) throw new Error("Drama Canvas adapter marker missing: controller destructure");
         client = replaceRequired(client, marker, `${marker}${focusEffect}`, "shot focus effect insertion");
     }
@@ -168,6 +184,14 @@ async function validateStagingRuntime() {
     }
 }
 
+// Hashes must describe the committed bytes, and CI enforces prettier on the target.
+function formatWithPrettier(...paths) {
+    execFileSync(process.execPath, [join(webRoot, "node_modules", "prettier", "bin", "prettier.cjs"), "--write", "--log-level", "warn", ...paths], {
+        cwd: webRoot,
+        stdio: "inherit",
+    });
+}
+
 function replaceRequired(source, search, replacement, label) {
     if (!source.includes(search)) throw new Error(`Drama Canvas adapter target missing: ${label}`);
     return source.replace(search, replacement);
@@ -184,6 +208,7 @@ const manifest = {
     files,
 };
 await writeFile(manifestPath, `${JSON.stringify(manifest, null, 4)}\n`, "utf8");
+formatWithPrettier(manifestPath);
 
 const backupRoot = `${finalTargetRoot}.backup-${process.pid}`;
 let hasBackup = false;
