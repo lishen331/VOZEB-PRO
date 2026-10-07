@@ -182,18 +182,24 @@ jobs:
             "${target}:/opt/vozeb-pro/production/compose.production.yml"
           ssh "${ssh_args[@]}" "$target" "IMAGE='$image' bash -s" <<'REMOTE'
           set -euo pipefail
+          printf 'Docker pull diagnostics before production deploy:\n'
+          docker version --format '{{.Server.Version}}' || true
+          docker system df || true
+          df -h / /var/lib/docker 2>/dev/null || df -h / || true
           pulled=""
-          for attempt in $(seq 1 8); do
-            if timeout 300 docker pull "$IMAGE"; then
+          for attempt in $(seq 1 20); do
+            printf 'Production image pull attempt %s/20 (single retry window 180s)\n' "$attempt"
+            if timeout 180 docker pull --quiet "$IMAGE"; then
               pulled="yes"
-              printf 'Production image pull succeeded on attempt %s/8\n' "$attempt"
+              printf 'Production image pull succeeded on attempt %s/20\n' "$attempt"
               break
             fi
-            printf 'Production image pull attempt %s/8 stalled; retrying (completed layers are cached)\n' "$attempt" >&2
-            sleep 5
+            printf 'Production image pull attempt %s/20 stalled; retrying cached layers\n' "$attempt" >&2
+            sleep 10
           done
           if [ -z "$pulled" ]; then
-            printf 'Production image pull failed after 8 attempts.\n' >&2
+            printf 'Production image pull failed after 20 attempts.\n' >&2
+            docker system df || true
             exit 1
           fi
           REMOTE
