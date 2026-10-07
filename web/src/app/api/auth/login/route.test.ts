@@ -20,7 +20,11 @@ vi.mock("@/lib/server/audit-log-store", () => ({
     safeGetLoginSecurityNotice: mocks.safeGetLoginSecurityNotice,
     safeRecordAuditLog: mocks.safeRecordAuditLog,
 }));
-vi.mock("@/lib/server/security", () => ({ AUTH_LOGIN_RATE_LIMIT: { maxRequests: 8, windowMs: 1 }, checkAuthRateLimit: mocks.checkAuthRateLimit }));
+vi.mock("@/lib/server/security", () => ({
+    AUTH_LOGIN_RATE_LIMIT: { maxRequests: 8, windowMs: 1 },
+    checkAuthRateLimit: mocks.checkAuthRateLimit,
+    rateLimitHeaders: (result: { resetAt: number }) => ({ "Retry-After": String(Math.max(1, Math.ceil((result.resetAt - Date.now()) / 1000))) }),
+}));
 
 import { AdminMfaChallengeError } from "@/lib/server/admin-mfa-service";
 import { POST } from "./route";
@@ -62,6 +66,15 @@ describe("POST /api/auth/login administrator MFA", () => {
         expect(mocks.authenticateUser).toHaveBeenCalledWith({ username: "admin", password: "password", totpCode: "123456" });
         expect(mocks.createSession).toHaveBeenCalledWith("admin-one");
         expect(mocks.setSessionCookie).toHaveBeenCalled();
+    });
+
+    it("returns a Retry-After header when rate limited", async () => {
+        mocks.checkAuthRateLimit.mockResolvedValue({ allowed: false, remaining: 0, resetAt: Date.now() + 90_000, dimension: "account" });
+        const response = await POST(loginRequest({ username: "student", password: "password" }));
+
+        expect(response.status).toBe(429);
+        expect(Number(response.headers.get("Retry-After"))).toBeGreaterThan(0);
+        expect(mocks.authenticateUser).not.toHaveBeenCalled();
     });
 });
 

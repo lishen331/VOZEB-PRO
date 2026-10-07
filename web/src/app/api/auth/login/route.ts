@@ -5,7 +5,7 @@ import { readJsonBody } from "@/lib/auth/request";
 import { serializeCurrentUser, setSessionCookie } from "@/lib/auth/session";
 import { auditActorFromRequest, safeGetLoginSecurityNotice, safeRecordAuditLog } from "@/lib/server/audit-log-store";
 import { isAdminMfaChallengeError } from "@/lib/server/admin-mfa-service";
-import { AUTH_LOGIN_RATE_LIMIT, checkAuthRateLimit } from "@/lib/server/security";
+import { AUTH_LOGIN_RATE_LIMIT, checkAuthRateLimit, rateLimitHeaders } from "@/lib/server/security";
 
 export const runtime = "nodejs";
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
                 target: { type: "user", label: username },
                 metadata: { reason: "rate_limited", retryAfter },
             });
-            return NextResponse.json({ error: "登录请求过于频繁，请稍后重试", retryAfter }, { status: 429 });
+            return NextResponse.json({ error: "登录请求过于频繁，请稍后重试", retryAfter }, { status: 429, headers: rateLimitHeaders(limit) });
         }
 
         const user = await authenticateUser({ username, password: body.password || "", totpCode: body.totpCode });

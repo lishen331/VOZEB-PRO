@@ -27,6 +27,9 @@ export const AUTH_LOGIN_RATE_LIMIT: RateLimitConfig = { maxRequests: 8, windowMs
 // 学校机房/教室共用 NAT 出口，按一个班约 60 人的同时使用量放宽 IP 维度
 export const GENERATION_SHARED_IP_MULTIPLIER = 60;
 
+// device 指纹只由 UA/语言等请求头组成，机房同型号电脑完全相同，跨账号桶需按整班放宽；单账号仍按原阈值
+export const AUTH_SHARED_DEVICE_MULTIPLIER = 60;
+
 const generationRateLimits: Record<GenerationRateLimitType, RateLimitConfig> = {
     agent: { maxRequests: 10, windowMs: 60 * 1000 },
     image: { maxRequests: 20, windowMs: 60 * 1000 },
@@ -69,7 +72,7 @@ export function getClientIp(request: Request) {
 export async function checkAuthRateLimit(scope: string, request: Request, account: unknown, config: RateLimitConfig): Promise<AuthRateLimitResult> {
     const identities: Array<[AuthRateLimitDimension, string, RateLimitConfig]> = [];
     const device = authDeviceFingerprint(request);
-    identities.push(["device", device || "anonymous", config]);
+    identities.push(["device", device || "anonymous", { ...config, maxRequests: config.maxRequests * AUTH_SHARED_DEVICE_MULTIPLIER }]);
     const normalizedAccount = normalizeAuthIdentity(account);
     if (normalizedAccount) identities.push(["account", normalizedAccount, config]);
     let combined: AuthRateLimitResult = { allowed: true, remaining: config.maxRequests, resetAt: Date.now() + config.windowMs };
