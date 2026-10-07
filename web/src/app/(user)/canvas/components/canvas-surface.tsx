@@ -21,6 +21,7 @@ import {
     worldFromScreen,
 } from "../utils/canvas-surface-geometry";
 import { buildCanvasSpatialIndex, canvasNodeBounds, canvasNodesBounds, type CanvasBounds } from "../utils/canvas-spatial-index";
+import { canvasContainerWireSourceIds } from "../utils/canvas-container-group";
 
 type CanvasPointerEvent = ReactMouseEvent | ReactPointerEvent;
 type CanvasNodeUpdate = { id: string; position?: Position; width?: number; height?: number };
@@ -830,6 +831,16 @@ export function CanvasSurface({
 
     const activeSelectedNodeIds = boxSelection?.nodeIds || selectedNodeIds;
     const connectionStartNode = connection ? nodesById.get(connection.nodeId) : null;
+    // An output wire dragged out of a 生成组 fans out from every member, the same
+    // wires the drop will create, so the preview never promises a single wire.
+    const connectionPreviewNodes = useMemo(() => {
+        if (!connection || !connectionStartNode) return [];
+        if (connection.handleType !== "source" || connectionStartNode.type !== CanvasNodeType.Container) return [connectionStartNode];
+        const members = canvasContainerWireSourceIds(connectionStartNode.id, nodes)
+            .map((id) => getDisplayNode(id))
+            .filter((node): node is CanvasNodeData => Boolean(node) && !hiddenNodeIds.has(node!.id));
+        return members.length ? members : [connectionStartNode];
+    }, [connection?.handleType, connectionStartNode, getDisplayNode, hiddenNodeIds, nodes]);
     const previewMinimapViewport = useCallback((next: ViewportTransform) => scheduleFrame("minimap", () => previewViewport(next)), [previewViewport, scheduleFrame]);
     const commitMinimapViewport = useCallback(() => {
         flushFrame();
@@ -949,17 +960,20 @@ export function CanvasSurface({
                                 </g>
                             );
                         })}
-                        {connection && connectionStartNode ? (
-                            <path
-                                d={previewPath(nodeAnchor(connectionStartNode, connection.handleType), connection.world, connection.handleType)}
-                                fill="none"
-                                stroke={theme.node.activeStroke}
-                                strokeWidth={2.5}
-                                strokeDasharray="6 5"
-                                strokeLinecap="round"
-                                style={{ pointerEvents: "none" }}
-                            />
-                        ) : null}
+                        {connection
+                            ? connectionPreviewNodes.map((startNode) => (
+                                  <path
+                                      key={startNode.id}
+                                      d={previewPath(nodeAnchor(startNode, connection.handleType), connection.world, connection.handleType)}
+                                      fill="none"
+                                      stroke={theme.node.activeStroke}
+                                      strokeWidth={2.5}
+                                      strokeDasharray="6 5"
+                                      strokeLinecap="round"
+                                      style={{ pointerEvents: "none" }}
+                                  />
+                              ))
+                            : null}
                     </svg>
                     <div className="pointer-events-auto absolute inset-0 overflow-visible">
                         {renderedNodes.map((node) => {

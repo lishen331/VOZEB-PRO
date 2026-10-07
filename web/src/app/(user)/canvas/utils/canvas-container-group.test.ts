@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CanvasNodeType, type CanvasNodeData } from "../types";
-import { canvasContainerCapture, canvasContainerFrame, canvasContainerGeneratableIds, expandCanvasContainerDescendants, isCanvasGeneratableNode } from "./canvas-container-group";
+import { arrangeCanvasContainer, canvasContainerCapture, canvasContainerFrame, canvasContainerGeneratableIds, canvasContainerMediaNodes, expandCanvasContainerDescendants, isCanvasGeneratableNode } from "./canvas-container-group";
 
 function node(id: string, type: CanvasNodeType, x: number, y: number, metadata: CanvasNodeData["metadata"] = {}): CanvasNodeData {
     return { id, type, title: id, position: { x, y }, width: 100, height: 100, metadata };
@@ -59,6 +59,47 @@ describe("canvas container group", () => {
         expect(isCanvasGeneratableNode(node("x", CanvasNodeType.Image, 0, 0))).toBe(false);
         expect(isCanvasGeneratableNode(node("x", CanvasNodeType.Container, 0, 0, { prompt: "a cat" }))).toBe(false);
         expect(isCanvasGeneratableNode(node("x", CanvasNodeType.Group, 0, 0, { prompt: "a cat" }))).toBe(false);
+    });
+
+    it("arranges members in a row without overlap and refits the frame around them", () => {
+        const frame = container("frame", 0, 0, 900, 900);
+        const nodes = [frame, node("a", CanvasNodeType.Image, 400, 500, { containerId: "frame" }), node("b", CanvasNodeType.Image, 100, 100, { containerId: "frame" }), node("c", CanvasNodeType.Image, 300, 300, { containerId: "frame" })];
+
+        const result = arrangeCanvasContainer("frame", nodes, "row")!;
+        const moved = nodes.slice(1).map((item) => ({ ...item, position: { x: item.position.x + result.deltas.get(item.id)!.x, y: item.position.y + result.deltas.get(item.id)!.y } }));
+        const byX = [...moved].sort((left, right) => left.position.x - right.position.x);
+
+        expect(byX.map((item) => item.id)).toEqual(["b", "c", "a"]);
+        expect(new Set(moved.map((item) => item.position.y)).size).toBe(1);
+        byX.slice(1).forEach((item, index) => expect(item.position.x).toBeGreaterThanOrEqual(byX[index].position.x + byX[index].width));
+        expect(result.frame.position).toEqual(frame.position);
+        moved.forEach((item) => expect(item.position.x + item.width).toBeLessThanOrEqual(result.frame.position.x + result.frame.width));
+    });
+
+    it("moves a nested frame's contents with it when arranging", () => {
+        const outer = container("outer", 0, 0, 1200, 1200);
+        const inner = { ...container("inner", 500, 500, 300, 300), metadata: { containerId: "outer" } };
+        const leaf = node("leaf", CanvasNodeType.Image, 550, 550, { containerId: "inner" });
+
+        const result = arrangeCanvasContainer("outer", [outer, inner, leaf], "column")!;
+
+        expect(result.deltas.get("leaf")).toEqual(result.deltas.get("inner"));
+    });
+
+    it("collects image and video members with content for download, nested frames included", () => {
+        const outer = container("outer", 0, 0);
+        const inner = { ...container("inner", 0, 0), metadata: { containerId: "outer" } };
+        const nodes = [
+            outer,
+            inner,
+            node("img", CanvasNodeType.Image, 0, 0, { containerId: "outer", content: "/a.png" }),
+            node("vid", CanvasNodeType.Video, 0, 0, { containerId: "inner", content: "/b.mp4" }),
+            node("empty", CanvasNodeType.Image, 0, 0, { containerId: "outer" }),
+            node("text", CanvasNodeType.Text, 0, 0, { containerId: "outer", content: "hi" }),
+            node("outside", CanvasNodeType.Image, 0, 0, { content: "/c.png" }),
+        ];
+
+        expect(canvasContainerMediaNodes("outer", nodes).map((item) => item.id)).toEqual(["img", "vid"]);
     });
 
     it("skips already-running members so a second click cannot double-submit", () => {

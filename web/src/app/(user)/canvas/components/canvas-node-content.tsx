@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, Plus, RefreshCw, Star, Video } from "lucide-react";
 import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -884,6 +884,45 @@ export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "
             style={{ touchAction: "none" }}
         >
             <div className="size-3 rounded-full border-2 transition-all hover:scale-125" style={{ background: theme.node.panel, borderColor: theme.node.muted }} />
+        </div>
+    );
+}
+
+/**
+ * 生成组 output handle. A tall rail just outside the frame's right edge: the "+"
+ * follows the pointer's height, and a press anywhere on the rail starts the
+ * wire, so there is no small dot to aim at. Height is tracked as a fraction of
+ * the rail so it is independent of canvas zoom.
+ */
+export function ContainerOutputRail({ visible, onConnectStart }: { visible: boolean; onConnectStart: (event: React.MouseEvent | React.PointerEvent) => void }) {
+    const theme = canvasThemes[useCanvasColorTheme().theme];
+    const [offset, setOffset] = useState(0.5);
+    const track = (event: React.PointerEvent<HTMLDivElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (rect.height) setOffset(Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)));
+    };
+
+    return (
+        <div
+            data-canvas-handle="source"
+            data-canvas-container-rail
+            aria-label="输出连接点：拖出连线"
+            className={`absolute -right-[64px] inset-y-0 z-[60] w-[58px] cursor-crosshair transition-opacity duration-150 ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+            style={{ touchAction: "none" }}
+            onPointerMove={track}
+            onPointerLeave={() => setOffset(0.5)}
+            onMouseDown={onConnectStart}
+            onPointerDown={(event) => {
+                track(event);
+                if (event.pointerType !== "mouse") onConnectStart(event);
+            }}
+        >
+            <div
+                className="pointer-events-none absolute left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border shadow-md transition-[top] duration-75"
+                style={{ top: `${offset * 100}%`, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+            >
+                <Plus className="size-5" />
+            </div>
         </div>
     );
 }

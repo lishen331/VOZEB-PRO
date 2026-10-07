@@ -19,6 +19,7 @@ import { type CanvasImageUpscaleParams } from "../components/canvas-node-upscale
 import { NODE_DEFAULT_SIZE } from "../constants";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData } from "../types";
 import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "../utils/canvas-image-data";
+import { canvasContainerMediaNodes } from "../utils/canvas-container-group";
 import { downloadCanvasMediaBundle, selectedCanvasMediaNodes } from "../utils/canvas-media-download";
 import { fitNodeSize } from "../utils/canvas-node-size";
 
@@ -186,6 +187,34 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
             setSelectedMediaDownloadPending(false);
         }
     }, [currentProject?.title, message, selectedMediaDownloadPending, selectedMediaNodes]);
+
+    const downloadContainerMedia = useCallback(
+        async (containerNodeId: string) => {
+            if (selectedMediaDownloadPending) return;
+            const container = nodesRef.current.find((node) => node.id === containerNodeId);
+            const mediaNodes = canvasContainerMediaNodes(containerNodeId, nodesRef.current);
+            if (!container || !mediaNodes.length) {
+                message.info("生成组内没有可下载的图片或视频");
+                return;
+            }
+            if (mediaNodes.length === 1) {
+                await downloadNodeImage(mediaNodes[0]);
+                return;
+            }
+            setSelectedMediaDownloadPending(true);
+            try {
+                const label = container.metadata?.containerLabel || container.title || "生成组";
+                const result = await downloadCanvasMediaBundle(mediaNodes, currentProject?.title || "画布", label);
+                if (result.failed) message.warning(`已下载 ${result.downloaded} 项，${result.failed} 项读取失败`);
+                else message.success(`已打包下载 ${result.downloaded} 项`);
+            } catch (error) {
+                message.error(error instanceof Error ? error.message : "下载失败");
+            } finally {
+                setSelectedMediaDownloadPending(false);
+            }
+        },
+        [currentProject?.title, downloadNodeImage, message, selectedMediaDownloadPending],
+    );
 
     const saveNodeAsset = useCallback(
         async (node: CanvasNodeData) => {
@@ -573,6 +602,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
         handleConfigNodeChange,
         downloadNodeImage,
         downloadSelectedMedia,
+        downloadContainerMedia,
         selectedMediaCount: selectedMediaNodes.length,
         selectedMediaDownloadPending,
         saveNodeAsset,

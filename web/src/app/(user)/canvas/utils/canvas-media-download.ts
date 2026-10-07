@@ -14,7 +14,7 @@ export function selectedCanvasMediaNodes(nodes: CanvasNodeData[], selectedNodeId
     return nodes.filter((node) => selectedNodeIds.has(node.id) && Boolean(node.metadata?.content) && (isCanvasImageNodeType(node.type) || node.type === CanvasNodeType.Video));
 }
 
-export async function downloadCanvasMediaBundle(nodes: CanvasNodeData[], projectTitle: string) {
+export async function downloadCanvasMediaBundle(nodes: CanvasNodeData[], projectTitle: string, bundleLabel = "选中媒体") {
     let failed = 0;
     let downloaded = 0;
     const indexWidth = String(nodes.length).length;
@@ -39,6 +39,6 @@ export async function downloadCanvasMediaBundle(nodes: CanvasNodeData[], project
 
     const zip = await createZip(files());
     if (!downloaded) throw new Error("选中的图片或视频暂时无法读取");
-    saveAs(zip, `${safeExportFileName(projectTitle || "画布")}-选中媒体.zip`);
+    saveAs(zip, `${safeExportFileName(projectTitle || "画布")}-${safeExportFileName(bundleLabel)}.zip`);
     return { downloaded, failed };
 }
