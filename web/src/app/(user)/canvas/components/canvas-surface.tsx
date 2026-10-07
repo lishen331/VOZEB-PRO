@@ -930,7 +930,11 @@ export function CanvasSurface({
                                         stroke="transparent"
                                         strokeWidth={canvasEdgeHitStrokeWidth(displayViewport.k)}
                                         style={{ pointerEvents: "stroke", cursor: "pointer" }}
-                                        onClick={(event) => {
+                                        onPointerDown={(event) => {
+                                            // Select on pointer-down, not click: a click only
+                                            // fires when down+up land on the same element, so
+                                            // the tiniest pointer drift onto the canvas below
+                                            // swallowed the selection intermittently.
                                             event.stopPropagation();
                                             setSelection(new Set(), item.id);
                                         }}

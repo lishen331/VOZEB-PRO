@@ -244,7 +244,9 @@ function createReferenceChip(input: NodeGenerationInput, theme: (typeof canvasTh
     const wrapper = document.createElement("span");
     wrapper.contentEditable = "false";
     wrapper.dataset.referenceNodeId = input.nodeId;
-    wrapper.className = "mx-px inline-flex h-7 max-w-40 items-center justify-center overflow-hidden rounded-md border px-1 text-xs leading-none align-middle";
+    // 芯片高度设为低于行高(leading-7=28px)的 h-6(24px)并 align-middle，使其在行盒内垂直居中，
+    // 与相邻纯文本的输入光标对齐；原 h-7 占满整行盒时会被 align-middle 抬高，导致光标看起来偏下。
+    wrapper.className = "mx-px inline-flex h-6 max-w-40 items-center justify-center overflow-hidden rounded-md border px-1 text-xs leading-none align-middle";
     Object.assign(wrapper.style, chipStyle(theme));
     if (input.type === "image" && input.image) {
         const image = document.createElement("img");

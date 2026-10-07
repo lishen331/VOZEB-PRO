@@ -29,6 +29,9 @@ import type { CanvasResourceReference } from "../utils/canvas-resource-reference
 const CanvasAssistantPanel = dynamic(() => import("../components/canvas-assistant-panel").then((mod) => mod.CanvasAssistantPanel), { ssr: false });
 import { CanvasRefreshShell, ConnectionCreateMenu, NodeCreateMenu } from "./canvas-page-elements";
 import { getInputSummary, isHiddenBatchChild } from "./canvas-page-utils";
+import { CANVAS_GROUP_MIN_MEMBERS, canvasGroupCandidates, isHiddenCanvasGroupMember } from "../utils/canvas-storyboard-group";
+import { CANVAS_CONTAINER_MIN_MEMBERS } from "../utils/canvas-container-group";
+import type { CanvasPanelPlacement } from "../utils/canvas-panel-placement";
 
 export default function CanvasPage() {
     const [mounted, setMounted] = useState(false);
@@ -244,6 +247,7 @@ function VozebProCanvasPage() {
         handleImageDimensions,
         toggleNodeFreeResize,
         handleNodeContentChange,
+        handleContainerLabelChange,
         toggleBatchExpanded,
         setBatchPrimary,
         openTextEditor,
@@ -282,6 +286,11 @@ function VozebProCanvasPage() {
         assistantOpen,
         openAgent,
         closeAgent,
+        groupSelectedNodes,
+        dissolveGroup,
+        createContainerFromSelection,
+        removeContainer,
+        handleGenerateContainer,
     } = controller;
     useEffect(() => {
         const focusKey = focusShotId ? `${projectId}:shot:${focusShotId}` : focusAssetType && focusAssetId ? `${projectId}:${focusAssetType}:${focusAssetId}` : "";
@@ -316,7 +325,7 @@ function VozebProCanvasPage() {
         [],
     );
     const nodesById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
-    const hiddenCanvasNodeIds = useMemo(() => new Set(nodes.filter((node) => isHiddenBatchChild(node, nodesById, collapsingBatchIds)).map((node) => node.id)), [collapsingBatchIds, nodes, nodesById]);
+    const hiddenCanvasNodeIds = useMemo(() => new Set(nodes.filter((node) => isHiddenBatchChild(node, nodesById, collapsingBatchIds) || isHiddenCanvasGroupMember(node, nodesById)).map((node) => node.id)), [collapsingBatchIds, nodes, nodesById]);
     const handleNodeHoverStart = useCallback(
         (nodeId: string) => {
             if (nodeDraggingRef.current) return;
@@ -341,11 +350,19 @@ function VozebProCanvasPage() {
         [setSelectedNodeIds, setSelectedConnectionId, setToolbarNodeId, setDialogNodeId],
     );
     const handleNodeViewImage = useCallback((node: CanvasNodeData) => setPreviewNodeId(node.id), [setPreviewNodeId]);
+    // Lifted out of CanvasNode so the hover toolbar — a sibling, not a child —
+    // can step aside when a panel claims the band above its node. Keyed by node
+    // id so a stale placement never leaks onto a different node's toolbar.
+    const [panelPlacement, setPanelPlacement] = useState<{ nodeId: string; placement: CanvasPanelPlacement } | null>(null);
+    const handlePanelPlacementChange = useCallback((nodeId: string, placement: CanvasPanelPlacement) => {
+        setPanelPlacement((current) => (current?.nodeId === nodeId && current.placement === placement ? current : { nodeId, placement }));
+    }, []);
     const nodeProps = useMemo(
         () => ({
             onHoverStart: handleNodeHoverStart,
             onHoverEnd: handleNodeHoverEnd,
             onContentChange: handleNodeContentChange,
+            onContainerLabelChange: handleContainerLabelChange,
             onToggleBatch: toggleBatchExpanded,
             onSetBatchPrimary: setBatchPrimary,
             onRetry: handleNodeRetry,
@@ -353,8 +370,22 @@ function VozebProCanvasPage() {
             onOpenPanel: handleNodeOpenPanel,
             onImageDimensions: handleImageDimensions,
             onViewImage: handleNodeViewImage,
+            onPanelPlacementChange: handlePanelPlacementChange,
         }),
-        [handleNodeHoverStart, handleNodeHoverEnd, handleNodeContentChange, toggleBatchExpanded, setBatchPrimary, handleNodeRetry, generateImageFromTextNode, handleNodeOpenPanel, handleImageDimensions, handleNodeViewImage],
+        [
+            handleNodeHoverStart,
+            handleNodeHoverEnd,
+            handleNodeContentChange,
+            handleContainerLabelChange,
+            toggleBatchExpanded,
+            setBatchPrimary,
+            handleNodeRetry,
+            generateImageFromTextNode,
+            handleNodeOpenPanel,
+            handleImageDimensions,
+            handleNodeViewImage,
+            handlePanelPlacementChange,
+        ],
     );
     const getNodeViewProps = useCallback(
         (node: CanvasNodeData) => ({
@@ -420,6 +451,27 @@ function VozebProCanvasPage() {
         ),
         [runningNodeId, configInputsById, mentionReferencesByNodeId, handleConfigNodeChange, confirmStopGeneration, setDialogNodeId, nodesRef, handleGenerateNode],
     );
+    const handleNodeContextMenu = useCallback(
+        (event: React.MouseEvent, id: string) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setDialogNodeId(null);
+            setEditingNodeId(null);
+            setToolbarNodeId(null);
+            setContextMenu({ type: "node", x: event.clientX, y: event.clientY, nodeId: id });
+        },
+        [setDialogNodeId, setEditingNodeId, setToolbarNodeId, setContextMenu],
+    );
+    const canGroupSelection = useMemo(() => canvasGroupCandidates(nodes, selectedNodeIds).length >= CANVAS_GROUP_MIN_MEMBERS, [nodes, selectedNodeIds]);
+    const selectedGroupCount = useMemo(() => nodes.filter((node) => node.type === CanvasNodeType.Group && selectedNodeIds.has(node.id)).length, [nodes, selectedNodeIds]);
+    // 生成组 accepts any node type, so eligibility is just "selected, not already
+    // framed, not hidden" — no image-only filter like canvasGroupCandidates.
+    const canCreateContainer = useMemo(
+        () => nodes.filter((node) => selectedNodeIds.has(node.id) && node.type !== CanvasNodeType.Container && !node.metadata?.containerId && !node.metadata?.batchRootId && !isHiddenCanvasGroupMember(node, nodes)).length >= CANVAS_CONTAINER_MIN_MEMBERS,
+        [nodes, selectedNodeIds],
+    );
+    const selectedContainerIds = useMemo(() => nodes.filter((node) => node.type === CanvasNodeType.Container && selectedNodeIds.has(node.id)).map((node) => node.id), [nodes, selectedNodeIds]);
+    const contextMenuNode = contextMenu?.type === "node" ? nodes.find((node) => node.id === contextMenu.nodeId) : undefined;
     if (!projectLoaded) return <CanvasRefreshShell />;
     return (
         <main className="flex h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden" style={{ background: theme.canvas.backdrop, color: theme.node.text }}>
@@ -544,14 +596,7 @@ function VozebProCanvasPage() {
                         setNodeCreatePosition(position);
                     }}
                     onPaneContextMenu={(event) => preventCanvasContextMenu(event as React.MouseEvent)}
-                    onNodeContextMenu={(event, id) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setDialogNodeId(null);
-                        setEditingNodeId(null);
-                        setToolbarNodeId(null);
-                        setContextMenu({ type: "node", x: event.clientX, y: event.clientY, nodeId: id });
-                    }}
+                    onNodeContextMenu={handleNodeContextMenu}
                     onEdgeContextMenu={(event, id) => {
                         setSelectedConnectionId(id);
                         setSelectedNodeIds(new Set());
@@ -587,6 +632,7 @@ function VozebProCanvasPage() {
                 <CanvasNodeHoverToolbar
                     node={isNodeDragging || nodeImageSettingsOpen ? null : toolbarNode}
                     viewport={viewport}
+                    panelPlacement={toolbarNode && panelPlacement?.nodeId === toolbarNode.id ? panelPlacement.placement : "bottom"}
                     onKeep={keepNodeToolbar}
                     onInfo={(node) => setInfoNodeId(node.id)}
                     onEditText={openTextEditor}
@@ -617,6 +663,15 @@ function VozebProCanvasPage() {
                     selectedCount={selectedNodeIds.size}
                     selectedMediaCount={selectedMediaCount}
                     selectedMediaDownloadPending={selectedMediaDownloadPending}
+                    canGroupSelection={canGroupSelection}
+                    selectedGroupCount={selectedGroupCount}
+                    canCreateContainer={canCreateContainer}
+                    selectedContainerCount={selectedContainerIds.length}
+                    onCreateContainer={createContainerFromSelection}
+                    onRunContainer={() => {
+                        const [first] = selectedContainerIds;
+                        if (first) void handleGenerateContainer(first);
+                    }}
                     canUndo={historyState.canUndo}
                     canRedo={historyState.canRedo}
                     agentOpen={assistantOpen}
@@ -633,6 +688,8 @@ function VozebProCanvasPage() {
                     onRedo={redoCanvas}
                     onUpload={() => handleUploadRequest()}
                     onDownloadSelectedMedia={() => void downloadSelectedMedia()}
+                    onGroupNodes={groupSelectedNodes}
+                    onDissolveGroup={() => dissolveGroup()}
                     onDelete={() => deleteNodes(new Set(selectedNodeIds))}
                     onClear={() => setClearConfirmOpen(true)}
                     onInteractionModeChange={setInteractionMode}
@@ -655,6 +712,30 @@ function VozebProCanvasPage() {
                             duplicateNode(contextMenu.nodeId);
                             setContextMenu(null);
                         }}
+                        onDissolveGroup={
+                            contextMenuNode?.type === CanvasNodeType.Group
+                                ? () => {
+                                      dissolveGroup(contextMenuNode.id);
+                                      setContextMenu(null);
+                                  }
+                                : undefined
+                        }
+                        onRunContainer={
+                            contextMenuNode?.type === CanvasNodeType.Container
+                                ? () => {
+                                      void handleGenerateContainer(contextMenuNode.id);
+                                      setContextMenu(null);
+                                  }
+                                : undefined
+                        }
+                        onRemoveContainer={
+                            contextMenuNode?.type === CanvasNodeType.Container
+                                ? () => {
+                                      removeContainer(contextMenuNode.id);
+                                      setContextMenu(null);
+                                  }
+                                : undefined
+                        }
                         onDelete={() => {
                             if (contextMenu.type === "node") {
                                 const selectedIds = selectedNodeIdsRef.current;

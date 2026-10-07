@@ -87,3 +87,8 @@ scripts/capture-readme-screenshots.mjs
 /login.yml
 /tests/setup-playwright.sh
 .claude/worktrees/
+
+# sync-drama-canvas-runtime.mjs builds into <target>.staging-<pid> and only
+# removes it on a clean exit — an interrupted run leaves ~103 files behind,
+# untracked and previously outside this ignore list.
+web/src/features/drama-canvas-runtime.staging-*/

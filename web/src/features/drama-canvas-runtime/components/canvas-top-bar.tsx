@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "antd";
-import { BookOpen, AlertTriangle, Bot, LibraryBig, Menu, Redo2, Sparkles, Trash2, Undo2, Upload } from "lucide-react";
+import { BookOpen, AlertTriangle, Bot, LayoutGrid, LibraryBig, Menu, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 
 import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -96,7 +96,7 @@ export function CanvasTopBar({
                         menu={{
                             onClick: () => setMenuOpen(false),
                             items: [
-                                { key: "workbench", icon: <Sparkles className="size-4" />, label: "工作台", onClick: onWorkbench },
+                                { key: "workbench", icon: <LayoutGrid className="size-4" />, label: "我的画布", onClick: onWorkbench },
                                 { key: "docs", icon: <BookOpen className="size-4" />, label: "使用帮助", onClick: () => window.location.assign("/help?section=canvas") },
                                 { type: "divider" },
                                 { key: "import", icon: <Upload className="size-4" />, label: "导入素材", onClick: onImportImage },

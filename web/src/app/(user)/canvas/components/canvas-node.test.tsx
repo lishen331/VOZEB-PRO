@@ -239,3 +239,14 @@ describe("CanvasNode error content", () => {
         expect(markup).not.toContain(">重试<");
     });
 });
+
+describe("CanvasNode 生成组 frame", () => {
+    it("keeps both connection dots above the frame's edge resize strips", () => {
+        const frame: CanvasNodeData = { id: "frame", type: CanvasNodeType.Container, title: "生成组", position: { x: 0, y: 0 }, width: 600, height: 400, metadata: { containerChildIds: [] } };
+        const markup = renderImageNode({ data: frame, isSelected: true });
+        const zOf = (pattern: RegExp) => Number(markup.match(pattern)?.[1]);
+
+        expect(zOf(/data-canvas-handle="source"[^>]*class="[^"]*\bz-\[(\d+)\]/)).toBeGreaterThan(zOf(/data-canvas-resize-corner="right"[^>]*class="[^"]*\bz-(\d+)/));
+        expect(zOf(/data-canvas-handle="target"[^>]*class="[^"]*\bz-\[(\d+)\]/)).toBeGreaterThan(zOf(/data-canvas-resize-corner="left"[^>]*class="[^"]*\bz-(\d+)/));
+    });
+});

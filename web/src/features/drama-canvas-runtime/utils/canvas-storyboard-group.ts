@@ -78,8 +78,9 @@ export function isCanvasGroupNode(node: CanvasNodeData | null | undefined) {
 }
 
 /** A member is hidden while its owning Group node still exists on the canvas. */
-export function isHiddenCanvasGroupMember(node: CanvasNodeData, nodes: CanvasNodeData[]) {
+export function isHiddenCanvasGroupMember(node: CanvasNodeData, nodes: CanvasNodeData[] | Map<string, CanvasNodeData>) {
     const groupId = node.metadata?.groupId;
     if (!groupId) return false;
-    return nodes.some((item) => item.id === groupId && item.type === CanvasNodeType.Group);
+    const group = Array.isArray(nodes) ? nodes.find((item) => item.id === groupId) : nodes.get(groupId);
+    return group?.type === CanvasNodeType.Group;
 }
