@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, Plus, RefreshCw, Star, Video } from "lucide-react";
 import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -16,6 +16,7 @@ import { CANVAS_CONTAINER } from "../constants";
 import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
 import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-group";
 import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
+import { canvasGenerationUserMessage } from "../[id]/canvas-generation-feedback";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
 export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top" | "bottom" | "left" | "right";
@@ -53,9 +54,9 @@ export function NodeContent(props: NodeContentRendererProps) {
     // A container is a frame, not a generation target — a stray status must never
     // paint a spinner or error card over it.
     if (props.node.type === CanvasNodeType.Container) return <ContainerNodeContent {...props} />;
-    if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
+    // needs_review 只是"后端暂时没给出结果"，对用户一律表现为生成中，由前端自动轮询继续追。
+    if (props.node.metadata?.status === "loading" || props.node.metadata?.status === "needs_review") return <LoadingContent theme={props.theme} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
-    if (props.node.metadata?.status === "needs_review") return <ReviewContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
     if (props.node.metadata?.status === "cancelled") return <CancelledContent theme={props.theme} />;
 
     const Renderer = nodeContentRenderers[props.node.type];
@@ -332,7 +333,7 @@ export function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererP
     return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden px-5 py-4 text-center">
             <div className="max-h-[60%] max-w-[260px] overflow-y-auto text-xs leading-5" style={{ color: theme.node.danger }}>
-                {node.metadata?.errorDetails || "生成失败"}
+                {canvasGenerationUserMessage(node.metadata?.errorDetails)}
             </div>
             <button
                 type="button"
@@ -346,33 +347,6 @@ export function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererP
             >
                 <RefreshCw className="size-3.5" />
                 重试
-            </button>
-        </div>
-    );
-}
-
-export function ReviewContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "node" | "theme" | "onRetry">) {
-    return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden px-5 py-4 text-center">
-            <Clock3 className="size-6 shrink-0" style={{ color: theme.node.warningText }} />
-            <div className="max-h-[55%] max-w-[280px] overflow-y-auto text-xs leading-5" style={{ color: theme.node.text }}>
-                <div className="font-medium" style={{ color: theme.node.warningText }}>
-                    等待状态确认
-                </div>
-                <div className="mt-1">{node.metadata?.errorDetails || "任务结果尚未确认，系统不会重复提交。"}</div>
-            </div>
-            <button
-                type="button"
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition hover:brightness-95"
-                style={{ background: theme.node.warningSurface, borderColor: theme.node.warningBorder, color: theme.node.warningText }}
-                onClick={(event) => {
-                    event.stopPropagation();
-                    onRetry?.(node);
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
-            >
-                <RefreshCw className="size-3.5" />
-                检查状态
             </button>
         </div>
     );
@@ -884,6 +858,45 @@ export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "
             style={{ touchAction: "none" }}
         >
             <div className="size-3 rounded-full border-2 transition-all hover:scale-125" style={{ background: theme.node.panel, borderColor: theme.node.muted }} />
+        </div>
+    );
+}
+
+/**
+ * 生成组 output handle. A tall rail just outside the frame's right edge: the "+"
+ * follows the pointer's height, and a press anywhere on the rail starts the
+ * wire, so there is no small dot to aim at. Height is tracked as a fraction of
+ * the rail so it is independent of canvas zoom.
+ */
+export function ContainerOutputRail({ visible, onConnectStart }: { visible: boolean; onConnectStart: (event: React.MouseEvent | React.PointerEvent) => void }) {
+    const theme = canvasThemes[useCanvasColorTheme().theme];
+    const [offset, setOffset] = useState(0.5);
+    const track = (event: React.PointerEvent<HTMLDivElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (rect.height) setOffset(Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)));
+    };
+
+    return (
+        <div
+            data-canvas-handle="source"
+            data-canvas-container-rail
+            aria-label="输出连接点：拖出连线"
+            className={`absolute -right-[64px] inset-y-0 z-[60] w-[58px] cursor-crosshair transition-opacity duration-150 ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+            style={{ touchAction: "none" }}
+            onPointerMove={track}
+            onPointerLeave={() => setOffset(0.5)}
+            onMouseDown={onConnectStart}
+            onPointerDown={(event) => {
+                track(event);
+                if (event.pointerType !== "mouse") onConnectStart(event);
+            }}
+        >
+            <div
+                className="pointer-events-none absolute left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border shadow-md transition-[top] duration-75"
+                style={{ top: `${offset * 100}%`, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+            >
+                <Plus className="size-5" />
+            </div>
         </div>
     );
 }

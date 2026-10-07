@@ -11,6 +11,7 @@ import { splitSubjectAndBackgroundDataUrl } from "../utils/canvas-image-data";
 import { withCanvasLayerAnalysisStatus } from "./canvas-image-layer-analysis-status";
 import { canvasEcommerceBackgroundPrompt, canvasEcommerceElementPrompt, createCanvasLayerTaskNode, runCanvasImageLayerTask, runCanvasImageLayerTaskBatch, stableCanvasLayerSource } from "./canvas-image-layer-runtime";
 import { buildGenerationConfig, imageMetadata, uploadCanvasImage } from "./canvas-page-utils";
+import { toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
 import type { CanvasPageState } from "./use-canvas-page-state";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
 
@@ -131,15 +132,16 @@ export function useCanvasImageLayerActions({ state, tasks }: { state: CanvasPage
                 );
                 const outcomes = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : ["failed" as const]));
                 const completed = outcomes.filter((outcome) => outcome === "completed").length;
-                const needsReview = outcomes.filter((outcome) => outcome === "needs_review").length;
+                const pending = outcomes.filter((outcome) => outcome === "pending").length;
                 const failed = outcomes.filter((outcome) => outcome === "failed").length;
                 const cancelled = outcomes.filter((outcome) => outcome === "cancelled").length;
-                if (needsReview || failed) message.warning({ key: messageKey, content: `已完成 ${completed} 项，${needsReview ? `${needsReview} 项待检查` : ""}${needsReview && failed ? "，" : ""}${failed ? `${failed} 项失败` : ""}` });
+                // 仍在生成中的图层不算失败，不对用户提"待检查"。
+                if (failed) message.warning({ key: messageKey, content: `已完成 ${completed} 项，${failed} 项失败` });
+                else if (pending) message.info({ key: messageKey, content: `已完成 ${completed} 项，其余 ${pending} 项仍在生成中` });
                 else if (cancelled) message.info({ key: messageKey, content: `已完成 ${completed} 项，其余任务已停止` });
                 else message.success({ key: messageKey, content: `${layerNodes.length} 个独立元素和背景已完成` });
             } catch (error) {
-                const errorDetails = error instanceof Error ? error.message : "分层失败";
-                message.error({ key: messageKey, content: errorDetails });
+                message.error({ key: messageKey, content: toCanvasGenerationUserMessage(error) });
             } finally {
                 operationNodeIds.current.delete(node.id);
                 setRunningNodeId(null);

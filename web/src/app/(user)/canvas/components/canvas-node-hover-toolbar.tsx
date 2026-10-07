@@ -10,6 +10,7 @@ import { useCopyText } from "@/hooks/use-copy-text";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData, type ViewportTransform } from "../types";
 import type { CanvasPanelPlacement } from "../utils/canvas-panel-placement";
+import { canvasGenerationUserMessage } from "../[id]/canvas-generation-feedback";
 import { ImageToolSettingsModal, type ImageToolbarSettingsTool } from "./canvas-image-toolbar-settings-modal";
 import { IMAGE_QUICK_TOOLS_STORAGE_KEY, buildImageToolbarTools, defaultImageQuickToolIds, readImageQuickToolsConfig, type ImageQuickToolId } from "./canvas-image-toolbar-tools";
 
@@ -271,6 +272,8 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
             node,
             (key, value) => {
                 if (key === "title") return undefined;
+                // 真实失败原因只留给后端排查，节点信息里只展示转换后的文案。
+                if (key === "errorDetails" && typeof value === "string") return value ? canvasGenerationUserMessage(value) : undefined;
                 if (key === "content" && typeof value === "string" && value.startsWith("data:image/")) {
                     return "[base64 image]";
                 }
@@ -313,9 +316,9 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
                             {batchCount > 1 ? <InfoRow label="图片组" value={`${batchCount} 张`} /> : null}
                             {node.metadata?.prompt ? <InfoRow label="提示词" value={node.metadata.prompt} /> : null}
                             {imageBytes ? <InfoRow label="图片大小" value={formatBytes(imageBytes)} /> : null}
-                            {node.metadata?.errorDetails ? (
+                            {node.metadata?.errorDetails && node.metadata.status === "error" ? (
                                 <div className="rounded-lg border p-3 text-red-400" style={{ borderColor: theme.node.stroke }}>
-                                    {node.metadata.errorDetails}
+                                    {canvasGenerationUserMessage(node.metadata.errorDetails)}
                                 </div>
                             ) : null}
                         </div>

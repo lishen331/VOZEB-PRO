@@ -7,9 +7,6 @@ import { createFreshGenerationTaskContext } from "@/lib/generation-request-conte
 import { resolveImageRequestSize } from "@/lib/image-size";
 import { readImageMeta } from "@/lib/image-utils";
 import { createAudioGenerationTask } from "@/services/api/audio";
-import { isDefinitiveGenerationTaskRequestFailure } from "@/services/api/generation-task-request-error";
-import { isGenerationTaskNeedsReviewError, isGenerationTaskTerminalError } from "@/services/api/generation-task-state";
-import { ImageGenerationTaskTerminalError, isImageGenerationTaskDeferredError } from "@/services/api/image";
 import { createTextGenerationTask } from "@/services/api/text";
 import { createServerVideoGenerationTask } from "@/services/api/video";
 import type { InsertAssetPayload } from "../components/canvas-asset-insert";
@@ -25,9 +22,9 @@ import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
 import { buildPanoramaPrompt } from "../utils/canvas-panorama";
 import { canvasVideoReferenceMetadata, normalizeCanvasVideoGenerationMode, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
 
-import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_NEEDS_REVIEW, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
-import { classifyCanvasVideoTaskFailure } from "./canvas-video-task-recovery";
-import { hasCanvasGenerationTask, pauseCanvasGenerationReview, resumeCanvasGenerationReview } from "./canvas-generation-review";
+import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
+import { canvasGenerationPendingOptions, failCanvasGeneration, isCanvasGenerationRetryable, markCanvasGenerationPending, toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
+import { hasCanvasGenerationTask } from "./canvas-generation-review";
 import {
     buildAudioGenerationMetadata,
     buildGenerationConfig,
@@ -75,36 +72,44 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
         generateNodeRef,
         agentCloseTimerRef,
         autoOpenedAgentRef,
+        generationRequestsRef,
     } = state;
-    const {
-        startGenerationRequest,
-        finishGenerationRequest,
-        completeVideoTask,
-        recoverAndCompleteVideoTask,
-        startAndCompleteImageTask,
-        recoverAndCompleteImageTask,
-        completeTextTask,
-        recoverAndCompleteTextTask,
-        completeAudioTask,
-        recoverAndCompleteAudioTask,
-    } = tasks;
+    const { startGenerationRequest, finishGenerationRequest, completeVideoTask, startAndCompleteImageTask, completeTextTask, completeAudioTask } = tasks;
     const { screenToCanvas, applyAgentOps } = interactions;
-    const deferVideoTask = useCallback(
-        (nodeId: string, errorDetails?: string) => {
-            setNodes((prev) => prev.map((item) => (item.id === nodeId && item.metadata?.videoTask ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails } } : item)));
+    /**
+     * 生成失败时的统一出口：
+     * - 已有任务 ID 且只是"暂时查不到" → 保持生成中，交给恢复轮询继续追（不报错、不提示）；
+     * - 其余 → 节点失败，界面只显示转换后的文案，真实原因只进控制台。
+     * 返回 true 表示进入了等待。
+     */
+    const settleGenerationFailure = useCallback(
+        (nodeIds: string[], error: unknown, options: { notify?: boolean } = {}) => {
+            const taskNodeIds = nodeIds.filter((id) => {
+                const node = nodesRef.current.find((item) => item.id === id);
+                return node ? hasCanvasGenerationTask(node) : false;
+            });
+            const isVideo = taskNodeIds.some((id) => nodesRef.current.find((item) => item.id === id)?.metadata?.videoTask);
+            if (taskNodeIds.length && isCanvasGenerationRetryable(error, { video: isVideo })) {
+                const pendingOptions = canvasGenerationPendingOptions(error);
+                setNodes((prev) => markCanvasGenerationPending(prev, taskNodeIds, pendingOptions));
+                return true;
+            }
+            const errorDetails = toCanvasGenerationUserMessage(error);
+            if (options.notify !== false) message.error(errorDetails);
+            setNodes((prev) => failCanvasGeneration(prev, nodeIds, errorDetails));
+            return false;
         },
-        [setNodes],
-    );
-    const pauseReviewedTasks = useCallback(
-        (nodeIds: string[], errorDetails: string) => {
-            setNodes((prev) => pauseCanvasGenerationReview(prev, nodeIds, errorDetails));
-        },
-        [setNodes],
+        [message, setNodes],
     );
 
     const handleGenerateNode = useCallback(
         async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => {
             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+            // 生成中禁止重复提交：同一节点仍在等结果时再点一次，既会重复扣费，也会把原任务 ID 冲掉。
+            if (generationRequestsRef.current.has(nodeId) || (sourceNode?.metadata?.status === NODE_STATUS_LOADING && sourceNode && hasCanvasGenerationTask(sourceNode))) {
+                message.info("正在生成中，请稍候");
+                return;
+            }
             const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode);
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
@@ -268,9 +273,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                     targetIds.forEach((targetId) => startGenerationRequest(targetId, nodeId, nodeId, controller));
                     if (count > 1) startGenerationRequest(rootId, nodeId, nodeId, controller);
                     let hasSuccess = false;
-                    let hasFailure = false;
-                    let hasReview = false;
-                    let hasDeferred = false;
+                    let hasPending = false;
+                    let failureMessage = "";
                     await Promise.all(
                         targetIds.map(async (targetId) => {
                             try {
@@ -280,21 +284,12 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                                 return true;
                             } catch (error) {
                                 if (isGenerationCanceled(error)) return false;
-                                const errorDetails = error instanceof Error ? error.message : "生成失败";
-                                if (isImageGenerationTaskDeferredError(error)) {
-                                    const shouldNotify = !hasDeferred;
-                                    hasDeferred = true;
-                                    if (shouldNotify) message.info(errorDetails);
-                                    setNodes((prev) => prev.map((node) => (node.id === targetId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_LOADING, errorDetails } } : node)));
+                                // 已拿到任务 ID 但暂时查不到结果 → 保持生成中，由恢复轮询继续追；不提示用户。
+                                if (settleGenerationFailure([targetId], error, { notify: false })) {
+                                    hasPending = true;
                                     return false;
                                 }
-                                if (isGenerationTaskNeedsReviewError(error)) {
-                                    hasReview = true;
-                                    pauseReviewedTasks([targetId], errorDetails);
-                                    return false;
-                                }
-                                hasFailure = true;
-                                setNodes((prev) => prev.map((node) => (node.id === targetId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined } } : node)));
+                                failureMessage ||= nodesRef.current.find((node) => node.id === targetId)?.metadata?.errorDetails || toCanvasGenerationUserMessage(error);
                             } finally {
                                 finishGenerationRequest(targetId, controller);
                             }
@@ -306,39 +301,15 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                         setNodes((prev) => prev.map((node) => (node.id === nodeId && isConfigNode && node.metadata?.status === NODE_STATUS_LOADING ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node)));
                         return;
                     }
-                    if (hasFailure) message.error(hasSuccess ? "部分图片生成失败" : "全部图片生成失败");
+                    // 有成功的就不打扰用户；全部失败才给一条（已转换过的）提示。
+                    if (failureMessage && !hasSuccess && !hasPending) message.error(failureMessage);
+                    // 配置节点 / 批次根节点自身没有任务可追：子节点仍在等时回到空闲，进度显示在子节点上。
+                    const summary = hasSuccess ? NODE_STATUS_SUCCESS : hasPending ? NODE_STATUS_IDLE : NODE_STATUS_ERROR;
+                    const summaryDetails = summary === NODE_STATUS_ERROR ? failureMessage || undefined : undefined;
                     setNodes((prev) =>
                         prev.map((node) =>
-                            node.metadata?.status === NODE_STATUS_NEEDS_REVIEW
-                                ? node
-                                : node.id === nodeId && isConfigNode
-                                  ? {
-                                        ...node,
-                                        metadata: {
-                                            ...node.metadata,
-                                            status: hasSuccess ? NODE_STATUS_SUCCESS : hasReview ? NODE_STATUS_IDLE : hasDeferred ? NODE_STATUS_LOADING : NODE_STATUS_ERROR,
-                                            errorDetails: hasSuccess || hasReview ? undefined : hasDeferred ? "图片仍在后台生成，系统会继续查询原任务" : "全部图片生成失败",
-                                        },
-                                    }
-                                  : node.id === nodeId && isEmptyImageNode
-                                    ? {
-                                          ...node,
-                                          metadata: {
-                                              ...node.metadata,
-                                              status: hasSuccess ? NODE_STATUS_SUCCESS : hasReview ? NODE_STATUS_NEEDS_REVIEW : hasDeferred ? NODE_STATUS_LOADING : NODE_STATUS_ERROR,
-                                              errorDetails: hasSuccess ? undefined : node.metadata?.errorDetails || (hasDeferred ? "图片仍在后台生成，系统会继续查询原任务" : "全部图片生成失败"),
-                                          },
-                                      }
-                                    : node.id === rootId && !hasSuccess
-                                      ? {
-                                            ...node,
-                                            metadata: {
-                                                ...node.metadata,
-                                                status: hasReview ? NODE_STATUS_IDLE : hasDeferred ? NODE_STATUS_LOADING : NODE_STATUS_ERROR,
-                                                errorDetails: hasReview ? undefined : hasDeferred ? "图片仍在后台生成，系统会继续查询原任务" : "全部图片生成失败",
-                                            },
-                                        }
-                                      : node,
+                            // 空图片节点自身就是生成目标，状态已在上面按任务结果写好，不再覆盖。
+                            (node.id === nodeId && isConfigNode) || (node.id === rootId && count > 1 && !hasSuccess) ? { ...node, metadata: { ...node.metadata, status: summary, errorDetails: summaryDetails } } : node,
                         ),
                     );
                     return;
@@ -505,29 +476,23 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 );
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
-                const errorDetails = error instanceof Error ? error.message : "生成失败";
-                if (isGenerationTaskNeedsReviewError(error) && pendingChildIds.length) {
-                    pauseReviewedTasks(pendingChildIds, errorDetails);
+                // 已有任务 ID 的目标节点：暂时查不到就保持生成中继续追；没有任务的目标节点直接失败。
+                const targets = pendingChildIds.length ? pendingChildIds : [nodeId];
+                const pendingIds = targets.filter((id) => {
+                    const node = nodesRef.current.find((item) => item.id === id);
+                    return node ? hasCanvasGenerationTask(node) : false;
+                });
+                if (pendingIds.length && settleGenerationFailure(pendingIds, error)) {
+                    const settledIds = new Set(pendingIds);
+                    const failedIds = targets.filter((id) => !settledIds.has(id));
+                    if (failedIds.length) setNodes((prev) => failCanvasGeneration(prev, failedIds, toCanvasGenerationUserMessage(error)));
+                    if (markSourceStatus && !settledIds.has(nodeId)) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node)));
                     return;
                 }
-                const videoTaskId = pendingChildIds.find((id) => nodesRef.current.find((item) => item.id === id)?.metadata?.videoTask);
-                const videoFailure = mode === "video" && videoTaskId ? classifyCanvasVideoTaskFailure(error) : undefined;
-                if (videoTaskId && videoFailure && videoFailure !== "upstream_failed") {
-                    message.info("视频仍在后台生成，系统会继续查询原任务");
-                    deferVideoTask(videoTaskId);
-                    return;
-                }
-                const terminalVideoFailure = videoFailure === "upstream_failed";
-                message.error(errorDetails);
-                setNodes((prev) =>
-                    prev.map((node) =>
-                        node.id === nodeId || pendingChildIds.includes(node.id)
-                            ? node.id === nodeId && !markSourceStatus
-                                ? node
-                                : { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails, textTask: undefined, ...(terminalVideoFailure ? { videoTask: undefined } : {}) } }
-                            : node,
-                    ),
-                );
+                const errorDetails = toCanvasGenerationUserMessage(error);
+                if (!pendingIds.length) message.error(errorDetails);
+                const failedIds = [...targets, ...(markSourceStatus ? [nodeId] : [])];
+                setNodes((prev) => failCanvasGeneration(prev, failedIds, errorDetails));
             } finally {
                 finishGenerationRequest(nodeId, runController);
                 setRunningNodeId(null);
@@ -538,14 +503,13 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             completeTextTask,
             completeVideoTask,
             currentProject?.creativeConversationId,
-            deferVideoTask,
             effectiveConfig,
             finishGenerationRequest,
             isAiConfigReady,
             message,
             openConfigDialog,
-            pauseReviewedTasks,
             projectId,
+            settleGenerationFailure,
             startAndCompleteImageTask,
             startGenerationRequest,
         ],
@@ -598,58 +562,14 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
         [handleGenerateNode, message],
     );
 
-    const recoverReviewedNode = useCallback(
-        async (node: CanvasNodeData) => {
-            const metadata = node.metadata;
-            if (!metadata || !hasCanvasGenerationTask(node)) return;
-            const mode = metadata.imageTask ? "image" : metadata.videoTask ? "video" : metadata.textTask ? "text" : "audio";
-            const generationConfig = {
-                ...buildGenerationConfig(effectiveConfig, node, mode),
-                model: metadata.imageTask?.model || metadata.videoTask?.model || metadata.textTask?.model || metadata.audioTask?.model || effectiveConfig.model,
-                count: "1",
-            };
-            const controller = startGenerationRequest(node.id, node.id, node.id);
-            setNodes((prev) => resumeCanvasGenerationReview(prev, node.id));
-            setRunningNodeId(node.id);
-            try {
-                if (metadata.imageTask) {
-                    await recoverAndCompleteImageTask(node.id, generationConfig, metadata.imageTask, controller, metadata.prompt, {
-                        outputBackground: metadata.imageOutputBackground,
-                        outputMode: metadata.imageOutputMode,
-                    });
-                } else if (metadata.videoTask) {
-                    await recoverAndCompleteVideoTask(node.id, generationConfig, metadata.videoTask, controller, metadata.prompt);
-                } else if (metadata.textTask) {
-                    await recoverAndCompleteTextTask(node.id, generationConfig, metadata.textTask, controller, metadata.prompt);
-                } else if (metadata.audioTask) {
-                    await recoverAndCompleteAudioTask(node.id, generationConfig, metadata.audioTask, controller, metadata.prompt);
-                }
-            } catch (error) {
-                if (isGenerationCanceled(error)) return;
-                const errorDetails = error instanceof Error ? error.message : "重新检查任务失败";
-                const terminalFailure =
-                    error instanceof ImageGenerationTaskTerminalError || isGenerationTaskTerminalError(error) || isDefinitiveGenerationTaskRequestFailure(error) || (metadata.videoTask ? classifyCanvasVideoTaskFailure(error) === "upstream_failed" : false);
-                if (terminalFailure) {
-                    setNodes((prev) =>
-                        prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined, videoTask: undefined, textTask: undefined, audioTask: undefined } } : item)),
-                    );
-                    return;
-                }
-                pauseReviewedTasks([node.id], errorDetails);
-            } finally {
-                finishGenerationRequest(node.id, controller);
-                setRunningNodeId(null);
-            }
-        },
-        [effectiveConfig, finishGenerationRequest, pauseReviewedTasks, recoverAndCompleteAudioTask, recoverAndCompleteImageTask, recoverAndCompleteTextTask, recoverAndCompleteVideoTask, setNodes, setRunningNodeId, startGenerationRequest],
-    );
-
     const handleRetryNode = useCallback(
         async (node: CanvasNodeData) => {
-            if (node.metadata?.status === NODE_STATUS_NEEDS_REVIEW && hasCanvasGenerationTask(node)) {
-                await recoverReviewedNode(node);
+            // 仍在等结果的任务由后台轮询继续追，不允许重新提交（避免重复扣费、冲掉原任务 ID）。
+            if ((node.metadata?.status === NODE_STATUS_LOADING || node.metadata?.status === "needs_review") && hasCanvasGenerationTask(node)) {
+                message.info("正在生成中，请稍候");
                 return;
             }
+            if (generationRequestsRef.current.has(node.id)) return;
             if (node.metadata?.agentRunId && node.metadata.agentTaskId) {
                 setRunningNodeId(node.id);
                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: "" } } : item)));
@@ -657,7 +577,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                     await retryCanvasAgentNode(node, applyAgentOps);
                     message.success("Agent 任务已重新生成");
                 } catch (error) {
-                    const errorDetails = error instanceof Error ? error.message : "Agent 任务重试失败";
+                    const errorDetails = toCanvasGenerationUserMessage(error);
                     message.error(errorDetails);
                     setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } } : item)));
                 } finally {
@@ -789,20 +709,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 });
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
-                const errorDetails = error instanceof Error ? error.message : "生成失败";
-                if (isImageGenerationTaskDeferredError(error)) {
-                    message.info(errorDetails);
-                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails } } : item)));
-                    return;
-                }
-                if (isGenerationTaskNeedsReviewError(error)) {
-                    pauseReviewedTasks([node.id], errorDetails);
-                    return;
-                }
-                message.error(errorDetails);
-                setNodes((prev) =>
-                    prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined, textTask: undefined, videoTask: undefined, audioTask: undefined } } : item)),
-                );
+                settleGenerationFailure([node.id], error);
             } finally {
                 finishGenerationRequest(node.id, controller);
                 setRunningNodeId(null);
@@ -814,17 +721,15 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             completeTextTask,
             completeVideoTask,
             currentProject?.creativeConversationId,
-            deferVideoTask,
             effectiveConfig,
             finishGenerationRequest,
             isAiConfigReady,
             message,
             openConfigDialog,
-            pauseReviewedTasks,
             projectId,
-            recoverReviewedNode,
             setNodes,
             setRunningNodeId,
+            settleGenerationFailure,
             startAndCompleteImageTask,
             startGenerationRequest,
         ],

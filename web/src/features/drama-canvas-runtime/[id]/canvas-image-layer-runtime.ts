@@ -1,11 +1,10 @@
-import { isGenerationTaskNeedsReviewError } from "@/services/api/generation-task-state";
 import type { UploadedImage } from "@/services/image-storage";
 import type { ReferenceImage } from "@/types/image";
 import type { CanvasImageDecomposition, CanvasImageLayerCandidate } from "@/lib/canvas-image-decomposition";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { findFreeNodePosition } from "../utils/canvas-agent-ops";
-import { NODE_STATUS_ERROR, NODE_STATUS_LOADING } from "./canvas-page-elements";
-import { pauseCanvasGenerationReview } from "./canvas-generation-review";
+import { NODE_STATUS_LOADING } from "./canvas-page-elements";
+import { CANVAS_GENERATION_TIMEOUT_ABORT, canvasGenerationPendingOptions, failCanvasGeneration, isCanvasGenerationRetryable, markCanvasGenerationPending, toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
 import { buildGenerationConfig, buildImageGenerationMetadata, canvasNodeReferenceImage, imageMetadata, isGenerationCanceled, uploadCanvasImage } from "./canvas-page-utils";
 import type { CanvasPageState } from "./use-canvas-page-state";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
@@ -99,24 +98,27 @@ export async function runCanvasImageLayerTask({
     state: CanvasPageState;
     tasks: CanvasTaskRuntime;
 }) {
-    const { setConnections, setNodes } = state;
+    const { setConnections, setNodes, nodesRef } = state;
     const { finishGenerationRequest, startAndCompleteImageTask, startGenerationRequest } = tasks;
     const controller = startGenerationRequest(targetNode.id, sourceNode.id, sourceNode.id);
     try {
         await startAndCompleteImageTask(targetNode.id, config, prompt, [source], undefined, controller, { outputBackground, layerBatch });
         return "completed" as const;
     } catch (error) {
+        if (controller.signal.reason === CANVAS_GENERATION_TIMEOUT_ABORT) return "failed" as const;
         if (isGenerationCanceled(error)) {
             setNodes((current) => current.filter((item) => item.id !== targetNode.id));
             setConnections((current) => current.filter((connection) => connection.toNodeId !== targetNode.id));
             return "cancelled" as const;
         }
-        const errorDetails = error instanceof Error ? error.message : `${targetNode.metadata?.layerName || targetNode.title}生成失败`;
-        if (isGenerationTaskNeedsReviewError(error)) {
-            setNodes((current) => pauseCanvasGenerationReview(current, [targetNode.id], errorDetails));
-            return "needs_review" as const;
+        // 已有任务 ID 但暂时查不到结果：图层保持生成中，由恢复轮询继续追。
+        const hasTask = Boolean(nodesRef.current.find((item) => item.id === targetNode.id)?.metadata?.imageTask);
+        if (hasTask && isCanvasGenerationRetryable(error)) {
+            const options = canvasGenerationPendingOptions(error);
+            setNodes((current) => markCanvasGenerationPending(current, [targetNode.id], options));
+            return "pending" as const;
         }
-        setNodes((current) => current.map((item) => (item.id === targetNode.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, imageTask: undefined, errorDetails } } : item)));
+        setNodes((current) => failCanvasGeneration(current, [targetNode.id], toCanvasGenerationUserMessage(error)));
         return "failed" as const;
     } finally {
         finishGenerationRequest(targetNode.id, controller);

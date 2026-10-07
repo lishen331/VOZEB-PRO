@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CanvasNodeType, type CanvasNodeData } from "../types";
-import { hasCanvasGenerationTask, pauseCanvasGenerationReview, resumeCanvasGenerationReview } from "./canvas-generation-review";
+import { canvasGenerationPendingState } from "./canvas-generation-feedback";
+import { hasCanvasGenerationTask, pauseCanvasGenerationReview } from "./canvas-generation-review";
 
 const taskNode: CanvasNodeData = {
     id: "video-node",
@@ -14,18 +15,23 @@ const taskNode: CanvasNodeData = {
 };
 
 describe("Canvas generation review state", () => {
-    it("pauses automatic polling while preserving the original task identity", () => {
-        const [paused] = pauseCanvasGenerationReview([taskNode], [taskNode.id], "创建结果待确认");
+    afterEach(() => vi.restoreAllMocks());
 
-        expect(paused.metadata).toMatchObject({ status: "needs_review", errorDetails: "创建结果待确认", videoTask: { id: "original-task" } });
+    it("keeps a needs-review task generating instead of pausing it on a yellow card", () => {
+        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const [paused] = pauseCanvasGenerationReview([taskNode], [taskNode.id], "渠道未返回可查询任务 ID");
+
+        expect(paused.metadata).toMatchObject({ status: "loading", videoTask: { id: "original-task" } });
+        expect(paused.metadata?.errorDetails).toBeUndefined();
+        expect(canvasGenerationPendingState(paused)).toMatchObject({ review: true });
         expect(hasCanvasGenerationTask(paused)).toBe(true);
     });
 
-    it("checks the same task by returning it to loading without replacing its id", () => {
-        const [paused] = pauseCanvasGenerationReview([taskNode], [taskNode.id], "创建结果待确认");
-        const [resumed] = resumeCanvasGenerationReview([paused], taskNode.id);
+    it("logs the real reason for troubleshooting without putting it on the node", () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const [paused] = pauseCanvasGenerationReview([taskNode], [taskNode.id], "原任务没有保存上游任务 ID");
 
-        expect(resumed.metadata).toMatchObject({ status: "loading", videoTask: { id: "original-task" } });
-        expect(resumed.metadata?.errorDetails).toBeUndefined();
+        expect(warn).toHaveBeenCalledWith(expect.any(String), "原任务没有保存上游任务 ID");
+        expect(JSON.stringify(paused)).not.toContain("上游任务 ID");
     });
 });

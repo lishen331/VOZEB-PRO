@@ -215,7 +215,7 @@ describe("CanvasNode error content", () => {
 
         expect(markup).toContain("h-full w-full flex-col items-center justify-center");
         expect(markup).toContain(`color:${canvasThemes.light.node.danger}`);
-        expect(markup).toContain("生成失败，请稍后重试");
+        expect(markup).toContain("网络繁忙，生成未完成，请稍后重试");
         expect(markup).toContain("重试");
     });
 
@@ -228,15 +228,25 @@ describe("CanvasNode error content", () => {
         expect(markup).not.toContain("重试");
     });
 
-    it("pauses tasks that need review without offering a new generation retry", () => {
-        const reviewNode: CanvasNodeData = { ...imageNode, metadata: { status: "needs_review", errorDetails: "上游创建状态待确认" } };
+    it("shows a task that needs review as still generating, without the yellow check-status card", () => {
+        const reviewNode: CanvasNodeData = { ...imageNode, metadata: { status: "needs_review", errorDetails: "渠道未返回可查询任务 ID" } };
 
         const markup = renderImageNode({ data: reviewNode, onRetry: noop });
 
-        expect(markup).toContain("上游创建状态待确认");
-        expect(markup).toContain("等待状态确认");
-        expect(markup).toContain("检查状态");
+        expect(markup).toContain("canvas-node-generating-shader");
+        expect(markup).not.toContain("渠道未返回可查询任务 ID");
+        expect(markup).not.toContain("等待状态确认");
+        expect(markup).not.toContain("检查状态");
         expect(markup).not.toContain(">重试<");
+    });
+
+    it("shows a safe message instead of the internal failure reason", () => {
+        const failedNode: CanvasNodeData = { ...imageNode, metadata: { status: "error", errorDetails: "原任务没有保存上游任务 ID，无法安全追回结果" } };
+
+        const markup = renderImageNode({ data: failedNode, onRetry: noop });
+
+        expect(markup).toContain("网络繁忙，生成未完成，请稍后重试");
+        expect(markup).not.toContain("上游任务 ID");
     });
 });
 
