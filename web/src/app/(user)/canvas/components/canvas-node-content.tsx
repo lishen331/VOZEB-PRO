@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, Plus, RefreshCw, Star, Video } from "lucide-react";
+import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, Plus, RefreshCw, Star, Video } from "lucide-react";
 import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -16,6 +16,7 @@ import { CANVAS_CONTAINER } from "../constants";
 import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
 import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-group";
 import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
+import { canvasGenerationUserMessage } from "../[id]/canvas-generation-feedback";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
 export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top" | "bottom" | "left" | "right";
@@ -53,9 +54,9 @@ export function NodeContent(props: NodeContentRendererProps) {
     // A container is a frame, not a generation target — a stray status must never
     // paint a spinner or error card over it.
     if (props.node.type === CanvasNodeType.Container) return <ContainerNodeContent {...props} />;
-    if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
+    // needs_review 只是"后端暂时没给出结果"，对用户一律表现为生成中，由前端自动轮询继续追。
+    if (props.node.metadata?.status === "loading" || props.node.metadata?.status === "needs_review") return <LoadingContent theme={props.theme} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
-    if (props.node.metadata?.status === "needs_review") return <ReviewContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
     if (props.node.metadata?.status === "cancelled") return <CancelledContent theme={props.theme} />;
 
     const Renderer = nodeContentRenderers[props.node.type];
@@ -332,7 +333,7 @@ export function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererP
     return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden px-5 py-4 text-center">
             <div className="max-h-[60%] max-w-[260px] overflow-y-auto text-xs leading-5" style={{ color: theme.node.danger }}>
-                {node.metadata?.errorDetails || "生成失败"}
+                {canvasGenerationUserMessage(node.metadata?.errorDetails)}
             </div>
             <button
                 type="button"
@@ -346,33 +347,6 @@ export function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererP
             >
                 <RefreshCw className="size-3.5" />
                 重试
-            </button>
-        </div>
-    );
-}
-
-export function ReviewContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "node" | "theme" | "onRetry">) {
-    return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden px-5 py-4 text-center">
-            <Clock3 className="size-6 shrink-0" style={{ color: theme.node.warningText }} />
-            <div className="max-h-[55%] max-w-[280px] overflow-y-auto text-xs leading-5" style={{ color: theme.node.text }}>
-                <div className="font-medium" style={{ color: theme.node.warningText }}>
-                    等待状态确认
-                </div>
-                <div className="mt-1">{node.metadata?.errorDetails || "任务结果尚未确认，系统不会重复提交。"}</div>
-            </div>
-            <button
-                type="button"
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition hover:brightness-95"
-                style={{ background: theme.node.warningSurface, borderColor: theme.node.warningBorder, color: theme.node.warningText }}
-                onClick={(event) => {
-                    event.stopPropagation();
-                    onRetry?.(node);
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
-            >
-                <RefreshCw className="size-3.5" />
-                检查状态
             </button>
         </div>
     );

@@ -2,22 +2,41 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from "react";
 
-import { isGenerationTaskNeedsReviewError } from "@/services/api/generation-task-state";
-import { isImageGenerationTaskDeferredError } from "@/services/api/image";
-import { CanvasNodeType, isCanvasImageNodeType } from "../types";
-import { classifyCanvasVideoTaskFailure } from "./canvas-video-task-recovery";
+import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData } from "../types";
 
-import { NODE_STATUS_ERROR, NODE_STATUS_LOADING } from "./canvas-page-elements";
+import { NODE_STATUS_LOADING } from "./canvas-page-elements";
 import { buildGenerationConfig, isGenerationCanceled, normalizeCanvasConfigNodeLayout, prepareAssistantImages, prepareCanvasImages } from "./canvas-page-utils";
-import { pauseCanvasGenerationReview } from "./canvas-generation-review";
+import {
+    CANVAS_GENERATION_RETRY_DELAY_MS,
+    CANVAS_GENERATION_TIMEOUT_ABORT,
+    canvasGenerationPendingOptions,
+    canvasGenerationPendingState,
+    failCanvasGeneration,
+    isCanvasGenerationPendingExpired,
+    isCanvasGenerationRetryable,
+    markCanvasGenerationPending,
+    restoreCanvasGenerationPending,
+    stampCanvasGenerationStart,
+    toCanvasGenerationUserMessage,
+    type CanvasGenerationTaskKind,
+} from "./canvas-generation-feedback";
 
 import type { CanvasPageState } from "./use-canvas-page-state";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
 
+function resumableTaskKind(node: CanvasNodeData): CanvasGenerationTaskKind | undefined {
+    const metadata = node.metadata;
+    if (isCanvasImageNodeType(node.type) && metadata?.imageTask) return "image";
+    if (node.type === CanvasNodeType.Video && metadata?.videoTask) return "video";
+    if (node.type === CanvasNodeType.Text && metadata?.textTask) return "text";
+    if (node.type === CanvasNodeType.Audio && metadata?.audioTask) return "audio";
+    return undefined;
+}
+
 export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPageState; tasks: CanvasTaskRuntime }) {
     const skipInitialProjectSyncRef = useRef(false);
-    const videoRetryTimersRef = useRef(new Map<string, number>());
-    const [videoRetryNonce, triggerVideoRetry] = useReducer((value: number) => value + 1, 0);
+    const pendingRetryTimersRef = useRef(new Map<string, number>());
+    const [pendingRetryNonce, triggerPendingRetry] = useReducer((value: number) => value + 1, 0);
     const {
         message,
         modal,
@@ -142,34 +161,42 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
         resumingTextTaskIdsRef,
         resumingAudioTaskIdsRef,
     } = state;
-    const { createHistoryEntry, startGenerationRequest, finishGenerationRequest, stopGenerationByRunningId, confirmStopGeneration, completeVideoTask, completeImageTask, startAndCompleteImageTask, completeTextTask, completeAudioTask } = tasks;
+    const {
+        createHistoryEntry,
+        startGenerationRequest,
+        finishGenerationRequest,
+        stopGenerationByRunningId,
+        confirmStopGeneration,
+        completeVideoTask,
+        completeImageTask,
+        startAndCompleteImageTask,
+        completeTextTask,
+        completeAudioTask,
+        recoverAndCompleteVideoTask,
+        recoverAndCompleteImageTask,
+        recoverAndCompleteTextTask,
+        recoverAndCompleteAudioTask,
+    } = tasks;
     const clearCanvasLayerProgress = (nodeId: string) => {
         const sourceNodeId = nodesRef.current.find((node) => node.id === nodeId)?.metadata?.sourceLayerNodeId || nodeId;
         message.destroy(`canvas-layers-${sourceNodeId}`);
         message.destroy(`canvas-subject-${sourceNodeId}`);
     };
-    const deferReviewedTask = (nodeId: string, errorDetails: string) => {
-        clearCanvasLayerProgress(nodeId);
-        setNodes((prev) => pauseCanvasGenerationReview(prev, [nodeId], errorDetails));
-    };
-    const deferVideoTask = useCallback(
-        (nodeId: string) => {
-            setNodes((prev) => prev.map((item) => (item.id === nodeId && item.metadata?.videoTask ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : item)));
-            const existing = videoRetryTimersRef.current.get(nodeId);
-            if (existing) window.clearTimeout(existing);
-            const timer = window.setTimeout(() => {
-                videoRetryTimersRef.current.delete(nodeId);
-                triggerVideoRetry();
-            }, 15_000);
-            videoRetryTimersRef.current.set(nodeId, timer);
-        },
-        [setNodes],
-    );
+    /** 15 秒后再查一次：轮询 key 不变时靠 nonce 让恢复 effect 重新跑。 */
+    const scheduleResumeRetry = useCallback((nodeId: string) => {
+        const existing = pendingRetryTimersRef.current.get(nodeId);
+        if (existing) window.clearTimeout(existing);
+        const timer = window.setTimeout(() => {
+            pendingRetryTimersRef.current.delete(nodeId);
+            triggerPendingRetry();
+        }, CANVAS_GENERATION_RETRY_DELAY_MS);
+        pendingRetryTimersRef.current.set(nodeId, timer);
+    }, []);
 
     useEffect(
         () => () => {
-            videoRetryTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-            videoRetryTimersRef.current.clear();
+            pendingRetryTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+            pendingRetryTimersRef.current.clear();
         },
         [],
     );
@@ -184,7 +211,7 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
         setProjectLoaded(false);
         void loadProject(projectId, true)
             .then((project) => {
-                const restoredNodes = prepareCanvasImages(project.nodes).map(normalizeCanvasConfigNodeLayout);
+                const restoredNodes = restoreCanvasGenerationPending(prepareCanvasImages(project.nodes).map(normalizeCanvasConfigNodeLayout));
                 const restoredSessions = prepareAssistantImages(project.chatSessions || []);
                 if (cancelled) return;
                 skipInitialProjectSyncRef.current = true;
@@ -223,173 +250,132 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
         };
     }, [loadProject, message, projectId, router, userId]);
 
-    // Memoised resumable-task keys: a stable comma-joined string of node IDs
-    // for each task type. The key only changes when the set of loading nodes
-    // with unstarted tasks actually shifts, so the resume effects below do NOT
-    // re-run on every streaming token update (which would hammer `nodes`).
-    // The effects read from nodesRef.current to get the actual node objects;
-    // nodesRef is kept current by the useLayoutEffect at the bottom of this
-    // hook, which runs synchronously before any useEffect in the same commit.
-    const resumableImageKey = useMemo(
+    // Stable comma-joined id list of loading nodes that still own a task. The
+    // resume effect only re-runs when that set shifts (or a retry timer fires),
+    // not on every streaming token update. Node objects are read from
+    // nodesRef.current, which the useLayoutEffect at the bottom keeps in sync.
+    const resumableTaskKey = useMemo(
         () =>
             nodes
-                .filter((n) => isCanvasImageNodeType(n.type) && n.metadata?.status === NODE_STATUS_LOADING && n.metadata?.imageTask)
-                .map((n) => n.id)
-                .join(","),
-        [nodes],
-    );
-    const resumableVideoKey = useMemo(
-        () =>
-            nodes
-                .filter((n) => n.type === CanvasNodeType.Video && n.metadata?.status === NODE_STATUS_LOADING && n.metadata?.videoTask)
-                .map((n) => n.id)
-                .join(","),
-        [nodes],
-    );
-    const resumableTextKey = useMemo(
-        () =>
-            nodes
-                .filter((n) => n.type === CanvasNodeType.Text && n.metadata?.status === NODE_STATUS_LOADING && n.metadata?.textTask)
-                .map((n) => n.id)
-                .join(","),
-        [nodes],
-    );
-    const resumableAudioKey = useMemo(
-        () =>
-            nodes
-                .filter((n) => n.type === CanvasNodeType.Audio && n.metadata?.status === NODE_STATUS_LOADING && n.metadata?.audioTask)
-                .map((n) => n.id)
+                .filter((node) => node.metadata?.status === NODE_STATUS_LOADING && resumableTaskKind(node))
+                .map((node) => node.id)
                 .join(","),
         [nodes],
     );
 
-    useEffect(() => {
-        if (!projectLoaded) return;
-        const resumable = nodesRef.current.filter((node) => isCanvasImageNodeType(node.type) && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.imageTask && !generationRequestsRef.current.has(node.id));
-        resumable.forEach((node) => {
-            const task = node.metadata?.imageTask;
-            if (!task || resumingImageTaskIdsRef.current.has(node.id)) return;
-            resumingImageTaskIdsRef.current.add(node.id);
+    /**
+     * 恢复一个仍在生成中的任务：
+     * - 正常拿到结果 → 正常显示；
+     * - 暂时查不到（needs_review / 查询超时 / 追查接口 409 等）→ 继续"生成中"，15 秒后再查；
+     *   needs_review 下一轮会主动追查原任务（替代原来的"检查状态"按钮）；
+     * - 等待超过兜底时长 → 显示"网络繁忙"；
+     * - 上游明确失败 → 显示转换后的文案（政策类原因 / 网络繁忙）。
+     * 真实原因只进控制台，后端记录保持原样。
+     */
+    const resumeGenerationTask = useCallback(
+        (node: CanvasNodeData, kind: CanvasGenerationTaskKind) => {
+            const resumingRef = { image: resumingImageTaskIdsRef, video: resumingVideoTaskIdsRef, text: resumingTextTaskIdsRef, audio: resumingAudioTaskIdsRef }[kind];
+            if (resumingRef.current.has(node.id)) return;
+            if (isCanvasGenerationPendingExpired(node)) {
+                console.warn("[canvas-generation] pending timeout reached:", node.id);
+                setNodes((prev) => failCanvasGeneration(prev, [node.id]));
+                return;
+            }
+            const metadata = node.metadata;
+            const review = canvasGenerationPendingState(node)?.review === true;
+            resumingRef.current.add(node.id);
             const controller = startGenerationRequest(node.id, node.id, node.id);
-            const generationConfig = buildGenerationConfig(effectiveConfig, node, "image");
+            const generationConfig = buildGenerationConfig(effectiveConfig, node, kind);
             setRunningNodeId((current) => current || node.id);
-            void completeImageTask(node.id, generationConfig, task, controller, node.metadata?.prompt)
+            const run = async () => {
+                if (kind === "image" && metadata?.imageTask) {
+                    const options = { outputBackground: metadata.imageOutputBackground, outputMode: metadata.imageOutputMode };
+                    return review ? recoverAndCompleteImageTask(node.id, generationConfig, metadata.imageTask, controller, metadata.prompt, options) : completeImageTask(node.id, generationConfig, metadata.imageTask, controller, metadata.prompt);
+                }
+                if (kind === "video" && metadata?.videoTask) {
+                    return review ? recoverAndCompleteVideoTask(node.id, generationConfig, metadata.videoTask, controller, metadata.prompt) : completeVideoTask(node.id, generationConfig, metadata.videoTask, controller, metadata.prompt);
+                }
+                if (kind === "text" && metadata?.textTask) {
+                    return review ? recoverAndCompleteTextTask(node.id, generationConfig, metadata.textTask, controller, metadata.prompt) : completeTextTask(node.id, generationConfig, metadata.textTask, controller, metadata.prompt);
+                }
+                if (kind === "audio" && metadata?.audioTask) {
+                    return review ? recoverAndCompleteAudioTask(node.id, generationConfig, metadata.audioTask, controller, metadata.prompt) : completeAudioTask(node.id, generationConfig, metadata.audioTask, controller, metadata.prompt);
+                }
+            };
+            void run()
                 .catch((error) => {
                     if (isGenerationCanceled(error)) return;
-                    const errorDetails = error instanceof Error ? error.message : "图片生成失败";
                     clearCanvasLayerProgress(node.id);
-                    if (isImageGenerationTaskDeferredError(error)) {
-                        message.info(errorDetails);
-                        setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails } } : item)));
+                    if (isCanvasGenerationRetryable(error, { review, video: kind === "video" })) {
+                        const options = canvasGenerationPendingOptions(error);
+                        setNodes((prev) => markCanvasGenerationPending(prev, [node.id], options));
+                        scheduleResumeRetry(node.id);
                         return;
                     }
-                    if (isGenerationTaskNeedsReviewError(error)) {
-                        deferReviewedTask(node.id, errorDetails);
-                        return;
-                    }
+                    const errorDetails = toCanvasGenerationUserMessage(error);
                     message.error(errorDetails);
-                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined } } : item)));
+                    setNodes((prev) => failCanvasGeneration(prev, [node.id], errorDetails));
                 })
                 .finally(() => {
-                    resumingImageTaskIdsRef.current.delete(node.id);
+                    resumingRef.current.delete(node.id);
                     finishGenerationRequest(node.id, controller);
                     setRunningNodeId((current) => (current === node.id ? null : current));
                 });
-        });
-    }, [completeImageTask, effectiveConfig, finishGenerationRequest, message, resumableImageKey, projectLoaded, startGenerationRequest]);
+        },
+        [
+            completeAudioTask,
+            completeImageTask,
+            completeTextTask,
+            completeVideoTask,
+            effectiveConfig,
+            finishGenerationRequest,
+            message,
+            recoverAndCompleteAudioTask,
+            recoverAndCompleteImageTask,
+            recoverAndCompleteTextTask,
+            recoverAndCompleteVideoTask,
+            scheduleResumeRetry,
+            startGenerationRequest,
+        ],
+    );
 
     useEffect(() => {
         if (!projectLoaded) return;
-        const resumable = nodesRef.current.filter((node) => node.type === CanvasNodeType.Video && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.videoTask && !generationRequestsRef.current.has(node.id));
-        resumable.forEach((node) => {
-            const task = node.metadata?.videoTask;
-            if (!task || resumingVideoTaskIdsRef.current.has(node.id)) return;
-            resumingVideoTaskIdsRef.current.add(node.id);
-            const controller = startGenerationRequest(node.id, node.id, node.id);
-            const generationConfig = buildGenerationConfig(effectiveConfig, node, "video");
-            setRunningNodeId((current) => current || node.id);
-            void completeVideoTask(node.id, generationConfig, task, controller, node.metadata?.prompt)
-                .catch((error) => {
-                    if (isGenerationCanceled(error)) return;
-                    const errorDetails = error instanceof Error ? error.message : "视频生成失败";
-                    const failureKind = classifyCanvasVideoTaskFailure(error);
-                    if (failureKind === "needs_review") {
-                        deferReviewedTask(node.id, errorDetails);
-                        return;
-                    }
-                    if (failureKind === "query_pending") {
-                        message.info("视频仍在后台生成，系统会继续查询原任务");
-                        deferVideoTask(node.id);
-                        return;
-                    }
-                    message.error(errorDetails);
-                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, videoTask: undefined } } : item)));
-                })
-                .finally(() => {
-                    resumingVideoTaskIdsRef.current.delete(node.id);
-                    finishGenerationRequest(node.id, controller);
-                    setRunningNodeId((current) => (current === node.id ? null : current));
-                });
+        nodesRef.current.forEach((node) => {
+            if (node.metadata?.status !== NODE_STATUS_LOADING || generationRequestsRef.current.has(node.id)) return;
+            const kind = resumableTaskKind(node);
+            if (kind) resumeGenerationTask(node, kind);
         });
-    }, [completeVideoTask, deferVideoTask, effectiveConfig, finishGenerationRequest, message, resumableVideoKey, projectLoaded, startGenerationRequest, videoRetryNonce]);
+    }, [pendingRetryNonce, projectLoaded, resumableTaskKey, resumeGenerationTask]);
 
+    // 兜底节拍：点击生成后转入等待的节点，其 resumableTaskKey 不会变化（生成时就已是 loading + 任务 ID），
+    // 因此每 15 秒触发一次恢复检查；正在轮询的节点会被 resumingRef / generationRequestsRef 跳过。
+    useEffect(() => {
+        if (!projectLoaded || !resumableTaskKey) return;
+        const timer = window.setInterval(triggerPendingRetry, CANVAS_GENERATION_RETRY_DELAY_MS);
+        return () => window.clearInterval(timer);
+    }, [projectLoaded, resumableTaskKey]);
+
+    // 硬超时：从提交开始计（图片/文本/音频 10 分钟，视频 30 分钟），到点即使轮询还在进行也直接失败。
+    // 中止轮询抛出的 AbortError 会被各处 catch 当作"已取消"静默处理，不会把失败状态覆盖回去。
     useEffect(() => {
         if (!projectLoaded) return;
-        const resumable = nodesRef.current.filter((node) => node.type === CanvasNodeType.Text && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.textTask && !generationRequestsRef.current.has(node.id));
-        resumable.forEach((node) => {
-            const task = node.metadata?.textTask;
-            if (!task || resumingTextTaskIdsRef.current.has(node.id)) return;
-            resumingTextTaskIdsRef.current.add(node.id);
-            const controller = startGenerationRequest(node.id, node.id, node.id);
-            const generationConfig = buildGenerationConfig(effectiveConfig, node, "text");
-            setRunningNodeId((current) => current || node.id);
-            void completeTextTask(node.id, generationConfig, task, controller, node.metadata?.prompt)
-                .catch((error) => {
-                    if (isGenerationCanceled(error)) return;
-                    const errorDetails = error instanceof Error ? error.message : "文本生成失败";
-                    if (isGenerationTaskNeedsReviewError(error)) {
-                        deferReviewedTask(node.id, errorDetails);
-                        return;
-                    }
-                    message.error(errorDetails);
-                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, textTask: undefined } } : item)));
-                })
-                .finally(() => {
-                    resumingTextTaskIdsRef.current.delete(node.id);
-                    finishGenerationRequest(node.id, controller);
-                    setRunningNodeId((current) => (current === node.id ? null : current));
-                });
+        setNodes((prev) => stampCanvasGenerationStart(prev));
+        const expired = nodesRef.current.filter((node) => node.metadata?.status === NODE_STATUS_LOADING && isCanvasGenerationPendingExpired(node));
+        if (!expired.length) return;
+        console.warn("[canvas-generation] pending timeout reached:", expired.map((node) => node.id).join(","));
+        const expiredIds = new Set(expired.map((node) => node.id));
+        setNodes((prev) => failCanvasGeneration(prev, expiredIds));
+        const controllers = new Set(expired.flatMap((node) => generationRequestsRef.current.get(node.id)?.controller ?? []));
+        controllers.forEach((controller) => {
+            // 同一批次共用一个 controller：只有共用它的生成中节点全部超时才中止，避免误伤还没到点的兄弟节点。
+            const requests = [...generationRequestsRef.current.values()].filter((request) => request.controller === controller);
+            const stillWaiting = requests.some((request) => !expiredIds.has(request.targetNodeId) && nodesRef.current.find((node) => node.id === request.targetNodeId)?.metadata?.status === NODE_STATUS_LOADING);
+            if (stillWaiting) return;
+            requests.forEach((request) => generationRequestsRef.current.delete(request.targetNodeId));
+            controller.abort(CANVAS_GENERATION_TIMEOUT_ABORT);
         });
-    }, [completeTextTask, effectiveConfig, finishGenerationRequest, message, resumableTextKey, projectLoaded, startGenerationRequest]);
-
-    useEffect(() => {
-        if (!projectLoaded) return;
-        const resumable = nodesRef.current.filter((node) => node.type === CanvasNodeType.Audio && node.metadata?.status === NODE_STATUS_LOADING && node.metadata.audioTask && !generationRequestsRef.current.has(node.id));
-        resumable.forEach((node) => {
-            const task = node.metadata?.audioTask;
-            if (!task || resumingAudioTaskIdsRef.current.has(node.id)) return;
-            resumingAudioTaskIdsRef.current.add(node.id);
-            const controller = startGenerationRequest(node.id, node.id, node.id);
-            const generationConfig = buildGenerationConfig(effectiveConfig, node, "audio");
-            setRunningNodeId((current) => current || node.id);
-            void completeAudioTask(node.id, generationConfig, task, controller, node.metadata?.prompt)
-                .catch((error) => {
-                    if (isGenerationCanceled(error)) return;
-                    const errorDetails = error instanceof Error ? error.message : "音频生成失败";
-                    if (isGenerationTaskNeedsReviewError(error)) {
-                        deferReviewedTask(node.id, errorDetails);
-                        return;
-                    }
-                    message.error(errorDetails);
-                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, audioTask: undefined } } : item)));
-                })
-                .finally(() => {
-                    resumingAudioTaskIdsRef.current.delete(node.id);
-                    finishGenerationRequest(node.id, controller);
-                    setRunningNodeId((current) => (current === node.id ? null : current));
-                });
-        });
-    }, [completeAudioTask, effectiveConfig, finishGenerationRequest, message, resumableAudioKey, projectLoaded, startGenerationRequest]);
+    }, [generationRequestsRef, nodesRef, pendingRetryNonce, projectLoaded, resumableTaskKey, setNodes]);
 
     useEffect(() => {
         if (!projectLoaded || applyingHistoryRef.current) return;
