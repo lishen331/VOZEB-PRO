@@ -329,6 +329,9 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS client_request_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_phase text NOT NULL DEFAULT 'created';
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_task_id text;
+-- D6: 供应商请求 ID，与 upstream_task_id 分列。账单通常按请求 ID 对账；提交结果
+-- 未知时可能只有请求 ID 而无任务 ID。纯加列、可空、无回填。见实施文档步骤 4。
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_request_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS channel_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS provider text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS query_path text;
@@ -376,6 +379,16 @@ CREATE TABLE IF NOT EXISTS generation_concurrency_reservations (
     CONSTRAINT generation_concurrency_reservations_type CHECK (task_type IN ('text', 'image', 'video', 'audio', 'agent', 'render'))
 );
 CREATE INDEX IF NOT EXISTS generation_concurrency_reservations_expires_idx ON generation_concurrency_reservations (expires_at);
+
+CREATE TABLE IF NOT EXISTS channel_concurrency_reservations (
+    channel_id text NOT NULL,
+    upstream_model text NOT NULL,
+    request_id text NOT NULL,
+    expires_at timestamptz NOT NULL,
+    PRIMARY KEY (channel_id, upstream_model, request_id)
+);
+CREATE INDEX IF NOT EXISTS channel_concurrency_reservations_expires_idx ON channel_concurrency_reservations (expires_at);
+CREATE INDEX IF NOT EXISTS channel_concurrency_reservations_slot_idx ON channel_concurrency_reservations (channel_id, upstream_model);
 
 CREATE TABLE IF NOT EXISTS generation_worker_heartbeats (
     worker_id text PRIMARY KEY,

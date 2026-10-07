@@ -1,7 +1,8 @@
 import { isOfficialWorkflowQueryPath, queryRunningHubTask, submitRunningHubTask } from "./runninghub-provider";
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
-import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
+import { CHANNEL_SATURATED_MESSAGE } from "@/lib/server/channel-concurrency";
+import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
@@ -40,8 +41,22 @@ export async function createQueuedPracticeVideoTaskUpstreamStep(task: VideoTask,
     if (task.upstream.id) return queryVideoTaskUpstream(task, origin, cookie, workerUserId);
     const workflow = workflowConfigForTask(task);
     if (task.executionProfile !== "open-source-practice" || !workflow || task.config.advancedConfig?.protocol !== "runninghub") return { state: "failed", status: "unsupported", error: "排队视频任务缺少可恢复的 RunningHub 工作流配置" };
-    const started = startGenerationAttempt(task.attempts, { channelId: task.config.channelId, model: generationModelId(task.config), capability: "video" });
-    await updateVideoTask(task.id, { attempts: started.attempts });
+    const reservationId = generationReservationId("video", task.id, nextGenerationAttemptNo(task.attempts));
+    const reserved = await reserveGenerationAttemptSlot({
+        capability: "video",
+        channelId: task.config.channelId,
+        upstreamModel: task.config.model,
+        reservationId,
+        concurrencyLimit: task.config.capabilityProfile?.concurrencyLimit,
+    });
+    if (!reserved) return { state: "failed", error: CHANNEL_SATURATED_MESSAGE, status: "channel_saturated" };
+    const started = startGenerationAttempt(task.attempts, { channelId: task.config.channelId, model: generationModelId(task.config), capability: "video", reservationId });
+    try {
+        await updateVideoTask(task.id, { attempts: started.attempts });
+    } catch (error) {
+        await releaseGenerationReservations([reservationId]);
+        throw error;
+    }
     try {
         const raw = { ...(task.workflowInput || {}), model: task.config.model, prompt: task.prompt || "" };
         const result = await submitRunningHubTask({
@@ -83,6 +98,7 @@ export async function refreshVideoTaskFromUpstream(task: VideoTask, origin: stri
 }
 
 export async function queryVideoTaskUpstream(task: VideoTask, origin: string, cookie = "", workerUserId = ""): Promise<VideoUpstreamStep> {
+    await renewGenerationReservations(task.attempts);
     const cachedResultUrl = typeof task.upstream.resultUrl === "string" ? task.upstream.resultUrl.trim() : "";
     if (isVideoProviderMediaUrl(cachedResultUrl)) return { state: "result_ready", status: "completed", resultUrl: cachedResultUrl };
     if (isGeminiVideoTask(task)) return queryGeminiVideoUpstream(task, origin, cookie, workerUserId);

@@ -1,4 +1,4 @@
-import { hasAdminPermission } from "@/lib/admin-permissions";
+import { hasAdminPermission, hasAnyAdminPermission } from "@/lib/admin-permissions";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
     const currentUser = await getCurrentUser();
     if (!currentUser) return NextResponse.json({ error: "请先登录" }, { status: 401 });
-    if (!hasAdminPermission(currentUser, "billing.read")) return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
+    if (!hasAnyAdminPermission(currentUser, ["billing.read", "billing.manage"])) return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
 
     try {
         const params = request.nextUrl.searchParams;

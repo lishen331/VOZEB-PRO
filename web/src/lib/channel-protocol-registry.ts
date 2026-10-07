@@ -95,6 +95,36 @@ const seedanceOperation: ProtocolOperation = {
     supportsReferenceAudio: true,
 };
 
+const modelbayOfficialSeedanceVideoOperation: ProtocolOperation = {
+    capability: "video",
+    createPath: "/doubao/api/v3/contents/generations/tasks",
+    imageToVideoPath: "/doubao/api/v3/contents/generations/tasks",
+    queryPath: "/doubao/api/v3/contents/generations/tasks/:task_id",
+    requestTemplate: '{"model":"{{model}}","content":"{{content}}","ratio":"{{ratio}}","resolution":"{{resolution}}","duration":"{{duration}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}',
+    resultField: "content.video_url",
+    statusField: "status",
+    durationRange: "4-30 秒（2.5）；4-15 秒（2/fast/mini）",
+    referenceRule: "ModelBay official Seedance：真人素材先经 /doubao/api/v3/assets 入库，生成请求使用 asset://<asset_id>；只有 2.5 支持参考视频。",
+    supportsReferenceImage: true,
+    supportsReferenceVideo: true,
+    supportsReferenceAudio: true,
+};
+
+const tuziSeedanceVideoOperation: ProtocolOperation = {
+    capability: "video",
+    createPath: "/v1/videos",
+    imageToVideoPath: "/v1/videos",
+    queryPath: "/v1/videos/:task_id",
+    requestTemplate: '{"model":"{{model}}","content":"{{content}}","refer_model":"{{refer_model}}","ratio":"{{ratio}}","resolution":"{{resolution}}","duration":"{{duration}}","generate_audio":"{{generate_audio}}"}',
+    resultField: "content.video_url / video_url",
+    statusField: "status",
+    durationRange: "4-30 秒（2.5）；4-15 秒（2.0）",
+    referenceRule: "兔子 Seedance 真人素材先经 /v1/seedance/assets 上传并 POST /v1/seedance/assets/:id/compliance 审核，active 后使用 asset://；参考视频延展仅 2.5 支持。",
+    supportsReferenceImage: true,
+    supportsReferenceVideo: true,
+    supportsReferenceAudio: true,
+};
+
 const seedanceSpecialOperation: ProtocolOperation = {
     capability: "video",
     createPath: "/v1/seedance-special/videos",
@@ -182,6 +212,30 @@ export const registeredChannelProtocolDefinitions: ChannelProtocolDefinition[] =
         modelCatalogPaths: ["/models"],
         capabilities: ["video"],
         operations: { video: seedanceOperation },
+        strict: true,
+    },
+    {
+        id: "modelbay-seedance",
+        label: "ModelBay 官方 Seedance",
+        description: "ModelBay 火山原生 Seedance 2/2.5；真人素材先入库，再以 asset:// ID 引用。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://api.modelbay.io",
+        modelCatalogPaths: [],
+        capabilities: ["video"],
+        operations: { video: modelbayOfficialSeedanceVideoOperation },
+        strict: true,
+    },
+    {
+        id: "tuzi-seedance",
+        label: "兔子 Seedance 真人协议",
+        description: "兔子 /v1/videos 与 /v1/seedance/assets 真人素材审核协议。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://api.tu-zi.com",
+        modelCatalogPaths: ["/v1/models"],
+        capabilities: ["video"],
+        operations: { video: tuziSeedanceVideoOperation },
         strict: true,
     },
     {

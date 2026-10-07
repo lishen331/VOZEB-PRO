@@ -7,7 +7,8 @@ import { getAudioTask, transitionAudioTask, updateAudioTask, type AudioTask } fr
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
 import { getPublicUsersByIds } from "@/lib/auth/store";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
-import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
+import { CHANNEL_SATURATED_MESSAGE } from "@/lib/server/channel-concurrency";
+import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi, isInternalApiBaseUrl } from "@/lib/server/internal-origin";
 import { maintenanceWorkerHeaders } from "@/lib/server/maintenance-auth";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
@@ -40,11 +41,28 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
     let attempts = running.attempts || [];
     let latestError = "没有可用的音频渠道";
     for (const [index, config] of candidates.entries()) {
-        const started = startGenerationAttempt(attempts, { channelId: config.channelId, model: generationModelId(config), capability: "audio" });
+        const reservationId = generationReservationId("audio", task.id, nextGenerationAttemptNo(attempts));
+        const reserved = await reserveGenerationAttemptSlot({
+            capability: "audio",
+            channelId: config.channelId,
+            upstreamModel: config.model,
+            reservationId,
+            concurrencyLimit: config.capabilityProfile?.concurrencyLimit,
+        });
+        if (!reserved) {
+            latestError = CHANNEL_SATURATED_MESSAGE;
+            continue;
+        }
+        const started = startGenerationAttempt(attempts, { channelId: config.channelId, model: generationModelId(config), capability: "audio", reservationId });
         attempts = started.attempts;
         const candidate = { ...running, config, candidateConfigs: candidates.slice(index + 1), attempts, attemptNo: started.attempt.attemptNo, upstream: undefined, billing: undefined };
-        await updateAudioTask(task.id, { config, candidateConfigs: candidate.candidateConfigs, attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined });
-        await scheduleGenerationTask("audio", task.id, { executionPhase: "submitting", nextPollAt: Date.now(), channelId: config.channelId, provider: config.advancedConfig?.protocol || config.apiFormat, lastUpstreamStatus: "submitting" });
+        try {
+            await updateAudioTask(task.id, { config, candidateConfigs: candidate.candidateConfigs, attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined });
+            await scheduleGenerationTask("audio", task.id, { executionPhase: "submitting", nextPollAt: Date.now(), channelId: config.channelId, provider: config.advancedConfig?.protocol || config.apiFormat, lastUpstreamStatus: "submitting" });
+        } catch (error) {
+            await releaseGenerationReservations([reservationId]);
+            throw error;
+        }
 
         try {
             const defaults = {
@@ -128,6 +146,7 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
 
 export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string, cookie = "", workerUserId = ""): Promise<AudioUpstreamStep> {
     if (!task.upstream?.id) return { state: "failed", status: "missing_upstream_id", error: "音频任务缺少上游任务 ID" };
+    await renewGenerationReservations(task.attempts);
     if (task.config.advancedConfig?.protocol === "runninghub" && isOfficialWorkflowQueryPath(task.config.advancedConfig.queryPath || "")) {
         const workflow = workflowConfigForTask(task);
         const result = await queryRunningHubTask({

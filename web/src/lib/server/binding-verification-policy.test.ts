@@ -24,18 +24,22 @@ describe("binding verification policy", () => {
         await assertBindingVerificationChanges(settings({ ...b, enabled: true }), settings({ ...b, enabled: true }), lookup);
         expect(lookup).not.toHaveBeenCalled();
     });
-    it("rejects enabling without server evidence", async () => {
-        await expect(assertBindingVerificationChanges(settings(), settings({ ...b, enabled: true }), async () => false)).rejects.toThrow("验证");
+    it("allows enabling without server evidence and returns a warning", async () => {
+        const warnings = await assertBindingVerificationChanges(settings(), settings({ ...b, enabled: true }), async () => false);
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0].message).toContain("尚无当前配置的成功生成记录");
     });
     it("accepts enabling only the matching tested fingerprint", async () => {
         const fp = bindingVerificationFingerprint(m, b, c);
-        await expect(assertBindingVerificationChanges(settings(), settings({ ...b, enabled: true }), async (v) => v === fp)).resolves.toBeUndefined();
+        await expect(assertBindingVerificationChanges(settings(), settings({ ...b, enabled: true }), async (v) => v === fp)).resolves.toEqual([]);
     });
-    it("rejects enabled execution changes in a settings-only update", async () => {
-        await expect(assertBindingVerificationChanges(settings({ ...b, enabled: true }), settings({ ...b, enabled: true }, { ...c, apiKey: "new" }), async () => false)).rejects.toThrow("验证");
+    it("allows enabled execution changes but returns a warning when proof is stale", async () => {
+        const warnings = await assertBindingVerificationChanges(settings({ ...b, enabled: true }), settings({ ...b, enabled: true }, { ...c, apiKey: "new" }), async () => false);
+        expect(warnings).toHaveLength(1);
     });
-    it("rejects creating an enabled binding to bypass checks", async () => {
-        await expect(assertBindingVerificationChanges({ logicalModels: [], systemChannels: [c] }, settings({ ...b, enabled: true }), async () => false)).rejects.toThrow("验证");
+    it("allows creating an enabled binding with an explicit warning", async () => {
+        const warnings = await assertBindingVerificationChanges({ logicalModels: [], systemChannels: [c] }, settings({ ...b, enabled: true }), async () => false);
+        expect(warnings[0].bindingId).toBe("b");
     });
     it("allows disabling and leaves RunningHub out of scope", async () => {
         const lookup = vi.fn();

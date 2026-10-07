@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createElement, Fragment, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { BindingVerificationModal, canConfirmBindingVerification, readBindingVerification, verificationFixtureCount } from "./binding-verification-modal";
+import { BindingVerificationModal, canConfirmBindingVerification, canManuallyEnableBindingVerification, readBindingVerification, verificationFixtureCount } from "./binding-verification-modal";
 
 vi.mock("antd", async (importOriginal) => ({
     ...(await importOriginal<typeof import("antd")>()),
@@ -23,6 +23,13 @@ describe("binding verification safety", () => {
         expect(canConfirmBindingVerification({ ...test, status: "failed" }, true)).toBe(false);
         expect(canConfirmBindingVerification({ ...test, status: "needs_review" }, true)).toBe(true);
         expect(canConfirmBindingVerification({ ...test, result: {} }, true)).toBe(false);
+    });
+    it("allows an explicit warning-based enable when untested or failed", () => {
+        expect(canManuallyEnableBindingVerification(null)).toBe(true);
+        expect(canManuallyEnableBindingVerification({ id: "t", status: "failed", phase: "failed" })).toBe(true);
+        expect(canManuallyEnableBindingVerification({ id: "t", status: "running", phase: "running" })).toBe(false);
+        expect(canManuallyEnableBindingVerification(null, false, true)).toBe(false);
+        expect(canManuallyEnableBindingVerification(null, true)).toBe(false);
     });
     it("uses three references for video and one for image/text", () => {
         expect(verificationFixtureCount("video")).toBe(3);

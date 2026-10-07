@@ -18,7 +18,7 @@ const result = {
 describe("admin school member points adjustment route", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: [] });
+        mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: ["education.manage", "billing.manage"] });
         mocks.adjust.mockResolvedValue(result);
     });
 
@@ -67,10 +67,12 @@ describe("admin school member points adjustment route", () => {
         expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ status: "failure", metadata: { schoolId: "school-a", membershipId: "membership-a", errorStatus: 409 } }));
     });
 
-    it("requires authentication and validates the body shape", async () => {
+    it("requires authentication, both responsibilities, and a valid body shape", async () => {
         mocks.getCurrentUser.mockResolvedValue(null);
         expect((await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: "{}" }), context)).status).toBe(401);
-        mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: [] });
+        mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: ["education.manage"] });
+        expect((await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: "{}" }), context)).status).toBe(403);
+        mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: ["education.manage", "billing.manage"] });
         expect((await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: JSON.stringify([]) }), context)).status).toBe(400);
         expect(mocks.adjust).not.toHaveBeenCalled();
     });

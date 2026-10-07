@@ -76,6 +76,19 @@ export function useCanvasNodeActions({ state, core }: { state: CanvasPageState; 
         setNodes((prev) => {
             const next = prev.filter((node) => !allIds.has(node.id));
             return next.map((node) => {
+                // 生成组 bookkeeping. Unlike storyboard groups (whose membership is
+                // re-validated on every read) a container's visible members have no
+                // self-healing path, so stale ids must be pruned here: drop a deleted
+                // member from its frame, and orphan members of a deleted frame.
+                if (node.metadata?.containerId && allIds.has(node.metadata.containerId)) {
+                    node = { ...node, metadata: { ...node.metadata, containerId: undefined } };
+                }
+                if (node.type === CanvasNodeType.Container) {
+                    const survivors = node.metadata?.containerChildIds?.filter((childId) => !allIds.has(childId));
+                    if (survivors?.length !== node.metadata?.containerChildIds?.length) {
+                        node = { ...node, metadata: { ...node.metadata, containerChildIds: survivors } };
+                    }
+                }
                 const childIds = node.metadata?.batchChildIds?.filter((childId) => !allIds.has(childId));
                 if (!node.metadata?.isBatchRoot || childIds?.length === node.metadata.batchChildIds?.length) return node;
                 const primaryImageId = childIds?.includes(node.metadata.primaryImageId || "") ? node.metadata.primaryImageId : childIds?.[0];

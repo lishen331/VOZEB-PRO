@@ -11,7 +11,8 @@ import { fitNodeSize } from "../utils/canvas-node-size";
 
 import { CANVAS_DROP_NODE_OFFSET, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
 import { audioMetadata, imageMetadata, uploadCanvasImage, videoMetadata } from "./canvas-page-utils";
-import { CANVAS_GROUP_MIN_MEMBERS, canvasGroupCandidates, canvasGroupCentroid, canvasGroupMemberSnapshot, canvasGroupRestoreLayout, canvasGroupSize } from "../utils/canvas-storyboard-group";
+import { CANVAS_GROUP_MIN_MEMBERS, canvasGroupCandidates, canvasGroupCentroid, canvasGroupMemberSnapshot, canvasGroupRestoreLayout, canvasGroupSize, isHiddenCanvasGroupMember } from "../utils/canvas-storyboard-group";
+import { CANVAS_CONTAINER_MIN_MEMBERS, canvasContainerChildIds, canvasContainerFrame } from "../utils/canvas-container-group";
 
 import type { CanvasInteractions } from "./use-canvas-interactions";
 import type { CanvasPageState } from "./use-canvas-page-state";
@@ -153,6 +154,58 @@ export function useCanvasFileActions({ state, interactions }: { state: CanvasPag
         setDialogNodeId(null);
         message.success(`已合并 ${members.length} 张图片为分镜组`);
     }, [message]);
+
+    /** Wrap the box-selection in a 生成组 frame. Members keep their positions. */
+    const createContainerFromSelection = useCallback(() => {
+        const selectedIds = selectedNodeIdsRef.current;
+        // A frame cannot own another frame's members, and hidden nodes must not be
+        // captured into a visible frame.
+        const members = nodesRef.current.filter((node) => selectedIds.has(node.id) && !node.metadata?.containerId && !node.metadata?.batchRootId && !isHiddenCanvasGroupMember(node, nodesRef.current));
+        if (members.length < CANVAS_CONTAINER_MIN_MEMBERS) {
+            message.info(`请先选择至少 ${CANVAS_CONTAINER_MIN_MEMBERS} 个未分组的节点`);
+            return;
+        }
+
+        const memberIds = members.map((member) => member.id);
+        const memberIdSet = new Set(memberIds);
+        const frame = canvasContainerFrame(members);
+        const containerId = `${CanvasNodeType.Container}-${nanoid()}`;
+        const containerNode: CanvasNodeData = {
+            id: containerId,
+            type: CanvasNodeType.Container,
+            title: "生成组",
+            ...frame,
+            metadata: { status: "idle", containerChildIds: memberIds, containerLabel: "生成组" },
+        };
+
+        // Frame first so it paints behind its members even before the surface sorts.
+        setNodes((current) => [containerNode, ...current.map((node) => (memberIdSet.has(node.id) ? { ...node, metadata: { ...node.metadata, containerId } } : node))]);
+        setSelectedNodeIds(new Set([containerId]));
+        setSelectedConnectionId(null);
+        setContextMenu(null);
+        setToolbarNodeId(null);
+        setDialogNodeId(null);
+        message.success(`已将 ${members.length} 个节点编为生成组`);
+    }, [message]);
+
+    /** Delete only the frame. Members stay where they are, as in ComfyUI. */
+    const removeContainer = useCallback(
+        (containerNodeId?: string) => {
+            const allNodes = nodesRef.current;
+            const container = containerNodeId ? allNodes.find((node) => node.id === containerNodeId) : allNodes.find((node) => node.type === CanvasNodeType.Container && selectedNodeIdsRef.current.has(node.id));
+            if (!container || container.type !== CanvasNodeType.Container) return;
+
+            const memberIds = canvasContainerChildIds(container.id, allNodes);
+            setNodes((current) => current.filter((node) => node.id !== container.id).map((node) => (node.metadata?.containerId === container.id ? { ...node, metadata: { ...node.metadata, containerId: undefined } } : node)));
+            setSelectedNodeIds(new Set(memberIds));
+            setSelectedConnectionId(null);
+            setContextMenu(null);
+            setToolbarNodeId(null);
+            setDialogNodeId(null);
+            message.success(memberIds.length ? `已解散生成组，保留 ${memberIds.length} 个节点` : "已删除空生成组");
+        },
+        [message],
+    );
 
     const dissolveGroup = useCallback(
         (groupNodeId?: string) => {
@@ -299,6 +352,8 @@ export function useCanvasFileActions({ state, interactions }: { state: CanvasPag
         createTextNodeFromClipboard,
         groupSelectedNodes,
         dissolveGroup,
+        createContainerFromSelection,
+        removeContainer,
     };
 }
 

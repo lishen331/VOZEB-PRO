@@ -23,10 +23,16 @@ export enum CanvasNodeType {
     Task = "task",
     BrandKit = "brand-kit",
     Group = "group",
+    /** 生成组: a ComfyUI-style frame that sits behind its members, which stay visible. Distinct from Group (storyboard), whose members are hidden and redrawn as a snapshot grid. */
+    Container = "container",
 }
 
 export function isCanvasImageNodeType(type: CanvasNodeType | null | undefined) {
     return type === CanvasNodeType.Image || type === CanvasNodeType.Panorama;
+}
+
+export function isCanvasContainerNodeType(type: CanvasNodeType | null | undefined) {
+    return type === CanvasNodeType.Container;
 }
 
 type CanvasNodeStatus = "idle" | "success" | "loading" | "error" | "needs_review" | "cancelled";
@@ -199,6 +205,15 @@ export type CanvasNodeMetadata = {
     groupLabel?: string;
     /** On a Group node: thumbnail cache so the grid renders without the hidden members. */
     groupMemberSnapshots?: CanvasGroupMemberSnapshot[];
+    /**
+     * 生成组 (Container) membership. Deliberately NOT reusing groupId/groupMemberIds:
+     * isHiddenCanvasGroupMember hides anything whose groupId points at a live Group,
+     * which would make container members invisible — the opposite of the intent.
+     */
+    containerChildIds?: string[];
+    /** On a member node: id of the Container that currently owns it. Members stay visible. */
+    containerId?: string;
+    containerLabel?: string;
     storageKey?: string;
     remoteUrl?: string;
     serverUrl?: string;

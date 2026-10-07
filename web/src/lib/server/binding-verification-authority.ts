@@ -52,8 +52,9 @@ export async function authorizeBindingVerificationProxy<T extends Pick<AuthSetti
 export async function assertBindingVerificationSubmission(run: import("./binding-verification-store").BindingVerificationRun, body: BodyInit | undefined) {
     let serialized = "";
     let imageFiles = 0;
-    const binaryDigests = new Set<string>();
-    const submittedUrls = new Set<string>();
+    const binaryDigests: string[] = [];
+    const multipartSourceDigests: string[] = [];
+    const submittedUrls: string[] = [];
     if (body instanceof FormData) {
         const fields: Record<string, unknown> = {};
         for (const [key, value] of body.entries()) {
@@ -61,8 +62,10 @@ export async function assertBindingVerificationSubmission(run: import("./binding
             else {
                 if (value.type.startsWith("image/")) imageFiles++;
                 const bytes = Buffer.from(await value.arrayBuffer());
-                binaryDigests.add(createHash("sha256").update(bytes).digest("hex"));
-                fields[key] = bytes.toString("base64");
+                binaryDigests.push(createHash("sha256").update(bytes).digest("hex"));
+                const sourceMarker = key === "input_reference" && value.name.match(/^input-reference-([a-f0-9]{64})\.[^.]+$/i);
+                if (sourceMarker) multipartSourceDigests.push(sourceMarker[1].toLowerCase());
+                fields[key] = { name: value.name, mimeType: value.type, data: bytes.toString("base64") };
             }
         }
         serialized = JSON.stringify(fields);
@@ -71,9 +74,9 @@ export async function assertBindingVerificationSubmission(run: import("./binding
     else if (ArrayBuffer.isView(body)) serialized = Buffer.from(body.buffer, body.byteOffset, body.byteLength).toString("utf8");
     const collectInline = (value: unknown) => {
         if (typeof value === "string") {
-            if (/^https?:\/\//.test(value) && !/\s/.test(value)) submittedUrls.add(value);
+            if (/^https?:\/\//.test(value) && !/\s/.test(value)) submittedUrls.push(value);
             if (/^data:(image|video)\/[^;,]+;base64,/.test(value))
-                binaryDigests.add(
+                binaryDigests.push(
                     createHash("sha256")
                         .update(Buffer.from(value.slice(value.indexOf(",") + 1), "base64"))
                         .digest("hex"),
@@ -81,7 +84,7 @@ export async function assertBindingVerificationSubmission(run: import("./binding
         } else if (value && typeof value === "object") {
             const object = value as Record<string, unknown>;
             const mime = object.mimeType ?? object.mime_type;
-            if (typeof mime === "string" && /^(image|video)\//.test(mime) && typeof object.data === "string") binaryDigests.add(createHash("sha256").update(Buffer.from(object.data, "base64")).digest("hex"));
+            if (typeof mime === "string" && /^(image|video)\//.test(mime) && typeof object.data === "string") binaryDigests.push(createHash("sha256").update(Buffer.from(object.data, "base64")).digest("hex"));
             for (const [key, item] of Object.entries(object)) if (!/^(prompt|text|description|negative_prompt)$/i.test(key)) collectInline(item);
         }
     };
@@ -97,13 +100,34 @@ export async function assertBindingVerificationSubmission(run: import("./binding
         const fixtures = await bindingVerificationFixtures();
         referenceCount = fixtures.slice(0, expected).filter((bytes) => serialized.includes(bytes.toString("base64"))).length;
     }
-    if (run.input)
-        referenceCount = run.input.references.filter(
-            (reference) =>
-                submittedUrls.has(reference.url) ||
-                run.referenceUrlMappings?.some((mapping) => mapping.original === reference.url && submittedUrls.has(mapping.submitted)) ||
-                run.referenceEvidence?.some((evidence) => evidence.url === reference.url && binaryDigests.has(evidence.sha256)),
-        ).length;
+    if (run.input) {
+        const availableUrls = [...submittedUrls];
+        const availableDigests = [...binaryDigests];
+        const availableSourceMarkers = [...multipartSourceDigests];
+        referenceCount = run.input.references.filter((reference) => {
+            const urlIndex = availableUrls.findIndex((url) => url === reference.url || run.referenceUrlMappings?.some((mapping) => mapping.original === reference.url && mapping.submitted === url));
+            if (urlIndex >= 0) {
+                availableUrls.splice(urlIndex, 1);
+                return true;
+            }
+            const evidence = run.referenceEvidence?.find((item) => item.url === reference.url);
+            if (!evidence) return false;
+            const bodyIndex = availableDigests.indexOf(evidence.sha256);
+            if (bodyIndex >= 0) {
+                availableDigests.splice(bodyIndex, 1);
+                return true;
+            }
+            // Certain adapters resize/re-encode an image before building multipart.
+            // Their adapter-generated filename records the digest of the selected source;
+            // require the specific input_reference part instead of trusting file count.
+            const markerIndex = availableSourceMarkers.indexOf(evidence.sha256);
+            if (markerIndex >= 0) {
+                availableSourceMarkers.splice(markerIndex, 1);
+                return true;
+            }
+            return false;
+        }).length;
+    }
     if ((run.input ? referenceCount : Math.max(referenceCount, imageFiles)) < expected) throw new Error(`实际提交报文未包含要求的 ${expected} 个参考素材，实际请求不得丢弃输入`);
     if (run.capability === "video") {
         let payload: unknown;
@@ -122,9 +146,18 @@ export async function assertBindingVerificationSubmission(run: import("./binding
         };
         visit(payload);
         const durations = fields.filter(([key]) => /^(duration|seconds|durationSeconds|duration_seconds|videoSeconds)$/i.test(key)).map(([, v]) => Number(v));
-        const resolutions = fields.filter(([key]) => /^(resolution|quality|vquality|height)$/i.test(key)).map(([, v]) => String(v).replace(/p$/i, ""));
-        if (!resolutions.includes("480") || resolutions.some((v) => /^\d+$/.test(v) && v !== "480") || !durations.length || durations.some((v) => v !== 5)) throw new Error("实际提交报文未严格保持 480p、5 秒，禁止降级验证");
+        const resolutions = fields.flatMap(([key, value]) => {
+            if (/^(resolution|quality|vquality|height)$/i.test(key)) return [String(value).replace(/p$/i, "")];
+            if (/^size$/i.test(key)) {
+                const dimensions = String(value).match(/^(\d+)x(\d+)$/i);
+                if (dimensions) return [String(Math.min(Number(dimensions[1]), Number(dimensions[2])))];
+            }
+            return [];
+        });
+        const expectedDurationSeconds = Number(run.diagnostics?.durationSeconds) || 5;
+        if (!resolutions.includes("480") || resolutions.some((v) => /^\d+$/.test(v) && v !== "480") || !durations.length || durations.some((v) => v !== expectedDurationSeconds))
+            throw new Error(`实际提交报文未严格保持 480p、${expectedDurationSeconds} 秒，禁止降级验证`);
     }
 
-    return { referenceCount: expected, ...(run.capability === "video" ? { durationSeconds: 5, resolution: "480p" } : {}), requestDigest: createHash("sha256").update(serialized).digest("hex") };
+    return { referenceCount: expected, ...(run.capability === "video" ? { durationSeconds: Number(run.diagnostics?.durationSeconds) || 5, resolution: "480p" } : {}), requestDigest: createHash("sha256").update(serialized).digest("hex") };
 }

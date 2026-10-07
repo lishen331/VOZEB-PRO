@@ -42,6 +42,7 @@ export type SchoolMember = {
     displayName: string;
     email?: string;
     role: SchoolMemberRole;
+    isProtectedManager?: boolean;
     permissions: SchoolPermission[];
     status: SchoolMembershipStatus;
     joinSource: "admin" | "import" | "invite";
@@ -76,7 +77,8 @@ export type SchoolMemberCreateInput = { username: string; email?: string; displa
 export type SchoolMemberPatch = { role?: SchoolMemberRole; permissions?: SchoolPermission[]; status?: SchoolMembershipStatus };
 export type SchoolClassInput = { name: string; description?: string };
 export type CreateSchoolInput = { name: string; profile?: Record<string, unknown>; administrator: Omit<SchoolMemberCreateInput, "role"> };
-export type UpdateSchoolInput = { name?: string; profile?: Record<string, unknown>; status?: SchoolStatus };
+export type UpdateSchoolAdministratorInput = { username?: string; displayName?: string; email?: string; password?: string };
+export type UpdateSchoolInput = { name?: string; profile?: Record<string, unknown>; status?: SchoolStatus; administrator?: UpdateSchoolAdministratorInput };
 export type CourseAttachment = {
     title: string;
     url: string;

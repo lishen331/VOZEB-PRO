@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveLogicalBillingModel, resolveLogicalModel, resolveLogicalModelCandidates, resolveVisionModelCandidates } from "./logical-model-router";
+import { releaseChannelReservations, reserveChannelSlot, resetChannelConcurrency } from "./channel-concurrency";
 
 const channel = (id: string, models: string[], enabled = true) => ({ id, name: id, baseUrl: `https://${id}.example.com`, apiKey: "secret", apiFormat: "openai" as const, models, enabled });
 
@@ -144,5 +145,47 @@ describe("resolveLogicalModel", () => {
         };
 
         expect(resolveVisionModelCandidates(settings, "gpt-5.6-sol")).toMatchObject([{ logicalModelId: "gpt-5.6-sol", upstreamModel: "gpt-5.6-sol", channelId: "primary", capabilityProfile: { supportsImageInput: true } }]);
+    });
+});
+
+describe("concurrency-aware candidate ordering", () => {
+    const imageSettings = {
+        systemChannels: [channel("primary", ["img-v1"]), channel("backup", ["img-v1"])],
+        logicalModels: [
+            {
+                id: "painter",
+                name: "Painter",
+                capability: "image" as const,
+                enabled: true,
+                bindings: [
+                    { id: "one", channelId: "primary", upstreamModel: "img-v1", enabled: true, priority: 1, capabilityProfile: { concurrencyLimit: 1 } },
+                    { id: "two", channelId: "backup", upstreamModel: "img-v1", enabled: true, priority: 2, capabilityProfile: { concurrencyLimit: 1 } },
+                ],
+            },
+        ],
+    };
+
+    beforeEach(() => {
+        vi.stubEnv("VOZEB_PRO_DATABASE_PROVIDER", "file");
+        resetChannelConcurrency();
+    });
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("drops a saturated channel so the caller fails over to the next one", async () => {
+        expect(resolveLogicalModelCandidates(imageSettings, "image", "painter").map((item) => item.channelId)).toEqual(["primary", "backup"]);
+        expect(await reserveChannelSlot("image", "primary", "img-v1", "r1", 1)).toBe(true);
+        expect(resolveLogicalModelCandidates(imageSettings, "image", "painter").map((item) => item.channelId)).toEqual(["backup"]);
+    });
+
+    it("keeps the first candidate when every channel is saturated instead of returning none", async () => {
+        await reserveChannelSlot("image", "primary", "img-v1", "r1", 1);
+        await reserveChannelSlot("image", "backup", "img-v1", "r2", 1);
+        expect(resolveLogicalModelCandidates(imageSettings, "image", "painter").map((item) => item.channelId)).toEqual(["primary", "backup"]);
+    });
+
+    it("restores the channel once its in-flight request finishes", async () => {
+        await reserveChannelSlot("image", "primary", "img-v1", "r1", 1);
+        await releaseChannelReservations(["r1"]);
+        expect(resolveLogicalModelCandidates(imageSettings, "image", "painter").map((item) => item.channelId)).toEqual(["primary", "backup"]);
     });
 });

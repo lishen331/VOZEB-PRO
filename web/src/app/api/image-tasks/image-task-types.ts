@@ -57,6 +57,9 @@ export type ImageTaskMediaResult = {
     mimeType?: string;
 };
 export type ImageTaskResult = ImageTaskMediaResult & {
+    // 上游响应头回显的请求 ID（供应商账单通常按它对账），与任务 ID 语义不同、分开保存。
+    // 由 parseChargedImageResponse 从响应头统一捕获，不依赖响应体是否有 task ID。
+    upstreamRequestId?: string;
     results?: ImageTaskMediaResult[];
     pending?: { id: string; mediaBaseUrl: string; pollBaseUrl: string; explicitPollUrl?: string };
     needsReview?: {

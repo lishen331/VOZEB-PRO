@@ -1,4 +1,5 @@
 import { CanvasNodeType, type CanvasNodeData, type Position, type ViewportTransform } from "../types";
+import { expandCanvasContainerDescendants } from "./canvas-container-group";
 
 const HANDLE_CLEARANCE = 32;
 const FORWARD_GAP = HANDLE_CLEARANCE * 2;
@@ -59,7 +60,10 @@ export function expandCanvasDragNodeIds(nodes: CanvasNodeData[], selectedNodeIds
         if (!dragNodeIds.has(node.id)) continue;
         node.metadata?.batchChildIds?.forEach((childId) => dragNodeIds.add(childId));
     }
-    return [...dragNodeIds];
+    // Dragging a 生成组 frame carries its members, transitively for nested frames.
+    // The Set dedupes, so selecting a container together with its own child
+    // still applies the drag delta to that child exactly once.
+    return [...expandCanvasContainerDescendants(nodes, dragNodeIds)];
 }
 
 /**

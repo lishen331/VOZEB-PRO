@@ -18,8 +18,15 @@ describe("reference upload OSS upstream URL", () => {
         const form = new FormData();
         form.append("type", "image");
         form.append("persistent", "true");
-        form.append("file", new File([new Uint8Array([1, 2, 3])], "a.png", { type: "image/png" }));
+        // A2 起上传以字节嗅探为准、不再采信声明的 MIME，夹具必须是能被识别的真图片。
+        // 注意：file-type 只看 8 字节 magic 会返回 undefined，必须带完整 IHDR 块。
+        form.append("file", new File([pngBytes()], "a.png", { type: "image/png" }));
         const response = await POST(new Request("https://app.example/api/reference-assets", { method: "POST", body: form }));
         await expect(response.json()).resolves.toMatchObject({ storage: "object", upstreamUrl: "https://oss.example/a.png" });
     });
 });
+
+// 最小可识别的 1x1 PNG（magic + IHDR 块头）。合成值，不含任何真实业务数据。
+function pngBytes() {
+    return new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137]);
+}

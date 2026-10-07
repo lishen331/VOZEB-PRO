@@ -65,6 +65,11 @@ describe("binding verification isolation", () => {
         expect(() => assertBindingVerificationVideoSpecification({ ...metadata, durationSeconds: 8 }, 1 / 24)).toThrow(BindingVerificationMediaSpecificationError);
         expect(() => assertBindingVerificationVideoSpecification(metadata, Infinity)).toThrow(BindingVerificationMediaSpecificationError);
     });
+    it("validates a multipart-adapted 8s output against its recorded effective duration", () => {
+        const metadata = { mimeType: "video/mp4", width: 864, height: 480, durationSeconds: 8, bytes: 500 };
+        expect(() => assertBindingVerificationVideoSpecification(metadata, 1 / 24, 8)).not.toThrow();
+        expect(() => assertBindingVerificationVideoSpecification(metadata, 1 / 24, 5)).toThrow("实际时长不是 5 秒");
+    });
     it("computes binary evidence from the actual image bytes rather than the source URL", () => {
         const a = bindingReferenceContentDigest("data:image/png;base64,YWJj");
         expect(a).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");

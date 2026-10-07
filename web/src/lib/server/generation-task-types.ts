@@ -65,6 +65,8 @@ export type StoredGenerationTaskRecord = {
     expiresAt: number;
     executionPhase?: GenerationTaskExecutionPhase;
     upstreamTaskId?: string;
+    /** D6: 供应商请求 ID，与 upstreamTaskId 分开。账单按请求 ID 对账用。 */
+    upstreamRequestId?: string;
     channelId?: string;
     provider?: string;
     queryPath?: string;

@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-20。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **420** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-10-06。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **425** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**420**
-- 方法出现次数：DELETE 62、GET 208、HEAD 6、PATCH 57、POST 240、PUT 16
-- 一级域：`admin` 128、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**425**
+- 方法出现次数：DELETE 64、GET 211、HEAD 6、PATCH 61、POST 242、PUT 16
+- 一级域：`admin` 133、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（128）
+### `admin`（133）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -57,7 +57,7 @@
 | GET, POST | `/api/admin/billing/reconciliation` | 管理员 | [route.ts](web/src/app/api/admin/billing/reconciliation/route.ts) | [payment-reconciliation-service](web/src/lib/server/payment-reconciliation-service.ts)<br>[billing-errors](web/src/lib/server/billing-errors.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 对账：查询、提交/执行 |
 | GET | `/api/admin/billing/summary` | 管理员 | [route.ts](web/src/app/api/admin/billing/summary/route.ts) | [billing-service](web/src/lib/server/billing-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 汇总：查询 |
 | POST | `/api/admin/binding-verifications` | 管理员 | [route.ts](web/src/app/api/admin/binding-verifications/route.ts) | [binding-verification-runner](web/src/lib/server/binding-verification-runner.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / binding-verifications：提交/执行 |
-| GET | `/api/admin/binding-verifications/[id]` | 管理员 | [route.ts](web/src/app/api/admin/binding-verifications/[id]/route.ts) | [binding-verification-store](web/src/lib/server/binding-verification-store.ts)<br>[binding-verification-runner](web/src/lib/server/binding-verification-runner.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / binding-verifications / 单项：查询 |
+| GET, PATCH | `/api/admin/binding-verifications/[id]` | 管理员 | [route.ts](web/src/app/api/admin/binding-verifications/[id]/route.ts) | [binding-verification-store](web/src/lib/server/binding-verification-store.ts)<br>[binding-verification-runner](web/src/lib/server/binding-verification-runner.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / binding-verifications / 单项：查询、更新 |
 | GET | `/api/admin/binding-verifications/fixtures/[index]` | 管理员 | [route.ts](web/src/app/api/admin/binding-verifications/fixtures/[index]/route.ts) | [binding-verification-fixtures](web/src/lib/server/binding-verification-fixtures.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / binding-verifications / fixtures / [index]：查询 |
 | DELETE, GET, POST | `/api/admin/cdk` | 管理员 | [route.ts](web/src/app/api/admin/cdk/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 兑换码：查询、删除、提交/执行 |
 | DELETE, PATCH | `/api/admin/cdk/[id]` | 管理员 | [route.ts](web/src/app/api/admin/cdk/[id]/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 兑换码 / 单项：更新、删除 |
@@ -122,6 +122,11 @@
 | GET | `/api/admin/practice-script/overview` | 管理员 | [route.ts](web/src/app/api/admin/practice-script/overview/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-repository](web/src/lib/server/database/script-agent-repository.ts)<br>[script-agent-skills](web/src/lib/server/script-agent-skills.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-script / 概览：查询 |
 | GET, POST | `/api/admin/prompts` | 管理员 | [route.ts](web/src/app/api/admin/prompts/route.ts) | [store](web/src/lib/auth/store.ts)<br>[store](web/src/lib/prompts/store.ts) | PostgreSQL、公开内容/站点设置 | 管理后台 / 提示词：查询、提交/执行 |
 | DELETE, PATCH | `/api/admin/prompts/[id]` | 管理员 | [route.ts](web/src/app/api/admin/prompts/[id]/route.ts) | [store](web/src/lib/auth/store.ts)<br>[store](web/src/lib/prompts/store.ts) | PostgreSQL、公开内容/站点设置 | 管理后台 / 提示词 / 单项：更新、删除 |
+| GET, POST | `/api/admin/rbac/administrators` | 管理员 | [route.ts](web/src/app/api/admin/rbac/administrators/route.ts) | [platform-rbac-service](web/src/lib/server/platform-rbac-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / rbac / administrators：查询、提交/执行 |
+| DELETE, PATCH | `/api/admin/rbac/administrators/[id]` | 管理员 | [route.ts](web/src/app/api/admin/rbac/administrators/[id]/route.ts) | [platform-rbac-service](web/src/lib/server/platform-rbac-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / rbac / administrators / 单项：更新、删除 |
+| GET, POST | `/api/admin/rbac/roles` | 管理员 | [route.ts](web/src/app/api/admin/rbac/roles/route.ts) | [platform-rbac-service](web/src/lib/server/platform-rbac-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / rbac / roles：查询、提交/执行 |
+| DELETE, PATCH | `/api/admin/rbac/roles/[key]` | 管理员 | [route.ts](web/src/app/api/admin/rbac/roles/[key]/route.ts) | [platform-rbac-service](web/src/lib/server/platform-rbac-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / rbac / roles / [key]：更新、删除 |
+| GET, PATCH | `/api/admin/rbac/user-navigation-permissions` | 管理员 | [route.ts](web/src/app/api/admin/rbac/user-navigation-permissions/route.ts) | [platform-rbac-service](web/src/lib/server/platform-rbac-service.ts)<br>[store](web/src/lib/auth/store.ts)<br>[feature-modules](web/src/lib/feature-modules.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / rbac / user-navigation-permissions：查询、更新 |
 | GET, PATCH | `/api/admin/referrals` | 管理员 | [route.ts](web/src/app/api/admin/referrals/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利：查询、更新 |
 | GET | `/api/admin/referrals/relationships` | 管理员 | [route.ts](web/src/app/api/admin/referrals/relationships/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 邀请关系：查询 |
 | PATCH | `/api/admin/referrals/relationships/[id]` | 管理员 | [route.ts](web/src/app/api/admin/referrals/relationships/[id]/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 邀请关系 / 单项：更新 |
@@ -149,7 +154,7 @@
 | POST | `/api/admin/settings/channels/[id]/api-key` | 管理员 | [route.ts](web/src/app/api/admin/settings/channels/[id]/api-key/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置 / 模型渠道 / 单项 / API Key：提交/执行 |
 | GET | `/api/admin/settings/events` | 管理员 | [route.ts](web/src/app/api/admin/settings/events/route.ts) | [settings-events](web/src/lib/server/settings-events.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置 / 事件：查询 |
 | GET, POST | `/api/admin/users` | 管理员 | [route.ts](web/src/app/api/admin/users/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 用户：查询、提交/执行 |
-| DELETE, PATCH | `/api/admin/users/[id]` | 管理员 | [route.ts](web/src/app/api/admin/users/[id]/route.ts) | [admin-user-deletion-service](web/src/lib/server/admin-user-deletion-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 用户 / 单项：更新、删除 |
+| DELETE, PATCH | `/api/admin/users/[id]` | 管理员 | [route.ts](web/src/app/api/admin/users/[id]/route.ts) | [admin-user-deletion-service](web/src/lib/server/admin-user-deletion-service.ts)<br>[school-access-service](web/src/lib/server/school-access-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 用户 / 单项：更新、删除 |
 | GET | `/api/admin/work-cases` | 管理员 | [route.ts](web/src/app/api/admin/work-cases/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 作品治理案件：查询 |
 | POST | `/api/admin/work-cases/[id]/resolve` | 管理员 | [route.ts](web/src/app/api/admin/work-cases/[id]/resolve/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 作品治理案件 / 单项 / 处理：提交/执行 |
 | GET, POST | `/api/admin/works` | 管理员 | [route.ts](web/src/app/api/admin/works/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品：查询、提交/执行 |
@@ -568,7 +573,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| POST | `/api/reference-assets` | 混合 | [route.ts](web/src/app/api/reference-assets/route.ts) | [reference-asset-store](web/src/lib/server/reference-asset-store.ts)<br>[reference-asset-access](web/src/lib/server/reference-asset-access.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材：提交/执行 |
+| POST | `/api/reference-assets` | 混合 | [route.ts](web/src/app/api/reference-assets/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[reference-asset-store](web/src/lib/server/reference-asset-store.ts)<br>[local-media-registry](web/src/lib/server/local-media-registry.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材：提交/执行 |
 | GET, HEAD | `/api/reference-assets/[...path]` | 混合 | [route.ts](web/src/app/api/reference-assets/[...path]/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[library-asset-store](web/src/lib/server/library-asset-store.ts)<br>[object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材 / 指定路径：查询、读取元数据 |
 
 ### `referrals`（1）

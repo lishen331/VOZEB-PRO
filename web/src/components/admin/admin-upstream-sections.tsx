@@ -339,8 +339,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
     const { settings, settingsLoading, activeSection, saveSettings } = controller;
     if (activeSection !== "plugins") return null;
 
-    const toggle = (id: FeatureModuleId, enabled: boolean) =>
-        saveSettings((current) => ({ featureModules: { ...current.featureModules, [id]: enabled } }), `${FEATURE_MODULES.find((item) => item.id === id)?.name || "插件"}${enabled ? "已启用" : "已停用"}`);
+    const toggle = (id: FeatureModuleId, enabled: boolean) => saveSettings((current) => ({ featureModules: { ...current.featureModules, [id]: enabled } }), "插件状态已更新");
 
     return (
         <Panel>

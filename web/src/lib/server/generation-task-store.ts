@@ -1,4 +1,5 @@
 import { recordMediaTaskEvent } from "./media-task-trace";
+import { releaseTerminalTaskReservations } from "./channel-concurrency";
 import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { resolveGenerationReviewReason } from "@/lib/server/generation-task-review-reason";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
@@ -677,6 +678,7 @@ export async function transitionStoredGenerationTask<T extends { id: string; use
     executionPatch?: import("@/lib/server/generation-task-scheduler").GenerationTaskSchedulePatch,
 ): Promise<T | null> {
     const result = await transitionStoredGenerationTaskObserved(type, id, userId, allowedStatuses, patch, ttlMs, executionPatch);
+    await releaseTerminalTaskReservations(result);
     if (result && (type === "image" || type === "video")) await recordMediaTaskEvent(type, result, { phase: "state", state: result.status, errorMessage: "error" in patch ? patch.error : undefined });
     return result;
 }
@@ -757,6 +759,12 @@ async function transitionStoredGenerationTaskObserved<T extends { id: string; us
 }
 
 export async function mutateStoredGenerationTask<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(type: GenerationTaskType, id: string, ttlMs: number, mutate: (current: T) => T | null): Promise<T | null> {
+    const result = await mutateStoredGenerationTaskUnreleased<T>(type, id, ttlMs, mutate);
+    await releaseTerminalTaskReservations(result);
+    return result;
+}
+
+async function mutateStoredGenerationTaskUnreleased<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(type: GenerationTaskType, id: string, ttlMs: number, mutate: (current: T) => T | null): Promise<T | null> {
     const updatedAt = Date.now();
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
@@ -1245,6 +1253,8 @@ function preserveTaskExecution(previous?: StoredGenerationTaskRecord) {
     return {
         executionPhase: previous.executionPhase,
         upstreamTaskId: previous.upstreamTaskId,
+        // D6 易漏点：不保留会在 upsert 时被冲掉。
+        upstreamRequestId: previous.upstreamRequestId,
         channelId: previous.channelId,
         provider: previous.provider,
         queryPath: previous.queryPath,
@@ -1343,6 +1353,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         taskOrigin: row.task_origin === "admin-workflow-test" || payload.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
         executionPhase,
         upstreamTaskId: cleanUpstreamTaskId(String(row.upstream_task_id || "")),
+        upstreamRequestId: cleanUpstreamTaskId(String(row.upstream_request_id || "")),
         channelId: cleanContextText(String(row.channel_id || "")),
         provider: cleanContextText(String(row.provider || "")),
         queryPath: typeof row.query_path === "string" ? row.query_path.trim().slice(0, 1_000) || undefined : undefined,

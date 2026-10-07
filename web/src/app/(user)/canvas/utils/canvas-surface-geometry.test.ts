@@ -97,6 +97,14 @@ describe("canvas surface geometry", () => {
         expect(selectNodesInBounds([source, target], { x: 450, y: 180 }, { x: 820, y: 440 }, [source.id])).toEqual(new Set([source.id, target.id]));
     });
 
+    it("moves 生成组 members with the frame, without double-listing a co-selected child", () => {
+        const frame: CanvasNodeData = { id: "frame", type: CanvasNodeType.Container, title: "生成组", position: { x: 0, y: 0 }, width: 600, height: 600, metadata: {} };
+        const child: CanvasNodeData = { ...target, id: "child", metadata: { containerId: "frame" } };
+
+        expect(expandCanvasDragNodeIds([frame, child], ["frame"])).toEqual(["frame", "child"]);
+        expect(expandCanvasDragNodeIds([frame, child], ["frame", "child"])).toEqual(["frame", "child"]);
+    });
+
     it("moves hidden image-batch children with the selected root", () => {
         const root = { ...source, metadata: { batchChildIds: ["child-a", "child-b"] } };
         expect(expandCanvasDragNodeIds([root, target], [root.id, target.id])).toEqual([root.id, target.id, "child-a", "child-b"]);

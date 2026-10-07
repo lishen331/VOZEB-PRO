@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
+import { BoxSelect, BriefcaseBusiness, ChevronRight, CircleCheck, CircleX, Clock3, Globe2, Image as ImageIcon, Layers, ListChecks, Maximize2, Minimize2, Music2, Palette, RefreshCw, Star, Video } from "lucide-react";
 import { Button, Modal } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -12,12 +12,13 @@ import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
 import { CanvasNodeType, type CanvasGroupMemberSnapshot, type CanvasNodeData } from "../types";
+import { CANVAS_CONTAINER } from "../constants";
 import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
 import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-group";
 import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
-export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top" | "bottom" | "left" | "right";
 export type NodeContentRendererProps = {
     node: CanvasNodeData;
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -33,6 +34,7 @@ export type NodeContentRendererProps = {
     batchRecovering: boolean;
     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
     onContentChange: (nodeId: string, content: string) => void;
+    onContainerLabelChange?: (nodeId: string, label: string) => void;
     onStopEditing: () => void;
     mentionReferences: CanvasResourceReference[];
     onRetry?: (node: CanvasNodeData) => void;
@@ -48,6 +50,9 @@ export function NodeContent(props: NodeContentRendererProps) {
     // A group is a container, not a generation target — it must never fall into
     // the status branches below even if a stray status lands on its metadata.
     if (props.node.type === CanvasNodeType.Group) return <GroupNodeContent {...props} />;
+    // A container is a frame, not a generation target — a stray status must never
+    // paint a spinner or error card over it.
+    if (props.node.type === CanvasNodeType.Container) return <ContainerNodeContent {...props} />;
     if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
     if (props.node.metadata?.status === "needs_review") return <ReviewContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
@@ -68,6 +73,7 @@ export const nodeContentRenderers = {
     [CanvasNodeType.Task]: TaskNodeContent,
     [CanvasNodeType.BrandKit]: BrandKitNodeContent,
     [CanvasNodeType.Group]: GroupNodeContent,
+    [CanvasNodeType.Container]: ContainerNodeContent,
 } satisfies Record<CanvasNodeType, (props: NodeContentRendererProps) => ReactNode>;
 
 export function BriefNodeContent({ node, theme }: NodeContentRendererProps) {
@@ -170,6 +176,73 @@ export function BrandKitNodeContent({ node, theme }: NodeContentRendererProps) {
                     避免：{kit.avoid.join("；")}
                 </p>
             ) : null}
+        </div>
+    );
+}
+
+/**
+ * 生成组 frame. Deliberately hollow: members are real nodes painted on top, so the
+ * body must not draw over them and must not swallow their clicks. Only the header
+ * strip is interactive (drag + double-click rename); the body is pointer-transparent.
+ */
+export function ContainerNodeContent({ node, theme, onContainerLabelChange }: NodeContentRendererProps) {
+    const childCount = node.metadata?.containerChildIds?.length || 0;
+    const label = node.metadata?.containerLabel || node.title || "生成组";
+    const [renaming, setRenaming] = useState(false);
+    const [draft, setDraft] = useState(label);
+
+    const commitRename = () => {
+        setRenaming(false);
+        if (draft.trim() !== label) onContainerLabelChange?.(node.id, draft);
+    };
+
+    return (
+        <div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-3xl" style={{ background: "transparent", color: theme.node.text }}>
+            <div
+                className="pointer-events-auto flex shrink-0 items-center gap-2 rounded-t-3xl px-4"
+                style={{ height: CANVAS_CONTAINER.headerHeight, background: theme.node.fill, borderBottom: `1px solid ${theme.node.stroke}` }}
+                data-canvas-container-header
+            >
+                <BoxSelect className="size-3.5 shrink-0" style={{ color: theme.node.activeStroke }} />
+                {renaming ? (
+                    <input
+                        autoFocus
+                        // data-canvas-no-drag keeps the surface from treating typing as a drag.
+                        data-canvas-no-drag
+                        value={draft}
+                        aria-label="生成组名称"
+                        className="min-w-0 flex-1 bg-transparent text-xs font-semibold outline-none"
+                        style={{ color: theme.node.text }}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(event) => {
+                            event.stopPropagation();
+                            if (event.key === "Enter") commitRename();
+                            if (event.key === "Escape") {
+                                setDraft(label);
+                                setRenaming(false);
+                            }
+                        }}
+                        onPointerDown={(event) => event.stopPropagation()}
+                    />
+                ) : (
+                    <span
+                        className="min-w-0 flex-1 cursor-text truncate text-xs font-semibold"
+                        title="双击重命名"
+                        onDoubleClick={(event) => {
+                            event.stopPropagation();
+                            setDraft(label);
+                            setRenaming(true);
+                        }}
+                    >
+                        {label}
+                    </span>
+                )}
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: theme.node.subtleSurface, color: theme.node.subtleText }}>
+                    {childCount} 个节点
+                </span>
+            </div>
+            <div className="min-h-0 flex-1" />
         </div>
     );
 }
@@ -782,6 +855,12 @@ export function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; on
         "top-right": "-right-[14px] -top-[14px] cursor-nesw-resize",
         "bottom-left": "-bottom-[14px] -left-[14px] cursor-nesw-resize",
         "bottom-right": "-bottom-[14px] -right-[14px] cursor-nwse-resize",
+        // Edge midpoints. Only 生成组 frames render these; every other node keeps
+        // its 4 corners so a busy canvas does not sprout 8 handles per card.
+        top: "left-1/2 -top-[14px] -translate-x-1/2 cursor-ns-resize",
+        bottom: "left-1/2 -bottom-[14px] -translate-x-1/2 cursor-ns-resize",
+        left: "top-1/2 -left-[14px] -translate-y-1/2 cursor-ew-resize",
+        right: "top-1/2 -right-[14px] -translate-y-1/2 cursor-ew-resize",
     }[corner];
 
     return <div data-canvas-resize-corner={corner} className={`absolute z-50 size-7 ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;

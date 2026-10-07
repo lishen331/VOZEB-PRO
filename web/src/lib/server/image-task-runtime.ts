@@ -8,7 +8,8 @@ import { getAuthSettings } from "@/lib/auth/store";
 import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
-import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
+import { CHANNEL_SATURATED_MESSAGE } from "@/lib/server/channel-concurrency";
+import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { generationModelId } from "@/lib/server/generation-channel";
 import { refundImageTask } from "@/lib/server/image-task-refund";
 import { deletePreparedImageTaskResults, persistedImageTaskResults, prepareImageTaskResults } from "@/lib/server/image-task-result-service";
@@ -27,6 +28,22 @@ export type ImageUpstreamStep =
     | { state: "completed" }
     | { state: "failed"; error: string; status: string; retryReason?: "upstream_failed" };
 
+async function reserveFirstAvailableImageCandidate(task: ImageTask, reservationId: string) {
+    const candidates = [task.config, ...(task.candidateConfigs || [])];
+    for (let index = 0; index < candidates.length; index += 1) {
+        const config = candidates[index];
+        const reserved = await reserveGenerationAttemptSlot({
+            capability: "image",
+            channelId: config.channelId,
+            upstreamModel: config.model,
+            reservationId,
+            concurrencyLimit: config.capabilityProfile?.concurrencyLimit,
+        });
+        if (reserved) return { config, remaining: candidates.slice(index + 1) };
+    }
+    return null;
+}
+
 export async function createImageTaskUpstreamStep(task: ImageTask, origin: string, publicOrigin: string, cookie = "", workerUserId = ""): Promise<ImageUpstreamStep> {
     const current = await getImageTask(task.id);
     if (!current || current.status === "cancelled") return { state: "failed", error: "任务已取消", status: "cancelled" };
@@ -37,23 +54,32 @@ export async function createImageTaskUpstreamStep(task: ImageTask, origin: strin
     if (running.upstream?.id) return queryImageTaskUpstreamStep(running, origin, cookie, workerUserId);
 
     const authContext = cookie || maintenanceWorkerContext(workerUserId || task.userId);
-    const config = running.config;
     let attempts = running.attempts || [];
-    const started = startGenerationAttempt(attempts, { channelId: config.channelId, model: generationModelId(config), capability: "image" });
+    const reservationId = generationReservationId("image", task.id, nextGenerationAttemptNo(attempts));
+    const reservation = await reserveFirstAvailableImageCandidate(running, reservationId);
+    if (!reservation) return { state: "failed", error: CHANNEL_SATURATED_MESSAGE, status: "channel_saturated" };
+    const config = reservation.config;
+    const candidateConfigs = reservation.remaining;
+    const started = startGenerationAttempt(attempts, { channelId: config.channelId, model: generationModelId(config), capability: "image", reservationId });
     attempts = started.attempts;
     const candidate = { ...running, config, attempts, attemptNo: started.attempt.attemptNo, upstream: undefined, billing: undefined };
     const upstreamPrompt = candidate.source === "canvas" ? `${buildImageTaskPrompt(candidate)}${candidate.mask ? "\n\n最后一张图片是编辑蒙版：透明区域需要重新生成，白色不透明区域必须保持原图。只补全透明区域，不要把蒙版当作画面内容。" : ""}` : undefined;
     if (upstreamPrompt) candidate.upstreamPrompt = upstreamPrompt;
-    await updateImageTask(task.id, { config, attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined, ...(upstreamPrompt ? { upstreamPrompt } : {}) });
-    const submissionStartedAt = Date.now();
-    await scheduleGenerationTask("image", task.id, {
-        executionPhase: "submitting",
-        submittedAt: submissionStartedAt,
-        nextPollAt: submissionStartedAt + resolveModelRequestTimeoutMs(config, "image"),
-        channelId: config.channelId,
-        provider: config.advancedConfig?.protocol || config.apiFormat,
-        lastUpstreamStatus: "submitting",
-    });
+    try {
+        await updateImageTask(task.id, { config, candidateConfigs, attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined, ...(upstreamPrompt ? { upstreamPrompt } : {}) });
+        const submissionStartedAt = Date.now();
+        await scheduleGenerationTask("image", task.id, {
+            executionPhase: "submitting",
+            submittedAt: submissionStartedAt,
+            nextPollAt: submissionStartedAt + resolveModelRequestTimeoutMs(config, "image"),
+            channelId: config.channelId,
+            provider: config.advancedConfig?.protocol || config.apiFormat,
+            lastUpstreamStatus: "submitting",
+        });
+    } catch (error) {
+        await releaseGenerationReservations([reservationId]);
+        throw error;
+    }
     try {
         const result = usesDeclarativeImageProtocol(config.advancedConfig?.protocol)
             ? await runCustomImageTask(candidate, origin, publicOrigin, authContext, true)
@@ -63,7 +89,22 @@ export async function createImageTaskUpstreamStep(task: ImageTask, origin: strin
         return await handleImageProviderResult(candidate, result, origin, authContext);
     } catch (error) {
         if (error instanceof ImageUpstreamTerminalError) return { state: "failed", error: error.message || "图片生成失败", status: "failed", retryReason: "upstream_failed" };
-        if (!(error instanceof GenerationSubmissionSafeFailure)) throw generationSubmissionUncertainError(error, "图片任务创建结果未知");
+        if (!(error instanceof GenerationSubmissionSafeFailure)) {
+            const uncertain = generationSubmissionUncertainError(error, "图片任务创建结果未知");
+            // D6 5.3: 提交结果未知（多为本地超时中止）。不退款——上游可能已接单计费。
+            // best-effort 把相位落到 needs_review 待人工对账，而不是永久停在 submitting；
+            // 上游未返回 ID 时绝不编造。channelId/provider/submittedAt 已在 submitting
+            // 写入时持久化，clientRequestId/attemptNo 在建任务时落库，共同构成对账句柄。
+            // worker 路径（recovery-service）通常会随后覆盖同一相位；此处兜住不经 worker
+            // 的调用方（如 binding-verification-runner）。见实施文档步骤 4。
+            await scheduleGenerationTask("image", task.id, {
+                executionPhase: "needs_review",
+                nextPollAt: undefined,
+                lastUpstreamStatus: "submission_result_unknown",
+                resultPayload: { reviewReason: uncertain.message.slice(0, 500) },
+            }).catch(() => undefined);
+            throw uncertain;
+        }
         attempts = finishGenerationAttempt(attempts, candidate.attemptNo, { status: "failed", error: error.message });
         await refundImageCandidate(candidate);
         await updateImageTask(task.id, { attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined });
@@ -76,6 +117,7 @@ export async function queryImageTaskUpstreamStep(task: ImageTask, origin: string
     if (prepared.length) return readyImageStep(task, prepared[0].serverUrl || prepared[0].dataUrl);
     const upstream = task.upstream;
     if (!upstream?.id) return { state: "failed", error: "图片任务缺少上游任务 ID", status: "missing_upstream_id" };
+    await renewGenerationReservations(task.attempts);
     const authContext = cookie || maintenanceWorkerContext(workerUserId || task.userId);
     try {
         const result = usesDeclarativeImageProtocol(task.config.advancedConfig?.protocol)
@@ -188,6 +230,7 @@ async function handleImageProviderResult(task: ImageTask, result: ImageTaskRunRe
         await scheduleGenerationTask("image", task.id, {
             executionPhase: "needs_review",
             upstreamTaskId: result.needsReview.upstream.id,
+            upstreamRequestId: result.upstreamRequestId,
             channelId: task.config.channelId,
             provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
             queryPath: result.needsReview.upstream.explicitPollUrl || task.config.advancedConfig?.queryPath,
@@ -204,6 +247,7 @@ async function handleImageProviderResult(task: ImageTask, result: ImageTaskRunRe
         await scheduleGenerationTask("image", task.id, {
             executionPhase: "submitted",
             upstreamTaskId: result.pending.id,
+            upstreamRequestId: result.upstreamRequestId,
             channelId: task.config.channelId,
             provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
             queryPath: result.pending.explicitPollUrl || task.config.advancedConfig?.queryPath,
@@ -232,19 +276,20 @@ async function handleImageProviderResult(task: ImageTask, result: ImageTaskRunRe
         await deletePreparedImageTaskResults(results);
         return { state: "failed", error: error instanceof Error ? error.message : "上游返回的图片文件无效或保存失败", status: "failed" };
     }
-    return readyImageStep(task, first.serverUrl || first.dataUrl);
+    return readyImageStep(task, first.serverUrl || first.dataUrl, result.upstreamRequestId);
 }
 
-async function readyImageStep(task: ImageTask, resultUrl: string): Promise<ImageUpstreamStep> {
+async function readyImageStep(task: ImageTask, resultUrl: string, upstreamRequestId?: string): Promise<ImageUpstreamStep> {
     if (!stableMediaUrl(resultUrl)) return { state: "failed", error: "上游返回的图片文件无效或保存失败", status: "failed" };
-    await persistReadyImageSchedule(task, resultUrl);
+    await persistReadyImageSchedule(task, resultUrl, upstreamRequestId);
     return { state: "result_ready", resultUrl, status: "completed" };
 }
 
-function persistReadyImageSchedule(task: ImageTask, resultUrl: string) {
+function persistReadyImageSchedule(task: ImageTask, resultUrl: string, upstreamRequestId?: string) {
     const submittedAt = Date.now();
     return scheduleGenerationTask("image", task.id, {
         executionPhase: "result_ready",
+        upstreamRequestId,
         channelId: task.config.channelId,
         provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
         submittedAt,

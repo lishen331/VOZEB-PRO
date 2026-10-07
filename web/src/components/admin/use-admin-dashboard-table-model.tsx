@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 
 import { AdminAccountId, AdminUserIdentity } from "@/components/admin/admin-user-identity";
 import { formatCreditAmount } from "@/constant/credits";
-import type { AuthSettings, PublicCdkCode, PublicUser, PublicUserSummary, UserRole, UserStatus } from "@/lib/auth/store";
+import type { AuthSettings, PublicCdkCode, PublicUser, PublicUserSummary, UserStatus } from "@/lib/auth/store";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import type { AdminSetupSummary } from "@/lib/server/admin-setup-status";
 import type { StoredGenerationLog } from "@/lib/server/generation-log-store";
@@ -42,7 +42,7 @@ export const PROMPT_SEARCH_DEBOUNCE_MS = 300;
 export const CDK_PAGE_SIZE = 20;
 export const GENERATION_LOG_PAGE_SIZE = 20;
 
-import { ADMIN_PERMISSION_PRESETS, adminPermissionSummary, hasAdminPermission, hasAllAdminPermissions, normalizeAdminPermissions } from "@/lib/admin-permissions";
+import { hasAdminPermission } from "@/lib/admin-permissions";
 import type { AdminDashboardDataActions } from "./use-admin-dashboard-data-actions";
 import type { AdminDashboardSettingsActions } from "./use-admin-dashboard-settings-actions";
 import type { AdminDashboardState, UserEditorValue } from "./use-admin-dashboard-state";
@@ -52,11 +52,9 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
     const { updateUser, createUser, deleteUser, deletePrompt, deleteGenerationLogsByIds, deleteCdkById, copyCdkPlainCode } = data;
     const {} = settingsActions;
     const canManageUsers = hasAdminPermission(currentUser, "users.manage");
-    const canManageAdministrators = hasAdminPermission(currentUser, "administrators.manage");
     const canManageBilling = hasAdminPermission(currentUser, "billing.manage");
-    const canManageAdministratorRecord = (user: PublicUser) => canManageAdministrators && hasAllAdminPermissions(currentUser, user.adminPermissions);
-    const canEditUserRecord = (user: PublicUser) => canManageBilling || (user.role === "admin" ? canManageAdministratorRecord(user) : canManageUsers || canManageAdministrators);
-    const canDeleteUserRecord = (user: PublicUser) => user.id !== currentUser.id && (user.role === "admin" ? canManageAdministratorRecord(user) : canManageUsers);
+    const canEditUserRecord = (_user: PublicUser) => canManageUsers;
+    const canDeleteUserRecord = (user: PublicUser) => user.id !== currentUser.id && !user.schoolName && canManageUsers;
 
     const openUserEditor = (user: PublicUser) => {
         setCreatingUser(false);
@@ -66,9 +64,6 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             displayName: user.displayName,
             email: user.email || "",
             password: "",
-            role: user.role,
-            adminPermissions: user.adminPermissions,
-            permissionPreset: ADMIN_PERMISSION_PRESETS.find((preset) => normalizeAdminPermissions(preset.permissions).join() === normalizeAdminPermissions(user.adminPermissions).join())?.key,
             status: user.status,
             pointsBalance: user.permanentPointsBalance,
         });
@@ -77,16 +72,11 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
     const openCreateUserEditor = () => {
         setEditingUser(null);
         setCreatingUser(true);
-        const role = canManageUsers ? "user" : "admin";
-        const adminPermissions = role === "admin" ? normalizeAdminPermissions(currentUser.adminPermissions) : [];
         userForm.setFieldsValue({
             username: "",
             displayName: "",
             email: "",
             password: "",
-            role,
-            adminPermissions,
-            permissionPreset: ADMIN_PERMISSION_PRESETS.find((preset) => normalizeAdminPermissions(preset.permissions).join() === adminPermissions.join())?.key,
             status: "active",
             pointsBalance: 0,
         });
@@ -105,17 +95,13 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             return;
         }
         if (!editingUser) return;
-        const touchesAdministrator = editingUser.role === "admin" || value.role === "admin";
-        const targetWithinScope = editingUser.role !== "admin" || hasAllAdminPermissions(currentUser, editingUser.adminPermissions);
-        const canEditAccount = touchesAdministrator ? canManageAdministrators && targetWithinScope : canManageUsers;
+        const canEditAccount = canManageUsers;
         const user = await updateUser(editingUser.id, {
             ...(canEditAccount
                 ? {
                       displayName: value.displayName,
                       email: value.email || "",
                       password: value.password || undefined,
-                      role: value.role,
-                      adminPermissions: value.role === "admin" ? value.adminPermissions : [],
                       status: value.status,
                   }
                 : {}),
@@ -137,9 +123,8 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
                         <span className="truncate text-xs text-zinc-400">{record.email || "未绑定邮箱"}</span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1 sm:hidden">
-                        <Tag color={record.role === "admin" ? "blue" : "default"}>{record.role === "admin" ? "管理员" : "普通用户"}</Tag>
                         <Tag color={record.status === "active" ? "green" : "red"}>{record.status === "active" ? "可用" : "已禁用"}</Tag>
-                        {record.role === "admin" ? <span className="self-center text-xs text-stone-500 dark:text-stone-400">{adminPermissionSummary(record.adminPermissions)}</span> : null}
+                        {record.schoolName ? <span className="self-center text-xs text-stone-500 dark:text-stone-400">{record.schoolName}</span> : null}
                     </div>
                     <div className="mt-2 space-y-1 text-xs text-stone-500 sm:hidden dark:text-stone-400">
                         <div>
@@ -167,16 +152,11 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             render: (email?: string) => <span className="block truncate text-sm text-zinc-600 dark:text-zinc-300">{email || "未绑定邮箱"}</span>,
         },
         {
-            title: "角色",
-            dataIndex: "role",
-            width: 170,
+            title: "所属学校",
+            dataIndex: "schoolName",
+            width: 180,
             responsive: ["sm"],
-            render: (role: UserRole, record) => (
-                <div>
-                    <Tag color={role === "admin" ? "blue" : "default"}>{role === "admin" ? "管理员" : "普通用户"}</Tag>
-                    {role === "admin" ? <div className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">{adminPermissionSummary(record.adminPermissions)}</div> : null}
-                </div>
-            ),
+            render: (schoolName?: string) => <span className="block truncate text-sm text-zinc-600 dark:text-zinc-300">{schoolName || "---"}</span>,
         },
         {
             title: "状态",

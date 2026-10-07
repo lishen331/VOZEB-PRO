@@ -5,7 +5,8 @@ import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { fetchInternalApi, isInternalApiBaseUrl } from "@/lib/server/internal-origin";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { generationModelId } from "@/lib/server/generation-channel";
-import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
+import { CHANNEL_SATURATED_MESSAGE } from "@/lib/server/channel-concurrency";
+import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { getTextTask, transitionTextTask, type TextTask, type TextTaskConfig } from "@/lib/server/text-task-store";
 import { updateTextTask } from "@/lib/server/text-task-store";
 import type { AiTextMessage } from "@/types/ai";
@@ -79,18 +80,35 @@ export async function runTextTaskStep(task: TextTask, origin: string, cookie: st
     let attempts = running.attempts || [];
     let latestError: unknown;
     for (const [index, config] of candidates.entries()) {
-        const started = startGenerationAttempt(attempts, { channelId: config.channelId, model: generationModelId(config), capability: "text" });
+        const reservationId = generationReservationId("text", task.id, nextGenerationAttemptNo(attempts));
+        const reserved = await reserveGenerationAttemptSlot({
+            capability: "text",
+            channelId: config.channelId,
+            upstreamModel: config.model,
+            reservationId,
+            concurrencyLimit: config.capabilityProfile?.concurrencyLimit,
+        });
+        if (!reserved) {
+            latestError = new Error(CHANNEL_SATURATED_MESSAGE);
+            continue;
+        }
+        const started = startGenerationAttempt(attempts, { channelId: config.channelId, model: generationModelId(config), capability: "text", reservationId });
         attempts = started.attempts;
         const candidateTask = { ...running, config, candidateConfigs: candidates.slice(index + 1), attemptNo: started.attempt.attemptNo, attempts };
-        await updateTextTask(task.id, { config, candidateConfigs: candidateTask.candidateConfigs, attemptNo: candidateTask.attemptNo, attempts });
-        await scheduleGenerationTask("text", task.id, {
-            executionPhase: "submitting",
-            channelId: config.channelId,
-            provider: config.advancedConfig?.protocol || config.apiFormat,
-            queryPath: config.advancedConfig?.queryPath,
-            nextPollAt: Date.now(),
-            lastUpstreamStatus: "submitting",
-        });
+        try {
+            await updateTextTask(task.id, { config, candidateConfigs: candidateTask.candidateConfigs, attemptNo: candidateTask.attemptNo, attempts });
+            await scheduleGenerationTask("text", task.id, {
+                executionPhase: "submitting",
+                channelId: config.channelId,
+                provider: config.advancedConfig?.protocol || config.apiFormat,
+                queryPath: config.advancedConfig?.queryPath,
+                nextPollAt: Date.now(),
+                lastUpstreamStatus: "submitting",
+            });
+        } catch (error) {
+            await releaseGenerationReservations([reservationId]);
+            throw error;
+        }
         try {
             const protocol = resolveTextProtocol({ model: config.model, apiFormat: config.apiFormat, advancedConfig: config.advancedConfig, throughSystemProxy: config.baseUrl.startsWith("/") });
             const result = await runResolvedTextTask(candidateTask, origin, cookie, protocol);
@@ -200,6 +218,7 @@ async function queryCustomTextTaskStep(task: TextTask, origin: string, cookie: s
     const config = task.config;
     const upstream = task.upstream;
     if (!upstream?.id) return { state: "needs_review", error: "文本任务缺少上游任务 ID" };
+    await renewGenerationReservations(task.attempts);
     let lastError = "";
     for (const path of providerQueryPaths(config.advancedConfig, upstream.id, [])) {
         const workflow = workflowConfigForTask(task);

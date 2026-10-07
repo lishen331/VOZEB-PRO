@@ -67,6 +67,8 @@ const loadSchoolComputeSection = () => import("@/app/admin/school-compute/compon
 const loadCoursesSection = () => import("@/app/admin/courses/components/admin-courses-section").then((module) => module.AdminCoursesSection);
 const loadCommercialOrdersSection = () => import("@/app/admin/commercial-orders/components/admin-commercial-orders-section").then((module) => module.AdminCommercialOrdersSection);
 const loadRoleOverviewSection = () => import("@/app/admin/role-overview/components/admin-role-overview-section").then((module) => module.AdminRoleOverviewSection);
+const loadRoleManagementSection = () => import("./admin-rbac-sections").then((module) => module.AdminRoleManagementSection);
+const loadAdministratorManagementSection = () => import("./admin-rbac-sections").then((module) => module.AdminAdministratorManagementSection);
 
 const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> = {
     schools: loadSchoolsSection,
@@ -74,6 +76,8 @@ const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> =
     courses: loadCoursesSection,
     commercialOrders: loadCommercialOrdersSection,
     roleOverview: loadRoleOverviewSection,
+    roleManagement: loadRoleManagementSection,
+    administratorManagement: loadAdministratorManagementSection,
     site: loadSiteSection,
     settings: loadSettingsSection,
     mediaStorage: loadMediaStorageSection,
@@ -144,6 +148,8 @@ const AdminSchoolComputeSection = dynamic(loadSchoolComputeSection, { loading: A
 const AdminCoursesSection = dynamic(loadCoursesSection, { loading: AdminSectionLoading });
 const AdminCommercialOrdersSection = dynamic(loadCommercialOrdersSection, { loading: AdminSectionLoading });
 const AdminRoleOverviewSection = dynamic(loadRoleOverviewSection, { loading: AdminSectionLoading });
+const AdminRoleManagementSection = dynamic(loadRoleManagementSection, { loading: AdminSectionLoading });
+const AdminAdministratorManagementSection = dynamic(loadAdministratorManagementSection, { loading: AdminSectionLoading });
 const AdminDramaProjectsSection = dynamic(loadDramaProjectsSection, { loading: AdminSectionLoading });
 const AdminDramaLabConfigSection = dynamic(loadDramaLabConfigSection, { loading: AdminSectionLoading });
 const AdminDramaLabPromptsSection = dynamic(loadDramaLabPromptsSection, { loading: AdminSectionLoading });
@@ -282,6 +288,8 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     {activeSection === "courses" ? <AdminCoursesSection /> : null}
                     {activeSection === "commercialOrders" ? <AdminCommercialOrdersSection /> : null}
                     {activeSection === "roleOverview" ? <AdminRoleOverviewSection /> : null}
+                    {activeSection === "roleManagement" ? <AdminRoleManagementSection active /> : null}
+                    {activeSection === "administratorManagement" ? <AdminAdministratorManagementSection active /> : null}
                     {activeSection === "site" ? <AdminSiteSection controller={controller} /> : null}
                     {activeSection === "settings" ? <AdminSettingsSection controller={controller} /> : null}
                     {activeSection === "accountDeletion" ? <AdminAccountDeletionSection active /> : null}

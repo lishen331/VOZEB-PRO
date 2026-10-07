@@ -35,13 +35,14 @@ describe("admin settings model routing", () => {
         mocks.setAuthSettings.mockImplementation(async (patch) => ({ ...savedSettings, ...patch }));
     });
 
-    it("rejects a client trying to enable an unverified binding", async () => {
+    it("allows enabling an unverified binding and returns a warning", async () => {
         mocks.hasPassedBindingVerification.mockResolvedValue(false);
         mocks.getFreshAuthSettings.mockResolvedValue({ ...savedSettings, logicalModels: savedSettings.logicalModels.map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, enabled: false })) })) });
         const response = await PATCH(request({ logicalModels: savedSettings.logicalModels }));
-        expect(response.status).toBe(400);
-        expect((await response.json()).error).toContain("验证");
-        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
+        const payload = await response.json();
+        expect(response.status).toBe(200);
+        expect(payload.bindingVerificationWarnings).toEqual([expect.objectContaining({ modelId: "writer", bindingId: "binding", channelId: "one", message: expect.stringContaining("尚无当前配置的成功生成记录") })]);
+        expect(mocks.setAuthSettings).toHaveBeenCalled();
     });
     it.each([true, false])("saves and returns binding HTTP/1.1 setting %s", async (enabled) => {
         const logicalModels = savedSettings.logicalModels.map((model) => ({ ...model, bindings: model.bindings.map((binding) => ({ ...binding, capabilityProfile: { http1Compatibility: enabled } })) }));

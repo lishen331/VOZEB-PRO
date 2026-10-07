@@ -23,6 +23,11 @@ export default function nextConfig(phase: string): NextConfig {
     return {
         distDir,
         output: "standalone",
+        // A1: 显式开启响应压缩，覆盖 application/json。437KB 的 session/目录
+        // 配置全是重复键名，gzip/br 压缩比通常 8:1 以上。若部署在会终止连接
+        // 的反向代理之后，应改由代理压缩并关掉这里，二者不要同时开（双重压缩
+        // 白耗 CPU）。见 docs/plans/2026-09-20-capacity-phase1-fix-implementation.zh-CN.md 步骤 1。
+        compress: true,
         outputFileTracingRoot: webDir,
         turbopack: { root: webDir },
         typescript: { ignoreBuildErrors: skipBuildTypeCheck },

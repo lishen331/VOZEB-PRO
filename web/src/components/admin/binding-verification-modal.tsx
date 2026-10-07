@@ -10,6 +10,7 @@ import type { BindingVerificationInput } from "@/lib/binding-verification-input"
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { AdminChannelProtocolSetup } from "./admin-channel-protocol-setup";
 import type { LogicalModelCapability, SystemModelChannel } from "@/lib/auth/store";
+import { resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
 import { BATCH_MEDIA_POLL_INTERVAL_MS } from "@/lib/one-click/batch-media";
 
 import { bindingVerificationFixturePreviewUrl, bindingVerificationDiagnosticsJson, bindingVerificationSessionKey, createBindingVerification, getBindingVerification, type BindingVerificationTest } from "@/services/api/binding-verifications";
@@ -19,6 +20,7 @@ type Props = {
     open: boolean;
     onCancel: () => void;
     onVerified: (testId: string) => void;
+    onEnableWithoutTest?: () => void;
     logicalModelId: string;
     bindingId: string;
     capability: LogicalModelCapability;
@@ -36,13 +38,16 @@ export function verificationFixtureCount(capability: LogicalModelCapability) {
 export function canConfirmBindingVerification(test: BindingVerificationTest | null, confirmed: boolean) {
     return confirmed && (test?.status === "passed" || test?.status === "needs_review") && Boolean(test.result?.url || test.result?.text?.trim());
 }
+export function canManuallyEnableBindingVerification(test: BindingVerificationTest | null, busy = false, uncertain = false) {
+    return !busy && !uncertain && (!test || test.status === "failed");
+}
 const labels = { running: "验证中", passed: "验证通过", failed: "验证失败", needs_review: "结果待核对" };
 
 export function BindingVerificationModal(props: Props) {
     // Isolate state by saved binding; closing the modal deliberately does not unmount it.
     return <BindingVerificationSession key={`${props.logicalModelId}:${props.bindingId}:${props.upstreamModel}`} {...props} />;
 }
-function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId, bindingId, capability, channelName, upstreamModel, channel, onProtocolChange, beforeStart, beforeConfirm, configRevision = "" }: Props) {
+function BindingVerificationSession({ open, onCancel, onVerified, onEnableWithoutTest, logicalModelId, bindingId, capability, channelName, upstreamModel, channel, onProtocolChange, beforeStart, beforeConfirm, configRevision = "" }: Props) {
     const copyText = useCopyText();
     const [test, setTest] = useState<BindingVerificationTest | null>(null);
     const [restoring, setRestoring] = useState(true);
@@ -60,6 +65,12 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
     const supported = capability !== "audio";
     const count = verificationFixtureCount(capability);
     const fixtures = Array.from({ length: count }, (_, index) => bindingVerificationFixturePreviewUrl(index));
+    const profile = resolveLogicalModelCapabilityProfile({ capabilityProfile: undefined }, capability, channel, upstreamModel);
+    const maxReferenceImages = profile?.maxReferenceImages;
+    const canManualEnable = canManuallyEnableBindingVerification(test, busy, uncertain);
+    const usesOpenAiMultipart = channel?.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
+    const effectiveVideoDuration = capability === "video" ? (usesOpenAiMultipart ? 8 : profile?.durationSeconds?.[0] || 5) : undefined;
+    const effectiveResolution = capability === "video" ? profile?.resolutions?.[0] || "480p" : undefined;
     const defaultPrompt =
         capability === "video"
             ? "结合三张参考图，让橙色小球缓慢经过蓝色方块和绿色圆环，保持物体外观一致，镜头连续稳定。"
@@ -70,7 +81,9 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
     const inputsEdited = useRef(false);
     const [prompt, setPrompt] = useState(defaultPrompt);
     const [references, setReferences] = useState<Array<{ type: "image" | "video"; url: string }>>(() =>
-        typeof window === "undefined" ? [] : fixtures.slice(0, capability === "video" ? 2 : capability === "image" ? 1 : 0).map((url) => ({ type: "image", url: new URL(url, window.location.origin).href })),
+        typeof window === "undefined"
+            ? []
+            : fixtures.slice(0, Math.min(capability === "video" ? 3 : capability === "image" ? 1 : 0, maxReferenceImages ?? Number.POSITIVE_INFINITY)).map((url) => ({ type: "image", url: new URL(url, window.location.origin).href })),
     );
     const changeReferences = (update: (items: BindingVerificationInput["references"]) => BindingVerificationInput["references"]) => {
         inputsEdited.current = true;
@@ -204,6 +217,32 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
             setSubmitting(false);
         }
     };
+    const enableWithoutTest = async () => {
+        if (!onEnableWithoutTest || !canManualEnable || submittingRef.current) return;
+        const accepted = await new Promise<boolean>((resolve) =>
+            Modal.confirm({
+                title: test ? "确认忽略失败并启用？" : "确认未测试直接启用？",
+                content: test ? "失败诊断会保留，但当前绑定尚未验证成功。确认后仍可能无法使用。" : "当前没有成功生成记录。确认后可能无法使用，建议先完成一次真实测试。",
+                okText: "确认启用",
+                cancelText: "返回修改",
+                onOk: () => resolve(true),
+                onCancel: () => resolve(false),
+            }),
+        );
+        if (!accepted || submittingRef.current) return;
+        submittingRef.current = true;
+        setSubmitting(true);
+        setError("");
+        try {
+            await beforeStart?.();
+            await onEnableWithoutTest();
+        } catch (cause) {
+            setError(cause instanceof Error ? cause.message : "保存当前配置失败，请重试");
+        } finally {
+            submittingRef.current = false;
+            setSubmitting(false);
+        }
+    };
     const muted = "text-xs leading-5 text-stone-500 dark:text-stone-400";
     return (
         <Modal
@@ -226,6 +265,11 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                     <span className={muted}>关闭只停止查询，不取消上游任务；重新打开可继续查看。</span>
                     <Space>
                         <Button onClick={onCancel}>暂不启用</Button>
+                        {canManualEnable && onEnableWithoutTest ? (
+                            <Button disabled={submitting} onClick={() => void enableWithoutTest()}>
+                                未测试直接启用
+                            </Button>
+                        ) : null}
                         <Button type="primary" disabled={!canConfirmBindingVerification(test, confirmed) || submitting} onClick={confirm}>
                             启用此绑定
                         </Button>
@@ -233,7 +277,16 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                 </div>
             }
         >
-            <Alert className="mb-3" type="warning" showIcon title="测试会产生实际上游调用费用" description="点击测试将先保存当前模型协议和绑定能力，无需退出弹窗。不会自动切换渠道、降低规格或重复提交未知结果；失败的绑定不能启用。" />
+            <Alert className="mb-3" type="warning" showIcon title="测试会产生实际上游调用费用" description="点击测试将先保存当前模型协议和绑定能力，无需退出弹窗。失败只记录诊断，不会锁住协议、素材或重测；确认结果后才会启用绑定。" />
+            {canManualEnable ? (
+                <Alert
+                    className="mb-3"
+                    type="warning"
+                    showIcon
+                    title={test ? "本次测试失败，仍可手动启用" : "当前尚无成功生成记录"}
+                    description={test ? "失败诊断会保留。你可以先修改协议、素材并重新测试，也可以确认风险后直接启用；系统不会把失败伪装成通过。" : "可以先启用当前绑定，但它可能无法正常使用；建议完成一次真实生成后再确认。"}
+                />
+            ) : null}
             {error ? (
                 <Alert
                     className="mb-3"
@@ -264,7 +317,9 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                         <section className="min-w-0 space-y-3">
                             <div className="flex items-center justify-between">
                                 <b>测试输入</b>
-                                <Tag>{references.length} 个参考素材</Tag>
+                                <Tag>
+                                    {references.length} 个参考素材{maxReferenceImages ? ` / 最多 ${maxReferenceImages} 张图片` : ""}
+                                </Tag>
                             </div>
                             <div className="space-y-2">
                                 {references.map((reference, index) => (
@@ -297,7 +352,10 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                                             event.target.value = "";
                                         }}
                                     />
-                                    <Button disabled={busy} onClick={() => changeReferences((items) => [...items, { type: "image", url: "" }])}>
+                                    <Button
+                                        disabled={busy || (maxReferenceImages !== undefined && references.filter((item) => item.type === "image").length >= maxReferenceImages)}
+                                        onClick={() => changeReferences((items) => [...items, { type: "image", url: "" }])}
+                                    >
                                         添加图片
                                     </Button>
                                     {capability === "video" ? (
@@ -305,7 +363,12 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                                             添加视频
                                         </Button>
                                     ) : null}
-                                    <Button disabled={busy} onClick={() => setReferences(fixtures.slice(0, 2).map((url) => ({ type: "image", url: new URL(url, window.location.origin).href })))}>
+                                    <Button
+                                        disabled={busy}
+                                        onClick={() =>
+                                            setReferences(fixtures.slice(0, Math.min(capability === "video" ? 3 : 1, maxReferenceImages ?? Number.POSITIVE_INFINITY)).map((url) => ({ type: "image", url: new URL(url, window.location.origin).href })))
+                                        }
+                                    >
                                         使用示例图片
                                     </Button>
                                 </Space>
@@ -326,15 +389,22 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                             <div>
                                 {capability === "video" ? (
                                     <>
-                                        <Tag>480P</Tag>
-                                        <Tag>5 秒</Tag>
+                                        <Tag>{effectiveResolution || "480p"}</Tag>
+                                        <Tag>{effectiveVideoDuration || 5} 秒有效时长</Tag>
                                         <Tag>16:9</Tag>
+                                        {effectiveVideoDuration && effectiveVideoDuration !== 5 ? <Tag color="warning">上游协议将 5 秒归一化为 {effectiveVideoDuration} 秒</Tag> : null}
                                     </>
                                 ) : (
                                     <Tag>{capability === "image" ? "输出 1 张图片" : "图片理解 → 文本"}</Tag>
                                 )}
                             </div>
-                            <p className={muted}>{capability === "video" ? "按本轮输入验证，一次成功即停止；不会自动重复提交。" : capability === "image" ? "本轮只输出一张图片，参考素材必须完整传入。" : "按本轮输入返回非空文本，参考素材可选。"}</p>
+                            <p className={muted}>
+                                {capability === "video"
+                                    ? `按本轮输入验证，一次成功即停止；请求规格为 ${effectiveResolution || "480p"}、${effectiveVideoDuration || 5} 秒有效时长，不会自动重复提交。`
+                                    : capability === "image"
+                                      ? "本轮只输出一张图片，参考素材必须完整传入。"
+                                      : "按本轮输入返回非空文本，参考素材可选。"}
+                            </p>
                             {!supported ? <Alert type="info" title="当前验证流程暂不支持音频绑定" /> : null}
                             <Button type="primary" block loading={submitting} disabled={busy || !supported} onClick={() => void start()}>
                                 {test ? "保存并重新测试（产生费用）" : "保存并测试（产生费用）"}
@@ -381,11 +451,10 @@ function BindingVerificationSession({ open, onCancel, onVerified, logicalModelId
                 ) : null}
                 {channel && onProtocolChange ? (
                     <div hidden={tab !== "protocol"}>
-                        <fieldset disabled={busy}>
+                        <fieldset>
                             <AdminChannelProtocolSetup
                                 channel={{ ...channel, advancedConfig: { ...applyChannelProtocol(channel, "custom").advancedConfig!, protocol: "custom" } }}
                                 targetModel={upstreamModel}
-                                protocolLocked
                                 onChange={(patch) => {
                                     if (submittingRef.current || busy) return false;
                                     if (onProtocolChange(patch) === false) return false;
