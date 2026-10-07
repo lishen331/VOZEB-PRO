@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { AUTH_SHARED_DEVICE_MULTIPLIER, GENERATION_SHARED_IP_MULTIPLIER, checkAuthRateLimit, checkGenerationRateLimit, checkLocalMediaRateLimit, checkMediaProxyRateLimit, checkPublicMediaRateLimit, checkRateLimit, getClientIp, isSafeOutboundUrl, rateLimitHeaders } from "./security";
+import {
+    AUTH_SHARED_DEVICE_MULTIPLIER,
+    GENERATION_SHARED_IP_MULTIPLIER,
+    checkAuthRateLimit,
+    checkGenerationRateLimit,
+    checkLocalMediaRateLimit,
+    checkMediaProxyRateLimit,
+    checkPublicMediaRateLimit,
+    checkRateLimit,
+    getClientIp,
+    isSafeOutboundUrl,
+    rateLimitHeaders,
+} from "./security";
 
 describe("checkRateLimit", () => {
     it("blocks requests beyond the configured window limit", async () => {
