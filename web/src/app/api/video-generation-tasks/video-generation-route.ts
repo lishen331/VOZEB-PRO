@@ -28,6 +28,8 @@ import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { VIDEO_PROVIDER_MEDIA_KEYS, parseVideoProviderJson, readVideoProviderHttpError, readVideoProviderId, readVideoProviderUrl } from "@/lib/server/video-provider-response";
 import { buildSeedanceSpecialRequest } from "@/lib/seedance-special";
 import { ingestModelBayReferences, ModelBayAssetError } from "@/lib/server/modelbay-asset-service";
+import { ingestTuziReferences } from "@/lib/server/tuzi-asset-service";
+import { buildTuziSeedanceVideoRequest } from "@/lib/tuzi-seedance-video";
 import { assertVozebRecommendedVideoReferences, buildVozebRecommendedVideoRequest } from "@/lib/vozeb-recommended-video";
 import { assertGeminiVideoReferences, buildGeminiVideoRequest, geminiVideoCreatePath, normalizeGeminiVideoDuration, parseGeminiVideoCreateResponse } from "@/lib/server/gemini-video-provider";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
@@ -512,7 +514,7 @@ export async function createUpstream(
     workflow?: RunningHubWorkflowConfig,
 ) {
     let lastError = "";
-    const providerReferences = await prepareModelBayReferences(channel, references);
+    const providerReferences = channel.advancedConfig?.protocol === "tuzi-seedance" ? await prepareTuziReferences(channel, references, origin) : await prepareModelBayReferences(channel, references);
     const regularReferences = regularVideoReferences(providerReferences);
     const { firstFrame, lastFrame } = videoFrameReferences(providerReferences);
     const images = referenceUrls(regularReferences, "image");
@@ -598,45 +600,55 @@ export async function createUpstream(
                   videos,
                   audios,
               })
-            : channel.advancedConfig?.protocol === "seedance-special"
-              ? buildSeedanceSpecialRequest({
+            : channel.advancedConfig?.protocol === "tuzi-seedance"
+              ? buildTuziSeedanceVideoRequest({
                     model: channel.model,
                     prompt,
-                    duration: values.duration === -1 ? 5 : (values.duration as number),
-                    ratio: (values.ratio as string | undefined) || "adaptive",
+                    duration: values.duration === -1 ? undefined : (values.duration as number),
+                    ratio: values.ratio as string | undefined,
+                    resolution: values.resolution as string | undefined,
                     generateAudio,
-                    references: [...providerReferences],
+                    references: providerReferences,
                 })
-              : channel.advancedConfig?.protocol === "yumeng"
-                ? buildYumengVideoRequest({
+              : channel.advancedConfig?.protocol === "seedance-special"
+                ? buildSeedanceSpecialRequest({
                       model: channel.model,
                       prompt,
-                      duration: values.duration as number,
-                      aspectRatio: values.aspect_ratio as string,
-                      resolution: values.resolution as string,
+                      duration: values.duration === -1 ? 5 : (values.duration as number),
+                      ratio: (values.ratio as string | undefined) || "adaptive",
                       generateAudio,
-                      watermark: booleanValue(raw.videoWatermark),
-                      images: requestImages,
-                      videos,
-                      audios,
-                      firstFrame: firstFrameUrl || undefined,
-                      lastFrame: lastFrameUrl || undefined,
+                      references: [...providerReferences],
                   })
-                : globalPreset
-                  ? buildGlobalAiOpcVideoRequest(globalPreset, {
+                : channel.advancedConfig?.protocol === "yumeng"
+                  ? buildYumengVideoRequest({
                         model: channel.model,
                         prompt,
                         duration: values.duration as number,
-                        ratio: values.ratio as string,
+                        aspectRatio: values.aspect_ratio as string,
                         resolution: values.resolution as string,
-                        images: requestImages.length ? requestImages : requestImage ? [requestImage] : [],
+                        generateAudio,
+                        watermark: booleanValue(raw.videoWatermark),
+                        images: requestImages,
                         videos,
                         audios,
-                        generateAudio,
                         firstFrame: firstFrameUrl || undefined,
                         lastFrame: lastFrameUrl || undefined,
                     })
-                  : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
+                  : globalPreset
+                    ? buildGlobalAiOpcVideoRequest(globalPreset, {
+                          model: channel.model,
+                          prompt,
+                          duration: values.duration as number,
+                          ratio: values.ratio as string,
+                          resolution: values.resolution as string,
+                          images: requestImages.length ? requestImages : requestImage ? [requestImage] : [],
+                          videos,
+                          audios,
+                          generateAudio,
+                          firstFrame: firstFrameUrl || undefined,
+                          lastFrame: lastFrameUrl || undefined,
+                      })
+                    : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
     const requestBody = multipart
         ? await buildOpenAiVideoFormData({ model: channel.model, prompt, seconds: values.seconds as number, width: dimensions.width, height: dimensions.height, imageUrls: firstFrameUrl ? [firstFrameUrl] : images, origin, cookie })
         : JSON.stringify(payload);
@@ -883,6 +895,32 @@ async function prepareModelBayReferences(channel: NonNullable<ReturnType<typeof 
         if (error instanceof ModelBayAssetError) throw new SafeCandidateFailure(error.message);
         throw error;
     }
+}
+
+async function prepareTuziReferences(channel: NonNullable<ReturnType<typeof toSystemGenerationChannel>>, references: readonly VideoGenerationReference[], origin: string) {
+    if (!references.some((reference) => reference.type === "image")) return references;
+    if (!channel.channelId || channel.channelId.startsWith("fixture-")) return references;
+    const settings = await getAuthSettings();
+    const configured = settings.systemChannels.find((item) => item.id === channel.channelId);
+    const baseUrl = configured?.baseUrl || channel.baseUrl;
+    const apiKey = configured?.apiKey || channel.apiKey;
+    if (!apiKey || apiKey === "system" || !/^https?:\/\//i.test(baseUrl)) return references;
+    return ingestTuziReferences(
+        references,
+        {
+            baseUrl,
+            apiKey,
+            cacheScope: channel.channelId,
+            fetcher: (input, init) => fetchSafeOutbound(input, init),
+            sourceFetcher: (input, init) => {
+                const url = new URL(input);
+                // Signed site assets are read through the internal origin; everything else goes through the SSRF guard.
+                if (origin && ["/api/reference-assets/", "/api/generation-log-assets/"].some((prefix) => url.pathname.startsWith(prefix))) return fetchInternalApi(`${origin.replace(/\/+$/, "")}${url.pathname}${url.search}`, init);
+                return fetchSafeOutbound(input, init);
+            },
+        },
+        (error) => console.warn("[tuzi-seedance] asset ingest failed, falling back to direct reference:", error instanceof Error ? error.message : error),
+    );
 }
 
 function referenceUrls(items: readonly VideoGenerationReference[], type: VideoGenerationReference["type"]) {

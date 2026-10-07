@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-10-06。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **425** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-10-07。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **426** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**425**
-- 方法出现次数：DELETE 64、GET 211、HEAD 6、PATCH 61、POST 242、PUT 16
-- 一级域：`admin` 133、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**426**
+- 方法出现次数：DELETE 64、GET 212、HEAD 6、PATCH 61、POST 242、PUT 16
+- 一级域：`admin` 133、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -440,6 +440,12 @@
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | GET, HEAD | `/api/media-proxy` | 用户 | [route.ts](web/src/app/api/media-proxy/route.ts) | [media-proxy-service](web/src/lib/server/media-proxy-service.ts)<br>[media-concurrency](web/src/lib/server/media-concurrency.ts)<br>[media-content-validation](web/src/lib/server/media-content-validation.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 媒体代理：查询、读取元数据 |
+
+### `model-catalog`（1）
+
+| 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
+| --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/model-catalog` | 用户 | [route.ts](web/src/app/api/model-catalog/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL | model-catalog：查询 |
 
 ### `my-prompts`（2）
 
