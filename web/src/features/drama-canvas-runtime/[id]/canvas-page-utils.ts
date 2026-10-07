@@ -15,6 +15,7 @@ import { resolveCanvasGenerationModel } from "../utils/canvas-node-config";
 import { nodeSizeFromRatio, resizeImageNodeToNaturalRatio } from "../utils/canvas-node-size";
 import { PANORAMA_IMAGE_SIZE } from "../utils/canvas-panorama";
 import { isAgentInternalNode } from "../utils/canvas-auto-layout";
+import { canvasContainerWireSourceIds } from "../utils/canvas-container-group";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantSession, type CanvasConnection, type CanvasImageGenerationType, type CanvasNodeData, type CanvasNodeMetadata, type ConnectionHandle } from "../types";
 
 export function imageExtension(dataUrl: string) {
@@ -406,6 +407,19 @@ export function normalizeConnection(firstNodeId: string, secondNodeId: string, n
     if (first.type === CanvasNodeType.Config && firstHandleType === "target") return { fromNodeId: second.id, toNodeId: first.id };
     if (first.type === CanvasNodeType.Config) return { fromNodeId: first.id, toNodeId: second.id };
     return { fromNodeId: first.id, toNodeId: second.id };
+}
+
+/**
+ * A wire whose source is a 生成组 becomes one wire per member, so the canvas
+ * shows every member feeding the target. An empty frame keeps its single wire.
+ */
+export function expandContainerConnection(connection: { fromNodeId: string; toNodeId: string }, nodes: CanvasNodeData[]) {
+    const source = nodes.find((node) => node.id === connection.fromNodeId);
+    if (source?.type !== CanvasNodeType.Container) return [connection];
+    const expanded = canvasContainerWireSourceIds(source.id, nodes, connection.toNodeId)
+        .map((memberId) => normalizeConnection(memberId, connection.toNodeId, nodes, "source"))
+        .filter((item): item is { fromNodeId: string; toNodeId: string } => Boolean(item));
+    return expanded.length ? expanded : [connection];
 }
 
 export function getInputSummary(inputs: NodeGenerationInput[]) {

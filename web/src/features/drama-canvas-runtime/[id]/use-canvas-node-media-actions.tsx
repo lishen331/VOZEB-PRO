@@ -6,7 +6,6 @@ import { useCallback, useMemo, useState } from "react";
 import { getDataUrlByteSize } from "@/lib/image-utils";
 import { mediaDownloadFileName } from "@/lib/media-file";
 import { originalImageDownloadUrl, originalMediaDownloadUrl } from "@/lib/media-image-url";
-import { isGenerationTaskNeedsReviewError } from "@/services/api/generation-task-state";
 import { type UploadedImage } from "@/services/image-storage";
 import { defaultConfig } from "@/stores/use-config-store";
 import { nanoid } from "nanoid";
@@ -19,11 +18,12 @@ import { type CanvasImageUpscaleParams } from "../components/canvas-node-upscale
 import { NODE_DEFAULT_SIZE } from "../constants";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasNodeData } from "../types";
 import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "../utils/canvas-image-data";
+import { canvasContainerMediaNodes } from "../utils/canvas-container-group";
 import { downloadCanvasMediaBundle, selectedCanvasMediaNodes } from "../utils/canvas-media-download";
 import { fitNodeSize } from "../utils/canvas-node-size";
 
-import { IMAGE_PROMPT_REVERSE_PRESET, NODE_STATUS_ERROR, NODE_STATUS_LOADING, NODE_STATUS_SUCCESS, createCanvasNode } from "./canvas-page-elements";
-import { pauseCanvasGenerationReview } from "./canvas-generation-review";
+import { IMAGE_PROMPT_REVERSE_PRESET, NODE_STATUS_LOADING, NODE_STATUS_SUCCESS, createCanvasNode } from "./canvas-page-elements";
+import { canvasGenerationPendingOptions, failCanvasGeneration, isCanvasGenerationRetryable, markCanvasGenerationPending, toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
 import { applyNodeConfigPatch, buildAngleLabel, buildAnglePrompt, buildGenerationConfig, buildImageGenerationMetadata, canvasNodeReferenceImage, imageMetadata, isGenerationCanceled, uploadCanvasImage } from "./canvas-page-utils";
 
 import type { CanvasInteractions } from "./use-canvas-interactions";
@@ -63,6 +63,21 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
         nodesRef,
     } = state;
     const { startGenerationRequest, finishGenerationRequest, startAndCompleteImageTask } = tasks;
+    /** 子图（局部修改 / 表情 / 多角度）失败：有任务 ID 且只是暂时查不到 → 继续生成中；否则显示转换后的文案。 */
+    const settleChildGenerationFailure = useCallback(
+        (childId: string, error: unknown) => {
+            const hasTask = Boolean(nodesRef.current.find((item) => item.id === childId)?.metadata?.imageTask);
+            if (hasTask && isCanvasGenerationRetryable(error)) {
+                const options = canvasGenerationPendingOptions(error);
+                setNodes((prev) => markCanvasGenerationPending(prev, [childId], options));
+                return;
+            }
+            const errorDetails = toCanvasGenerationUserMessage(error);
+            message.error(errorDetails);
+            setNodes((prev) => failCanvasGeneration(prev, [childId], errorDetails));
+        },
+        [message, nodesRef, setNodes],
+    );
     const [selectedMediaDownloadPending, setSelectedMediaDownloadPending] = useState(false);
     const selectedMediaNodes = useMemo(() => selectedCanvasMediaNodes(nodes, selectedNodeIds), [nodes, selectedNodeIds]);
 
@@ -186,6 +201,34 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
             setSelectedMediaDownloadPending(false);
         }
     }, [currentProject?.title, message, selectedMediaDownloadPending, selectedMediaNodes]);
+
+    const downloadContainerMedia = useCallback(
+        async (containerNodeId: string) => {
+            if (selectedMediaDownloadPending) return;
+            const container = nodesRef.current.find((node) => node.id === containerNodeId);
+            const mediaNodes = canvasContainerMediaNodes(containerNodeId, nodesRef.current);
+            if (!container || !mediaNodes.length) {
+                message.info("生成组内没有可下载的图片或视频");
+                return;
+            }
+            if (mediaNodes.length === 1) {
+                await downloadNodeImage(mediaNodes[0]);
+                return;
+            }
+            setSelectedMediaDownloadPending(true);
+            try {
+                const label = container.metadata?.containerLabel || container.title || "生成组";
+                const result = await downloadCanvasMediaBundle(mediaNodes, currentProject?.title || "画布", label);
+                if (result.failed) message.warning(`已下载 ${result.downloaded} 项，${result.failed} 项读取失败`);
+                else message.success(`已打包下载 ${result.downloaded} 项`);
+            } catch (error) {
+                message.error(error instanceof Error ? error.message : "下载失败");
+            } finally {
+                setSelectedMediaDownloadPending(false);
+            }
+        },
+        [currentProject?.title, downloadNodeImage, message, selectedMediaDownloadPending],
+    );
 
     const saveNodeAsset = useCallback(
         async (node: CanvasNodeData) => {
@@ -412,29 +455,13 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
                 await startAndCompleteImageTask(childId, generationConfig, prompt, [source], { id: `${node.id}-mask`, name: "mask.png", type: "image/png", dataUrl: payload.maskDataUrl }, controller);
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
-                const errorDetails = error instanceof Error ? error.message : "局部修改失败";
-                const needsReview = isGenerationTaskNeedsReviewError(error);
-                if (needsReview) {
-                    setNodes((prev) => pauseCanvasGenerationReview(prev, [childId], errorDetails));
-                    return;
-                }
-                message.error(errorDetails);
-                setNodes((prev) =>
-                    prev.map((item) =>
-                        item.id === childId
-                            ? {
-                                  ...item,
-                                  metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined },
-                              }
-                            : item,
-                    ),
-                );
+                settleChildGenerationFailure(childId, error);
             } finally {
                 finishGenerationRequest(childId, controller);
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startAndCompleteImageTask, startGenerationRequest],
+        [effectiveConfig, finishGenerationRequest, isAiConfigReady, openConfigDialog, settleChildGenerationFailure, startAndCompleteImageTask, startGenerationRequest],
     );
 
     const emotionEditImageNode = useCallback(
@@ -471,20 +498,13 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
                 await startAndCompleteImageTask(childId, generationConfig, payload.prompt, [source], undefined, controller);
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
-                const errorDetails = error instanceof Error ? error.message : "表情参考生成失败";
-                const needsReview = isGenerationTaskNeedsReviewError(error);
-                if (needsReview) {
-                    setNodes((prev) => pauseCanvasGenerationReview(prev, [childId], errorDetails));
-                    return;
-                }
-                message.error(errorDetails);
-                setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined } } : item)));
+                settleChildGenerationFailure(childId, error);
             } finally {
                 finishGenerationRequest(childId, controller);
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startAndCompleteImageTask, startGenerationRequest],
+        [effectiveConfig, finishGenerationRequest, isAiConfigReady, openConfigDialog, settleChildGenerationFailure, startAndCompleteImageTask, startGenerationRequest],
     );
 
     const upscaleImageNode = useCallback(
@@ -534,29 +554,13 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
                 await startAndCompleteImageTask(childId, generationConfig, prompt, [canvasNodeReferenceImage(node)], undefined, controller);
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
-                const errorDetails = error instanceof Error ? error.message : "生成失败";
-                const needsReview = isGenerationTaskNeedsReviewError(error);
-                if (needsReview) {
-                    setNodes((prev) => pauseCanvasGenerationReview(prev, [childId], errorDetails));
-                    return;
-                }
-                message.error(errorDetails);
-                setNodes((prev) =>
-                    prev.map((item) =>
-                        item.id === childId
-                            ? {
-                                  ...item,
-                                  metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined },
-                              }
-                            : item,
-                    ),
-                );
+                settleChildGenerationFailure(childId, error);
             } finally {
                 finishGenerationRequest(childId, controller);
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startAndCompleteImageTask, startGenerationRequest],
+        [effectiveConfig, finishGenerationRequest, isAiConfigReady, openConfigDialog, settleChildGenerationFailure, startAndCompleteImageTask, startGenerationRequest],
     );
 
     const handleFontSizeChange = useCallback((nodeId: string, fontSize: number) => {
@@ -573,6 +577,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
         handleConfigNodeChange,
         downloadNodeImage,
         downloadSelectedMedia,
+        downloadContainerMedia,
         selectedMediaCount: selectedMediaNodes.length,
         selectedMediaDownloadPending,
         saveNodeAsset,

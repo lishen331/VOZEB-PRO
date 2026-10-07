@@ -291,6 +291,10 @@ function VozebProCanvasPage() {
         dissolveGroup,
         createContainerFromSelection,
         removeContainer,
+        arrangeContainer,
+        setContainerColor,
+        convertContainerToStoryboard,
+        downloadContainerMedia,
         handleGenerateContainer,
     } = controller;
     useEffect(() => {
@@ -678,14 +682,13 @@ function VozebProCanvasPage() {
                         pasteCopiedNodes();
                     }}
                     onGroupSelection={createContainerFromSelection}
-                    onRunContainer={() => {
-                        const container = nodes.find((node) => node.type === CanvasNodeType.Container && selectedNodeIds.has(node.id));
-                        if (container) void handleGenerateContainer(container.id);
-                    }}
-                    onDissolveContainer={() => {
-                        const container = nodes.find((node) => node.type === CanvasNodeType.Container && selectedNodeIds.has(node.id));
-                        if (container) removeContainer(container.id);
-                    }}
+                    onRunContainer={(containerId) => void handleGenerateContainer(containerId)}
+                    onDissolveContainer={removeContainer}
+                    onArrangeContainer={arrangeContainer}
+                    onSetContainerColor={setContainerColor}
+                    onConvertContainerToStoryboard={convertContainerToStoryboard}
+                    onDownloadContainer={(containerId) => void downloadContainerMedia(containerId)}
+                    downloadPending={selectedMediaDownloadPending}
                     onDeleteSelection={() => deleteNodes(new Set(selectedNodeIds))}
                 />
 

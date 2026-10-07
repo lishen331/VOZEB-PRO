@@ -123,6 +123,12 @@ export type CanvasNodeMetadata = {
     sourcePrompt?: string;
     status?: CanvasNodeStatus;
     errorDetails?: string;
+    /** When the frontend first saw this task in flight (task submitted); drives the client-side hard timeout. */
+    generationPendingSince?: number;
+    /** Task the pending timestamp belongs to, so a regenerated task restarts the clock. */
+    generationPendingTaskId?: string;
+    /** Backend parked the task in needs_review; the next poll must actively recover it. */
+    generationPendingReview?: boolean;
     fontSize?: number;
     configDetailsOpen?: boolean;
     generationMode?: CanvasGenerationMode;
@@ -214,6 +220,8 @@ export type CanvasNodeMetadata = {
     /** On a member node: id of the Container that currently owns it. Members stay visible. */
     containerId?: string;
     containerLabel?: string;
+    /** On a Container: frame tint picked in its toolbar. Unset uses the theme border. */
+    containerColor?: string;
     storageKey?: string;
     remoteUrl?: string;
     serverUrl?: string;
