@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { GENERATION_SHARED_IP_MULTIPLIER, checkAuthRateLimit, checkGenerationRateLimit, checkLocalMediaRateLimit, checkMediaProxyRateLimit, checkPublicMediaRateLimit, checkRateLimit, getClientIp, isSafeOutboundUrl, rateLimitHeaders } from "./security";
+import {
+    AUTH_SHARED_DEVICE_MULTIPLIER,
+    GENERATION_SHARED_IP_MULTIPLIER,
+    checkAuthRateLimit,
+    checkGenerationRateLimit,
+    checkLocalMediaRateLimit,
+    checkMediaProxyRateLimit,
+    checkPublicMediaRateLimit,
+    checkRateLimit,
+    getClientIp,
+    isSafeOutboundUrl,
+    rateLimitHeaders,
+} from "./security";
 
 describe("checkRateLimit", () => {
     it("blocks requests beyond the configured window limit", async () => {
@@ -43,14 +55,30 @@ describe("checkRateLimit", () => {
         expect((await checkAuthRateLimit(scope, request("203.0.113.3", "browser-three"), "same-account", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(false);
 
         const deviceScope = `auth-device-${crypto.randomUUID()}`;
-        expect((await checkAuthRateLimit(deviceScope, request("198.51.100.1", "same-browser"), "account-one", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-        expect((await checkAuthRateLimit(deviceScope, request("198.51.100.2", "same-browser"), "account-two", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
-        expect((await checkAuthRateLimit(deviceScope, request("198.51.100.3", "same-browser"), "account-three", { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(false);
+        for (let index = 0; index < 2 * AUTH_SHARED_DEVICE_MULTIPLIER; index += 1) {
+            expect((await checkAuthRateLimit(deviceScope, request("198.51.100.1", "same-browser"), `account-${index}`, { maxRequests: 2, windowMs: 60_000 })).allowed).toBe(true);
+        }
+        const deviceBlocked = await checkAuthRateLimit(deviceScope, request("198.51.100.1", "same-browser"), "account-overflow", { maxRequests: 2, windowMs: 60_000 });
+        expect(deviceBlocked).toMatchObject({ allowed: false, dimension: "device" });
 
         const ipScope = `auth-ip-${crypto.randomUUID()}`;
         for (let index = 0; index < 8; index += 1) {
             expect((await checkAuthRateLimit(ipScope, request("203.0.113.99", `browser-${index}`), `account-${index}`, { maxRequests: 8, windowMs: 120_000 })).allowed).toBe(true);
         }
+    });
+
+    it("lets a classroom of identical browsers log in while keeping per-account brute-force protection", async () => {
+        const scope = `auth-classroom-${crypto.randomUUID()}`;
+        const config = { maxRequests: 8, windowMs: 120_000 };
+        const classroomRequest = () => new Request("http://localhost", { headers: { "x-forwarded-for": "203.0.113.50", "user-agent": "school-lab-chrome", "accept-language": "zh-CN" } });
+
+        for (let index = 0; index < 80; index += 1) {
+            expect((await checkAuthRateLimit(scope, classroomRequest(), `student-${index}`, config)).allowed).toBe(true);
+        }
+        for (let attempt = 1; attempt < 8; attempt += 1) {
+            expect((await checkAuthRateLimit(scope, classroomRequest(), "student-0", config)).allowed).toBe(true);
+        }
+        expect(await checkAuthRateLimit(scope, classroomRequest(), "student-0", config)).toMatchObject({ allowed: false, dimension: "account" });
     });
 
     it("uses the same 8 attempts per 2 minutes contract for login-related auth flows", async () => {
