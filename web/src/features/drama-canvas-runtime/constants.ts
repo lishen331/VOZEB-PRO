@@ -15,6 +15,20 @@ export const CANVAS_CONFIG_NODE_HEIGHT = {
 } as const;
 
 /**
+ * 画布右侧 Agent 面板总开关。为稳定性暂时关闭（2026-10-06 用户要求）。
+ *
+ * 关掉后：顶栏 Agent 按钮置灰并提示"敬请期待"，面板不会自动打开，
+ * 也无法通过任何入口展开。恢复时把这里改回 true 即可，其余代码无需改动。
+ *
+ * 注意：只作用于源树 src/app/(user)/canvas/；镜像树 drama-canvas-runtime
+ * 是同步脚本生成的副本，有自己的 constants.ts，不在此开关范围内。
+ */
+export const CANVAS_AGENT_ENABLED = false;
+
+/** 功能未开放时统一给用户的提示文案。 */
+export const CANVAS_AGENT_DISABLED_HINT = "敬请期待";
+
+/**
  * Storyboard group geometry. `cell*` drives the thumbnail grid inside a Group
  * node; `restore*` is the size each member returns to when the group dissolves.
  */

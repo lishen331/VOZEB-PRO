@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Dropdown, Modal } from "antd";
+import { Dropdown, Modal, Tooltip } from "antd";
 import { BookOpen, AlertTriangle, Bot, LayoutGrid, LibraryBig, Menu, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 
 import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
+import { CANVAS_AGENT_DISABLED_HINT, CANVAS_AGENT_ENABLED } from "../constants";
 import type { CanvasProjectSaveState } from "../stores/use-canvas-store";
 
 export function CanvasTopBar({
@@ -166,20 +167,39 @@ export function CanvasTopBar({
                 </div>
 
                 <div className="canvas-topbar-actions pointer-events-auto flex min-w-0 items-center gap-1.5">
-                    {compactAgentStatus ? <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /> : null}
+                    {CANVAS_AGENT_ENABLED && compactAgentStatus ? <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /> : null}
                     <UserStatusActions variant="canvas" onOpenShortcuts={() => setShortcutsOpen(true)} />
-                    {!agentOpen ? (
-                        <button
-                            type="button"
-                            className="canvas-agent-button inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border px-2.5 text-sm font-medium shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/35 [&_svg]:size-4"
-                            style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item, boxShadow: colorTheme === "dark" ? "0 10px 30px rgba(0,0,0,.28)" : "0 10px 24px rgba(28,25,23,.08)" }}
-                            onClick={onToggleAgent}
-                            aria-label="打开 Agent"
-                        >
-                            <Bot aria-hidden="true" />
-                            <span>Agent</span>
-                        </button>
-                    ) : null}
+                    {CANVAS_AGENT_ENABLED ? (
+                        !agentOpen ? (
+                            <button
+                                type="button"
+                                className="canvas-agent-button inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border px-2.5 text-sm font-medium shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/35 [&_svg]:size-4"
+                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item, boxShadow: colorTheme === "dark" ? "0 10px 30px rgba(0,0,0,.28)" : "0 10px 24px rgba(28,25,23,.08)" }}
+                                onClick={onToggleAgent}
+                                aria-label="打开 Agent"
+                            >
+                                <Bot aria-hidden="true" />
+                                <span>Agent</span>
+                            </button>
+                        ) : null
+                    ) : (
+                        // 稳定性考虑暂时关闭（见 constants.ts 的 CANVAS_AGENT_ENABLED）。
+                        // 保留按钮位置而不是直接隐藏：用户能看到这个功能存在、即将开放，
+                        // 点不动并给出"敬请期待"提示。恢复时把开关改回 true 即可。
+                        <Tooltip title={CANVAS_AGENT_DISABLED_HINT}>
+                            <button
+                                type="button"
+                                className="canvas-agent-button inline-flex h-9 shrink-0 cursor-not-allowed items-center justify-center gap-2 rounded-xl border px-2.5 text-sm font-medium opacity-50 [&_svg]:size-4"
+                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                                disabled
+                                aria-disabled="true"
+                                aria-label={`Agent（${CANVAS_AGENT_DISABLED_HINT}）`}
+                            >
+                                <Bot aria-hidden="true" />
+                                <span>Agent</span>
+                            </button>
+                        </Tooltip>
+                    )}
                 </div>
             </div>
             <Modal title="快捷键" open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered width={640}>

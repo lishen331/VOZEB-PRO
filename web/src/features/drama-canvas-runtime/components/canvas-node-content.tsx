@@ -18,7 +18,7 @@ import { canvasGroupColumns, canvasGroupRows } from "../utils/canvas-storyboard-
 import { TYPE_MS, typewriterFrame } from "../utils/canvas-generating-copy";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 
-export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+export type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top" | "bottom" | "left" | "right";
 export type NodeContentRendererProps = {
     node: CanvasNodeData;
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -855,9 +855,16 @@ export function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; on
         "top-right": "-right-[14px] -top-[14px] cursor-nesw-resize",
         "bottom-left": "-bottom-[14px] -left-[14px] cursor-nesw-resize",
         "bottom-right": "-bottom-[14px] -right-[14px] cursor-nwse-resize",
+        // Full-length edge strips, only on 生成组 frames. A midpoint square here
+        // would cover the left/right connection dots and swallow every wire drag.
+        top: "inset-x-[14px] -top-[6px] h-3 cursor-ns-resize",
+        bottom: "inset-x-[14px] -bottom-[6px] h-3 cursor-ns-resize",
+        left: "inset-y-[14px] -left-[6px] w-3 cursor-ew-resize",
+        right: "inset-y-[14px] -right-[6px] w-3 cursor-ew-resize",
     }[corner];
+    const sizeClass = corner.includes("-") ? "size-7" : "";
 
-    return <div data-canvas-resize-corner={corner} className={`absolute z-50 size-7 ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;
+    return <div data-canvas-resize-corner={corner} className={`absolute z-50 ${sizeClass} ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;
 }
 
 export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "left" | "right"; visible: boolean; onConnectStart: (event: React.MouseEvent | React.PointerEvent) => void }) {
@@ -867,7 +874,7 @@ export function ConnectionHandleDot({ side, visible, onConnectStart }: { side: "
         <div
             data-canvas-handle={side === "left" ? "target" : "source"}
             aria-label={side === "left" ? "输入连接点" : "输出连接点"}
-            className={`absolute top-1/2 z-30 flex size-12 -translate-y-1/2 cursor-crosshair items-center justify-center transition-opacity duration-150 ${
+            className={`absolute top-1/2 z-[60] flex size-12 -translate-y-1/2 cursor-crosshair items-center justify-center transition-opacity duration-150 ${
                 side === "left" ? "-left-6" : "-right-6"
             } ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
             onMouseDown={onConnectStart}

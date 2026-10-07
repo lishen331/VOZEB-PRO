@@ -17,10 +17,10 @@ import { CANVAS_AGENT_PANEL_MOTION_MS } from "../components/canvas-agent-panel-m
 import { retryCanvasAgentNode } from "../components/canvas-agent-node-retry";
 import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext } from "../components/canvas-node-generation";
 import { type CanvasNodeGenerationMode } from "../components/canvas-node-prompt-panel";
-import { NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
+import { CANVAS_AGENT_ENABLED, NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
 import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type CanvasNodeData } from "../types";
 import { applyCameraPrompt } from "../utils/canvas-camera";
-import { canvasContainerGeneratableIds, canvasNodeGenerationMode } from "../utils/canvas-container-group";
+import { canvasContainerChildIds, canvasContainerGeneratableIds, canvasNodeGenerationMode } from "../utils/canvas-container-group";
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
 import { buildPanoramaPrompt } from "../utils/canvas-panorama";
 import { canvasVideoReferenceMetadata, normalizeCanvasVideoGenerationMode, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
@@ -570,13 +570,21 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             const container = nodesRef.current.find((node) => node.id === containerNodeId);
             if (!container || container.type !== CanvasNodeType.Container) return;
 
+            const allMembers = nodesRef.current.filter((node) => node.metadata?.containerId === containerNodeId);
             const targetIds = canvasContainerGeneratableIds(containerNodeId, nodesRef.current);
+            // Members that carry no prompt of their own are skipped rather than
+            // run empty: handleGenerateNode would bounce an empty prompt back as
+            // an error toast, which reads as "整组执行 broke" instead of "this
+            // member was never filled in". Say so explicitly instead.
+            const runningCount = allMembers.filter((node) => node.metadata?.status === "loading").length;
+            const skippedCount = allMembers.length - targetIds.length - runningCount;
+
             if (!targetIds.length) {
-                message.info("生成组内没有可执行的节点，请先给成员填写提示词");
+                message.info(allMembers.length ? `生成组内 ${allMembers.length} 个成员都没有提示词，无可执行的节点` : "生成组内没有可执行的节点，请先给成员填写提示词");
                 return;
             }
 
-            message.info(`开始执行生成组内 ${targetIds.length} 个节点`);
+            message.info(skippedCount > 0 ? `开始执行 ${targetIds.length} 个节点，${skippedCount} 个成员没有提示词已跳过` : `开始执行生成组内 ${targetIds.length} 个节点`);
             await Promise.allSettled(
                 targetIds.map((nodeId) => {
                     const node = nodesRef.current.find((item) => item.id === nodeId);
@@ -947,6 +955,9 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
 
     const assistantOpen = assistantMounted && !assistantCollapsed;
     const openAgent = () => {
+        // 稳定性考虑暂时关闭（见 constants.ts 的 CANVAS_AGENT_ENABLED）。
+        // 顶栏按钮已置灰不可点，这里再兜一层，防止状态芯片、快捷键等其它入口展开面板。
+        if (!CANVAS_AGENT_ENABLED) return;
         if (agentCloseTimerRef.current) {
             clearTimeout(agentCloseTimerRef.current);
             agentCloseTimerRef.current = null;
@@ -967,7 +978,9 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
     };
 
     useEffect(() => {
-        if (!projectLoaded || autoOpenedAgentRef.current) return;
+        // 自动打开也要受开关约束：只禁按钮是挡不住的，宽屏下项目加载后
+        // 面板会自己挂起来（这正是用户截图里面板打开的原因）。
+        if (!CANVAS_AGENT_ENABLED || !projectLoaded || autoOpenedAgentRef.current) return;
         autoOpenedAgentRef.current = true;
         if (window.matchMedia("(min-width: 1024px)").matches) {
             setAssistantMounted(true);

@@ -53,6 +53,7 @@ for (const source of sourceFiles) {
 }
 
 await applyDramaRuntimeAdapters();
+formatWithPrettier(targetRoot);
 try {
     await validateStagingRuntime();
 } catch (error) {
@@ -183,6 +184,14 @@ async function validateStagingRuntime() {
     }
 }
 
+// Hashes must describe the committed bytes, and CI enforces prettier on the target.
+function formatWithPrettier(...paths) {
+    execFileSync(process.execPath, [join(webRoot, "node_modules", "prettier", "bin", "prettier.cjs"), "--write", "--log-level", "warn", ...paths], {
+        cwd: webRoot,
+        stdio: "inherit",
+    });
+}
+
 function replaceRequired(source, search, replacement, label) {
     if (!source.includes(search)) throw new Error(`Drama Canvas adapter target missing: ${label}`);
     return source.replace(search, replacement);
@@ -199,6 +208,7 @@ const manifest = {
     files,
 };
 await writeFile(manifestPath, `${JSON.stringify(manifest, null, 4)}\n`, "utf8");
+formatWithPrettier(manifestPath);
 
 const backupRoot = `${finalTargetRoot}.backup-${process.pid}`;
 let hasBackup = false;
