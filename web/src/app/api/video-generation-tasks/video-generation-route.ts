@@ -905,6 +905,8 @@ async function prepareTuziReferences(channel: NonNullable<ReturnType<typeof toSy
     const baseUrl = configured?.baseUrl || channel.baseUrl;
     const apiKey = configured?.apiKey || channel.apiKey;
     if (!apiKey || apiKey === "system" || !/^https?:\/\//i.test(baseUrl)) return references;
+    const host = new URL(baseUrl).hostname.toLowerCase();
+    if (host === "127.0.0.1" || host === "localhost") return references;
     return ingestTuziReferences(
         references,
         {
