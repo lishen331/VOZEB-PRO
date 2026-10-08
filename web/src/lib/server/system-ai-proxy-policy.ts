@@ -55,8 +55,12 @@ export function authorizeSystemAiProxyRequest(input: ProxyPolicyInput): SystemAi
         return allowedTaskOperation(logical, "cancel", taskIdForAccess(cancelMatch.taskId, input.upstreamTaskIdHint));
     }
 
+    const createPaths = [...(input.paths?.create || []), ...standardCreatePaths(logical.capability, input.apiFormat)];
+    const isCreatePath = method === "POST" && createPaths.some((path) => pathMatchesAny(candidates, path, upstreamModel));
+
+    // A create path like /v1/videos/generations would otherwise match the query template /videos/:task_id.
     const queryPaths = [...(input.paths?.query || []), ...defaultQueryPaths(logical.capability, input.paths?.create || [], input.apiFormat)];
-    const queryMatch = method === "GET" || method === "HEAD" || method === "POST" ? firstPathMatch(candidates, queryPaths, upstreamModel) : null;
+    const queryMatch = !isCreatePath && (method === "GET" || method === "HEAD" || method === "POST") ? firstPathMatch(candidates, queryPaths, upstreamModel) : null;
     if (queryMatch) {
         return allowedTaskOperation(logical, "query", taskIdForAccess(queryMatch.taskId, input.upstreamTaskIdHint));
     }
@@ -70,8 +74,7 @@ export function authorizeSystemAiProxyRequest(input: ProxyPolicyInput): SystemAi
         }
     }
 
-    const createPaths = [...(input.paths?.create || []), ...standardCreatePaths(logical.capability, input.apiFormat)];
-    if (method === "POST" && createPaths.some((path) => pathMatchesAny(candidates, path, upstreamModel))) {
+    if (isCreatePath) {
         if (input.workflowModel) {
             // 无限练习工作流不计费，但请求能力仍必须与工作流能力一致。
             if (input.pointsUsageKind && input.pointsUsageKind !== "api" && input.pointsUsageKind !== logical.capability) return denied(403, "请求能力与练习工作流不匹配");
