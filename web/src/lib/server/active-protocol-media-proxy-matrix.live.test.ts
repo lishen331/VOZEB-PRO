@@ -339,7 +339,7 @@ function imageTask(channel: ProxyChannel, edit: boolean): ImageTask {
                       id: "reference",
                       name: "reference.png",
                       type: "image/png",
-                      dataUrl: protocol === "yumeng" ? `${fixtureOrigin}/media/fixture.png` : ["sub2api", "custom"].includes(protocol) ? "https://cdn.example.com/reference.png" : PNG_DATA_URL,
+                      dataUrl: protocol === "yumeng" ? `${fixtureOrigin}/media/fixture.png` : ["sub2api", "custom", "modelbay-image-task"].includes(protocol) ? "https://cdn.example.com/reference.png" : PNG_DATA_URL,
                   },
               ]
             : [],
@@ -347,7 +347,7 @@ function imageTask(channel: ProxyChannel, edit: boolean): ImageTask {
 }
 
 async function runImage(task: ImageTask, protocol: SystemChannelProtocol) {
-    const declarative = protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng";
+    const declarative = protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task";
     const submitted = declarative ? await runCustomImageTask(task, INTERNAL_ORIGIN, fixtureOrigin, "", true) : await runOpenAiImageTask(task, INTERNAL_ORIGIN, fixtureOrigin, "", true);
     return submitted.pending ? pollCustomImageTask(task, submitted.pending.id, submitted.pending.mediaBaseUrl, submitted.pending.pollBaseUrl, "", true) : submitted;
 }

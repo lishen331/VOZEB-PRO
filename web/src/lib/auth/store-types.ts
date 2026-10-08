@@ -22,6 +22,8 @@ export type SystemChannelProtocol =
     | "modelbay-seedance"
     | "tuzi-seedance"
     | "mohui-seedance"
+    | "modelbay-image-task"
+    | "tuzi-image-task"
     | "stable-diffusion"
     | "volcengine-video"
     | "seedance-special"

@@ -5,6 +5,9 @@ import { buildProviderRequest, isProviderBusinessError, readProviderError, readP
 import { buildYumengImageRequest, resolveYumengImageResolution } from "@/lib/yumeng-model-center";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
+import { buildImageTaskPrompt } from "@/lib/image-reference-prompt";
+
+import { buildModelBayImageTaskRequest, buildTuziImageTaskFormData, buildTuziImageTaskJsonRequest, isAsyncImageTaskProtocol, type AsyncImageTaskProtocol } from "./image-task-async-request";
 import { publicImageReferenceRequestUrl } from "./image-task-openai";
 import { IMAGE_TASK_POLL_INTERVAL_MS, type ImageApiResponse, type ImageTaskResult } from "./image-task-types";
 import {
@@ -13,6 +16,7 @@ import {
     imageSubmissionFetch,
     imageSubmissionResponseError,
     imageReferenceToDataUrl,
+    imageReferenceToFile,
     imageTaskPollAttempts,
     imageTaskPollUrls,
     isPendingImageStatus,
@@ -37,6 +41,7 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
     const workflow = workflowConfigForTask(task);
     if (!advanced?.createPath || !advanced.resultField || (advanced.protocol === "runninghub" && (!advanced.taskIdField || !advanced.queryPath))) throw new GenerationSubmissionSafeFailure("图片异步协议缺少创建、查询或结果字段");
     const size = resolveDeclarativeImageSize(config);
+    if (isAsyncImageTaskProtocol(advanced.protocol)) return runAsyncImageTask(task, advanced.protocol, size, origin, publicOrigin, cookie, singleStep);
     const [width, height] = /^\d+x\d+$/.test(size) ? size.split("x").map(Number) : [undefined, undefined];
     const context = { ownerUserId: task.userId, taskId: task.id };
     const inlineReferences = advanced.protocol === "stable-diffusion" || /\bbase64\b|data:image|\binline\b/i.test(advanced.referenceRule || "");
@@ -86,6 +91,40 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         cache: "no-store",
         signal: workflow ? AbortSignal.timeout(workflowTimeoutMs(workflow, imageTaskRequestTimeoutMs(config))) : undefined,
     });
+    return parseDeclarativeSubmission(task, response, url, cookie, singleStep);
+}
+
+async function runAsyncImageTask(task: ImageTask, protocol: AsyncImageTaskProtocol, size: string, origin: string, publicOrigin: string, cookie: string, singleStep: boolean) {
+    const config = task.config;
+    const advanced = config.advancedConfig!;
+    const prompt = task.upstreamPrompt || buildImageTaskPrompt(task);
+    const requestInput = { model: config.model, prompt, quality: config.quality, size, aspectRatio: imageRequestAspectRatio(config.size || "auto"), outputBackground: config.outputBackground };
+    const url = taskUrl(config, task.kind === "edit" ? advanced.editPath || advanced.createPath : advanced.createPath, origin);
+    const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
+    let body: BodyInit;
+    // 蒙版追加在参考图之后，与画布提示词“最后一张图片是编辑蒙版”一致。
+    const references = [...task.references, ...(task.mask ? [task.mask] : [])];
+    if (protocol === "modelbay-image-task") {
+        const context = { ownerUserId: task.userId, taskId: task.id };
+        const imageUrls = await Promise.all(references.map((reference) => publicImageReferenceRequestUrl(reference, origin, publicOrigin, context)));
+        headers.set("content-type", "application/json");
+        body = JSON.stringify(buildModelBayImageTaskRequest({ ...requestInput, imageUrls }));
+    } else {
+        if (references.length) {
+            const files = await Promise.all(references.map((reference, index) => imageReferenceToFile(reference, reference.name || `reference-${index + 1}.png`, origin, cookie)));
+            headers.delete("content-type");
+            body = buildTuziImageTaskFormData({ ...requestInput, files });
+        } else {
+            headers.set("content-type", "application/json");
+            body = JSON.stringify(buildTuziImageTaskJsonRequest(requestInput));
+        }
+    }
+    const response = await imageSubmissionFetch(config, url, { method: "POST", headers, body, cache: "no-store" });
+    return parseDeclarativeSubmission(task, response, url, cookie, singleStep);
+}
+
+async function parseDeclarativeSubmission(task: ImageTask, response: Response, url: string, cookie: string, singleStep: boolean) {
+    const advanced = task.config.advancedConfig!;
     if (!response.ok) throw imageSubmissionResponseError(response.status, await readFetchError(response, "自定义图片接口调用失败"));
     const data = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     return parseChargedImageResponse(task, response, async () => {

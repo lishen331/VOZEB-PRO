@@ -182,7 +182,31 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
         return sendJson(response, 200, { data: { image_url: `${url.origin}/media/fixture.png` } });
     }
 
-    if (request.method === "POST" && (GLOBAL_AIOPC_VIDEO_PATHS.has(path) || ["/videos", "/video/generations", "/contents/generations/tasks", "/doubao/api/v3/contents/generations/tasks", "/seedance-special/videos"].includes(path))) {
+    // ModelBay 异步图片：参数必须放在 input 内，形状与 2026-10-09 实测响应一致。
+    if (request.method === "POST" && path === "/image/submit") {
+        const payload = jsonBody(body);
+        if (!payload.model || !payload.input || typeof payload.input.prompt !== "string") return sendJson(response, 400, { code: "fail_to_fetch_task", message: "Invalid JSON body.", data: null });
+        const id = nextTaskId("modelbay-image");
+        tasks.set(id, { kind: "modelbay-image", status: "completed", model: payload.model, input: payload.input });
+        return sendJson(response, 200, { code: "success", message: "", data: { task_id: id } });
+    }
+    const modelbayImageId = path.match(/^\/image\/fetch\/([^/]+)$/)?.[1];
+    if (request.method === "GET" && modelbayImageId) {
+        const id = decodeURIComponent(modelbayImageId);
+        const task = tasks.get(id);
+        if (!task || task.kind !== "modelbay-image") return sendJson(response, 400, { code: "task_not_exist", message: "task_not_exist", data: null });
+        return sendJson(response, 200, { code: "success", message: "", data: { task_id: id, status: "SUCCESS", fail_reason: "", progress: "100%", result_url: `${url.origin}/media/fixture.png` } });
+    }
+    // 兔子异步图片复用 /v1/videos；图片模型的任务结果仍放在 video_url，但内容是图片。
+    if (request.method === "POST" && path === "/videos" && /image/i.test(requestedModel(body, request.headers["content-type"] || ""))) {
+        const contentType = String(request.headers["content-type"] || "");
+        if (contentType.includes("multipart/form-data") && /name="n"\r?\n/i.test(body.toString("utf8"))) return sendJson(response, 400, { code: "invalid_request", message: "json: cannot unmarshal string into Go struct field Alias.n of type uint", data: null });
+        const id = nextTaskId("tuzi-image");
+        tasks.set(id, { kind: "tuzi-image", status: "completed" });
+        return sendJson(response, 200, { id, task_id: id, object: "video", status: "queued", progress: 0 });
+    }
+
+    if (request.method === "POST" && (GLOBAL_AIOPC_VIDEO_PATHS.has(path) || ["/videos","/video/generations", "/contents/generations/tasks", "/doubao/api/v3/contents/generations/tasks", "/seedance-special/videos"].includes(path))) {
         const model = requestedModel(body, request.headers["content-type"] || "");
         if (shouldFailRequest(request, model)) return sendJson(response, model.includes("-fail") ? 400 : 503, { error: { message: "fixture video failure" } });
         const id = nextTaskId("video");
@@ -238,6 +262,7 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
         const mediaUrl = `${url.origin}/media/fixture.mp4`;
         const task = tasks.get(videoId);
         if (task?.kind === "image") return sendJson(response, 200, { task_id: videoId, status: "completed", image_url: `${url.origin}/media/fixture.png` });
+        if (task?.kind === "tuzi-image") return sendJson(response, 200, { id: videoId, task_id: videoId, object: "video", status: "completed", progress: 100, video_url: `${url.origin}/media/fixture.png` });
         if (task?.status === "pending") return sendJson(response, 200, { id: videoId, task_id: videoId, status: "processing" });
         if (task?.status === "cancelled") return sendJson(response, 200, { id: videoId, task_id: videoId, status: "cancelled" });
         return sendJson(response, 200, { id: videoId, task_id: videoId, status: "completed", video_url: mediaUrl, content: { video_url: mediaUrl }, result: { video_url: mediaUrl } });
