@@ -1,6 +1,7 @@
 /** Diagnostic-only budget agreed for this investigation; does not limit generation. */
 export const MEDIA_DIAGNOSTIC_MAX_BYTES = 20 * 1024;
 export const MEDIA_DIAGNOSTIC_RETENTION_MS = 7 * 86400000;
+const DIAGNOSTIC_TEXT_SCAN_LIMIT = 16 * 1024;
 export type MediaDiagnosticEvent = { at: number; phase: string; [key: string]: string | number | boolean | undefined };
 const stringFields = [
     "transportPolicy",
@@ -57,6 +58,8 @@ export function appendDiagnosticEvent(current: MediaDiagnosticEvent[], input: Re
 export function redactDiagnosticText(value: string, secrets: string[] = []): string {
     let text = value;
     for (const secret of secrets.filter(Boolean)) text = text.split(secret).join("[redacted]");
+    // V8 overflows its regex stack on multi-MB base64 runs; callers keep at most 2KB.
+    if (text.length > DIAGNOSTIC_TEXT_SCAN_LIMIT) text = text.slice(0, DIAGNOSTIC_TEXT_SCAN_LIMIT);
     return text
         .replace(/data:[^\s"']+/gi, "[media omitted]")
         .replace(/(?:\bBearer\s+|\bsk-)[a-zA-Z0-9._~+/=-]+/gi, "[redacted]")
