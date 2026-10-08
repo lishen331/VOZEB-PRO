@@ -117,7 +117,14 @@ export function textOrEmpty(value: unknown) {
     return typeof value === "string" ? value.trim() : "";
 }
 
+export function explicitImageResponseFormat(config: ImageTaskConfig): (typeof IMAGE_RESPONSE_FORMATS)[number] | undefined {
+    const value = resolveChannelModelConfig(config.advancedConfig, config.model)?.imageResponseFormat;
+    return value === "url" || value === "b64_json" ? value : undefined;
+}
+
 export async function preferredImageResponseFormat(config: ImageTaskConfig): Promise<(typeof IMAGE_RESPONSE_FORMATS)[number]> {
+    const explicit = explicitImageResponseFormat(config);
+    if (explicit) return explicit;
     // New API image gateways commonly place URL results on a separate CDN that
     // is not reachable from the application server. Prefer the inline response
     // already declared by the protocol so result persistence does not depend on

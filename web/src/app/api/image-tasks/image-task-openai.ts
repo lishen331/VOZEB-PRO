@@ -57,6 +57,7 @@ import {
     sanitizeAdvancedConfig,
     textOrEmpty,
     preferredImageResponseFormat,
+    explicitImageResponseFormat,
     openAiImageTaskPath,
     shouldUseJsonImageEdit,
     configuredImageEditReferenceMode,
@@ -141,6 +142,7 @@ async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publi
     const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
     const responseFormat = await preferredImageResponseFormat(config);
     const allowProtocolFallback = allowsImageProtocolFallback(config);
+    const sendResponseFormat = allowProtocolFallback || Boolean(explicitImageResponseFormat(config)) || responseFormat !== "url";
     const useJsonImageEdit = task.kind === "edit" && (await shouldUseJsonImageEdit(config));
     if (useJsonImageEdit) return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, responseFormat, singleStep);
     let response: Response;
@@ -148,7 +150,7 @@ async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publi
     if (task.kind === "edit") {
         let formData: FormData;
         try {
-            formData = await buildImageEditFormData(task, quality, requestSize, origin, cookie, responseFormat, allowProtocolFallback || responseFormat !== "url");
+            formData = await buildImageEditFormData(task, quality, requestSize, origin, cookie, responseFormat, sendResponseFormat);
         } catch (error) {
             throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "参考图读取失败，请重新上传参考图");
         }
@@ -168,7 +170,7 @@ async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publi
             ...(config.outputMode === "layers" ? {} : { n: 1 }),
             ...(quality ? { quality } : {}),
             ...(requestSize ? { size: requestSize } : {}),
-            ...(allowProtocolFallback || responseFormat !== "url" ? { response_format: responseFormat, output_format: IMAGE_OUTPUT_FORMAT } : {}),
+            ...(sendResponseFormat ? { response_format: responseFormat, output_format: IMAGE_OUTPUT_FORMAT } : {}),
         };
         response = await imageSubmissionFetch(config, url, {
             method: "POST",
@@ -250,7 +252,9 @@ export async function runOpenAiJsonImageEditTask(
     const imageUrlObjectOnlyMode = shouldUseSub2ApiImageEdit(config, apiBase);
     const allowProtocolFallback = allowsImageProtocolFallback(config);
     const publicUrlReferenceMode = imageUrlObjectOnlyMode || referenceMode === "public-url";
-    for (const [index, body] of (await buildJsonImageEditBodies(task, quality, requestSize, responseFormat, origin, publicOrigin, publicUrlReferenceMode, imageUrlObjectOnlyMode, allowProtocolFallback)).entries()) {
+    for (const [index, body] of (
+        await buildJsonImageEditBodies(task, quality, requestSize, responseFormat, origin, publicOrigin, publicUrlReferenceMode, imageUrlObjectOnlyMode, allowProtocolFallback || Boolean(explicitImageResponseFormat(config)))
+    ).entries()) {
         const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task, index === 0 ? billingVariant : `${billingVariant}-${index + 1}`));
         headers.set("content-type", "application/json");
         const response = await imageSubmissionFetch(config, url, { method: "POST", headers, body: JSON.stringify(body), cache: "no-store" });

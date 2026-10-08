@@ -140,6 +140,7 @@ function normalizeChannelModelConfigs(value: unknown) {
                         ...(typeof config.supportsReferenceImage === "boolean" ? { supportsReferenceImage: config.supportsReferenceImage } : {}),
                         ...(typeof config.supportsReferenceVideo === "boolean" ? { supportsReferenceVideo: config.supportsReferenceVideo } : {}),
                         ...(typeof config.supportsReferenceAudio === "boolean" ? { supportsReferenceAudio: config.supportsReferenceAudio } : {}),
+                        ...(config.imageResponseFormat === "url" || config.imageResponseFormat === "b64_json" ? { imageResponseFormat: config.imageResponseFormat } : {}),
                         ...(normalizeStreamingConfig(config.streaming) ? { streaming: normalizeStreamingConfig(config.streaming) } : {}),
                     },
                 ] as const,

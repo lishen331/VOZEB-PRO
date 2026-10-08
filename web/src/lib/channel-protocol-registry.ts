@@ -489,7 +489,11 @@ export function applyModelProtocol(config: SystemChannelModelConfig, protocol: S
     if (!preset) return { ...config, source: "manual", protocol };
     // Image input is an explicit model capability, not a generic OpenAI protocol capability.
     // Keep an administrator's model-level declaration when a strict preset is reapplied.
-    return { ...preset, ...(typeof config.supportsImageInput === "boolean" ? { supportsImageInput: config.supportsImageInput } : {}) };
+    return {
+        ...preset,
+        ...(typeof config.supportsImageInput === "boolean" ? { supportsImageInput: config.supportsImageInput } : {}),
+        ...(config.imageResponseFormat ? { imageResponseFormat: config.imageResponseFormat } : {}),
+    };
 }
 
 export function normalizeStrictProtocolModelConfig(config: SystemChannelModelConfig, fallbackProtocol: SystemChannelProtocol, model?: string): SystemChannelModelConfig {

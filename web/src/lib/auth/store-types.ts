@@ -54,6 +54,7 @@ export type SystemChannelModelConfig = {
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
+    imageResponseFormat?: "url" | "b64_json";
     streaming?: SystemChannelStreamingConfig;
 };
 
