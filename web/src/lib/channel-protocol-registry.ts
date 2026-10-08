@@ -125,6 +125,21 @@ const tuziSeedanceVideoOperation: ProtocolOperation = {
     supportsReferenceAudio: true,
 };
 
+const mohuiSeedanceVideoOperation: ProtocolOperation = {
+    capability: "video",
+    createPath: "/v1/videos/generations",
+    imageToVideoPath: "/v1/videos/generations",
+    queryPath: "/v1/videos/generations/:task_id",
+    requestTemplate: '{"model":"{{model}}","content":"{{content}}","ratio":"{{ratio}}","resolution":"{{resolution}}","duration":"{{duration}}","generate_audio":"{{generate_audio}}","watermark":false}',
+    resultField: "content.video_url",
+    statusField: "status",
+    durationRange: "4-15 秒",
+    referenceRule: "模汇 Seedance：真人参考图直接传公网 URL；素材库 ID 不可用于生成。2.5 不支持 480p，fast/mini 不支持 1080p。",
+    supportsReferenceImage: true,
+    supportsReferenceVideo: true,
+    supportsReferenceAudio: true,
+};
+
 const seedanceSpecialOperation: ProtocolOperation = {
     capability: "video",
     createPath: "/v1/seedance-special/videos",
@@ -236,6 +251,18 @@ export const registeredChannelProtocolDefinitions: ChannelProtocolDefinition[] =
         modelCatalogPaths: ["/v1/models"],
         capabilities: ["video"],
         operations: { video: tuziSeedanceVideoOperation },
+        strict: true,
+    },
+    {
+        id: "mohui-seedance",
+        label: "模汇 Seedance 真人协议",
+        description: "模汇 /v1/videos/generations content[] 协议；真人参考图直传公网 URL。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://api.easyart.cc",
+        modelCatalogPaths: ["/v1/models"],
+        capabilities: ["video"],
+        operations: { video: mohuiSeedanceVideoOperation },
         strict: true,
     },
     {

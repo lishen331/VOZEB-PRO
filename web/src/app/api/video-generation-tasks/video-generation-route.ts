@@ -30,6 +30,7 @@ import { buildSeedanceSpecialRequest } from "@/lib/seedance-special";
 import { ingestModelBayReferences, ModelBayAssetError } from "@/lib/server/modelbay-asset-service";
 import { ingestTuziReferences } from "@/lib/server/tuzi-asset-service";
 import { buildTuziSeedanceVideoRequest } from "@/lib/tuzi-seedance-video";
+import { buildMohuiSeedanceVideoRequest } from "@/lib/mohui-seedance-video";
 import { assertVozebRecommendedVideoReferences, buildVozebRecommendedVideoRequest } from "@/lib/vozeb-recommended-video";
 import { assertGeminiVideoReferences, buildGeminiVideoRequest, geminiVideoCreatePath, normalizeGeminiVideoDuration, parseGeminiVideoCreateResponse } from "@/lib/server/gemini-video-provider";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
@@ -610,45 +611,55 @@ export async function createUpstream(
                     generateAudio,
                     references: providerReferences,
                 })
-              : channel.advancedConfig?.protocol === "seedance-special"
-                ? buildSeedanceSpecialRequest({
+              : channel.advancedConfig?.protocol === "mohui-seedance"
+                ? buildMohuiSeedanceVideoRequest({
                       model: channel.model,
                       prompt,
-                      duration: values.duration === -1 ? 5 : (values.duration as number),
-                      ratio: (values.ratio as string | undefined) || "adaptive",
+                      duration: values.duration === -1 ? undefined : (values.duration as number),
+                      ratio: values.ratio as string | undefined,
+                      resolution: values.resolution as string | undefined,
                       generateAudio,
-                      references: [...providerReferences],
+                      references: providerReferences,
                   })
-                : channel.advancedConfig?.protocol === "yumeng"
-                  ? buildYumengVideoRequest({
+                : channel.advancedConfig?.protocol === "seedance-special"
+                  ? buildSeedanceSpecialRequest({
                         model: channel.model,
                         prompt,
-                        duration: values.duration as number,
-                        aspectRatio: values.aspect_ratio as string,
-                        resolution: values.resolution as string,
+                        duration: values.duration === -1 ? 5 : (values.duration as number),
+                        ratio: (values.ratio as string | undefined) || "adaptive",
                         generateAudio,
-                        watermark: booleanValue(raw.videoWatermark),
-                        images: requestImages,
-                        videos,
-                        audios,
-                        firstFrame: firstFrameUrl || undefined,
-                        lastFrame: lastFrameUrl || undefined,
+                        references: [...providerReferences],
                     })
-                  : globalPreset
-                    ? buildGlobalAiOpcVideoRequest(globalPreset, {
+                  : channel.advancedConfig?.protocol === "yumeng"
+                    ? buildYumengVideoRequest({
                           model: channel.model,
                           prompt,
                           duration: values.duration as number,
-                          ratio: values.ratio as string,
+                          aspectRatio: values.aspect_ratio as string,
                           resolution: values.resolution as string,
-                          images: requestImages.length ? requestImages : requestImage ? [requestImage] : [],
+                          generateAudio,
+                          watermark: booleanValue(raw.videoWatermark),
+                          images: requestImages,
                           videos,
                           audios,
-                          generateAudio,
                           firstFrame: firstFrameUrl || undefined,
                           lastFrame: lastFrameUrl || undefined,
                       })
-                    : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
+                    : globalPreset
+                      ? buildGlobalAiOpcVideoRequest(globalPreset, {
+                            model: channel.model,
+                            prompt,
+                            duration: values.duration as number,
+                            ratio: values.ratio as string,
+                            resolution: values.resolution as string,
+                            images: requestImages.length ? requestImages : requestImage ? [requestImage] : [],
+                            videos,
+                            audios,
+                            generateAudio,
+                            firstFrame: firstFrameUrl || undefined,
+                            lastFrame: lastFrameUrl || undefined,
+                        })
+                      : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
     const requestBody = multipart
         ? await buildOpenAiVideoFormData({ model: channel.model, prompt, seconds: values.seconds as number, width: dimensions.width, height: dimensions.height, imageUrls: firstFrameUrl ? [firstFrameUrl] : images, origin, cookie })
         : JSON.stringify(payload);
