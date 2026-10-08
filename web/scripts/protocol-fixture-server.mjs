@@ -200,13 +200,14 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
     // 兔子异步图片复用 /v1/videos；图片模型的任务结果仍放在 video_url，但内容是图片。
     if (request.method === "POST" && path === "/videos" && /image/i.test(requestedModel(body, request.headers["content-type"] || ""))) {
         const contentType = String(request.headers["content-type"] || "");
-        if (contentType.includes("multipart/form-data") && /name="n"\r?\n/i.test(body.toString("utf8"))) return sendJson(response, 400, { code: "invalid_request", message: "json: cannot unmarshal string into Go struct field Alias.n of type uint", data: null });
+        if (contentType.includes("multipart/form-data") && /name="n"\r?\n/i.test(body.toString("utf8")))
+            return sendJson(response, 400, { code: "invalid_request", message: "json: cannot unmarshal string into Go struct field Alias.n of type uint", data: null });
         const id = nextTaskId("tuzi-image");
         tasks.set(id, { kind: "tuzi-image", status: "completed" });
         return sendJson(response, 200, { id, task_id: id, object: "video", status: "queued", progress: 0 });
     }
 
-    if (request.method === "POST" && (GLOBAL_AIOPC_VIDEO_PATHS.has(path) || ["/videos","/video/generations", "/contents/generations/tasks", "/doubao/api/v3/contents/generations/tasks", "/seedance-special/videos"].includes(path))) {
+    if (request.method === "POST" && (GLOBAL_AIOPC_VIDEO_PATHS.has(path) || ["/videos", "/video/generations", "/contents/generations/tasks", "/doubao/api/v3/contents/generations/tasks", "/seedance-special/videos"].includes(path))) {
         const model = requestedModel(body, request.headers["content-type"] || "");
         if (shouldFailRequest(request, model)) return sendJson(response, model.includes("-fail") ? 400 : 503, { error: { message: "fixture video failure" } });
         const id = nextTaskId("video");
