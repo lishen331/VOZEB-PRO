@@ -16,6 +16,12 @@ describe("bounded media task diagnostics", () => {
         expect(Buffer.byteLength(JSON.stringify(events), "utf8")).toBeLessThanOrEqual(20 * 1024);
         expect(events.at(-1)?.status).toBe(99);
     });
+    it("redacts multi-MB base64 error bodies without overflowing the regex stack", () => {
+        const text = `{"error":"bad","b64_json":"${"A".repeat(10 * 1024 * 1024)}"}`;
+        const event = sanitizeDiagnosticEvent({ phase: "upstream_response", errorMessage: text });
+        expect(event.errorMessage).toContain("[blob omitted]");
+        expect(String(event.errorMessage).length).toBeLessThanOrEqual(2048);
+    });
     it("deduplicates identical poll states, not distinct submissions", () => {
         const input = { phase: "poll", upstreamTaskId: "upstream-1", state: "running" };
         const events = appendDiagnosticEvent(appendDiagnosticEvent([], input, 1), input, 2);
