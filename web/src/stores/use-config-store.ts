@@ -25,6 +25,7 @@ type SystemChannelProtocol =
     | "seedance"
     | "modelbay-seedance"
     | "tuzi-seedance"
+    | "mohui-seedance"
     | "stable-diffusion"
     | "volcengine-video"
     | "seedance-special"

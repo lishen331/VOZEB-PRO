@@ -746,6 +746,7 @@ function targetUrl(baseUrl: string, apiFormat: "openai" | "gemini", path: string
         protocol === "seedance" ||
         protocol === "modelbay-seedance" ||
         protocol === "tuzi-seedance" ||
+        protocol === "mohui-seedance" ||
         protocol === "volcengine-video" ||
         protocol === "seedance-special" ||
         protocol === "stable-diffusion" ||
