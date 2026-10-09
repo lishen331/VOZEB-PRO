@@ -42,7 +42,17 @@ describe("async image request builders", () => {
         const form = buildTuziImageTaskFormData({ model: "gpt-image-2", prompt: "p", quality: "auto", size: "1024x1024", files: [new File(["a"], "a.png"), new File(["b"], "b.png")] });
         expect(form.getAll("input_reference")).toHaveLength(2);
         expect(form.has("n")).toBe(false);
-        expect(form.has("quality")).toBe(false);
+        expect(form.get("quality")).toBe("low");
+    });
+
+    it("defaults Tuzi quality to low only when the canvas did not pick one", () => {
+        for (const quality of [undefined, "", "auto"]) {
+            expect(buildTuziImageTaskJsonRequest({ model: "m", prompt: "p", quality }).quality).toBe("low");
+            expect(buildTuziImageTaskFormData({ model: "m", prompt: "p", quality, files: [] }).get("quality")).toBe("low");
+        }
+        expect(buildTuziImageTaskJsonRequest({ model: "m", prompt: "p", quality: "high" }).quality).toBe("high");
+        expect(buildTuziImageTaskJsonRequest({ model: "m", prompt: "p", quality: "4k" }).quality).toBe("high");
+        expect(buildTuziImageTaskFormData({ model: "m", prompt: "p", quality: "medium", files: [] }).get("quality")).toBe("medium");
     });
 });
 

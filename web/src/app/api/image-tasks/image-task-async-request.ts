@@ -19,6 +19,8 @@ type AsyncImageRequestInput = {
 
 const MODELBAY_QUALITIES = new Set(["low", "medium", "high", "auto"]);
 const TUZI_QUALITIES = new Set(["low", "medium", "high", "xhigh", "max"]);
+// 画布未指定质量（auto）时兔子默认走 low，出图更快；用户显式选择的质量始终优先。
+const TUZI_DEFAULT_QUALITY = "low";
 
 function normalizedQuality(value: string | undefined, allowed: Set<string>) {
     const raw = (value || "").trim().toLowerCase();
@@ -41,25 +43,27 @@ export function buildModelBayImageTaskRequest(input: AsyncImageRequestInput & { 
     };
 }
 
+function tuziQuality(value: string | undefined) {
+    return normalizedQuality(value, TUZI_QUALITIES) || TUZI_DEFAULT_QUALITY;
+}
+
 export function buildTuziImageTaskJsonRequest(input: AsyncImageRequestInput) {
-    const quality = normalizedQuality(input.quality, TUZI_QUALITIES);
     return {
         model: input.model,
         prompt: input.prompt,
         n: 1,
         ...(input.size ? { size: input.size } : {}),
-        ...(quality ? { quality } : {}),
+        quality: tuziQuality(input.quality),
     };
 }
 
 // 兔子按 JSON 类型解析 multipart 字段：数字字段传字符串会 400，因此不传 n（上游默认 1 张）。
 export function buildTuziImageTaskFormData(input: AsyncImageRequestInput & { files: File[] }) {
-    const quality = normalizedQuality(input.quality, TUZI_QUALITIES);
     const form = new FormData();
     form.set("model", input.model);
     form.set("prompt", input.prompt);
     if (input.size) form.set("size", input.size);
-    if (quality) form.set("quality", quality);
+    form.set("quality", tuziQuality(input.quality));
     for (const file of input.files) form.append("input_reference", file, file.name);
     return form;
 }
