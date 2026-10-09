@@ -3,9 +3,9 @@ import { formatAgentMessageText, friendlyAgentError } from "@/components/agent/a
 
 describe("Canvas Agent 消息清理", () => {
     it("hides upstream JSON errors", () => {
-        expect(formatAgentMessageText('{"error":{"message":"not available","code":"convert_request_failed"}}')).toBe("当前模型暂不可用，请切换模型或稍后重试。");
-        expect(formatAgentMessageText('{"error":{"message":"/backend-api/conversation failed: status=422, body="}}')).toBe("当前请求参数不被模型支持，请检查模型与生成参数。");
-        expect(formatAgentMessageText("<html><head><title>502 Bad Gateway</title></head><body>nginx</body></html>")).toBe("当前模型暂不可用，请切换模型或稍后重试。");
+        expect(formatAgentMessageText('{"error":{"message":"not available","code":"convert_request_failed"}}')).toBe("当前模型暂时不可用，请切换模型后重试");
+        expect(formatAgentMessageText('{"error":{"message":"/backend-api/conversation failed: status=422, body="}}')).toBe("当前模型暂时不可用，请切换模型后重试");
+        expect(formatAgentMessageText("<html><head><title>502 Bad Gateway</title></head><body>nginx</body></html>")).toBe("网络异常，请点击重试");
     });
 
     it("shows actionable point errors from provider-safe JSON envelopes", () => {

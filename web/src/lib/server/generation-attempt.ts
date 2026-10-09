@@ -1,6 +1,7 @@
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import { recordChannelRuntimeFailure, recordChannelRuntimeSuccess } from "./channel-runtime-health";
 import { releaseChannelReservations, renewChannelReservations, reserveChannelSlot } from "./channel-concurrency";
+import { redactDiagnosticText } from "./media-task-diagnostics";
 
 export type GenerationAttempt = {
     attemptNo: number;
@@ -12,9 +13,18 @@ export type GenerationAttempt = {
     pointsCost?: number;
     billingReceiptId?: string;
     error?: string;
+    /** Raw upstream failure for admin diagnostics only; redacted, never returned by public task APIs. */
+    upstreamError?: string;
     capability?: LogicalModelCapability;
     reservationId?: string;
 };
+
+const UPSTREAM_ERROR_MAX_CHARS = 2000;
+
+export function upstreamErrorDetail(error: unknown) {
+    const raw = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+    return raw.trim() ? redactDiagnosticText(raw).slice(0, UPSTREAM_ERROR_MAX_CHARS) : undefined;
+}
 
 export function nextGenerationAttemptNo(attempts: GenerationAttempt[] | undefined) {
     return (attempts?.length || 0) + 1;
@@ -38,7 +48,7 @@ export async function reserveGenerationAttemptSlot(input: { capability: LogicalM
     return reserveChannelSlot(input.capability, input.channelId, input.upstreamModel, input.reservationId, input.concurrencyLimit);
 }
 
-export function finishGenerationAttempt(attempts: GenerationAttempt[], attemptNo: number, patch: Pick<GenerationAttempt, "status"> & Partial<Pick<GenerationAttempt, "completedAt" | "pointsCost" | "billingReceiptId" | "error">>) {
+export function finishGenerationAttempt(attempts: GenerationAttempt[], attemptNo: number, patch: Pick<GenerationAttempt, "status"> & Partial<Pick<GenerationAttempt, "completedAt" | "pointsCost" | "billingReceiptId" | "error" | "upstreamError">>) {
     return attempts.map((attempt) => {
         if (attempt.attemptNo !== attemptNo) return attempt;
         const completed = { ...attempt, ...patch, completedAt: patch.completedAt || Date.now() };

@@ -9,7 +9,16 @@ import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execu
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
 import { takeChannelRateToken } from "@/lib/server/channel-rate-limit";
-import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
+import {
+    finishGenerationAttempt,
+    generationReservationId,
+    nextGenerationAttemptNo,
+    releaseGenerationReservations,
+    renewGenerationReservations,
+    reserveGenerationAttemptSlot,
+    startGenerationAttempt,
+    upstreamErrorDetail,
+} from "@/lib/server/generation-attempt";
 import { generationModelId } from "@/lib/server/generation-channel";
 import { refundImageTask } from "@/lib/server/image-task-refund";
 import { deletePreparedImageTaskResults, persistedImageTaskResults, prepareImageTaskResults } from "@/lib/server/image-task-result-service";
@@ -116,7 +125,7 @@ export async function createImageTaskUpstreamStep(task: ImageTask, origin: strin
             const uncertain = generationSubmissionUncertainError(error, "图片任务创建结果未知");
             return { state: "failed", error: uncertain.message || "图片任务创建结果未知", status: "submission_failed_without_upstream_id", retryReason: "upstream_failed" };
         }
-        attempts = finishGenerationAttempt(attempts, candidate.attemptNo, { status: "failed", error: error.message });
+        attempts = finishGenerationAttempt(attempts, candidate.attemptNo, { status: "failed", error: error.message, upstreamError: upstreamErrorDetail(error) });
         await refundImageCandidate(candidate);
         await updateImageTask(task.id, { attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined });
         return { state: "failed", error: error.message, status: "failed" };
@@ -151,6 +160,7 @@ export async function prepareImageTaskAutomaticRetry(task: ImageTask, error: str
     const attempts = finishGenerationAttempt(current.attempts || [], attemptNo, {
         status: "failed",
         error,
+        upstreamError: upstreamErrorDetail(error),
         pointsCost: current.billing?.pointsCost,
         billingReceiptId: current.billing?.billingReceiptId,
     });
@@ -213,6 +223,7 @@ export async function markImageTaskFailed(task: ImageTask, error: string) {
     const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1, {
         status: "failed",
         error,
+        upstreamError: upstreamErrorDetail(error),
         pointsCost: current.billing?.pointsCost,
         billingReceiptId: current.billing?.billingReceiptId,
     });

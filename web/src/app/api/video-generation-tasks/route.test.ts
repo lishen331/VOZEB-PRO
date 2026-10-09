@@ -232,32 +232,47 @@ describe("video generation candidate failover", () => {
         expect(mocks.getAuthSettings).not.toHaveBeenCalled();
     });
 
-    it("does not retry another binding after an ambiguous 2xx response", async () => {
+    it("fails and refunds without retrying another binding after an ambiguous 2xx response", async () => {
+        mocks.transitionVideoTask.mockImplementation(async (task, patch) => ({ ...task, ...patch }));
         mocks.fetchInternalApi.mockResolvedValue(new Response("not-json", { status: 200, headers: { "x-vozeb-pro-points-cost": "2.5", "x-vozeb-pro-billing-receipt-id": "points:video-points-unknown" } }));
 
         const response = await POST(request());
 
-        expect(response.status).toBe(202);
+        expect(response.status).toBe(502);
+        expect((await response.json()).canRetry).toBe(true);
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(false);
         expect(mocks.createVideoTask).toHaveBeenCalledOnce();
-        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "submission_outcome_unknown" }));
-        expect(mocks.refundGenerationCharge).not.toHaveBeenCalled();
+        expect(mocks.transitionVideoTask).toHaveBeenCalledWith(expect.objectContaining({ id: "local-task" }), expect.objectContaining({ status: "error", retryable: true }));
+        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "submission_failed_without_upstream_id" }));
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith(expect.objectContaining({ receiptId: "points:video-points-unknown", usageKind: "video" }));
         expect(mocks.updateVideoTask).toHaveBeenCalledWith(
             "local-task",
             expect.objectContaining({ upstream: expect.objectContaining({ pointsCost: 2.5, pointsUnits: expect.any(Number), billingReceiptId: "points:video-points-unknown", refunded: false }) }),
         );
     });
 
-    it("keeps the task pending manual review after an ambiguous server rejection", async () => {
+    it("fails the task without trying another binding after an ambiguous server rejection", async () => {
         mocks.fetchInternalApi.mockResolvedValue(json({ error: "gateway failed" }, 502));
 
         const response = await POST(request());
 
-        expect(response.status).toBe(202);
+        expect(response.status).toBe(502);
         expect(mocks.fetchInternalApi).toHaveBeenCalledTimes(1);
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(false);
         expect(mocks.createVideoTask).toHaveBeenCalledOnce();
-        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", lastUpstreamStatus: "submission_outcome_unknown" }));
+        expect(mocks.updateVideoTask).toHaveBeenCalledWith("local-task", expect.objectContaining({ attempts: [expect.objectContaining({ status: "failed", upstreamError: expect.stringContaining("gateway failed") })] }));
+        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "submission_failed_without_upstream_id" }));
+    });
+
+    it("fails a 451 content-policy rejection without trying another binding", async () => {
+        mocks.fetchInternalApi.mockResolvedValue(json({ error: "prompt rejected" }, 451));
+
+        const response = await POST(request());
+
+        expect(response.status).toBe(502);
+        expect((await response.json()).error).toContain("内容未通过安全审核");
+        expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(false);
+        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "create_failed" }));
     });
 
     it("surfaces an explicit HTTP 200 business failure after safe candidate fallback", async () => {
@@ -323,7 +338,8 @@ describe("video generation candidate failover", () => {
     it.each([
         ["invalid JSON", "not-json"],
         ["missing operation ID", JSON.stringify({ done: false })],
-    ])("keeps Gemini billing for a 2xx %s response pending manual review", async (_name, body) => {
+    ])("fails and refunds Gemini billing for a 2xx %s response", async (_name, body) => {
+        mocks.transitionVideoTask.mockImplementation(async (task, patch) => ({ ...task, ...patch }));
         mocks.getAuthSettings.mockResolvedValue(geminiSettings());
         mocks.fetchInternalApi.mockResolvedValue(
             new Response(body, {
@@ -334,10 +350,10 @@ describe("video generation candidate failover", () => {
 
         const response = await POST(request({ model: "gemini-video", videoSeconds: 5, size: "16:9", vquality: "720" }));
 
-        expect(response.status).toBe(202);
-        expect(mocks.refundGenerationCharge).not.toHaveBeenCalled();
+        expect(response.status).toBe(502);
         expect(mocks.updateVideoTask).toHaveBeenCalledWith("local-task", expect.objectContaining({ upstream: expect.objectContaining({ pointsCost: 3.5, billingReceiptId: "points:gemini-video-points-unknown", refunded: false }) }));
-        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", lastUpstreamStatus: "submission_outcome_unknown" }));
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith(expect.objectContaining({ receiptId: "points:gemini-video-points-unknown", usageKind: "video" }));
+        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "submission_failed_without_upstream_id" }));
     });
 
     it("rejects Gemini reference video and audio before creating an operation", async () => {

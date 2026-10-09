@@ -6,7 +6,16 @@ import { fetchInternalApi, isInternalApiBaseUrl } from "@/lib/server/internal-or
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { generationModelId } from "@/lib/server/generation-channel";
 import { CHANNEL_SATURATED_MESSAGE } from "@/lib/server/channel-concurrency";
-import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
+import {
+    finishGenerationAttempt,
+    generationReservationId,
+    nextGenerationAttemptNo,
+    releaseGenerationReservations,
+    renewGenerationReservations,
+    reserveGenerationAttemptSlot,
+    startGenerationAttempt,
+    upstreamErrorDetail,
+} from "@/lib/server/generation-attempt";
 import { getTextTask, transitionTextTask, type TextTask, type TextTaskConfig } from "@/lib/server/text-task-store";
 import { updateTextTask } from "@/lib/server/text-task-store";
 import type { AiTextMessage } from "@/types/ai";
@@ -123,9 +132,9 @@ export async function runTextTaskStep(task: TextTask, origin: string, cookie: st
             const message = toSafeGenerationErrorMessage(error, "文本生成失败");
             const latest = await getTextTask(task.id);
             if (latest?.status === "cancelled" || latest?.status === "success") return latest.status === "success" ? { state: "completed" } : { state: "failed", error: latest.error || "任务已取消" };
-            if (error instanceof GenerationSubmissionUncertainError) return { state: "needs_review", error: message };
-            if (!(error instanceof GenerationSubmissionSafeFailure)) return { state: "needs_review", error: generationSubmissionUncertainError(error, message).message };
-            attempts = finishGenerationAttempt(attempts, candidateTask.attemptNo, { status: "failed", error: message });
+            // 没有上游任务 ID 就无从查询：结果不确定也按失败退款处理，不挂待确认。
+            if (!(error instanceof GenerationSubmissionSafeFailure)) return failTextTask(latest || candidateTask, message, attempts, upstreamErrorDetail(error));
+            attempts = finishGenerationAttempt(attempts, candidateTask.attemptNo, { status: "failed", error: message, upstreamError: upstreamErrorDetail(error) });
             await updateTextTask(task.id, { attempts, attemptNo: candidateTask.attemptNo });
         }
     }
@@ -403,7 +412,7 @@ async function completeTextTask(task: TextTask, content: string, billing: { poin
     return completed ? { state: "completed" } : { state: "failed", error: "文本任务状态已变化" };
 }
 
-async function failTextTask(task: TextTask, error: string, attempts: NonNullable<TextTask["attempts"]>): Promise<TextTaskStep> {
+async function failTextTask(task: TextTask, error: string, attempts: NonNullable<TextTask["attempts"]>, upstreamError = upstreamErrorDetail(error)): Promise<TextTaskStep> {
     const current = (await getTextTask(task.id)) || task;
     // 获取用户信息并记录日志
     const users = await getPublicUsersByIds([current.userId]).catch(() => []);
@@ -420,6 +429,7 @@ async function failTextTask(task: TextTask, error: string, attempts: NonNullable
     const failedAttempts = finishGenerationAttempt(attempts, current.attemptNo || attempts.at(-1)?.attemptNo || 1, {
         status: "failed",
         error: message,
+        upstreamError,
         pointsCost: current.billing?.pointsCost,
         billingReceiptId: current.billing?.billingReceiptId,
     });
@@ -438,8 +448,8 @@ async function failTextTask(task: TextTask, error: string, attempts: NonNullable
     return { state: "failed", error: message };
 }
 
-export function markTextTaskFailed(task: TextTask, error: string) {
-    return failTextTask(task, error, task.attempts || []);
+export function markTextTaskFailed(task: TextTask, error: string, upstreamError?: string) {
+    return failTextTask(task, error, task.attempts || [], upstreamError || upstreamErrorDetail(error));
 }
 
 function clearSecret(config: TextTaskConfig): TextTaskConfig {

@@ -10,7 +10,7 @@ import { getAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audi
 import { createImageTaskUpstreamStep, markImageTaskFailed, persistImageTaskResult, prepareImageTaskAutomaticRetry, queryCancelledImageTaskUpstreamStep, queryImageTaskUpstreamStep } from "@/lib/server/image-task-runtime";
 import { getImageTask, updateImageTask, type ImageTask } from "@/lib/server/image-task-store";
 import { getTextTask, transitionTextTask, updateTextTask } from "@/lib/server/text-task-store";
-import { queryCancelledTextTaskUpstreamStep, runTextTaskStep } from "@/lib/server/text-task-runtime";
+import { markTextTaskFailed, queryCancelledTextTaskUpstreamStep, runTextTaskStep } from "@/lib/server/text-task-runtime";
 import { materializeDramaLabStoryTask } from "@/lib/server/drama-lab-story-generation-service";
 import { executeAgentRun } from "@/lib/server/agent-run-executor";
 import { processAgentRunReview } from "@/lib/server/agent-run-execution";
@@ -21,7 +21,8 @@ import { refundAudioTask } from "@/lib/server/audio-task-refund";
 import { refundImageTask } from "@/lib/server/image-task-refund";
 import { refundTextTask } from "@/lib/server/text-task-refund";
 import { refundVideoTask } from "@/lib/server/video-task-refund";
-import { toSafeGenerationReviewReason } from "@/lib/server/generation-errors";
+import { toSafeGenerationErrorMessage, toSafeGenerationReviewReason } from "@/lib/server/generation-errors";
+import { upstreamErrorDetail } from "@/lib/server/generation-attempt";
 import { getAuthSettings } from "@/lib/auth/store";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
@@ -492,13 +493,9 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
         return task?.status === "success" ? "completed" : "failed";
     }
     if (lease.executionPhase === "submitting" && task.status === "running" && !task.upstream?.id) {
-        await releaseGenerationTaskLease("text", lease.id, workerId, {
-            executionPhase: "needs_review",
-            nextPollAt: undefined,
-            lastUpstreamStatus: "submission_outcome_unknown",
-            resultPayload: reviewPayload(lease, "文本任务在提交阶段中断，未取得上游任务 ID"),
-        });
-        return "needs_review";
+        await markTextTaskFailed(task, "文本任务在提交阶段中断，未取得上游任务 ID");
+        await releaseGenerationTaskLease("text", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: Date.now(), lastUpstreamStatus: "submission_interrupted_without_upstream_id" });
+        return "failed";
     }
     if (!task.upstream?.id) {
         try {
@@ -533,14 +530,9 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
             return "failed";
         }
         if (step.state === "needs_review") {
-            await releaseGenerationTaskLease("text", task.id, workerId, {
-                executionPhase: "needs_review",
-                nextPollAt: undefined,
-                lastUpstreamStatus: "submission_outcome_unknown",
-                resultPayload: reviewPayload(lease, step.error),
-            });
-            console.warn("Text task submission needs review", { taskId: task.id, error: step.error });
-            return "needs_review";
+            await markTextTaskFailed((await getTextTask(task.id)) || task, step.error);
+            await releaseGenerationTaskLease("text", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: Date.now(), lastUpstreamStatus: "submission_failed_without_upstream_id" });
+            return "failed";
         }
         const latest = (await getTextTask(task.id)) || task;
         const submittedAt = lease.submittedAt || Date.now();
@@ -585,16 +577,21 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
             });
             return "needs_review";
         }
+        if (!upstreamTaskId) {
+            await markTextTaskFailed(latest || task, toSafeGenerationErrorMessage(error, "文本任务创建失败"), upstreamErrorDetail(error));
+            await releaseGenerationTaskLease("text", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: "submission_failed_without_upstream_id" });
+            console.warn("Text task submission failed without upstream id", { taskId: task.id, error: safeError(error) });
+            return "failed";
+        }
         await releaseGenerationTaskLease("text", task.id, workerId, {
-            executionPhase: upstreamTaskId ? "polling" : "needs_review",
+            executionPhase: "polling",
             upstreamTaskId,
-            nextPollAt: upstreamTaskId ? generationTaskNextPollAt({ submittedAt: lease.submittedAt, consecutiveErrors: count }) : undefined,
-            lastPollAt: Date.now(),
-            lastUpstreamStatus: upstreamTaskId ? `query_error:${count}` : "submission_outcome_unknown",
-            ...(!upstreamTaskId ? { resultPayload: reviewPayload(lease, safeReviewReason(error, "文本任务创建结果未知")) } : {}),
+            nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt, consecutiveErrors: count }),
+            lastPollAt: now,
+            lastUpstreamStatus: `query_error:${count}`,
         });
-        console.warn(upstreamTaskId ? "Text task recovery deferred" : "Text task execution needs review", { taskId: task.id, error: safeError(error) });
-        return upstreamTaskId ? "deferred" : "needs_review";
+        console.warn("Text task recovery deferred", { taskId: task.id, error: safeError(error) });
+        return "deferred";
     }
 }
 
@@ -1018,8 +1015,9 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
             });
             return "pending";
         }
-        await releaseGenerationTaskLease("video", lease.id, workerId, { executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "submission_outcome_unknown" });
-        return "needs_review";
+        await failVideoTaskFromWorker(task, "视频任务在提交阶段中断，未取得上游任务 ID", true);
+        await releaseGenerationTaskLease("video", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: Date.now(), lastUpstreamStatus: "submission_interrupted_without_upstream_id" });
+        return "failed";
     }
     // A previous release could have persisted a provider's human-readable
     // failure text as `resultPayload.url`. Ignore that stale lease payload and

@@ -1,4 +1,5 @@
-﻿"use client";
+import { generationUserMessage } from "@/lib/generation-feedback-message";
+("use client");
 
 import { DRAMA_LAB_SHOT_FOCUS, focusDramaLabShot } from "@/lib/drama-lab-shot-focus";
 import { DramaLabShotAssetPicker } from "./drama-lab-shot-asset-picker";
@@ -2233,7 +2234,7 @@ function ScriptEditor({
                 if (!poll.ok || payload.code !== 0) throw new Error(payload.msg || "剧本任务查询失败");
                 taskState = payload.data || {};
                 if (taskState?.status === "success") break;
-                if (taskState?.status === "error" || taskState?.status === "cancelled") throw new Error(taskState.error || "剧本生成失败");
+                if (taskState?.status === "error" || taskState?.status === "cancelled") throw new Error(taskState.error ? generationUserMessage(taskState.error) : "剧本生成失败");
             }
             if (!taskState || taskState.status !== "success") throw new Error("剧本生成超时，请刷新页面继续查询");
             if (isCancelled()) return null;
@@ -3454,7 +3455,7 @@ function WorkflowRunModal({
                   key: step.key,
                   status: step.status,
                   label: fallback?.label || step.label || step.key,
-                  detail: step.error || fallback?.detail || step.target || "",
+                  detail: (step.error && generationUserMessage(step.error)) || fallback?.detail || step.target || "",
                   target: fallback?.target || (step.target as StepKey | undefined) || "assets",
                   error: step.error,
                   childTaskIds: step.childTaskIds,
@@ -3612,7 +3613,7 @@ function WorkflowRunModal({
                                             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">子任务 · {children.length}</p>
                                             {children.map((child) => {
                                                 const childStatus = child.status === "success" ? "已完成" : child.status === "running" ? "执行中" : child.status === "error" ? "失败" : child.status === "cancelled" ? "已取消" : "待执行";
-                                                const childDetail = child.error || [child.episodeId && `剧集 ${child.episodeId}`, child.shotId && `镜头 ${child.shotId}`].filter(Boolean).join(" · ") || child.type;
+                                                const childDetail = (child.error && generationUserMessage(child.error)) || [child.episodeId && `剧集 ${child.episodeId}`, child.shotId && `镜头 ${child.shotId}`].filter(Boolean).join(" · ") || child.type;
                                                 return (
                                                     <div key={child.id} className="flex items-center gap-2 text-xs">
                                                         {child.status === "running" ? (
@@ -4957,7 +4958,7 @@ function StoryboardPanel({
                     } else await onReload({ silent: true });
                 }
                 if (status === "success") break;
-                if (status === "error" || status === "cancelled") throw new Error(statusData.data.error || (status === "cancelled" ? "分镜提取任务已取消" : "分镜提取失败"));
+                if (status === "error" || status === "cancelled") throw new Error((statusData.data.error && generationUserMessage(statusData.data.error)) || (status === "cancelled" ? "分镜提取任务已取消" : "分镜提取失败"));
                 await new Promise<void>((resolve) => window.setTimeout(resolve, 1_000));
             }
             await onReload({ silent: true });

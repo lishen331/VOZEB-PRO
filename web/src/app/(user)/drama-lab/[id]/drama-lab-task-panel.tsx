@@ -1,5 +1,6 @@
 "use client";
 
+import { generationUserMessage } from "@/lib/generation-feedback-message";
 import { Alert, Button, Progress, Tag, message } from "antd";
 import { CheckCircle2, ChevronUp, CircleAlert, LoaderCircle, PauseCircle, RefreshCw, Square, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -296,7 +297,7 @@ function TaskRow({
                     {task.error ? (
                         <p className="mt-1 flex items-start gap-1 text-[11px] leading-4 text-destructive">
                             <CircleAlert className="mt-0.5 size-3 shrink-0" />
-                            {task.error}
+                            {generationUserMessage(task.error)}
                         </p>
                     ) : null}
                     {task.canRetry ? <p className="mt-1 text-[11px] text-amber-700">可重试</p> : null}

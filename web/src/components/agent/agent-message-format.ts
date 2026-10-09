@@ -1,3 +1,5 @@
+import { GENERATION_BUSY_MESSAGE, GENERATION_UNAVAILABLE_MESSAGE, generationUserMessage } from "@/lib/generation-feedback-message";
+
 const TECHNICAL_ERROR_PATTERN = /\{\s*"error"|request id|new_api_error|convert_request_failed|not available|backend-(?:anon|api)\/conversation failed|<!doctype\s+html|<html\b|\bnginx\b/i;
 const ACTIONABLE_ERROR_PATTERN = /积分不足|余额不足|请先登录|登录(?:状态)?(?:已)?失效|没有权限|无权访问|请求过于频繁|内容(?:不符合|未通过).*审核|当前渠道无法读取站内参考素材|参考素材暂时无法提交/;
 
@@ -67,15 +69,18 @@ function classifiedTechnicalError(value: string) {
     const message = extractErrorMessage(value);
     if (!message) return "";
     if (/积分不足|余额不足/.test(message)) return "积分不足";
-    if (/status\s*[=:]\s*(401|403)|unauthorized|forbidden|鉴权失败|api\s*key|密钥/i.test(message)) return "当前渠道鉴权失败，请管理员检查 API Key 和模型权限。";
-    if (/status\s*[=:]\s*429|rate.?limit|限流|请求过于频繁/i.test(message)) return "请求过于频繁，请稍后重试。";
-    if (/timeout|timed\s*out|超时|响应超时/i.test(message)) return "模型响应超时，请稍后重试。";
-    if (/network|fetch failed|econn|enotfound|dns|证书|连接失败|无法连接|服务器网络/i.test(message)) return "模型服务连接失败，请稍后重试。";
-    if (/status\s*[=:]\s*4\d{2}|invalid|unsupported|参数(?:错误|无效|不支持)|请求参数/i.test(message)) return "当前请求参数不被模型支持，请检查模型与生成参数。";
-    if (/status\s*[=:]\s*5\d{2}|not available|convert_request_failed|backend-(?:anon|api)\/conversation failed|<!doctype\s+html|<html\b|\bnginx\b|request id|new_api_error/i.test(message)) {
-        return "当前模型暂不可用，请切换模型或稍后重试。";
-    }
-    return TECHNICAL_ERROR_PATTERN.test(value) ? "当前模型暂不可用，请切换模型或稍后重试。" : "";
+    // 生成类技术错误统一成三类提示（网络异常 / 模型暂时不可用 / 安全审核），与画布一致。
+    if (/status\s*[=:]\s*451|内容(?:不符合|未通过).*审核|content[\s_-]?(policy|filter|safety)|moderation|nsfw|sensitive/i.test(message)) return generationUserMessage(message);
+    if (/status\s*[=:]\s*(401|403)|unauthorized|forbidden|鉴权失败|api\s*key|密钥/i.test(message)) return GENERATION_UNAVAILABLE_MESSAGE;
+    if (/status\s*[=:]\s*4(?!29)\d{2}|invalid|unsupported|参数(?:错误|无效|不支持)|请求参数|not available|no available channel|model[\s_-]?not[\s_-]?found|quota is not enough|insufficient[\s_-]?quota|没有可用|无可用/i.test(message))
+        return GENERATION_UNAVAILABLE_MESSAGE;
+    if (
+        /status\s*[=:]\s*(429|5\d{2})|rate.?limit|限流|请求过于频繁|timeout|timed\s*out|超时|network|fetch failed|econn|enotfound|dns|证书|连接失败|无法连接|服务器网络|convert_request_failed|backend-(?:anon|api)\/conversation failed|<!doctype\s+html|<html\b|\bnginx\b|request id|new_api_error/i.test(
+            message,
+        )
+    )
+        return GENERATION_BUSY_MESSAGE;
+    return TECHNICAL_ERROR_PATTERN.test(value) ? GENERATION_BUSY_MESSAGE : "";
 }
 
 function extractErrorMessage(value: string) {
