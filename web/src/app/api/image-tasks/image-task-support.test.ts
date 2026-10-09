@@ -20,6 +20,7 @@ import {
     parseImagePayloadOrPoll,
     parseImagePayloadCompat,
     parseImageQueryJson,
+    preferredImageResponseFormat,
     queryImageUpstreamTaskIdByRequestId,
     resolveRequestSize,
     resolveResultSize,
@@ -274,6 +275,65 @@ describe("GlobalAiOpc image task paths", () => {
         );
 
         expect(resolved?.advancedConfig).toMatchObject({ protocol: "openai", editPath: "/images/edits", supportsReferenceImage: true });
+    });
+
+    describe("model-level imageResponseFormat through sanitizeConfigs", () => {
+        const store = (imageResponseFormat?: unknown) => ({
+            generationDefaults: {},
+            systemChannels: [
+                {
+                    id: "channel-newapi",
+                    name: "NewAPI channel",
+                    baseUrl: "https://provider.example/v1",
+                    apiKey: "server-key",
+                    apiFormat: "openai",
+                    enabled: true,
+                    models: ["vendor/image"],
+                    advancedConfig: {
+                        protocol: "newapi",
+                        modelConfigs: {
+                            "vendor/image": {
+                                capability: "image",
+                                protocol: "newapi",
+                                apiFormat: "openai",
+                                createPath: "/images/generations",
+                                ...(imageResponseFormat === undefined ? {} : { imageResponseFormat }),
+                            },
+                        },
+                    },
+                },
+            ],
+            logicalModels: [
+                {
+                    id: "image-logical",
+                    name: "Image logical",
+                    capability: "image",
+                    enabled: true,
+                    bindings: [{ id: "binding-one", channelId: "channel-newapi", upstreamModel: "vendor/image", enabled: true, priority: 1 }],
+                },
+            ],
+        });
+
+        it("keeps an explicit url format so newapi does not fall back to b64_json", async () => {
+            const [resolved] = sanitizeConfigs({ model: "image-logical" } as never, store("url") as never);
+
+            expect(resolved?.advancedConfig?.imageResponseFormat).toBe("url");
+            await expect(preferredImageResponseFormat(resolved!)).resolves.toBe("url");
+        });
+
+        it("defaults newapi to b64_json when no format is configured", async () => {
+            const [resolved] = sanitizeConfigs({ model: "image-logical" } as never, store() as never);
+
+            expect(resolved?.advancedConfig?.imageResponseFormat).toBeUndefined();
+            await expect(preferredImageResponseFormat(resolved!)).resolves.toBe("b64_json");
+        });
+
+        it("drops unsupported format values", async () => {
+            const [resolved] = sanitizeConfigs({ model: "image-logical" } as never, store("png") as never);
+
+            expect(resolved?.advancedConfig?.imageResponseFormat).toBeUndefined();
+            await expect(preferredImageResponseFormat(resolved!)).resolves.toBe("b64_json");
+        });
     });
 
     it("recognizes Pydantic dictionary errors as an incompatible edit payload", () => {

@@ -110,6 +110,7 @@ export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"
         supportsReferenceVideo: Boolean(config.supportsReferenceVideo),
         supportsReferenceAudio: Boolean(config.supportsReferenceAudio),
         ...(config.workflowConfigs ? { workflowConfigs: config.workflowConfigs } : {}),
+        ...(config.imageResponseFormat === "url" || config.imageResponseFormat === "b64_json" ? { imageResponseFormat: config.imageResponseFormat } : {}),
     };
 }
 
@@ -118,7 +119,7 @@ export function textOrEmpty(value: unknown) {
 }
 
 export function explicitImageResponseFormat(config: ImageTaskConfig): (typeof IMAGE_RESPONSE_FORMATS)[number] | undefined {
-    const value = resolveChannelModelConfig(config.advancedConfig, config.model)?.imageResponseFormat;
+    const value = config.advancedConfig?.imageResponseFormat ?? resolveChannelModelConfig(config.advancedConfig, config.model)?.imageResponseFormat;
     return value === "url" || value === "b64_json" ? value : undefined;
 }
 
