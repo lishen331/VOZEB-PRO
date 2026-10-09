@@ -32,9 +32,23 @@ describe("async image request builders", () => {
     it("nests ModelBay parameters under input and maps platform quality aliases", () => {
         expect(buildModelBayImageTaskRequest({ model: "gpt-image-2-image-to-image", prompt: "p", quality: "2k", aspectRatio: "3:2", imageUrls: ["https://cdn.example.com/a.png"], outputBackground: "transparent" })).toEqual({
             model: "gpt-image-2-image-to-image",
-            input: { prompt: "p", number_of_images: 1, quality: "medium", aspect_ratio: "3:2", input_images: ["https://cdn.example.com/a.png"] },
+            input: { prompt: "p", number_of_images: 1, quality: "medium", aspect_ratio: "3:2", input_images: ["https://cdn.example.com/a.png"], output_format: "png" },
         });
-        expect(buildModelBayImageTaskRequest({ model: "m", prompt: "p", quality: "max", imageUrls: [] }).input).toEqual({ prompt: "p", number_of_images: 1 });
+        expect(buildModelBayImageTaskRequest({ model: "m", prompt: "p", quality: "max", imageUrls: [] }).input).toEqual({ prompt: "p", number_of_images: 1, output_format: "jpeg", output_compression: 85 });
+    });
+
+    it("compresses opaque ModelBay output to JPEG but keeps PNG for transparency", () => {
+        expect(buildModelBayImageTaskRequest({ model: "m", prompt: "p", imageUrls: [], outputBackground: "opaque" }).input).toMatchObject({ background: "opaque", output_format: "jpeg", output_compression: 85 });
+        expect(buildModelBayImageTaskRequest({ model: "m", prompt: "p", imageUrls: [], outputBackground: "transparent" }).input).not.toHaveProperty("output_compression");
+    });
+
+    it("does not add output format fields to Tuzi requests", () => {
+        const json = buildTuziImageTaskJsonRequest({ model: "m", prompt: "p" });
+        expect(json).not.toHaveProperty("output_format");
+        expect(json).not.toHaveProperty("output_compression");
+        const form = buildTuziImageTaskFormData({ model: "m", prompt: "p", files: [] });
+        expect(form.has("output_format")).toBe(false);
+        expect(form.has("output_compression")).toBe(false);
     });
 
     it("sends Tuzi JSON with n and multipart without n", () => {

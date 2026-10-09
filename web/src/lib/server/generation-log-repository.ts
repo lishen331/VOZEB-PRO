@@ -125,6 +125,7 @@ export async function writeRemoteAsset(url: string, type: GenerationLogAssetKind
         timing.bytes = bytes.length;
         if (bytes.length > maxBytes) return null;
         const mimeType = await resolveMediaMimeType(bytes, type, response.headers.get("content-type"));
+        timing.mimeType = mimeType;
         if (!mimeType) return null;
         const storeStarted = Date.now();
         const asset = await writeAssetBytes(bytes, mimeType, type, context);
