@@ -71,7 +71,8 @@ export async function createImageTaskUpstreamStep(task: ImageTask, origin: strin
         await scheduleGenerationTask("image", task.id, {
             executionPhase: "submitting",
             submittedAt: submissionStartedAt,
-            nextPollAt: submissionStartedAt + resolveModelRequestTimeoutMs(config, "image"),
+            // 执行中的 worker 每 25 秒续租，不会被抢；进程退出后最多约 3 分钟由其它 worker 收敛，不等满请求超时。
+            nextPollAt: submissionStartedAt + Math.min(resolveModelRequestTimeoutMs(config, "image"), 180_000),
             channelId: config.channelId,
             provider: config.advancedConfig?.protocol || config.apiFormat,
             lastUpstreamStatus: "submitting",
@@ -90,20 +91,9 @@ export async function createImageTaskUpstreamStep(task: ImageTask, origin: strin
     } catch (error) {
         if (error instanceof ImageUpstreamTerminalError) return { state: "failed", error: error.message || "图片生成失败", status: "failed", retryReason: "upstream_failed" };
         if (!(error instanceof GenerationSubmissionSafeFailure)) {
+            // 同步接口没有上游任务 ID，结果不确定也无从查询：按上游失败处理（自动重试一次，再失败退款），不挂待确认。
             const uncertain = generationSubmissionUncertainError(error, "图片任务创建结果未知");
-            // D6 5.3: 提交结果未知（多为本地超时中止）。不退款——上游可能已接单计费。
-            // best-effort 把相位落到 needs_review 待人工对账，而不是永久停在 submitting；
-            // 上游未返回 ID 时绝不编造。channelId/provider/submittedAt 已在 submitting
-            // 写入时持久化，clientRequestId/attemptNo 在建任务时落库，共同构成对账句柄。
-            // worker 路径（recovery-service）通常会随后覆盖同一相位；此处兜住不经 worker
-            // 的调用方（如 binding-verification-runner）。见实施文档步骤 4。
-            await scheduleGenerationTask("image", task.id, {
-                executionPhase: "needs_review",
-                nextPollAt: undefined,
-                lastUpstreamStatus: "submission_result_unknown",
-                resultPayload: { reviewReason: uncertain.message.slice(0, 500) },
-            }).catch(() => undefined);
-            throw uncertain;
+            return { state: "failed", error: uncertain.message || "图片任务创建结果未知", status: "submission_failed_without_upstream_id", retryReason: "upstream_failed" };
         }
         attempts = finishGenerationAttempt(attempts, candidate.attemptNo, { status: "failed", error: error.message });
         await refundImageCandidate(candidate);

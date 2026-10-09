@@ -54,7 +54,7 @@ vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContext: vi.f
 vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaProxyHeaders: mocks.mediaHeaders }));
 
 import { channelInFlight, reserveChannelSlot, resetChannelConcurrency } from "./channel-concurrency";
-import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError } from "./generation-submission-error";
+import { GenerationSubmissionSafeFailure } from "./generation-submission-error";
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import { createImageTaskUpstreamStep, markImageTaskFailed, persistImageTaskResult, prepareImageTaskAutomaticRetry, queryImageTaskUpstreamStep } from "./image-task-runtime";
 import type { ImageTask } from "./image-task-store";
@@ -197,10 +197,15 @@ describe("image task runtime submission safety", () => {
         expect(mocks.pollCustom).toHaveBeenCalledWith(state, "upstream-one", "https://provider.example/v1/images", "http://internal/api/ai/system/channel-one/images", "worker-context", true);
     });
 
-    it("does not switch candidates when the submission outcome is unknown", async () => {
+    it("fails an unknown submission outcome for one automatic retry without switching candidates inline", async () => {
         mocks.runCustom.mockRejectedValueOnce(new Error("socket closed"));
 
-        await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).rejects.toBeInstanceOf(GenerationSubmissionUncertainError);
+        await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).resolves.toEqual({
+            state: "failed",
+            error: "socket closed",
+            status: "submission_failed_without_upstream_id",
+            retryReason: "upstream_failed",
+        });
         expect(mocks.runGemini).not.toHaveBeenCalled();
         expect(state.config.channelId).toBe("channel-one");
         expect(state.candidateConfigs).toHaveLength(1);

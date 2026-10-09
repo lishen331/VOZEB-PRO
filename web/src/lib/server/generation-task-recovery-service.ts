@@ -640,13 +640,9 @@ async function processImageLease(lease: GenerationTaskLease, workerId: string, o
             });
             return "pending";
         }
-        await releaseGenerationTaskLease("image", lease.id, workerId, {
-            executionPhase: "needs_review",
-            nextPollAt: undefined,
-            lastUpstreamStatus: "submission_outcome_unknown",
-            resultPayload: reviewPayload(lease, "图片任务在提交阶段中断，未取得上游任务 ID"),
-        });
-        return "needs_review";
+        await markImageTaskFailed(task, "图片任务在提交阶段中断，未取得上游任务 ID");
+        await releaseGenerationTaskLease("image", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: Date.now(), lastUpstreamStatus: "submission_interrupted_without_upstream_id" });
+        return "failed";
     }
     if (needsPersistence(lease)) return persistImageLease(task, lease, workerId, origin, cookie, userRequested);
     if (!task.upstream?.id) {
@@ -759,19 +755,24 @@ async function processImageLease(lease: GenerationTaskLease, workerId: string, o
             });
             return "needs_review";
         }
+        if (!submitted) {
+            await markImageTaskFailed(latest || task, error instanceof Error && error.message ? error.message : "图片任务创建失败");
+            await releaseGenerationTaskLease("image", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: "submission_failed_without_upstream_id" });
+            console.warn("Image task submission failed without upstream id", { taskId: task.id, error: safeError(error) });
+            return "failed";
+        }
         await releaseGenerationTaskLease("image", task.id, workerId, {
-            executionPhase: submitted ? "polling" : "needs_review",
+            executionPhase: "polling",
             upstreamTaskId,
             channelId: latest?.config.channelId,
             provider: latest ? latest.config.advancedConfig?.protocol || latest.config.apiFormat : undefined,
             queryPath: latest?.upstream?.explicitPollUrl || latest?.config.advancedConfig?.queryPath,
-            nextPollAt: submitted ? generationTaskNextPollAt({ consecutiveErrors: count }) : undefined,
-            lastPollAt: Date.now(),
-            lastUpstreamStatus: submitted ? `query_error:${count}` : "submission_outcome_unknown",
-            ...(!submitted ? { resultPayload: reviewPayload(lease, safeReviewReason(error, "图片任务创建结果未知")) } : {}),
+            nextPollAt: generationTaskNextPollAt({ consecutiveErrors: count }),
+            lastPollAt: now,
+            lastUpstreamStatus: `query_error:${count}`,
         });
         console.warn("Image task step deferred", { taskId: task.id, error: safeError(error) });
-        return submitted ? "deferred" : "needs_review";
+        return "deferred";
     }
 }
 

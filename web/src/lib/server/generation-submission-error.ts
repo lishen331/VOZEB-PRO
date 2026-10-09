@@ -20,6 +20,7 @@ export function isSafeGenerationSubmissionStatus(status: number) {
 }
 
 export function generationSubmissionResponseError(status: number, message: string) {
+    if (status === 451) return new GenerationSubmissionSafeFailure(`内容未通过安全审核：${message}`, status);
     return isSafeGenerationSubmissionStatus(status) ? new GenerationSubmissionSafeFailure(message, status) : new GenerationSubmissionUncertainError(message);
 }
 
@@ -28,4 +29,4 @@ export function generationSubmissionUncertainError(error: unknown, fallback: str
     return new GenerationSubmissionUncertainError(error instanceof Error && error.message ? error.message : fallback);
 }
 
-const SAFE_SUBMISSION_FAILURE_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429]);
+const SAFE_SUBMISSION_FAILURE_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429, 451]);
