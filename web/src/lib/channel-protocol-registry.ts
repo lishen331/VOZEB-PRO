@@ -171,6 +171,32 @@ const vozebRecommendedVideoOperation: ProtocolOperation = {
     supportsReferenceAudio: true,
 };
 
+// ModelBay 任务制图片模型（如 gpt-image-2-text-to-image）拒绝同步端点，只接受 /image/submit。
+const modelbayImageTaskOperation: ProtocolOperation = {
+    capability: "image",
+    createPath: "/image/submit",
+    editPath: "/image/submit",
+    queryPath: "/image/fetch/:task_id",
+    taskIdField: "data.task_id",
+    resultField: "data.result_urls / data.result_url",
+    statusField: "data.status",
+    referenceRule: "JSON：参数放在 input 对象内；参考图写入 input.input_images 公网 URL 数组。状态 NOT_START → IN_PROGRESS → SUCCESS / FAILURE。",
+    supportsReferenceImage: true,
+};
+
+// 兔子“Async Image Generation”端点：复用 /v1/videos 任务接口返回图片，结果在 video_url。
+const tuziImageTaskOperation: ProtocolOperation = {
+    capability: "image",
+    createPath: "/v1/videos",
+    editPath: "/v1/videos",
+    queryPath: "/v1/videos/:task_id",
+    taskIdField: "id",
+    resultField: "video_url",
+    statusField: "status",
+    referenceRule: "无参考图用 JSON；有参考图用 multipart，参考图写入可重复的 input_reference 文件字段。状态 queued → in_progress → completed / failed。",
+    supportsReferenceImage: true,
+};
+
 const stableDiffusionOperation: ProtocolOperation = {
     capability: "image",
     createPath: "/sdapi/v1/txt2img",
@@ -263,6 +289,30 @@ export const registeredChannelProtocolDefinitions: ChannelProtocolDefinition[] =
         modelCatalogPaths: ["/v1/models"],
         capabilities: ["video"],
         operations: { video: mohuiSeedanceVideoOperation },
+        strict: true,
+    },
+    {
+        id: "modelbay-image-task",
+        label: "ModelBay 异步图片任务",
+        description: "ModelBay /image/submit 提交、/image/fetch/:task_id 轮询；用于只接受异步端点的图片模型。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://api.modelbay.io",
+        modelCatalogPaths: [],
+        capabilities: ["image"],
+        operations: { image: modelbayImageTaskOperation },
+        strict: true,
+    },
+    {
+        id: "tuzi-image-task",
+        label: "兔子异步图片任务",
+        description: "兔子 /v1/videos 异步图片接口提交，/v1/videos/:task_id 轮询，结果为 video_url 图片地址。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://api.tu-zi.com",
+        modelCatalogPaths: ["/v1/models"],
+        capabilities: ["image"],
+        operations: { image: tuziImageTaskOperation },
         strict: true,
     },
     {
@@ -439,7 +489,11 @@ export function applyModelProtocol(config: SystemChannelModelConfig, protocol: S
     if (!preset) return { ...config, source: "manual", protocol };
     // Image input is an explicit model capability, not a generic OpenAI protocol capability.
     // Keep an administrator's model-level declaration when a strict preset is reapplied.
-    return { ...preset, ...(typeof config.supportsImageInput === "boolean" ? { supportsImageInput: config.supportsImageInput } : {}) };
+    return {
+        ...preset,
+        ...(typeof config.supportsImageInput === "boolean" ? { supportsImageInput: config.supportsImageInput } : {}),
+        ...(config.imageResponseFormat ? { imageResponseFormat: config.imageResponseFormat } : {}),
+    };
 }
 
 export function normalizeStrictProtocolModelConfig(config: SystemChannelModelConfig, fallbackProtocol: SystemChannelProtocol, model?: string): SystemChannelModelConfig {

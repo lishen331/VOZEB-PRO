@@ -22,6 +22,8 @@ export type SystemChannelProtocol =
     | "modelbay-seedance"
     | "tuzi-seedance"
     | "mohui-seedance"
+    | "modelbay-image-task"
+    | "tuzi-image-task"
     | "stable-diffusion"
     | "volcengine-video"
     | "seedance-special"
@@ -52,6 +54,7 @@ export type SystemChannelModelConfig = {
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
+    imageResponseFormat?: "url" | "b64_json";
     streaming?: SystemChannelStreamingConfig;
 };
 
@@ -190,6 +193,7 @@ export type SystemChannelAdvancedConfig = {
     modelConfigs?: Record<string, SystemChannelModelConfig>;
     operationConfigs?: Partial<Record<LogicalModelCapability, SystemChannelModelConfig>>;
     workflowConfigs?: Record<string, RunningHubWorkflowConfig>;
+    imageResponseFormat?: "url" | "b64_json";
     streaming?: SystemChannelStreamingConfig;
     requestIdHeader?: string;
     // D6 步骤6：按"上游请求 ID"追回任务的查询路径模板，与按任务 ID 查询的 queryPath 并列、语义不同。

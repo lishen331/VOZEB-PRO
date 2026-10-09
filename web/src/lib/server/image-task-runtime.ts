@@ -367,5 +367,5 @@ async function completeImageResult(task: ImageTask, safeResults: StoredImageTask
 }
 
 function usesDeclarativeImageProtocol(protocol: NonNullable<ImageTask["config"]["advancedConfig"]>["protocol"] | undefined) {
-    return protocol === "custom" || protocol === "runninghub" || protocol === "stable-diffusion" || protocol === "yumeng";
+    return protocol === "custom" || protocol === "runninghub" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task";
 }

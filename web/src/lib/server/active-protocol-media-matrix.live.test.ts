@@ -140,7 +140,7 @@ function imageTask(baseUrl: string, model: string, protocol: string, advancedCon
                       id: "reference",
                       name: "reference.png",
                       type: "image/png",
-                      dataUrl: protocol === "yumeng" ? `${origin}/media/fixture.png` : protocol === "sub2api" || protocol === "custom" ? "https://cdn.example.com/reference.png" : PNG_DATA_URL,
+                      dataUrl: protocol === "yumeng" ? `${origin}/media/fixture.png` : protocol === "sub2api" || protocol === "custom" || protocol === "modelbay-image-task" ? "https://cdn.example.com/reference.png" : PNG_DATA_URL,
                   },
               ]
             : [],
@@ -198,8 +198,8 @@ function videoConfig(protocol: SystemChannelProtocol, baseUrl: string, model: st
 }
 
 async function runImageTask(task: ImageTask, protocol: SystemChannelProtocol) {
-    const declarative = protocol === "stable-diffusion" || protocol === "yumeng";
-    const submitted = declarative ? await runCustomImageTask(task, origin, origin, "", protocol === "yumeng") : await runOpenAiImageTask(task, origin, origin, "", true);
+    const declarative = protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task";
+    const submitted = declarative ? await runCustomImageTask(task, origin, origin, "", protocol !== "stable-diffusion") : await runOpenAiImageTask(task, origin, origin, "", true);
     return submitted.pending ? pollCustomImageTask(task, submitted.pending.id, submitted.pending.mediaBaseUrl, submitted.pending.pollBaseUrl, "") : submitted;
 }
 

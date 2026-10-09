@@ -122,8 +122,10 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     const globalPreset = resolveGlobalAiOpcPreset(channel.advancedConfig, upstreamModel) || resolveGlobalAiOpcPathPreset(channel.advancedConfig, path);
     const globalAdaptation = adaptGlobalAiOpcTextRequest(channel.advancedConfig, path, requestBody.body);
     if (globalAdaptation === "responses-unsupported") return NextResponse.json({ error: "该 GlobalAiOpc 原生文本接口不支持 Responses，已切换 Chat 兼容回退。" }, { status: 404 });
+    // 兔子异步图片复用 /v1/videos，按路径会被识别成视频计费；异步图片协议改为按绑定能力（image）计费。
+    const asyncImageProtocol = modelConfig?.protocol === "modelbay-image-task" || modelConfig?.protocol === "tuzi-image-task";
     const pointsRequest =
-        classifyPointsRequest(request.method, apiFormat, path, contentType, requestBody.pointsPayload, settings.generationPointMultipliers) ||
+        (asyncImageProtocol ? null : classifyPointsRequest(request.method, apiFormat, path, contentType, requestBody.pointsPayload, settings.generationPointMultipliers)) ||
         classifyConfiguredPointsRequest(
             request.method,
             path,
@@ -660,13 +662,17 @@ function readPathModel(path: string[]) {
         .trim();
 }
 
+function nestedInput(payload: Record<string, unknown>) {
+    return payload.input && typeof payload.input === "object" && !Array.isArray(payload.input) ? (payload.input as Record<string, unknown>) : {};
+}
+
 function readRequestCount(payload: Record<string, unknown>) {
-    const count = Math.floor(Number(payload.n) || 1);
+    const count = Math.floor(Number(payload.n ?? nestedInput(payload).number_of_images) || 1);
     return Math.max(1, Math.min(1000, count));
 }
 
 function imageQualityMultiplier(payload: Record<string, unknown>, multipliers?: GenerationPointMultipliers) {
-    return multiplierValue(multipliers?.imageQuality, normalizeImageQualityKey(payload.quality));
+    return multiplierValue(multipliers?.imageQuality, normalizeImageQualityKey(payload.quality ?? nestedInput(payload).quality));
 }
 
 function videoParameterMultiplier(payload: Record<string, unknown>, multipliers?: GenerationPointMultipliers) {
@@ -747,6 +753,8 @@ function targetUrl(baseUrl: string, apiFormat: "openai" | "gemini", path: string
         protocol === "modelbay-seedance" ||
         protocol === "tuzi-seedance" ||
         protocol === "mohui-seedance" ||
+        protocol === "modelbay-image-task" ||
+        protocol === "tuzi-image-task" ||
         protocol === "volcengine-video" ||
         protocol === "seedance-special" ||
         protocol === "stable-diffusion" ||

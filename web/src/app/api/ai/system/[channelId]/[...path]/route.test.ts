@@ -844,6 +844,69 @@ describe("configured versioned protocol billing", () => {
     });
 });
 
+describe("async image task protocols", () => {
+    function channel(id: string, baseUrl: string, model: string, protocol: "modelbay-image-task" | "tuzi-image-task", createPath: string, queryPath: string) {
+        return {
+            id,
+            enabled: true,
+            baseUrl,
+            apiKey: "secret",
+            apiFormat: "openai",
+            models: [model],
+            advancedConfig: { protocol: "openai", modelConfigs: { [model.toLowerCase()]: { capability: "image", protocol, createPath, editPath: createPath, queryPath } } },
+        };
+    }
+
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
+        mocks.refundUserPoints.mockReset();
+        mocks.safeUrl.mockResolvedValue(true);
+    });
+
+    it("bills Tuzi /v1/videos async images as image usage", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("tuzi-image", "image", "gpt-image-2.5-sunburst")],
+            systemChannels: [channel("channel-one", "https://api.tu-zi.com", "gpt-image-2.5-sunburst", "tuzi-image-task", "/v1/videos", "/v1/videos/:task_id")],
+        });
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ id: "task_tz", status: "queued" }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/v1/videos", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("tuzi-image", "gpt-image-2.5-sunburst") },
+                body: JSON.stringify({ model: "gpt-image-2.5-sunburst", prompt: "test", n: 1, size: "1024x1024" }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["v1", "videos"] }) },
+        );
+
+        expect(response.status).toBe(200);
+        expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.tu-zi.com/v1/videos");
+        expect(mocks.consumeUserPoints).toHaveBeenCalledWith("user-one", "tuzi-image", 1, "image", expect.any(String), expect.any(String));
+    });
+
+    it("keeps ModelBay /image/submit literal and counts input.number_of_images", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("modelbay-image", "image", "gpt-image-2-text-to-image")],
+            systemChannels: [channel("channel-one", "https://api.modelbay.io", "gpt-image-2-text-to-image", "modelbay-image-task", "/image/submit", "/image/fetch/:task_id")],
+        });
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ code: "success", data: { task_id: "task_mb" } }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/image/submit", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("modelbay-image", "gpt-image-2-text-to-image") },
+                body: JSON.stringify({ model: "gpt-image-2-text-to-image", input: { prompt: "test", number_of_images: 2, quality: "low" } }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["image", "submit"] }) },
+        );
+
+        expect(response.status).toBe(200);
+        expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.modelbay.io/image/submit");
+        expect(mocks.consumeUserPoints).toHaveBeenCalledWith("user-one", "modelbay-image", 2, "image", expect.any(String), expect.any(String));
+    });
+});
+
 describe("custom protocol model routing", () => {
     beforeEach(() => {
         vi.restoreAllMocks();

@@ -125,6 +125,63 @@ describe("OpenAI image provider over a live compatible fixture", () => {
         }
     });
 
+    it("requests URL results for New API models configured with imageResponseFormat url", async () => {
+        const fixture = createProtocolFixtureServer();
+        await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
+        const address = fixture.server.address();
+        if (!address || typeof address === "string") throw new Error("Protocol fixture did not bind a TCP port");
+        const origin = `http://127.0.0.1:${address.port}`;
+        const task = liveImageTask(origin, {
+            id: "image-newapi-url",
+            config: {
+                baseUrl: origin,
+                apiKey: "fixture-key",
+                apiFormat: "openai",
+                model: "gpt-image-2-5-sunburst",
+                channelId: "fixture-newapi-url",
+                advancedConfig: { ...emptyAdvancedConfig(), protocol: "newapi", modelConfigs: { "gpt-image-2-5-sunburst": { capability: "image", imageResponseFormat: "url" } } },
+            },
+        });
+
+        try {
+            await expect(runOpenAiImageTask(task, "http://internal", "http://public", "", true)).resolves.toMatchObject({ dataUrl: expect.stringMatching(/^data:image\/png;base64,iVBOR/) });
+            expect(fixture.requests).toHaveLength(1);
+            expect(JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}")).toMatchObject({ model: "gpt-image-2-5-sunburst", response_format: "url" });
+        } finally {
+            await new Promise<void>((resolve, reject) => fixture.server.close((error?: Error) => (error ? reject(error) : resolve())));
+        }
+    });
+
+    it("sends response_format url in New API multipart edits when the model is configured for URL results", async () => {
+        const fixture = createProtocolFixtureServer();
+        await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
+        const address = fixture.server.address();
+        if (!address || typeof address === "string") throw new Error("Protocol fixture did not bind a TCP port");
+        const origin = `http://127.0.0.1:${address.port}`;
+        const task = liveImageTask(origin, {
+            id: "image-newapi-edit-url",
+            kind: "edit",
+            references: [{ name: "reference.png", type: "image/png", dataUrl: PNG_DATA_URL }],
+            config: {
+                baseUrl: origin,
+                apiKey: "fixture-key",
+                apiFormat: "openai",
+                model: "gpt-image-2-5-sunburst",
+                channelId: "fixture-newapi-edit-url",
+                advancedConfig: { ...emptyAdvancedConfig(), protocol: "newapi", supportsReferenceImage: true, modelConfigs: { "gpt-image-2-5-sunburst": { capability: "image", imageResponseFormat: "url" } } },
+            },
+        });
+
+        try {
+            await expect(runOpenAiImageTask(task, origin, "http://public", "", true)).resolves.toMatchObject({ dataUrl: expect.stringMatching(/^data:image\/png;base64,iVBOR/) });
+            const body = fixture.requests[0]?.body.toString("latin1") || "";
+            expect(body).toMatch(/name="response_format"\r\n\r\nurl\r\n/);
+            expect(body).not.toContain("b64_json");
+        } finally {
+            await new Promise<void>((resolve, reject) => fixture.server.close((error?: Error) => (error ? reject(error) : resolve())));
+        }
+    });
+
     it("uses the selected GlobalAiOpc image preset once and polls its declared result path", async () => {
         const fixture = createProtocolFixtureServer();
         await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));

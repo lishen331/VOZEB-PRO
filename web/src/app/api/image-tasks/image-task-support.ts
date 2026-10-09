@@ -110,6 +110,7 @@ export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"
         supportsReferenceVideo: Boolean(config.supportsReferenceVideo),
         supportsReferenceAudio: Boolean(config.supportsReferenceAudio),
         ...(config.workflowConfigs ? { workflowConfigs: config.workflowConfigs } : {}),
+        ...(config.imageResponseFormat === "url" || config.imageResponseFormat === "b64_json" ? { imageResponseFormat: config.imageResponseFormat } : {}),
     };
 }
 
@@ -117,7 +118,14 @@ export function textOrEmpty(value: unknown) {
     return typeof value === "string" ? value.trim() : "";
 }
 
+export function explicitImageResponseFormat(config: ImageTaskConfig): (typeof IMAGE_RESPONSE_FORMATS)[number] | undefined {
+    const value = config.advancedConfig?.imageResponseFormat ?? resolveChannelModelConfig(config.advancedConfig, config.model)?.imageResponseFormat;
+    return value === "url" || value === "b64_json" ? value : undefined;
+}
+
 export async function preferredImageResponseFormat(config: ImageTaskConfig): Promise<(typeof IMAGE_RESPONSE_FORMATS)[number]> {
+    const explicit = explicitImageResponseFormat(config);
+    if (explicit) return explicit;
     // New API image gateways commonly place URL results on a separate CDN that
     // is not reachable from the application server. Prefer the inline response
     // already declared by the protocol so result persistence does not depend on
@@ -225,7 +233,10 @@ export function matchesApiHost(baseUrl: string, hostname: string) {
 
 export function taskUrl(config: ImageTaskConfig, path: string, origin: string) {
     const protocol = resolveChannelModelConfig(config.advancedConfig, config.model)?.protocol || config.advancedConfig?.protocol;
-    const apiBase = protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng" ? absoluteApiBaseUrl(config.baseUrl, origin) : normalizeApiBaseUrl(config.baseUrl, config.apiFormat, origin);
+    const apiBase =
+        protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task"
+            ? absoluteApiBaseUrl(config.baseUrl, origin)
+            : normalizeApiBaseUrl(config.baseUrl, config.apiFormat, origin);
     return `${apiBase}${path}`;
 }
 
@@ -571,7 +582,7 @@ export function findStringByKeys(value: unknown, keys: string[], depth = 0): str
 
 export function isPendingImageStatus(status?: string) {
     const value = (status || "").toLowerCase();
-    return !value || ["pending", "queued", "running", "processing", "in_progress", "created"].includes(value);
+    return !value || ["pending", "queued", "running", "processing", "in_progress", "created", "submitted", "not_start"].includes(value);
 }
 
 export function imageTaskPollUrls(config: ImageTaskConfig, requestUrl: string, taskId: string, explicitPollUrl = "") {

@@ -10,7 +10,7 @@ export const CANVAS_GENERATION_POINTS_MESSAGE = "积分不足，请充值后重�
 export const CANVAS_GENERATION_RETRY_DELAY_MS = 15_000;
 
 // 前端兜底时长：从任务提交（节点拿到任务 ID）开始计，到点不管轮询是否还在跑，直接给用户一个可重试的失败。
-const PENDING_TIMEOUT_MS = { image: 10 * 60_000, text: 10 * 60_000, audio: 10 * 60_000, video: 30 * 60_000 } as const;
+const PENDING_TIMEOUT_MS = { image: 10 * 60_000, text: 10 * 60_000, audio: 10 * 60_000, video: 40 * 60_000 } as const;
 
 // 硬超时中止轮询时的 abort reason：调用方据此区分"超时"和"用户停止"（后者会删除占位节点）。
 export const CANVAS_GENERATION_TIMEOUT_ABORT = new DOMException("生成等待超时", "AbortError");

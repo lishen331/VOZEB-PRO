@@ -9,7 +9,21 @@ vi.mock("@/lib/server/safe-outbound-fetch", () => ({ fetchSafeOutbound: mocks.fe
 vi.mock("@/lib/server/security", () => ({ isSafeOutboundUrl: vi.fn(() => true) }));
 vi.mock("@/lib/server/object-storage-service", () => ({ deleteExternalMediaObject: vi.fn(), persistExternalMediaIfEnabled: mocks.persistExternalMediaIfEnabled }));
 
-import { normalizeStoredLog, readPostgresGenerationLogDb, writeRemoteAsset } from "./generation-log-repository";
+import { normalizeStoredLog, readPostgresGenerationLogDb, remoteAssetBodyTimeoutMs, writeRemoteAsset } from "./generation-log-repository";
+
+describe("remoteAssetBodyTimeoutMs", () => {
+    it("keeps the 15s floor for small files", () => {
+        expect(remoteAssetBodyTimeoutMs(500 * 1024, 20 * 1024 * 1024)).toBe(15000);
+    });
+
+    it("scales with content-length for large files", () => {
+        expect(remoteAssetBodyTimeoutMs(10 * 1024 * 1024, 20 * 1024 * 1024)).toBe(80000);
+    });
+
+    it("uses the type max when content-length is unknown", () => {
+        expect(remoteAssetBodyTimeoutMs(0, 20 * 1024 * 1024)).toBe(160000);
+    });
+});
 
 const PNG_BYTES = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+4q2JAAAAAElFTkSuQmCC", "base64");
 
