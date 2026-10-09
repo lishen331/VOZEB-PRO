@@ -42,8 +42,11 @@ describe("canvas generation user-facing message", () => {
         ["输入图片中检测到人脸", "参考图包含真人人脸，请更换图片后重试"],
         ["Your request was rejected by the content policy (sexual)", "内容涉及不适宜信息，请修改描述后重试"],
         ["prompt contains violence", "内容涉及暴力信息，请修改描述后重试"],
-        ["输入内容包含敏感词", "内容未通过安全审核，请修改描述或更换参考图"],
+        ["输入内容包含敏感词", "内容未通过安全审核，请修改描述或更换参考图后重试"],
         ["积分不足", "积分不足，请充值后重试"],
+        ["内容未通过安全审核：Unavailable For Legal Reasons", "内容未通过安全审核，请修改描述或更换参考图后重试"],
+        ["token quota is not enough", "当前模型暂时不可用，请切换模型后重试"],
+        ["当前模型暂时不可用，请切换模型后重试", "当前模型暂时不可用，请切换模型后重试"],
     ])("maps %j to a safe message", (raw, expected) => {
         expect(canvasGenerationUserMessage(raw)).toBe(expected);
     });

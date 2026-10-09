@@ -215,7 +215,7 @@ describe("CanvasNode error content", () => {
 
         expect(markup).toContain("h-full w-full flex-col items-center justify-center");
         expect(markup).toContain(`color:${canvasThemes.light.node.danger}`);
-        expect(markup).toContain("网络繁忙，生成未完成，请稍后重试");
+        expect(markup).toContain("网络异常，请点击重试");
         expect(markup).toContain("重试");
     });
 
@@ -245,7 +245,7 @@ describe("CanvasNode error content", () => {
 
         const markup = renderImageNode({ data: failedNode, onRetry: noop });
 
-        expect(markup).toContain("网络繁忙，生成未完成，请稍后重试");
+        expect(markup).toContain("网络异常，请点击重试");
         expect(markup).not.toContain("上游任务 ID");
     });
 });

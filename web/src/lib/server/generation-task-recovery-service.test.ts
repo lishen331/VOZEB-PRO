@@ -110,7 +110,7 @@ describe("generation task recovery service", () => {
         mocks.getAuthSettings.mockResolvedValue({ dataLifecycle: { maintenanceBatchSize: 20 }, generationConcurrency: { image: 1, video: 1, audio: 1, text: 1 } });
         mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
         mocks.generationCapacityRetryAfterSeconds.mockResolvedValue(undefined);
-        mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
+        mocks.validateGenerationContextIpReferences.mockReset().mockResolvedValue(undefined);
     });
 
     it("returns without starting a heartbeat when no task is due", async () => {
@@ -505,6 +505,19 @@ describe("generation task recovery service", () => {
         expect(result).toMatchObject({ claimed: 1, pending: 0, failed: 1 });
     });
 
+    it("fails and refunds an image submission exception that has no upstream id", async () => {
+        const task = { id: "image-submit-throw", userId: "user-one", status: "running", config: { channelId: "channel-one", apiFormat: "openai", advancedConfig: { protocol: "openai" } } };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, userId: task.userId, type: "image", status: "running", executionPhase: "created" }]);
+        mocks.getImageTask.mockResolvedValue(task);
+        mocks.createImageTaskUpstreamStep.mockRejectedValue(new Error("upstream reset"));
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.markImageTaskFailed).toHaveBeenCalledWith(task, "upstream reset");
+        expect(mocks.release).toHaveBeenCalledWith("image", task.id, "worker-one", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "submission_failed_without_upstream_id" }));
+        expect(result).toMatchObject({ claimed: 1, failed: 1, needsReview: 0 });
+    });
+
     it("recovers an image upstream identity already saved in the task payload", async () => {
         const task = {
             id: "image-one",
@@ -568,7 +581,7 @@ describe("generation task recovery service", () => {
         expect(result).toMatchObject({ claimed: 1, pending: 1, needsReview: 0 });
     });
 
-    it("records why an interrupted image submission requires review", async () => {
+    it("fails and refunds an interrupted image submission that has no upstream id", async () => {
         const task = {
             id: "image-interrupted",
             userId: "user-one",
@@ -580,16 +593,9 @@ describe("generation task recovery service", () => {
 
         const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
 
-        expect(mocks.release).toHaveBeenCalledWith(
-            "image",
-            task.id,
-            "worker-one",
-            expect.objectContaining({
-                executionPhase: "needs_review",
-                resultPayload: { trace: "kept", reviewReason: "图片任务在提交阶段中断，未取得上游任务 ID" },
-            }),
-        );
-        expect(result).toMatchObject({ claimed: 1, needsReview: 1 });
+        expect(mocks.release).toHaveBeenCalledWith("image", task.id, "worker-one", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "submission_interrupted_without_upstream_id" }));
+        expect(mocks.markImageTaskFailed).toHaveBeenCalledWith(task, "图片任务在提交阶段中断，未取得上游任务 ID");
+        expect(result).toMatchObject({ claimed: 1, failed: 1, needsReview: 0 });
     });
 
     it("stops repeated image query errors at the configured model deadline", async () => {
