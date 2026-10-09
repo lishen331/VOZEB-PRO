@@ -240,6 +240,8 @@ export function resolveLogicalModelCapabilityProfile(binding: Pick<LogicalModelB
         http1Compatibility: booleanValue(stored.http1Compatibility),
         timeoutMs: timeoutMilliseconds(stored.timeoutMs),
         concurrencyLimit: positiveInteger(stored.concurrencyLimit),
+        requestsPerMinute: positiveInteger(stored.requestsPerMinute),
+        burstLimit: positiveInteger(stored.burstLimit),
         unitCost: positiveNumber(stored.unitCost),
         unitCostCurrency: text(stored.unitCostCurrency, 12) || undefined,
     };
@@ -289,6 +291,8 @@ function normalizeStoredCapabilityProfile(value: unknown): LogicalModelCapabilit
         http1Compatibility: optionalBoolean(input.http1Compatibility),
         timeoutMs: timeoutMilliseconds(input.timeoutMs),
         concurrencyLimit: positiveInteger(input.concurrencyLimit),
+        requestsPerMinute: positiveInteger(input.requestsPerMinute),
+        burstLimit: positiveInteger(input.burstLimit),
         unitCost: positiveNumber(input.unitCost),
         unitCostCurrency: text(input.unitCostCurrency, 12) || undefined,
     };

@@ -8,7 +8,7 @@ import { getAuthSettings } from "@/lib/auth/store";
 import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
-import { CHANNEL_SATURATED_MESSAGE } from "@/lib/server/channel-concurrency";
+import { takeChannelRateToken } from "@/lib/server/channel-rate-limit";
 import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { generationModelId } from "@/lib/server/generation-channel";
 import { refundImageTask } from "@/lib/server/image-task-refund";
@@ -28,20 +28,41 @@ export type ImageUpstreamStep =
     | { state: "completed" }
     | { state: "failed"; error: string; status: string; retryReason?: "upstream_failed" };
 
-async function reserveFirstAvailableImageCandidate(task: ImageTask, reservationId: string) {
-    const candidates = [task.config, ...(task.candidateConfigs || [])];
+// 上游约 500 RPM；允许瞬间 10 个突发，每渠道模型同时在跑 40 个。模型配置可覆盖。
+const IMAGE_DEFAULT_REQUESTS_PER_MINUTE = 500;
+const IMAGE_DEFAULT_BURST = 10;
+const IMAGE_DEFAULT_CONCURRENCY = 40;
+const IMAGE_CHANNEL_WAIT_MS = 2_000;
+const IMAGE_CHANNEL_RETRY_MS = 200;
+const IMAGE_CHANNEL_UNAVAILABLE_MESSAGE = "当前模型暂时不可用，请切换模型后重试";
+
+async function tryReserveImageCandidates(candidates: ImageTask["config"][], reservationId: string) {
     for (let index = 0; index < candidates.length; index += 1) {
         const config = candidates[index];
+        const profile = config.capabilityProfile;
         const reserved = await reserveGenerationAttemptSlot({
             capability: "image",
             channelId: config.channelId,
             upstreamModel: config.model,
             reservationId,
-            concurrencyLimit: config.capabilityProfile?.concurrencyLimit,
+            concurrencyLimit: profile?.concurrencyLimit || IMAGE_DEFAULT_CONCURRENCY,
         });
-        if (reserved) return { config, remaining: candidates.slice(index + 1) };
+        if (!reserved) continue;
+        const admitted = !config.channelId || (await takeChannelRateToken("image", config.channelId, config.model, { requestsPerMinute: profile?.requestsPerMinute || IMAGE_DEFAULT_REQUESTS_PER_MINUTE, burst: profile?.burstLimit || IMAGE_DEFAULT_BURST }));
+        if (admitted) return { config, remaining: candidates.slice(index + 1) };
+        await releaseGenerationReservations([reservationId]);
     }
     return null;
+}
+
+async function reserveFirstAvailableImageCandidate(task: ImageTask, reservationId: string) {
+    const candidates = [task.config, ...(task.candidateConfigs || [])];
+    const deadline = Date.now() + IMAGE_CHANNEL_WAIT_MS;
+    for (;;) {
+        const reservation = await tryReserveImageCandidates(candidates, reservationId);
+        if (reservation || Date.now() + IMAGE_CHANNEL_RETRY_MS > deadline) return reservation;
+        await new Promise((resolve) => setTimeout(resolve, IMAGE_CHANNEL_RETRY_MS));
+    }
 }
 
 export async function createImageTaskUpstreamStep(task: ImageTask, origin: string, publicOrigin: string, cookie = "", workerUserId = ""): Promise<ImageUpstreamStep> {
@@ -57,7 +78,7 @@ export async function createImageTaskUpstreamStep(task: ImageTask, origin: strin
     let attempts = running.attempts || [];
     const reservationId = generationReservationId("image", task.id, nextGenerationAttemptNo(attempts));
     const reservation = await reserveFirstAvailableImageCandidate(running, reservationId);
-    if (!reservation) return { state: "failed", error: CHANNEL_SATURATED_MESSAGE, status: "channel_saturated" };
+    if (!reservation) return { state: "failed", error: IMAGE_CHANNEL_UNAVAILABLE_MESSAGE, status: "channel_saturated" };
     const config = reservation.config;
     const candidateConfigs = reservation.remaining;
     const started = startGenerationAttempt(attempts, { channelId: config.channelId, model: generationModelId(config), capability: "image", reservationId });
