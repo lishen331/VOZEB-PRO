@@ -1,5 +1,5 @@
+"use client";
 import { generationUserMessage } from "@/lib/generation-feedback-message";
-("use client");
 
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";

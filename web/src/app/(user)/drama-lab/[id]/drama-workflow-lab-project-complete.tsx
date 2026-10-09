@@ -1,5 +1,5 @@
+"use client";
 import { generationUserMessage } from "@/lib/generation-feedback-message";
-("use client");
 
 import { DRAMA_LAB_SHOT_FOCUS, focusDramaLabShot } from "@/lib/drama-lab-shot-focus";
 import { DramaLabShotAssetPicker } from "./drama-lab-shot-asset-picker";
