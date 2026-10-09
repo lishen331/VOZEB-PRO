@@ -18,7 +18,6 @@ type AsyncImageRequestInput = {
 };
 
 const MODELBAY_QUALITIES = new Set(["low", "medium", "high", "auto"]);
-const MODELBAY_JPEG_COMPRESSION = 85;
 const TUZI_QUALITIES = new Set(["low", "medium", "high", "xhigh", "max"]);
 // 画布未指定质量（auto）时兔子默认走 low，出图更快；用户显式选择的质量始终优先。
 const TUZI_DEFAULT_QUALITY = "low";
@@ -40,8 +39,6 @@ export function buildModelBayImageTaskRequest(input: AsyncImageRequestInput & { 
             ...(input.aspectRatio ? { aspect_ratio: input.aspectRatio } : {}),
             ...(input.imageUrls.length ? { input_images: input.imageUrls } : {}),
             ...(input.outputBackground === "opaque" ? { background: "opaque" } : {}),
-            // 上游在法国，跨境下载 PNG 太慢；非透明图改 JPEG 压缩，透明图保留 PNG 的 alpha。
-            ...(input.outputBackground === "transparent" ? { output_format: "png" } : { output_format: "jpeg", output_compression: MODELBAY_JPEG_COMPRESSION }),
         },
     };
 }

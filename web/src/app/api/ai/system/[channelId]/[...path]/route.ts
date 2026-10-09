@@ -268,7 +268,11 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     if (diagnosticContext) await persistMediaDiagnostic(diagnosticContext, { phase: "transport_policy", transportPolicy: http1Compatibility ? "http/1.1" : "default", model: upstreamModel });
     let upstream: Response;
     try {
-        const outboundBody = injectRunningHubWorkflowApiKey(globalAdaptation?.body || requestBody.body, globalAdaptation?.path || path, modelConfig?.protocol || channel.advancedConfig?.protocol, channel.apiKey);
+        const outboundBody = compressModelBayImageOutput(
+            channel.baseUrl,
+            path,
+            injectRunningHubWorkflowApiKey(globalAdaptation?.body || requestBody.body, globalAdaptation?.path || path, modelConfig?.protocol || channel.advancedConfig?.protocol, channel.apiKey),
+        );
         const outboundInit: RequestInit = { method: request.method, headers, body: outboundBody, cache: "no-store", redirect: "manual", signal: request.signal };
         upstream = await observeMediaFetch(target, outboundInit, () => fetchSafeOutbound(target, outboundInit, { http1Compatibility }), diagnosticContext);
         if (verification)
@@ -505,6 +509,49 @@ function mediaResponseHeaders(headers: Headers, mimeType: string) {
     nextHeaders.set("x-content-type-options", "nosniff");
     nextHeaders.set("x-robots-tag", "noindex, nofollow, noarchive");
     return nextHeaders;
+}
+
+const MODELBAY_JPEG_COMPRESSION = 85;
+
+// ModelBay 上游在法国，跨境下载大 PNG 很慢；非透明图改为 JPEG 压缩输出，透明图保留 PNG。
+function compressModelBayImageOutput<T extends BodyInit | undefined>(baseUrl: string, path: string[], body: T): T | ArrayBuffer {
+    if (!body || !isModelBayHost(baseUrl)) return body;
+    const cleanPath = path[0] === "v1" ? path.slice(1) : path;
+    const routePath = `/${cleanPath.join("/")}`.toLowerCase();
+    if (routePath !== "/images/generations" && routePath !== "/images/edits") return body;
+    if (body instanceof FormData) {
+        if (needsAlphaOutput(body.get("background"), body.get("prompt"))) return body;
+        body.set("output_format", "jpeg");
+        body.set("output_compression", String(MODELBAY_JPEG_COMPRESSION));
+        return body;
+    }
+    if (!(body instanceof ArrayBuffer)) return body;
+    let payload: unknown;
+    try {
+        payload = JSON.parse(new TextDecoder().decode(body));
+    } catch {
+        return body;
+    }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return body;
+    const record = payload as Record<string, unknown>;
+    if (needsAlphaOutput(record.background, record.prompt)) return body;
+    const encoded = new TextEncoder().encode(JSON.stringify({ ...record, output_format: "jpeg", output_compression: MODELBAY_JPEG_COMPRESSION }));
+    return encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
+}
+
+// JSON 生成请求的透明/分层要求只写在提示词里，没有 background 字段；宁可误判保留 PNG。
+function needsAlphaOutput(background: unknown, prompt: unknown) {
+    if (background === "transparent") return true;
+    return typeof prompt === "string" && /透明|alpha|transparent/i.test(prompt);
+}
+
+function isModelBayHost(baseUrl: string) {
+    try {
+        const host = new URL(baseUrl).hostname.toLowerCase();
+        return host === "modelbay.io" || host.endsWith(".modelbay.io");
+    } catch {
+        return false;
+    }
 }
 
 async function readProxyRequestBody(request: Request, isMultipart: boolean): Promise<ProxyRequestBody> {

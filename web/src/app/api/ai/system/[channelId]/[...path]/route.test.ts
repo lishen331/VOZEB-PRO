@@ -907,6 +907,55 @@ describe("async image task protocols", () => {
     });
 });
 
+describe("ModelBay newapi image output compression", () => {
+    function settingsFor(baseUrl: string) {
+        return {
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("sunburst-image", "image", "gpt-image-2-5-sunburst")],
+            systemChannels: [{ id: "channel-one", enabled: true, baseUrl, apiKey: "secret", apiFormat: "openai", models: ["gpt-image-2-5-sunburst"], advancedConfig: { protocol: "openai" } }],
+        };
+    }
+
+    async function submitGeneration(baseUrl: string, body: Record<string, unknown>) {
+        mocks.getAuthSettings.mockResolvedValue(settingsFor(baseUrl));
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ data: [{ url: "https://cdn.example.com/a.jpg" }] }));
+        await POST(
+            new Request("http://localhost/api/ai/system/channel-one/v1/images/generations", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("sunburst-image", "gpt-image-2-5-sunburst") },
+                body: JSON.stringify({ model: "gpt-image-2-5-sunburst", n: 1, ...body }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["v1", "images", "generations"] }) },
+        );
+        const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+        return JSON.parse(new TextDecoder().decode(init.body as ArrayBuffer));
+    }
+
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
+        mocks.refundUserPoints.mockReset();
+        mocks.safeUrl.mockResolvedValue(true);
+    });
+
+    it("switches opaque ModelBay generations to compressed JPEG", async () => {
+        const sent = await submitGeneration("https://api.modelbay.io/", { prompt: "生成一只小鸡", response_format: "url", output_format: "png" });
+        expect(sent).toMatchObject({ output_format: "jpeg", output_compression: 85, response_format: "url" });
+    });
+
+    it("keeps PNG for transparent ModelBay requests", async () => {
+        const sent = await submitGeneration("https://api.modelbay.io/", { prompt: "输出带真实透明 Alpha 的 PNG", output_format: "png" });
+        expect(sent).toMatchObject({ output_format: "png" });
+        expect(sent).not.toHaveProperty("output_compression");
+    });
+
+    it("leaves other channels untouched", async () => {
+        const sent = await submitGeneration("https://api.tu-zi.com/", { prompt: "生成一只小鸡", output_format: "png" });
+        expect(sent).toMatchObject({ output_format: "png" });
+        expect(sent).not.toHaveProperty("output_compression");
+    });
+});
+
 describe("custom protocol model routing", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
