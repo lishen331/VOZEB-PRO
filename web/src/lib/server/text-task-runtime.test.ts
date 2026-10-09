@@ -101,16 +101,17 @@ describe("text task runtime recovery", () => {
         expect(state.result?.content).toBe("最终结果");
     });
 
-    it("does not create through another channel after a network-uncertain submission", async () => {
+    it("fails without trying another channel after a network-uncertain submission", async () => {
         state = textTask(openAiConfig("channel-one", "https://one.example"), [openAiConfig("channel-two", "https://two.example")]);
         const fetchMock = vi.fn().mockRejectedValueOnce(new Error("socket closed"));
         vi.stubGlobal("fetch", fetchMock);
 
-        await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "needs_review" });
+        await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "failed" });
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(state.config.channelId).toBe("channel-one");
-        expect(state.candidateConfigs).toHaveLength(1);
-        expect(state.attempts?.map(({ status }) => status)).toEqual(["running"]);
+        expect(state.status).toBe("error");
+        expect(state.attempts?.map(({ status }) => status)).toEqual(["failed"]);
+        expect(state.attempts?.[0]?.upstreamError).toContain("socket closed");
     });
 
     it("automatically switches to the next text model after a timeout", async () => {
@@ -175,7 +176,7 @@ describe("text task runtime recovery", () => {
         expect(state.result?.content).toBe("Chat 兼容返回");
     });
 
-    it("marks a 2xx invalid JSON response for manual review", async () => {
+    it("fails and refunds a 2xx invalid JSON response without upstream id", async () => {
         state = textTask(openAiConfig("channel-one", "https://one.example"), [openAiConfig("channel-two", "https://two.example")]);
         vi.stubGlobal(
             "fetch",
@@ -187,10 +188,10 @@ describe("text task runtime recovery", () => {
             ),
         );
 
-        await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "needs_review" });
+        await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "failed" });
         expect(state.config.channelId).toBe("channel-one");
-        expect(state.billing).toEqual({ pointsCost: 1.5, billingReceiptId: "points:text-points-unknown", refunded: false });
-        expect(mocks.refund).not.toHaveBeenCalled();
+        expect(state.status).toBe("error");
+        expect(mocks.refund).toHaveBeenCalledWith(expect.objectContaining({ receiptId: "points:text-points-unknown", usageKind: "text" }));
     });
 
     it("refunds a zero-point billing receipt when the upstream task fails", async () => {

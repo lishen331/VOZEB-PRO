@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { ChannelSaturatedError } from "@/lib/server/channel-concurrency";
-import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt, type GenerationAttempt } from "@/lib/server/generation-attempt";
+import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt, upstreamErrorDetail, type GenerationAttempt } from "@/lib/server/generation-attempt";
+import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
@@ -451,32 +452,30 @@ export async function POST(request: Request) {
                     return NextResponse.json({ task: publicTask(task) });
                 } catch (error) {
                     lastError = error;
-                    if (error instanceof SafeCandidateFailure) {
-                        attempts = finishGenerationAttempt(attempts, started.attempt.attemptNo, { status: "failed", error: toSafeGenerationErrorMessage(error, "视频任务创建失败") });
-                        await updateVideoTask(localTask.id, { attempts });
-                        if (index < channels.length - 1) continue;
-                    } else if (error instanceof VideoSubmissionUncertainError && error.billing) {
+                    attempts = finishGenerationAttempt(attempts, started.attempt.attemptNo, { status: "failed", error: toSafeGenerationErrorMessage(error, "视频任务创建失败"), upstreamError: upstreamErrorDetail(error) });
+                    if (error instanceof VideoSubmissionUncertainError && error.billing) {
                         const upstream = { ...localTask.upstream, ...error.billing };
                         await updateVideoTask(localTask.id, { upstream, attempts });
                         localTask = { ...localTask, upstream, attempts };
+                    } else {
+                        await updateVideoTask(localTask.id, { attempts });
                     }
-                    const message = toSafeGenerationErrorMessage(error, "视频任务创建失败");
-                    if (!(error instanceof SafeCandidateFailure)) {
-                        await scheduleGenerationTask("video", localTask.id, { executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "submission_outcome_unknown" });
-                        return NextResponse.json({ task: { ...publicTask({ ...localTask, attempts }), needsReview: true }, warning: `${message}；上游创建结果待确认，系统不会自动重复创建。` }, { status: 202 });
-                    }
+                    if (error instanceof SafeCandidateFailure && !(error instanceof ContentPolicyFailure) && index < channels.length - 1) continue;
+                    // 没有上游任务 ID 就无从查询：结果不确定也直接失败退款，不挂待确认。
                     break;
                 }
             }
             if (!lastError && capabilityError) return NextResponse.json({ error: capabilityError instanceof Error ? capabilityError.message : "当前渠道不支持参考素材" }, { status: 400 });
             if (localTask && lastError) {
                 const message = toSafeGenerationErrorMessage(lastError, "视频任务创建失败");
-                await writeVideoGenerationLog({ ...localTask, attempts }, "failed", message, lastError instanceof SafeCandidateFailure);
-                await transitionVideoTask(localTask, { status: "error", error: message, retryable: lastError instanceof SafeCandidateFailure });
-                await scheduleGenerationTask("video", localTask.id, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "create_failed" });
+                const uncertain = !(lastError instanceof SafeCandidateFailure);
+                await writeVideoGenerationLog({ ...localTask, attempts }, "failed", message, true);
+                const failed = await transitionVideoTask(localTask, { status: "error", error: message, retryable: true });
+                if (failed) await refundVideoTask(failed);
+                await scheduleGenerationTask("video", localTask.id, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: uncertain ? "submission_failed_without_upstream_id" : "create_failed" });
             }
             if (lastError instanceof ChannelSaturatedError) return NextResponse.json({ error: lastError.message, canRetry: true }, { status: 503, headers: { "Retry-After": "30" } });
-            return NextResponse.json({ error: toSafeGenerationErrorMessage(lastError, "视频任务创建失败"), canRetry: lastError instanceof SafeCandidateFailure }, { status: 502 });
+            return NextResponse.json({ error: toSafeGenerationErrorMessage(lastError, "视频任务创建失败"), canRetry: true }, { status: 502 });
         },
         undefined,
         concurrencyRequestId,
@@ -680,6 +679,7 @@ export async function createUpstream(
         const text = await response.text();
         if (!response.ok) {
             lastError = readVideoProviderHttpError(text, response.status);
+            if (response.status === 451) throw new ContentPolicyFailure(`内容未通过安全审核：${lastError}`);
             if (!SAFE_CREATE_FAILURE_STATUSES.has(response.status)) throw new Error(lastError);
             continue;
         }
@@ -964,6 +964,7 @@ function normalizePublicOrigin(value: string) {
     }
 }
 const MEDIA_KEYS = VIDEO_PROVIDER_MEDIA_KEYS;
-const SAFE_CREATE_FAILURE_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429]);
+const SAFE_CREATE_FAILURE_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429, 451]);
 
 class SafeCandidateFailure extends Error {}
+class ContentPolicyFailure extends SafeCandidateFailure {}

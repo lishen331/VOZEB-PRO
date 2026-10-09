@@ -54,6 +54,7 @@ vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContext: vi.f
 vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaProxyHeaders: mocks.mediaHeaders }));
 
 import { channelInFlight, reserveChannelSlot, resetChannelConcurrency } from "./channel-concurrency";
+import { resetChannelRateLimits, takeChannelRateToken } from "./channel-rate-limit";
 import { GenerationSubmissionSafeFailure } from "./generation-submission-error";
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import { createImageTaskUpstreamStep, markImageTaskFailed, persistImageTaskResult, prepareImageTaskAutomaticRetry, queryImageTaskUpstreamStep } from "./image-task-runtime";
@@ -64,6 +65,9 @@ describe("image task runtime submission safety", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.stubEnv("VOZEB_PRO_DATABASE_PROVIDER", "file");
+        resetChannelConcurrency();
+        resetChannelRateLimits();
         state = imageTask();
         mocks.getTask.mockImplementation(async () => state);
         mocks.updateTask.mockImplementation(async (_id: string, patch: Partial<ImageTask>) => {
@@ -142,12 +146,39 @@ describe("image task runtime submission safety", () => {
             expect(channelInFlight("image", "channel-two", "image-two")).toBe(1);
         });
 
-        it("fails fast without an automatic retry when every channel is full", async () => {
+        it("diverts to the next channel when the first one has spent this second's request budget", async () => {
+            state.config = { ...state.config, capabilityProfile: { concurrencyLimit: 1, requestsPerMinute: 60, burstLimit: 1 } };
+            await takeChannelRateToken("image", "channel-one", "image-one", { requestsPerMinute: 60, burst: 1 });
+            mocks.runGemini.mockResolvedValueOnce({ dataUrl: "", pending: { id: "upstream-two", mediaBaseUrl: "https://two.example", pollBaseUrl: "https://two.example" } });
+
+            await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).resolves.toMatchObject({ state: "pending", upstream: { id: "upstream-two" } });
+            expect(mocks.runCustom).not.toHaveBeenCalled();
+            expect(state.config.channelId).toBe("channel-two");
+            expect(channelInFlight("image", "channel-one", "image-one")).toBe(0);
+        });
+
+        it("waits for the next token instead of failing when every channel is momentarily rate limited", async () => {
+            const limit = { concurrencyLimit: 5, requestsPerMinute: 120, burstLimit: 1 };
+            state.config = { ...state.config, capabilityProfile: limit };
+            state.candidateConfigs = (state.candidateConfigs || []).map((config) => ({ ...config, capabilityProfile: limit }));
+            await takeChannelRateToken("image", "channel-one", "image-one", { requestsPerMinute: 120, burst: 1 });
+            await takeChannelRateToken("image", "channel-two", "image-two", { requestsPerMinute: 120, burst: 1 });
+            mocks.runCustom.mockResolvedValueOnce({ dataUrl: "", pending: { id: "upstream-one", mediaBaseUrl: "https://one.example", pollBaseUrl: "https://one.example" } });
+
+            const startedAt = Date.now();
+            await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).resolves.toMatchObject({ state: "pending" });
+            expect(Date.now() - startedAt).toBeGreaterThanOrEqual(150);
+            expect(Date.now() - startedAt).toBeLessThan(2_000);
+        });
+
+        it("fails as model unavailable after the short wait when every channel stays full", async () => {
             await reserveChannelSlot("image", "channel-one", "image-one", "other-1", 1);
             await reserveChannelSlot("image", "channel-two", "image-two", "other-2", 1);
 
+            const startedAt = Date.now();
             const step = await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
-            expect(step).toMatchObject({ state: "failed", status: "channel_saturated", error: "当前使用人数较多，请稍后再试" });
+            expect(Date.now() - startedAt).toBeGreaterThanOrEqual(1_700);
+            expect(step).toMatchObject({ state: "failed", status: "channel_saturated", error: "当前模型暂时不可用，请切换模型后重试" });
             expect(step).not.toHaveProperty("retryReason");
             expect(mocks.runCustom).not.toHaveBeenCalled();
             expect(mocks.runGemini).not.toHaveBeenCalled();

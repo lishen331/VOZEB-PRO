@@ -60,6 +60,7 @@ const POSTGRES_TABLES = [
     "binding_verifications",
     "generation_concurrency_reservations",
     "channel_concurrency_reservations",
+    "channel_rate_limits",
     "generation_worker_heartbeats",
     "generation_webhook_events",
     "creative_conversations",

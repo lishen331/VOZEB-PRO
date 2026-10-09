@@ -1,3 +1,4 @@
+import { generationUserMessage } from "@/lib/generation-feedback-message";
 import { useEffect, useRef } from "react";
 
 import type { AiConfig } from "@/stores/use-config-store";
@@ -20,7 +21,7 @@ export function useDramaAudioQueue(project: DramaProject, episode: DramaEpisode,
                 const task = await readAudioGenerationTask(running.audioTaskId!, "system", controller.signal);
                 if (task.needsReview) return updateShot(project.id, episode.id, running.id, { audioStatus: "error", audioError: task.reviewReason || GENERATION_TASK_NEEDS_REVIEW_MESSAGE });
                 if (task.status === "success") return updateShot(project.id, episode.id, running.id, { audioStatus: "success", audioUrl: task.result?.url, audioError: undefined });
-                if (task.status === "error" || task.status === "cancelled") return updateShot(project.id, episode.id, running.id, { audioStatus: task.status, audioError: task.error });
+                if (task.status === "error" || task.status === "cancelled") return updateShot(project.id, episode.id, running.id, { audioStatus: task.status, audioError: generationUserMessage(task.error) });
                 timer = window.setTimeout(poll, 2000);
             } catch (error) {
                 if (!controller.signal.aborted) updateShot(project.id, episode.id, running.id, { audioStatus: "error", audioError: error instanceof Error ? error.message : "音频任务查询失败" });

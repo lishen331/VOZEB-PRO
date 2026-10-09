@@ -255,6 +255,8 @@ export type LogicalModelCapabilityProfile = {
     http1Compatibility?: boolean;
     timeoutMs?: number;
     concurrencyLimit?: number;
+    requestsPerMinute?: number;
+    burstLimit?: number;
     unitCost?: number;
     unitCostCurrency?: string;
 };

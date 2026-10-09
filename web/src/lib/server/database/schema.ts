@@ -390,6 +390,14 @@ CREATE TABLE IF NOT EXISTS channel_concurrency_reservations (
 CREATE INDEX IF NOT EXISTS channel_concurrency_reservations_expires_idx ON channel_concurrency_reservations (expires_at);
 CREATE INDEX IF NOT EXISTS channel_concurrency_reservations_slot_idx ON channel_concurrency_reservations (channel_id, upstream_model);
 
+CREATE TABLE IF NOT EXISTS channel_rate_limits (
+    channel_id text NOT NULL,
+    upstream_model text NOT NULL,
+    tokens double precision NOT NULL,
+    updated_at timestamptz NOT NULL,
+    PRIMARY KEY (channel_id, upstream_model)
+);
+
 CREATE TABLE IF NOT EXISTS generation_worker_heartbeats (
     worker_id text PRIMARY KEY,
     last_seen_at timestamptz NOT NULL

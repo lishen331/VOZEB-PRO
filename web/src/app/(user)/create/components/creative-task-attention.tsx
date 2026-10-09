@@ -1,4 +1,5 @@
 "use client";
+import { generationUserMessage } from "@/lib/generation-feedback-message";
 import { Alert, Button, Space } from "antd";
 import { useState } from "react";
 import type { CreativeAgentRun } from "@/services/api/creative";
@@ -35,7 +36,7 @@ export function CreativeTaskAttention({ run, onControl }: { run: CreativeAgentRu
                 {run.tasks.map((task) => (
                     <li key={task.id}>
                         {task.title} · {task.model} · {task.status === "completed" ? "已完成" : task.status === "needs_review" ? "待确认" : task.status === "failed" ? "失败" : task.status === "cancelled" ? "已取消" : "处理中"}
-                        {task.error && task.status === "needs_review" ? `：${task.error}` : ""}
+                        {task.error && task.status === "needs_review" ? `：${generationUserMessage(task.error)}` : ""}
                     </li>
                 ))}
             </ul>

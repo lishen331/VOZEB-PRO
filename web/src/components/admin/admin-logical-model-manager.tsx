@@ -522,6 +522,12 @@ function BindingEditor({
                     <LabeledControl label="并发上限">
                         <InputNumber className="w-full" min={1} max={1000} precision={0} value={profile.concurrencyLimit} onChange={(value) => updateProfile({ concurrencyLimit: Number(value) || 1 })} />
                     </LabeledControl>
+                    <LabeledControl label="每分钟请求上限">
+                        <InputNumber className="w-full" min={1} max={100000} precision={0} value={profile.requestsPerMinute} placeholder="图片默认 500" onChange={(value) => updateProfile({ requestsPerMinute: value ? Number(value) : undefined })} />
+                    </LabeledControl>
+                    <LabeledControl label="瞬间突发上限">
+                        <InputNumber className="w-full" min={1} max={1000} precision={0} value={profile.burstLimit} placeholder="图片默认 10" onChange={(value) => updateProfile({ burstLimit: value ? Number(value) : undefined })} />
+                    </LabeledControl>
                     <LabeledControl label="单次成本">
                         <InputNumber className="w-full" min={0} precision={4} value={profile.unitCost} onChange={(value) => updateProfile({ unitCost: Number(value) || 0 })} />
                     </LabeledControl>

@@ -29,10 +29,11 @@ describe("DramaLabTaskPanel", () => {
         expect(markup).toContain("取消分镜视频生成");
     });
 
-    it("does not render terminal errors", () => {
+    it("renders terminal errors as user-facing messages", () => {
         const markup = renderToStaticMarkup(<DramaLabTaskPanel projectId="project-one" initialTasks={[{ ...base, status: "error", canCancel: false, canRetry: true, progress: 35, error: "上游任务失败" }]} />);
         expect(markup).toContain("失败");
-        expect(markup).toContain("上游任务失败");
+        expect(markup).toContain("网络异常，请点击重试");
+        expect(markup).not.toContain("上游任务失败");
         expect(markup).toContain("可重试");
     });
 

@@ -1,3 +1,4 @@
+import { GENERATION_BUSY_MESSAGE, GENERATION_POINTS_MESSAGE, GENERATION_UNAVAILABLE_MESSAGE, generationUserMessage } from "@/lib/generation-feedback-message";
 import { GenerationTaskRequestError } from "@/services/api/generation-task-request-error";
 import { isGenerationTaskNeedsReviewError, isGenerationTaskTerminalError } from "@/services/api/generation-task-state";
 import { ImageGenerationTaskTerminalError, isImageGenerationTaskDeferredError } from "@/services/api/image";
@@ -5,9 +6,9 @@ import { VideoGenerationUpstreamError, VideoGenerationWaitTimeoutError } from "@
 
 import type { CanvasNodeData } from "../types";
 
-export const CANVAS_GENERATION_BUSY_MESSAGE = "网络异常，请点击重试";
-export const CANVAS_GENERATION_UNAVAILABLE_MESSAGE = "当前模型暂时不可用，请切换模型后重试";
-export const CANVAS_GENERATION_POINTS_MESSAGE = "积分不足，请充值后重试";
+export const CANVAS_GENERATION_BUSY_MESSAGE = GENERATION_BUSY_MESSAGE;
+export const CANVAS_GENERATION_UNAVAILABLE_MESSAGE = GENERATION_UNAVAILABLE_MESSAGE;
+export const CANVAS_GENERATION_POINTS_MESSAGE = GENERATION_POINTS_MESSAGE;
 export const CANVAS_GENERATION_RETRY_DELAY_MS = 15_000;
 
 // 前端兜底时长：从任务提交（节点拿到任务 ID）开始计，到点不管轮询是否还在跑，直接给用户一个可重试的失败。
@@ -15,22 +16,6 @@ const PENDING_TIMEOUT_MS = { image: 10 * 60_000, text: 10 * 60_000, audio: 10 * 
 
 // 硬超时中止轮询时的 abort reason：调用方据此区分"超时"和"用户停止"（后者会删除占位节点）。
 export const CANVAS_GENERATION_TIMEOUT_ABORT = new DOMException("生成等待超时", "AbortError");
-
-const POLICY_MESSAGES: Array<{ pattern: RegExp; message: string }> = [
-    { pattern: /人脸|真人|肖像|real[\s_-]?person|human[\s_-]?face|\bfaces?\b|portrait|likeness|celebrit/i, message: "参考图包含真人人脸，请更换图片后重试" },
-    { pattern: /色情|裸露|低俗|涉黄|sexual|nsfw|nudity|porn/i, message: "内容涉及不适宜信息，请修改描述后重试" },
-    { pattern: /暴力|血腥|violen|gore/i, message: "内容涉及暴力信息，请修改描述后重试" },
-    { pattern: /涉政|政治敏感|politic/i, message: "内容涉及敏感信息，请修改描述后重试" },
-    {
-        pattern: /敏感|违规|违禁|审核未通过|未通过.{0,6}审核|安全策略|内容安全|sensitive|moderation|content[\s_-]?(policy|filter|safety)|safety[\s_-]?(system|filter|check)|prohibited|inappropriate/i,
-        message: "内容未通过安全审核，请修改描述或更换参考图后重试",
-    },
-];
-
-// 前端自己生成、用户能据此操作的文案，展示时原样保留。
-const PASSTHROUGH_MESSAGES = /^(?:参考图片已丢失，无法继续重试|背景补全蒙版已丢失，无法继续重试)$/;
-const UNAVAILABLE_PATTERN = /模型暂时不可用|没有可用.{0,6}渠道|无可用.{0,6}渠道|模型.{0,6}(不存在|已下线|未启用)|model[\s_-]?not[\s_-]?found|no available channel|quota is not enough|insufficient[\s_-]?quota/i;
-const USER_FACING_MESSAGES = new Set([CANVAS_GENERATION_BUSY_MESSAGE, CANVAS_GENERATION_UNAVAILABLE_MESSAGE, CANVAS_GENERATION_POINTS_MESSAGE, ...POLICY_MESSAGES.map((item) => item.message)]);
 
 export type CanvasGenerationTaskKind = keyof typeof PENDING_TIMEOUT_MS;
 
@@ -67,13 +52,7 @@ export function canvasGenerationPendingOptions(error: unknown) {
 
 /** 纯映射：任意错误文本 → 给用户看的文案。不记录日志，可在渲染时调用。 */
 export function canvasGenerationUserMessage(raw: string | undefined) {
-    const text = raw?.trim() || "";
-    if (!text) return CANVAS_GENERATION_BUSY_MESSAGE;
-    if (USER_FACING_MESSAGES.has(text) || PASSTHROUGH_MESSAGES.test(text)) return text;
-    if (/积分不足|余额不足/.test(text)) return CANVAS_GENERATION_POINTS_MESSAGE;
-    const policy = POLICY_MESSAGES.find((item) => item.pattern.test(text))?.message;
-    if (policy) return policy;
-    return UNAVAILABLE_PATTERN.test(text) ? CANVAS_GENERATION_UNAVAILABLE_MESSAGE : CANVAS_GENERATION_BUSY_MESSAGE;
+    return generationUserMessage(raw);
 }
 
 /** 写入节点 / 弹提示前调用：真实原因进控制台留给排查，界面只拿转换后的文案。 */

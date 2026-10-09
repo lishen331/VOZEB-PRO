@@ -1,4 +1,5 @@
-﻿"use client";
+"use client";
+import { generationUserMessage } from "@/lib/generation-feedback-message";
 
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
@@ -1875,7 +1876,7 @@ function getAssetWorkflowGuidance(task: DramaLabTaskView | undefined, project: P
         return {
             title: "资产提取没有完成",
             status: task.status === "cancelled" ? "已取消" : "提取失败",
-            detail: task.error || "Agent 未能完成角色、场景与道具的拆解。",
+            detail: task.error ? generationUserMessage(task.error) : "Agent 未能完成角色、场景与道具的拆解。",
             hint: "可以重新点击“一键提取”，已有资产不会被覆盖。",
             progress: task.progress ?? 0,
             done: false,
@@ -1904,7 +1905,7 @@ function getAssetWorkflowUpdates(task: DramaLabTaskView | undefined) {
         const names = Array.isArray(child?.output?.assetNames) ? child.output.assetNames.filter((value): value is string => typeof value === "string" && Boolean(value.trim())) : [];
         const added = typeof child?.output?.added === "number" ? child.output.added : names.length;
         if (child?.status === "success") return { kind, status: "success" as const, detail: names.length ? `已识别 ${names.slice(0, 2).join("、")}${names.length > 2 ? "等" : ""}` : `已识别 ${added} 个${ASSET_META[kind].label}` };
-        if (child?.status === "error" || child?.status === "cancelled") return { kind, status: "error" as const, detail: child.error || `${ASSET_META[kind].label}提取失败` };
+        if (child?.status === "error" || child?.status === "cancelled") return { kind, status: "error" as const, detail: child.error ? generationUserMessage(child.error) : `${ASSET_META[kind].label}提取失败` };
         if (child?.status === "running") return { kind, status: "running" as const, detail: `正在识别${ASSET_META[kind].label}` };
         return { kind, status: "pending" as const, detail: "等待 Agent 处理" };
     });

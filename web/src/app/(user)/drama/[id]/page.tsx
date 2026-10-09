@@ -1,5 +1,6 @@
 "use client";
 
+import { generationUserMessage } from "@/lib/generation-feedback-message";
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Empty } from "antd";
 import { ArrowRight, History } from "lucide-react";
@@ -322,7 +323,7 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                     generationError: undefined,
                     ...(running.audioMode === "voiceover" && (running.subtitle || running.dialogue).trim() && audioReady ? { audioStatus: "queued" as const, audioError: undefined } : {}),
                 });
-            if (payload.task?.status === "error" || payload.task?.status === "cancelled") updateShot(project.id, episode.id, running.id, { generationStatus: payload.task.status, generationError: payload.task.error });
+            if (payload.task?.status === "error" || payload.task?.status === "cancelled") updateShot(project.id, episode.id, running.id, { generationStatus: payload.task.status, generationError: generationUserMessage(payload.task.error) });
         }, 2500);
         return () => window.clearInterval(timer);
     }, [audioReady, episode.id, episode.shots, project.id, updateShot]);
