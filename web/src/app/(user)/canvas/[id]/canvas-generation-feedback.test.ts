@@ -100,8 +100,8 @@ describe("canvas generation pending clock", () => {
 
         expect(isCanvasGenerationPendingExpired(image, 9 * MINUTE)).toBe(false);
         expect(isCanvasGenerationPendingExpired(image, 10 * MINUTE)).toBe(true);
-        expect(isCanvasGenerationPendingExpired(video, 29 * MINUTE)).toBe(false);
-        expect(isCanvasGenerationPendingExpired(video, 30 * MINUTE)).toBe(true);
+        expect(isCanvasGenerationPendingExpired(video, 39 * MINUTE)).toBe(false);
+        expect(isCanvasGenerationPendingExpired(video, 40 * MINUTE)).toBe(true);
     });
 
     it("starts the clock at submission so a long-running poll still hits the hard limit", () => {
@@ -111,8 +111,8 @@ describe("canvas generation pending clock", () => {
 
         expect(canvasGenerationPendingState(image)).toEqual({ since: 0, review: false });
         expect(isCanvasGenerationPendingExpired(image, 10 * MINUTE)).toBe(true);
-        expect(isCanvasGenerationPendingExpired(video, 29 * MINUTE)).toBe(false);
-        expect(isCanvasGenerationPendingExpired(video, 30 * MINUTE)).toBe(true);
+        expect(isCanvasGenerationPendingExpired(video, 39 * MINUTE)).toBe(false);
+        expect(isCanvasGenerationPendingExpired(video, 40 * MINUTE)).toBe(true);
         expect(stampCanvasGenerationStart(stamped, 9 * MINUTE)).toBe(stamped);
     });
 

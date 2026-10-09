@@ -20,6 +20,8 @@ const ASSET_ROOT = GENERATION_MEDIA_ROOT;
 const MAX_SERVER_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_SERVER_VIDEO_BYTES = 300 * 1024 * 1024;
 const SERVER_ASSET_DOWNLOAD_TIMEOUT_MS = 15000;
+// Slow upstream CDNs measured ~300KB/s; budget the body at a lower floor so large results are not cut off.
+const SERVER_ASSET_MIN_BYTES_PER_SEC = 128 * 1024;
 
 let mutationQueue = Promise.resolve();
 
@@ -102,23 +104,46 @@ export async function writeDataUrlAsset(dataUrl: string, type: GenerationLogAsse
 export async function writeRemoteAsset(url: string, type: GenerationLogAssetKind, context: GenerationAssetContext): Promise<GenerationLogAsset | null> {
     if (!(await isSafeRemoteAssetUrl(url))) return null;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), SERVER_ASSET_DOWNLOAD_TIMEOUT_MS);
+    let timer = setTimeout(() => controller.abort(), SERVER_ASSET_DOWNLOAD_TIMEOUT_MS);
+    const timing: Record<string, unknown> = { taskId: context.taskId, type, host: new URL(url).host };
+    const started = Date.now();
+    let outcome = "failed";
     try {
         const response = await fetchSafeOutbound(url, { cache: "no-store", redirect: "follow", signal: controller.signal });
+        timing.status = response.status;
+        timing.headersMs = Date.now() - started;
         if (!response.ok || !response.body) return null;
         const contentLength = Number(response.headers.get("content-length") || 0);
         const maxBytes = maxServerAssetBytes(type);
         if (contentLength > maxBytes) return null;
+        clearTimeout(timer);
+        timing.bodyTimeoutMs = remoteAssetBodyTimeoutMs(contentLength, maxBytes);
+        timer = setTimeout(() => controller.abort(), timing.bodyTimeoutMs as number);
+        const bodyStarted = Date.now();
         const bytes = Buffer.from(await response.arrayBuffer());
+        timing.bodyMs = Date.now() - bodyStarted;
+        timing.bytes = bytes.length;
         if (bytes.length > maxBytes) return null;
         const mimeType = await resolveMediaMimeType(bytes, type, response.headers.get("content-type"));
         if (!mimeType) return null;
-        return writeAssetBytes(bytes, mimeType, type, context);
-    } catch {
+        const storeStarted = Date.now();
+        const asset = await writeAssetBytes(bytes, mimeType, type, context);
+        timing.storeMs = Date.now() - storeStarted;
+        outcome = "ok";
+        return asset;
+    } catch (error) {
+        timing.error = error instanceof Error ? error.name : "unknown";
         return null;
     } finally {
         clearTimeout(timer);
+        console.info("remote_asset_timing", JSON.stringify({ ...timing, outcome, totalMs: Date.now() - started }));
     }
+}
+
+/** Unknown length falls back to the budget for the type's maximum size. */
+export function remoteAssetBodyTimeoutMs(contentLength: number, maxBytes: number) {
+    const bytes = contentLength > 0 ? contentLength : maxBytes;
+    return Math.max(SERVER_ASSET_DOWNLOAD_TIMEOUT_MS, Math.ceil((bytes / SERVER_ASSET_MIN_BYTES_PER_SEC) * 1000));
 }
 
 export async function isSafeRemoteAssetUrl(value: string) {
