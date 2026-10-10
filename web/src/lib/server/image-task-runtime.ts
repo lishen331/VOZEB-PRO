@@ -37,10 +37,9 @@ export type ImageUpstreamStep =
     | { state: "completed" }
     | { state: "failed"; error: string; status: string; retryReason?: "upstream_failed" };
 
-// 上游约 500 RPM；允许瞬间 10 个突发，每渠道模型同时在跑 40 个。模型配置可覆盖。
+// 上游约 500 RPM；允许瞬间 10 个突发。并发上限只在模型配置里填了才生效。
 const IMAGE_DEFAULT_REQUESTS_PER_MINUTE = 500;
 const IMAGE_DEFAULT_BURST = 10;
-const IMAGE_DEFAULT_CONCURRENCY = 40;
 const IMAGE_CHANNEL_WAIT_MS = 2_000;
 const IMAGE_CHANNEL_RETRY_MS = 200;
 const IMAGE_CHANNEL_UNAVAILABLE_MESSAGE = "当前模型暂时不可用，请切换模型后重试";
@@ -54,7 +53,7 @@ async function tryReserveImageCandidates(candidates: ImageTask["config"][], rese
             channelId: config.channelId,
             upstreamModel: config.model,
             reservationId,
-            concurrencyLimit: profile?.concurrencyLimit || IMAGE_DEFAULT_CONCURRENCY,
+            concurrencyLimit: profile?.concurrencyLimit,
         });
         if (!reserved) continue;
         const admitted = !config.channelId || (await takeChannelRateToken("image", config.channelId, config.model, { requestsPerMinute: profile?.requestsPerMinute || IMAGE_DEFAULT_REQUESTS_PER_MINUTE, burst: profile?.burstLimit || IMAGE_DEFAULT_BURST }));
