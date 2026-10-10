@@ -171,6 +171,15 @@ describe("image task runtime submission safety", () => {
             expect(Date.now() - startedAt).toBeLessThan(2_000);
         });
 
+        it("does not cap in-flight tasks when the model has no concurrency limit configured", async () => {
+            state.config = { ...state.config, capabilityProfile: {} };
+            for (let index = 0; index < 60; index += 1) await reserveChannelSlot("image", "channel-one", "image-one", `other-${index}`, 1000);
+            mocks.runCustom.mockResolvedValueOnce({ dataUrl: "", pending: { id: "upstream-one", mediaBaseUrl: "https://one.example", pollBaseUrl: "https://one.example" } });
+
+            await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).resolves.toMatchObject({ state: "pending", upstream: { id: "upstream-one" } });
+            expect(state.config.channelId).toBe("channel-one");
+        });
+
         it("fails as model unavailable after the short wait when every channel stays full", async () => {
             await reserveChannelSlot("image", "channel-one", "image-one", "other-1", 1);
             await reserveChannelSlot("image", "channel-two", "image-two", "other-2", 1);

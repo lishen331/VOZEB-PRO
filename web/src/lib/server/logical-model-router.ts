@@ -1,7 +1,7 @@
 import type { AuthSettings, LogicalModelCapability, SystemModelChannel } from "@/lib/auth/store";
 import { channelModelCapability, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
 import { channelSupportsModel, rawModelName } from "./generation-channel";
-import { filterHealthyRuntimeCandidates } from "./channel-runtime-health";
+import { filterHealthyRuntimeCandidates, hasHealthyRuntimeCandidate } from "./channel-runtime-health";
 import { channelHasCapacity } from "./channel-concurrency";
 import { channelConnectionReady } from "@/lib/channel-protocol-registry";
 import { resolvePracticeModelAccess, type PracticeExecutionProfile } from "@/lib/practice-domain";
@@ -12,6 +12,7 @@ export type ResolvedLogicalModel = {
     channelId: string;
     channel: SystemModelChannel;
     capabilityProfile?: ReturnType<typeof resolveLogicalModelCapabilityProfile>;
+    overflow?: true;
 };
 
 export function resolveLogicalModel(
@@ -48,7 +49,10 @@ export function resolveLogicalModelCandidates(
         // text-planning-runtime. A channel-level cooldown must not hide a healthy
         // backup text model that shares the same gateway.
         const healthy = capability === "text" ? resolved : filterHealthyRuntimeCandidates(resolved, capability);
-        return filterAvailableConcurrencyCandidates(healthy, capability);
+        const own = filterAvailableConcurrencyCandidates(healthy, capability);
+        if (capability !== "image") return own;
+        const overflow = imageOverflowCandidates(settings, logical.id, executionProfile).filter((item) => !own.some((mine) => mine.channelId === item.channelId && mine.upstreamModel === item.upstreamModel));
+        return [...own, ...overflow];
     }
     if (settings.logicalModels.length) return [];
     const ordered = preferredChannelId ? [...settings.systemChannels.filter((channel) => channel.id === preferredChannelId), ...settings.systemChannels.filter((channel) => channel.id !== preferredChannelId)] : settings.systemChannels;
@@ -67,6 +71,37 @@ function filterAvailableConcurrencyCandidates(candidates: ResolvedLogicalModel[]
     if (candidates.length < 2) return candidates;
     const available = candidates.filter((candidate) => channelHasCapacity(capability, candidate.channelId, candidate.upstreamModel, candidate.capabilityProfile?.concurrencyLimit));
     return available.length ? available : candidates;
+}
+
+// Routes of other enabled image models, shuffled, appended after the requested model's own
+// routes. Capacity is decided at reservation time, so a full own channel overflows here
+// immediately instead of waiting. logicalModelId stays the requested model for billing.
+function imageOverflowCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, requestedLogicalId: string, executionProfile: PracticeExecutionProfile) {
+    const overflow: ResolvedLogicalModel[] = [];
+    for (const other of settings.logicalModels) {
+        if (!other.enabled || other.capability !== "image" || other.id === requestedLogicalId) continue;
+        for (const binding of other.bindings) {
+            if (!binding.enabled) continue;
+            const channel = settings.systemChannels.find(
+                (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item.models, binding.upstreamModel),
+            );
+            if (!channel) continue;
+            const candidate: ResolvedLogicalModel = {
+                logicalModelId: requestedLogicalId,
+                upstreamModel: binding.upstreamModel,
+                channelId: channel.id,
+                channel,
+                capabilityProfile: resolveLogicalModelCapabilityProfile(binding, "image", channel, binding.upstreamModel),
+                overflow: true,
+            };
+            if (hasHealthyRuntimeCandidate([candidate], "image") && !overflow.some((item) => item.channelId === candidate.channelId && item.upstreamModel === candidate.upstreamModel)) overflow.push(candidate);
+        }
+    }
+    for (let i = overflow.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [overflow[i], overflow[j]] = [overflow[j], overflow[i]];
+    }
+    return overflow;
 }
 
 export function resolveVisionModelCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, requestedModelId: string, preferredChannelId = "", executionProfile: PracticeExecutionProfile = "production"): ResolvedLogicalModel[] {
