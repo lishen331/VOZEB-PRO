@@ -86,7 +86,14 @@ function imageOverflowCandidates(settings: Pick<AuthSettings, "logicalModels" | 
                 (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item.models, binding.upstreamModel),
             );
             if (!channel) continue;
-            const candidate: ResolvedLogicalModel = { logicalModelId: requestedLogicalId, upstreamModel: binding.upstreamModel, channelId: channel.id, channel, capabilityProfile: resolveLogicalModelCapabilityProfile(binding, "image", channel, binding.upstreamModel), overflow: true };
+            const candidate: ResolvedLogicalModel = {
+                logicalModelId: requestedLogicalId,
+                upstreamModel: binding.upstreamModel,
+                channelId: channel.id,
+                channel,
+                capabilityProfile: resolveLogicalModelCapabilityProfile(binding, "image", channel, binding.upstreamModel),
+                overflow: true,
+            };
             if (hasHealthyRuntimeCandidate([candidate], "image") && !overflow.some((item) => item.channelId === candidate.channelId && item.upstreamModel === candidate.upstreamModel)) overflow.push(candidate);
         }
     }
