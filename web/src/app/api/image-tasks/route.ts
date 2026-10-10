@@ -30,6 +30,7 @@ import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-r
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
+import { GENERATION_UNAVAILABLE_MESSAGE } from "@/lib/generation-feedback-message";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -244,7 +245,8 @@ export async function POST(request: Request) {
                 return false;
             }
         });
-        if (!compatibleConfigs.length) return NextResponse.json({ error: "当前模型能力不满足参考素材、比例或分辨率参数" }, { status: 400 });
+        // 用户所选模型自己的渠道都不支持本次参数时直接报错，不借其它模型兜底。
+        if (!compatibleConfigs.some((item) => !item.overflow)) return NextResponse.json({ error: GENERATION_UNAVAILABLE_MESSAGE }, { status: 400 });
         const config = compatibleConfigs[0];
         if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(config, trustedContext.businessCode, trustedContext) };
         if (config.outputMode === "layers" && (kind !== "edit" || references.length !== 1)) {

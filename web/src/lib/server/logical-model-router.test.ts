@@ -188,4 +188,51 @@ describe("concurrency-aware candidate ordering", () => {
         await releaseChannelReservations(["r1"]);
         expect(resolveLogicalModelCandidates(imageSettings, "image", "painter").map((item) => item.channelId)).toEqual(["primary", "backup"]);
     });
+
+    const overflowSettings = {
+        systemChannels: [channel("primary", ["img-v1"]), channel("other", ["img-v2"]), channel("off", ["img-v3"])],
+        logicalModels: [
+            { id: "painter", name: "Painter", capability: "image" as const, enabled: true, bindings: [{ id: "one", channelId: "primary", upstreamModel: "img-v1", enabled: true, priority: 1, capabilityProfile: { concurrencyLimit: 1 } }] },
+            { id: "sketcher", name: "Sketcher", capability: "image" as const, enabled: true, bindings: [{ id: "two", channelId: "other", upstreamModel: "img-v2", enabled: true, priority: 1 }] },
+            { id: "disabled", name: "Disabled", capability: "image" as const, enabled: false, bindings: [{ id: "three", channelId: "off", upstreamModel: "img-v3", enabled: true, priority: 1 }] },
+        ],
+    };
+
+    it("keeps its own channel first and other enabled image models as overflow, billing as the requested model", () => {
+        const candidates = resolveLogicalModelCandidates(overflowSettings, "image", "painter");
+        expect(candidates.map((item) => [item.channelId, item.upstreamModel, item.logicalModelId])).toEqual([
+            ["primary", "img-v1", "painter"],
+            ["other", "img-v2", "painter"],
+        ]);
+        expect(candidates.map((item) => item.overflow)).toEqual([undefined, true]);
+    });
+
+    it("shuffles overflow routes per request", () => {
+        const many = {
+            systemChannels: [channel("primary", ["img-v1"]), channel("a", ["img-a"]), channel("b", ["img-b"]), channel("c", ["img-c"])],
+            logicalModels: [
+                { id: "painter", name: "Painter", capability: "image" as const, enabled: true, bindings: [{ id: "p", channelId: "primary", upstreamModel: "img-v1", enabled: true, priority: 1 }] },
+                ...["a", "b", "c"].map((id) => ({ id: `m-${id}`, name: id, capability: "image" as const, enabled: true, bindings: [{ id: `b-${id}`, channelId: id, upstreamModel: `img-${id}`, enabled: true, priority: 1 }] })),
+            ],
+        };
+        const orders = new Set<string>();
+        for (let i = 0; i < 40; i++) {
+            const ids = resolveLogicalModelCandidates(many, "image", "painter").map((item) => item.channelId);
+            expect(ids[0]).toBe("primary");
+            expect([...ids.slice(1)].sort()).toEqual(["a", "b", "c"]);
+            orders.add(ids.join(","));
+        }
+        expect(orders.size).toBeGreaterThan(1);
+    });
+
+    it("does not add overflow routes for non-image capabilities", () => {
+        const text = {
+            systemChannels: [channel("t1", ["txt-1"]), channel("t2", ["txt-2"])],
+            logicalModels: [
+                { id: "writer", name: "Writer", capability: "text" as const, enabled: true, bindings: [{ id: "w", channelId: "t1", upstreamModel: "txt-1", enabled: true, priority: 1 }] },
+                { id: "other", name: "Other", capability: "text" as const, enabled: true, bindings: [{ id: "o", channelId: "t2", upstreamModel: "txt-2", enabled: true, priority: 1 }] },
+            ],
+        };
+        expect(resolveLogicalModelCandidates(text, "text", "writer").map((item) => item.channelId)).toEqual(["t1"]);
+    });
 });

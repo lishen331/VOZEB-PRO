@@ -80,6 +80,7 @@ export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: A
         return {
             ...channel,
             channelId: resolved.channelId,
+            ...(resolved.overflow ? { overflow: true as const } : {}),
             executionProfile,
             ...resolveImageTaskOptions(config || {}, settings.generationDefaults),
             systemPrompt: "",

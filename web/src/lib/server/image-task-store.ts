@@ -21,6 +21,8 @@ export type ImageTaskConfig = {
     channelId?: string;
     logicalModel?: string;
     capabilityProfile?: LogicalModelCapabilityProfile;
+    // 借用其它逻辑模型的渠道（本模型满载时的溢出路线），计费仍按 logicalModel 记。
+    overflow?: true;
     quality?: string;
     size?: string;
     outputBackground?: "opaque" | "transparent";
