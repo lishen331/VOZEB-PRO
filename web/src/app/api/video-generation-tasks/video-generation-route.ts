@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { ChannelSaturatedError } from "@/lib/server/channel-concurrency";
+import { takeChannelRateToken } from "@/lib/server/channel-rate-limit";
 import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt, upstreamErrorDetail, type GenerationAttempt } from "@/lib/server/generation-attempt";
 import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -60,6 +61,22 @@ import {
 } from "@/lib/server/runninghub-workflow-runtime";
 import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
+
+// 与图片一致：默认每分钟 500 个、瞬间 10 个突发。单个渠道名额用完就溢出到下一个渠道，整列表都不行才等 200 毫秒重来一轮，最多 2 秒。
+const VIDEO_DEFAULT_REQUESTS_PER_MINUTE = 500;
+const VIDEO_DEFAULT_BURST = 10;
+const VIDEO_CHANNEL_WAIT_MS = 2_000;
+const VIDEO_CHANNEL_RETRY_MS = 200;
+
+async function takeVideoChannelRateToken(channel: { channelId: string; model: string; capabilityProfile?: { requestsPerMinute?: number; burstLimit?: number } }, allowWait: boolean) {
+    const limit = { requestsPerMinute: channel.capabilityProfile?.requestsPerMinute || VIDEO_DEFAULT_REQUESTS_PER_MINUTE, burst: channel.capabilityProfile?.burstLimit || VIDEO_DEFAULT_BURST };
+    const deadline = Date.now() + VIDEO_CHANNEL_WAIT_MS;
+    for (;;) {
+        if (await takeChannelRateToken("video", channel.channelId, channel.model, limit)) return true;
+        if (!allowWait || Date.now() + VIDEO_CHANNEL_RETRY_MS > deadline) return false;
+        await new Promise((resolve) => setTimeout(resolve, VIDEO_CHANNEL_RETRY_MS));
+    }
+}
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext; input?: Record<string, unknown> };
@@ -366,7 +383,8 @@ export async function POST(request: Request) {
                     reservationId,
                     concurrencyLimit: channel.capabilityProfile?.concurrencyLimit,
                 });
-                if (!reserved) {
+                if (!reserved || !(await takeVideoChannelRateToken(channel, index === channels.length - 1))) {
+                    if (reserved) await releaseGenerationReservations([reservationId]);
                     lastError = new ChannelSaturatedError();
                     continue;
                 }

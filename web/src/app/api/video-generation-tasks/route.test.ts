@@ -76,6 +76,7 @@ vi.mock("@/lib/server/generation-project-context", () => ({
 }));
 import { POST } from "./route";
 import { resetChannelRuntimeHealth } from "@/lib/server/channel-runtime-health";
+import { resetChannelRateLimits, takeChannelRateToken } from "@/lib/server/channel-rate-limit";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 const channels = [
@@ -109,6 +110,8 @@ describe("video generation candidate failover", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.stubEnv("VOZEB_PRO_DATABASE_PROVIDER", "file");
+        resetChannelRateLimits();
         mocks.resolveProjectExecutionProfile.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
         mocks.fetchInternalApi.mockReset();
@@ -201,6 +204,17 @@ describe("video generation candidate failover", () => {
         const submittingSchedules = mocks.scheduleGenerationTask.mock.calls.filter(([, , patch]) => patch.executionPhase === "submitting");
         expect(submittingSchedules).toHaveLength(2);
         expect(submittingSchedules.every(([, , patch]) => patch.nextPollAt >= startedAt + 30 * 60_000)).toBe(true);
+    });
+
+    it("moves to the next binding when the first channel's per-second budget is spent", async () => {
+        for (let i = 0; i < 10; i += 1) await takeChannelRateToken("video", "one", "video-one", { requestsPerMinute: 500, burst: 10 });
+        mocks.fetchInternalApi.mockImplementation(async () => json({ id: "upstream-two", status: "queued" }));
+
+        const response = await POST(request());
+
+        expect(response.status).toBe(200);
+        expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/one/"))).toBe(false);
+        expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(true);
     });
 
     it("returns the original idempotent task before checking concurrency", async () => {
