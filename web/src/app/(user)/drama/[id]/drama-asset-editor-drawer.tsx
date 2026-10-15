@@ -1,7 +1,7 @@
 "use client";
 
-import { App, Drawer, Image, Modal, Popconfirm, Popover, Space } from "antd";
-import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { App, Drawer, Image, Modal, Popover, Space } from "antd";
+import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Check, FolderInput, ImagePlus, Sparkles, Trash2, Upload } from "lucide-react";

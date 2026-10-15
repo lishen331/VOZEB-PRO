@@ -1,6 +1,7 @@
 "use client";
 
-import { Modal, Popconfirm, Select, message } from "antd";
+import { Modal, Select, message } from "antd";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Empty, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { useEffect, useState } from "react";

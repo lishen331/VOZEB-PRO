@@ -1,7 +1,7 @@
 "use client";
 
-import { App, Form, Image, Modal, Popconfirm, Select, Table } from "antd";
-import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { App, Form, Image, Modal, Select, Table } from "antd";
+import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";

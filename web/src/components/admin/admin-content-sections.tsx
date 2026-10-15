@@ -2,7 +2,8 @@
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
-import { DatePicker, Modal, Popconfirm, Space, Table } from "antd";
+import { DatePicker, Modal, Space, Table } from "antd";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Pagination, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import dayjs from "dayjs";

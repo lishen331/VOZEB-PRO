@@ -445,10 +445,25 @@ html.gm-app:not(.dark) {
     background: transparent;
 }
 
+/* 引导式画布：点阵底 + 生成中连线流动 */
+.gm-flow-dots {
+    background-color: var(--gm-bg);
+    background-image: radial-gradient(circle, var(--gm-border-strong) 1px, transparent 1.2px);
+}
+@keyframes gm-edge-flow {
+    to {
+        stroke-dashoffset: -24;
+    }
+}
+.gm-edge-flow {
+    animation: gm-edge-flow 0.8s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .gm-shine::after,
     .gm-shimmer,
     .gm-flow,
+    .gm-edge-flow,
     .gm-aurora,
     .gm-marquee,
     .gm-liquid {

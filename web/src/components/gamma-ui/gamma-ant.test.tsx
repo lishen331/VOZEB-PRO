@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { Alert, Button, Checkbox, Empty, Pagination, Segmented, Spin, Switch, Tag } from "./gamma-ant";
 import { Input, InputNumber } from "./gamma-ant-input";
-import { Tabs, Tooltip } from "./gamma-ant-overlay";
+import { Popconfirm, Tabs, Tooltip } from "./gamma-ant-overlay";
 
 const html = (node: React.ReactElement) => renderToStaticMarkup(node);
 
@@ -95,6 +95,22 @@ describe("gamma-ant 兼容层：与 antd 同 API", () => {
                 </Tooltip>,
             ),
         ).toMatch(/^<span[^>]*cursor-not-allowed[^>]*><button[^>]*pointer-events-none/);
+    });
+
+    it("Popconfirm：关闭态只渲染触发元素；disabled 时不包装", () => {
+        const trigger = (
+            <button type="button" data-trigger="">
+                删除
+            </button>
+        );
+        expect(html(<Popconfirm title="确认删除？">{trigger}</Popconfirm>)).toMatch(/^<button[^>]*aria-haspopup="dialog"[^>]*aria-expanded="false"/);
+        expect(
+            html(
+                <Popconfirm title="确认删除？" disabled>
+                    {trigger}
+                </Popconfirm>,
+            ),
+        ).toBe('<button type="button" data-trigger="">删除</button>');
     });
 
     it("Tabs：受控 activeKey、role=tab/tabpanel、默认只渲染当前面板", () => {

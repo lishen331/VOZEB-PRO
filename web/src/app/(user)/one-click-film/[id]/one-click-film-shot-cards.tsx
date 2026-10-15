@@ -1,7 +1,7 @@
 "use client";
 
-import { Image, Popconfirm, Select, message } from "antd";
-import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Image, Select, message } from "antd";
+import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Empty, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Aperture, ArrowUpToLine, Clapperboard, FileText, Film, ImageIcon, Link2, LoaderCircle, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";

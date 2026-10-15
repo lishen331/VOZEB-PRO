@@ -6,10 +6,12 @@
  * 画布及其共享组件不使用本文件。
  */
 
-import type { ReactElement, ReactNode } from "react";
+import type { HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
 import { Children, cloneElement, isValidElement, useId, useState } from "react";
-import { Tooltip as TooltipPrimitive } from "radix-ui";
+import { AlertTriangle } from "lucide-react";
+import { Popover as PopoverPrimitive, Slot, Tooltip as TooltipPrimitive } from "radix-ui";
 
+import { Button, type ButtonProps } from "@/components/gamma-ui/gamma-ant";
 import { cn } from "@/lib/utils";
 
 /* ===== Tooltip ===== */
@@ -23,23 +25,42 @@ function toRadix(placement: Placement): { side: "top" | "bottom" | "left" | "rig
     return { side, align };
 }
 
-export interface TooltipProps {
+export interface TooltipProps extends Omit<HTMLAttributes<HTMLElement>, "title" | "children"> {
     title?: ReactNode;
     placement?: Placement;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     mouseEnterDelay?: number;
     children: ReactNode;
-    className?: string;
+    ref?: Ref<HTMLElement>;
 }
 
-/** 与 antd Tooltip 同 API：title 为空时只渲染子元素 */
-export function Tooltip({ title, placement = "top", open, onOpenChange, mouseEnterDelay = 0.1, children, className }: TooltipProps) {
-    if (title === undefined || title === null || title === "" || title === false) return <>{children}</>;
-    const { side, align } = toRadix(placement);
+/**
+ * 与 antd Tooltip 同 API：title 为空时只渲染子元素。
+ * 外层（如 Popconfirm 的 asChild 触发器）注入的 props / ref 透传到实际触发元素，嵌套使用不丢事件。
+ */
+export function Tooltip({ title, placement = "top", open, onOpenChange, mouseEnterDelay = 0.1, children, className, ref, ...forwarded }: TooltipProps) {
     const only = Children.count(children) === 1 && isValidElement(children) ? (children as ReactElement<{ disabled?: boolean; className?: string }>) : null;
+    const hasForwarded = Object.keys(forwarded).length > 0 || ref !== undefined;
+    const passThrough =
+        only && hasForwarded ? (
+            <Slot.Root {...forwarded} ref={ref}>
+                {only}
+            </Slot.Root>
+        ) : (
+            (only ?? children)
+        );
+    if (title === undefined || title === null || title === "" || title === false) return <>{passThrough}</>;
+    const { side, align } = toRadix(placement);
     // 禁用的按钮不派发 pointer 事件，外包一层 span 接管悬停（antd 同样处理）
-    const trigger = only && !only.props.disabled ? only : <span className={cn("inline-flex", only?.props.disabled && "cursor-not-allowed")}>{only ? cloneElement(only, { className: cn(only.props.className, "pointer-events-none") }) : children}</span>;
+    const trigger =
+        only && !only.props.disabled ? (
+            passThrough
+        ) : (
+            <span {...forwarded} ref={ref as Ref<HTMLSpanElement>} className={cn("inline-flex", only?.props.disabled && "cursor-not-allowed")}>
+                {only ? cloneElement(only, { className: cn(only.props.className, "pointer-events-none") }) : children}
+            </span>
+        );
     return (
         <TooltipPrimitive.Provider delayDuration={mouseEnterDelay * 1000} skipDelayDuration={200}>
             <TooltipPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -61,6 +82,86 @@ export function Tooltip({ title, placement = "top", open, onOpenChange, mouseEnt
                 </TooltipPrimitive.Portal>
             </TooltipPrimitive.Root>
         </TooltipPrimitive.Provider>
+    );
+}
+
+/* ===== Popconfirm ===== */
+
+export interface PopconfirmProps {
+    title: ReactNode;
+    description?: ReactNode;
+    onConfirm?: () => unknown;
+    onCancel?: () => void;
+    okText?: ReactNode;
+    cancelText?: ReactNode;
+    okButtonProps?: Pick<ButtonProps, "danger" | "disabled" | "loading">;
+    disabled?: boolean;
+    placement?: Placement;
+    children: ReactNode;
+}
+
+/**
+ * 与 antd Popconfirm 同 API：点击子元素弹出确认气泡；onConfirm 返回 Promise 时按钮转 loading，结束后关闭。
+ * disabled 时直接渲染子元素（与 antd 一致不弹出）。
+ */
+export function Popconfirm({ title, description, onConfirm, onCancel, okText = "确定", cancelText = "取消", okButtonProps, disabled = false, placement = "top", children }: PopconfirmProps) {
+    const [open, setOpen] = useState(false);
+    const [pending, setPending] = useState(false);
+    if (disabled) return <>{children}</>;
+    const { side, align } = toRadix(placement);
+    const confirm = async () => {
+        const result = onConfirm?.();
+        if (result instanceof Promise) {
+            setPending(true);
+            try {
+                await result;
+            } finally {
+                setPending(false);
+            }
+        }
+        setOpen(false);
+    };
+    return (
+        <PopoverPrimitive.Root open={open} onOpenChange={(next) => !pending && setOpen(next)}>
+            <PopoverPrimitive.Trigger asChild>{children}</PopoverPrimitive.Trigger>
+            <PopoverPrimitive.Portal>
+                <PopoverPrimitive.Content
+                    side={side}
+                    align={align}
+                    sideOffset={8}
+                    collisionPadding={10}
+                    role="alertdialog"
+                    onClick={(event) => event.stopPropagation()}
+                    className={cn(
+                        "gm-popconfirm z-[1050] w-max max-w-[min(320px,calc(100vw-24px))] rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[color-mix(in_srgb,var(--gm-surface-2)_88%,transparent)] p-3.5 text-[var(--gm-text)] shadow-[var(--gm-shadow,0_16px_40px_rgba(0,0,0,0.35))] backdrop-blur-xl backdrop-saturate-150 outline-none",
+                        "origin-[var(--radix-popover-content-transform-origin)] animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+                    )}
+                >
+                    <div className="flex gap-2.5">
+                        <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0 text-[var(--gm-warning)]" />
+                        <div className="min-w-0">
+                            <div className="text-sm font-medium leading-5">{title}</div>
+                            {description ? <div className="mt-1 text-xs leading-5 text-[var(--gm-text-2)]">{description}</div> : null}
+                        </div>
+                    </div>
+                    <div className="mt-3 flex justify-end gap-2">
+                        <Button
+                            size="small"
+                            disabled={pending}
+                            onClick={() => {
+                                onCancel?.();
+                                setOpen(false);
+                            }}
+                        >
+                            {cancelText}
+                        </Button>
+                        <Button size="small" type="primary" danger={okButtonProps?.danger} disabled={okButtonProps?.disabled} loading={pending || okButtonProps?.loading} onClick={() => void confirm()}>
+                            {okText}
+                        </Button>
+                    </div>
+                </PopoverPrimitive.Content>
+            </PopoverPrimitive.Portal>
+        </PopoverPrimitive.Root>
     );
 }
 
