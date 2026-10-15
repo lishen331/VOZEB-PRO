@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App, Input, InputNumber, Modal, Popconfirm, Select } from "antd";
+import { App, Modal, Popconfirm, Select } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, BookOpen, Download, Import, Pause, Plus, RefreshCw, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";

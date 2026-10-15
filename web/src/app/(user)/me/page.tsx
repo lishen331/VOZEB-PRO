@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Input, Modal } from "antd";
+import { App, Modal } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 import { ExternalLink, Grid3X3, Heart, ImageIcon, Share2, UserPlus, UserRoundPen, Users } from "lucide-react";
 import Link from "next/link";

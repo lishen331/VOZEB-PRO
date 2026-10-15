@@ -2,7 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { App, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Table } from "antd";
+import { App, DatePicker, Form, Modal, Select, Space, Table } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import dayjs, { type Dayjs } from "dayjs";

@@ -1,7 +1,8 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Input, Popconfirm, Select, Space, Table, Tabs } from "antd";
+import { Popconfirm, Select, Space, Table, Tabs } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { Blocks, Plus, RefreshCw, Route, Search, Settings2, Trash2 } from "lucide-react";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Input, InputNumber } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ChevronDown, MessageSquareText, Volume1 } from "lucide-react";
 

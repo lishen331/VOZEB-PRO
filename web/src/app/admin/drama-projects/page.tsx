@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Table, message, Modal, Space, Input, DatePicker, Select } from "antd";
+import { Table, message, Modal, Space, DatePicker, Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Eye, RefreshCw, Search, Trash2 } from "lucide-react";
 import type { ColumnsType } from "antd/es/table";

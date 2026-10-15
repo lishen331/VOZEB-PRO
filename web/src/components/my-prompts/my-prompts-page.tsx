@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Form, Input, Modal, Popconfirm, Space, Table } from "antd";
+import { App, Form, Modal, Popconfirm, Space, Table } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { Copy, FolderPlus, Plus, Trash2 } from "lucide-react";

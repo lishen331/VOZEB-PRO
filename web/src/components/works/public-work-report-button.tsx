@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Input, Modal, Select } from "antd";
+import { App, Modal, Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Flag } from "lucide-react";
 import { useRouter } from "next/navigation";

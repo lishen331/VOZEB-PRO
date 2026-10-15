@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Drawer, Input, InputNumber, Modal, Select, Space } from "antd";
+import { App, Drawer, Modal, Select, Space } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox, Empty, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";

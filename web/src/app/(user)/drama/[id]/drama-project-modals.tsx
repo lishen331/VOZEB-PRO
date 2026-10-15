@@ -1,6 +1,7 @@
 "use client";
 
-import { Input, Modal } from "antd";
+import { Modal } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Segmented, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Save } from "lucide-react";
 

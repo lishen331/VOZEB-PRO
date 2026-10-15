@@ -1,6 +1,7 @@
 "use client";
 
-import { Input, InputNumber, message, Modal, Select, Tooltip } from "antd";
+import { message, Modal, Select, Tooltip } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Empty, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { FolderOpen, ImageIcon, Layers, Library, Plus, ScanText, Sparkles, Star, Trash2, UserRound } from "lucide-react";
 import { useState } from "react";

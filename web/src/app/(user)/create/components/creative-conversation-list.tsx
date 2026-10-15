@@ -1,6 +1,7 @@
 "use client";
 
-import { Dropdown, Input, Modal } from "antd";
+import { Dropdown, Modal } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 import { Check, CheckSquare2, Clock3, MessagesSquare, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";

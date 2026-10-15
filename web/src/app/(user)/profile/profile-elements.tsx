@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Input, Select } from "antd";
+import { Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CreditCard, History, ReceiptText, RefreshCw, Save, ShieldCheck, TicketPercent, UserCircle, UserPlus, WalletCards } from "lucide-react";
 

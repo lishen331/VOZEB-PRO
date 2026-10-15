@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Form, Input, Modal, Select } from "antd";
+import { App, Form, Modal, Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Check, Film, Image as ImageIcon, LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

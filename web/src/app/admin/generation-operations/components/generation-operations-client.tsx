@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Input, Modal, Select, Table, Tooltip } from "antd";
+import { App, Modal, Select, Table, Tooltip } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { Activity, CircleCheckBig, CircleStop, Clock3, Coins, RefreshCw, RotateCcw, Route, ShieldAlert } from "lucide-react";

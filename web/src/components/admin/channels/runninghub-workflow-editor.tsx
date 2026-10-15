@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
+import { App, Collapse, Drawer, Select, Space, Tabs } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 import { useCallback, useEffect, useRef, useState } from "react";
 

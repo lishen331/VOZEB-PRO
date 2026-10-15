@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Drawer, Input, Select } from "antd";
+import { App, Drawer, Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
 import { ArrowDown, ArrowUp, ImagePlus, Trash2, Upload } from "lucide-react";

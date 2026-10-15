@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Image, Input, Modal, Popconfirm, Select, Table, Tooltip } from "antd";
+import { App, Image, Modal, Popconfirm, Select, Table, Tooltip } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { Clock3, Download, Eye, File, FileAudio, Film, RefreshCw, Search, Trash2 } from "lucide-react";

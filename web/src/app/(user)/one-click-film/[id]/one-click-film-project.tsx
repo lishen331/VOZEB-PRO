@@ -1,6 +1,7 @@
 "use client";
 
-import { Modal, Popconfirm, Select, Tooltip, Progress, message, Input } from "antd";
+import { Modal, Popconfirm, Select, Tooltip, Progress, message } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Spin, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";

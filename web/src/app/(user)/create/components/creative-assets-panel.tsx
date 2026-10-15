@@ -1,6 +1,7 @@
 "use client";
 
-import { Drawer, Dropdown, Grid, Input, Modal, Tabs, Tooltip } from "antd";
+import { Drawer, Dropdown, Grid, Modal, Tabs, Tooltip } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Spin } from "@/components/gamma-ui/gamma-ant";
 import { AtSign, ChevronDown, CornerDownLeft, FileVideo, ImageIcon, LibraryBig, ListFilter, Play, RefreshCw, Search, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";

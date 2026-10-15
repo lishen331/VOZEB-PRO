@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Collapse, Image, Input, Upload } from "antd";
+import { App, Collapse, Image, Upload } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowDown, ArrowUp, Download, FileArchive, FileSpreadsheet, FileText, Pencil, Plus, Presentation, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";

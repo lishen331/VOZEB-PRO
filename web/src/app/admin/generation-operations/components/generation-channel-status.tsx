@@ -1,6 +1,7 @@
 "use client";
 
-import { Input, Tooltip } from "antd";
+import { Tooltip } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Tag } from "@/components/gamma-ui/gamma-ant";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";

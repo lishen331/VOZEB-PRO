@@ -2,7 +2,7 @@
 
 import { App, Drawer, Grid } from "antd";
 import { Button } from "@/components/gamma-ui/gamma-ant";
-import type { TextAreaRef } from "antd/es/input/TextArea";
+import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";
 import { ChevronsDown, Clapperboard, FolderOpen, History, Play, Plus, ScanFace, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";

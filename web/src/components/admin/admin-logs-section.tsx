@@ -3,7 +3,8 @@
 import { GenerationLogMobileCard } from "@/components/admin/admin-generation-log";
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AdminUserSearchSelect } from "@/components/admin/admin-user-identity";
-import { DatePicker, Input, Popconfirm, Select, Table } from "antd";
+import { DatePicker, Popconfirm, Select, Table } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import dayjs from "dayjs";
 import { RefreshCw, Search, Trash2 } from "lucide-react";

@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Input, Popconfirm, Select, Space, Table } from "antd";
+import { App, Popconfirm, Select, Space, Table } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { Plus, RefreshCw, Settings2, TestTube, ToggleLeft, Trash2 } from "lucide-react";

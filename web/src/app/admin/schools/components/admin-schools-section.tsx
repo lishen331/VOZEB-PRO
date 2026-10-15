@@ -1,7 +1,8 @@
 "use client";
 
 import type { FormInstance, TableColumnsType } from "antd";
-import { App, Drawer, Form, Input, Modal, Select, Table } from "antd";
+import { App, Drawer, Form, Modal, Select, Table } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Eye, Pencil, Plus, RefreshCw, School, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";

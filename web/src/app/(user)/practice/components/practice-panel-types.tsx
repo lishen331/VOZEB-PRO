@@ -1,4 +1,5 @@
-import { Input, InputNumber, Select } from "antd";
+import { Select } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Switch } from "@/components/gamma-ui/gamma-ant";
 import type { PracticeModuleCapability, PracticeModuleInputField, PracticeModuleKind } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";

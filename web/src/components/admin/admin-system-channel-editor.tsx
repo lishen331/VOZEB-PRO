@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { App, Input, Popconfirm, Select, Tooltip } from "antd";
+import { App, Popconfirm, Select, Tooltip } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Eye, EyeOff, PlugZap, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 

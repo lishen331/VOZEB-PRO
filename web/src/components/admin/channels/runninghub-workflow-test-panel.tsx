@@ -1,6 +1,7 @@
 "use client";
 
-import { Drawer, Input, InputNumber, Select, Space } from "antd";
+import { Drawer, Select, Space } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { useRef, useState } from "react";
 

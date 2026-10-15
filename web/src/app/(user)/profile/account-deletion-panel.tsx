@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { App, Input, Modal, Popconfirm } from "antd";
+import { App, Modal, Popconfirm } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RotateCcw, UserRoundX } from "lucide-react";
 

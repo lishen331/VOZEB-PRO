@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { App, Input, Modal } from "antd";
+import { App, Modal } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import { BookOpenText, FileText, Search } from "lucide-react";
 

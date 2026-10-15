@@ -1,6 +1,7 @@
 "use client";
 
-import { Input, Modal } from "antd";
+import { Modal } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { MessageSquareText, PencilLine, Plus, Trash2 } from "lucide-react";
 import { nanoid } from "nanoid";

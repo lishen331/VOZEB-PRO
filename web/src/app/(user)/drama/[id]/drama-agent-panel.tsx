@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Drawer, Dropdown, Input, Modal, Popover, Select, Tooltip } from "antd";
+import { App, Drawer, Dropdown, Modal, Popover, Select, Tooltip } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { ArrowUp, ChevronDown, History, ImagePlus, Link2, ListChecks, LoaderCircle, MessageSquarePlus, Pause, Play, RotateCcw, Square, X } from "lucide-react";
 import { nanoid } from "nanoid";

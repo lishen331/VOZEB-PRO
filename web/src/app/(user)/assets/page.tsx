@@ -2,7 +2,8 @@
 
 import { FileAudio, FileDown, FileUp, Film, Plus, Search, Upload } from "lucide-react";
 import { useRef, useState, type DragEvent as ReactDragEvent } from "react";
-import { App, Form, Input, Modal, Select, Space, Tooltip, Typography } from "antd";
+import { App, Form, Modal, Select, Space, Tooltip, Typography } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Segmented, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { saveAs } from "file-saver";
 import { useRouter } from "next/navigation";
@@ -388,14 +389,17 @@ export default function AssetsPage() {
                                 onDragLeave={handleCoverDragLeave}
                                 onDrop={handleCoverDrop}
                             >
-                                <Space.Compact className="w-full">
-                                    <Form.Item name="coverUrl" noStyle>
-                                        <Input placeholder="可粘贴图片 URL，也可以上传本地封面" />
-                                    </Form.Item>
-                                    <Button icon={<Upload className="size-3.5" />} onClick={() => coverInputRef.current?.click()}>
-                                        上传
-                                    </Button>
-                                </Space.Compact>
+                                <Form.Item name="coverUrl" noStyle>
+                                    <Input
+                                        placeholder="可粘贴图片 URL，也可以上传本地封面"
+                                        addonAfter={
+                                            <button type="button" className="-mx-2.5 inline-flex h-full items-center gap-1.5 px-2.5 transition-colors hover:text-[var(--gm-accent)]" onClick={() => coverInputRef.current?.click()}>
+                                                <Upload className="size-3.5" />
+                                                上传
+                                            </button>
+                                        }
+                                    />
+                                </Form.Item>
                             </div>
                         </Form.Item>
                         <Form.Item name="tags" label="标签">

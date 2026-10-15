@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Checkbox, Form, Input, InputNumber, Modal, Select, Space } from "antd";
+import { Checkbox, Form, Modal, Select, Space } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Segmented, Switch } from "@/components/gamma-ui/gamma-ant";
 import { Download, GitBranch, PencilLine } from "lucide-react";
 import { nanoid } from "nanoid";

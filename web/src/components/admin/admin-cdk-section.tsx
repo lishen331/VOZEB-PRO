@@ -5,7 +5,8 @@ import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import { toNumberOrZero } from "@/components/admin/admin-values";
 import { formatCreditAmount } from "@/constant/credits";
-import { Input, InputNumber, Popconfirm, Select, Space, Table } from "antd";
+import { Popconfirm, Select, Space, Table } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Database, Download, Eye, Gift, KeyRound, RefreshCw, Search, ShieldCheck, Trash2 } from "lucide-react";
 

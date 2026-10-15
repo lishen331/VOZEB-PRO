@@ -1,13 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { Download, Palette, Sparkles, Zap } from "lucide-react";
+import { Download } from "lucide-react";
 
 import "@/components/gamma-ui/gamma-tokens.css";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
-import { GammaCommandPalette, useGammaCommandHotkey, type GammaCommandItem } from "@/components/gamma-ui/gamma-command";
 import { GammaBannerCarousel, GammaPromoCard } from "@/components/gamma-ui/gamma-hero";
 import { GammaLightbox, GammaToastStack } from "@/components/gamma-ui/gamma-overlays";
 import { GammaAnnouncement } from "@/components/gamma-ui/gamma-shell";
@@ -25,6 +23,12 @@ import { useGammaDemo } from "@/app/bluegamma/use-gamma-demo";
 const FEATURED_SLUG = "film";
 
 /**
+ * 本页侧栏：本身就是首页，不再放「首页 / 新首页」两个重复入口（Logo 即回首页）；
+ * 「全部」并入上一组，不再单独占一个分区。
+ */
+const SIDEBAR_ITEMS = GAMMA_RAIL_ITEMS.filter((item) => item.key !== "home" && item.key !== "kling-home").map((item) => (item.group === "more" ? { ...item, group: "community" } : item));
+
+/**
  * 可灵式首页（/bluegamma/home）：严格按可灵 /app 版式排布，只用现有组件。
  *   公告条 → 顶栏 → 轮播 + 推广卡 → 工具行（换成 12 个专业）→ 推荐/关注/活动 + 筛选 + 瀑布流
  * 与 /bluegamma（完整版首页）并存，替换时二选一。
@@ -32,34 +36,17 @@ const FEATURED_SLUG = "film";
 export function KlingHomeView() {
     const demo = useGammaDemo();
     const { toast } = demo;
-    const router = useRouter();
     const [preview, setPreview] = useState<{ src: string; title: string } | null>(null);
     const [showAnnouncement, setShowAnnouncement] = useState(true);
     const [upgradeOpen, setUpgradeOpen] = useState(false);
-    const [commandOpen, setCommandOpen] = useState(false);
     const sidebar = useGammaSidebarState();
 
     const notice = useCallback((message: string) => toast("info", message), [toast]);
     const openSubject = useCallback((slug: string) => toast("info", `进入「${gammaSubjectBySlug(slug).name}」创作台（演示）`), [toast]);
-    const openCommand = useCallback(() => setCommandOpen(true), []);
-    useGammaCommandHotkey(openCommand);
 
     const slides = useMemo(() => buildHomeSlides(openSubject), [openSubject]);
     const featured = gammaSubjectBySlug(FEATURED_SLUG);
     const toolSubjects = useMemo(() => GAMMA_SUBJECTS.filter((subject) => subject.slug !== FEATURED_SLUG), []);
-
-    const commandItems = useMemo<GammaCommandItem[]>(
-        () => [
-            ...GAMMA_SUBJECTS.map((subject) => {
-                const Icon = subject.icon;
-                return { id: `subject-${subject.slug}`, group: "专业方向", label: `${subject.name} · ${subject.tagline}`, icon: <Icon />, hint: subject.nameEn, keywords: subject.styles.join(""), onSelect: () => openSubject(subject.slug) };
-            }),
-            { id: "go-full", group: "跳转", label: "完整版首页", icon: <Sparkles />, hint: "/bluegamma", onSelect: () => router.push("/bluegamma") },
-            { id: "go-design", group: "跳转", label: "设计系统", icon: <Palette />, hint: "/bluegamma/design", onSelect: () => router.push("/bluegamma/design") },
-            { id: "act-upgrade", group: "操作", label: "升级会员", icon: <Zap />, onSelect: () => setUpgradeOpen(true) },
-        ],
-        [openSubject, router],
-    );
 
     const handleRemix = (prompt: string, slug: string) => {
         void navigator.clipboard?.writeText(prompt).catch(() => undefined);
@@ -86,7 +73,8 @@ export function KlingHomeView() {
             </AnimatePresence>
             <div className="flex min-h-0 flex-1">
                 <GammaSidebar
-                    items={GAMMA_RAIL_ITEMS}
+                    items={SIDEBAR_ITEMS}
+                    homeHref="/bluegamma/home"
                     activeKey="kling-home"
                     collapsed={sidebar.collapsed}
                     onToggle={sidebar.toggle}
@@ -96,7 +84,6 @@ export function KlingHomeView() {
                             collapsed={sidebar.collapsed}
                             points={demo.points}
                             checkedIn={demo.checkedIn}
-                            onSearch={openCommand}
                             onCheckIn={demo.checkIn}
                             onNotify={() => notice("暂无新通知")}
                             onUpgrade={() => setUpgradeOpen(true)}
@@ -138,7 +125,6 @@ export function KlingHomeView() {
             </div>
 
             <GammaToastStack toasts={demo.toasts} onDismiss={demo.dismissToast} />
-            <GammaCommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} items={commandItems} />
             <GammaLightbox
                 src={preview?.src ?? null}
                 title={preview?.title}
