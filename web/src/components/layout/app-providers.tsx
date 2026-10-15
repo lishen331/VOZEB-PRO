@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 
 import { ClientRootInit } from "@/components/layout/client-root-init";
+import { GammaAntEmpty, gammaSpinIndicator } from "@/components/layout/gamma-ant-defaults";
 import { getAntThemeConfig } from "@/lib/app-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 
@@ -70,7 +71,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
     }, [dark, isCanvasEditorRoute, theme]);
 
     return (
-        <ConfigProvider locale={zhCN} theme={getAntThemeConfig(dark, { brand: !isCanvasEditorRoute })}>
+        <ConfigProvider
+            locale={zhCN}
+            theme={getAntThemeConfig(dark, { brand: !isCanvasEditorRoute })}
+            // 布鲁伽马的空状态与加载圆环只给非画布页；画布编辑器保持 antd 默认
+            renderEmpty={isCanvasEditorRoute ? undefined : () => <GammaAntEmpty />}
+            spin={isCanvasEditorRoute ? undefined : { indicator: gammaSpinIndicator }}
+        >
             <App message={{ top: 84, duration: 2.4, maxCount: 3 }}>
                 <QueryClientProvider client={queryClient}>
                     <ClientRootInit>{children}</ClientRootInit>

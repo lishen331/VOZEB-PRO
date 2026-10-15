@@ -120,12 +120,133 @@ function brandTokens(dark: boolean): ThemeConfig["token"] {
     };
 }
 
+/**
+ * 布鲁伽马的 antd 组件皮肤：对齐 gamma-ui 的按钮、分段、标签页、开关、浮层。
+ * 渐变、玻璃这类 token 表达不了的部分在 app/styles/global-gamma-skin.css（html.gm-app 作用域）。
+ */
+function brandComponents(dark: boolean): ThemeConfig["components"] {
+    const color = dark ? gamma.dark : gamma.light;
+    const accent = dark ? "#28ebfa" : "#0050f5";
+    const accentSoft = dark ? "rgba(40, 235, 250, 0.12)" : "rgba(0, 80, 245, 0.08)";
+    const wash = dark ? "rgba(255, 255, 255, 0.04)" : "rgba(16, 38, 84, 0.04)";
+    const washStrong = dark ? "rgba(255, 255, 255, 0.08)" : "rgba(16, 38, 84, 0.07)";
+    const surface2 = dark ? "#131a29" : "#f6f8fc";
+    const surface3 = dark ? "#1b2335" : "#e8eef8";
+    return {
+        Button: {
+            primaryShadow: "none",
+            defaultShadow: "none",
+            dangerShadow: "none",
+            fontWeight: 500,
+            defaultBg: "transparent",
+            defaultBorderColor: color.border,
+            defaultColor: color.text,
+            defaultHoverBg: washStrong,
+            defaultHoverBorderColor: accent,
+            defaultHoverColor: accent,
+            textHoverBg: washStrong,
+            borderRadius: 10,
+            borderRadiusLG: 12,
+            borderRadiusSM: 8,
+        },
+        Segmented: {
+            trackBg: surface2,
+            trackPadding: 3,
+            itemColor: color.textSecondary,
+            itemHoverColor: color.text,
+            itemHoverBg: wash,
+            itemSelectedBg: surface3,
+            itemSelectedColor: color.text,
+            itemActiveBg: washStrong,
+            borderRadius: 10,
+            borderRadiusSM: 8,
+        },
+        Tabs: {
+            inkBarColor: accent,
+            itemColor: color.textSecondary,
+            itemHoverColor: color.text,
+            itemSelectedColor: color.text,
+            itemActiveColor: accent,
+        },
+        Switch: {
+            colorPrimary: "#0050f5",
+            colorPrimaryHover: "#1663ff",
+        },
+        Checkbox: {
+            borderRadiusSM: 5,
+        },
+        Input: {
+            activeBorderColor: accent,
+            hoverBorderColor: color.border,
+            activeShadow: `0 0 0 4px ${accentSoft}`,
+            borderRadius: 10,
+        },
+        InputNumber: {
+            activeBorderColor: accent,
+            activeShadow: `0 0 0 4px ${accentSoft}`,
+            borderRadius: 10,
+        },
+        Modal: {
+            contentBg: color.containerBg,
+            headerBg: "transparent",
+            footerBg: "transparent",
+            titleFontSize: 18,
+            borderRadiusLG: 22,
+        },
+        Drawer: {
+            colorBgElevated: color.elevatedBg,
+        },
+        Popover: {
+            borderRadiusLG: 14,
+        },
+        Dropdown: {
+            borderRadiusLG: 12,
+            controlItemBgHover: washStrong,
+        },
+        Tooltip: {
+            colorBgSpotlight: dark ? "#eef4ff" : "#0b1530",
+            colorTextLightSolid: dark ? "#0b1530" : "#f1f5ff",
+            borderRadius: 8,
+        },
+        Tag: {
+            defaultBg: wash,
+            defaultColor: color.textSecondary,
+            borderRadiusSM: 999,
+        },
+        Pagination: {
+            itemActiveBg: accentSoft,
+            itemActiveColor: accent,
+            itemActiveColorHover: accent,
+            borderRadius: 8,
+        },
+        Table: {
+            headerBg: surface2,
+            headerColor: color.textSecondary,
+            headerSplitColor: "transparent",
+            rowHoverBg: wash,
+            borderColor: color.borderSecondary,
+            headerBorderRadius: 14,
+        },
+        Message: {
+            contentBg: surface2,
+            borderRadiusLG: 999,
+        },
+        Menu: {
+            itemActiveBg: color.menuBg,
+            itemHoverBg: washStrong,
+            itemSelectedBg: color.menuBg,
+            itemSelectedColor: color.menuText,
+            itemBorderRadius: 10,
+        },
+    };
+}
+
 /** brand=true 时用布鲁伽马品牌主题；默认（画布编辑器）保持原中性主题 */
 export function getAntThemeConfig(dark: boolean, options: { brand?: boolean } = {}): ThemeConfig {
     const brand = options.brand === true;
     const color = brand ? (dark ? gamma.dark : gamma.light) : dark ? neutral.dark : neutral.light;
 
-    return {
+    const base: ThemeConfig = {
         algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         cssVar: { key: `${brand ? "bluegamma" : "vozeb-pro"}-${dark ? "dark" : "light"}` },
         token: {
@@ -196,4 +317,12 @@ export function getAntThemeConfig(dark: boolean, options: { brand?: boolean } = 
             },
         },
     };
+    if (!brand) return base;
+    // 品牌组件皮肤逐个组件合并进基础配置（同名组件的已有字段保留，品牌字段覆盖）
+    const extra = brandComponents(dark) || {};
+    const components: NonNullable<ThemeConfig["components"]> = { ...base.components };
+    for (const key of Object.keys(extra) as (keyof typeof extra)[]) {
+        components[key] = { ...(components[key] as object), ...(extra[key] as object) } as never;
+    }
+    return { ...base, components };
 }

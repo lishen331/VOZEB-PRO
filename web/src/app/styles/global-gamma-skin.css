@@ -198,6 +198,113 @@ html.gm-app a[class*="text-"] {
     color: revert-layer;
 }
 
+/* ===== antd 组件皮肤（token 表达不了的部分）===== */
+
+/* 主按钮：品牌渐变 + 蓝色辉光，与 GammaButton primary 一致 */
+html.gm-app .ant-btn-color-primary.ant-btn-variant-solid:not(:disabled):not(.ant-btn-disabled) {
+    background-image: var(--gm-gradient);
+    border-color: transparent;
+    box-shadow: var(--gm-glow-blue);
+    transition:
+        box-shadow 0.2s var(--gm-ease),
+        transform 0.2s var(--gm-ease),
+        filter 0.2s var(--gm-ease);
+}
+html.gm-app .ant-btn-color-primary.ant-btn-variant-solid:not(:disabled):not(.ant-btn-disabled):hover {
+    background-image: var(--gm-gradient);
+    box-shadow: 0 10px 34px rgba(0, 80, 245, 0.6);
+    filter: brightness(1.06);
+}
+html.gm-app .ant-btn-color-primary.ant-btn-variant-solid:not(:disabled):not(.ant-btn-disabled):active {
+    transform: scale(0.97);
+}
+
+/* 弹层：液态玻璃（模糊 + 饱和 + 顶部高光 + 品牌描边） */
+html.gm-app :is(.ant-dropdown .ant-dropdown-menu, .ant-popover .ant-popover-inner, .ant-select-dropdown, .ant-picker-dropdown .ant-picker-panel-container) {
+    background: color-mix(in srgb, var(--gm-surface-2) 82%, transparent);
+    backdrop-filter: blur(var(--gm-glass-blur)) saturate(1.8);
+    -webkit-backdrop-filter: blur(var(--gm-glass-blur)) saturate(1.8);
+    box-shadow:
+        inset 0 1px 0 var(--gm-glass-inner),
+        0 0 0 1px var(--gm-border-strong),
+        var(--gm-shadow);
+}
+
+/* 对话框：顶部品牌光晕 + 描边 */
+html.gm-app .ant-modal .ant-modal-content {
+    box-shadow:
+        0 0 0 1px var(--gm-border-strong),
+        0 30px 80px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+html.gm-app .ant-modal .ant-modal-content {
+    position: relative;
+    isolation: isolate;
+}
+html.gm-app .ant-modal .ant-modal-content::before {
+    z-index: -1;
+    content: "";
+    position: absolute;
+    top: -96px;
+    left: 50%;
+    width: 320px;
+    height: 192px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: var(--gm-blue);
+    opacity: 0.18;
+    filter: blur(48px);
+    pointer-events: none;
+}
+html.gm-app .ant-modal-mask {
+    background: var(--gm-scrim);
+    backdrop-filter: blur(4px);
+}
+
+/*
+ * 账户菜单「升级套餐」：组件与画布共用（user-status-actions.tsx 不能改源码），
+ * 只在 gm-app 下把黑/白反色块换成品牌渐变；画布编辑器不挂 gm-app，保持原样。
+ */
+html.gm-app .account-menu-dropdown .account-upgrade-button {
+    background-image: var(--gm-gradient);
+    background-color: transparent;
+    color: #ffffff !important;
+    box-shadow: var(--gm-glow-blue);
+}
+html.gm-app .account-menu-dropdown .account-upgrade-button:hover {
+    filter: brightness(1.08);
+    color: #ffffff !important;
+}
+
+/* 分段选择：选中块带一点内高光 */
+html.gm-app .ant-segmented .ant-segmented-item-selected,
+html.gm-app .ant-segmented .ant-segmented-thumb {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* 开关打开时青色辉光 */
+html.gm-app .ant-switch.ant-switch-checked {
+    box-shadow: var(--gm-glow-blue);
+}
+html.gm-app .ant-switch.ant-switch-checked .ant-switch-handle::before {
+    box-shadow: 0 0 10px rgba(40, 235, 250, 0.7);
+}
+
+/* 轻提示：胶囊 + 玻璃 */
+html.gm-app .ant-message .ant-message-notice-content {
+    backdrop-filter: blur(18px) saturate(1.6);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    box-shadow:
+        0 0 0 1px var(--gm-border-strong),
+        var(--gm-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.gm-app .ant-btn-color-primary.ant-btn-variant-solid:active {
+        transform: none;
+    }
+}
+
 /* 细滚动条跟随品牌描边色 */
 html.gm-app * {
     scrollbar-color: var(--gm-border-strong) transparent;
