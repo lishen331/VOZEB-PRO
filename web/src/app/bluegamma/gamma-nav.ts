@@ -15,6 +15,8 @@ export const GAMMA_RAIL_ITEMS: readonly GammaRailItem[] = [
     { key: "studios", label: "工作室", icon: "classes", group: "community" },
     { key: "design", label: "设计系统", icon: "design", href: "/bluegamma/design", group: "community" },
     { key: "all", label: "全部", icon: "all", group: "more" },
+    // 侧边栏最底部：按可灵版式排布的新首页，供替换时与 /bluegamma 二选一
+    { key: "kling-home", label: "新首页", icon: "home", href: "/bluegamma/home", group: "preview" },
 ];
 
 const THUMB = "/style-thumbs";

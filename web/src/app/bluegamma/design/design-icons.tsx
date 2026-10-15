@@ -7,7 +7,8 @@ import { GAMMA_NAV_ICON_NAMES, GammaNavIcon, type GammaNavIconName } from "@/com
 import { GAMMA_RAIL_ITEMS } from "@/app/bluegamma/gamma-nav";
 import { cn } from "@/lib/utils";
 
-const LABELS = Object.fromEntries(GAMMA_RAIL_ITEMS.map((item) => [item.icon, item.label])) as Record<GammaNavIconName, string>;
+/** 图标 → 导航文案；同一图标被多个入口复用时（如首页 / 新首页）取第一个 */
+const LABELS = GAMMA_RAIL_ITEMS.reduce<Partial<Record<GammaNavIconName, string>>>((acc, item) => (acc[item.icon] ? acc : { ...acc, [item.icon]: item.label }), {});
 
 /** 导航图标：点击任意一个看选中动效（镂空放大 + 笔画生长 + 描边加粗） */
 export function DesignNavIcons() {

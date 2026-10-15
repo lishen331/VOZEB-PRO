@@ -164,8 +164,31 @@ export interface GammaMenuItem {
     onSelect: () => void;
 }
 
+const MENU_PLACEMENT = {
+    "bottom-end": "top-full right-0 mt-2 origin-top-right",
+    "bottom-start": "top-full left-0 mt-2 origin-top-left",
+    /** 侧边栏里用：向右弹出，底边对齐触发器 */
+    "right-end": "bottom-0 left-full ml-2 origin-bottom-left",
+} as const;
+
 /** 下拉菜单：点击触发器展开，点外部或 Esc 关闭 */
-export function GammaMenu({ trigger, items, align = "end", label }: { trigger: (open: boolean) => ReactNode; items: GammaMenuItem[]; align?: "start" | "end"; label: string }) {
+export function GammaMenu({
+    trigger,
+    items,
+    align = "end",
+    placement,
+    label,
+    triggerClassName,
+}: {
+    trigger: (open: boolean) => ReactNode;
+    items: GammaMenuItem[];
+    align?: "start" | "end";
+    /** 覆盖 align；侧边栏用 right-end */
+    placement?: keyof typeof MENU_PLACEMENT;
+    label: string;
+    triggerClassName?: string;
+}) {
+    const resolvedPlacement = placement ?? (align === "end" ? "bottom-end" : "bottom-start");
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     useEscape(open, () => setOpen(false));
@@ -180,7 +203,14 @@ export function GammaMenu({ trigger, items, align = "end", label }: { trigger: (
 
     return (
         <div ref={rootRef} className="relative">
-            <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={label} onClick={() => setOpen((value) => !value)} className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
+            <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label={label}
+                onClick={() => setOpen((value) => !value)}
+                className={cn("block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]", triggerClassName)}
+            >
                 {trigger(open)}
             </button>
             <AnimatePresence>
@@ -191,10 +221,7 @@ export function GammaMenu({ trigger, items, align = "end", label }: { trigger: (
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -4, scale: 0.98 }}
                         transition={{ duration: 0.16, ease: EASE_OUT }}
-                        className={cn(
-                            "absolute top-full z-[60] mt-2 min-w-44 rounded-[var(--gm-radius)] bg-[var(--gm-surface-2)] p-1.5 shadow-[var(--gm-shadow)] ring-1 ring-[var(--gm-border-strong)]",
-                            align === "end" ? "right-0 origin-top-right" : "left-0 origin-top-left",
-                        )}
+                        className={cn("absolute z-[60] min-w-44 rounded-[var(--gm-radius)] bg-[var(--gm-surface-2)] p-1.5 shadow-[var(--gm-shadow)] ring-1 ring-[var(--gm-border-strong)]", MENU_PLACEMENT[resolvedPlacement])}
                     >
                         {items.map((item) => (
                             <button
