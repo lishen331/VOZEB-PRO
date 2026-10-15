@@ -393,7 +393,7 @@ export function CreativeComposer({
                                 <Button
                                     type="primary"
                                     shape="circle"
-                                    className="!size-11 !min-w-11 !border-0 !bg-[linear-gradient(135deg,#5968ff,#604dff)] !text-white !shadow-[0_6px_16px_rgba(89,104,255,0.22)] hover:!bg-[linear-gradient(135deg,#5261f3,#5846ee)] disabled:!bg-none disabled:!bg-[#e2e5ea] disabled:!text-[#aeb4c1] disabled:!shadow-none dark:disabled:!bg-[#2e3543] dark:disabled:!text-[#667085]"
+                                    className="!size-11 !min-w-11 !border-0 !bg-[linear-gradient(135deg,#2b72ff,#0860ff)] !text-white !shadow-[0_6px_16px_rgba(89,104,255,0.22)] hover:!bg-[linear-gradient(135deg,#256bf3,#0458f1)] disabled:!bg-none disabled:!bg-[#e2e5ea] disabled:!text-[#aeb4c1] disabled:!shadow-none dark:disabled:!bg-[#2e3543] dark:disabled:!text-[#667085]"
                                     icon={busy ? <Square className="size-3.5 fill-current" /> : <ArrowUp className="size-4" />}
                                     disabled={!busy && !value.trim()}
                                     onClick={busy ? onCancel : onSubmit}

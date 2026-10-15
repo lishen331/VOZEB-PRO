@@ -10,7 +10,7 @@ import { getAdminSetupSummary, type AdminSetupAccent, type AdminSetupStepStatus 
 import { getAuthenticatedPageAccess } from "@/lib/server/page-access";
 
 const accentClasses: Record<AdminSetupAccent, { icon: string; text: string; border: string }> = {
-    blue: { icon: "bg-zinc-950 text-white dark:bg-zinc-100 dark:text-zinc-950", text: "text-zinc-700 dark:text-zinc-300", border: "border-zinc-200 dark:border-zinc-800" },
+    blue: { icon: "bg-[var(--gm-blue)] text-white", text: "text-zinc-700 dark:text-zinc-300", border: "border-zinc-200 dark:border-zinc-800" },
     emerald: { icon: "bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-200 dark:border-emerald-900" },
     amber: { icon: "bg-amber-500 text-white dark:bg-amber-400 dark:text-zinc-950", text: "text-amber-700 dark:text-amber-300", border: "border-amber-200 dark:border-amber-900" },
     rose: { icon: "bg-rose-600 text-white dark:bg-rose-400 dark:text-zinc-950", text: "text-rose-700 dark:text-rose-300", border: "border-rose-200 dark:border-rose-900" },
@@ -96,7 +96,7 @@ export default async function AdminSetupPage() {
                             <div className="mt-5 grid gap-2">
                                 <a
                                     href={`#${nextStep.id}`}
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md !bg-zinc-950 px-4 text-sm font-semibold !text-white transition hover:!bg-zinc-800 dark:!bg-zinc-100 dark:!text-zinc-950 dark:hover:!bg-white"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md !bg-[var(--gm-blue)] px-4 text-sm font-semibold !text-white transition hover:!bg-[var(--gm-blue-hover)]"
                                 >
                                     查看下一项
                                     <ArrowRight className="size-4" />
@@ -137,7 +137,7 @@ export default async function AdminSetupPage() {
                             </div>
                             <Link
                                 href="/admin"
-                                className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md !bg-zinc-950 px-4 text-sm font-semibold !text-white transition hover:!bg-zinc-800 dark:!bg-zinc-100 dark:!text-zinc-950 dark:hover:!bg-white"
+                                className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md !bg-[var(--gm-blue)] px-4 text-sm font-semibold !text-white transition hover:!bg-[var(--gm-blue-hover)]"
                             >
                                 进入完整后台
                                 <ArrowRight className="size-4" />
@@ -173,7 +173,7 @@ export default async function AdminSetupPage() {
                                         </div>
                                         <Link
                                             href={step.href}
-                                            className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-md !bg-zinc-950 px-4 text-sm font-semibold !text-white transition hover:!bg-zinc-800 dark:!bg-zinc-100 dark:!text-zinc-950 dark:hover:!bg-white"
+                                            className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-md !bg-[var(--gm-blue)] px-4 text-sm font-semibold !text-white transition hover:!bg-[var(--gm-blue-hover)]"
                                         >
                                             {step.actionLabel}
                                             <ArrowRight className="size-4" />

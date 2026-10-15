@@ -301,12 +301,12 @@
 }
 
 .creationModes button:nth-child(2) .modeIcon {
-    background: #f0f3f8;
+    background: #e5f8f1;
     color: #13a274;
 }
 
 .creationModes button:nth-child(3) .modeIcon {
-    background: #f1f4f9;
+    background: #fff0ea;
     color: #ee5a25;
 }
 

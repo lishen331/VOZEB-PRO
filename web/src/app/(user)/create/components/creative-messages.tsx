@@ -176,7 +176,7 @@ export function CreativeMessages({
                                     className={cn(
                                         "break-words text-[15px] leading-7",
                                         item.role === "user" &&
-                                            "rounded-[14px] bg-[linear-gradient(135deg,#f3f1ff_0%,#ebeaff_100%)] px-[18px] py-3 text-left leading-6 text-[#0e1421] dark:bg-[linear-gradient(135deg,#2d2a46_0%,#26243a_100%)] dark:text-[#f2f5fa]",
+                                            "rounded-[14px] bg-[linear-gradient(135deg,#f0f3f9_0%,#eaecf2_100%)] px-[18px] py-3 text-left leading-6 text-[#0e1421] dark:bg-[linear-gradient(135deg,#202e47_0%,#1c273b_100%)] dark:text-[#f2f5fa]",
                                         item.status === "failed" && "text-red-600 dark:text-red-300",
                                         item.status === "cancelled" && "text-stone-400",
                                     )}
@@ -274,7 +274,7 @@ function CreativeMediaRound({
                     <div className="flex items-start justify-end gap-3">
                         <div className="min-w-0 max-w-[520px]">
                             {referencedAssets.length ? <CreativeRoundReferenceStrip assets={referencedAssets} /> : null}
-                            <p className="whitespace-pre-wrap break-words rounded-[14px] bg-[linear-gradient(135deg,#f3f1ff_0%,#ebeaff_100%)] px-[18px] py-3 text-left text-[15px] leading-6 text-[#0e1421] dark:bg-[linear-gradient(135deg,#2d2a46_0%,#26243a_100%)] dark:text-[#f2f5fa]">
+                            <p className="whitespace-pre-wrap break-words rounded-[14px] bg-[linear-gradient(135deg,#f0f3f9_0%,#eaecf2_100%)] px-[18px] py-3 text-left text-[15px] leading-6 text-[#0e1421] dark:bg-[linear-gradient(135deg,#202e47_0%,#1c273b_100%)] dark:text-[#f2f5fa]">
                                 {userMessage.content}
                             </p>
                             <CreativeUserMessageMeta message={userMessage} />
@@ -622,7 +622,7 @@ function CreativeGenerationFailure({ message, onRetry }: { message: string; onRe
                 <p className="break-words text-[17px] font-medium leading-7 text-[#ef2b2d] dark:text-[#ff8b8d]">{displayMessage}</p>
                 <Button
                     type="default"
-                    className="!mt-3 !h-9 !rounded-[10px] !border-[#ffd4d5] !bg-white !px-4 !text-sm !font-medium !text-[#e22b2e] hover:!border-[#ffb7b8] hover:!bg-[#f7faff] hover:!text-[#c51f22] dark:!border-[#6b3438] dark:!bg-transparent dark:!text-[#ff9a9c] dark:hover:!border-[#9a4a4e] dark:hover:!bg-[#1c2230]"
+                    className="!mt-3 !h-9 !rounded-[10px] !border-[#ffd4d5] !bg-white !px-4 !text-sm !font-medium !text-[#e22b2e] hover:!border-[#ffb7b8] hover:!bg-[#fff8f8] hover:!text-[#c51f22] dark:!border-[#6b3438] dark:!bg-transparent dark:!text-[#ff9a9c] dark:hover:!border-[#9a4a4e] dark:hover:!bg-[#321e20]"
                     icon={<RotateCw className="size-4" />}
                     loading={retrying}
                     onClick={() => void runRetry(onRetry, setRetrying)}

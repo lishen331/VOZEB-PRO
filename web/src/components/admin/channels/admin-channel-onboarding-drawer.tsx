@@ -187,7 +187,7 @@ function OnboardingProgress({ current }: { current: number }) {
                                         completed
                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
                                             : active
-                                              ? "border-stone-950 bg-stone-950 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-950"
+                                              ? "border-[var(--gm-blue)] bg-[var(--gm-blue)] text-white"
                                               : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400"
                                     }`}
                                     aria-label={completed ? `${item.title}已完成` : active ? `${item.title}进行中` : `${item.title}未开始`}

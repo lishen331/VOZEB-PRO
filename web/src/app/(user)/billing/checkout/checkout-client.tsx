@@ -265,7 +265,7 @@ export function BillingCheckoutPage({ productId }: { productId: string }) {
                                                 onClick={() => setProvider(item.value)}
                                             >
                                                 <span
-                                                    className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-11 sm:rounded-xl ${selected ? "bg-stone-950 text-white dark:bg-white dark:text-stone-950" : "bg-stone-100 text-stone-600 dark:bg-stone-900 dark:text-stone-300"}`}
+                                                    className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-11 sm:rounded-xl ${selected ? "bg-[var(--gm-blue)] text-white" : "bg-stone-100 text-stone-600 dark:bg-stone-900 dark:text-stone-300"}`}
                                                 >
                                                     <Icon className="size-5" />
                                                 </span>

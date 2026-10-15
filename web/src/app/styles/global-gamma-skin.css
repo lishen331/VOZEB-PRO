@@ -189,6 +189,15 @@ html.gm-app :focus-visible {
     outline-color: var(--gm-accent);
 }
 
+/*
+ * antd cssinjs 给所有 <a> 写了 color: colorLink（未分层，压过 Tailwind 的 text-*）。
+ * 旧主题 colorLink 是黑/白所以看不出；品牌主题 colorLink 是蓝，导致导航与卡片链接整片发蓝。
+ * 已显式写了 text-* 的链接把颜色交还给 utilities 层；正文里的裸链接仍保持品牌蓝。
+ */
+html.gm-app a[class*="text-"] {
+    color: revert-layer;
+}
+
 /* 细滚动条跟随品牌描边色 */
 html.gm-app * {
     scrollbar-color: var(--gm-border-strong) transparent;

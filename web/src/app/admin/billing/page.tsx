@@ -54,7 +54,7 @@ export default async function AdminBillingPage({ searchParams }: AdminBillingPag
                 <header className="sticky top-0 z-20 border-b border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-950">
                     <div className="mx-auto flex h-16 max-w-[1440px] min-w-0 items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6">
                         <Link href="/admin" className="flex min-w-0 items-center gap-2.5 text-base font-semibold text-stone-950 dark:text-stone-100">
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-stone-950 text-white dark:bg-stone-100 dark:text-stone-950">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--gm-blue)] text-white">
                                 <ArrowLeft className="size-4" />
                             </span>
                             <span className="truncate">财务钱包</span>

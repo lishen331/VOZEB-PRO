@@ -308,7 +308,7 @@ export function PaymentProviderCard({ provider, active, onSelect }: { provider: 
         >
             <div className="flex items-start gap-2 sm:gap-3">
                 <span
-                    className={`flex size-7 shrink-0 items-center justify-center rounded-md ring-1 [&>svg]:size-3.5 sm:size-10 sm:rounded-xl sm:[&>svg]:size-5 ${active ? "bg-stone-950 text-white ring-stone-950 dark:bg-white dark:text-stone-950 dark:ring-white" : "bg-white text-stone-700 ring-stone-200 dark:bg-stone-950 dark:text-stone-200 dark:ring-stone-800"}`}
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-md ring-1 [&>svg]:size-3.5 sm:size-10 sm:rounded-xl sm:[&>svg]:size-5 ${active ? "bg-[var(--gm-blue)] text-white ring-[var(--gm-blue)]" : "bg-white text-stone-700 ring-stone-200 dark:bg-stone-950 dark:text-stone-200 dark:ring-stone-800"}`}
                 >
                     <Icon />
                 </span>

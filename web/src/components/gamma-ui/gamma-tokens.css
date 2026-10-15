@@ -62,9 +62,9 @@ html.gm-app {
     /* 图标镂空填充默认取导航栏底色，展示格里可覆盖 */
     --gm-icon-bg: var(--gm-bg-elevated);
 
-    --gm-font-sans: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --gm-font-sans: "MiSans VF", "Inter Variable", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     --gm-font-display: var(--gm-font-sans);
-    --gm-font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+    --gm-font-mono: "Geist Mono Variable", "JetBrains Mono", ui-monospace, monospace;
 }
 
 /* 预览页容器自带底色与字体；全站换肤（html.gm-app）只取变量，不改 html 的底色和字体 */

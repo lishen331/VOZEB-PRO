@@ -170,7 +170,7 @@ function GovernanceCaseItem({ item, onResolve }: { item: WorkGovernanceCase; onR
     return (
         <article className="min-w-0 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950 sm:p-4">
             <div className="flex min-w-0 items-start gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-md bg-zinc-950 text-white dark:bg-zinc-100 dark:text-zinc-950">
+                <span className="grid size-9 shrink-0 place-items-center rounded-md bg-[var(--gm-blue)] text-white">
                     <ShieldAlert className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">

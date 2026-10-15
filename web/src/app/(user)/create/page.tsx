@@ -615,7 +615,7 @@ export default function CreatePage() {
     );
 
     return (
-        <main className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#fcfdff_100%)] text-[#1b212f] dark:bg-[linear-gradient(180deg,#111316_0%,#12151a_100%)] dark:text-[#f2f5fa]">
+        <main className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#fafdff_100%)] text-[#1b212f] dark:bg-[linear-gradient(180deg,#080e1a_0%,#0a101d_100%)] dark:text-[#f2f5fa]">
             <div className="flex min-h-0 flex-1">
                 {historyOpen && screens.lg ? <aside className="h-full min-h-0 w-[min(280px,24vw)] shrink-0 border-r border-[#ebeef3] dark:border-[#282f3d]">{historyPanel}</aside> : null}
                 <div className="relative flex min-w-0 flex-1 flex-col">

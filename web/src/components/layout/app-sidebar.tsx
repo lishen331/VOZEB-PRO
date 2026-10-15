@@ -14,8 +14,7 @@ import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
 const INDICATOR_SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
-const ITEM_CLASS =
-    "group relative flex h-[42px] items-center rounded-[var(--gm-radius)] px-2 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]";
+const ITEM_CLASS = "group relative flex h-[42px] items-center rounded-[var(--gm-radius)] px-2 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]";
 
 /** 选中底块：在导航项之间弹簧滑动（布鲁伽马导航选中态） */
 function ActiveIndicator({ reduce }: { reduce: boolean | null }) {
@@ -78,11 +77,7 @@ export function AppSidebar({ activeToolSlug, expanded, featureModules, menuPermi
                                             title={tool.label}
                                             onMouseEnter={() => router.prefetch(`/${tool.slug}`)}
                                             onFocus={() => router.prefetch(`/${tool.slug}`)}
-                                            className={cn(
-                                                ITEM_CLASS,
-                                                expanded ? "justify-start gap-3 px-3" : "justify-center",
-                                                active ? "text-[var(--gm-accent)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
-                                            )}
+                                            className={cn(ITEM_CLASS, expanded ? "justify-start gap-3 px-3" : "justify-center", active ? "text-[var(--gm-accent)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]")}
                                             aria-current={active ? "page" : undefined}
                                         >
                                             {active ? <ActiveIndicator reduce={reduce} /> : null}

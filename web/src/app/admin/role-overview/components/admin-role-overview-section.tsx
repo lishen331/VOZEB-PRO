@@ -35,7 +35,7 @@ export function AdminRoleOverviewSection() {
         <section data-role-overview className="space-y-4">
             <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[var(--gm-blue)] text-white">
                         <ShieldCheck className="size-4" />
                     </span>
                     <div className="min-w-0">
