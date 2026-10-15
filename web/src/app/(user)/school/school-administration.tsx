@@ -1,7 +1,8 @@
 "use client";
 
 import type { FormInstance, TableColumnsType } from "antd";
-import { App, Drawer, Form, Modal, Select, Table, Tabs, Upload } from "antd";
+import { App, Drawer, Form, Modal, Select, Table, Upload } from "antd";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { BriefcaseBusiness, CirclePlay, Eye, KeyRound, Pencil, Plus, RefreshCw, School, Settings2, Trash2, Upload as UploadIcon, UserRoundCog } from "lucide-react";

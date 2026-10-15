@@ -1,6 +1,7 @@
 "use client";
 
-import { Drawer, Dropdown, Grid, Modal, Tabs, Tooltip } from "antd";
+import { Drawer, Dropdown, Grid, Modal } from "antd";
+import { Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Spin } from "@/components/gamma-ui/gamma-ant";
 import { AtSign, ChevronDown, CornerDownLeft, FileVideo, ImageIcon, LibraryBig, ListFilter, Play, RefreshCw, Search, Sparkles, X } from "lucide-react";
@@ -103,7 +104,7 @@ export function CreativeAssetsPanel({
                     activeKey={activeTab}
                     onChange={(key) => setActiveTab(key as AssetPanelTab)}
                     tabBarGutter={0}
-                    className="creative-assets-tabs !flex !h-full !min-h-0 !flex-col px-3 [&_.ant-tabs-body-holder]:!min-h-0 [&_.ant-tabs-body-holder]:!flex-1 [&_.ant-tabs-body-holder]:!overflow-hidden [&_.ant-tabs-body]:!h-full [&_.ant-tabs-body]:!min-h-0 [&_.ant-tabs-content]:!h-full [&_.ant-tabs-content]:!min-h-0 [&_.ant-tabs-ink-bar]:!bg-[#3d72d9] [&_.ant-tabs-nav-list]:w-full [&_.ant-tabs-nav]:!shrink-0 [&_.ant-tabs-tab]:!mx-0 [&_.ant-tabs-tab]:!flex-1 [&_.ant-tabs-tab]:!justify-center [&_.ant-tabs-tab]:!px-1 [&_.ant-tabs-tab-btn]:!text-[#727c91] [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:!text-[#3164c8] [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:dark:!text-[#9fc2ff] [&_.ant-tabs-tab-btn]:dark:!text-[#939db3] [&_.ant-tabs-tabpane]:!h-full [&_.ant-tabs-tabpane]:!min-h-0 [&_.ant-tabs-tabpane]:!overflow-hidden"
+                    className="creative-assets-tabs !flex !h-full !min-h-0 !flex-col px-3 [&_.gm-tabs-content]:!h-full [&_.gm-tabs-content]:!min-h-0 [&_.gm-tabs-nav-list]:w-full [&_.gm-tabs-nav]:!shrink-0 [&_.gm-tabs-tab]:!mx-0 [&_.gm-tabs-tab]:!flex-1 [&_.gm-tabs-tab]:!justify-center [&_.gm-tabs-tab]:!px-1 [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:!text-[#3164c8] [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:dark:!text-[#9fc2ff] [&_.gm-tabs-tabpane]:!h-full [&_.gm-tabs-tabpane]:!min-h-0 [&_.gm-tabs-tabpane]:!overflow-hidden"
                     items={[
                         {
                             key: "assets",

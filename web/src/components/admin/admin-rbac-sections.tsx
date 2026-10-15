@@ -1,6 +1,7 @@
 "use client";
 
-import { Form, Modal, Popconfirm, Select, Space, Table, Tabs, Tree, message } from "antd";
+import { Form, Modal, Popconfirm, Select, Space, Table, Tree, message } from "antd";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Edit3, Plus, Power, Trash2 } from "lucide-react";

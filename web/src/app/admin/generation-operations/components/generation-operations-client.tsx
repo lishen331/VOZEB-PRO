@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Modal, Select, Table, Tooltip } from "antd";
+import { App, Modal, Select, Table } from "antd";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";

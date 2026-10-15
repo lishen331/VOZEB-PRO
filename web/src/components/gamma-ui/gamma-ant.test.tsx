@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { Alert, Button, Checkbox, Empty, Pagination, Segmented, Spin, Switch, Tag } from "./gamma-ant";
 import { Input, InputNumber } from "./gamma-ant-input";
+import { Tabs, Tooltip } from "./gamma-ant-overlay";
 
 const html = (node: React.ReactElement) => renderToStaticMarkup(node);
 
@@ -81,5 +82,35 @@ describe("gamma-ant 兼容层：与 antd 同 API", () => {
         expect(html(<Input.TextArea rows={3} value="t" onChange={() => {}} />)).toMatch(/<textarea[^>]*rows="3"/);
         expect(html(<InputNumber value={2.5} precision={2} onChange={() => {}} />)).toContain('value="2.50"');
         expect(html(<InputNumber value={null} onChange={() => {}} />)).toContain('value=""');
+    });
+
+    it("Tooltip：空 title 只渲染子元素，禁用子元素外包 span", () => {
+        expect(html(<Tooltip title="">{<button type="button">按钮</button>}</Tooltip>)).toBe('<button type="button">按钮</button>');
+        expect(
+            html(
+                <Tooltip title="提示">
+                    <button type="button" disabled>
+                        禁用
+                    </button>
+                </Tooltip>,
+            ),
+        ).toMatch(/^<span[^>]*cursor-not-allowed[^>]*><button[^>]*pointer-events-none/);
+    });
+
+    it("Tabs：受控 activeKey、role=tab/tabpanel、默认只渲染当前面板", () => {
+        const markup = html(
+            <Tabs
+                activeKey="b"
+                onChange={() => {}}
+                items={[
+                    { key: "a", label: "甲", children: <p>面板甲</p> },
+                    { key: "b", label: "乙", children: <p>面板乙</p> },
+                ]}
+            />,
+        );
+        expect(markup).toMatch(/role="tab" aria-selected="true"[\s\S]*乙/);
+        expect(markup).toContain("面板乙");
+        expect(markup).not.toContain("面板甲");
+        expect(markup).toContain('role="tabpanel"');
     });
 });

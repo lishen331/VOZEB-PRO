@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Card, Form, Modal, Popconfirm, Select, Space, Table, Tabs, message } from "antd";
+import { Card, Form, Modal, Popconfirm, Select, Space, Table, message } from "antd";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { ColumnsType } from "antd/es/table";

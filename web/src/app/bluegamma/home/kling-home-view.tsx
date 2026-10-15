@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { Download } from "lucide-react";
 
@@ -40,9 +41,11 @@ export function KlingHomeView() {
     const [showAnnouncement, setShowAnnouncement] = useState(true);
     const [upgradeOpen, setUpgradeOpen] = useState(false);
     const sidebar = useGammaSidebarState();
+    const router = useRouter();
 
     const notice = useCallback((message: string) => toast("info", message), [toast]);
-    const openSubject = useCallback((slug: string) => toast("info", `进入「${gammaSubjectBySlug(slug).name}」创作台（演示）`), [toast]);
+    // 点专业 → 进入该专业的引导式画布
+    const openSubject = useCallback((slug: string) => router.push(`/bluegamma/flow?major=${slug}`), [router]);
 
     const slides = useMemo(() => buildHomeSlides(openSubject), [openSubject]);
     const featured = gammaSubjectBySlug(FEATURED_SLUG);
@@ -79,17 +82,7 @@ export function KlingHomeView() {
                     collapsed={sidebar.collapsed}
                     onToggle={sidebar.toggle}
                     onSelect={() => notice("该模块的新版页面正在设计中")}
-                    actions={
-                        <GammaSidebarActions
-                            collapsed={sidebar.collapsed}
-                            points={demo.points}
-                            checkedIn={demo.checkedIn}
-                            onCheckIn={demo.checkIn}
-                            onNotify={() => notice("暂无新通知")}
-                            onUpgrade={() => setUpgradeOpen(true)}
-                            onNotice={notice}
-                        />
-                    }
+                    actions={<GammaSidebarActions collapsed={sidebar.collapsed} points={demo.points} checkedIn={demo.checkedIn} onCheckIn={demo.checkIn} onNotify={() => notice("暂无新通知")} onUpgrade={() => setUpgradeOpen(true)} onNotice={notice} />}
                 />
                 {/* 顶栏已撤掉，所有操作在侧栏；内容区占满宽度，不再居中留白 */}
                 <main className="gm-scroll relative min-w-0 flex-1 overflow-y-auto">

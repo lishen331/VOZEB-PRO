@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Drawer, Form, Modal, Select, Tabs } from "antd";
+import { App, Drawer, Form, Modal, Select } from "antd";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { BookOpen, ClipboardCheck, Eye, PackageCheck, Plus, RefreshCw, Send, Users } from "lucide-react";

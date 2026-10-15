@@ -1,6 +1,7 @@
 "use client";
 
-import { Popover, Tooltip } from "antd";
+import { Popover } from "antd";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";

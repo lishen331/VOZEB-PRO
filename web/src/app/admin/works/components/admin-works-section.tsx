@@ -1,7 +1,8 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Modal, Select, Table, Tooltip } from "antd";
+import { App, Modal, Select, Table } from "antd";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Ban, Check, Eye, Film, GalleryVerticalEnd, Pencil, Plus, RefreshCw, RotateCcw, Search, Star, Trash2, X } from "lucide-react";

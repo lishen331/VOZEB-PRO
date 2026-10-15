@@ -1,6 +1,6 @@
 "use client";
 
-import { Tooltip } from "antd";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Check, ChevronsLeft, ChevronsRight, Loader2, Minus, Plus, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";

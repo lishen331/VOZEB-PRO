@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Dropdown, Image, Popconfirm, Select, Tooltip } from "antd";
+import { App, Dropdown, Image, Popconfirm, Select } from "antd";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { ArrowDownUp, ChevronDown, ChevronRight, Download, FileText, ImagePlus, Images, KeyRound, MapPinned, Package, Plus, RotateCcw, Search, Trash2, Users, Video } from "lucide-react";
