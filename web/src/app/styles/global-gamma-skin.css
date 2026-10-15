@@ -1,0 +1,195 @@
+/*
+ * 布鲁伽马全站换肤层。
+ * 只作用于 html.gm-app：由 AppProviders 在「非画布编辑器」路由挂上，画布编辑器（/canvas/[id]、/drama-canvas/[id]）不挂，
+ * 所以画布的定稿 UI 与这里的任何规则都不相交。
+ *
+ * 做三件事：
+ *   1. 把 Tailwind 调色板换成品牌色：灰阶 → 墨蓝中性，蓝/靛/紫 → Gamma Blue，天蓝/青 → Gamma Cyan
+ *   2. 把 shadcn 语义变量（--background / --primary …）接到 --gm-* token
+ *   3. 统一字体、选区、滚动条
+ * 状态色（emerald / amber / rose / red）保持语义不动。
+ */
+
+/* 调色板覆盖：由 过程文件/bluegamma-rollout/gen-palette.mjs 生成（OKLCH，保持 Tailwind 原明度阶梯） */
+html.gm-app {
+    --color-stone-50: oklch(98.5% 0.008 265.0);
+    --color-stone-100: oklch(97.0% 0.008 265.0);
+    --color-stone-200: oklch(92.3% 0.008 265.0);
+    --color-stone-300: oklch(86.9% 0.020 265.0);
+    --color-stone-400: oklch(70.9% 0.020 265.0);
+    --color-stone-500: oklch(55.3% 0.034 265.0);
+    --color-stone-600: oklch(44.4% 0.034 265.0);
+    --color-stone-700: oklch(37.4% 0.034 265.0);
+    --color-stone-800: oklch(26.0% 0.028 265.0);
+    --color-stone-900: oklch(19.9% 0.028 265.0);
+    --color-stone-950: oklch(12.1% 0.028 265.0);
+    --color-neutral-50: oklch(98.5% 0.008 265.0);
+    --color-neutral-100: oklch(97.0% 0.008 265.0);
+    --color-neutral-200: oklch(92.2% 0.008 265.0);
+    --color-neutral-300: oklch(87.0% 0.020 265.0);
+    --color-neutral-400: oklch(70.8% 0.020 265.0);
+    --color-neutral-500: oklch(55.6% 0.034 265.0);
+    --color-neutral-600: oklch(43.9% 0.034 265.0);
+    --color-neutral-700: oklch(37.1% 0.034 265.0);
+    --color-neutral-800: oklch(26.1% 0.028 265.0);
+    --color-neutral-900: oklch(18.7% 0.028 265.0);
+    --color-neutral-950: oklch(11.9% 0.028 265.0);
+    --color-gray-50: oklch(98.5% 0.008 265.0);
+    --color-gray-100: oklch(96.7% 0.008 265.0);
+    --color-gray-200: oklch(92.8% 0.008 265.0);
+    --color-gray-300: oklch(87.2% 0.020 265.0);
+    --color-gray-400: oklch(70.7% 0.020 265.0);
+    --color-gray-500: oklch(55.1% 0.034 265.0);
+    --color-gray-600: oklch(44.6% 0.034 265.0);
+    --color-gray-700: oklch(37.3% 0.034 265.0);
+    --color-gray-800: oklch(27.1% 0.028 265.0);
+    --color-gray-900: oklch(19.3% 0.028 265.0);
+    --color-gray-950: oklch(10.7% 0.028 265.0);
+    --color-zinc-50: oklch(98.5% 0.008 265.0);
+    --color-zinc-100: oklch(96.7% 0.008 265.0);
+    --color-zinc-200: oklch(92.0% 0.008 265.0);
+    --color-zinc-300: oklch(87.1% 0.020 265.0);
+    --color-zinc-400: oklch(70.5% 0.020 265.0);
+    --color-zinc-500: oklch(55.2% 0.034 265.0);
+    --color-zinc-600: oklch(44.2% 0.034 265.0);
+    --color-zinc-700: oklch(37.0% 0.034 265.0);
+    --color-zinc-800: oklch(26.7% 0.028 265.0);
+    --color-zinc-900: oklch(19.3% 0.028 265.0);
+    --color-zinc-950: oklch(11.6% 0.028 265.0);
+    --color-slate-50: oklch(98.4% 0.008 265.0);
+    --color-slate-100: oklch(96.8% 0.008 265.0);
+    --color-slate-200: oklch(92.9% 0.008 265.0);
+    --color-slate-300: oklch(86.9% 0.020 265.0);
+    --color-slate-400: oklch(70.4% 0.020 265.0);
+    --color-slate-500: oklch(55.4% 0.034 265.0);
+    --color-slate-600: oklch(44.6% 0.034 265.0);
+    --color-slate-700: oklch(37.2% 0.034 265.0);
+    --color-slate-800: oklch(27.2% 0.028 265.0);
+    --color-slate-900: oklch(19.0% 0.028 265.0);
+    --color-slate-950: oklch(10.6% 0.028 265.0);
+    --color-blue-50: oklch(97.0% 0.015 262.0);
+    --color-blue-100: oklch(93.2% 0.033 262.0);
+    --color-blue-200: oklch(88.2% 0.061 262.0);
+    --color-blue-300: oklch(80.9% 0.109 262.0);
+    --color-blue-400: oklch(70.7% 0.172 262.0);
+    --color-blue-500: oklch(62.3% 0.223 262.0);
+    --color-blue-600: oklch(54.6% 0.255 262.0);
+    --color-blue-700: oklch(48.8% 0.253 262.0);
+    --color-blue-800: oklch(42.4% 0.207 262.0);
+    --color-blue-900: oklch(37.9% 0.152 262.0);
+    --color-blue-950: oklch(28.2% 0.095 262.0);
+    --color-indigo-50: oklch(97.0% 0.015 262.0);
+    --color-indigo-100: oklch(93.2% 0.033 262.0);
+    --color-indigo-200: oklch(88.2% 0.061 262.0);
+    --color-indigo-300: oklch(80.9% 0.109 262.0);
+    --color-indigo-400: oklch(70.7% 0.172 262.0);
+    --color-indigo-500: oklch(62.3% 0.223 262.0);
+    --color-indigo-600: oklch(54.6% 0.255 262.0);
+    --color-indigo-700: oklch(48.8% 0.253 262.0);
+    --color-indigo-800: oklch(42.4% 0.207 262.0);
+    --color-indigo-900: oklch(37.9% 0.152 262.0);
+    --color-indigo-950: oklch(28.2% 0.095 262.0);
+    --color-violet-50: oklch(97.0% 0.015 262.0);
+    --color-violet-100: oklch(93.2% 0.033 262.0);
+    --color-violet-200: oklch(88.2% 0.061 262.0);
+    --color-violet-300: oklch(80.9% 0.109 262.0);
+    --color-violet-400: oklch(70.7% 0.172 262.0);
+    --color-violet-500: oklch(62.3% 0.223 262.0);
+    --color-violet-600: oklch(54.6% 0.255 262.0);
+    --color-violet-700: oklch(48.8% 0.253 262.0);
+    --color-violet-800: oklch(42.4% 0.207 262.0);
+    --color-violet-900: oklch(37.9% 0.152 262.0);
+    --color-violet-950: oklch(28.2% 0.095 262.0);
+    --color-purple-50: oklch(97.0% 0.015 262.0);
+    --color-purple-100: oklch(93.2% 0.033 262.0);
+    --color-purple-200: oklch(88.2% 0.061 262.0);
+    --color-purple-300: oklch(80.9% 0.109 262.0);
+    --color-purple-400: oklch(70.7% 0.172 262.0);
+    --color-purple-500: oklch(62.3% 0.223 262.0);
+    --color-purple-600: oklch(54.6% 0.255 262.0);
+    --color-purple-700: oklch(48.8% 0.253 262.0);
+    --color-purple-800: oklch(42.4% 0.207 262.0);
+    --color-purple-900: oklch(37.9% 0.152 262.0);
+    --color-purple-950: oklch(28.2% 0.095 262.0);
+    --color-sky-50: oklch(98.4% 0.019 205.0);
+    --color-sky-100: oklch(95.6% 0.045 205.0);
+    --color-sky-200: oklch(91.7% 0.080 205.0);
+    --color-sky-300: oklch(86.5% 0.127 205.0);
+    --color-sky-400: oklch(78.9% 0.154 205.0);
+    --color-sky-500: oklch(71.5% 0.143 205.0);
+    --color-sky-600: oklch(60.9% 0.126 205.0);
+    --color-sky-700: oklch(52.0% 0.105 205.0);
+    --color-sky-800: oklch(45.0% 0.085 205.0);
+    --color-sky-900: oklch(39.8% 0.070 205.0);
+    --color-sky-950: oklch(30.2% 0.056 205.0);
+    --color-cyan-50: oklch(98.4% 0.019 205.0);
+    --color-cyan-100: oklch(95.6% 0.045 205.0);
+    --color-cyan-200: oklch(91.7% 0.080 205.0);
+    --color-cyan-300: oklch(86.5% 0.127 205.0);
+    --color-cyan-400: oklch(78.9% 0.154 205.0);
+    --color-cyan-500: oklch(71.5% 0.143 205.0);
+    --color-cyan-600: oklch(60.9% 0.126 205.0);
+    --color-cyan-700: oklch(52.0% 0.105 205.0);
+    --color-cyan-800: oklch(45.0% 0.085 205.0);
+    --color-cyan-900: oklch(39.8% 0.070 205.0);
+    --color-cyan-950: oklch(30.2% 0.056 205.0);
+}
+
+html.gm-app {
+    --radius: 0.75rem;
+    --background: var(--gm-bg);
+    --foreground: var(--gm-text);
+    --card: var(--gm-surface);
+    --card-foreground: var(--gm-text);
+    --popover: var(--gm-surface-2);
+    --popover-foreground: var(--gm-text);
+    --primary: var(--gm-blue);
+    --primary-foreground: #ffffff;
+    --secondary: var(--gm-surface-3);
+    --secondary-foreground: var(--gm-text);
+    --muted: var(--gm-surface-2);
+    --muted-foreground: var(--gm-text-2);
+    --accent: var(--gm-wash-strong);
+    --accent-foreground: var(--gm-text);
+    --destructive: var(--gm-danger);
+    --border: var(--gm-border-strong);
+    --input: var(--gm-border-strong);
+    --ring: var(--gm-accent);
+    --sidebar: var(--gm-bg-elevated);
+    --sidebar-foreground: var(--gm-text);
+    --sidebar-primary: var(--gm-blue);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--gm-accent-soft);
+    --sidebar-accent-foreground: var(--gm-accent);
+    --sidebar-border: var(--gm-border);
+    --sidebar-ring: var(--gm-accent);
+    --chart-1: #0050f5;
+    --chart-2: #28ebfa;
+    --chart-3: #6a9dff;
+    --chart-4: #23d18b;
+    --chart-5: #ffb547;
+    --font-sans: var(--gm-font-sans);
+}
+
+html.gm-app body {
+    font-family: var(--gm-font-sans) !important;
+    background-color: var(--gm-bg);
+    color: var(--gm-text);
+}
+
+html.gm-app ::selection {
+    background: rgba(40, 235, 250, 0.3);
+}
+
+html.gm-app:not(.dark) ::selection {
+    background: rgba(0, 80, 245, 0.18);
+}
+
+html.gm-app :focus-visible {
+    outline-color: var(--gm-accent);
+}
+
+/* 细滚动条跟随品牌描边色 */
+html.gm-app * {
+    scrollbar-color: var(--gm-border-strong) transparent;
+}

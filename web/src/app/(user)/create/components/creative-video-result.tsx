@@ -47,7 +47,7 @@ export function CreativeVideoResult({
                 data-rendered-width={layout?.width}
                 data-rendered-height={layout?.height}
                 style={layout?.container}
-                className="col-start-1 row-start-1 max-w-full flex-none overflow-hidden rounded-xl border border-[#30343b] bg-black shadow-[0_4px_18px_rgba(15,23,42,0.08)] dark:border-[#3a4049] dark:shadow-black/25"
+                className="col-start-1 row-start-1 max-w-full flex-none overflow-hidden rounded-xl border border-[#2d3442] bg-black shadow-[0_4px_18px_rgba(15,23,42,0.08)] dark:border-[#373f52] dark:shadow-black/25"
             >
                 <CreativeVideoPlayer
                     key={activeAsset.id}
@@ -105,7 +105,7 @@ function CreativeVideoPlayer({ asset, coverUrl, resolution, onDimensions }: { as
         <div
             ref={playback.playerRef}
             data-testid="creative-video-player"
-            className="group/player relative size-full overflow-hidden bg-black text-white outline-none [container-type:inline-size] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#817cff]"
+            className="group/player relative size-full overflow-hidden bg-black text-white outline-none [container-type:inline-size] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#4d8aff]"
             tabIndex={0}
             onKeyDown={playback.handleKeyboard}
         >

@@ -51,14 +51,15 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
         );
 
     return (
-        <div className="workspace-shell flex h-dvh min-h-0 overflow-hidden bg-white text-foreground dark:bg-[#111316]">
+        <div className="workspace-shell flex h-dvh min-h-0 overflow-hidden bg-[var(--gm-bg)] text-foreground">
             <AppSidebar activeToolSlug={tool?.slug} expanded={sidebarExpanded} featureModules={effectiveFeatureModules} menuPermissions={menuPermissions} />
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[#eaecf0] bg-white/96 px-3 backdrop-blur-xl sm:px-4 lg:px-7 dark:border-[#292d33] dark:bg-[#111316]/95">
+            <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+                <div aria-hidden className="gm-aurora pointer-events-none absolute -top-48 left-1/4 z-0 h-96 w-1/2 rounded-full bg-[var(--gm-blue)] blur-[120px]" style={{ opacity: "var(--gm-aurora-opacity)" }} />
+                <header className="gm-glass gm-glass-sheen relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[var(--gm-border)] px-3 sm:px-4 lg:px-7">
                     <div className="flex min-w-0 items-center gap-2.5">
                         <button
                             type="button"
-                            className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-stone-600 transition hover:bg-stone-100 hover:text-stone-950 lg:hidden dark:text-stone-300 dark:hover:bg-stone-900 dark:hover:text-white"
+                            className="inline-flex size-9 shrink-0 items-center justify-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)] lg:hidden"
                             onClick={() => setMobileNavOpen(true)}
                             aria-label="打开导航菜单"
                             title="导航菜单"
@@ -70,7 +71,7 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
                         </Link>
                         <button
                             type="button"
-                            className="hidden size-8 shrink-0 items-center justify-center rounded-lg text-[#68717c] transition hover:bg-[#f1f3f5] hover:text-[#20242a] lg:inline-flex dark:text-[#a5adb8] dark:hover:bg-[#22262c] dark:hover:text-white"
+                            className="hidden size-8 shrink-0 items-center justify-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] lg:inline-flex"
                             onClick={() => setSidebarExpanded((value) => !value)}
                             aria-label={sidebarExpanded ? "收起侧边栏" : "展开侧边栏"}
                             title={sidebarExpanded ? "收起侧边栏" : "展开侧边栏"}
@@ -78,8 +79,9 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
                         >
                             {sidebarExpanded ? <PanelLeftClose className="size-[17px]" /> : <PanelLeftOpen className="size-[17px]" />}
                         </button>
-                        <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-[#20242a] dark:text-[#f3f5f7]">{pageTitle}</div>
+                        <div className="flex min-w-0 items-center gap-2">
+                            <span aria-hidden className="hidden h-4 w-[3px] shrink-0 rounded-full bg-[image:var(--gm-gradient)] sm:block" />
+                            <div className="truncate text-sm font-semibold text-[var(--gm-text)]">{pageTitle}</div>
                         </div>
                     </div>
                     <div className="min-w-0 max-w-[calc(100vw-6.5rem)] shrink-0 overflow-visible sm:max-w-[calc(100vw-8rem)] lg:max-w-none">
@@ -87,7 +89,7 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
                     </div>
                 </header>
                 <FeatureModuleGate initialFeatureModules={effectiveFeatureModules}>
-                    <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111316]">{children}</div>
+                    <div className="relative z-10 min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
                 </FeatureModuleGate>
             </div>
             <MobileNavDrawer open={mobileNavOpen} activeToolSlug={tool?.slug} featureModules={effectiveFeatureModules} menuPermissions={menuPermissions} onClose={() => setMobileNavOpen(false)} />

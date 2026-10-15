@@ -176,7 +176,7 @@ export function CreativeMessages({
                                     className={cn(
                                         "break-words text-[15px] leading-7",
                                         item.role === "user" &&
-                                            "rounded-[14px] bg-[linear-gradient(135deg,#f3f1ff_0%,#ebeaff_100%)] px-[18px] py-3 text-left leading-6 text-[#111827] dark:bg-[linear-gradient(135deg,#2d2a46_0%,#26243a_100%)] dark:text-[#f3f5f7]",
+                                            "rounded-[14px] bg-[linear-gradient(135deg,#f3f1ff_0%,#ebeaff_100%)] px-[18px] py-3 text-left leading-6 text-[#0e1421] dark:bg-[linear-gradient(135deg,#2d2a46_0%,#26243a_100%)] dark:text-[#f2f5fa]",
                                         item.status === "failed" && "text-red-600 dark:text-red-300",
                                         item.status === "cancelled" && "text-stone-400",
                                     )}
@@ -274,7 +274,7 @@ function CreativeMediaRound({
                     <div className="flex items-start justify-end gap-3">
                         <div className="min-w-0 max-w-[520px]">
                             {referencedAssets.length ? <CreativeRoundReferenceStrip assets={referencedAssets} /> : null}
-                            <p className="whitespace-pre-wrap break-words rounded-[14px] bg-[linear-gradient(135deg,#f3f1ff_0%,#ebeaff_100%)] px-[18px] py-3 text-left text-[15px] leading-6 text-[#111827] dark:bg-[linear-gradient(135deg,#2d2a46_0%,#26243a_100%)] dark:text-[#f3f5f7]">
+                            <p className="whitespace-pre-wrap break-words rounded-[14px] bg-[linear-gradient(135deg,#f3f1ff_0%,#ebeaff_100%)] px-[18px] py-3 text-left text-[15px] leading-6 text-[#0e1421] dark:bg-[linear-gradient(135deg,#2d2a46_0%,#26243a_100%)] dark:text-[#f2f5fa]">
                                 {userMessage.content}
                             </p>
                             <CreativeUserMessageMeta message={userMessage} />
@@ -289,7 +289,7 @@ function CreativeMediaRound({
                         {!isFailedMediaRound && assistantMessage.status !== "running" ? (
                             <>
                                 <div className="mb-2 flex w-fit max-w-full flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                                    <h2 className="truncate text-[17px] font-semibold leading-7 text-[#1f2937] dark:text-[#f3f5f7]">{resultTitle}</h2>
+                                    <h2 className="truncate text-[17px] font-semibold leading-7 text-[#202735] dark:text-[#f2f5fa]">{resultTitle}</h2>
                                     <CreativeRunTiming run={run} time={assistantMessage.createdAt} />
                                     {run?.stageProgress?.length ? <CreativeStageHistory run={run} /> : null}
                                 </div>
@@ -304,9 +304,9 @@ function CreativeMediaRound({
                             ) : showAssistantText ? (
                                 <div
                                     className={cn(
-                                        "mb-3 max-w-[612px] break-words text-sm leading-6 text-[#75808c] dark:text-[#929ca8]",
+                                        "mb-3 max-w-[612px] break-words text-sm leading-6 text-[#757f94] dark:text-[#919bb1]",
                                         assistantMessage.status === "failed" && "text-red-600 dark:text-red-300",
-                                        assistantMessage.status === "cancelled" && "text-[#8b949f] dark:text-[#7f8996]",
+                                        assistantMessage.status === "cancelled" && "text-[#8993a9] dark:text-[#7e889d]",
                                     )}
                                 >
                                     {assistantMessage.status === "completed" ? <AgentMarkdown>{displayContent}</AgentMarkdown> : <span className="whitespace-pre-wrap">{displayContent}</span>}
@@ -362,7 +362,7 @@ function CreativeRoundReferenceStrip({ assets }: { assets: CreativeAsset[] }) {
                 return (
                     <div
                         key={asset.id}
-                        className="relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-md border border-[#dde2e7] bg-[#eef1f4] text-[#697582] dark:border-[#3b424b] dark:bg-[#252a31] dark:text-[#aab2bc]"
+                        className="relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-md border border-[#dfe1e7] bg-[#eef1f6] text-[#6a7488] dark:border-[#384154] dark:bg-[#212836] dark:text-[#abb1be]"
                         title={asset.title}
                     >
                         {asset.type === "image" ? <img src={imagePreviewUrl(url, 192)} alt={asset.title || "参考图"} loading="lazy" className="size-full object-cover" /> : null}
@@ -386,7 +386,7 @@ function CreativeUserAvatar({ avatarUrl, fallback, label, className }: { avatarU
             {resolvedAvatarUrl ? (
                 <img src={resolvedAvatarUrl} alt="" className="size-full object-cover" referrerPolicy="no-referrer" />
             ) : (
-                <span aria-hidden="true" className="grid size-full place-items-center rounded-full bg-[#66758e] text-[10px] font-semibold leading-none text-white ring-1 ring-black/5 dark:bg-[#d8dee8] dark:text-[#252b33] dark:ring-white/10">
+                <span aria-hidden="true" className="grid size-full place-items-center rounded-full bg-[#67758e] text-[10px] font-semibold leading-none text-white ring-1 ring-black/5 dark:bg-[#d7deeb] dark:text-[#222937] dark:ring-white/10">
                     {resolvedFallback}
                 </span>
             )}
@@ -397,14 +397,14 @@ function CreativeUserAvatar({ avatarUrl, fallback, label, className }: { avatarU
 function CreativeUserMessageMeta({ message }: { message: CreativeMessage }) {
     const copyText = useCopyText();
     return (
-        <div className="mt-1 flex min-h-6 items-center justify-end gap-1 pr-0.5 text-[#98a2b3] dark:text-[#7f8996]">
+        <div className="mt-1 flex min-h-6 items-center justify-end gap-1 pr-0.5 text-[#9ba2ae] dark:text-[#7e889d]">
             <time className="text-[11px] leading-4" dateTime={new Date(message.createdAt).toISOString()}>
                 {formatCreativeMessageTime(message.createdAt)}
             </time>
             <Tooltip title="复制输入内容">
                 <button
                     type="button"
-                    className="grid size-6 place-items-center rounded-md text-current transition-colors hover:bg-[#f3f4f6] hover:text-[#475467] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 dark:hover:bg-[#252a31] dark:hover:text-[#d0d5dd]"
+                    className="grid size-6 place-items-center rounded-md text-current transition-colors hover:bg-[#f1f4fa] hover:text-[#485367] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 dark:hover:bg-[#212836] dark:hover:text-[#ced5e2]"
                     onClick={() => copyText(message.content, "输入内容已复制")}
                     aria-label="复制输入内容"
                 >
@@ -419,7 +419,7 @@ function CreativeAssistantAvatar({ logoUrl, className }: { logoUrl?: string; cla
     return (
         <span
             data-testid="creative-assistant-avatar"
-            className={cn("grid size-11 shrink-0 place-items-center rounded-full border border-[#b9b5ff] bg-white text-[#615cff] shadow-[0_4px_14px_rgba(97,92,255,0.08)] dark:border-[#514b81] dark:bg-[#1d2025]", className)}
+            className={cn("grid size-11 shrink-0 place-items-center rounded-full border border-[#9abfff] bg-white text-[#1f6bff] shadow-[0_4px_14px_rgba(97,92,255,0.08)] dark:border-[#385384] dark:bg-[#161d2a]", className)}
             aria-label="创作助手"
         >
             <SiteLogo logoUrl={logoUrl || "/logo.svg"} className="size-6" />
@@ -433,13 +433,13 @@ function CreativeRunSummary({ run, modelNames }: { run?: CreativeAgentRun; model
     const summaryItems = items.filter((item) => item.key !== "mode" && item.key !== "status");
     const duration = creativeRunDuration(run);
     return (
-        <div className="w-fit max-w-full text-[#667085] dark:text-[#a0a9b4]" aria-label="本轮创作参数">
+        <div className="w-fit max-w-full text-[#657085] dark:text-[#a2a8b5]" aria-label="本轮创作参数">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 {summaryItems.map((item) => (
                     <span
                         key={item.key}
                         title={`${item.label}：${item.value}`}
-                        className="inline-flex h-6 max-w-[180px] items-center truncate rounded-md border border-[#e9ecf0] bg-white px-2 text-[11px] leading-none dark:border-[#343a43] dark:bg-[#1b1f24]"
+                        className="inline-flex h-6 max-w-[180px] items-center truncate rounded-md border border-[#e9ecf1] bg-white px-2 text-[11px] leading-none dark:border-[#323a49] dark:bg-[#151b29]"
                     >
                         {item.value}
                     </span>
@@ -450,18 +450,18 @@ function CreativeRunSummary({ run, modelNames }: { run?: CreativeAgentRun; model
                     arrow={false}
                     content={
                         <div className="w-[min(280px,calc(100vw-56px))] py-1">
-                            <p className="mb-2 text-sm font-semibold text-[#20242a] dark:text-[#f3f5f7]">本轮创作详情</p>
+                            <p className="mb-2 text-sm font-semibold text-[#1b212f] dark:text-[#f2f5fa]">本轮创作详情</p>
                             <dl className="space-y-2">
                                 {items.map((item) => (
                                     <div key={item.key} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 text-xs leading-5">
-                                        <dt className="text-[#8b949f] dark:text-[#7f8996]">{item.label}</dt>
-                                        <dd className="min-w-0 break-words text-[#3c4652] dark:text-[#d5dae0]">{item.value}</dd>
+                                        <dt className="text-[#8993a9] dark:text-[#7e889d]">{item.label}</dt>
+                                        <dd className="min-w-0 break-words text-[#3c4558] dark:text-[#d3dae7]">{item.value}</dd>
                                     </div>
                                 ))}
                                 {duration ? (
                                     <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 text-xs leading-5">
-                                        <dt className="text-[#8b949f] dark:text-[#7f8996]">生成耗时</dt>
-                                        <dd className="text-[#3c4652] dark:text-[#d5dae0]">{duration}</dd>
+                                        <dt className="text-[#8993a9] dark:text-[#7e889d]">生成耗时</dt>
+                                        <dd className="text-[#3c4558] dark:text-[#d3dae7]">{duration}</dd>
                                     </div>
                                 ) : null}
                             </dl>
@@ -470,7 +470,7 @@ function CreativeRunSummary({ run, modelNames }: { run?: CreativeAgentRun; model
                 >
                     <button
                         type="button"
-                        className="inline-flex size-6 items-center justify-center rounded-md text-[#98a2b3] transition-colors duration-150 hover:bg-[#f4f5f7] hover:text-[#344054] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#615cff]/30 dark:text-[#7f8996] dark:hover:bg-[#252a31] dark:hover:text-white"
+                        className="inline-flex size-6 items-center justify-center rounded-md text-[#9ba2ae] transition-colors duration-150 hover:bg-[#f2f5fb] hover:text-[#354054] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6bff]/30 dark:text-[#7e889d] dark:hover:bg-[#212836] dark:hover:text-white"
                         aria-label="查看本轮创作详细信息"
                     >
                         <Info className="size-3.5" />
@@ -486,17 +486,17 @@ function CreativeStageHistory({ run }: { run: CreativeAgentRun }) {
     const stages = run.stageProgress || [];
     return (
         <div className="basis-full">
-            <button type="button" onClick={() => setExpanded((value) => !value)} className="inline-flex items-center gap-1 text-[11px] text-[#98a2b3] transition-colors hover:text-[#667085] dark:hover:text-[#d5dae0]" aria-expanded={expanded}>
+            <button type="button" onClick={() => setExpanded((value) => !value)} className="inline-flex items-center gap-1 text-[11px] text-[#9ba2ae] transition-colors hover:text-[#657085] dark:hover:text-[#d3dae7]" aria-expanded={expanded}>
                 {expanded ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
                 {expanded ? "收起执行过程" : "查看执行过程"}
             </button>
             {expanded ? (
-                <div className="mt-2 w-full max-w-[560px] space-y-1.5 rounded-lg border border-[#edf0f3] bg-[#fafbfc] px-3 py-2 dark:border-[#343a43] dark:bg-[#1b1f24]" aria-label="本次 Agent 执行过程">
+                <div className="mt-2 w-full max-w-[560px] space-y-1.5 rounded-lg border border-[#edf0f5] bg-[#f8fbff] px-3 py-2 dark:border-[#323a49] dark:bg-[#151b29]" aria-label="本次 Agent 执行过程">
                     {stages.map((stage) => (
-                        <div key={`${stage.key}-${stage.startedAt}`} className="flex items-center gap-1.5 text-xs leading-5 text-[#667085] dark:text-[#a0a9b4]">
+                        <div key={`${stage.key}-${stage.startedAt}`} className="flex items-center gap-1.5 text-xs leading-5 text-[#657085] dark:text-[#a2a8b5]">
                             <Check className="size-3.5 shrink-0 text-emerald-500" aria-hidden />
                             <span className="min-w-0 flex-1 truncate">{stage.text}</span>
-                            {stage.durationSeconds !== undefined ? <span className="shrink-0 tabular-nums text-[#98a2b3]">{stage.durationSeconds} 秒</span> : null}
+                            {stage.durationSeconds !== undefined ? <span className="shrink-0 tabular-nums text-[#9ba2ae]">{stage.durationSeconds} 秒</span> : null}
                         </div>
                     ))}
                 </div>
@@ -509,7 +509,7 @@ function CreativeRunTiming({ run, time }: { run?: CreativeAgentRun; time: number
     const duration = creativeRunDuration(run);
     const completedAt = run?.updatedAt || time;
     return (
-        <div data-testid="creative-run-timing" className="inline-flex shrink-0 items-center gap-1 text-[11px] font-normal leading-5 text-[#98a2b3] dark:text-[#7f8996]">
+        <div data-testid="creative-run-timing" className="inline-flex shrink-0 items-center gap-1 text-[11px] font-normal leading-5 text-[#9ba2ae] dark:text-[#7e889d]">
             <Clock3 className="size-3" aria-hidden />
             <time aria-label={`完成时间：${formatCreativeMessageTime(completedAt)}`} dateTime={new Date(completedAt).toISOString()}>
                 {formatCreativeMessageTime(completedAt)}
@@ -541,7 +541,7 @@ function CreativeRoundActions({ outputAssets, activeAsset, run, selectedAssetIds
         ...(referenceAction ? [{ key: "reference", label: referenceAction.referenced ? "取消引用" : "引用结果", icon: <Link2 className="size-4" /> }] : []),
     ];
     const actionClass =
-        "!flex !h-8 !min-w-0 !items-center !justify-center !gap-1.5 !overflow-hidden !whitespace-nowrap !rounded-md !border !border-[#e4e7ec] !bg-white !px-2.5 !text-[11px] !font-medium !text-[#667085] !shadow-none hover:!border-[#d0d5dd] hover:!bg-[#f8f9fb] hover:!text-[#344054] disabled:!border-[#edf0f2] disabled:!bg-[#f8f9fa] disabled:!text-[#b3bac4] dark:!border-[#343a43] dark:!bg-[#181b20] dark:!text-[#aab2bc] dark:hover:!border-[#4a525c] dark:hover:!bg-[#22262c] dark:hover:!text-white dark:disabled:!border-[#2a2f36] dark:disabled:!bg-[#1a1d22] dark:disabled:!text-[#5f6873]";
+        "!flex !h-8 !min-w-0 !items-center !justify-center !gap-1.5 !overflow-hidden !whitespace-nowrap !rounded-md !border !border-[#e4e7ec] !bg-white !px-2.5 !text-[11px] !font-medium !text-[#657085] !shadow-none hover:!border-[#ced5e2] hover:!bg-[#f6f9ff] hover:!text-[#354054] disabled:!border-[#edf0f5] disabled:!bg-[#f6f9ff] disabled:!text-[#b3bac7] dark:!border-[#323a49] dark:!bg-[#111724] dark:!text-[#abb1be] dark:hover:!border-[#485164] dark:hover:!bg-[#1d2431] dark:hover:!text-white dark:disabled:!border-[#272e3c] dark:disabled:!bg-[#131927] dark:disabled:!text-[#5e677b]";
     const downloadButton = (
         <Button className={cn(actionClass, "!w-full")} disabled={!downloads.length} icon={<Download className="size-3.5" />}>
             {mode === "video" ? "下载视频" : "下载"}
@@ -622,7 +622,7 @@ function CreativeGenerationFailure({ message, onRetry }: { message: string; onRe
                 <p className="break-words text-[17px] font-medium leading-7 text-[#ef2b2d] dark:text-[#ff8b8d]">{displayMessage}</p>
                 <Button
                     type="default"
-                    className="!mt-3 !h-9 !rounded-[10px] !border-[#ffd4d5] !bg-white !px-4 !text-sm !font-medium !text-[#e22b2e] hover:!border-[#ffb7b8] hover:!bg-[#fff8f8] hover:!text-[#c51f22] dark:!border-[#6b3438] dark:!bg-transparent dark:!text-[#ff9a9c] dark:hover:!border-[#9a4a4e] dark:hover:!bg-[#321e20]"
+                    className="!mt-3 !h-9 !rounded-[10px] !border-[#ffd4d5] !bg-white !px-4 !text-sm !font-medium !text-[#e22b2e] hover:!border-[#ffb7b8] hover:!bg-[#f7faff] hover:!text-[#c51f22] dark:!border-[#6b3438] dark:!bg-transparent dark:!text-[#ff9a9c] dark:hover:!border-[#9a4a4e] dark:hover:!bg-[#1c2230]"
                     icon={<RotateCw className="size-4" />}
                     loading={retrying}
                     onClick={() => void runRetry(onRetry, setRetrying)}

@@ -3,35 +3,35 @@
     .landing-stat-pill,
     .landing-auth-shell,
     .auth-panel {
-        border: 1px solid rgba(15, 23, 42, 0.08);
+        border: 1px solid rgba(13, 23, 42, 0.08);
         background: rgba(255, 255, 255, 0.82);
-        box-shadow: 0 20px 80px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 20px 80px rgba(13, 23, 42, 0.08);
         backdrop-filter: blur(18px);
     }
 
     .dark .landing-auth-shell,
     .dark .auth-panel {
         border-color: rgba(255, 255, 255, 0.1);
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(2, 6, 23, 0.66));
-        box-shadow: 0 20px 80px rgba(2, 132, 199, 0.12);
+        background: linear-gradient(180deg, rgba(13, 23, 42, 0.74), rgba(1, 6, 23, 0.66));
+        box-shadow: 0 20px 80px rgba(77, 122, 206, 0.12);
     }
 
     .landing-feature-panel,
     .landing-stat-pill {
-        color: #0f172a;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.72));
-        border-color: rgba(14, 165, 233, 0.12);
+        color: #0d172a;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 250, 255, 0.72));
+        border-color: rgba(102, 151, 244, 0.12);
         box-shadow:
-            0 18px 44px rgba(15, 23, 42, 0.055),
+            0 18px 44px rgba(13, 23, 42, 0.055),
             inset 0 1px 0 rgba(255, 255, 255, 0.88);
     }
 
     .dark .landing-feature-panel,
     .dark .landing-stat-pill {
         color: #ffffff;
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(2, 6, 23, 0.66));
+        background: linear-gradient(180deg, rgba(13, 23, 42, 0.74), rgba(1, 6, 23, 0.66));
         border-color: rgba(255, 255, 255, 0.1);
-        box-shadow: 0 20px 80px rgba(2, 132, 199, 0.12);
+        box-shadow: 0 20px 80px rgba(77, 122, 206, 0.12);
     }
 
     .landing-hero-copy {
@@ -40,18 +40,18 @@
     }
 
     .landing-capability-stage {
-        background: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.1), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(248, 250, 252, 0.38));
-        border: 1px solid rgba(226, 232, 240, 0.72);
+        background: radial-gradient(circle at 50% 0%, rgba(102, 151, 244, 0.1), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(247, 250, 255, 0.38));
+        border: 1px solid rgba(229, 231, 237, 0.72);
         border-radius: 18px;
         box-shadow:
-            0 30px 80px rgba(15, 23, 42, 0.07),
+            0 30px 80px rgba(13, 23, 42, 0.07),
             inset 0 1px 0 rgba(255, 255, 255, 0.82);
         padding: 18px;
         position: relative;
     }
 
     .landing-capability-stage::before {
-        background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.28), rgba(168, 85, 247, 0.16), transparent);
+        background: linear-gradient(90deg, transparent, rgba(102, 151, 244, 0.28), rgba(48, 124, 255, 0.16), transparent);
         content: "";
         height: 1px;
         left: 24px;
@@ -61,7 +61,7 @@
     }
 
     .dark .landing-capability-stage {
-        background: radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.13), transparent 42%), linear-gradient(180deg, rgba(15, 23, 42, 0.62), rgba(2, 6, 23, 0.34));
+        background: radial-gradient(circle at 50% 0%, rgba(21, 213, 230, 0.13), transparent 42%), linear-gradient(180deg, rgba(13, 23, 42, 0.62), rgba(1, 6, 23, 0.34));
         border-color: rgba(255, 255, 255, 0.08);
         box-shadow:
             0 30px 100px rgba(0, 0, 0, 0.26),
@@ -76,97 +76,97 @@
     .auth-page-card {
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.94) !important;
-        border-color: rgba(72, 67, 99, 0.13) !important;
-        box-shadow: 0 26px 80px rgba(31, 29, 43, 0.14) !important;
+        border-color: rgba(56, 72, 101, 0.13) !important;
+        box-shadow: 0 26px 80px rgba(22, 28, 41, 0.14) !important;
         backdrop-filter: blur(22px);
     }
 
     .auth-page-brand-panel {
-        background: linear-gradient(145deg, rgba(251, 249, 255, 0.98) 0%, rgba(245, 244, 253, 0.97) 42%, rgba(243, 247, 255, 0.98) 72%, rgba(255, 249, 252, 0.98) 100%);
-        border-color: rgba(72, 67, 99, 0.1);
+        background: linear-gradient(145deg, rgba(248, 250, 255, 0.98) 0%, rgba(243, 245, 251, 0.97) 42%, rgba(244, 247, 253, 0.98) 72%, rgba(248, 251, 255, 0.98) 100%);
+        border-color: rgba(56, 72, 101, 0.1);
     }
 
     .dark .auth-page-card {
-        background: rgba(18, 19, 24, 0.94) !important;
+        background: rgba(9, 14, 27, 0.94) !important;
         border-color: rgba(255, 255, 255, 0.09) !important;
         box-shadow: 0 26px 90px rgba(0, 0, 0, 0.4) !important;
     }
 
     .dark .auth-page-brand-panel {
-        background: linear-gradient(145deg, rgba(29, 26, 35, 0.98) 0%, rgba(25, 25, 33, 0.98) 46%, rgba(23, 29, 36, 0.98) 76%, rgba(29, 25, 30, 0.98) 100%);
+        background: linear-gradient(145deg, rgba(18, 24, 37, 0.98) 0%, rgba(16, 22, 35, 0.98) 46%, rgba(19, 25, 38, 0.98) 76%, rgba(17, 23, 36, 0.98) 100%);
         border-color: rgba(255, 255, 255, 0.08);
     }
 
     .auth-reset-card {
         background: rgba(255, 255, 255, 0.94);
-        border-color: rgba(72, 67, 99, 0.13);
+        border-color: rgba(56, 72, 101, 0.13);
         border-radius: 8px;
-        box-shadow: 0 26px 80px rgba(31, 29, 43, 0.14);
+        box-shadow: 0 26px 80px rgba(22, 28, 41, 0.14);
     }
 
     .dark .auth-reset-card {
-        background: rgba(18, 19, 24, 0.94);
+        background: rgba(9, 14, 27, 0.94);
         border-color: rgba(255, 255, 255, 0.09);
         box-shadow: 0 26px 90px rgba(0, 0, 0, 0.4);
     }
 
     .auth-form-kicker {
-        color: #71669f;
+        color: #5370a3;
     }
 
     .dark .auth-form-kicker {
-        color: #b3aad3;
+        color: #9db2d7;
     }
 
     .auth-feature-dot {
-        background: #9b91c2;
+        background: #819ac6;
     }
 
     .dark .auth-feature-dot {
-        background: #9288b5;
+        background: #7990b9;
     }
 
     .auth-submit-button.ant-btn {
         height: 46px;
         margin-top: 8px;
-        border-color: #0f172a !important;
-        background: #0f172a !important;
+        border-color: #0d172a !important;
+        background: #0d172a !important;
         color: #ffffff !important;
     }
 
     .auth-submit-button.ant-btn:hover,
     .auth-submit-button.ant-btn:focus-visible {
-        border-color: #1e293b !important;
-        background: #1e293b !important;
+        border-color: #1f293b !important;
+        background: #1f293b !important;
         color: #ffffff !important;
     }
 
     .dark .auth-submit-button.ant-btn {
-        border-color: #f8fafc !important;
-        background: #f8fafc !important;
-        color: #0f172a !important;
+        border-color: #f7faff !important;
+        background: #f7faff !important;
+        color: #0d172a !important;
     }
 
     .dark .auth-submit-button.ant-btn:hover,
     .dark .auth-submit-button.ant-btn:focus-visible {
-        border-color: #e2e8f0 !important;
-        background: #e2e8f0 !important;
-        color: #0f172a !important;
+        border-color: #e5e7ed !important;
+        background: #e5e7ed !important;
+        color: #0d172a !important;
     }
 
     .auth-panel:not(.auth-education-form-panel) .auth-submit-button.ant-btn:disabled,
     .auth-panel:not(.auth-education-form-panel) .auth-submit-button.ant-btn:disabled:hover {
         cursor: not-allowed;
-        border-color: #d6d3d1 !important;
-        background: #e7e5e4 !important;
-        color: #57534e !important;
+        border-color: #cdd4e1 !important;
+        background: #e3e6eb !important;
+        color: #4b5467 !important;
     }
 
     .dark .auth-panel:not(.auth-education-form-panel) .auth-submit-button.ant-btn:disabled,
     .dark .auth-panel:not(.auth-education-form-panel) .auth-submit-button.ant-btn:disabled:hover {
-        border-color: #44403c !important;
-        background: #292524 !important;
-        color: #d6d3d1 !important;
+        border-color: #384153 !important;
+        background: #1d2432 !important;
+        color: #cdd4e1 !important;
     }
 
     .auth-form-header {
@@ -188,7 +188,7 @@
         min-height: 100dvh;
         overflow: hidden;
         background: #f2f5fb;
-        color: #111827;
+        color: #0e1421;
     }
 
     .auth-education-hero {
@@ -260,7 +260,7 @@
     }
     .auth-education-heading p {
         margin: 0 0 16px;
-        color: #111827;
+        color: #0e1421;
         font-size: clamp(28px, 2.25vw, 42px);
         font-weight: 760;
         letter-spacing: 0.02em;
@@ -268,7 +268,7 @@
     }
     .auth-education-heading h1 {
         margin: 0;
-        color: #111827;
+        color: #0e1421;
         font-size: clamp(22px, 1.5vw, 28px);
         font-weight: 700;
         letter-spacing: 0;
@@ -282,14 +282,14 @@
         width: 100%;
         min-height: 50px;
         padding-inline: 20px;
-        border: 1px solid #d9dee8;
+        border: 1px solid #d7deec;
         border-radius: 40px;
         background: #fff;
         box-shadow: none;
     }
     .auth-education-form-panel .ant-input-affix-wrapper:hover,
     .auth-education-form-panel .ant-input-affix-wrapper:focus-within {
-        border-color: #3154e8;
+        border-color: #0e59e8;
         box-shadow: 0 0 0 2px rgb(49 84 232 / 10%);
     }
     .auth-education-form-panel .ant-input-prefix {
@@ -298,10 +298,10 @@
     .auth-education-form-panel .ant-input-prefix svg {
         width: 18px;
         height: 18px;
-        color: #9299a8;
+        color: #8f99af;
     }
     .auth-education-form-panel .ant-input {
-        color: #252b3a;
+        color: #232a38;
         font-size: 15px;
     }
     .auth-education-form-panel .ant-input::placeholder {
@@ -311,27 +311,27 @@
         min-height: 50px;
         margin-top: 0;
         border-radius: 40px;
-        border-color: #3154e8 !important;
-        background: #3154e8 !important;
+        border-color: #0e59e8 !important;
+        background: #0e59e8 !important;
         box-shadow: none;
         font-size: 16px;
     }
     html .auth-education-form-panel .auth-submit-button.ant-btn:hover,
     html .auth-education-form-panel .auth-submit-button.ant-btn:focus-visible {
-        border-color: #2444cf !important;
-        background: #2444cf !important;
+        border-color: #0048cf !important;
+        background: #0048cf !important;
     }
     html .auth-education-form-panel .auth-submit-button.ant-btn:disabled,
     html .auth-education-form-panel .auth-submit-button.ant-btn:disabled:hover {
-        border-color: #3154e8 !important;
-        background: #3154e8 !important;
+        border-color: #0e59e8 !important;
+        background: #0e59e8 !important;
         color: #fff !important;
         opacity: 1;
     }
     .auth-education-form-panel .auth-education-policy {
         align-items: flex-start;
         justify-content: center;
-        color: #8b93a2 !important;
+        color: #8993a8 !important;
         font-size: 13px;
     }
     .auth-education-form-panel .auth-education-policy .ant-checkbox {
@@ -342,11 +342,11 @@
         line-height: 1.7;
     }
     .auth-education-form-panel a {
-        color: #3154e8 !important;
+        color: #0e59e8 !important;
     }
     .auth-education-footer {
         padding: 0 clamp(32px, 5.2vw, 98px) 28px;
-        color: #9299a8;
+        color: #8f99af;
         font-size: 12px;
         line-height: 1.65;
         text-align: center;

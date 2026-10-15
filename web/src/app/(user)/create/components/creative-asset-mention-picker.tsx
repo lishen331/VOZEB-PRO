@@ -43,7 +43,7 @@ export function CreativeAssetMentionPicker({ assets, selectedAssetIds, onSelect 
         };
     }, [visibleAssets.length, visibleType]);
 
-    if (!visibleType) return <p className="w-64 px-3 py-5 text-center text-xs text-[#8b949f] dark:text-[#7f8996]">没有匹配的图片或视频</p>;
+    if (!visibleType) return <p className="w-64 px-3 py-5 text-center text-xs text-[#8993a9] dark:text-[#7e889d]">没有匹配的图片或视频</p>;
     return (
         <div className="flex w-[min(17rem,calc(100vw-2rem))] min-w-0 flex-col overflow-hidden p-1.5" data-testid="creative-asset-mention-picker">
             {showTypeSwitcher ? (
@@ -59,8 +59,8 @@ export function CreativeAssetMentionPicker({ assets, selectedAssetIds, onSelect 
                             key={asset.id}
                             type="button"
                             data-asset-id={asset.id}
-                            className={`group relative aspect-square min-w-0 overflow-hidden rounded-md border-2 bg-[#eef1f3] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6268d8] dark:bg-[#292f37] ${
-                                selected.has(asset.id) ? "border-[#6268d8] dark:border-[#a8abff]" : "border-transparent hover:border-[#c8ccef] dark:hover:border-[#60658f]"
+                            className={`group relative aspect-square min-w-0 overflow-hidden rounded-md border-2 bg-[#eef1f6] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d72d9] dark:bg-[#272e3c] ${
+                                selected.has(asset.id) ? "border-[#3d72d9] dark:border-[#8ab4ff]" : "border-transparent hover:border-[#bed0f0] dark:hover:border-[#546990]"
                             }`}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => onSelect(asset)}
@@ -73,7 +73,7 @@ export function CreativeAssetMentionPicker({ assets, selectedAssetIds, onSelect 
                 </div>
                 {scrollEdges.previous ? (
                     <span
-                        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-6 items-start justify-center bg-gradient-to-b from-white via-white/85 to-transparent pt-0.5 text-[#8b949f] dark:from-[#1f2328] dark:via-[#1f2328]/85 dark:text-[#929ca8]"
+                        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-6 items-start justify-center bg-gradient-to-b from-white via-white/85 to-transparent pt-0.5 text-[#8993a9] dark:from-[#1a202e] dark:via-[#1a202e]/85 dark:text-[#919bb1]"
                         aria-hidden="true"
                     >
                         <ChevronUp className="size-3.5" />
@@ -81,7 +81,7 @@ export function CreativeAssetMentionPicker({ assets, selectedAssetIds, onSelect 
                 ) : null}
                 {scrollEdges.next ? (
                     <span
-                        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex h-6 items-end justify-center bg-gradient-to-t from-white via-white/85 to-transparent pb-0.5 text-[#8b949f] dark:from-[#1f2328] dark:via-[#1f2328]/85 dark:text-[#929ca8]"
+                        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex h-6 items-end justify-center bg-gradient-to-t from-white via-white/85 to-transparent pb-0.5 text-[#8993a9] dark:from-[#1a202e] dark:via-[#1a202e]/85 dark:text-[#919bb1]"
                         aria-hidden="true"
                     >
                         <ChevronDown className="size-3.5" />
@@ -101,7 +101,7 @@ function TypeTab({ type, count, active, onClick }: { type: "image" | "video"; co
             role="tab"
             aria-selected={active}
             className={`flex h-7 min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                active ? "bg-white text-primary shadow-[0_1px_3px_rgba(32,36,42,0.09)] dark:bg-white/10" : "text-[#68727e] hover:bg-white/70 hover:text-[#303844] dark:text-[#aab3bd] dark:hover:bg-white/[0.07] dark:hover:text-white"
+                active ? "bg-white text-primary shadow-[0_1px_3px_rgba(32,36,42,0.09)] dark:bg-white/10" : "text-[#677185] hover:bg-white/70 hover:text-[#303746] dark:text-[#acb2bf] dark:hover:bg-white/[0.07] dark:hover:text-white"
             }`}
             onMouseDown={(event) => event.preventDefault()}
             onClick={onClick}
@@ -120,7 +120,7 @@ function AssetPreview({ asset }: { asset: CreativeAsset }) {
     if (asset.type === "video") return <VideoAssetPreview url={url} coverUrl={coverUrl} />;
     const Icon = asset.type === "audio" ? FileAudio : asset.type === "text" ? FileText : ImageIcon;
     return (
-        <span className="grid size-full place-items-center text-[#66717e] dark:text-[#aab3bf]">
+        <span className="grid size-full place-items-center text-[#667084] dark:text-[#acb2bf]">
             <Icon className="size-5" />
         </span>
     );
@@ -136,7 +136,7 @@ function VideoAssetPreview({ url, coverUrl }: { url?: string; coverUrl: string }
             {showCover ? <img src={imagePreviewUrl(coverUrl, 240)} alt="" className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.03]" onError={() => setCoverFailed(true)} /> : null}
             {showVideo ? <video src={url} muted playsInline preload="metadata" aria-hidden="true" className="size-full bg-black object-cover transition-transform duration-200 group-hover:scale-[1.03]" onError={() => setVideoFailed(true)} /> : null}
             {!showCover && !showVideo ? (
-                <span className="grid size-full place-items-center text-[#66717e] dark:text-[#aab3bf]">
+                <span className="grid size-full place-items-center text-[#667084] dark:text-[#acb2bf]">
                     <FileVideo className="size-5" />
                 </span>
             ) : null}

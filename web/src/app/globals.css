@@ -18,3 +18,6 @@
 @import "./styles/global-canvas-responsive.css";
 @import "./styles/global-admin-responsive.css";
 @import "./styles/global-admin-theme.css";
+/* 布鲁伽马换肤：token + 全站皮肤，只作用于 html.gm-app（画布编辑器不挂），必须在最后 */
+@import "../components/gamma-ui/gamma-tokens.css";
+@import "./styles/global-gamma-skin.css";

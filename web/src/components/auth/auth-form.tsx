@@ -11,6 +11,7 @@ import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import type { PublicSiteSettings } from "@/stores/use-public-session-store";
 import { resolveLoginDestination } from "@/lib/login-navigation";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
+import { useThemeStore } from "@/stores/use-theme-store";
 import { type LocalUser, useUserStore } from "@/stores/use-user-store";
 import { cn } from "@/lib/utils";
 
@@ -98,12 +99,20 @@ export function AuthForm({
     useEffect(() => {
         if (!educationLogin) return;
         const root = document.documentElement;
-        const restoreDarkTheme = root.classList.contains("dark");
+        const forceLight = () => {
+            if (root.classList.contains("dark")) root.classList.remove("dark");
+            if (root.style.colorScheme !== "light") root.style.colorScheme = "light";
+        };
         root.classList.add("auth-brand-light");
-        root.classList.remove("dark");
-        root.style.colorScheme = "light";
+        forceLight();
+        // 主题 store 水合后 AppProviders 会把 dark 加回来，品牌登录页挂载期间持续保持浅色
+        const observer = new MutationObserver(forceLight);
+        observer.observe(root, { attributes: true, attributeFilter: ["class", "style"] });
         return () => {
+            observer.disconnect();
             root.classList.remove("auth-brand-light");
+            // 离开时按用户真实主题还原（而不是挂载那一刻的 class，那时 store 可能还没水合）
+            const restoreDarkTheme = useThemeStore.getState().theme === "dark";
             root.classList.toggle("dark", restoreDarkTheme);
             root.style.colorScheme = restoreDarkTheme ? "dark" : "light";
         };

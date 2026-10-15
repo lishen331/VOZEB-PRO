@@ -81,7 +81,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PrivacyPage() {
     const site = await getPublicSiteSettings();
     return (
-        <main className="app-scroll-page bg-[#f7f8fa] text-stone-800 dark:bg-[#0f1114] dark:text-stone-200">
+        <main className="app-scroll-page bg-[#f5f8fe] text-stone-800 dark:bg-[#070c18] dark:text-stone-200">
             <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-8 sm:py-8">
                 <Link
                     href="/"
@@ -91,8 +91,8 @@ export default async function PrivacyPage() {
                     返回首页
                 </Link>
 
-                <article className="mt-5 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,.08)] dark:border-white/10 dark:bg-[#15181c] dark:shadow-black/30">
-                    <header className="bg-[#101211] px-5 py-8 text-white sm:px-9 sm:py-10">
+                <article className="mt-5 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,.08)] dark:border-white/10 dark:bg-[#0e1320] dark:shadow-black/30">
+                    <header className="bg-[#070c19] px-5 py-8 text-white sm:px-9 sm:py-10">
                         <div className="inline-flex items-center gap-2 text-sm font-medium text-emerald-200">
                             <ShieldCheck className="size-4" />
                             隐私与数据保护

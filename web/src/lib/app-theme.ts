@@ -44,12 +44,90 @@ const neutral = {
     },
 };
 
-export function getAntThemeConfig(dark: boolean): ThemeConfig {
-    const color = dark ? neutral.dark : neutral.light;
+/*
+ * 布鲁伽马品牌色（与 components/gamma-ui/gamma-tokens.css 同源）。
+ * 画布编辑器不走品牌主题，仍用上面的 neutral，保持定稿 UI。
+ */
+const gamma = {
+    light: {
+        primary: "#0050f5",
+        primaryHover: "#1663ff",
+        primaryText: "#ffffff",
+        menuBg: "rgba(0, 80, 245, 0.08)",
+        menuText: "#0050f5",
+        selectActiveBg: "rgba(16, 38, 84, 0.05)",
+        selectSelectedBg: "transparent",
+        selectText: "#0b1530",
+        selectBorder: "rgba(0, 80, 245, 0.45)",
+        selectOutline: "rgba(0, 80, 245, 0.12)",
+        selectShadow: "0 12px 32px rgba(16, 38, 84, 0.12), 0 2px 6px rgba(16, 38, 84, 0.05)",
+        tableSelectedBg: "rgba(0, 80, 245, 0.06)",
+        tableSelectedHoverBg: "rgba(0, 80, 245, 0.1)",
+        layoutBg: "#f3f6fb",
+        containerBg: "#ffffff",
+        elevatedBg: "#ffffff",
+        border: "rgba(16, 38, 84, 0.14)",
+        borderSecondary: "rgba(16, 38, 84, 0.08)",
+        text: "#0b1530",
+        textSecondary: "#46526e",
+        link: "#0047d9",
+        success: "#0f9f63",
+        warning: "#b86e00",
+        error: "#e5294b",
+    },
+    dark: {
+        primary: "#0050f5",
+        primaryHover: "#1663ff",
+        primaryText: "#ffffff",
+        menuBg: "rgba(40, 235, 250, 0.12)",
+        menuText: "#28ebfa",
+        selectActiveBg: "rgba(255, 255, 255, 0.06)",
+        selectSelectedBg: "transparent",
+        selectText: "#f1f5ff",
+        selectBorder: "rgba(40, 235, 250, 0.45)",
+        selectOutline: "rgba(40, 235, 250, 0.12)",
+        selectShadow: "0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3)",
+        tableSelectedBg: "rgba(40, 235, 250, 0.08)",
+        tableSelectedHoverBg: "rgba(40, 235, 250, 0.12)",
+        layoutBg: "#04060c",
+        containerBg: "#0d121e",
+        elevatedBg: "#131a29",
+        border: "rgba(140, 175, 255, 0.16)",
+        borderSecondary: "rgba(140, 175, 255, 0.08)",
+        text: "#f1f5ff",
+        textSecondary: "#9ba8c4",
+        link: "#6a9dff",
+        success: "#23d18b",
+        warning: "#ffb547",
+        error: "#ff4d6d",
+    },
+};
+
+const GAMMA_FONT_FAMILY = `"MiSans VF", "Inter Variable", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+
+function brandTokens(dark: boolean): ThemeConfig["token"] {
+    const color = dark ? gamma.dark : gamma.light;
+    return {
+        colorLink: color.link,
+        colorBgElevated: color.elevatedBg,
+        colorBorderSecondary: color.borderSecondary,
+        colorSuccess: color.success,
+        colorWarning: color.warning,
+        colorError: color.error,
+        fontFamily: GAMMA_FONT_FAMILY,
+        borderRadius: 10,
+        borderRadiusLG: 14,
+    };
+}
+
+/** brand=true 时用布鲁伽马品牌主题；默认（画布编辑器）保持原中性主题 */
+export function getAntThemeConfig(dark: boolean, options: { brand?: boolean } = {}): ThemeConfig {
+    const brand = options.brand === true;
+    const color = brand ? (dark ? gamma.dark : gamma.light) : dark ? neutral.dark : neutral.light;
 
     return {
         algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-        cssVar: { key: dark ? "vozeb-pro-dark" : "vozeb-pro-light" },
+        cssVar: { key: `${brand ? "bluegamma" : "vozeb-pro"}-${dark ? "dark" : "light"}` },
         token: {
             colorPrimary: color.primary,
             colorInfo: color.primary,
@@ -63,6 +141,7 @@ export function getAntThemeConfig(dark: boolean): ThemeConfig {
             colorText: color.text,
             colorTextSecondary: color.textSecondary,
             borderRadius: 8,
+            ...(brand ? brandTokens(dark) : {}),
         },
         components: {
             Button: {

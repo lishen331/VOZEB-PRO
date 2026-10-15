@@ -64,11 +64,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
     useLayoutEffect(() => {
         document.documentElement.classList.toggle("dark", dark);
+        // 布鲁伽马换肤只挂在非画布编辑器路由；画布编辑器保持定稿 UI（同步 public/theme-bootstrap.js）
+        document.documentElement.classList.toggle("gm-app", !isCanvasEditorRoute);
         document.documentElement.style.colorScheme = theme;
-    }, [dark, theme]);
+    }, [dark, isCanvasEditorRoute, theme]);
 
     return (
-        <ConfigProvider locale={zhCN} theme={getAntThemeConfig(dark)}>
+        <ConfigProvider locale={zhCN} theme={getAntThemeConfig(dark, { brand: !isCanvasEditorRoute })}>
             <App message={{ top: 84, duration: 2.4, maxCount: 3 }}>
                 <QueryClientProvider client={queryClient}>
                     <ClientRootInit>{children}</ClientRootInit>
