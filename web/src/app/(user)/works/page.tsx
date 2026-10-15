@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Input, Modal, Pagination, Segmented, Select, Tag } from "antd";
+import { App, Input, Modal, Select } from "antd";
+import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowUpFromLine, Ban, Compass, Copy, Eye, Film, GalleryVerticalEnd, Image as ImageIcon, Pencil, Plus, RefreshCw, Scale, Search, Send, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

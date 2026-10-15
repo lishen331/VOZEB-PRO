@@ -1,6 +1,7 @@
 "use client";
 
-import { Alert, Button, Checkbox, Empty, Image, Input, Modal, Space, Spin, Tabs, Tag, Select } from "antd";
+import { Image, Input, Modal, Space, Tabs, Select } from "antd";
+import { Alert, Button, Checkbox, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { uploadBindingVerificationReference } from "@/services/api/binding-verification-reference-upload";
 import { Upload } from "lucide-react";
 import { saveAs } from "file-saver";

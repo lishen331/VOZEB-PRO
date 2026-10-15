@@ -10,6 +10,7 @@ import { GammaChip, GammaTabs } from "@/components/gamma-ui/gamma-controls";
 import { GammaEmptyState } from "@/components/gamma-ui/gamma-overlays";
 import { GAMMA_SUBJECTS } from "@/components/gamma-ui/gamma-subjects";
 import { GAMMA_GALLERY } from "@/app/bluegamma/gamma-nav";
+import { cn } from "@/lib/utils";
 
 type FeedTab = "recommend" | "following" | "events";
 
@@ -22,7 +23,18 @@ const FEED_TABS = [
 const ALL = "all";
 
 /** 灵感广场（对标可灵首页下半屏）：推荐/关注/活动 + 搜索 + 专业筛选 + 瀑布流 */
-export function GammaPlaza({ onPreview, onRemix, onNotice }: { onPreview: (item: { src: string; title: string }) => void; onRemix: (prompt: string, slug: string) => void; onNotice: (message: string) => void }) {
+export function GammaPlaza({
+    onPreview,
+    onRemix,
+    onNotice,
+    compact = false,
+}: {
+    onPreview: (item: { src: string; title: string }) => void;
+    onRemix: (prompt: string, slug: string) => void;
+    onNotice: (message: string) => void;
+    /** 紧凑模式：无标题块、控件与筛选更密、瀑布流列数更多 */
+    compact?: boolean;
+}) {
     const [feedTab, setFeedTab] = useState<FeedTab>("recommend");
     const [filter, setFilter] = useState(ALL);
     const [query, setQuery] = useState("");
@@ -75,7 +87,7 @@ export function GammaPlaza({ onPreview, onRemix, onNotice }: { onPreview: (item:
         );
     } else {
         body = (
-            <div className="columns-2 gap-4 md:columns-3 xl:columns-5">
+            <div className={cn("columns-2 md:columns-3", compact ? "gap-3 lg:columns-4 xl:columns-5 2xl:columns-6 [&>*]:mb-3" : "gap-4 xl:columns-5")}>
                 <AnimatePresence>
                     {gallery.map((item) => (
                         <GammaWorkCard
@@ -99,26 +111,32 @@ export function GammaPlaza({ onPreview, onRemix, onNotice }: { onPreview: (item:
     }
 
     return (
-        <section id="plaza" aria-labelledby="plaza-title" className="flex scroll-mt-20 flex-col gap-4">
-            <div>
+        <section id="plaza" aria-labelledby="plaza-title" className={cn("flex scroll-mt-20 flex-col", compact ? "gap-2.5" : "gap-4")}>
+            {/* 紧凑模式（可灵版式）：去掉标题块，标题只给读屏 */}
+            <div className={compact ? "sr-only" : undefined}>
                 <h2 id="plaza-title" className="text-lg font-semibold">
                     作品广场
                 </h2>
                 <p className="mt-1 text-[13px] text-[var(--gm-text-3)]">来自 12 个专业的同学作品，喜欢就「做同款」</p>
             </div>
-            <div className="flex flex-wrap items-center gap-4">
+            <div className={cn("flex flex-wrap items-center", compact ? "gap-3" : "gap-4")}>
                 <GammaTabs label="广场分类" options={FEED_TABS} value={feedTab} onChange={setFeedTab} />
                 <span aria-hidden className="h-6 w-px bg-[var(--gm-border-strong)]" />
-                <label className="flex h-10 w-80 items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-3 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]">
+                <label
+                    className={cn(
+                        "flex w-80 items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-3 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]",
+                        compact ? "h-9" : "h-10",
+                    )}
+                >
                     <Search className="size-4 text-[var(--gm-text-3)]" />
                     <span className="sr-only">搜索作品</span>
                     <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索作品、专业、作者" className="h-full flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--gm-text-3)]" />
                 </label>
-                <GammaButton className="ml-auto" variant="outline" onClick={() => onNotice("发布功能即将上线")}>
+                <GammaButton className="ml-auto" variant="outline" size={compact ? "sm" : "md"} onClick={() => onNotice("发布功能即将上线")}>
                     发布作品
                 </GammaButton>
             </div>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="按专业筛选">
+            <div className={cn("flex gap-2", compact ? "hide-scrollbar flex-nowrap overflow-x-auto" : "flex-wrap")} role="group" aria-label="按专业筛选">
                 <GammaChip active={filter === ALL} onClick={() => setFilter(ALL)}>
                     发现
                 </GammaChip>

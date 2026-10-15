@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Empty, Input, Modal, Segmented, Spin } from "antd";
+import { Input, Modal } from "antd";
+import { Button, Empty, Segmented, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Save } from "lucide-react";
 
 import { buildSubtitleCues, formatTimelineTime } from "../subtitle";

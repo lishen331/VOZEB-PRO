@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { App, Button, Modal, Segmented, Tooltip } from "antd";
+import { App, Modal, Tooltip } from "antd";
+import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { CalendarDays, Copy, CopyPlus, Eye, ImagePlus, LoaderCircle, Share2, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

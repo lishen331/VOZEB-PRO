@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Button, Input, Modal, Select, Table, Tag } from "antd";
+import { App, Input, Modal, Select, Table } from "antd";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { AlertTriangle, FileUp, RefreshCw, Search } from "lucide-react";
 

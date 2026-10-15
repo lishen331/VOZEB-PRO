@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, Tree, message } from "antd";
+import { Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tree, message } from "antd";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Edit3, Plus, Power, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

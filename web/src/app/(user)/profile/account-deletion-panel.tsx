@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { App, Button, Input, Modal, Popconfirm, Tag } from "antd";
+import { App, Input, Modal, Popconfirm } from "antd";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RotateCcw, UserRoundX } from "lucide-react";
 
 import type { AccountDeletionRequestStatus, AccountDeletionRequestView } from "@/lib/account-deletion-contract";

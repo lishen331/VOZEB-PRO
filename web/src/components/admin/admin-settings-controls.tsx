@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Switch } from "antd";
+import { Switch } from "@/components/gamma-ui/gamma-ant";
 
 export function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
     return (

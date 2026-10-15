@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Checkbox, Empty, Image, Input, Popconfirm, Select, Switch, Tag, Tooltip, message } from "antd";
+import { Image, Input, Popconfirm, Select, Tooltip, message } from "antd";
+import { Button, Checkbox, Empty, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Aperture, ArrowUpToLine, Clapperboard, FileText, Film, ImageIcon, Link2, LoaderCircle, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";

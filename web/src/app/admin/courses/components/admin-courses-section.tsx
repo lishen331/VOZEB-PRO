@@ -1,7 +1,8 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, AutoComplete, Button, DatePicker, Form, Input, Modal, Pagination, Select, Table, Tag } from "antd";
+import { App, AutoComplete, DatePicker, Form, Input, Modal, Select, Table } from "antd";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import dayjs from "dayjs";
 import { BookOpen, GitBranch, Pencil, Plus, RefreshCw, RotateCcw, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";

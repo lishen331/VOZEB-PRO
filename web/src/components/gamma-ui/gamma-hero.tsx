@@ -38,7 +38,7 @@ export function GammaBannerCarousel({ slides }: { slides: readonly GammaBannerSl
             aria-label="活动推荐"
             onPointerEnter={() => setPaused(true)}
             onPointerLeave={() => setPaused(false)}
-            className="gm-on-dark relative isolate h-[200px] overflow-hidden rounded-[var(--gm-radius-xl)] bg-[#04060c] ring-1 ring-[var(--gm-border)]"
+            className="gm-on-dark relative isolate h-[176px] overflow-hidden rounded-[var(--gm-radius-xl)] bg-[#04060c] ring-1 ring-[var(--gm-border)]"
         >
             <AnimatePresence initial={false}>
                 <motion.div key={slide.key} className="absolute inset-0 -z-[1]" initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}>
@@ -48,17 +48,17 @@ export function GammaBannerCarousel({ slides }: { slides: readonly GammaBannerSl
                     <div aria-hidden className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_100%,var(--gm-banner-glow),transparent_55%)]" />
                 </motion.div>
             </AnimatePresence>
-            <div className="flex h-full max-w-[54%] flex-col justify-center gap-0 px-10 pb-8" aria-live="polite">
+            <div className="flex h-full max-w-[54%] flex-col justify-center px-8 pb-6" aria-live="polite">
                 <AnimatePresence mode="wait" initial={false}>
-                    <motion.div key={slide.key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35 }} className="flex flex-col gap-2.5">
-                        <span className="text-xs font-medium tracking-[0.18em] text-[var(--gm-cyan)] uppercase drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">{slide.eyebrow}</span>
-                        <h2 className="text-[24px] leading-snug font-semibold text-balance text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">{slide.title}</h2>
+                    <motion.div key={slide.key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35 }} className="flex flex-col gap-2">
+                        <span className="text-[11px] font-medium tracking-[0.18em] text-[var(--gm-cyan)] uppercase drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">{slide.eyebrow}</span>
+                        <h2 className="text-[22px] leading-tight font-semibold text-balance text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">{slide.title}</h2>
                         <p className="text-[13px] text-white/75 drop-shadow-[0_1px_6px_rgba(0,0,0,0.5)]">{slide.description}</p>
-                        {slide.action ? <div className="mt-1.5">{slide.action}</div> : null}
+                        {slide.action ? <div className="mt-1">{slide.action}</div> : null}
                     </motion.div>
                 </AnimatePresence>
             </div>
-            <div className="absolute bottom-5 left-10 flex gap-2">
+            <div className="absolute bottom-4 left-8 flex gap-2">
                 {slides.map((item, itemIndex) => {
                     const current = itemIndex === index;
                     return (
@@ -87,7 +87,7 @@ export function GammaPromoCard({ title, description, cover, onClick }: { title: 
         <button
             type="button"
             onClick={onClick}
-            className="group relative isolate flex h-[200px] w-full overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface-light)] text-left text-[var(--gm-inverse-text)] ring-1 ring-[var(--gm-border-strong)] transition-shadow hover:shadow-[var(--gm-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+            className="group relative isolate flex h-[176px] w-full overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface-light)] text-left text-[var(--gm-inverse-text)] ring-1 ring-[var(--gm-border-strong)] transition-shadow hover:shadow-[var(--gm-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
         >
             {/* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材 */}
             <img src={cover} alt="" aria-hidden className="absolute inset-y-0 right-0 -z-[1] h-full w-1/2 object-cover transition-transform duration-700 [mask-image:linear-gradient(90deg,transparent,#000_40%)] group-hover:scale-105" />

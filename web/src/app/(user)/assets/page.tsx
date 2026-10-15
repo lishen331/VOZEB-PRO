@@ -2,7 +2,8 @@
 
 import { FileAudio, FileDown, FileUp, Film, Plus, Search, Upload } from "lucide-react";
 import { useRef, useState, type DragEvent as ReactDragEvent } from "react";
-import { App, Button, Form, Input, Modal, Pagination, Segmented, Select, Space, Spin, Tag, Tooltip, Typography } from "antd";
+import { App, Form, Input, Modal, Select, Space, Tooltip, Typography } from "antd";
+import { Button, Pagination, Segmented, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { saveAs } from "file-saver";
 import { useRouter } from "next/navigation";
 

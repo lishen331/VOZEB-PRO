@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Popconfirm } from "antd";
+import { Popconfirm } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { AudioLines, FileText, Film, Image as ImageIcon, RotateCcw, Trash2 } from "lucide-react";
 
 import type { PracticeSession } from "@/services/api/practice";

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Drawer } from "antd";
+import { Drawer } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { ListTree, X } from "lucide-react";
 
 import type { DramaEpisode, DramaProject, DramaShot } from "../types";

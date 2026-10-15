@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Input, Pagination, Tag } from "antd";
+import { App, Input } from "antd";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Clock3, Gift, RefreshCw, TicketPercent } from "lucide-react";
 
 import { claimBillingCoupon, type CouponTemplate, type UserCoupon } from "@/services/api/billing";

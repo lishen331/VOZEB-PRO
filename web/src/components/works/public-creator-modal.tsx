@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Button, Modal } from "antd";
+import { Modal } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 

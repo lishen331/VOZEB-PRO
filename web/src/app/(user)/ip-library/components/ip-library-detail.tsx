@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Image as AntImage, Modal, Spin, Tag } from "antd";
+import { App, Image as AntImage, Modal } from "antd";
+import { Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { BookOpen, Boxes, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

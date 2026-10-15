@@ -1,5 +1,6 @@
 "use client";
-import { Alert, Button, Space } from "antd";
+import { Space } from "antd";
+import { Alert, Button } from "@/components/gamma-ui/gamma-ant";
 import { useState } from "react";
 import type { CreativeAgentRun } from "@/services/api/creative";
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Input, Modal, QRCode, Tag, Tooltip } from "antd";
+import { App, Input, Modal, QRCode, Tooltip } from "antd";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Copy, KeyRound, ShieldCheck, ShieldOff } from "lucide-react";
 
 import { useCopyText } from "@/hooks/use-copy-text";

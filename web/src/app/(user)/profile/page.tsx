@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { App, Button, Input, Pagination } from "antd";
+import { App, Input } from "antd";
+import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import { saveAs } from "file-saver";
 import { CreditCard, Download, History, ReceiptText, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
 

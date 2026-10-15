@@ -1,7 +1,8 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Table, Tag } from "antd";
+import { App, Drawer, Form, Input, InputNumber, Modal, Select, Table } from "antd";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";

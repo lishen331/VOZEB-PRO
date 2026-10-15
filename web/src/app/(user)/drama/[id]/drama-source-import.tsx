@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { App, Button, Input, Modal, Pagination } from "antd";
+import { App, Input, Modal } from "antd";
+import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import { BookOpenText, FileText, Search } from "lucide-react";
 
 import { splitDramaSource, type DramaSourceEpisodeDraft } from "@/lib/drama-source-splitter";

@@ -4,7 +4,8 @@ import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 
-import { Button, Checkbox, Image, Input, Modal, Progress, Tabs, Tooltip } from "antd";
+import { Image, Input, Modal, Progress, Tabs, Tooltip } from "antd";
+import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 import type { MessageInstance } from "antd/es/message/interface";
 import { Check, CheckCircle2, CircleAlert, Download, ImagePlus, LibraryBig, LoaderCircle, MapPin, Package, PanelsTopLeft, Plus, Search, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";

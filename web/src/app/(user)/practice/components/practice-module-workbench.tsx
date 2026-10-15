@@ -1,7 +1,8 @@
 "use client";
 import styles from "./practice-workbench.module.css";
 
-import { App, Button, Empty, Input, Spin } from "antd";
+import { App, Input } from "antd";
+import { Button, Empty, Spin } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, BookOpen, Box, Film, Image, Mic2, Music2, PanelsTopLeft, RefreshCw, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";

@@ -1,6 +1,7 @@
 "use client";
 
-import { Alert, App, Button, Checkbox, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
+import { App, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
+import { Alert, Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { RunningHubWorkflowAdapterType, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";

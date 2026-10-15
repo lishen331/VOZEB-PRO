@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { App, Button, Empty, Spin } from "antd";
+import { App } from "antd";
+import { Button, Empty, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Box, Clapperboard, Film, Image, Maximize2, Mic2, PanelsTopLeft, Plus, ScrollText, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 

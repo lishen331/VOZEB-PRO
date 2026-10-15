@@ -2,7 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Select, Segmented, Space, Switch, Table, Tag } from "antd";
+import { App, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Table } from "antd";
+import { Button, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { AlertTriangle, CheckCircle2, CircleDollarSign, Copy, CreditCard, FileText, FileUp, Landmark, Package, Plus, QrCode, ReceiptText, RefreshCw, Save, Search, Settings2, Undo2, WalletCards, XCircle } from "lucide-react";

@@ -1,4 +1,5 @@
-import { Tag, Tooltip } from "antd";
+import { Tooltip } from "antd";
+import { Tag } from "@/components/gamma-ui/gamma-ant";
 
 import type { AdminGenerationTask } from "@/lib/admin-generation-operations";
 import { generationOperationThemeClasses } from "./generation-operations-theme";

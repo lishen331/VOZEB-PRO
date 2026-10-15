@@ -6,7 +6,8 @@ import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { buildAdminSettingsPatch, resolveAdminSettingsAccess } from "@/components/admin/admin-settings-access";
 import { LabeledControl, SectionTitle, SettingInlineToggle, SettingToggle } from "@/components/admin/admin-settings-controls";
 import { SiteLogoPreview, SiteSettingStatus, siteSocialItems } from "@/components/admin/admin-site-preview";
-import { Button, Input, InputNumber, Switch, Tag } from "antd";
+import { Input, InputNumber } from "antd";
+import { Button, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Database, Globe2, Image as ImageIcon, Mail, Plus, Save, Search, Send, SlidersHorizontal, Sparkles, Trash2, Upload, UserCog } from "lucide-react";
 
 import { SettingsAnchorItem, SettingsStatusTile } from "./admin-dashboard-elements";

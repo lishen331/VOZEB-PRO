@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Popover } from "antd";
+import { Popover } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Check, Orbit } from "lucide-react";
 import { useState } from "react";
 

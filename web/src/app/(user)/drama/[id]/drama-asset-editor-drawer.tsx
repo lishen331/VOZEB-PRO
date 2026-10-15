@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Drawer, Image, Input, InputNumber, Modal, Popconfirm, Popover, Space, Tooltip } from "antd";
+import { App, Drawer, Image, Input, InputNumber, Modal, Popconfirm, Popover, Space, Tooltip } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Check, FolderInput, ImagePlus, Sparkles, Trash2, Upload } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";

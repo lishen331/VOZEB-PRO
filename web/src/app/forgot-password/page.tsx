@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { loginHref, safeLoginNextPath } from "@/lib/login-navigation";
 import Link from "next/link";
-import { App, Button, Input } from "antd";
+import { App, Input } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Mail } from "lucide-react";
 
 export default function ForgotPasswordPage() {

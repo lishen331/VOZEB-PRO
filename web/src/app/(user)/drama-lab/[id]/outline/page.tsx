@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table, Image as AntImage } from "antd";
+import { Input, Select, Form, Card, Modal, message, Tabs, Upload as AntUpload, Steps, Table, Image as AntImage } from "antd";
+import { Button, Empty } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X, CheckSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";

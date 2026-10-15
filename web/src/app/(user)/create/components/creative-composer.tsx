@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Input, Popover, Tooltip } from "antd";
+import { Input, Popover, Tooltip } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import type { TextAreaRef } from "antd/es/input/TextArea";
 import { ArrowUp, AtSign, Boxes, Check, ChevronDown, ChevronLeft, ChevronRight, FileAudio, FileVideo, ImageIcon, Plus, Sparkles, Square, WandSparkles, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MouseEventHandler, type PointerEventHandler, type RefObject, type WheelEvent } from "react";

@@ -4,7 +4,8 @@ import type { FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Gift, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
-import { App, Button, Checkbox, Input } from "antd";
+import { App, Input } from "antd";
+import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 
 import { SiteLogo } from "@/components/layout/site-logo";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";

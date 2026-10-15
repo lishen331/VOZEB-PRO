@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Input, Modal, Select, Spin, Tag } from "antd";
+import { App, Input, Modal, Select } from "antd";
+import { Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowRight, Film, Plus, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

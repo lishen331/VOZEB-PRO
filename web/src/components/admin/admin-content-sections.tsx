@@ -2,7 +2,8 @@
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
-import { Button, Checkbox, DatePicker, Input, Modal, Pagination, Popconfirm, Space, Switch, Table, Tag } from "antd";
+import { DatePicker, Input, Modal, Popconfirm, Space, Table } from "antd";
+import { Button, Checkbox, Pagination, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import dayjs from "dayjs";
 import { Database, ExternalLink, Plus, RefreshCw, Save, Search, Trash2 } from "lucide-react";
 

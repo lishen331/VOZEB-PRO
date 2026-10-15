@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Empty, Input, Modal, Pagination, Segmented } from "antd";
+import { Input, Modal } from "antd";
+import { Button, Empty, Pagination, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { useEffect, useState } from "react";
 import { listOfficialWorkMedia, type OfficialWorkMedia, type WorkPublicationMediaType } from "@/services/api/work-publications";
 

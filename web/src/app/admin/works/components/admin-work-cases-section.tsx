@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Input, Modal, Pagination, Select, Tag } from "antd";
+import { App, Input, Modal, Select } from "antd";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Check, Eye, RefreshCw, Search, ShieldAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

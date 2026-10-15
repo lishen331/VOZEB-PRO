@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Empty, Input, Pagination, Segmented, Spin } from "antd";
+import { App, Input } from "antd";
+import { Empty, Pagination, Segmented, Spin } from "@/components/gamma-ui/gamma-ant";
 import { BookOpen, Search } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useState } from "react";

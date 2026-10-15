@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Sparkles } from "lucide-react";
 
 import type { DramaEpisode, DramaProject, DramaShot } from "../types";

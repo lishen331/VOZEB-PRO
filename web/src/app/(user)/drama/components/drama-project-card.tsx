@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Popconfirm, Tag, Tooltip } from "antd";
+import { App, Popconfirm, Tooltip } from "antd";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowUpRight, Clapperboard, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

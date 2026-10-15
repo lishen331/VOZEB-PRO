@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Button, Form, Input, InputNumber, Modal, Pagination, Segmented, Select, Switch, Tag } from "antd";
+import { App, Form, Input, InputNumber, Modal, Select } from "antd";
+import { Button, Pagination, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RefreshCw, Save, Settings2, ShieldCheck, Sparkles, UserPlus } from "lucide-react";
 
 import { AdminAccountId } from "@/components/admin/admin-user-identity";

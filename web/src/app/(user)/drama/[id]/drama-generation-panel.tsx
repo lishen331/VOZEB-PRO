@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { App, Button, Progress, Tag } from "antd";
+import { App, Progress } from "antd";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowRight, Captions, CircleAlert, CircleCheck, CircleDashed, Download, Film, LoaderCircle, Pause, Play, RefreshCw, ScanSearch, Send, Volume2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 

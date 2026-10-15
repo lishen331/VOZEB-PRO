@@ -1,6 +1,6 @@
 "use client";
 
-import { Segmented } from "antd";
+import { Segmented } from "@/components/gamma-ui/gamma-ant";
 
 import { LabeledControl } from "@/components/admin/admin-settings-controls";
 import type { SystemModelChannel } from "@/lib/auth/store";

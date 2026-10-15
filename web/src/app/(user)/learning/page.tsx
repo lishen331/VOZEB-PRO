@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Checkbox, Drawer, Form, Input, Pagination, Spin, Tabs, Tag } from "antd";
+import { App, Drawer, Form, Input, Tabs } from "antd";
+import { Button, Checkbox, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CheckCircle2, ClipboardList, Clock, Eye, RefreshCw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { App, Button, Input, InputNumber, Modal, Segmented } from "antd";
+import { App, Input, InputNumber, Modal } from "antd";
+import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { Clapperboard, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/stores/use-user-store";

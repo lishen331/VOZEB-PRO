@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { App, Button, Empty } from "antd";
+import { App } from "antd";
+import { Button, Empty } from "@/components/gamma-ui/gamma-ant";
 import { ArrowRight, History } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useParams, useRouter } from "next/navigation";

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Button, Input, Modal, Pagination } from "antd";
+import { Input, Modal } from "antd";
+import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import type { MessageInstance } from "antd/es/message/interface";
 import { BookOpenText, FileText, Search } from "lucide-react";
 

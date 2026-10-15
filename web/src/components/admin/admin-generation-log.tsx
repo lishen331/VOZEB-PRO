@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Checkbox, Popconfirm, Tag } from "antd";
+import { Popconfirm } from "antd";
+import { Button, Checkbox, Tag } from "@/components/gamma-ui/gamma-ant";
 import { AudioLines, Eye, Film, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
 import { browserReadableMediaUrl } from "@/lib/browser-media-url";

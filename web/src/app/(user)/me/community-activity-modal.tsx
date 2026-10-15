@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Modal, Pagination, Spin } from "antd";
+import { App, Modal } from "antd";
+import { Button, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Ban, Heart, UserMinus, Video } from "lucide-react";
 import { useEffect, useState } from "react";
 

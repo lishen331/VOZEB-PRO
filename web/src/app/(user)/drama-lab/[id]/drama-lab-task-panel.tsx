@@ -1,6 +1,7 @@
 "use client";
 
-import { Alert, Button, Progress, Tag, message } from "antd";
+import { Progress, message } from "antd";
+import { Alert, Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CheckCircle2, ChevronUp, CircleAlert, LoaderCircle, PauseCircle, RefreshCw, Square, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Spin } from "antd";
+import { Alert, Spin } from "@/components/gamma-ui/gamma-ant";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 

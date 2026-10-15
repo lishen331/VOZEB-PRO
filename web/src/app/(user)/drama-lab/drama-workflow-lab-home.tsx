@@ -1,6 +1,7 @@
 "use client";
 
-import { Alert, App, Button, Input, Modal, Select, Spin, Tag } from "antd";
+import { App, Input, Modal, Select } from "antd";
+import { Alert, Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowRight, Clapperboard, Download, FlaskConical, Pencil, Plus, RefreshCcw, Trash2, Upload, UserRound, Image as ImageIcon, Box } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";

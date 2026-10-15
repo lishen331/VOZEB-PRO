@@ -1,7 +1,8 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Button, Input, InputNumber, Modal, Pagination, Segmented, Select, Table, Tag } from "antd";
+import { App, Input, InputNumber, Modal, Select, Table } from "antd";
+import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, RefreshCw, WalletCards } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

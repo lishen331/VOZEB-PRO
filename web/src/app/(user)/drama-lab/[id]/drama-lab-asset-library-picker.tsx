@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Empty, Image, Input, Modal, Pagination, Spin } from "antd";
+import { Image, Input, Modal } from "antd";
+import { Button, Empty, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 import { useEffect, useRef, useState } from "react";
 
 import type { Asset } from "@/lib/library-asset-contract";

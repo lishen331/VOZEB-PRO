@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Input, InputNumber, Segmented, Tag } from "antd";
+import { Input, InputNumber } from "antd";
+import { Button, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ChevronDown, MessageSquareText, Volume1 } from "lucide-react";
 
 import { useDramaStore } from "../stores/use-drama-store";
@@ -131,7 +132,7 @@ export function DramaStoryboardShotCard({ project, episodeId, shot, expanded, on
                                 <span className="text-sm font-medium">视频生成方式</span>
                                 <Segmented
                                     block
-                                    className="!min-w-0 !w-full [&_.ant-segmented-group]:!min-w-0 [&_.ant-segmented-item]:!min-w-0 [&_.ant-segmented-item-label]:!truncate [&_.ant-segmented-item-label]:!px-1.5 sm:[&_.ant-segmented-item-label]:!px-2"
+                                    className="!min-w-0 !w-full [&_.gm-segmented-item]:!min-w-0 [&_.gm-segmented-item-label]:!truncate [&_.gm-segmented-item-label]:!px-1.5 sm:[&_.gm-segmented-item-label]:!px-2"
                                     value={shot.videoMode || project.defaultVideoMode}
                                     options={[
                                         { label: "分镜驱动", value: "storyboard" },

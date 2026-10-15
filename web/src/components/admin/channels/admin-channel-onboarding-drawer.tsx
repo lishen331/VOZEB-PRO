@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { App, Button, Drawer, Empty, Input, Select, Space, Switch, Tag } from "antd";
+import { App, Drawer, Input, Select, Space } from "antd";
+import { Button, Empty, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Check, CircleDollarSign, Info, Link2, PlugZap, RefreshCw, Save, WandSparkles } from "lucide-react";
 
 import { AdminChannelProtocolSetup } from "@/components/admin/admin-channel-protocol-setup";

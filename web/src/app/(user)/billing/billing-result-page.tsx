@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Spin, Tag } from "antd";
+import { Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, CheckCircle2, Clock3, ReceiptText, RefreshCw, RotateCcw, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
