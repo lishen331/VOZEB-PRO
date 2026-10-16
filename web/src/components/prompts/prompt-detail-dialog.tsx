@@ -1,7 +1,8 @@
 "use client";
 
 import { Copy, FolderPlus } from "lucide-react";
-import { Modal, Space } from "antd";
+import { Modal } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 
 import { LazyMediaImage } from "@/components/media/lazy-media-image";

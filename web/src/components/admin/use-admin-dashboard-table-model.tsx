@@ -5,7 +5,7 @@ import { adminSections } from "@/components/admin/admin-section-nav";
 import type { AdminSectionKey } from "@/components/admin/admin-sections";
 import { toNumberOrZero } from "@/components/admin/admin-values";
 import type { TableColumnsType } from "antd";
-import { Space } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Eye, SlidersHorizontal, Trash2 } from "lucide-react";

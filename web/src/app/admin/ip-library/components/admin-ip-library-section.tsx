@@ -1,7 +1,8 @@
 "use client";
 
 import type { FormInstance, TableColumnsType } from "antd";
-import { App, Checkbox, Form, Modal, Select, Space, Table } from "antd";
+import { App, Checkbox, Form, Modal, Select, Table } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";

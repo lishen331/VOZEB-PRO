@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { Alert, Button, Checkbox, Empty, Pagination, Segmented, Spin, Switch, Tag } from "./gamma-ant";
 import { Input, InputNumber } from "./gamma-ant-input";
 import { Popconfirm, Tabs, Tooltip } from "./gamma-ant-overlay";
+import { Card, Collapse, Progress, Radio, Space, Steps } from "./gamma-ant-display";
 
 const html = (node: React.ReactElement) => renderToStaticMarkup(node);
 
@@ -128,5 +129,39 @@ describe("gamma-ant 兼容层：与 antd 同 API", () => {
         expect(markup).toContain("面板乙");
         expect(markup).not.toContain("面板甲");
         expect(markup).toContain('role="tabpanel"');
+    });
+
+    it("展示类：Space 跳过空子元素、Card 标题栏、Progress 夹取百分比、Steps 当前步", () => {
+        expect(
+            html(
+                <Space size={[4, 8]}>
+                    <span>a</span>
+                    {null}
+                    {false}
+                    <span>b</span>
+                </Space>,
+            ),
+        ).toMatch(/column-gap:4px;row-gap:8px[^>]*><span>a<\/span><span>b<\/span><\/div>$/);
+        expect(
+            html(
+                <Card title="标题" extra={<i>x</i>}>
+                    内容
+                </Card>,
+            ),
+        ).toMatch(/<header[^>]*>.*标题.*<i>x<\/i>.*<\/header><div class="p-5">内容<\/div>/);
+        expect(html(<Progress percent={140} showInfo />)).toContain('aria-valuenow="100"');
+        expect(html(<Steps current={1} items={[{ title: "一" }, { title: "二" }]} />)).toMatch(/aria-current="step"[\s\S]*二/);
+    });
+
+    it("Radio.Group：受控 value 选中对应项；Collapse 默认收起", () => {
+        const markup = html(
+            <Radio.Group value="b" onChange={() => {}}>
+                <Radio value="a">甲</Radio>
+                <Radio value="b">乙</Radio>
+            </Radio.Group>,
+        );
+        expect(markup.match(/checked=""/g)).toHaveLength(1);
+        expect(markup).toMatch(/checked=""[\s\S]*乙/);
+        expect(html(<Collapse items={[{ key: "x", label: "章节", children: <p>正文</p> }]} />)).not.toContain("正文");
     });
 });

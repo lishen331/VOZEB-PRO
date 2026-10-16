@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Collapse, Drawer, Select, Space } from "antd";
+import { App, Drawer, Select } from "antd";
+import { Collapse, Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox } from "@/components/gamma-ui/gamma-ant";

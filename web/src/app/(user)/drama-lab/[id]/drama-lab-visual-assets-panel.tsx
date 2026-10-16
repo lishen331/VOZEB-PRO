@@ -4,7 +4,8 @@ import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 
-import { Image, Modal, Progress } from "antd";
+import { Image, Modal } from "antd";
+import { Progress } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";

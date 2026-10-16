@@ -1,6 +1,7 @@
 "use client";
 
-import { Image, Modal, Space, Select } from "antd";
+import { Image, Modal, Select } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";

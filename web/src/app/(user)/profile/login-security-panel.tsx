@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Skeleton } from "antd";
+import { App } from "antd";
+import { Skeleton } from "@/components/gamma-ui/gamma-ant-display";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { History, MonitorSmartphone, RefreshCw, Wifi } from "lucide-react";
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { Drawer, Space } from "antd";
+import { Drawer } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RefreshCw } from "lucide-react";

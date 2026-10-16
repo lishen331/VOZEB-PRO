@@ -1,5 +1,6 @@
 "use client";
-import { App, Slider } from "antd";
+import { App } from "antd";
+import { Slider } from "@/components/gamma-ui/gamma-ant-display";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Mic2 } from "lucide-react";

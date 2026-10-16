@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Drawer, Image, Modal, Popover, Space } from "antd";
+import { App, Drawer, Image, Modal, Popover } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
