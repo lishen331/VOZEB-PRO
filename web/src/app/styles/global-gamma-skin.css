@@ -198,6 +198,14 @@ html.gm-app a[class*="text-"] {
     color: revert-layer;
 }
 
+/*
+ * 同理（实测命中）：antd/dist/reset.css 未分层的 `button, input, select, textarea { color: inherit; font: inherit }`
+ * 压过 Tailwind 的 text-*，gamma 组件按钮的文字色在真实站点上丢失（预览页靠 .gm 作用域的 revert-layer 规则兜住）。
+ * 只对显式写了 text-* 的原生按钮交还给 utilities 层，antd 自己的 .ant-btn 由 cssinjs 控制，不受影响。
+ */
+html.gm-app button[class*="text-"]:not(.ant-btn) {
+    color: revert-layer;
+}
 /* ===== antd 组件皮肤（token 表达不了的部分）===== */
 
 /* 主按钮：品牌渐变 + 蓝色辉光，与 GammaButton primary 一致 */
