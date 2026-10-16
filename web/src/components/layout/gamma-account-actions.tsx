@@ -1,15 +1,16 @@
 "use client";
 
-import { Crown, LogIn, LogOut, Moon, Settings, Sun, UserRound, Zap } from "lucide-react";
+import { CircleHelp, Crown, Gift, History, LogIn, LogOut, Moon, Settings, Sun, UserRound, Zap } from "lucide-react";
 
 import { GammaMenu } from "@/components/gamma-ui/gamma-overlays";
+import { AnnouncementNotificationCenter } from "@/components/layout/announcement-notification-center";
 import { cn } from "@/lib/utils";
 import { userAvatarFallback } from "@/lib/user-avatar";
 import type { LocalUser } from "@/stores/use-user-store";
 
 /*
- * 新首页侧栏底部操作区（真实数据版）：
- *   已登录 → 积分卡（真实余额）+ 主题切换 + 账户菜单（个人中心 / 套餐 / 退出）
+ * 布鲁伽马侧栏底部的账户操作区（首页与工作空间共用，替代旧版顶栏右上角）：
+ *   已登录 → 积分卡（真实余额 + 升级）+ 通知 / 帮助 / 主题 + 账户菜单（个人中心 / 套餐 / 积分记录 / 管理后台 / 退出）
  *   未登录 → 一张「登录 / 注册」卡
  * 签到功能已下线（/api/check-in 返回 410），这里不再出现。
  */
@@ -28,16 +29,20 @@ function Tip({ children }: { children: string }) {
     );
 }
 
-export interface GammaHomeSidebarActionsProps {
+export interface GammaAccountActionsProps {
     collapsed: boolean;
     /** 未登录时为 null */
     user: LocalUser | null;
     /** 会话是否已拉取完成（未完成时不闪「登录」卡） */
     ready: boolean;
     dark: boolean;
+    /** 帮助中心模块开启且当前角色有权限时才显示帮助按钮 */
+    showHelp?: boolean;
     onToggleTheme: () => void;
     onLogin: () => void;
     onPlans: () => void;
+    /** CDK 兑换积分 */
+    onRedeem?: () => void;
     onOpen: (path: string) => void;
     onLogout: () => void;
 }
@@ -54,11 +59,26 @@ function ThemeButton({ dark, onToggle }: { dark: boolean; onToggle: () => void }
     );
 }
 
+function HelpButton({ onOpen }: { onOpen: (path: string) => void }) {
+    return (
+        <button type="button" onClick={() => onOpen("/help")} aria-label="帮助中心" className={ICON_BTN}>
+            <CircleHelp />
+            <Tip>帮助中心</Tip>
+        </button>
+    );
+}
+
+/** 通知中心沿用原组件（公告 + 互动消息弹窗），只换按钮外观 */
+function NotificationButton() {
+    return <AnnouncementNotificationCenter compact={false} buttonClassName={ICON_BTN} />;
+}
+
 /** 未登录：登录 / 注册卡；收起时只剩一个登录图标 */
-function GuestCard({ collapsed, dark, onToggleTheme, onLogin }: Pick<GammaHomeSidebarActionsProps, "collapsed" | "dark" | "onToggleTheme" | "onLogin">) {
+function GuestCard({ collapsed, dark, showHelp, onToggleTheme, onLogin, onOpen }: Pick<GammaAccountActionsProps, "collapsed" | "dark" | "showHelp" | "onToggleTheme" | "onLogin" | "onOpen">) {
     if (collapsed) {
         return (
             <div className="flex flex-col items-center gap-1">
+                {showHelp ? <HelpButton onOpen={onOpen} /> : null}
                 <ThemeButton dark={dark} onToggle={onToggleTheme} />
                 <button type="button" onClick={onLogin} aria-label="登录 / 注册" className={cn(ICON_BTN, "text-[var(--gm-accent)]")}>
                     <LogIn />
@@ -69,7 +89,8 @@ function GuestCard({ collapsed, dark, onToggleTheme, onLogin }: Pick<GammaHomeSi
     }
     return (
         <div className="flex flex-col gap-2">
-            <div className="flex justify-end px-0.5">
+            <div className="flex justify-end gap-0.5 px-0.5">
+                {showHelp ? <HelpButton onOpen={onOpen} /> : null}
                 <ThemeButton dark={dark} onToggle={onToggleTheme} />
             </div>
             <div className="rounded-[12px] bg-[var(--gm-wash)] p-3 ring-1 ring-[var(--gm-border)]">
@@ -100,8 +121,8 @@ function Avatar({ user }: { user: LocalUser }) {
     );
 }
 
-export function GammaHomeSidebarActions(props: GammaHomeSidebarActionsProps) {
-    const { collapsed, user, ready, dark, onToggleTheme, onPlans, onOpen, onLogout } = props;
+export function GammaAccountActions(props: GammaAccountActionsProps) {
+    const { collapsed, user, ready, dark, showHelp = false, onToggleTheme, onPlans, onRedeem, onOpen, onLogout } = props;
     // 会话未就绪：只占位，避免已登录用户先看到一闪而过的「登录」卡
     if (!ready) return <div aria-hidden className={collapsed ? "h-24" : "h-32"} />;
     if (!user) return <GuestCard {...props} />;
@@ -110,10 +131,19 @@ export function GammaHomeSidebarActions(props: GammaHomeSidebarActionsProps) {
     const accountItems = [
         { key: "profile", label: "个人中心", icon: <UserRound />, onSelect: () => onOpen("/profile") },
         { key: "plans", label: "套餐与积分", icon: <Crown />, onSelect: onPlans },
+        { key: "points", label: "积分记录", icon: <History />, onSelect: () => onOpen("/profile?section=points") },
+        ...(onRedeem ? [{ key: "redeem", label: "CDK 兑换", icon: <Gift />, onSelect: onRedeem }] : []),
         ...(user.role === "admin" ? [{ key: "admin", label: "管理后台", icon: <Settings />, onSelect: () => onOpen("/admin") }] : []),
         { key: "logout", label: "退出登录", icon: <LogOut />, danger: true, onSelect: onLogout },
     ];
     const name = user.displayName || user.username;
+    const tools = (
+        <>
+            <NotificationButton />
+            {showHelp ? <HelpButton onOpen={onOpen} /> : null}
+            <ThemeButton dark={dark} onToggle={onToggleTheme} />
+        </>
+    );
 
     if (collapsed) {
         return (
@@ -122,7 +152,7 @@ export function GammaHomeSidebarActions(props: GammaHomeSidebarActionsProps) {
                     <Zap className="fill-current" />
                     <Tip>{`积分 ${points.toLocaleString()}`}</Tip>
                 </button>
-                <ThemeButton dark={dark} onToggle={onToggleTheme} />
+                {tools}
                 <GammaMenu label="账户菜单" placement="right-end" trigger={() => <Avatar user={user} />} items={accountItems} />
             </div>
         );
@@ -130,6 +160,7 @@ export function GammaHomeSidebarActions(props: GammaHomeSidebarActionsProps) {
 
     return (
         <div className="flex flex-col gap-2">
+            <div className="flex justify-end gap-0.5 px-0.5">{tools}</div>
             <div className="rounded-[12px] bg-[var(--gm-wash)] p-2.5 ring-1 ring-[var(--gm-border)]">
                 <div className="flex items-center gap-1.5">
                     <Zap className="size-3.5 fill-[var(--gm-cyan)] text-[var(--gm-accent)]" />
@@ -142,25 +173,22 @@ export function GammaHomeSidebarActions(props: GammaHomeSidebarActionsProps) {
                 </div>
                 <p className="mt-1 truncate text-[11px] text-[var(--gm-text-3)]">{user.planName}</p>
             </div>
-            <div className="flex items-center justify-between border-t border-[var(--gm-border)] pt-2">
-                <div className="min-w-0 flex-1">
-                    <GammaMenu
-                        label="账户菜单"
-                        placement="right-end"
-                        triggerClassName="w-full rounded-[10px]"
-                        trigger={() => (
-                            <span className="flex w-full items-center gap-2.5 rounded-[10px] px-1.5 py-1 transition-colors hover:bg-[var(--gm-wash)]">
-                                <Avatar user={user} />
-                                <span className="flex min-w-0 flex-col text-left leading-tight">
-                                    <span className="truncate text-[13px] text-[var(--gm-text)]">{name}</span>
-                                    <span className="truncate text-[11px] text-[var(--gm-text-3)]">ID {user.accountId}</span>
-                                </span>
+            <div className="border-t border-[var(--gm-border)] pt-2">
+                <GammaMenu
+                    label="账户菜单"
+                    placement="right-end"
+                    triggerClassName="w-full rounded-[10px]"
+                    trigger={() => (
+                        <span className="flex w-full items-center gap-2.5 rounded-[10px] px-1.5 py-1 transition-colors hover:bg-[var(--gm-wash)]">
+                            <Avatar user={user} />
+                            <span className="flex min-w-0 flex-col text-left leading-tight">
+                                <span className="truncate text-[13px] text-[var(--gm-text)]">{name}</span>
+                                <span className="truncate text-[11px] text-[var(--gm-text-3)]">ID {user.accountId}</span>
                             </span>
-                        )}
-                        items={accountItems}
-                    />
-                </div>
-                <ThemeButton dark={dark} onToggle={onToggleTheme} />
+                        </span>
+                    )}
+                    items={accountItems}
+                />
             </div>
         </div>
     );

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { GammaLogo } from "@/components/gamma-ui/gamma-logo";
 import { GammaNavIcon } from "@/components/gamma-ui/gamma-nav-icon";
@@ -16,15 +16,20 @@ const WIDTH_EXPANDED = 208;
 const WIDTH_COLLAPSED = 68;
 const SPRING = { type: "spring", stiffness: 420, damping: 38 } as const;
 
-/** 侧栏展开/收起状态，记在 localStorage */
+/** 平板断点：窗口不足这个宽度时，侧栏默认收起（用户手动展开过则尊重用户） */
+const TABLET_MAX = 1180;
+
+/** 侧栏展开/收起状态，记在 localStorage；没记录时按屏宽决定默认值 */
 export function useGammaSidebarState() {
     const [collapsed, setCollapsed] = useState(false);
     useEffect(() => {
+        let stored: string | null = null;
         try {
-            if (window.localStorage.getItem(COLLAPSED_KEY) === "1") setCollapsed(true);
+            stored = window.localStorage.getItem(COLLAPSED_KEY);
         } catch {
-            // 隐私模式读不到，保持默认展开
+            // 隐私模式读不到，按屏宽走默认
         }
+        if (stored === "1" || (stored === null && window.innerWidth < TABLET_MAX)) setCollapsed(true);
     }, []);
     const toggle = () =>
         setCollapsed((value) => {
@@ -92,6 +97,27 @@ export function GammaSidebarRow({ collapsed, icon, label, active = false, onClic
     );
 }
 
+/**
+ * 侧栏右边缘正中的按钮：鼠标进入侧栏才浮现，点一下展开 / 收起。
+ * 骑在边线上，平时完全透明，不会像常驻按钮那样伸在外面。
+ */
+function SidebarEdgeHandle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+    const label = collapsed ? "展开侧栏" : "收起侧栏";
+    return (
+        <button
+            type="button"
+            aria-label={label}
+            title={label}
+            onClick={onToggle}
+            className="group/handle absolute top-1/2 right-0 z-20 flex h-16 w-4 translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+        >
+            <span className="gm-glass grid h-10 w-[18px] place-items-center rounded-full text-[var(--gm-text-2)] shadow-[var(--gm-shadow)] transition-[height,color,transform] duration-200 group-hover/handle:h-12 group-hover/handle:text-[var(--gm-text)] group-focus-visible/handle:ring-2 group-focus-visible/handle:ring-[var(--gm-accent)] group-active/handle:scale-95">
+                {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronLeft className="size-3.5" />}
+            </span>
+        </button>
+    );
+}
+
 interface GammaSidebarProps {
     items: readonly GammaRailItem[];
     activeKey: string;
@@ -118,36 +144,11 @@ export function GammaSidebar({ items, activeKey, collapsed, onToggle, onSelect, 
             transition={reduce ? { duration: 0 } : SPRING}
             className="group/sidebar relative z-30 flex h-full shrink-0 flex-col border-r border-[var(--gm-border)] bg-[var(--gm-bg-elevated)]"
         >
-            {/* 顶部：展开时 Logo + 悬停浮现的收起按钮；收起时悬停 Logo 变成展开按钮，不往侧栏外伸 */}
-            {collapsed ? (
-                <div className="flex h-14 shrink-0 items-center justify-center">
-                    <button
-                        type="button"
-                        onClick={onToggle}
-                        aria-label="展开侧栏"
-                        className="group/expand relative grid size-9 place-items-center rounded-[10px] transition-colors hover:bg-[var(--gm-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
-                    >
-                        <span className="transition-[opacity,transform] duration-200 group-hover/expand:scale-75 group-hover/expand:opacity-0 group-focus-visible/expand:opacity-0">
-                            <GammaLogo size={30} showText={false} />
-                        </span>
-                        <PanelLeftOpen className="absolute size-[18px] scale-75 text-[var(--gm-text)] opacity-0 transition-[opacity,transform] duration-200 group-hover/expand:scale-100 group-hover/expand:opacity-100 group-focus-visible/expand:opacity-100" />
-                    </button>
-                </div>
-            ) : (
-                <div className="flex h-14 shrink-0 items-center gap-1 pr-2.5 pl-4">
-                    <Link href={homeHref} aria-label="布鲁伽马首页" className="min-w-0 flex-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
-                        <GammaLogo size={30} showText />
-                    </Link>
-                    <button
-                        type="button"
-                        onClick={onToggle}
-                        aria-label="收起侧栏"
-                        className="grid size-8 shrink-0 place-items-center rounded-[8px] text-[var(--gm-text-3)] opacity-0 transition-[opacity,background-color,color] duration-200 group-hover/sidebar:opacity-100 hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
-                    >
-                        <PanelLeftClose className="size-[18px]" />
-                    </button>
-                </div>
-            )}
+            <div className={cn("flex h-14 shrink-0 items-center", collapsed ? "justify-center" : "px-4")}>
+                <Link href={homeHref} aria-label="布鲁伽马首页" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
+                    <GammaLogo size={30} showText={!collapsed} />
+                </Link>
+            </div>
 
             <div className="gm-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-1">
                 {items.map((item, index) => {
@@ -172,6 +173,8 @@ export function GammaSidebar({ items, activeKey, collapsed, onToggle, onSelect, 
             </div>
 
             {actions ? <div className="shrink-0 px-2.5 pt-1 pb-2.5">{actions}</div> : null}
+
+            <SidebarEdgeHandle collapsed={collapsed} onToggle={onToggle} />
         </motion.nav>
     );
 }
