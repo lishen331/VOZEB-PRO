@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Modal } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Megaphone } from "lucide-react";
 

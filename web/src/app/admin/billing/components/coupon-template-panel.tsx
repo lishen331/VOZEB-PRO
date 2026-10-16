@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, DatePicker, Form, Modal, Select } from "antd";
+import { App, DatePicker, Form, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { Dayjs } from "dayjs";

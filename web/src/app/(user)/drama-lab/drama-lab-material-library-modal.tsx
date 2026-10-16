@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Image, Modal, Select } from "antd";
+import { App, Image, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ImagePlus, Pencil, Sparkles, Trash2, Upload } from "lucide-react";

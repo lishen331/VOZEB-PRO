@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Drawer, Grid } from "antd";
+import { App, Grid } from "antd";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";
 import { ChevronsDown, Clapperboard, FolderOpen, History, Play, Plus, ScanFace, ShoppingBag, Sparkles, X } from "lucide-react";

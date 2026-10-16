@@ -1,6 +1,7 @@
 "use client";
 
-import { Form, Modal, Select } from "antd";
+import { Form, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";

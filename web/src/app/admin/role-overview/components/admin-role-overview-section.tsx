@@ -1,7 +1,7 @@
 "use client";
 
 import { roleNavigationOverview, type RoleNavigationItem, type RoleNavigationKey } from "@/constant/navigation-tools";
-import { Drawer } from "antd";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Eye, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";

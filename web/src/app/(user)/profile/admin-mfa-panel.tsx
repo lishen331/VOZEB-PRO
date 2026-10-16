@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { App, Modal, QRCode } from "antd";
+import { App, QRCode } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Drawer } from "antd";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
 import { CircleHelp } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -76,9 +76,7 @@ export function MobileNavDrawer({ open, activeToolSlug, featureModules, menuPerm
                                         onClick={onClose}
                                         className={cn(
                                             "flex min-h-11 items-center gap-3 rounded-[var(--gm-radius)] px-3 py-2.5 text-sm transition",
-                                            active
-                                                ? "bg-[var(--gm-accent-soft)] font-medium text-[var(--gm-accent)] ring-1 ring-[var(--gm-accent-ring)]"
-                                                : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
+                                            active ? "bg-[var(--gm-accent-soft)] font-medium text-[var(--gm-accent)] ring-1 ring-[var(--gm-accent-ring)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
                                         )}
                                         aria-current={active ? "page" : undefined}
                                     >

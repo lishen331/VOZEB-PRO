@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Modal, Select } from "antd";
+import { App, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Flag } from "lucide-react";

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Checkbox, Form, Modal, Select } from "antd";
+import { Checkbox, Form, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Segmented, Switch } from "@/components/gamma-ui/gamma-ant";

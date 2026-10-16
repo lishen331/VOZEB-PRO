@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Modal } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { RotateCcw } from "lucide-react";
 import dynamic from "next/dynamic";

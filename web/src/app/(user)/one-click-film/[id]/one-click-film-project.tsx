@@ -1,6 +1,7 @@
 "use client";
 
-import { Modal, Select, message } from "antd";
+import { Select, message } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Progress } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";

@@ -313,6 +313,15 @@ html.gm-app .ant-message .ant-message-notice-content {
     }
 }
 
+/*
+ * gamma Modal / Drawer（radix Dialog）打开时给 body 加 pointer-events:none，
+ * 而弹层里的 antd Select / DatePicker / Dropdown 浮层 Portal 到 body 下 —— 不放开就点不动。
+ * 这些浮层只在用户打开时出现，放开指针事件不影响对话框的焦点陷阱。
+ */
+html.gm-app :is(.ant-select-dropdown, .ant-picker-dropdown, .ant-dropdown, .ant-popover, .ant-tooltip, .ant-cascader-dropdown, .ant-image-preview-root, .ant-message, .ant-notification) {
+    pointer-events: auto;
+}
+
 /* 细滚动条跟随品牌描边色 */
 html.gm-app * {
     scrollbar-color: var(--gm-border-strong) transparent;

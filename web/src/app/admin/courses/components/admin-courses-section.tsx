@@ -1,7 +1,8 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, AutoComplete, DatePicker, Form, Modal, Select, Table } from "antd";
+import { App, AutoComplete, DatePicker, Form, Select, Table } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import dayjs from "dayjs";

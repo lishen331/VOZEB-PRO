@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Modal, Select } from "antd";
+import { App, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowUpFromLine, Ban, Compass, Copy, Eye, Film, GalleryVerticalEnd, Image as ImageIcon, Pencil, Plus, RefreshCw, Scale, Search, Send, Trash2 } from "lucide-react";

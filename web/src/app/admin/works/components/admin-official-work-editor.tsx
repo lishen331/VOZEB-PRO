@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Drawer, Select } from "antd";
+import { App, Select } from "antd";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
