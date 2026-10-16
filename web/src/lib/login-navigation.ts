@@ -14,24 +14,31 @@ export function safeLoginNextPath(value: string | null | undefined) {
     return path;
 }
 
+/** 登录后没有 next 目标时的落地页：布鲁伽马新首页（管理员从首页头像菜单进后台）。 */
+export const HOME_LANDING_PATH = "/";
+
+/** 登录后的默认落地：所有角色都进新首页 `/`。 */
+export function defaultLoginDestination(role: LoginUserRole) {
+    void role;
+    return HOME_LANDING_PATH;
+}
+
 /**
- * Non-admin users land on the sidebar's first visible entry — not a hardcoded
- * /create or /practice, which broke when the module behind that fixed path was
- * itself disabled (creative-agent off pointed at /practice, but practice could
- * also be off). Falls back to /help only when every module is disabled.
+ * 普通用户被挡在后台之外时的去处：侧栏第一个可见入口（不是写死的 /create 或 /practice——
+ * 那个固定路径背后的模块本身可能被关）。全部模块关闭时回落 /help。
+ * 让「无权访问」提示出现在工作区里，而不是营销首页上。
  */
-export function defaultLoginDestination(role: LoginUserRole, featureModules?: FeatureModuleFlags, context: SchoolContext | null = null) {
-    if (role === "admin") return "/admin";
+export function workspaceLandingPath(featureModules?: FeatureModuleFlags, context: SchoolContext | null = null) {
     const slug = resolveLandingSlug(context, { featureModules: featureModules as FeatureModuleSettings | undefined });
     return slug ? `/${slug}` : "/help";
 }
 
 export function resolveLoginDestination(user: { role: LoginUserRole }, requestedPath: string | null | undefined, featureModules?: FeatureModuleFlags, context: SchoolContext | null = null) {
     const nextPath = safeLoginNextPath(requestedPath);
-    const fallback = defaultLoginDestination(user.role, featureModules, context);
+    const fallback = defaultLoginDestination(user.role);
     if (!nextPath) return fallback;
     if (nextPath === "/login" || nextPath.startsWith("/login?") || nextPath.startsWith("/login#")) return fallback;
-    if (user.role !== "admin" && (nextPath === "/admin" || nextPath.startsWith("/admin/") || nextPath.startsWith("/admin?") || nextPath.startsWith("/admin#"))) return `${fallback}?auth=forbidden`;
+    if (user.role !== "admin" && (nextPath === "/admin" || nextPath.startsWith("/admin/") || nextPath.startsWith("/admin?") || nextPath.startsWith("/admin#"))) return `${workspaceLandingPath(featureModules, context)}?auth=forbidden`;
     return nextPath;
 }
 
