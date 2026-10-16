@@ -1,6 +1,10 @@
 "use client";
 
-import { Alert, Button, Drawer, Input, InputNumber, Select, Space, Switch, Tag } from "antd";
+import { Select } from "antd";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { useRef, useState } from "react";
 
 import type { PublicRunningHubWorkflow } from "@/lib/server/runninghub-workflow-service";

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight, CircleHelp } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -12,9 +13,22 @@ import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
+const INDICATOR_SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
+const ITEM_CLASS = "group relative flex h-[42px] items-center rounded-[var(--gm-radius)] px-2 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]";
+
+/** 选中底块：在导航项之间弹簧滑动（布鲁伽马导航选中态） */
+function ActiveIndicator({ reduce }: { reduce: boolean | null }) {
+    return (
+        <motion.span layoutId="app-sidebar-indicator" transition={reduce ? { duration: 0 } : INDICATOR_SPRING} className="absolute inset-0 rounded-[var(--gm-radius)] bg-[var(--gm-accent-soft)] ring-1 ring-[var(--gm-accent-ring)]">
+            <span aria-hidden className="absolute top-1/2 left-0 h-5 w-[3px] -translate-x-[7px] -translate-y-1/2 rounded-full bg-[image:var(--gm-gradient)] shadow-[var(--gm-glow-cyan)]" />
+        </motion.span>
+    );
+}
+
 export function AppSidebar({ activeToolSlug, expanded, featureModules, menuPermissions }: { activeToolSlug?: NavigationToolSlug; expanded: boolean; featureModules: FeatureModuleSettings; menuPermissions: readonly UserNavigationMenuPermission[] }) {
     const pathname = usePathname();
     const router = useRouter();
+    const reduce = useReducedMotion();
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
@@ -24,13 +38,21 @@ export function AppSidebar({ activeToolSlug, expanded, featureModules, menuPermi
     const groups = (schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups).filter((group) => tools.some((tool) => tool.group === group.id));
 
     return (
-        <aside className={cn("hidden h-full shrink-0 flex-col border-r border-[#eaecf0] bg-white text-[#111827] transition-[width] duration-200 lg:flex dark:border-[#292d33] dark:bg-[#111316] dark:text-[#f3f5f7]", expanded ? "w-44" : "w-[72px]")}>
+        <aside
+            className={cn(
+                "relative hidden h-full shrink-0 flex-col border-r border-[var(--gm-border)] bg-[var(--gm-bg-elevated)] text-[var(--gm-text)] transition-[width] duration-200 lg:flex",
+                "after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-[linear-gradient(180deg,transparent,var(--gm-glass-edge),transparent)] after:opacity-40",
+                expanded ? "w-44" : "w-[72px]",
+            )}
+        >
             {/* Brand mark only — deliberately not a link. It used to navigate to
                 the home path, which resolves to /practice when the creative-agent
                 module is off, so clicking the logo dropped users into 无限练习. */}
-            <div className={cn("flex h-16 shrink-0 items-center border-b border-[#eaecf0] px-3 dark:border-[#292d33]", expanded ? "justify-start px-5" : "justify-center")}>
-                <SiteLogo logoUrl={site.logoUrl} className="size-8" />
-                {expanded ? <span className="ml-3 min-w-0 truncate text-[15px] font-semibold">{siteTitle}</span> : null}
+            <div className={cn("flex h-16 shrink-0 items-center border-b border-[var(--gm-border)] px-3", expanded ? "justify-start px-5" : "justify-center")}>
+                <span className="grid shrink-0 place-items-center rounded-full shadow-[0_0_0_1px_rgba(40,235,250,0.25),0_6px_20px_rgba(0,80,245,0.4)]">
+                    <SiteLogo logoUrl={site.logoUrl} className="size-8 rounded-full" />
+                </span>
+                {expanded ? <span className="ml-3 min-w-0 truncate text-[15px] font-semibold tracking-[0.04em]">{siteTitle}</span> : null}
             </div>
 
             <nav className={cn("hide-scrollbar min-h-0 flex-1 overflow-y-auto py-5", expanded ? "px-3" : "px-2")} aria-label="工作空间导航">
@@ -38,12 +60,15 @@ export function AppSidebar({ activeToolSlug, expanded, featureModules, menuPermi
                     const groupTools = tools.filter((tool) => tool.group === group.id);
                     return (
                         <div key={group.id} className={cn(groupIndex > 0 && "mt-[22px]")}>
-                            {expanded ? <div className="mb-1.5 px-2 text-xs font-normal text-[#98a2b3] dark:text-[#737d89]">{group.label}</div> : null}
+                            {expanded ? (
+                                <div className="mb-1.5 px-2 font-mono text-[10px] tracking-[0.18em] text-[var(--gm-text-3)] uppercase">{group.label}</div>
+                            ) : groupIndex > 0 ? (
+                                <span aria-hidden className="mx-auto mb-2 block h-px w-8 bg-[var(--gm-border-strong)]" />
+                            ) : null}
                             <div className="space-y-1">
                                 {groupTools.map((tool) => {
                                     const Icon = tool.icon;
                                     const active = tool.slug === activeToolSlug;
-                                    const primary = "primary" in tool && tool.primary;
                                     return (
                                         <Link
                                             key={tool.slug}
@@ -52,20 +77,12 @@ export function AppSidebar({ activeToolSlug, expanded, featureModules, menuPermi
                                             title={tool.label}
                                             onMouseEnter={() => router.prefetch(`/${tool.slug}`)}
                                             onFocus={() => router.prefetch(`/${tool.slug}`)}
-                                            className={cn(
-                                                "group relative flex h-[42px] items-center rounded-lg px-2 text-sm font-medium transition-colors duration-150",
-                                                expanded ? "justify-start gap-3 px-3" : "justify-center",
-                                                active
-                                                    ? "bg-[#f5f4ff] text-[#111827] dark:bg-[#26243a] dark:text-[#f3f5f7]"
-                                                    : primary
-                                                      ? "text-[#111827] hover:bg-[#f8f9fb] dark:text-[#d4d9df] dark:hover:bg-[#20242a]"
-                                                      : "text-[#111827] hover:bg-[#f8f9fb] dark:text-[#c7cdd5] dark:hover:bg-[#20242a] dark:hover:text-[#f3f5f7]",
-                                            )}
+                                            className={cn(ITEM_CLASS, expanded ? "justify-start gap-3 px-3" : "justify-center", active ? "text-[var(--gm-accent)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]")}
                                             aria-current={active ? "page" : undefined}
                                         >
-                                            <Icon className={cn("size-[18px] shrink-0", active && "text-[#5965ff]")} />
-                                            {expanded ? <span className="min-w-0 truncate">{tool.label}</span> : null}
-                                            {active ? <span className="absolute right-2.5 h-[18px] w-0.5 rounded-full bg-[#5965ff]" /> : null}
+                                            {active ? <ActiveIndicator reduce={reduce} /> : null}
+                                            <Icon className="relative size-[18px] shrink-0 transition-transform duration-200 group-hover:-translate-y-px" />
+                                            {expanded ? <span className="relative min-w-0 truncate">{tool.label}</span> : null}
                                         </Link>
                                     );
                                 })}
@@ -76,30 +93,26 @@ export function AppSidebar({ activeToolSlug, expanded, featureModules, menuPermi
             </nav>
 
             {featureModules["help-center"] !== false && menuPermissions.includes("help-center") ? (
-                <div className={cn("shrink-0 border-t border-[#eaecf0] dark:border-[#292d33]", expanded ? "px-3 pb-3 pt-3.5" : "p-2")}>
+                <div className={cn("shrink-0 border-t border-[var(--gm-border)]", expanded ? "px-3 pb-3 pt-3.5" : "p-2")}>
                     <Link
                         href="/help"
                         prefetch
                         title="帮助"
                         onMouseEnter={() => router.prefetch("/help")}
                         onFocus={() => router.prefetch("/help")}
-                        className={cn(
-                            "relative flex min-h-[46px] items-center rounded-lg px-2 text-sm font-medium text-[#111827] transition-colors duration-150 hover:bg-[#f8f9fb] dark:text-[#c7cdd5] dark:hover:bg-[#20242a] dark:hover:text-[#f3f5f7]",
-                            expanded ? "justify-start gap-3 px-2" : "justify-center",
-                            helpActive && "bg-[#f0f2f4] text-[#1d2127] dark:bg-[#22262c] dark:text-[#f3f5f7]",
-                        )}
+                        className={cn(ITEM_CLASS, "min-h-[46px]", expanded ? "justify-start gap-3 px-2" : "justify-center", helpActive ? "text-[var(--gm-accent)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]")}
                         aria-current={helpActive ? "page" : undefined}
                     >
+                        {helpActive ? <ActiveIndicator reduce={reduce} /> : null}
                         <CircleHelp className="size-[18px] shrink-0" />
                         {expanded ? (
                             <>
-                                <span className="min-w-0 flex-1">
+                                <span className="relative min-w-0 flex-1">
                                     <span className="block truncate">帮助</span>
                                 </span>
-                                <ChevronRight className="size-4 shrink-0 text-[#7f8995]" />
+                                <ChevronRight className="relative size-4 shrink-0 text-[var(--gm-text-3)] transition-transform group-hover:translate-x-0.5" />
                             </>
                         ) : null}
-                        {helpActive ? <span className="absolute right-0 h-4 w-0.5 rounded-full bg-[#5965ff]" /> : null}
                     </Link>
                 </div>
             ) : null}

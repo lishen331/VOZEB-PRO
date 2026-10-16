@@ -1,6 +1,10 @@
 "use client";
 
-import { Button, Checkbox, Empty, Input, InputNumber, message, Modal, Segmented, Select, Tag, Tooltip } from "antd";
+import { message, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Empty, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { FolderOpen, ImageIcon, Layers, Library, Plus, ScanText, Sparkles, Star, Trash2, UserRound } from "lucide-react";
 import { useState } from "react";
 import { OneClickAssetReferenceUpload } from "./one-click-asset-reference-upload";

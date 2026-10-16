@@ -3,7 +3,7 @@
 import { Metric, Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { formatAdminMoney } from "@/components/admin/admin-values";
 import { formatCreditAmount } from "@/constant/credits";
-import { Button } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { CircleDollarSign, CreditCard, PlugZap, ReceiptText, RefreshCw, WalletCards } from "lucide-react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";

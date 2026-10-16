@@ -1,6 +1,6 @@
 "use client";
 
-import { Input } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 

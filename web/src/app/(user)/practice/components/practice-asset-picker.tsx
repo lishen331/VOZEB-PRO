@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Empty, Modal, Spin } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Button, Empty, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Library } from "lucide-react";
 import { useState } from "react";
 

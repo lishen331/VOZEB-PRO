@@ -1,6 +1,11 @@
 "use client";
 
-import { Alert, Button, Modal, Popconfirm, Select, Spin, Switch, Tag, Tooltip, Progress, message, Input } from "antd";
+import { Select, message } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Progress } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Spin, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";

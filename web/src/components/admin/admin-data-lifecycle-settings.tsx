@@ -1,6 +1,6 @@
 "use client";
 
-import { InputNumber } from "antd";
+import { InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { DatabaseZap } from "lucide-react";
 
 import { LabeledControl, SectionTitle, SettingToggle } from "@/components/admin/admin-settings-controls";

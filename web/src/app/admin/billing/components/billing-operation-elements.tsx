@@ -2,7 +2,11 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Select, Segmented, Space, Switch, Table, Tag } from "antd";
+import { App, DatePicker, Form, Select, Table } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { AlertTriangle, CheckCircle2, CircleDollarSign, Copy, CreditCard, FileText, FileUp, Landmark, Package, Plus, QrCode, ReceiptText, RefreshCw, Save, Search, Settings2, Undo2, WalletCards, XCircle } from "lucide-react";
@@ -308,7 +312,7 @@ export function PaymentProviderCard({ provider, active, onSelect }: { provider: 
         >
             <div className="flex items-start gap-2 sm:gap-3">
                 <span
-                    className={`flex size-7 shrink-0 items-center justify-center rounded-md ring-1 [&>svg]:size-3.5 sm:size-10 sm:rounded-xl sm:[&>svg]:size-5 ${active ? "bg-stone-950 text-white ring-stone-950 dark:bg-white dark:text-stone-950 dark:ring-white" : "bg-white text-stone-700 ring-stone-200 dark:bg-stone-950 dark:text-stone-200 dark:ring-stone-800"}`}
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-md ring-1 [&>svg]:size-3.5 sm:size-10 sm:rounded-xl sm:[&>svg]:size-5 ${active ? "bg-[var(--gm-blue)] text-white ring-[var(--gm-blue)]" : "bg-white text-stone-700 ring-stone-200 dark:bg-stone-950 dark:text-stone-200 dark:ring-stone-800"}`}
                 >
                     <Icon />
                 </span>

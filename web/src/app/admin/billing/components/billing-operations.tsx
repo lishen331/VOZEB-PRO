@@ -2,7 +2,11 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Select, Segmented, Space, Switch, Table, Tag } from "antd";
+import { App, DatePicker, Form, Select, Table } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { AlertTriangle, CheckCircle2, CircleDollarSign, Copy, CreditCard, FileText, FileUp, Landmark, Package, Pencil, Plus, QrCode, ReceiptText, RefreshCw, Save, Search, Settings2, Trash2, Undo2, WalletCards, XCircle } from "lucide-react";
@@ -443,7 +447,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                         value={activeTab}
                         options={availableTabOptions}
                         onChange={(value) => setActiveTab(value as AdminBillingTab)}
-                        className="[&_.ant-segmented-group]:!flex [&_.ant-segmented-item]:!min-w-0 [&_.ant-segmented-item]:!flex-1 [&_.ant-segmented-item-label]:!text-center"
+                        className="[&_.gm-segmented-item]:!min-w-0 [&_.gm-segmented-item]:!flex-1 [&_.gm-segmented-item-label]:!text-center"
                     />
                 </section>
             ) : null}

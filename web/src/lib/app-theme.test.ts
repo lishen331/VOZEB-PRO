@@ -13,3 +13,15 @@ describe("app Select theme", () => {
         expect(select?.activeBorderColor).not.toBe(dark ? "#fafafa" : "#171717");
     });
 });
+
+describe("BlueGamma brand theme", () => {
+    it.each([false, true])("uses Gamma Blue as primary only when brand is on (dark=%s)", (dark) => {
+        expect(getAntThemeConfig(dark, { brand: true }).token?.colorPrimary).toBe("#0050f5");
+        expect(getAntThemeConfig(dark).token?.colorPrimary).toBe(dark ? "#fafafa" : "#171717");
+    });
+
+    it("keeps the canvas editor (brand off) on its own css-var namespace", () => {
+        expect(getAntThemeConfig(true).cssVar).toEqual({ key: "vozeb-pro-dark" });
+        expect(getAntThemeConfig(true, { brand: true }).cssVar).toEqual({ key: "bluegamma-dark" });
+    });
+});

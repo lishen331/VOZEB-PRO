@@ -21,7 +21,7 @@ export function UpdateCenterPanel() {
             <PanelHeader title="更新中心" description="版本检查、升级准备、更新日志和 GitHub 仓库入口集中放在这里。" actions={<GitHubLink className="rounded-xl" />} />
             <div className="space-y-3 p-3 sm:space-y-5 sm:p-5">
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_360px]">
-                    <div className="overflow-hidden rounded-3xl border border-stone-200/80 bg-stone-950 text-white shadow-sm shadow-stone-950/10 dark:border-stone-800 dark:bg-white dark:text-stone-950">
+                    <div className="overflow-hidden rounded-3xl border border-stone-200/80 bg-[var(--gm-blue)] text-white shadow-sm shadow-stone-950/10 dark:border-stone-800">
                         <div className="grid gap-3 p-4 sm:gap-6 sm:p-6 lg:grid-cols-[minmax(0,1fr)_220px]">
                             <div className="min-w-0">
                                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55 dark:text-stone-500">{siteTitle} Update</div>

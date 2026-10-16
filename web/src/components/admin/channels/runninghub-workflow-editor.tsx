@@ -1,6 +1,11 @@
 "use client";
 
-import { Alert, App, Button, Checkbox, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
+import { App, Select } from "antd";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Collapse, Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { RunningHubWorkflowAdapterType, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Modal } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Film, ImageIcon, ScanSearch } from "lucide-react";
 
 import { imagePreviewUrl } from "@/lib/media-image-url";

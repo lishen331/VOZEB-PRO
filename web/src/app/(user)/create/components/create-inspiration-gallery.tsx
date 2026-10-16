@@ -63,22 +63,22 @@ export function CreateInspirationGallery({ onUsePrompt, onUseImage }: { onUsePro
     return (
         <section className="mt-7 w-full sm:mt-12" aria-labelledby="create-inspiration-heading">
             <div className="flex min-w-0 items-center justify-between gap-3">
-                <h2 id="create-inspiration-heading" className="text-[15px] font-semibold text-[#20242a] dark:text-[#f3f5f7]">
+                <h2 id="create-inspiration-heading" className="text-[15px] font-semibold text-[#1b212f] dark:text-[#f2f5fa]">
                     灵感发现
                 </h2>
-                <Link href="/community" className="text-xs text-[#697381] transition hover:text-[#20242a] dark:text-[#9aa3af] dark:hover:text-white">
+                <Link href="/community" className="text-xs text-[#687287] transition hover:text-[#1b212f] dark:text-[#9ca2af] dark:hover:text-white">
                     查看全部 →
                 </Link>
             </div>
 
-            <nav className="hide-scrollbar mt-3 flex min-w-0 gap-1 overflow-x-auto border-b border-[#e8ebef] pb-2 dark:border-[#292d33]" aria-label="灵感分类">
+            <nav className="hide-scrollbar mt-3 flex min-w-0 gap-1 overflow-x-auto border-b border-[#e8ebf0] pb-2 dark:border-[#252c3a]" aria-label="灵感分类">
                 {categories.map((item) => (
                     <button
                         key={item.value || "all"}
                         type="button"
                         className={cn(
                             "h-9 shrink-0 rounded-md px-3 text-sm transition",
-                            category === item.value ? "bg-[#eef1f4] font-medium text-[#20242a] dark:bg-[#292f37] dark:text-white" : "text-[#697381] hover:bg-[#f2f4f6] hover:text-[#20242a] dark:text-[#9aa3af] dark:hover:bg-[#242930] dark:hover:text-white",
+                            category === item.value ? "bg-[#eef1f6] font-medium text-[#1b212f] dark:bg-[#272e3c] dark:text-white" : "text-[#687287] hover:bg-[#f1f4f9] hover:text-[#1b212f] dark:text-[#9ca2af] dark:hover:bg-[#202735] dark:hover:text-white",
                         )}
                         aria-pressed={category === item.value}
                         onClick={() => setCategory(item.value)}
@@ -89,13 +89,13 @@ export function CreateInspirationGallery({ onUsePrompt, onUseImage }: { onUsePro
             </nav>
 
             {loading ? (
-                <div className="flex min-h-36 items-center justify-center gap-2 text-xs text-[#9aa2ad] dark:text-[#737d89]">
+                <div className="flex min-h-36 items-center justify-center gap-2 text-xs text-[#9ba1ae] dark:text-[#727c91]">
                     <LoaderCircle className="size-4 animate-spin" /> 正在读取灵感作品...
                 </div>
             ) : error ? (
                 <div className="flex min-h-36 flex-col items-center justify-center gap-2 text-center">
                     <p className="text-xs text-[#9a5b5b] dark:text-[#d49a9a]">{error}</p>
-                    <button type="button" className="inline-flex items-center gap-1.5 text-xs font-medium text-[#697381] hover:text-[#20242a] dark:text-[#9aa3af] dark:hover:text-white" onClick={() => setReloadToken((value) => value + 1)}>
+                    <button type="button" className="inline-flex items-center gap-1.5 text-xs font-medium text-[#687287] hover:text-[#1b212f] dark:text-[#9ca2af] dark:hover:text-white" onClick={() => setReloadToken((value) => value + 1)}>
                         <RefreshCw className="size-3.5" /> 重新读取
                     </button>
                 </div>
@@ -106,7 +106,7 @@ export function CreateInspirationGallery({ onUsePrompt, onUseImage }: { onUsePro
                     ))}
                 </ResponsiveMasonryGrid>
             ) : (
-                <div className="flex min-h-32 items-center justify-center border-b border-dashed border-[#e2e7eb] text-sm text-[#9aa2ad] dark:border-[#2b3037] dark:text-[#737d89]">当前分类还没有公开作品</div>
+                <div className="flex min-h-32 items-center justify-center border-b border-dashed border-[#e4e6ec] text-sm text-[#9ba1ae] dark:border-[#282f3e] dark:text-[#727c91]">当前分类还没有公开作品</div>
             )}
             <PublicWorkPreviewModal
                 slug={previewSlug || undefined}
@@ -167,15 +167,15 @@ function InspirationCard({
     };
 
     return (
-        <article className="group w-full min-w-0 overflow-hidden text-[#20242a] dark:text-[#f3f5f7]">
-            <div className="relative overflow-hidden rounded-lg bg-[#eef1f4] dark:bg-[#252a31]">
-                <button type="button" className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e87db]" onClick={onOpen} aria-label={`查看作品：${item.title}`} aria-haspopup="dialog">
+        <article className="group w-full min-w-0 overflow-hidden text-[#1b212f] dark:text-[#f2f5fa]">
+            <div className="relative overflow-hidden rounded-lg bg-[#eef1f6] dark:bg-[#212836]">
+                <button type="button" className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#608bdb]" onClick={onOpen} aria-label={`查看作品：${item.title}`} aria-haspopup="dialog">
                     {image ? (
                         <LazyMediaImage src={imagePreviewUrl(item.preview!.url, 640)} alt={item.title} containerClassName="w-full" imageClassName="block h-auto w-full group-hover:scale-[1.015]" />
                     ) : item.preview?.mediaType === "video" ? (
                         <video src={item.preview.url} muted playsInline preload="metadata" className="aspect-video w-full object-cover" />
                     ) : (
-                        <span className="grid aspect-[4/3] w-full place-items-center text-[#8b949f] dark:text-[#737d89]">
+                        <span className="grid aspect-[4/3] w-full place-items-center text-[#8993a9] dark:text-[#727c91]">
                             <ImagePlus className="size-7" />
                         </span>
                     )}
@@ -193,23 +193,23 @@ function InspirationCard({
                 <PublicWorkCardTitle title={item.title} />
             </div>
             <div className="min-w-0 px-0.5 pb-1 pt-2">
-                <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-[#8b949f] dark:text-[#7f8996]">
+                <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-[#8993a9] dark:text-[#7e889d]">
                     {authorUsername ? (
                         <button
                             type="button"
-                            className="flex min-w-0 items-center gap-1.5 rounded-sm text-left transition hover:text-[#20242a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e87db] dark:hover:text-white"
+                            className="flex min-w-0 items-center gap-1.5 rounded-sm text-left transition hover:text-[#1b212f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#608bdb] dark:hover:text-white"
                             aria-label={`查看 ${item.authorName || authorUsername} 的主页`}
                             aria-haspopup="dialog"
                             onClick={() => onOpenAuthor(authorUsername)}
                         >
-                            <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-[#20242a] text-[8px] font-semibold text-white dark:bg-[#f3f5f7] dark:text-[#20242a]">
+                            <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-[#1b212f] text-[8px] font-semibold text-white dark:bg-[#f2f5fa] dark:text-[#1b212f]">
                                 {item.authorAvatarUrl ? <img src={item.authorAvatarUrl} alt="" className="size-full object-cover" loading="lazy" /> : userAvatarFallback(item.authorName || "匿名作者")}
                             </span>
                             <span className="truncate">{item.authorName || "匿名作者"}</span>
                         </button>
                     ) : (
                         <span className="flex min-w-0 items-center gap-1.5">
-                            <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-[#20242a] text-[8px] font-semibold text-white dark:bg-[#f3f5f7] dark:text-[#20242a]">
+                            <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-[#1b212f] text-[8px] font-semibold text-white dark:bg-[#f2f5fa] dark:text-[#1b212f]">
                                 {item.authorAvatarUrl ? <img src={item.authorAvatarUrl} alt="" className="size-full object-cover" loading="lazy" /> : userAvatarFallback(item.authorName || "匿名作者")}
                             </span>
                             <span className="truncate">{item.authorName || "匿名作者"}</span>
@@ -226,7 +226,7 @@ function InspirationCard({
                                 <button
                                     type="button"
                                     disabled={importing}
-                                    className="grid size-7 place-items-center rounded-md text-[#7f8996] transition hover:bg-[#eef1f4] hover:text-[#20242a] disabled:cursor-wait disabled:opacity-60 dark:hover:bg-[#252a31] dark:hover:text-white"
+                                    className="grid size-7 place-items-center rounded-md text-[#7e889d] transition hover:bg-[#eef1f6] hover:text-[#1b212f] disabled:cursor-wait disabled:opacity-60 dark:hover:bg-[#212836] dark:hover:text-white"
                                     aria-label={`使用作品：${item.title}`}
                                     aria-haspopup="menu"
                                 >

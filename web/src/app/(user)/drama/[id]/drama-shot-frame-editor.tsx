@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Image, Segmented } from "antd";
+import { App, Image } from "antd";
+import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 

@@ -2,7 +2,9 @@
 
 import { FolderPlus, RotateCcw, Search } from "lucide-react";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { App, Button, Input, Pagination, Select, Spin } from "antd";
+import { App, Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 
 import { PromptCard } from "@/components/prompts/prompt-card";
 import { CompactEmptyState } from "@/components/compact-empty-state";

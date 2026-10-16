@@ -1,6 +1,8 @@
 "use client";
 
-import { App, Button, Input } from "antd";
+import { App } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { optimizePrompt } from "@/services/api/prompt-optimization";

@@ -1,6 +1,11 @@
 "use client";
 
-import { App, Button, Drawer, Image, Input, InputNumber, Modal, Popconfirm, Popover, Space, Tooltip } from "antd";
+import { App, Image, Popover } from "antd";
+import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Check, FolderInput, ImagePlus, Sparkles, Trash2, Upload } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
@@ -265,17 +270,15 @@ export function DramaAssetEditorDrawer({ project, kind, assetId, open, onClose }
                     </div>
                     <div className="grid gap-3 sm:grid-cols-[minmax(140px,0.8fr)_110px_minmax(220px,1.2fr)]">
                         <Input value={draft.voiceProfile.voice} onChange={(event) => setDraft((current) => ({ ...current, voiceProfile: { ...current.voiceProfile, voice: event.target.value } }))} placeholder="音色 ID" />
-                        <Space.Compact className="w-full">
-                            <InputNumber
-                                className="!min-w-0 !flex-1"
-                                min={0.25}
-                                max={4}
-                                step={0.05}
-                                value={draft.voiceProfile.speed}
-                                onChange={(value) => setDraft((current) => ({ ...current, voiceProfile: { ...current.voiceProfile, speed: Number(value) || 1 } }))}
-                            />
-                            <span className="inline-flex h-8 shrink-0 items-center rounded-r-md border border-l-0 border-border bg-muted/45 px-2 text-xs text-muted-foreground">倍速</span>
-                        </Space.Compact>
+                        <InputNumber
+                            className="!min-w-0"
+                            min={0.25}
+                            max={4}
+                            step={0.05}
+                            value={draft.voiceProfile.speed}
+                            addonAfter={<span className="text-xs">倍速</span>}
+                            onChange={(value) => setDraft((current) => ({ ...current, voiceProfile: { ...current.voiceProfile, speed: Number(value) || 1 } }))}
+                        />
                         <Input value={draft.voiceProfile.instructions} onChange={(event) => setDraft((current) => ({ ...current, voiceProfile: { ...current.voiceProfile, instructions: event.target.value } }))} placeholder="语气、年龄感、情绪等配音指令" />
                     </div>
                 </section>

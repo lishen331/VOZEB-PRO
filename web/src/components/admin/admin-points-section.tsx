@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Save } from "lucide-react";
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";

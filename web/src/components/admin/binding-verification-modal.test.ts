@@ -3,8 +3,9 @@ import { createElement, Fragment, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BindingVerificationModal, canConfirmBindingVerification, canManuallyEnableBindingVerification, readBindingVerification, verificationFixtureCount } from "./binding-verification-modal";
 
-vi.mock("antd", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("antd")>()),
+// Modal 已迁到 gamma-ui 兼容层（radix Dialog 在 SSR 下不渲染内容），这里只渲染正文与底栏
+vi.mock("@/components/gamma-ui/gamma-ant-modal", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/components/gamma-ui/gamma-ant-modal")>()),
     Modal: ({ children, footer }: { children: ReactNode; footer: ReactNode }) => createElement(Fragment, null, children, footer),
 }));
 

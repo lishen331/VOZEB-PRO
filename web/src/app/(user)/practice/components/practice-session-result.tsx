@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Image, Spin } from "antd";
+import { App, Image } from "antd";
+import { Button, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Film, AudioLines, Download, Image as ImageIcon } from "lucide-react";
 
 import type { PracticeModuleKind } from "@/lib/practice-domain";

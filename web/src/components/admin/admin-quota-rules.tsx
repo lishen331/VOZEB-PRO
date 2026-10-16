@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Input, InputNumber, Segmented, Switch, Tag } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Plus, Trash2 } from "lucide-react";
 
 import { DEFAULT_MODEL_POINT_COST_KEY } from "@/constant/credits";

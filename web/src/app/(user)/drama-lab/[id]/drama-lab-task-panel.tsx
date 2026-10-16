@@ -1,7 +1,9 @@
 "use client";
 
 import { generationUserMessage } from "@/lib/generation-feedback-message";
-import { Alert, Button, Progress, Tag, message } from "antd";
+import { message } from "antd";
+import { Progress } from "@/components/gamma-ui/gamma-ant-display";
+import { Alert, Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CheckCircle2, ChevronUp, CircleAlert, LoaderCircle, PauseCircle, RefreshCw, Square, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 

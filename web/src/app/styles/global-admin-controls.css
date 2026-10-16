@@ -38,47 +38,47 @@
         align-items: center;
         border: 0;
         border-radius: 10px;
-        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.14);
+        box-shadow: 0 12px 26px rgba(13, 23, 42, 0.14);
         font-weight: 650;
         height: 40px;
         padding-inline: 22px;
     }
 
     .admin-prompt-submit.ant-btn-primary {
-        background: #0c0a09;
+        background: #030510;
         color: #ffffff;
     }
 
     .admin-prompt-submit.ant-btn-primary:hover {
         background: #000000 !important;
         color: #ffffff !important;
-        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+        box-shadow: 0 14px 30px rgba(13, 23, 42, 0.18);
         transform: translateY(-1px);
     }
 
     .admin-prompt-table {
         background: rgba(255, 255, 255, 0.74);
-        border: 1px solid rgba(226, 232, 240, 0.86);
-        box-shadow: 0 16px 42px rgba(15, 23, 42, 0.045);
+        border: 1px solid rgba(229, 231, 237, 0.86);
+        box-shadow: 0 16px 42px rgba(13, 23, 42, 0.045);
         min-width: 0;
         overflow: hidden;
     }
 
     .dark .admin-prompt-table {
-        background: rgba(12, 10, 9, 0.48);
+        background: rgba(3, 5, 16, 0.48);
         border-color: rgba(255, 255, 255, 0.08);
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
     }
 
     .admin-prompt-note {
-        background: rgba(245, 245, 244, 0.86);
-        border: 1px solid rgba(214, 211, 209, 0.78);
+        background: rgba(242, 245, 251, 0.86);
+        border: 1px solid rgba(205, 212, 225, 0.78);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
     }
 
     .dark .admin-prompt-note {
-        background: rgba(28, 25, 23, 0.68);
-        border-color: rgba(68, 64, 60, 0.9);
+        background: rgba(16, 22, 35, 0.68);
+        border-color: rgba(56, 65, 83, 0.9);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
 
@@ -204,15 +204,15 @@
     .admin-update-primary-button {
         background: #ffffff !important;
         border: 1px solid #ffffff !important;
-        color: #0c0a09 !important;
+        color: #030510 !important;
         min-width: 7.25rem;
         box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
     }
 
     .admin-update-primary-button:hover {
-        background: #f5f5f4 !important;
-        border-color: #f5f5f4 !important;
-        color: #0c0a09 !important;
+        background: #f2f5fb !important;
+        border-color: #f2f5fb !important;
+        color: #030510 !important;
     }
 
     .admin-update-secondary-link {
@@ -228,28 +228,28 @@
     }
 
     .dark .admin-update-primary-button {
-        background: #0c0a09 !important;
-        border-color: #0c0a09 !important;
+        background: #030510 !important;
+        border-color: #030510 !important;
         color: #ffffff !important;
-        box-shadow: 0 10px 24px rgba(12, 10, 9, 0.16);
+        box-shadow: 0 10px 24px rgba(3, 5, 16, 0.16);
     }
 
     .dark .admin-update-primary-button:hover {
-        background: #1c1917 !important;
-        border-color: #1c1917 !important;
+        background: #101623 !important;
+        border-color: #101623 !important;
         color: #ffffff !important;
     }
 
     .dark .admin-update-secondary-link {
         background: #ffffff !important;
-        border-color: #a8a29e !important;
-        color: #0c0a09 !important;
+        border-color: #9da3b0 !important;
+        color: #030510 !important;
     }
 
     .dark .admin-update-secondary-link:hover {
-        background: #f5f5f4 !important;
-        border-color: #78716c !important;
-        color: #0c0a09 !important;
+        background: #f2f5fb !important;
+        border-color: #697387 !important;
+        color: #030510 !important;
     }
 
     @media (min-width: 1024px) {
@@ -323,11 +323,11 @@
             display: block;
             height: 1px;
             width: 36px;
-            background: rgba(214, 211, 209, 0.95);
+            background: rgba(205, 212, 225, 0.95);
         }
 
         .dark .admin-section-nav.is-collapsed .admin-section-nav-list > div:not(:first-child)::before {
-            background: rgba(68, 64, 60, 0.95);
+            background: rgba(56, 65, 83, 0.95);
         }
 
         .admin-section-nav.is-collapsed .admin-section-nav-group-title {
@@ -344,7 +344,7 @@
         }
 
         .admin-section-nav.is-collapsed .admin-section-nav-group-title::after {
-            background: #d6d3d1;
+            background: #cdd4e1;
             border-radius: 999px;
             content: "";
             height: 4px;
@@ -356,7 +356,7 @@
         }
 
         .dark .admin-section-nav.is-collapsed .admin-section-nav-group-title::after {
-            background: #57534e;
+            background: #4b5467;
         }
 
         .admin-section-nav.is-collapsed .admin-section-nav-list > div > div {
@@ -394,29 +394,29 @@
     .admin-generation-log-table .ant-table-cell-fix-right,
     .admin-generation-log-table .ant-table-cell-fix-right-first {
         background: #ffffff !important;
-        box-shadow: -10px 0 18px rgba(15, 23, 42, 0.08);
+        box-shadow: -10px 0 18px rgba(13, 23, 42, 0.08);
     }
 
     .dark .admin-generation-log-table .ant-table-cell-fix-right,
     .dark .admin-generation-log-table .ant-table-cell-fix-right-first {
-        background: #0c0a09 !important;
+        background: #030510 !important;
         box-shadow: -10px 0 18px rgba(0, 0, 0, 0.28);
     }
 
     .admin-generation-log-table .ant-table-tbody > tr.ant-table-row-selected > td {
-        background: #f1f5f9 !important;
+        background: #f2f5fa !important;
     }
 
     .admin-generation-log-table .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-right {
-        background: #f8fafc !important;
+        background: #f7faff !important;
     }
 
     .dark .admin-generation-log-table .ant-table-tbody > tr.ant-table-row-selected > td {
-        background: #1c1917 !important;
+        background: #101623 !important;
     }
 
     .dark .admin-generation-log-table .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-right {
-        background: #292524 !important;
+        background: #1d2432 !important;
     }
 
     .admin-generation-log-prompt-cell {

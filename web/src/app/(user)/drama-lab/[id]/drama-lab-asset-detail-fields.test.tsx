@@ -17,6 +17,9 @@ vi.mock("antd", () => ({
             </select>
         );
     },
+}));
+// Input 已迁到 gamma-ui 兼容层，mock 目标随之迁移
+vi.mock("@/components/gamma-ui/gamma-ant-input", () => ({
     Input: (props: InputHTMLAttributes<HTMLInputElement>) => {
         captured.inputs.push(props);
         return <input value={props.value} readOnly />;

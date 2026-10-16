@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Input } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Save } from "lucide-react";
 import { useState } from "react";
 import { practiceApi, type PracticeSession } from "@/services/api/practice";

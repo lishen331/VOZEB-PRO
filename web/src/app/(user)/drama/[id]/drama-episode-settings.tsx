@@ -1,6 +1,7 @@
 "use client";
 
-import { Input, InputNumber, Select } from "antd";
+import { Select } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 
 import type { DramaEpisode, DramaProject } from "../types";
 import { useDramaStore } from "../stores/use-drama-store";

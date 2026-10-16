@@ -1,0 +1,330 @@
+/*
+ * 布鲁伽马全站换肤层。
+ * 只作用于 html.gm-app：由 AppProviders 在「非画布编辑器」路由挂上，画布编辑器（/canvas/[id]、/drama-canvas/[id]）不挂，
+ * 所以画布的定稿 UI 与这里的任何规则都不相交。
+ *
+ * 做三件事：
+ *   1. 把 Tailwind 调色板换成品牌色：灰阶 → 墨蓝中性，蓝/靛/紫 → Gamma Blue，天蓝/青 → Gamma Cyan
+ *   2. 把 shadcn 语义变量（--background / --primary …）接到 --gm-* token
+ *   3. 统一字体、选区、滚动条
+ * 状态色（emerald / amber / rose / red）保持语义不动。
+ */
+
+/* 调色板覆盖：由 过程文件/bluegamma-rollout/gen-palette.mjs 生成（OKLCH，保持 Tailwind 原明度阶梯） */
+html.gm-app {
+    --color-stone-50: oklch(98.5% 0.008 265);
+    --color-stone-100: oklch(97% 0.008 265);
+    --color-stone-200: oklch(92.3% 0.008 265);
+    --color-stone-300: oklch(86.9% 0.02 265);
+    --color-stone-400: oklch(70.9% 0.02 265);
+    --color-stone-500: oklch(55.3% 0.034 265);
+    --color-stone-600: oklch(44.4% 0.034 265);
+    --color-stone-700: oklch(37.4% 0.034 265);
+    --color-stone-800: oklch(26% 0.028 265);
+    --color-stone-900: oklch(19.9% 0.028 265);
+    --color-stone-950: oklch(12.1% 0.028 265);
+    --color-neutral-50: oklch(98.5% 0.008 265);
+    --color-neutral-100: oklch(97% 0.008 265);
+    --color-neutral-200: oklch(92.2% 0.008 265);
+    --color-neutral-300: oklch(87% 0.02 265);
+    --color-neutral-400: oklch(70.8% 0.02 265);
+    --color-neutral-500: oklch(55.6% 0.034 265);
+    --color-neutral-600: oklch(43.9% 0.034 265);
+    --color-neutral-700: oklch(37.1% 0.034 265);
+    --color-neutral-800: oklch(26.1% 0.028 265);
+    --color-neutral-900: oklch(18.7% 0.028 265);
+    --color-neutral-950: oklch(11.9% 0.028 265);
+    --color-gray-50: oklch(98.5% 0.008 265);
+    --color-gray-100: oklch(96.7% 0.008 265);
+    --color-gray-200: oklch(92.8% 0.008 265);
+    --color-gray-300: oklch(87.2% 0.02 265);
+    --color-gray-400: oklch(70.7% 0.02 265);
+    --color-gray-500: oklch(55.1% 0.034 265);
+    --color-gray-600: oklch(44.6% 0.034 265);
+    --color-gray-700: oklch(37.3% 0.034 265);
+    --color-gray-800: oklch(27.1% 0.028 265);
+    --color-gray-900: oklch(19.3% 0.028 265);
+    --color-gray-950: oklch(10.7% 0.028 265);
+    --color-zinc-50: oklch(98.5% 0.008 265);
+    --color-zinc-100: oklch(96.7% 0.008 265);
+    --color-zinc-200: oklch(92% 0.008 265);
+    --color-zinc-300: oklch(87.1% 0.02 265);
+    --color-zinc-400: oklch(70.5% 0.02 265);
+    --color-zinc-500: oklch(55.2% 0.034 265);
+    --color-zinc-600: oklch(44.2% 0.034 265);
+    --color-zinc-700: oklch(37% 0.034 265);
+    --color-zinc-800: oklch(26.7% 0.028 265);
+    --color-zinc-900: oklch(19.3% 0.028 265);
+    --color-zinc-950: oklch(11.6% 0.028 265);
+    --color-slate-50: oklch(98.4% 0.008 265);
+    --color-slate-100: oklch(96.8% 0.008 265);
+    --color-slate-200: oklch(92.9% 0.008 265);
+    --color-slate-300: oklch(86.9% 0.02 265);
+    --color-slate-400: oklch(70.4% 0.02 265);
+    --color-slate-500: oklch(55.4% 0.034 265);
+    --color-slate-600: oklch(44.6% 0.034 265);
+    --color-slate-700: oklch(37.2% 0.034 265);
+    --color-slate-800: oklch(27.2% 0.028 265);
+    --color-slate-900: oklch(19% 0.028 265);
+    --color-slate-950: oklch(10.6% 0.028 265);
+    --color-blue-50: oklch(97% 0.015 262);
+    --color-blue-100: oklch(93.2% 0.033 262);
+    --color-blue-200: oklch(88.2% 0.061 262);
+    --color-blue-300: oklch(80.9% 0.109 262);
+    --color-blue-400: oklch(70.7% 0.172 262);
+    --color-blue-500: oklch(62.3% 0.223 262);
+    --color-blue-600: oklch(54.6% 0.255 262);
+    --color-blue-700: oklch(48.8% 0.253 262);
+    --color-blue-800: oklch(42.4% 0.207 262);
+    --color-blue-900: oklch(37.9% 0.152 262);
+    --color-blue-950: oklch(28.2% 0.095 262);
+    --color-indigo-50: oklch(97% 0.015 262);
+    --color-indigo-100: oklch(93.2% 0.033 262);
+    --color-indigo-200: oklch(88.2% 0.061 262);
+    --color-indigo-300: oklch(80.9% 0.109 262);
+    --color-indigo-400: oklch(70.7% 0.172 262);
+    --color-indigo-500: oklch(62.3% 0.223 262);
+    --color-indigo-600: oklch(54.6% 0.255 262);
+    --color-indigo-700: oklch(48.8% 0.253 262);
+    --color-indigo-800: oklch(42.4% 0.207 262);
+    --color-indigo-900: oklch(37.9% 0.152 262);
+    --color-indigo-950: oklch(28.2% 0.095 262);
+    --color-violet-50: oklch(97% 0.015 262);
+    --color-violet-100: oklch(93.2% 0.033 262);
+    --color-violet-200: oklch(88.2% 0.061 262);
+    --color-violet-300: oklch(80.9% 0.109 262);
+    --color-violet-400: oklch(70.7% 0.172 262);
+    --color-violet-500: oklch(62.3% 0.223 262);
+    --color-violet-600: oklch(54.6% 0.255 262);
+    --color-violet-700: oklch(48.8% 0.253 262);
+    --color-violet-800: oklch(42.4% 0.207 262);
+    --color-violet-900: oklch(37.9% 0.152 262);
+    --color-violet-950: oklch(28.2% 0.095 262);
+    --color-purple-50: oklch(97% 0.015 262);
+    --color-purple-100: oklch(93.2% 0.033 262);
+    --color-purple-200: oklch(88.2% 0.061 262);
+    --color-purple-300: oklch(80.9% 0.109 262);
+    --color-purple-400: oklch(70.7% 0.172 262);
+    --color-purple-500: oklch(62.3% 0.223 262);
+    --color-purple-600: oklch(54.6% 0.255 262);
+    --color-purple-700: oklch(48.8% 0.253 262);
+    --color-purple-800: oklch(42.4% 0.207 262);
+    --color-purple-900: oklch(37.9% 0.152 262);
+    --color-purple-950: oklch(28.2% 0.095 262);
+    --color-sky-50: oklch(98.4% 0.019 205);
+    --color-sky-100: oklch(95.6% 0.045 205);
+    --color-sky-200: oklch(91.7% 0.08 205);
+    --color-sky-300: oklch(86.5% 0.127 205);
+    --color-sky-400: oklch(78.9% 0.154 205);
+    --color-sky-500: oklch(71.5% 0.143 205);
+    --color-sky-600: oklch(60.9% 0.126 205);
+    --color-sky-700: oklch(52% 0.105 205);
+    --color-sky-800: oklch(45% 0.085 205);
+    --color-sky-900: oklch(39.8% 0.07 205);
+    --color-sky-950: oklch(30.2% 0.056 205);
+    --color-cyan-50: oklch(98.4% 0.019 205);
+    --color-cyan-100: oklch(95.6% 0.045 205);
+    --color-cyan-200: oklch(91.7% 0.08 205);
+    --color-cyan-300: oklch(86.5% 0.127 205);
+    --color-cyan-400: oklch(78.9% 0.154 205);
+    --color-cyan-500: oklch(71.5% 0.143 205);
+    --color-cyan-600: oklch(60.9% 0.126 205);
+    --color-cyan-700: oklch(52% 0.105 205);
+    --color-cyan-800: oklch(45% 0.085 205);
+    --color-cyan-900: oklch(39.8% 0.07 205);
+    --color-cyan-950: oklch(30.2% 0.056 205);
+}
+
+html.gm-app {
+    --radius: 0.75rem;
+    --background: var(--gm-bg);
+    --foreground: var(--gm-text);
+    --card: var(--gm-surface);
+    --card-foreground: var(--gm-text);
+    --popover: var(--gm-surface-2);
+    --popover-foreground: var(--gm-text);
+    --primary: var(--gm-blue);
+    --primary-foreground: #ffffff;
+    --secondary: var(--gm-surface-3);
+    --secondary-foreground: var(--gm-text);
+    --muted: var(--gm-surface-2);
+    --muted-foreground: var(--gm-text-2);
+    --accent: var(--gm-wash-strong);
+    --accent-foreground: var(--gm-text);
+    --destructive: var(--gm-danger);
+    --border: var(--gm-border-strong);
+    --input: var(--gm-border-strong);
+    --ring: var(--gm-accent);
+    --sidebar: var(--gm-bg-elevated);
+    --sidebar-foreground: var(--gm-text);
+    --sidebar-primary: var(--gm-blue);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--gm-accent-soft);
+    --sidebar-accent-foreground: var(--gm-accent);
+    --sidebar-border: var(--gm-border);
+    --sidebar-ring: var(--gm-accent);
+    --chart-1: #0050f5;
+    --chart-2: #28ebfa;
+    --chart-3: #6a9dff;
+    --chart-4: #23d18b;
+    --chart-5: #ffb547;
+    --font-sans: var(--gm-font-sans);
+}
+
+html.gm-app body {
+    font-family: var(--gm-font-sans) !important;
+    background-color: var(--gm-bg);
+    color: var(--gm-text);
+}
+
+html.gm-app ::selection {
+    background: rgba(40, 235, 250, 0.3);
+}
+
+html.gm-app:not(.dark) ::selection {
+    background: rgba(0, 80, 245, 0.18);
+}
+
+html.gm-app :focus-visible {
+    outline-color: var(--gm-accent);
+}
+
+/*
+ * antd cssinjs 给所有 <a> 写了 color: colorLink（未分层，压过 Tailwind 的 text-*）。
+ * 旧主题 colorLink 是黑/白所以看不出；品牌主题 colorLink 是蓝，导致导航与卡片链接整片发蓝。
+ * 已显式写了 text-* 的链接把颜色交还给 utilities 层；正文里的裸链接仍保持品牌蓝。
+ */
+html.gm-app a[class*="text-"] {
+    color: revert-layer;
+}
+
+/*
+ * 同理（实测命中）：antd/dist/reset.css 未分层的 `button, input, select, textarea { color: inherit; font: inherit }`
+ * 压过 Tailwind 的 text-*，gamma 组件按钮的文字色在真实站点上丢失（预览页靠 .gm 作用域的 revert-layer 规则兜住）。
+ * 只对显式写了 text-* 的原生按钮交还给 utilities 层，antd 自己的 .ant-btn 由 cssinjs 控制，不受影响。
+ */
+html.gm-app button[class*="text-"]:not(.ant-btn) {
+    color: revert-layer;
+}
+/* ===== antd 组件皮肤（token 表达不了的部分）===== */
+
+/* 主按钮：品牌渐变 + 蓝色辉光，与 GammaButton primary 一致 */
+html.gm-app .ant-btn-color-primary.ant-btn-variant-solid:not(:disabled):not(.ant-btn-disabled) {
+    background-image: var(--gm-gradient);
+    border-color: transparent;
+    box-shadow: var(--gm-glow-blue);
+    transition:
+        box-shadow 0.2s var(--gm-ease),
+        transform 0.2s var(--gm-ease),
+        filter 0.2s var(--gm-ease);
+}
+html.gm-app .ant-btn-color-primary.ant-btn-variant-solid:not(:disabled):not(.ant-btn-disabled):hover {
+    background-image: var(--gm-gradient);
+    box-shadow: 0 10px 34px rgba(0, 80, 245, 0.6);
+    filter: brightness(1.06);
+}
+html.gm-app .ant-btn-color-primary.ant-btn-variant-solid:not(:disabled):not(.ant-btn-disabled):active {
+    transform: scale(0.97);
+}
+
+/* 弹层：液态玻璃（模糊 + 饱和 + 顶部高光 + 品牌描边） */
+html.gm-app :is(.ant-dropdown .ant-dropdown-menu, .ant-popover .ant-popover-inner, .ant-select-dropdown, .ant-picker-dropdown .ant-picker-panel-container) {
+    background: color-mix(in srgb, var(--gm-surface-2) 82%, transparent);
+    backdrop-filter: blur(var(--gm-glass-blur)) saturate(1.8);
+    -webkit-backdrop-filter: blur(var(--gm-glass-blur)) saturate(1.8);
+    box-shadow:
+        inset 0 1px 0 var(--gm-glass-inner),
+        0 0 0 1px var(--gm-border-strong),
+        var(--gm-shadow);
+}
+
+/* 对话框：顶部品牌光晕 + 描边 */
+html.gm-app .ant-modal .ant-modal-content {
+    box-shadow:
+        0 0 0 1px var(--gm-border-strong),
+        0 30px 80px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+html.gm-app .ant-modal .ant-modal-content {
+    position: relative;
+    isolation: isolate;
+}
+html.gm-app .ant-modal .ant-modal-content::before {
+    z-index: -1;
+    content: "";
+    position: absolute;
+    top: -96px;
+    left: 50%;
+    width: 320px;
+    height: 192px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: var(--gm-blue);
+    opacity: 0.18;
+    filter: blur(48px);
+    pointer-events: none;
+}
+html.gm-app .ant-modal-mask {
+    background: var(--gm-scrim);
+    backdrop-filter: blur(4px);
+}
+
+/*
+ * 账户菜单「升级套餐」：组件与画布共用（user-status-actions.tsx 不能改源码），
+ * 只在 gm-app 下把黑/白反色块换成品牌渐变；画布编辑器不挂 gm-app，保持原样。
+ */
+html.gm-app .account-menu-dropdown .account-upgrade-button {
+    background-image: var(--gm-gradient);
+    background-color: transparent;
+    color: #ffffff !important;
+    box-shadow: var(--gm-glow-blue);
+}
+html.gm-app .account-menu-dropdown .account-upgrade-button:hover {
+    filter: brightness(1.08);
+    color: #ffffff !important;
+}
+
+/* 分段选择：选中块带一点内高光 */
+html.gm-app .ant-segmented .ant-segmented-item-selected,
+html.gm-app .ant-segmented .ant-segmented-thumb {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* 开关打开时青色辉光 */
+html.gm-app .ant-switch.ant-switch-checked {
+    box-shadow: var(--gm-glow-blue);
+}
+html.gm-app .ant-switch.ant-switch-checked .ant-switch-handle::before {
+    box-shadow: 0 0 10px rgba(40, 235, 250, 0.7);
+}
+
+/* 轻提示：胶囊 + 玻璃 */
+html.gm-app .ant-message .ant-message-notice-content {
+    backdrop-filter: blur(18px) saturate(1.6);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    box-shadow:
+        0 0 0 1px var(--gm-border-strong),
+        var(--gm-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.gm-app .ant-btn-color-primary.ant-btn-variant-solid:active {
+        transform: none;
+    }
+}
+
+/*
+ * gamma Modal / Drawer（radix Dialog）打开时给 body 加 pointer-events:none，
+ * 而弹层里的 antd Select / DatePicker / Dropdown 浮层 Portal 到 body 下 —— 不放开就点不动。
+ * 这些浮层只在用户打开时出现，放开指针事件不影响对话框的焦点陷阱。
+ */
+html.gm-app :is(.ant-select-dropdown, .ant-picker-dropdown, .ant-dropdown, .ant-popover, .ant-tooltip, .ant-cascader-dropdown, .ant-image-preview-root, .ant-message, .ant-notification) {
+    pointer-events: auto;
+}
+
+/* 细滚动条跟随品牌描边色 */
+html.gm-app * {
+    scrollbar-color: var(--gm-border-strong) transparent;
+}

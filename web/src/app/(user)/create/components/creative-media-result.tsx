@@ -34,7 +34,7 @@ export function CreativeMediaResult({ assets, fallbackRatio, renderActions }: { 
             style={resultStyle}
         >
             {activeAsset.type === "audio" ? (
-                <figure className="col-start-1 row-start-1 w-[352px] max-w-full rounded-xl border border-[#e7e9ee] bg-white p-4 dark:border-[#303640] dark:bg-[#181b20]">
+                <figure className="col-start-1 row-start-1 w-[352px] max-w-full rounded-xl border border-[#e6e9ef] bg-white p-4 dark:border-[#2f3644] dark:bg-[#111724]">
                     <AgentMediaPreview type="audio" url={url} title={activeAsset.title || "生成音频"} />
                 </figure>
             ) : (
@@ -43,7 +43,7 @@ export function CreativeMediaResult({ assets, fallbackRatio, renderActions }: { 
                     data-rendered-width={layout?.width}
                     data-rendered-height={layout?.height}
                     style={layout?.container}
-                    className="relative col-start-1 row-start-1 max-w-full flex-none overflow-hidden rounded-xl border border-[#e4e7ec] bg-[#f8f9fb] shadow-[0_4px_18px_rgba(15,23,42,0.035)] dark:border-[#303640] dark:bg-[#15181c] dark:shadow-black/15"
+                    className="relative col-start-1 row-start-1 max-w-full flex-none overflow-hidden rounded-xl border border-[#e4e7ec] bg-[#f6f9ff] shadow-[0_4px_18px_rgba(15,23,42,0.035)] dark:border-[#2f3644] dark:bg-[#0e1320] dark:shadow-black/15"
                 >
                     <AgentMediaPreview
                         type={activeAsset.type}
@@ -75,12 +75,12 @@ export function CreativeMediaResult({ assets, fallbackRatio, renderActions }: { 
                         return coverUrl ? (
                             <img src={imagePreviewUrl(coverUrl, 240)} alt={asset.title || `生成视频 ${index + 1}`} loading="lazy" className="size-full object-cover" />
                         ) : (
-                            <span className="grid size-full place-items-center text-[#667085] dark:text-[#a4adb8]" aria-label={asset.title || `生成视频 ${index + 1}`}>
+                            <span className="grid size-full place-items-center text-[#657085] dark:text-[#a6acb9]" aria-label={asset.title || `生成视频 ${index + 1}`}>
                                 <Film className="size-5" />
                             </span>
                         );
                     }
-                    return <span className="grid size-full place-items-center text-[#667085] dark:text-[#a4adb8]">{asset.type === "audio" ? <FileAudio2 className="size-5" /> : <Film className="size-5" />}</span>;
+                    return <span className="grid size-full place-items-center text-[#657085] dark:text-[#a6acb9]">{asset.type === "audio" ? <FileAudio2 className="size-5" /> : <Film className="size-5" />}</span>;
                 }}
                 onSelect={selectResult}
             />
