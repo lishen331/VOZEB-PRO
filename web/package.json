@@ -23,6 +23,7 @@
         "check:release": "node scripts/release-check.mjs",
         "smoke:deployment": "node scripts/drama-lab-deployment-smoke.mjs",
         "typecheck": "tsc --noEmit --pretty false",
+        "dev:frontend": "node scripts/dev-frontend.mjs",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
     },
