@@ -11,6 +11,9 @@ vi.mock("@/lib/server/install-status", () => ({ getInstallStatus: mocks.getInsta
 vi.mock("@/lib/server/site-metadata", () => ({ getPublicSiteSettings: mocks.getPublicSiteSettings }));
 vi.mock("./install/install-scroll-unlock", () => ({ InstallScrollUnlock: () => null }));
 vi.mock("./install/install-wizard", () => ({ InstallWizard: () => null }));
+// 首页侧栏按登录态与功能模块过滤：这里按未登录访客处理，不连数据库
+vi.mock("@/lib/server/page-access", () => ({ getAuthenticatedPageAccess: vi.fn().mockResolvedValue({ user: null, install: null }) }));
+vi.mock("@/lib/auth/store", () => ({ getFreshAuthSettings: vi.fn().mockResolvedValue({ featureModules: {} }) }));
 
 import HomePage from "./page";
 import InstallPage from "./install/page";
