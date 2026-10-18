@@ -153,7 +153,7 @@ export function TeachingPrepBoard({ teacherName, schoolName, courses, offerings,
                                     {classesByAssignment.get(resume.id)?.length ? ` · ${classesByAssignment.get(resume.id)?.join("、")}` : ""}
                                 </span>
                             </span>
-                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-[#0b1020] transition-transform group-hover:translate-x-1">进入备课 →</span>
+                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-[var(--gm-text)] transition-transform group-hover:translate-x-1 dark:bg-[var(--gm-surface)]">进入备课 →</span>
                         </span>
                     </Link>
                 ) : null}

@@ -571,10 +571,10 @@ export default function CreatePage() {
     );
 
     const historyPanel = (
-        <div className="flex h-full min-h-0 flex-col bg-white dark:bg-[#111724]">
-            <div className="hidden h-14 shrink-0 items-center gap-2 border-b border-[#ebeef3] px-4 lg:flex dark:border-[#282f3d]">
-                <History className="size-4 text-[#366bd0] dark:text-[#9bbfff]" />
-                <h2 className="min-w-0 flex-1 text-sm font-semibold text-[#1b212f] dark:text-[#f2f5fa]">创作历史</h2>
+        <div className="flex h-full min-h-0 flex-col bg-[var(--gm-bg)]">
+            <div className="hidden h-14 shrink-0 items-center gap-2 border-b border-[var(--gm-border)] px-4 lg:flex">
+                <History className="size-4 text-[var(--gm-accent)]" />
+                <h2 className="min-w-0 flex-1 text-sm font-semibold text-[var(--gm-text)]">创作历史</h2>
                 <Button type="text" shape="circle" icon={<X className="size-4" />} onClick={() => setHistoryOpen(false)} aria-label="关闭创作历史" title="关闭创作历史" />
             </div>
             <div className="min-h-0 flex-1">
@@ -617,16 +617,16 @@ export default function CreatePage() {
     );
 
     return (
-        <main className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#fafdff_100%)] text-[#1b212f] dark:bg-[linear-gradient(180deg,#080e1a_0%,#0a101d_100%)] dark:text-[#f2f5fa]">
+        <main className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="flex min-h-0 flex-1">
-                {historyOpen && screens.lg ? <aside className="h-full min-h-0 w-[min(280px,24vw)] shrink-0 border-r border-[#ebeef3] dark:border-[#282f3d]">{historyPanel}</aside> : null}
+                {historyOpen && screens.lg ? <aside className="h-full min-h-0 w-[min(280px,24vw)] shrink-0 border-r border-[var(--gm-border)]">{historyPanel}</aside> : null}
                 <div className="relative flex min-w-0 flex-1 flex-col">
                     <div className="pointer-events-none absolute right-3 top-3 z-30 flex items-center gap-0.5 sm:right-5" data-testid="creative-page-tools">
                         {hasConversation ? (
                             <Button
                                 type="text"
                                 shape="circle"
-                                className="pointer-events-auto !size-9 !min-w-9 !text-[#677185] hover:!bg-[#f0f3f8] hover:!text-[#1b212f] dark:!text-[#abb1be] dark:hover:!bg-[#222937] dark:hover:!text-white"
+                                className="pointer-events-auto !size-9 !min-w-9 !text-[var(--gm-text-2)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)]"
                                 icon={<Plus className="size-4" />}
                                 onClick={newConversation}
                                 aria-label="新建对话"
@@ -638,8 +638,8 @@ export default function CreatePage() {
                             shape="circle"
                             className={
                                 historyOpen
-                                    ? "pointer-events-auto !size-9 !min-w-9 !bg-[#edf0f5] !text-[#3165cc] dark:!bg-[#23314c] dark:!text-[#a0c3ff]"
-                                    : "pointer-events-auto !size-9 !min-w-9 !text-[#677185] hover:!bg-[#f0f3f8] hover:!text-[#1b212f] dark:!text-[#abb1be] dark:hover:!bg-[#222937] dark:hover:!text-white"
+                                    ? "pointer-events-auto !size-9 !min-w-9 !bg-[var(--gm-accent-soft)] !text-[var(--gm-accent)]"
+                                    : "pointer-events-auto !size-9 !min-w-9 !text-[var(--gm-text-2)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)]"
                             }
                             icon={<History className="size-4" />}
                             onClick={() => {
@@ -656,8 +656,8 @@ export default function CreatePage() {
                             icon={<FolderOpen className="size-4" />}
                             className={
                                 assetsOpen
-                                    ? "pointer-events-auto !size-9 !min-w-9 !bg-[#edf0f5] !text-[#3165cc] dark:!bg-[#23314c] dark:!text-[#a0c3ff]"
-                                    : "pointer-events-auto !size-9 !min-w-9 !text-[#677185] hover:!bg-[#f0f3f8] hover:!text-[#1b212f] dark:!text-[#abb1be] dark:hover:!bg-[#222937] dark:hover:!text-white"
+                                    ? "pointer-events-auto !size-9 !min-w-9 !bg-[var(--gm-accent-soft)] !text-[var(--gm-accent)]"
+                                    : "pointer-events-auto !size-9 !min-w-9 !text-[var(--gm-text-2)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)]"
                             }
                             onClick={() => {
                                 setAssetsOpen((current) => !current);
@@ -720,13 +720,13 @@ export default function CreatePage() {
                             <div className="mx-auto flex min-h-full w-full min-w-0 max-w-[1240px] flex-col items-center px-2.5 pb-3 pt-5 sm:px-8 sm:pb-8 sm:pt-14 lg:pt-[10vh]">
                                 <div className="text-center">
                                     <h1 className="text-[23px] font-semibold leading-tight sm:text-[31px]">{siteTitle} 创作 Agent</h1>
-                                    <p className="mt-2 text-sm text-[#8993a9] dark:text-[#7e889d]">从一个想法开始</p>
+                                    <p className="mt-2 text-sm text-[var(--gm-text-3)]">从一个想法开始</p>
                                 </div>
                                 <div ref={composerHostRef} data-testid="creative-composer-dock" data-compact="false" className="mt-5 w-full sm:mt-8">
                                     {composer}
                                 </div>
                                 <div className="mt-2 flex w-full min-w-0 flex-wrap justify-center gap-1.5 sm:mt-3 sm:gap-2">
-                                    {skillsLoading ? <span className="px-2 py-2 text-xs text-[#9ba1ae]">正在加载创作 Skill...</span> : null}
+                                    {skillsLoading ? <span className="px-2 py-2 text-xs text-[var(--gm-text-3)]">正在加载创作 Skill...</span> : null}
                                     {skills.map((skill, index) => {
                                         const visual = skillVisual(skill, index);
                                         const Icon = visual.icon;
@@ -736,7 +736,7 @@ export default function CreatePage() {
                                                 type="button"
                                                 aria-label={`使用 ${skill.name} Skill`}
                                                 title={skill.description}
-                                                className="inline-flex h-9 items-center gap-2 rounded-full border border-[#e4e7ec] bg-white px-3 text-sm font-medium text-[#333a49] transition hover:border-[#cfd5e3] hover:bg-[#f5f8fe] dark:border-[#323948] dark:bg-[#111724] dark:text-[#dee0e6] dark:hover:border-[#485165] dark:hover:bg-[#1b212f]"
+                                                className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--gm-border)] bg-[var(--gm-bg)] px-3 text-sm font-medium text-[var(--gm-text)] transition hover:border-[var(--gm-border-strong)] hover:bg-[var(--gm-wash)]"
                                                 onClick={() => selectSkill(skill)}
                                             >
                                                 <Icon className={`size-4 ${visual.iconClass}`} />
@@ -762,7 +762,7 @@ export default function CreatePage() {
                                 <Button
                                     type="text"
                                     icon={<ChevronsDown className="size-4" />}
-                                    className="!pointer-events-auto !absolute !-top-11 !left-1/2 !z-20 !h-9 !-translate-x-1/2 !rounded-lg !border !border-[#e2e5ea] !bg-white !px-3 !text-sm !font-medium !text-[#5a6478] !shadow-[0_6px_20px_rgba(32,36,42,0.08)] hover:!bg-[#f3f6fb] hover:!text-[#1b212f] dark:!border-[#323948] dark:!bg-[#161d2a] dark:!text-[#b9bfcc] dark:!shadow-black/25 dark:hover:!bg-[#242a39] dark:hover:!text-white"
+                                    className="!pointer-events-auto !absolute !-top-11 !left-1/2 !z-20 !h-9 !-translate-x-1/2 !rounded-lg !border !border-[var(--gm-border)] !bg-[var(--gm-surface)] !px-3 !text-sm !font-medium !text-[var(--gm-text-2)] !shadow-[var(--gm-shadow)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)]"
                                     onClick={scrollToLatest}
                                 >
                                     回到底部
