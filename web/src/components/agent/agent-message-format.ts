@@ -69,6 +69,8 @@ function classifiedTechnicalError(value: string) {
     const message = extractErrorMessage(value);
     if (!message) return "";
     if (/积分不足|余额不足/.test(message)) return "积分不足";
+    if (/任务已达到并发上限/.test(message)) return generationUserMessage(message);
+    if (/版权|copyright|last[\s_-]?frame.{0,80}mix|尾帧.{0,20}(不能|无法|不可)/i.test(message)) return generationUserMessage(message);
     // 生成类技术错误统一成三类提示（网络异常 / 模型暂时不可用 / 安全审核），与画布一致。
     if (/status\s*[=:]\s*451|内容(?:不符合|未通过).*审核|content[\s_-]?(policy|filter|safety)|moderation|nsfw|sensitive/i.test(message)) return generationUserMessage(message);
     if (/status\s*[=:]\s*(401|403)|unauthorized|forbidden|鉴权失败|api\s*key|密钥/i.test(message)) return GENERATION_UNAVAILABLE_MESSAGE;
