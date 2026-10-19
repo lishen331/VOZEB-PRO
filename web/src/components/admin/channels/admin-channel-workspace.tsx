@@ -1,7 +1,11 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Button, Empty, Input, Popconfirm, Select, Space, Switch, Table, Tabs, Tag } from "antd";
+import { Select, Table } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm, Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { Blocks, Plus, RefreshCw, Route, Search, Settings2, Trash2 } from "lucide-react";
 
@@ -105,7 +109,7 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
         <div>
             <ChannelMetrics enabled={enabledChannels} total={settings.systemChannels.length} synchronized={synchronizedChannels} protocols={protocolCount} readyDefaults={readyDefaults} />
             <Tabs
-                className="max-sm:[&_.ant-tabs-nav-list]:w-full max-sm:[&_.ant-tabs-tab]:!m-0 max-sm:[&_.ant-tabs-tab]:min-w-0 max-sm:[&_.ant-tabs-tab]:flex-1 max-sm:[&_.ant-tabs-tab]:justify-center max-sm:[&_.ant-tabs-tab]:!px-1"
+                className="max-sm:[&_.gm-tabs-nav-list]:w-full max-sm:[&_.gm-tabs-tab]:!m-0 max-sm:[&_.gm-tabs-tab]:min-w-0 max-sm:[&_.gm-tabs-tab]:flex-1 max-sm:[&_.gm-tabs-tab]:justify-center max-sm:[&_.gm-tabs-tab]:!px-1"
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 tabBarExtraContent={

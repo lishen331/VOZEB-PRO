@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { ImageIcon } from "lucide-react";
 import { useRef } from "react";
 import type { DramaAssetReference } from "@/lib/drama-project-contract";

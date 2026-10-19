@@ -1,6 +1,12 @@
 "use client";
 
-import { App, Button, Checkbox, Drawer, Form, Input, Modal, Pagination, Select, Spin, Tabs, Tag } from "antd";
+import { App, Form, Select } from "antd";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { BookOpen, ClipboardCheck, Eye, PackageCheck, Plus, RefreshCw, Send, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -25,10 +31,13 @@ import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { ProductionGroupMemberPanel } from "@/components/school/production-group-member-panel";
-import { SchoolCourseTree } from "@/components/school/school-course-tree";
 import { SubmissionReferenceList } from "@/components/school/submission-reference-list";
+import { useUserStore } from "@/stores/use-user-store";
+import { AssignmentCreateModal } from "./teaching-assignment-modal";
+import { TeachingPrepBoard } from "./teaching-prep-board";
+import { parseTeachingTab, teachingCourseHref, teachingHref, TEACHING_TAB_LABELS, type TeachingTab } from "./teaching-routes";
+import { usePreparedLessons } from "./use-prepared-lessons";
 
-type AssignmentForm = { offeringId: string; chapterId?: string; lessonId?: string; kind: TeachingAssignmentKind; title: string; instructions?: string; dueAt?: string; resourceUrls?: string[] };
 type ReviewForm = { feedback: string };
 type CommercialDeliveryForm = { note?: string };
 type ReferenceCandidate = { reference: SchoolContentReference; title: string; detail: string };
@@ -37,7 +46,10 @@ const PAGE_SIZE = 12;
 export default function TeachingPage() {
     const { message } = App.useApp();
     const context = useSchoolContextStore((state) => state.context);
-    const [assignmentForm] = Form.useForm<AssignmentForm>();
+    const user = useUserStore((state) => state.user);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { prepared } = usePreparedLessons(user?.id);
     const [reviewForm] = Form.useForm<ReviewForm>();
     const [offerings, setOfferings] = useState<SchoolCourseOffering[]>([]);
     const [courses, setCourses] = useState<SchoolCourseAssignment[]>([]);
@@ -47,8 +59,6 @@ export default function TeachingPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [assignmentOpen, setAssignmentOpen] = useState(false);
-    const [viewingOffering, setViewingOffering] = useState<SchoolCourseOffering | null>(null);
-    const [viewingCourse, setViewingCourse] = useState<SchoolCourseAssignment | null>(null);
     const [courseTrees, setCourseTrees] = useState<Record<string, Awaited<ReturnType<typeof coursesApi.getSchoolCourseTree>>>>({});
     const [creatingForOfferingId, setCreatingForOfferingId] = useState("");
     const [submissionsOpen, setSubmissionsOpen] = useState(false);
@@ -62,7 +72,9 @@ export default function TeachingPage() {
     const [submissionPage, setSubmissionPage] = useState(1);
     const [submissionTotal, setSubmissionTotal] = useState(0);
     const [submissionSelectionRevision, setSubmissionSelectionRevision] = useState(0);
-    const [activeTab, setActiveTab] = useState("classes");
+    // 标签页写在地址里（/teaching?tab=…），从课程备课页返回时能回到原来的标签
+    const activeTab = parseTeachingTab(searchParams.get("tab"));
+    const setActiveTab = (tab: string) => router.replace(teachingHref(parseTeachingTab(tab)), { scroll: false });
     const submissionRequestSequence = useRef(0);
     const submissionAbortController = useRef<AbortController | null>(null);
 
@@ -146,37 +158,8 @@ export default function TeachingPage() {
     const selectedAssignment = assignments.find((assignment) => assignment.id === selectedAssignmentId);
 
     const openCreate = (offeringId?: string) => {
-        assignmentForm.resetFields();
-        const targetOfferingId = offeringId || offerings[0]?.id || "";
-        assignmentForm.setFieldsValue({ offeringId: targetOfferingId, chapterId: undefined, lessonId: undefined, kind: "homework", resourceUrls: [] });
-        setCreatingForOfferingId(targetOfferingId);
+        setCreatingForOfferingId(offeringId || "");
         setAssignmentOpen(true);
-    };
-
-    const createAssignment = async (values: AssignmentForm) => {
-        setSaving(true);
-        try {
-            await coursesApi.createTeachingAssignment({
-                offeringId: values.offeringId,
-                chapterId: values.chapterId,
-                lessonId: values.lessonId,
-                kind: values.kind,
-                title: values.title.trim(),
-                instructions: values.instructions?.trim() || "",
-                dueAt: values.dueAt ? new Date(values.dueAt).toISOString() : undefined,
-                resources: (values.resourceUrls || []).map((url) => ({ url })),
-                status: "draft",
-            });
-            message.success("作业草稿已创建");
-            setAssignmentOpen(false);
-            assignmentForm.resetFields();
-            await load();
-        } catch (error) {
-            message.error(errorMessage(error, "作业创建失败"));
-            throw error;
-        } finally {
-            setSaving(false);
-        }
     };
 
     const updateStatus = async (assignment: TeachingAssignment, status: "published" | "closed") => {
@@ -219,44 +202,37 @@ export default function TeachingPage() {
         }
     };
 
+    const teacherName = user?.displayName || user?.username || "老师";
     const tabs = [
         {
+            key: "prep",
+            label: TEACHING_TAB_LABELS.prep,
+            children: <TeachingPrepBoard teacherName={teacherName} schoolName={context?.school.name} courses={courses} offerings={offerings} prepared={prepared} loading={loading} />,
+        },
+        {
             key: "classes",
-            label: "我的班级",
+            label: TEACHING_TAB_LABELS.classes,
             children: (
                 <ResponsiveGrid empty={!classOfferings.length && !loading} emptyText="暂无负责班级">
                     {classOfferings.map((offering) => (
-                        <article key={offering.classId} className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                        <article key={offering.classId} className="rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] p-4 ring-1 ring-[var(--gm-border)]">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <h2 className="truncate text-sm font-medium">{offering.className}</h2>
-                                    <p className="mt-1 truncate text-xs text-zinc-500">{offering.courseTitle}</p>
+                                    <p className="mt-1 truncate text-xs text-[var(--gm-text-3)]">{offering.courseTitle}</p>
                                 </div>
                                 <OfferingStatus status={offering.status} />
                             </div>
-                            <Button className="mt-3" size="small" icon={<Eye className="size-3.5" />} onClick={() => setViewingOffering(offering)}>
-                                查看安排
-                            </Button>
-                        </article>
-                    ))}
-                </ResponsiveGrid>
-            ),
-        },
-        {
-            key: "courses",
-            label: "我的课程",
-            children: (
-                <ResponsiveGrid empty={!courses.length && !loading} emptyText="暂无负责课程">
-                    {courses.map((item) => (
-                        <article key={item.id} className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-                            <h2 className="truncate text-sm font-medium">{item.course.title}</h2>
-                            <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-zinc-500">{item.course.summary || "暂无摘要"}</p>
-                            <div className="mt-3 flex items-center justify-between gap-2">
-                                <span className="text-xs text-zinc-500">
-                                    {item.course.chapterCount} 章 · {item.course.lessonCount} 个课时
-                                </span>
-                                <Button size="small" icon={<BookOpen className="size-3.5" />} onClick={() => setViewingCourse(item)}>
-                                    阅读
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <Link
+                                    href={teachingCourseHref(offering.assignmentId, { from: "classes" })}
+                                    className="inline-flex h-7 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-xs font-medium text-[var(--gm-text)] ring-1 ring-[var(--gm-border-strong)] transition-colors hover:bg-[var(--gm-wash)]"
+                                >
+                                    <BookOpen className="size-3.5" />
+                                    进入备课
+                                </Link>
+                                <Button size="small" icon={<Plus className="size-3.5" />} disabled={offering.status !== "active"} onClick={() => openCreate(offering.id)}>
+                                    布置作业
                                 </Button>
                             </div>
                         </article>
@@ -266,7 +242,7 @@ export default function TeachingPage() {
         },
         {
             key: "assignments",
-            label: "作业",
+            label: TEACHING_TAB_LABELS.assignments,
             children: (
                 <section className="space-y-3">
                     <div className="flex justify-end">
@@ -312,7 +288,7 @@ export default function TeachingPage() {
         },
         {
             key: "submissions",
-            label: "学生提交",
+            label: TEACHING_TAB_LABELS.submissions,
             children: (
                 <section className="space-y-3">
                     <Select className="w-full sm:max-w-md" value={selectedAssignmentId || undefined} placeholder="选择作业" options={assignments.map((item) => ({ value: item.id, label: item.title }))} onChange={selectAssignment} />
@@ -321,122 +297,47 @@ export default function TeachingPage() {
             ),
         },
         {
-            key: "commercial-orders",
-            label: "商单任务",
+            key: "orders",
+            label: TEACHING_TAB_LABELS.orders,
             children: <CommercialOrdersTab />,
         },
     ];
 
+    const pagination: Partial<Record<TeachingTab, { current: number; total: number; onChange: (page: number) => void }>> = {
+        prep: { current: coursePage, total: courseTotal, onChange: setCoursePage },
+        classes: { current: offeringPage, total: offeringTotal, onChange: setOfferingPage },
+        assignments: { current: assignmentPage, total: assignmentTotal, onChange: setAssignmentPage },
+        submissions: { current: submissionPage, total: submissionTotal, onChange: setSubmissionPage },
+    };
+    const page = pagination[activeTab];
+
     return (
         <main className="h-full min-h-0 overflow-y-auto px-3 py-3 sm:px-6 sm:py-6 lg:px-8">
             <div className="mx-auto w-full max-w-7xl">
-                <header className="flex items-start justify-between gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800">
+                <header className="flex items-start justify-between gap-3 pb-2">
                     <div className="min-w-0">
-                        <h1 className="truncate text-lg font-semibold text-zinc-950 sm:text-xl dark:text-zinc-100">教学中心</h1>
-                        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">{context?.school.name || "学校课程与作业"}</p>
+                        <h1 className="flex items-center gap-2 truncate text-lg font-semibold text-[var(--gm-text)] sm:text-xl">
+                            <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full bg-[image:var(--gm-gradient)]" />
+                            教学中心
+                        </h1>
+                        <p className="mt-1 text-xs text-[var(--gm-text-3)] sm:text-sm">{context?.school.name || "学校课程与作业"}</p>
                     </div>
                     <Button icon={<RefreshCw className="size-4" />} aria-label="刷新教学中心" loading={loading} onClick={() => void load()} />
                 </header>
                 <ProductionGroupMemberPanel />
-                {loading && !courses.length && !assignments.length ? (
+                {loading && !courses.length && !assignments.length && activeTab !== "prep" ? (
                     <div className="flex min-h-40 items-center justify-center">
                         <Spin />
                     </div>
                 ) : (
                     <>
                         <Tabs destroyOnHidden className="pt-2" activeKey={activeTab} items={tabs} onChange={setActiveTab} />
-                        {activeTab !== "commercial-orders" ? (
-                            <Pagination
-                                className="mt-4"
-                                current={activeTab === "classes" ? offeringPage : activeTab === "courses" ? coursePage : activeTab === "assignments" ? assignmentPage : submissionPage}
-                                pageSize={PAGE_SIZE}
-                                total={activeTab === "classes" ? offeringTotal : activeTab === "courses" ? courseTotal : activeTab === "assignments" ? assignmentTotal : submissionTotal}
-                                hideOnSinglePage
-                                showSizeChanger={false}
-                                responsive
-                                onChange={activeTab === "classes" ? setOfferingPage : activeTab === "courses" ? setCoursePage : activeTab === "assignments" ? setAssignmentPage : setSubmissionPage}
-                            />
-                        ) : null}
+                        {page ? <Pagination className="mt-4" current={page.current} pageSize={PAGE_SIZE} total={page.total} hideOnSinglePage showSizeChanger={false} responsive onChange={page.onChange} /> : null}
                     </>
                 )}
             </div>
 
-            <Modal
-                title="创建作业"
-                open={assignmentOpen}
-                destroyOnHidden
-                width="min(620px, calc(100vw - 24px))"
-                okText="保存草稿"
-                cancelText="取消"
-                confirmLoading={saving}
-                afterOpenChange={(open) => {
-                    if (!open) assignmentForm.resetFields();
-                }}
-                onOk={() => assignmentForm.submit()}
-                onCancel={() => setAssignmentOpen(false)}
-            >
-                <Form form={assignmentForm} layout="vertical" requiredMark={false} preserve={false} onFinish={(values) => void createAssignment(values)}>
-                    <div className="grid gap-x-3 sm:grid-cols-2">
-                        <Form.Item label="课程安排" name="offeringId" className="sm:col-span-2" rules={[{ required: true, message: "请选择课程安排" }]}>
-                            <Select
-                                optionFilterProp="label"
-                                options={offerings.filter((item) => item.status === "active").map((item) => ({ value: item.id, label: `${item.courseTitle} · ${item.className}` }))}
-                                onChange={(value) => setCreatingForOfferingId(value)}
-                            />
-                        </Form.Item>
-                        <Form.Item label="关联章节" name="chapterId">
-                            <Select
-                                allowClear
-                                placeholder="不限定章节"
-                                options={(courseTrees[offerings.find((item) => item.id === creatingForOfferingId)?.assignmentId || ""]?.chapters || []).map((chapter) => ({ value: chapter.id, label: chapter.title }))}
-                                onChange={() => assignmentForm.setFieldValue("lessonId", undefined)}
-                            />
-                        </Form.Item>
-                        <Form.Item label="关联课时" name="lessonId">
-                            <Select
-                                allowClear
-                                placeholder="不限定课时"
-                                options={(courseTrees[offerings.find((item) => item.id === creatingForOfferingId)?.assignmentId || ""]?.chapters || []).flatMap((chapter) =>
-                                    chapter.lessons.map((lesson) => ({ value: lesson.id, label: `${chapter.title} · ${lesson.title}` })),
-                                )}
-                                onChange={() => assignmentForm.setFieldValue("chapterId", undefined)}
-                            />
-                        </Form.Item>
-                        <Form.Item label="类型" name="kind" rules={[{ required: true, message: "请选择类型" }]}>
-                            <Select options={[...assignmentKindOptions]} />
-                        </Form.Item>
-                        <Form.Item label="截止时间" name="dueAt">
-                            <Input type="datetime-local" />
-                        </Form.Item>
-                        <Form.Item label="标题" name="title" className="sm:col-span-2" rules={[{ required: true, message: "请填写标题" }]}>
-                            <Input maxLength={160} />
-                        </Form.Item>
-                        <Form.Item label="要求" name="instructions" className="sm:col-span-2">
-                            <Input.TextArea rows={5} maxLength={5000} showCount />
-                        </Form.Item>
-                        <Form.Item label="资料 URL" name="resourceUrls" className="sm:col-span-2">
-                            <Select mode="tags" tokenSeparators={[",", "，"]} placeholder="输入 URL 后回车" />
-                        </Form.Item>
-                    </div>
-                </Form>
-            </Modal>
-
-            <Drawer title="课程安排详情" open={Boolean(viewingOffering)} destroyOnHidden size="min(720px, 100vw)" onClose={() => setViewingOffering(null)}>
-                {viewingOffering ? (
-                    <div className="space-y-5 text-sm">
-                        <DetailLine label="课程" value={viewingOffering.courseTitle} />
-                        <DetailLine label="班级" value={viewingOffering.className} />
-                        <SchoolCourseTree assignmentId={viewingOffering.assignmentId} canManage />
-                        <Button type="primary" icon={<Plus className="size-4" />} disabled={viewingOffering.status !== "active"} onClick={() => openCreate(viewingOffering.id)}>
-                            创建作业
-                        </Button>
-                    </div>
-                ) : null}
-            </Drawer>
-
-            <Drawer title={viewingCourse?.course.title || "课程详情"} open={Boolean(viewingCourse)} destroyOnHidden size="min(720px, 100vw)" onClose={() => setViewingCourse(null)}>
-                {viewingCourse ? <CourseDetail assignment={viewingCourse} /> : null}
-            </Drawer>
+            <AssignmentCreateModal open={assignmentOpen} offerings={offerings} courseTrees={courseTrees} initial={{ offeringId: creatingForOfferingId || undefined }} onClose={() => setAssignmentOpen(false)} onCreated={load} />
 
             <Drawer title="学生提交" open={submissionsOpen} destroyOnHidden size="min(720px, 100vw)" onClose={() => setSubmissionsOpen(false)}>
                 <SubmissionList submissions={submissions} canReview={selectedAssignment?.status === "published"} onReview={openReview} />
@@ -950,17 +851,6 @@ function ResponsiveGrid({ children, empty, emptyText }: { children: React.ReactN
     return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{children}</div>;
 }
 
-function CourseDetail({ assignment }: { assignment: SchoolCourseAssignment }) {
-    // 课程附件统一作为课程资料展示，平台与本校来源在课程树中区分。
-    const body = typeof assignment.course.content.body === "string" ? assignment.course.content.body : "";
-    return (
-        <div className="space-y-5">
-            <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{body || assignment.course.summary || "暂无正文"}</p>
-            <SchoolCourseTree assignmentId={assignment.id} canManage />
-        </div>
-    );
-}
-
 function ResourceList({ values, emptyText = "暂无补充资料" }: { values: unknown[]; emptyText?: string }) {
     return (
         <div className="mt-2 space-y-2">
@@ -982,21 +872,6 @@ function ResourceList({ values, emptyText = "暂无补充资料" }: { values: un
         </div>
     );
 }
-
-function DetailLine({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3">
-            <span className="text-zinc-500">{label}</span>
-            <span className="truncate">{value}</span>
-        </div>
-    );
-}
-
-const assignmentKindOptions = [
-    { value: "lesson", label: "课时任务" },
-    { value: "homework", label: "课后作业" },
-    { value: "commercial_practice", label: "课程实训" },
-] as const;
 
 function assignmentKindLabel(kind: TeachingAssignmentKind) {
     return kind === "lesson" ? "课时" : kind === "commercial_practice" ? "实训" : "作业";

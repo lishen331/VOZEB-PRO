@@ -1,6 +1,7 @@
 "use client";
 import { generationUserMessage } from "@/lib/generation-feedback-message";
-import { Alert, Button, Space } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Alert, Button } from "@/components/gamma-ui/gamma-ant";
 import { useState } from "react";
 import type { CreativeAgentRun } from "@/services/api/creative";
 

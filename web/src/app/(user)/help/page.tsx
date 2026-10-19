@@ -1,6 +1,7 @@
 "use client";
 
-import { Input, Select } from "antd";
+import { Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { ArrowUpRight, BookOpenText, CircleHelp, Clapperboard, ImagePlus, Images, Maximize2, Rocket, Search, ShieldCheck, Sparkles, Video, WalletCards, Wrench, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -58,7 +59,7 @@ export default function HelpPage() {
     };
 
     return (
-        <div className="h-full min-h-0 overflow-y-auto bg-[#fafbfc] text-foreground dark:bg-[#111316]">
+        <div className="h-full min-h-0 overflow-y-auto bg-[#f8fbff] text-foreground dark:bg-[#080e1a]">
             <div className="mx-auto w-full max-w-[1480px] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
                 <header className="grid gap-4 border-b border-border pb-5 sm:pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] lg:items-end">
                     <div className="min-w-0">
@@ -88,7 +89,7 @@ export default function HelpPage() {
                                             className={cn(
                                                 "flex min-w-0 items-start gap-3 rounded-lg border px-3 py-3 text-left transition",
                                                 activeId === article.id
-                                                    ? "!border-[#20242a] !bg-[#20242a] !text-white dark:!border-[#f3f5f7] dark:!bg-[#f3f5f7] dark:!text-[#20242a]"
+                                                    ? "!border-[#1b212f] !bg-[#1b212f] !text-white dark:!border-[#f2f5fa] dark:!bg-[#f2f5fa] dark:!text-[#1b212f]"
                                                     : "border-border bg-card text-card-foreground hover:border-foreground/35 hover:bg-muted/60",
                                             )}
                                             onClick={() => selectArticle(article.id)}
@@ -120,7 +121,7 @@ export default function HelpPage() {
                                         type="button"
                                         className={cn(
                                             "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition",
-                                            active ? "!bg-[#20242a] !text-white font-medium dark:!bg-[#f3f5f7] dark:!text-[#20242a]" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                            active ? "!bg-[#1b212f] !text-white font-medium dark:!bg-[#f2f5fa] dark:!text-[#1b212f]" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                                         )}
                                         onClick={() => selectArticle(article.id)}
                                         aria-current={active ? "page" : undefined}
@@ -184,7 +185,7 @@ function ArticleHeader({ article }: { article: (typeof helpArticles)[number] }) 
                 {article.route ? (
                     <Link
                         href={article.route.href}
-                        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg !bg-[#20242a] px-3.5 text-sm font-medium !text-white transition hover:opacity-85 dark:!bg-[#f3f5f7] dark:!text-[#20242a]"
+                        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg !bg-[#1b212f] px-3.5 text-sm font-medium !text-white transition hover:opacity-85 dark:!bg-[#f2f5fa] dark:!text-[#1b212f]"
                     >
                         {article.route.label}
                         <ArrowUpRight className="size-3.5" />

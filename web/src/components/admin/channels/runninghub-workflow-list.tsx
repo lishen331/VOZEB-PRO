@@ -1,6 +1,10 @@
 "use client";
 
-import { App, Button, Empty, Input, Popconfirm, Select, Space, Table, Tag } from "antd";
+import { App, Select, Table } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { Plus, RefreshCw, Settings2, TestTube, ToggleLeft, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";

@@ -1,7 +1,10 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Button, Grid, Input, Modal, Pagination, Select, Table, Tag } from "antd";
+import { App, Grid, Select, Table } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Check, RefreshCw, Search, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 

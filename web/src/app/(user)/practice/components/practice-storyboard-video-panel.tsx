@@ -1,6 +1,7 @@
 "use client";
 import { PracticePromptEditor } from "./practice-prompt-editor";
-import { App, Button, Select, Switch } from "antd";
+import { App, Select } from "antd";
+import { Button, Switch } from "@/components/gamma-ui/gamma-ant";
 import { Film } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { practiceApi, type PracticeSession } from "@/services/api/practice";

@@ -14,7 +14,12 @@ import { normalizeDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 
-import { Alert, Button, Drawer, Spin, Tabs, Input, InputNumber, Select, Form, List, Modal, message, Switch, Radio, QRCode, Image } from "antd";
+import { Select, Form, message, QRCode, Image } from "antd";
+import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { List, Radio } from "@/components/gamma-ui/gamma-ant-display";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Spin, Switch } from "@/components/gamma-ui/gamma-ant";
 import {
     ArrowLeft,
     Plus,

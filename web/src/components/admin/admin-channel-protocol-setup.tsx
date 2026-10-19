@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, App, Button, Checkbox, Input, Select, Tag } from "antd";
+import { App, Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Checkbox, Tag } from "@/components/gamma-ui/gamma-ant";
 import { FileSearch, WandSparkles } from "lucide-react";
 
 import { LabeledControl } from "@/components/admin/admin-settings-controls";

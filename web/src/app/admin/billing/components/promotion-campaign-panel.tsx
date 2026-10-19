@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Pagination, Select, Switch, Tag } from "antd";
+import { App, DatePicker, Form, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { BadgePercent, CalendarClock, Pencil, Plus, RefreshCw, Save, Trash2 } from "lucide-react";

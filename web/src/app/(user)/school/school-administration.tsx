@@ -1,7 +1,11 @@
 "use client";
 
 import type { FormInstance, TableColumnsType } from "antd";
-import { App, Button, Drawer, Form, Input, Modal, Pagination, Select, Table, Tabs, Tag, Upload } from "antd";
+import { App, Form, Select, Table, Upload } from "antd";
+import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { BriefcaseBusiness, CirclePlay, Eye, KeyRound, Pencil, Plus, RefreshCw, School, Settings2, Trash2, Upload as UploadIcon, UserRoundCog } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
@@ -50,7 +54,7 @@ export function SchoolAdministration() {
         <main className="h-full min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
             <div className="mx-auto w-full max-w-7xl">
                 <header className="mb-4 flex items-center gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800">
-                    <div className="grid size-10 shrink-0 place-items-center rounded-md bg-zinc-950 text-white dark:bg-zinc-100 dark:text-zinc-950">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-md bg-[var(--gm-blue)] text-white">
                         <School className="size-5" />
                     </div>
                     <div className="min-w-0">

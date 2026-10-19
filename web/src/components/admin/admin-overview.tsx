@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Tag } from "antd";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CircleDollarSign, Database, PlugZap, RefreshCw, UsersRound } from "lucide-react";
 
 import { generationKindLabel, generationSourceLabel } from "@/components/admin/admin-generation-log";

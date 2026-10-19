@@ -5,7 +5,9 @@ import { AgentSkillCreateModal } from "@/components/admin/agent-skill-create-mod
 import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel-workspace";
 import type { AgentSkill, PracticeModuleVisibility } from "@/lib/auth/store";
 import { FEATURE_MODULES, type FeatureModuleId } from "@/lib/feature-modules";
-import { Button, Input, InputNumber, Select, Switch, Tag } from "antd";
+import { Select } from "antd";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { useState } from "react";
 import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 

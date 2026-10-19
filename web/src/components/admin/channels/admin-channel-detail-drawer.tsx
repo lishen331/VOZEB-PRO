@@ -1,6 +1,9 @@
 "use client";
 
-import { Button, Drawer, Empty, Space, Tabs, Tag } from "antd";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RefreshCw } from "lucide-react";
 
 import { SystemChannelEditor } from "@/components/admin/admin-system-channel-editor";

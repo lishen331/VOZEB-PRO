@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button } from "antd";
+import { App } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Heart, ImageIcon, UserPlus, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

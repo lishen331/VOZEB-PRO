@@ -5,7 +5,11 @@ import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import { toNumberOrZero } from "@/components/admin/admin-values";
 import { formatCreditAmount } from "@/constant/credits";
-import { Button, Checkbox, Input, InputNumber, Pagination, Popconfirm, Select, Space, Table, Tag } from "antd";
+import { Select, Table } from "antd";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Database, Download, Eye, Gift, KeyRound, RefreshCw, Search, ShieldCheck, Trash2 } from "lucide-react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";

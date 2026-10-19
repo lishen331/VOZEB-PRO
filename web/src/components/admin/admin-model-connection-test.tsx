@@ -1,6 +1,9 @@
 "use client";
 
-import { Button, Modal, Space, Tag, message } from "antd";
+import { message } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CheckCircle2, Clock3, RefreshCw, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { LogicalModelCapability } from "@/lib/auth/store";

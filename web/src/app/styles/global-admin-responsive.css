@@ -77,7 +77,7 @@
     }
 
     .admin-section-nav {
-        border-right: 1px solid #e4e4e7;
+        border-right: 1px solid #e2e4ea;
         bottom: 0;
         height: 100dvh;
         left: 0;
@@ -98,7 +98,7 @@
     }
 
     .admin-section-nav.is-open {
-        box-shadow: 18px 0 44px rgba(24, 24, 27, 0.18);
+        box-shadow: 18px 0 44px rgba(14, 20, 33, 0.18);
         pointer-events: auto;
         transform: translateX(0);
         transition-delay: 0s;
@@ -157,8 +157,8 @@
 
     .admin-section-nav-toggle {
         background: #ffffff !important;
-        border-color: #e4e4e7 !important;
-        color: #52525b !important;
+        border-color: #e2e4ea !important;
+        color: #4a5366 !important;
     }
 
     .admin-section-nav-toggle svg {
@@ -167,9 +167,9 @@
     }
 
     .dark .admin-section-nav-toggle {
-        background: #09090b !important;
-        border-color: #27272a !important;
-        color: #d4d4d8 !important;
+        background: #02050f !important;
+        border-color: #1f2534 !important;
+        color: #ced5e2 !important;
     }
 
     .admin-section-nav-list {
@@ -211,16 +211,16 @@
     }
 
     .admin-section-nav-item.is-active {
-        background: #f4f4f5 !important;
+        background: #f2f4fa !important;
         border-color: transparent !important;
-        box-shadow: inset 2px 0 0 #18181b !important;
+        box-shadow: inset 2px 0 0 #0e1421 !important;
     }
 
     .dark .admin-section-nav-item.is-active {
-        background: #18181b !important;
+        background: #0e1421 !important;
         border-color: transparent !important;
-        color: #fafafa !important;
-        box-shadow: inset 2px 0 0 #fafafa !important;
+        color: #f7faff !important;
+        box-shadow: inset 2px 0 0 #f7faff !important;
     }
 
     .admin-section-nav-icon {

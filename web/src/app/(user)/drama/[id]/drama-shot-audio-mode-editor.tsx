@@ -1,6 +1,6 @@
 "use client";
 
-import { Segmented } from "antd";
+import { Segmented } from "@/components/gamma-ui/gamma-ant";
 
 import { useDramaStore } from "../stores/use-drama-store";
 import type { DramaShot, DramaShotAudioMode } from "../types";
@@ -36,7 +36,7 @@ export function DramaShotAudioModeEditor({ projectId, episodeId, shot }: { proje
             <Segmented
                 block
                 disabled={audioActive}
-                className="!mt-2 !min-w-0 !w-full [&_.ant-segmented-item]:!min-w-0 [&_.ant-segmented-item-label]:!truncate [&_.ant-segmented-item-label]:!px-1.5 sm:[&_.ant-segmented-item-label]:!px-3"
+                className="!mt-2 !min-w-0 !w-full [&_.gm-segmented-item]:!min-w-0 [&_.gm-segmented-item-label]:!truncate [&_.gm-segmented-item-label]:!px-1.5 sm:[&_.gm-segmented-item-label]:!px-3"
                 value={audioMode}
                 options={[
                     { label: "视频原声", value: "source" },

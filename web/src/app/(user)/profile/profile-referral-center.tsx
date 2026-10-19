@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { App, Button, Pagination, Tag } from "antd";
+import { App } from "antd";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Gift, Link2, RefreshCw, ShieldCheck, UserPlus } from "lucide-react";
 
 import { useCopyText } from "@/hooks/use-copy-text";

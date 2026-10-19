@@ -1,6 +1,8 @@
 "use client";
 
-import { Alert, Button, Card, QRCode, Spin, message } from "antd";
+import { QRCode, message } from "antd";
+import { Card } from "@/components/gamma-ui/gamma-ant-display";
+import { Alert, Button, Spin } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, CheckCircle2, LogIn, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";

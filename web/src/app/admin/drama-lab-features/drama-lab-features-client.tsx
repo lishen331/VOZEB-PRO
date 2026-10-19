@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Switch, message } from "antd";
+import { message } from "antd";
+import { Button, Switch } from "@/components/gamma-ui/gamma-ant";
 import { DEFAULT_DRAMA_LAB_UI_FEATURES, DRAMA_LAB_UI_FEATURES, type DramaLabUiFeatureId } from "@/lib/feature-modules";
 
 type Settings = { featureModules?: Record<string, boolean>; settingsRevision?: number };

@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Tag } from "antd";
+import { Alert, Tag } from "@/components/gamma-ui/gamma-ant";
 
 import type { IpContentFileRecord } from "@/lib/server/database/repository-types";
 import { adminIpLibraryApi } from "@/services/api/admin-ip-library";

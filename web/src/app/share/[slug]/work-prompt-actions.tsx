@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button } from "antd";
+import { App } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Sparkles } from "lucide-react";
 import Link from "next/link";
 

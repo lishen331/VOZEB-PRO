@@ -1,6 +1,10 @@
 "use client";
 
-import { Button, Checkbox, Empty, Input, Modal, Popconfirm, Segmented, Select, Tag, message } from "antd";
+import { Select, message } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Empty, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { useEffect, useState } from "react";
 import { shotPromptPatch } from "@/lib/one-click/shot-prompt-patch";
 import { buildShotBindingPatch } from "@/lib/one-click/shot-binding-patch";

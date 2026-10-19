@@ -1,7 +1,11 @@
 "use client";
 
 import { AudioLines, Copy, Download, FileText, Film, ImageIcon, PencilLine, Share2, Trash2 } from "lucide-react";
-import { Button, Image, Modal, Space, Tag, Tooltip, Typography } from "antd";
+import { Image } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space, Typography } from "@/components/gamma-ui/gamma-ant-display";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { formatBytes } from "@/lib/image-utils";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { cn } from "@/lib/utils";

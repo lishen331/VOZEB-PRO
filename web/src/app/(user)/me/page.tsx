@@ -1,6 +1,9 @@
 "use client";
 
-import { App, Button, Input, Modal, Pagination, Spin } from "antd";
+import { App } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 import { ExternalLink, Grid3X3, Heart, ImageIcon, Share2, UserPlus, UserRoundPen, Users } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -195,7 +198,7 @@ export default function MyCreatorPage() {
                         <ProfileMetric label="粉丝" value={metrics.followers} onClick={() => setActivityView("followers")} />
                     </div>
                     <Button
-                        className="mt-6 !h-10 !min-w-48 !rounded-md !border-stone-950 !bg-stone-950 !px-6 !text-base !font-semibold !text-white !shadow-none hover:!border-black hover:!bg-black hover:!text-white disabled:!border-border disabled:!bg-muted disabled:!text-muted-foreground dark:!border-white dark:!bg-white dark:!text-stone-950 dark:hover:!border-stone-100 dark:hover:!bg-stone-100 dark:hover:!text-stone-950"
+                        className="mt-6 !h-10 !min-w-48 !rounded-md !border-[var(--gm-blue)] !bg-[var(--gm-blue)] !px-6 !text-base !font-semibold !text-white !shadow-none hover:!border-[var(--gm-blue-hover)] hover:!bg-[var(--gm-blue-hover)] hover:!text-white disabled:!border-border disabled:!bg-muted disabled:!text-muted-foreground"
                         icon={<Share2 className="size-4" />}
                         disabled={!summary?.publicProfileAvailable}
                         onClick={shareProfile}

@@ -5,17 +5,15 @@ import { describe, expect, it } from "vitest";
 import { isFullscreenWorkspacePath } from "./app-workspace-path";
 
 describe("workspace sidebar", () => {
-    it("starts expanded and keeps scrolling without a visible scrollbar", async () => {
-        const [shell, sidebar] = await Promise.all([readFile(resolve(process.cwd(), "src/components/layout/app-workspace-shell.tsx"), "utf8"), readFile(resolve(process.cwd(), "src/components/layout/app-sidebar.tsx"), "utf8")]);
+    it("uses the shared BlueGamma sidebar instead of the old header bar", async () => {
+        const [shell, sidebar] = await Promise.all([readFile(resolve(process.cwd(), "src/components/layout/app-workspace-shell.tsx"), "utf8"), readFile(resolve(process.cwd(), "src/components/layout/gamma-app-sidebar.tsx"), "utf8")]);
 
-        expect(shell).toContain("const [sidebarExpanded, setSidebarExpanded] = useState(true)");
-        expect(shell).toContain("expanded={sidebarExpanded}");
-        expect(sidebar).toContain('expanded ? "w-44" : "w-[72px]"');
-        expect(sidebar).toContain("hide-scrollbar min-h-0 flex-1 overflow-y-auto");
-        expect(sidebar).not.toContain("thin-scrollbar min-h-0 flex-1 overflow-y-auto");
-        expect(sidebar).toContain('<CircleHelp className="size-[18px] shrink-0" />');
-        expect(sidebar).not.toContain("userAvatarFallback");
-        expect(sidebar).not.toContain("workspaceUrl");
+        expect(shell).toContain("<GammaAppSidebar");
+        expect(shell).toContain("useGammaSidebarState()");
+        expect(shell).not.toContain("UserStatusActions");
+        expect(shell).not.toContain("pageTitle");
+        expect(sidebar).toContain("workspaceNavItems(");
+        expect(sidebar).toContain("isHelpCenterVisible(");
         expect(sidebar).not.toContain("window.location.host");
     });
 

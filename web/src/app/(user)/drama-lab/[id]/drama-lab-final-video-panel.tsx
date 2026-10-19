@@ -1,6 +1,8 @@
 "use client";
 
-import { Alert, Button, Card, Space, Tag, message } from "antd";
+import { message } from "antd";
+import { Card, Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Alert, Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RefreshCw, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 

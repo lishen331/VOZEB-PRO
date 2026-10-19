@@ -1,7 +1,10 @@
 "use client";
 
-import { Button, Input, Popover, Tooltip } from "antd";
-import type { TextAreaRef } from "antd/es/input/TextArea";
+import { Popover } from "antd";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button } from "@/components/gamma-ui/gamma-ant";
+import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";
 import { ArrowUp, AtSign, Boxes, Check, ChevronDown, ChevronLeft, ChevronRight, FileAudio, FileVideo, ImageIcon, Plus, Sparkles, Square, WandSparkles, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MouseEventHandler, type PointerEventHandler, type RefObject, type WheelEvent } from "react";
 
@@ -211,7 +214,7 @@ export function CreativeComposer({
                     variant="borderless"
                     className={cn(
                         "creative-composer-input relative z-[1] min-w-0 !border-0 !bg-transparent !px-1 !py-1 !text-[15px] !leading-7 !shadow-none !outline-none sm:!px-2",
-                        hasMentionReferences && "!text-transparent caret-[#20242a] dark:caret-[#f3f5f7]",
+                        hasMentionReferences && "!text-transparent caret-[#1b212f] dark:caret-[#f2f5fa]",
                     )}
                     placeholder={compactMode ? "输入你的创作想法" : "输入你的创作想法、脚本或画面要求"}
                     onFocus={() => {
@@ -275,7 +278,7 @@ export function CreativeComposer({
                 data-ready={ready}
                 data-compact={compact ? "true" : "false"}
                 className={cn(
-                    "creative-composer border border-[#e2e6ea] bg-white shadow-[0_10px_32px_rgba(32,36,42,0.06)] transition-[border-radius,padding,box-shadow] duration-200 dark:border-[#30363e] dark:bg-[#181b20] dark:shadow-black/24",
+                    "creative-composer border border-[#e3e6eb] bg-white shadow-[0_10px_32px_rgba(32,36,42,0.06)] transition-[border-radius,padding,box-shadow] duration-200 dark:border-[#2e3544] dark:bg-[#111724] dark:shadow-black/24",
                     compact ? "h-[60px] min-h-[60px] max-h-[60px] rounded-[20px] p-2" : centered ? "rounded-[22px] p-3 sm:p-4" : "rounded-2xl p-2.5",
                 )}
                 onClick={compact ? onExpand : undefined}
@@ -283,14 +286,14 @@ export function CreativeComposer({
                 {selectedSkill || otherAttachments.length ? (
                     <div className={cn("gap-2 overflow-hidden px-2 pb-1 pt-1", compact ? "hidden" : "flex")}>
                         {selectedSkill ? (
-                            <span className="flex h-9 max-w-60 shrink-0 items-center gap-2 rounded-lg border border-[#d6dee8] bg-[#f1f4f8] px-2.5 text-xs font-medium text-[#344152] shadow-[0_2px_8px_rgba(38,49,65,0.07)] dark:border-[#3b4653] dark:bg-[#252b33] dark:text-[#edf1f5] dark:shadow-black/20">
+                            <span className="flex h-9 max-w-60 shrink-0 items-center gap-2 rounded-lg border border-[#d7ddeb] bg-[#f1f4f9] px-2.5 text-xs font-medium text-[#374052] shadow-[0_2px_8px_rgba(38,49,65,0.07)] dark:border-[#3c4558] dark:bg-[#222937] dark:text-[#eef1f6] dark:shadow-black/20">
                                 <span className="grid size-5 shrink-0 place-items-center rounded-md bg-[#d3a44f]/16 text-[#95681d] dark:bg-[#e4bb70]/14 dark:text-[#e4bb70]">
                                     <Sparkles className="size-3.5" />
                                 </span>
                                 <span className="truncate">Skill · {selectedSkill.name}</span>
                                 <button
                                     type="button"
-                                    className="grid size-5 shrink-0 place-items-center rounded-md text-[#7c8795] transition hover:bg-[#dfe5ec] hover:text-[#263141] dark:text-[#aab3bf] dark:hover:bg-[#343c46] dark:hover:text-white"
+                                    className="grid size-5 shrink-0 place-items-center rounded-md text-[#7c869b] transition hover:bg-[#e2e4ea] hover:text-[#29303e] dark:text-[#acb2bf] dark:hover:bg-[#333b4d] dark:hover:text-white"
                                     onClick={onRemoveSkill}
                                     aria-label={`移除 Skill ${selectedSkill.name}`}
                                     title="移除 Skill"
@@ -341,7 +344,7 @@ export function CreativeComposer({
                                     <Button
                                         type="text"
                                         className={cn(
-                                            "mt-0.5 shrink-0 !border !border-[#e5e9ed] !bg-[#f5f7f8] !text-[#87919d] hover:!border-[#d4dae0] hover:!bg-[#eef1f3] hover:!text-[#38424e] dark:!border-[#343a42] dark:!bg-[#24282e] dark:!text-[#9ca6b2] dark:hover:!border-[#49515b] dark:hover:!bg-[#2c3239] dark:hover:!text-white",
+                                            "mt-0.5 shrink-0 !border !border-[#e6e9ee] !bg-[#f4f7fc] !text-[#8690a5] hover:!border-[#d3d9e7] hover:!bg-[#eef1f6] hover:!text-[#384153] dark:!border-[#323948] dark:!bg-[#1f2634] dark:!text-[#9fa5b2] dark:hover:!border-[#475063] dark:hover:!bg-[#2a3140] dark:hover:!text-white",
                                             compact
                                                 ? "!size-11 !min-w-11 !rounded-xl"
                                                 : mediaAttachments.length
@@ -365,7 +368,7 @@ export function CreativeComposer({
                             <Tooltip title="引用当前对话资产">
                                 <Button
                                     type="text"
-                                    className="!size-11 !min-w-11 !rounded-xl !text-[#66717e] hover:!bg-[#f2f4f6] hover:!text-[#20242a] dark:!text-[#a3acb7] dark:hover:!bg-[#292f37] dark:hover:!text-white"
+                                    className="!size-11 !min-w-11 !rounded-xl !text-[#667084] hover:!bg-[#f1f4f9] hover:!text-[#1b212f] dark:!text-[#a5abb8] dark:hover:!bg-[#272e3c] dark:hover:!text-white"
                                     icon={<AtSign className="size-4" />}
                                     onMouseDown={(event) => event.preventDefault()}
                                     onClick={(event) => {
@@ -378,7 +381,7 @@ export function CreativeComposer({
                             <Tooltip title="优化提示词">
                                 <Button
                                     type="text"
-                                    className="!size-11 !min-w-11 !rounded-xl !text-[#66717e] hover:!bg-[#f2f4f6] hover:!text-[#20242a] disabled:!bg-transparent disabled:!text-[#b3bac4] dark:!text-[#a3acb7] dark:hover:!bg-[#292f37] dark:hover:!text-white"
+                                    className="!size-11 !min-w-11 !rounded-xl !text-[#667084] hover:!bg-[#f1f4f9] hover:!text-[#1b212f] disabled:!bg-transparent disabled:!text-[#b3bac7] dark:!text-[#a5abb8] dark:hover:!bg-[#272e3c] dark:hover:!text-white"
                                     icon={<WandSparkles className="size-4" />}
                                     loading={optimizing}
                                     disabled={busy || !value.trim()}
@@ -393,7 +396,7 @@ export function CreativeComposer({
                                 <Button
                                     type="primary"
                                     shape="circle"
-                                    className="!size-11 !min-w-11 !border-0 !bg-[linear-gradient(135deg,#5968ff,#604dff)] !text-white !shadow-[0_6px_16px_rgba(89,104,255,0.22)] hover:!bg-[linear-gradient(135deg,#5261f3,#5846ee)] disabled:!bg-none disabled:!bg-[#e2e5e8] disabled:!text-[#aeb5bd] disabled:!shadow-none dark:disabled:!bg-[#30353c] dark:disabled:!text-[#68717d]"
+                                    className="!size-11 !min-w-11 !border-0 !bg-[linear-gradient(135deg,#2b72ff,#0860ff)] !text-white !shadow-[0_6px_16px_rgba(89,104,255,0.22)] hover:!bg-[linear-gradient(135deg,#256bf3,#0458f1)] disabled:!bg-none disabled:!bg-[#e2e5ea] disabled:!text-[#aeb4c1] disabled:!shadow-none dark:disabled:!bg-[#2e3543] dark:disabled:!text-[#667085]"
                                     icon={busy ? <Square className="size-3.5 fill-current" /> : <ArrowUp className="size-4" />}
                                     disabled={!busy && !value.trim()}
                                     onClick={busy ? onCancel : onSubmit}
@@ -414,7 +417,7 @@ export function CreativeComposer({
                             onOpenChange={setModePickerOpen}
                             content={
                                 <div className="hide-scrollbar max-h-[calc(100vh-160px)] w-[calc(100vw-56px)] max-w-[300px] overflow-y-auto py-1 sm:w-72 sm:max-w-none">
-                                    <p className="px-2 pb-2 text-sm font-semibold text-[#20242a] dark:text-[#f3f5f7]">创作类型</p>
+                                    <p className="px-2 pb-2 text-sm font-semibold text-[#1b212f] dark:text-[#f2f5fa]">创作类型</p>
                                     <div className="space-y-1">
                                         {creativeModeOptions.map((option) => {
                                             const selected = option.value === creationMode;
@@ -423,8 +426,8 @@ export function CreativeComposer({
                                                     key={option.value}
                                                     type="button"
                                                     className={cn(
-                                                        "flex min-h-12 w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-[#eef3f6] dark:hover:bg-[#29323a]",
-                                                        selected ? "text-[#20242a] dark:text-white" : "text-[#4f5a67] dark:text-[#bec6cf]",
+                                                        "flex min-h-12 w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-[#eff2f8] dark:hover:bg-[#2a303f]",
+                                                        selected ? "text-[#1b212f] dark:text-white" : "text-[#50596c] dark:text-[#bfc5d3]",
                                                     )}
                                                     onClick={() => {
                                                         onChangeCreationMode(option.value);
@@ -434,14 +437,14 @@ export function CreativeComposer({
                                                     <span
                                                         className={cn(
                                                             "grid size-8 shrink-0 place-items-center rounded-lg",
-                                                            selected ? "bg-white text-[#28738e] shadow-sm dark:bg-[#394550] dark:text-[#8ec7da]" : "bg-[#f2f4f6] text-[#7b8692] dark:bg-[#30363e] dark:text-[#a0aab5]",
+                                                            selected ? "bg-white text-[#177780] shadow-sm dark:bg-[#3b4356] dark:text-[#8bc9d1]" : "bg-[#f1f4f9] text-[#7b859a] dark:bg-[#2e3544] dark:text-[#a3a9b6]",
                                                         )}
                                                     >
                                                         <CreativeModeIcon mode={option.value} />
                                                     </span>
                                                     <span className="min-w-0 flex-1">
                                                         <span className="block text-xs font-medium">{option.label}</span>
-                                                        <span className="mt-0.5 block truncate text-[11px] text-[#8b949f] dark:text-[#7f8996]">{option.description}</span>
+                                                        <span className="mt-0.5 block truncate text-[11px] text-[#8993a9] dark:text-[#7e889d]">{option.description}</span>
                                                     </span>
                                                     {selected ? <Check className="size-4 shrink-0" /> : null}
                                                 </button>
@@ -497,14 +500,14 @@ export function CreativeComposer({
                             onOpenChange={setSkillPickerOpen}
                             content={
                                 <div className="w-[calc(100vw-56px)] max-w-[300px] py-1 sm:w-80 sm:max-w-none">
-                                    <p className="px-2 pb-2 text-sm font-semibold text-[#20242a] dark:text-[#f3f5f7]">选择创作 Skill</p>
-                                    {skillsLoading ? <p className="px-2 py-3 text-xs text-[#8b949f] dark:text-[#7f8996]">正在加载...</p> : null}
-                                    {!skillsLoading && !skills.length ? <p className="px-2 py-3 text-xs text-[#8b949f] dark:text-[#7f8996]">暂无可用 Skill</p> : null}
+                                    <p className="px-2 pb-2 text-sm font-semibold text-[#1b212f] dark:text-[#f2f5fa]">选择创作 Skill</p>
+                                    {skillsLoading ? <p className="px-2 py-3 text-xs text-[#8993a9] dark:text-[#7e889d]">正在加载...</p> : null}
+                                    {!skillsLoading && !skills.length ? <p className="px-2 py-3 text-xs text-[#8993a9] dark:text-[#7e889d]">暂无可用 Skill</p> : null}
                                     {skills.length ? (
                                         <div className="mb-2 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center gap-1">
                                             <button
                                                 type="button"
-                                                className="grid size-7 place-items-center rounded-md text-[#7c8794] transition hover:bg-[#eef1f4] hover:text-[#20242a] disabled:cursor-default disabled:opacity-30 dark:text-[#929ca8] dark:hover:bg-[#292f37] dark:hover:text-white"
+                                                className="grid size-7 place-items-center rounded-md text-[#7c869b] transition hover:bg-[#eef1f6] hover:text-[#1b212f] disabled:cursor-default disabled:opacity-30 dark:text-[#919bb1] dark:hover:bg-[#272e3c] dark:hover:text-white"
                                                 onClick={() => skillCategoryScrollRef.current?.scrollBy({ left: -180, behavior: "smooth" })}
                                                 aria-label="向左查看更多 Skill 分类"
                                             >
@@ -527,8 +530,8 @@ export function CreativeComposer({
                                                         className={cn(
                                                             "h-8 min-w-[72px] shrink-0 snap-start whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition",
                                                             skillCategory === category.id
-                                                                ? "border-[#c9d7e2] bg-[#edf3f7] text-[#315d78] dark:border-[#466175] dark:bg-[#273742] dark:text-[#a8c8dc]"
-                                                                : "border-[#e0e4e8] bg-white text-[#66717e] hover:border-[#cbd2d9] hover:bg-[#f5f7f8] hover:text-[#20242a] dark:border-[#343a42] dark:bg-[#1d2127] dark:text-[#a3acb7] dark:hover:border-[#49515b] dark:hover:bg-[#292f37] dark:hover:text-white",
+                                                                ? "border-[#ced5e2] bg-[#eff2f8] text-[#43587d] dark:border-[#4f5e78] dark:bg-[#2e3543] dark:text-[#b3c4e0]"
+                                                                : "border-[#e1e4e9] bg-white text-[#667084] hover:border-[#cbd1df] hover:bg-[#f4f7fc] hover:text-[#1b212f] dark:border-[#323948] dark:bg-[#171e2b] dark:text-[#a5abb8] dark:hover:border-[#475063] dark:hover:bg-[#272e3c] dark:hover:text-white",
                                                         )}
                                                         onClick={() => setSkillCategory(category.id)}
                                                     >
@@ -538,7 +541,7 @@ export function CreativeComposer({
                                             </div>
                                             <button
                                                 type="button"
-                                                className="grid size-7 place-items-center rounded-md text-[#7c8794] transition hover:bg-[#eef1f4] hover:text-[#20242a] dark:text-[#929ca8] dark:hover:bg-[#292f37] dark:hover:text-white"
+                                                className="grid size-7 place-items-center rounded-md text-[#7c869b] transition hover:bg-[#eef1f6] hover:text-[#1b212f] dark:text-[#919bb1] dark:hover:bg-[#272e3c] dark:hover:text-white"
                                                 onClick={() => skillCategoryScrollRef.current?.scrollBy({ left: 180, behavior: "smooth" })}
                                                 aria-label="向右查看更多 Skill 分类"
                                             >
@@ -548,7 +551,7 @@ export function CreativeComposer({
                                     ) : null}
                                     <div className="relative">
                                         <div className="hide-scrollbar max-h-[142px] space-y-1 overflow-y-auto overscroll-contain [scrollbar-width:none] sm:max-h-[154px] [&::-webkit-scrollbar]:hidden">
-                                            {!skillsLoading && skills.length && !visibleSkills.length ? <p className="px-2 py-5 text-center text-xs text-[#8b949f] dark:text-[#7f8996]">当前分类暂无可用 Skill</p> : null}
+                                            {!skillsLoading && skills.length && !visibleSkills.length ? <p className="px-2 py-5 text-center text-xs text-[#8993a9] dark:text-[#7e889d]">当前分类暂无可用 Skill</p> : null}
                                             {visibleSkills.map((skill) => {
                                                 const selected = selectedSkill?.id === skill.id;
                                                 const visual = skillOptionVisual(skill);
@@ -559,7 +562,7 @@ export function CreativeComposer({
                                                         type="button"
                                                         className={cn(
                                                             "flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition",
-                                                            selected ? "bg-[#eef1f4] text-[#20242a] dark:bg-[#292f37] dark:text-white" : "text-[#4d5662] hover:bg-[#f4f6f8] dark:text-[#c2c9d1] dark:hover:bg-[#242930]",
+                                                            selected ? "bg-[#eef1f6] text-[#1b212f] dark:bg-[#272e3c] dark:text-white" : "text-[#4c5569] hover:bg-[#f3f6fb] dark:text-[#c2c8d6] dark:hover:bg-[#202735]",
                                                         )}
                                                         onClick={() => {
                                                             onSelectSkill(skill);
@@ -571,7 +574,7 @@ export function CreativeComposer({
                                                         </span>
                                                         <span className="min-w-0 flex-1">
                                                             <span className="block truncate text-xs font-medium">{skill.name}</span>
-                                                            <span className="mt-0.5 line-clamp-2 block text-[11px] leading-4 text-[#8b949f] dark:text-[#7f8996]">{skill.description}</span>
+                                                            <span className="mt-0.5 line-clamp-2 block text-[11px] leading-4 text-[#8993a9] dark:text-[#7e889d]">{skill.description}</span>
                                                         </span>
                                                         {selected ? <Check className="mt-0.5 size-4 shrink-0" /> : null}
                                                     </button>
@@ -604,7 +607,7 @@ export function CreativeComposer({
                         <Button
                             type="primary"
                             shape="circle"
-                            className="shrink-0 !size-11 !min-w-11 !border-0 !bg-[#20242a] !text-white shadow-none hover:!bg-[#343b44] disabled:!bg-[#e2e5e8] disabled:!text-[#aeb5bd] dark:!bg-[#f1f3f5] dark:!text-[#20242a] dark:hover:!bg-white dark:disabled:!bg-[#30353c] dark:disabled:!text-[#68717d]"
+                            className="shrink-0 !size-11 !min-w-11 !border-0 !bg-[#1b212f] !text-white shadow-none hover:!bg-[#333a49] disabled:!bg-[#e2e5ea] disabled:!text-[#aeb4c1] dark:!bg-[#f0f3f8] dark:!text-[#1b212f] dark:hover:!bg-white dark:disabled:!bg-[#2e3543] dark:disabled:!text-[#667085]"
                             icon={busy ? <Square className="size-3.5 fill-current" /> : <ArrowUp className="size-4" />}
                             disabled={!busy && !value.trim()}
                             onClick={busy ? onCancel : onSubmit}
@@ -623,7 +626,7 @@ function ComposerMentionPreview({ segments, assetsById, previewRef }: { segments
             ref={previewRef}
             data-testid="creative-composer-mention-preview"
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words px-1 py-1 text-[15px] leading-7 tracking-normal text-[#2f3742] [font-family:inherit] sm:px-2 dark:text-[#e8ecf1]"
+            className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words px-1 py-1 text-[15px] leading-7 tracking-normal text-[#2f3645] [font-family:inherit] sm:px-2 dark:text-[#e9ecf1]"
         >
             {segments.map((segment, index) => {
                 const asset = segment.assetId ? assetsById.get(segment.assetId) : undefined;
@@ -636,7 +639,7 @@ function ComposerMentionPreview({ segments, assetsById, previewRef }: { segments
                         <span data-mention-token-width className="whitespace-pre">
                             {segment.text}
                         </span>
-                        <span className="absolute inset-0 inline-flex min-w-0 items-center gap-0.5 overflow-hidden text-[#536273] dark:text-[#c8d0d9]">
+                        <span className="absolute inset-0 inline-flex min-w-0 items-center gap-0.5 overflow-hidden text-[#576074] dark:text-[#c9cfdd]">
                             {previewUrl ? <img src={imagePreviewUrl(previewUrl, 96)} alt="" className="size-4 shrink-0 rounded object-cover shadow-[0_1px_2px_rgba(32,36,42,0.16)]" /> : <Icon className="size-3.5 shrink-0" />}
                             <span data-mention-label className="min-w-0 truncate text-[13px] font-medium">
                                 {segment.text.slice(1)}
@@ -653,7 +656,7 @@ function ComposerMediaThumbnail({ asset, compact = false, onRemove }: { asset: C
     const previewUrl = asset.serverUrl || asset.remoteUrl || "";
     return (
         <div
-            className={cn("relative shrink-0 border border-[#dfe4e8] bg-[#f4f6f8] shadow-[0_2px_8px_rgba(38,49,65,0.08)] dark:border-[#3b434d] dark:bg-[#242930] dark:shadow-black/20", compact ? "size-11 rounded-lg" : "size-12 rounded-lg")}
+            className={cn("relative shrink-0 border border-[#e1e3e9] bg-[#f3f6fb] shadow-[0_2px_8px_rgba(38,49,65,0.08)] dark:border-[#394255] dark:bg-[#202735] dark:shadow-black/20", compact ? "size-11 rounded-lg" : "size-12 rounded-lg")}
             aria-label={`已上传${asset.type === "image" ? "图片" : "视频"} ${asset.title}`}
             title={asset.title}
         >
@@ -666,7 +669,7 @@ function ComposerMediaThumbnail({ asset, compact = false, onRemove }: { asset: C
             </div>
             <button
                 type="button"
-                className="group/remove absolute -right-1.5 -top-1.5 z-10 grid size-7 place-items-center rounded-full !border-0 !bg-transparent !p-0 !text-white shadow-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28738e] focus-visible:ring-offset-1"
+                className="group/remove absolute -right-1.5 -top-1.5 z-10 grid size-7 place-items-center rounded-full !border-0 !bg-transparent !p-0 !text-white shadow-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#177780] focus-visible:ring-offset-1"
                 onClick={(event) => {
                     event.stopPropagation();
                     onRemove(asset.id);
@@ -677,7 +680,7 @@ function ComposerMediaThumbnail({ asset, compact = false, onRemove }: { asset: C
                 <span
                     data-delete-indicator
                     aria-hidden="true"
-                    className="grid size-[22px] place-items-center rounded-full border border-white/95 bg-[#66727f]/95 text-white shadow-[0_2px_7px_rgba(32,36,42,0.3)] transition-colors group-hover/remove:bg-[#bd5b68] group-focus-within/remove:bg-[#bd5b68] dark:bg-[#7d8995]/95 dark:group-hover/remove:bg-[#cf6873] dark:group-focus-within/remove:bg-[#cf6873]"
+                    className="grid size-[22px] place-items-center rounded-full border border-white/95 bg-[#677185]/95 text-white shadow-[0_2px_7px_rgba(32,36,42,0.3)] transition-colors group-hover/remove:bg-[#bd5b68] group-focus-within/remove:bg-[#bd5b68] dark:bg-[#7d889d]/95 dark:group-hover/remove:bg-[#cf6873] dark:group-focus-within/remove:bg-[#cf6873]"
                 >
                     <X className="size-3.5 stroke-[2.75]" />
                 </span>

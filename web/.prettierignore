@@ -22,3 +22,6 @@ playwright-report
 public/mediapipe/vision_bundle.js
 public/mediapipe/wasm/vision_wasm_internal.js
 check.json
+
+# 自托管字体：上游原样文件，不格式化
+public/fonts

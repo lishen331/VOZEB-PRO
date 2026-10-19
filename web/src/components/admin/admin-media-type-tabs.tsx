@@ -1,6 +1,6 @@
 "use client";
 
-import { Tabs } from "antd";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { FileAudio, Film, Files, Image as ImageIcon, Paperclip } from "lucide-react";
 
 import { managedMediaTypeOptions } from "@/lib/media-management-contract";
@@ -22,7 +22,7 @@ export function AdminMediaTypeTabs({ value, disabled, onChange }: { value: strin
                     </span>
                 ),
             }))}
-            className="[&_.ant-tabs-nav]:!mb-3 [&_.ant-tabs-tab]:!py-2 [&_.ant-tabs-tab-btn]:!shadow-none"
+            className="[&_.gm-tabs-nav]:!mb-3 [&_.gm-tabs-tab]:!py-2"
             onChange={(key) => onChange(key === "all" ? "" : key)}
         />
     );

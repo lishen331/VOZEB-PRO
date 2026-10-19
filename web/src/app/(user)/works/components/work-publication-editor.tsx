@@ -1,6 +1,9 @@
 "use client";
 
-import { App, Button, Checkbox, Form, Input, Modal, Segmented, Select, Tag } from "antd";
+import { App, Form, Select } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Check, Film, Image as ImageIcon, LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -311,7 +314,7 @@ export function WorkPublicationEditor({
                                                         <video src={candidate.previewUrl} className="size-full object-cover" preload="metadata" muted />
                                                     ) : null}
                                                     <Checkbox
-                                                        className="!absolute !left-2 !top-2 !m-0 [&_.ant-checkbox-inner]:!size-5 [&_.ant-checkbox-inner]:!border-white/90 [&_.ant-checkbox-inner]:!bg-white/95 [&_.ant-checkbox-checked_.ant-checkbox-inner]:!border-stone-950 [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-stone-950 dark:[&_.ant-checkbox-inner]:!border-stone-700 dark:[&_.ant-checkbox-inner]:!bg-stone-900 dark:[&_.ant-checkbox-checked_.ant-checkbox-inner]:!border-white dark:[&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-white dark:[&_.ant-checkbox-checked_.ant-checkbox-inner]:after:!border-stone-950"
+                                                        className="!absolute !left-2 !top-2 !m-0 [&_.gm-checkbox]:!size-5 [&_.gm-checkbox]:!border-white/90 [&_.gm-checkbox]:!bg-white/95 [&_.gm-checkbox-checked]:!border-stone-950 [&_.gm-checkbox-checked]:!bg-stone-950 dark:[&_.gm-checkbox]:!border-stone-700 dark:[&_.gm-checkbox]:!bg-stone-900 dark:[&_.gm-checkbox-checked]:!border-white dark:[&_.gm-checkbox-checked]:!bg-white dark:"
                                                         checked={selected}
                                                         aria-label={`选择 ${candidate.originalName}`}
                                                         onChange={(event) => setSelectedKeys((keys) => (event.target.checked ? [...new Set([...keys, candidate.storageKey])] : keys.filter((key) => key !== candidate.storageKey)))}

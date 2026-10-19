@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Spin, Tag } from "antd";
+import { Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, CheckCircle2, Clock3, ReceiptText, RefreshCw, RotateCcw, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -107,7 +107,7 @@ export function BillingResultPage({ mode, orderId }: { mode: "success" | "cancel
     const statusColor = paid ? "green" : refunded ? "blue" : canceled ? "default" : "gold";
 
     return (
-        <main className="profile-page-scroll h-full min-h-0 overflow-y-auto bg-[#fafbfc] px-2 py-2 text-stone-950 sm:px-6 sm:py-8 dark:bg-[#111316] dark:text-stone-100">
+        <main className="profile-page-scroll h-full min-h-0 overflow-y-auto bg-[#f8fbff] px-2 py-2 text-stone-950 sm:px-6 sm:py-8 dark:bg-[#080e1a] dark:text-stone-100">
             <div className="mx-auto flex min-h-0 max-w-xl items-center justify-center sm:min-h-[calc(100dvh-8rem)]">
                 <section className="w-full rounded-xl border border-stone-200 bg-white p-3 text-center shadow-sm shadow-stone-200/60 sm:rounded-2xl sm:p-8 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/25">
                     {loading ? (

@@ -1,6 +1,9 @@
 "use client";
 
-import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Table, Tag } from "antd";
+import { App, Form, Select, Table } from "antd";
+import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "antd";
 import { CircleDollarSign, Eye, LockKeyhole, Plus, RefreshCw, UnlockKeyhole } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";

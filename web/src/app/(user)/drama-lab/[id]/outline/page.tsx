@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table, Image as AntImage } from "antd";
+import { Select, Form, message, Upload as AntUpload, Table, Image as AntImage } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Card, Steps } from "@/components/gamma-ui/gamma-ant-display";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X, CheckSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
@@ -15,7 +20,7 @@ import { useEffectiveConfig } from "@/stores/use-config-store";
 import { loadPublicSession, usePublicSessionStore } from "@/stores/use-public-session-store";
 import { buildResourceImageRequest, createGeneratedPrimaryImage, highlightResourceMentions, insertResourceMention, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
 import type { ReferenceImage } from "@/types/image";
-import type { TextAreaRef } from "antd/es/input/TextArea";
+import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";
 
 const { TextArea } = Input;
 const { Option } = Select;

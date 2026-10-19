@@ -1,7 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Button, Input, Pagination, Select, Spin, Tag } from "antd";
+import { Select } from "antd";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CreditCard, History, ReceiptText, RefreshCw, Save, ShieldCheck, TicketPercent, UserCircle, UserPlus, WalletCards } from "lucide-react";
 
 import { CreditSymbol, formatCreditAmount } from "@/constant/credits";
@@ -58,22 +60,17 @@ export function ProfileSectionNav({ activeKey, onChange, mode }: { activeKey: Pr
                                 className={cn(
                                     "relative flex min-w-0 items-center gap-2 overflow-hidden rounded-lg border px-2 py-2 text-left transition",
                                     active
-                                        ? "border-[#bcc8d6] bg-[#eef2f7] text-[#263141] shadow-[0_10px_24px_rgba(71,85,105,0.10)] dark:border-[#536173] dark:bg-[#252d37] dark:text-white dark:shadow-black/20"
-                                        : "border-transparent text-stone-600 hover:border-stone-200 hover:bg-stone-100 hover:text-stone-950 dark:text-stone-300 dark:hover:border-stone-800 dark:hover:bg-stone-900 dark:hover:text-white",
+                                        ? "border-[var(--gm-border-strong)] bg-[var(--gm-surface)] text-[var(--gm-text)] shadow-[var(--gm-shadow)]"
+                                        : "border-transparent text-[var(--gm-text-2)] hover:border-[var(--gm-border)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
                                 )}
                                 onClick={() => onChange(section.key)}
                             >
-                                <span
-                                    className={cn(
-                                        "flex size-6 shrink-0 items-center justify-center rounded-md",
-                                        active ? "bg-white text-[#52627a] shadow-sm dark:bg-[#343e49] dark:text-[#d8dee8]" : "bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-200",
-                                    )}
-                                >
+                                <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", active ? "bg-white shadow-sm text-[var(--gm-text-2)] dark:bg-[var(--gm-wash)]" : "bg-[var(--gm-wash)] text-[var(--gm-text-3)]")}>
                                     {section.icon}
                                 </span>
                                 <span className="min-w-0">
-                                    <span className={cn("block text-sm font-semibold", active ? "text-[#263141] dark:text-white" : "text-stone-950 dark:text-stone-100")}>{section.label}</span>
-                                    <span className={cn("mt-0.5 block truncate text-xs", active ? "text-[#66758e] dark:text-[#b8c4d6]" : "text-stone-500 dark:text-stone-400")}>{section.shortDescription}</span>
+                                    <span className={cn("block text-sm font-semibold", active ? "text-[var(--gm-text)]" : "text-[var(--gm-text)]")}>{section.label}</span>
+                                    <span className={cn("mt-0.5 block truncate text-xs", active ? "text-[var(--gm-text-2)]" : "text-[var(--gm-text-3)]")}>{section.shortDescription}</span>
                                 </span>
                             </button>
                         );

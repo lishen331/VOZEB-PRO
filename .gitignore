@@ -92,3 +92,22 @@ scripts/capture-readme-screenshots.mjs
 # removes it on a clean exit — an interrupted run leaves ~103 files behind,
 # untracked and previously outside this ignore list.
 web/src/features/drama-canvas-runtime.staging-*/
+
+# Local research report artifacts
+/create_pricing_report.py
+/中国大模型API_10万元产能换算报告.docx
+/docx_render_pricing/
+
+# Office exports for meetings: the Markdown next to them is the source of truth
+docs/**/*.docx
+docs/**/*.xlsx
+docs/**/*.pptx
+docs/**/*.pdf
+
+# Screenshots not referenced by any doc. Competitor screenshots that
+# 2026-10-10-1022-01-竞品网站与截图.md embeds stay trackable for the UI revision.
+docs/plans/*-中国售卖参考-*.png
+docs/plans/*-逐页评审图片/
+
+# UI prototype screenshots (the HTML prototypes stay trackable)
+docs/prototypes/*.png
