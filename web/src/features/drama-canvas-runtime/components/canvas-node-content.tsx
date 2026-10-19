@@ -11,6 +11,7 @@ import { imagePreviewUrl } from "@/lib/media-image-url";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasResourceMentionText, CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasPanoramaViewer } from "./canvas-panorama-viewer";
+import { CanvasAudioPlayer } from "./canvas-audio-player";
 import { CanvasNodeType, type CanvasGroupMemberSnapshot, type CanvasNodeData } from "../types";
 import { CANVAS_CONTAINER } from "../constants";
 import { canvasImagePreviewWidthForTier, canvasImageZoomTier } from "../utils/canvas-image-preview-scale";
@@ -621,15 +622,7 @@ export function AudioNodeContent({ node, theme }: NodeContentRendererProps) {
                 <span className="text-sm">空音频节点</span>
             </div>
         );
-    return (
-        <div className="flex h-full w-full flex-col justify-center gap-3 px-4" style={{ background: theme.node.fill, color: theme.node.text }}>
-            <div className="flex min-w-0 items-center gap-2 text-sm opacity-70">
-                <Music2 className="size-4 shrink-0" />
-                <span className="truncate">{node.title || "音频"}</span>
-            </div>
-            <audio src={node.metadata.content} controls className="w-full" data-canvas-no-zoom />
-        </div>
-    );
+    return <CanvasAudioPlayer src={node.metadata.content} title={node.title} theme={theme} />;
 }
 
 export function ImageContent({

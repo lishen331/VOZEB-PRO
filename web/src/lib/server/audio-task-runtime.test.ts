@@ -88,6 +88,31 @@ describe("audio task runtime submission safety", () => {
         expect(JSON.parse(init.body).taskId).toBe("existing-audio");
     });
 
+    it("merges per-model audio params over the rendered request body", async () => {
+        const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ audio_url: "https://cdn.example/result.mp3" }));
+        vi.stubGlobal("fetch", fetchMock);
+        state = {
+            ...audioTask(),
+            config: {
+                ...audioTask().config,
+                model: "speech-2.8-hd",
+                advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai", createPath: "/audio/speech", requestTemplate: '{"model":"{{model}}","input":"{{input}}","voice":"{{voice}}","response_format":"mp3"}' },
+                params: { voiceId: "male-qn-jingying", speed: 1.25, emotion: "happy" },
+            },
+            candidateConfigs: [],
+        };
+
+        await expect(createAudioTaskUpstreamStep(state, "http://internal")).resolves.toMatchObject({ state: "result_ready" });
+        const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+        expect(body).toMatchObject({
+            model: "speech-2.8-hd",
+            input: "test",
+            voice: "male-qn-jingying",
+            speed: 1.25,
+            voice_setting: { voice_id: "male-qn-jingying", speed: 1.25, vol: 1, pitch: 0, emotion: "happy" },
+        });
+    });
+
     it("switches to the next channel after a deterministic 422 rejection", async () => {
         const fetchMock = vi
             .fn()

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { mediaTaskSource } from "@/lib/media-management-contract";
 import { resolveAudioTaskOptions } from "@/lib/server/audio-task-config";
+import { normalizeAudioParams } from "@/lib/audio-model-params";
 import { createAudioTask, type AudioTask, type AudioTaskConfig } from "@/lib/server/audio-task-store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
@@ -89,7 +90,12 @@ export async function POST(request: Request) {
         if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });
         const hasHealthy = await hasHealthyRuntimeCandidate(supportedChannels, "audio");
         if (!hasHealthy) return NextResponse.json({ error: "当前音频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
-        const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({ ...channel, ...resolveAudioTaskOptions(body.config, settings.generationDefaults), instructions: clean(body.config?.instructions, 2_000) }));
+        const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({
+            ...channel,
+            ...resolveAudioTaskOptions(body.config, settings.generationDefaults),
+            instructions: clean(body.config?.instructions, 2_000),
+            params: normalizeAudioParams(channel.model, body.config?.params),
+        }));
         if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode, trustedContext) };
         const task = await createAudioTask({
             ...trustedContext,

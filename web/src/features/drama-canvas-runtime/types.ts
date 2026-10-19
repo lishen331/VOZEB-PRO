@@ -153,6 +153,7 @@ export type CanvasNodeMetadata = {
     audioFormat?: string;
     audioSpeed?: string;
     audioInstructions?: string;
+    audioParams?: Record<string, string | number | boolean>;
     layerName?: string;
     layerVisible?: boolean;
     sourceLayerNodeId?: string;

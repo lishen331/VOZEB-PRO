@@ -23,6 +23,7 @@ import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 import { recordGenerationTaskLogResult } from "@/lib/server/generation-log-task-service";
 import { getGenerationLogForUser } from "@/lib/server/generation-log-store";
+import { audioUpstreamFields } from "@/lib/audio-model-params";
 
 export type AudioUpstreamStep =
     | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
@@ -80,7 +81,9 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
             const workflow = workflowConfigForTask(candidate);
             let payload: Record<string, unknown>;
             try {
-                payload = workflow ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: defaults, references: [] }) : buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults);
+                payload = workflow
+                    ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: defaults, references: [] })
+                    : { ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults), ...withoutUndefined(audioUpstreamFields(config.model, candidate.prompt, config.params)) };
             } catch (error) {
                 throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "音频请求模板无效");
             }
@@ -390,3 +393,7 @@ const STATUS_KEYS = ["status", "state", "task_status", "taskStatus"];
 const AUDIO_KEYS = ["audio_url", "audioUrl", "media_url", "mediaUrl", "output_url", "outputUrl", "result_url", "resultUrl", "url", "uri"];
 const ERROR_KEYS = ["error_message", "errorMessage", "message", "msg", "error"];
 const FAILED = new Set(["failed", "failure", "error", "cancelled", "canceled", "expired"]);
+
+function withoutUndefined(value: Record<string, unknown>) {
+    return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
+}

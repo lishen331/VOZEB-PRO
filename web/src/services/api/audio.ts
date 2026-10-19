@@ -50,6 +50,7 @@ export async function createAudioGenerationTask(config: AiConfig, prompt: string
                 voice: normalizeAudioVoiceValue(config.audioVoice),
                 format,
                 speed: normalizeAudioSpeedValue(config.audioSpeed),
+                params: config.audioParams,
                 ...(instructions ? { instructions } : {}),
             },
             prompt,

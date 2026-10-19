@@ -21,6 +21,7 @@ export type AudioTaskConfig = {
     format?: string;
     speed?: string;
     instructions?: string;
+    params?: Record<string, string | number | boolean>;
 };
 export type AudioTask = GenerationTaskContext & {
     id: string;

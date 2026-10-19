@@ -160,6 +160,7 @@ export function replaceCanvasNodeMediaMetadata(current: CanvasNodeMetadata | und
         audioFormat: undefined,
         audioSpeed: undefined,
         audioInstructions: undefined,
+        audioParams: undefined,
         cameraControl: undefined,
         panoramaProjection: undefined,
         references: undefined,
@@ -206,6 +207,7 @@ export function buildAudioGenerationMetadata(config: AiConfig): CanvasNodeMetada
         audioFormat: config.audioFormat,
         audioSpeed: config.audioSpeed,
         audioInstructions: config.audioInstructions || "",
+        audioParams: config.audioParams,
     };
 }
 
@@ -446,6 +448,7 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
         audioFormat: node?.metadata?.audioFormat || config.audioFormat || defaultConfig.audioFormat,
         audioSpeed: node?.metadata?.audioSpeed || config.audioSpeed || defaultConfig.audioSpeed,
         audioInstructions: node?.metadata?.audioInstructions || defaultConfig.audioInstructions,
+        audioParams: node?.metadata?.audioParams || {},
         count: String(node?.metadata?.count || (mode === "image" ? config.canvasImageCount || config.count : config.count) || defaultConfig.count),
     };
 }
