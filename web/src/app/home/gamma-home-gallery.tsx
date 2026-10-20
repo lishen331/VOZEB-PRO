@@ -36,7 +36,7 @@ function matchesKeyword(item: PublicGalleryItem, keyword: string) {
     return [item.title, item.description, item.publicPrompt, item.authorName, item.category, ...item.tags].some((field) => field?.toLowerCase().includes(keyword));
 }
 
-export function GammaHomeGallery({ onCreate }: { onCreate: () => void }) {
+export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: () => void; /** 首页把搜索放进顶栏，广场不再重复一个搜索框 */ hideSearch?: boolean }) {
     const [sort, setSort] = useState<FeedSort>("random");
     const [category, setCategory] = useState<string>(ALL);
     const [keyword, setKeyword] = useState("");
@@ -63,11 +63,13 @@ export function GammaHomeGallery({ onCreate }: { onCreate: () => void }) {
             <div className="flex flex-wrap items-center gap-3">
                 <GammaTabs label="作品排序" options={FEED_TABS} value={sort} onChange={setSort} />
                 <span aria-hidden className="h-6 w-px bg-[var(--gm-border-strong)]" />
-                <label className="flex h-9 w-full max-w-80 items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-3 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]">
-                    <Search className="size-4 text-[var(--gm-text-3)]" />
-                    <span className="sr-only">搜索作品</span>
-                    <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索作品、提示词、作者" className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--gm-text-3)]" />
-                </label>
+                {hideSearch ? null : (
+                    <label className="flex h-9 w-full max-w-80 items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-3 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]">
+                        <Search className="size-4 text-[var(--gm-text-3)]" />
+                        <span className="sr-only">搜索作品</span>
+                        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索作品、提示词、作者" className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--gm-text-3)]" />
+                    </label>
+                )}
                 <div className="ml-auto flex items-center gap-2">
                     <GammaButton variant="outline" size="sm" onClick={onCreate}>
                         做同款创作
