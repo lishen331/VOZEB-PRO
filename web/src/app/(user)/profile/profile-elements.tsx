@@ -60,22 +60,17 @@ export function ProfileSectionNav({ activeKey, onChange, mode }: { activeKey: Pr
                                 className={cn(
                                     "relative flex min-w-0 items-center gap-2 overflow-hidden rounded-lg border px-2 py-2 text-left transition",
                                     active
-                                        ? "border-[#c0c7d4] bg-[#eff2f7] text-[#29303e] shadow-[0_10px_24px_rgba(71,85,105,0.10)] dark:border-[#566074] dark:bg-[#242b39] dark:text-white dark:shadow-black/20"
-                                        : "border-transparent text-stone-600 hover:border-stone-200 hover:bg-stone-100 hover:text-stone-950 dark:text-stone-300 dark:hover:border-stone-800 dark:hover:bg-stone-900 dark:hover:text-white",
+                                        ? "border-[var(--gm-border-strong)] bg-[var(--gm-surface)] text-[var(--gm-text)] shadow-[var(--gm-shadow)]"
+                                        : "border-transparent text-[var(--gm-text-2)] hover:border-[var(--gm-border)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
                                 )}
                                 onClick={() => onChange(section.key)}
                             >
-                                <span
-                                    className={cn(
-                                        "flex size-6 shrink-0 items-center justify-center rounded-md",
-                                        active ? "bg-white text-[#54617a] shadow-sm dark:bg-[#343d4f] dark:text-[#d7deeb]" : "bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-200",
-                                    )}
-                                >
+                                <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", active ? "bg-white shadow-sm text-[var(--gm-text-2)] dark:bg-[var(--gm-wash)]" : "bg-[var(--gm-wash)] text-[var(--gm-text-3)]")}>
                                     {section.icon}
                                 </span>
                                 <span className="min-w-0">
-                                    <span className={cn("block text-sm font-semibold", active ? "text-[#29303e] dark:text-white" : "text-stone-950 dark:text-stone-100")}>{section.label}</span>
-                                    <span className={cn("mt-0.5 block truncate text-xs", active ? "text-[#67758e] dark:text-[#bdc3d0]" : "text-stone-500 dark:text-stone-400")}>{section.shortDescription}</span>
+                                    <span className={cn("block text-sm font-semibold", active ? "text-[var(--gm-text)]" : "text-[var(--gm-text)]")}>{section.label}</span>
+                                    <span className={cn("mt-0.5 block truncate text-xs", active ? "text-[var(--gm-text-2)]" : "text-[var(--gm-text-3)]")}>{section.shortDescription}</span>
                                 </span>
                             </button>
                         );
