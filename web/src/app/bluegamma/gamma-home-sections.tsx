@@ -21,7 +21,24 @@ const RECENT_PROJECTS = [
     { id: "p3", title: "民宿改造 · 客房软装", subjectSlug: "interior", cover: `${THUMB}/minimalist.jpg`, edited: "昨天", assets: 9, progress: 88 },
 ] as const;
 
-export function GammaRecentProjects({ onOpen }: { onOpen: (title: string) => void }) {
+export interface RecentProjectItem {
+    id: string;
+    title: string;
+    subjectSlug: string;
+    cover?: string;
+    edited: string;
+    assets: number;
+    progress?: number;
+}
+
+/**
+ * 继续创作：真实首页传入最近项目（`projects`），未传时用预览页的示例数据。
+ * 传了空数组表示确实没有项目，此时整块不渲染，避免生产页展示假数据。
+ */
+export function GammaRecentProjects({ onOpen, projects, loading = false }: { onOpen: (title: string, id?: string) => void; projects?: readonly RecentProjectItem[]; loading?: boolean }) {
+    const items = projects ?? RECENT_PROJECTS;
+    if (projects && !loading && !items.length) return null;
+    const shown = loading ? Array.from({ length: 3 }, (_, index) => ({ ...RECENT_PROJECTS[index % RECENT_PROJECTS.length], id: `skeleton-${index}` })) : items;
     return (
         <GammaSection
             id="recent"
@@ -34,20 +51,20 @@ export function GammaRecentProjects({ onOpen }: { onOpen: (title: string) => voi
             }
         >
             <GammaStagger className="grid gap-4 md:grid-cols-3">
-                {RECENT_PROJECTS.map((project) => {
+                {shown.map((project) => {
                     const subject = gammaSubjectBySlug(project.subjectSlug);
                     const Icon = subject.icon;
                     return (
                         <GammaStaggerItem key={project.id}>
                             <button
                                 type="button"
-                                onClick={() => onOpen(project.title)}
+                                onClick={() => onOpen(project.title, project.id)}
                                 className="group relative flex w-full items-center gap-4 overflow-hidden rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] p-3 text-left ring-1 ring-[var(--gm-border)] transition-shadow duration-300 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
                             >
                                 <GammaCardCorners />
                                 <span className="relative size-[72px] shrink-0 overflow-hidden rounded-[var(--gm-radius)]">
                                     {/* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材 */}
-                                    <img src={project.cover} alt="" className="size-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    <img src={project.cover || `${THUMB}/minimalist.jpg`} alt="" className="size-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                     <span className="absolute right-1 bottom-1 grid size-5 place-items-center rounded-md bg-[rgba(4,6,12,0.6)] text-white backdrop-blur">
                                         <Icon className="size-3" />
                                     </span>
@@ -63,12 +80,14 @@ export function GammaRecentProjects({ onOpen }: { onOpen: (title: string) => voi
                                         <Layers className="size-3" />
                                         {project.assets}
                                     </span>
-                                    <span className="mt-2.5 flex items-center gap-2">
-                                        <span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--gm-surface-3)]">
-                                            <span className="block h-full rounded-full bg-[image:var(--gm-gradient)]" style={{ width: `${project.progress}%` }} />
+                                    {typeof project.progress === "number" ? (
+                                        <span className="mt-2.5 flex items-center gap-2">
+                                            <span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--gm-surface-3)]">
+                                                <span className="block h-full rounded-full bg-[image:var(--gm-gradient)]" style={{ width: `${project.progress}%` }} />
+                                            </span>
+                                            <span className="font-mono text-[10px] text-[var(--gm-text-3)] tabular-nums">{project.progress}%</span>
                                         </span>
-                                        <span className="font-mono text-[10px] text-[var(--gm-text-3)] tabular-nums">{project.progress}%</span>
-                                    </span>
+                                    ) : null}
                                 </span>
                             </button>
                         </GammaStaggerItem>
@@ -103,18 +122,23 @@ export function GammaTemplateRail({ onUse }: { onUse: (subjectSlug: string, titl
                             key={template.id}
                             type="button"
                             onClick={() => onUse(template.subjectSlug, template.title)}
-                            className="group relative h-[220px] w-[168px] shrink-0 snap-start overflow-hidden rounded-[var(--gm-radius-lg)] text-left ring-1 ring-[var(--gm-border)] transition-[box-shadow,transform] duration-300 hover:-translate-y-1 hover:shadow-[var(--gm-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                            className="group relative h-[220px] w-[168px] shrink-0 snap-start overflow-hidden rounded-[var(--gm-radius-lg)] text-left ring-1 ring-[var(--gm-border)] transition-[transform,box-shadow,ring-color] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] hover:-translate-y-2 hover:scale-[1.025] hover:shadow-[0_22px_44px_rgba(0,0,0,0.55)] hover:ring-[var(--gm-accent-ring)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材 */}
-                            <img src={template.cover} alt="" className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                            <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-[rgba(4,6,12,0.92)] via-[rgba(4,6,12,0.2)] to-transparent" />
-                            <span className="absolute top-3 left-3 rounded-full bg-[rgba(4,6,12,0.55)] px-2 py-0.5 text-[11px] text-white backdrop-blur">{subject.name}</span>
+                            <img src={template.cover} alt="" className="absolute inset-0 size-full object-cover transition-transform duration-[900ms] ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-[1.12] group-hover:rotate-[0.8deg]" />
+                            <span aria-hidden className="absolute inset-x-0 bottom-0 h-[58%] bg-gradient-to-t from-[rgba(4,6,12,0.82)] via-[rgba(4,6,12,0.15)] to-transparent transition-opacity duration-500 group-hover:opacity-95" />
+                            {/* 悬停时从底部扫过的一道品牌光 */}
+                            <span
+                                aria-hidden
+                                className="pointer-events-none absolute inset-x-0 -bottom-16 h-24 bg-[radial-gradient(ellipse_at_center,rgba(40,235,250,0.35),transparent_70%)] opacity-0 blur-xl transition-[opacity,transform] duration-500 group-hover:-translate-y-10 group-hover:opacity-100"
+                            />
+                            <span className="absolute top-3 left-3 rounded-full bg-[rgba(4,6,12,0.55)] px-2 py-0.5 text-[11px] text-white backdrop-blur transition-transform duration-300 group-hover:-translate-y-0.5">{subject.name}</span>
                             <span className="absolute inset-x-3 bottom-3 flex flex-col gap-1.5 text-white">
-                                <span className="text-sm font-semibold">{template.title}</span>
+                                <span className="text-sm font-semibold transition-transform duration-300 group-hover:-translate-y-0.5">{template.title}</span>
                                 <span className="flex items-center justify-between text-[11px] text-white/70">
                                     {template.uses} 次使用
-                                    <span className="inline-flex translate-y-1 items-center gap-0.5 font-medium text-[var(--gm-cyan)] opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                                        使用 <ArrowUpRight className="size-3" />
+                                    <span className="inline-flex translate-y-1 items-center gap-0.5 font-medium text-[var(--gm-cyan)] opacity-0 transition-[opacity,transform] duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                                        使用 <ArrowUpRight className="size-3 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                                     </span>
                                 </span>
                             </span>
@@ -191,7 +215,7 @@ export function GammaFeaturedReel({ onPlay }: { onPlay: () => void }) {
         >
             {/* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材 */}
             <img src={`${THUMB}/noir.jpg`} alt="" className="absolute inset-0 -z-10 size-full object-cover transition-transform duration-[1200ms] group-hover:scale-105" />
-            <span aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-[rgba(4,6,12,0.95)] via-[rgba(4,6,12,0.35)] to-transparent" />
+            <span aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-[62%] bg-gradient-to-t from-[rgba(4,6,12,0.88)] via-[rgba(4,6,12,0.2)] to-transparent" />
             <span className="gm-glass gm-glass-sheen absolute top-1/2 left-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full text-white transition-transform duration-300 group-hover:scale-110">
                 <Play className="ml-1 size-6 fill-current" />
             </span>

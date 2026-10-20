@@ -80,6 +80,7 @@ export function GammaAppSidebar({ collapsed, onToggle, featureModules, menuPermi
                         ready={ready}
                         dark={theme === "dark"}
                         showHelp={isHelpCenterVisible(modules, menuPermissions)}
+                        showTheme={false}
                         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
                         onLogin={onLogin || (() => assign("/login"))}
                         onPlans={onPlans || (() => setPlansOpen(true))}

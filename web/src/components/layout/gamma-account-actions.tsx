@@ -38,6 +38,8 @@ export interface GammaAccountActionsProps {
     dark: boolean;
     /** 帮助中心模块开启且当前角色有权限时才显示帮助按钮 */
     showHelp?: boolean;
+    /** 顶栏已经有主题切换时传 false，避免同屏出现两个 */
+    showTheme?: boolean;
     onToggleTheme: () => void;
     onLogin: () => void;
     onPlans: () => void;
@@ -74,12 +76,12 @@ function NotificationButton() {
 }
 
 /** 未登录：登录 / 注册卡；收起时只剩一个登录图标 */
-function GuestCard({ collapsed, dark, showHelp, onToggleTheme, onLogin, onOpen }: Pick<GammaAccountActionsProps, "collapsed" | "dark" | "showHelp" | "onToggleTheme" | "onLogin" | "onOpen">) {
+function GuestCard({ collapsed, dark, showHelp, showTheme = true, onToggleTheme, onLogin, onOpen }: Pick<GammaAccountActionsProps, "collapsed" | "dark" | "showHelp" | "showTheme" | "onToggleTheme" | "onLogin" | "onOpen">) {
     if (collapsed) {
         return (
             <div className="flex flex-col items-center gap-1">
                 {showHelp ? <HelpButton onOpen={onOpen} /> : null}
-                <ThemeButton dark={dark} onToggle={onToggleTheme} />
+                {showTheme ? <ThemeButton dark={dark} onToggle={onToggleTheme} /> : null}
                 <button type="button" onClick={onLogin} aria-label="登录 / 注册" className={cn(ICON_BTN, "text-[var(--gm-accent)]")}>
                     <LogIn />
                     <Tip>登录 / 注册</Tip>
@@ -89,10 +91,12 @@ function GuestCard({ collapsed, dark, showHelp, onToggleTheme, onLogin, onOpen }
     }
     return (
         <div className="flex flex-col gap-2">
-            <div className="flex justify-end gap-0.5 px-0.5">
-                {showHelp ? <HelpButton onOpen={onOpen} /> : null}
-                <ThemeButton dark={dark} onToggle={onToggleTheme} />
-            </div>
+            {showHelp || showTheme ? (
+                <div className="flex justify-end gap-0.5 px-0.5">
+                    {showHelp ? <HelpButton onOpen={onOpen} /> : null}
+                    {showTheme ? <ThemeButton dark={dark} onToggle={onToggleTheme} /> : null}
+                </div>
+            ) : null}
             <div className="rounded-[12px] bg-[var(--gm-wash)] p-3 ring-1 ring-[var(--gm-border)]">
                 <p className="text-[13px] font-medium">登录后开始创作</p>
                 <p className="mt-0.5 text-[11px] text-[var(--gm-text-3)]">作品、素材与积分跨设备同步</p>
@@ -122,7 +126,7 @@ function Avatar({ user }: { user: LocalUser }) {
 }
 
 export function GammaAccountActions(props: GammaAccountActionsProps) {
-    const { collapsed, user, ready, dark, showHelp = false, onToggleTheme, onPlans, onRedeem, onOpen, onLogout } = props;
+    const { collapsed, user, ready, dark, showHelp = false, showTheme = true, onToggleTheme, onPlans, onRedeem, onOpen, onLogout } = props;
     // 会话未就绪：只占位，避免已登录用户先看到一闪而过的「登录」卡
     if (!ready) return <div aria-hidden className={collapsed ? "h-24" : "h-32"} />;
     if (!user) return <GuestCard {...props} />;
@@ -141,7 +145,7 @@ export function GammaAccountActions(props: GammaAccountActionsProps) {
         <>
             <NotificationButton />
             {showHelp ? <HelpButton onOpen={onOpen} /> : null}
-            <ThemeButton dark={dark} onToggle={onToggleTheme} />
+            {showTheme ? <ThemeButton dark={dark} onToggle={onToggleTheme} /> : null}
         </>
     );
 

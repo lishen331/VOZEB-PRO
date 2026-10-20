@@ -89,8 +89,8 @@ export function GammaPromoCard({ title, description, cover, onClick }: { title: 
             onClick={onClick}
             className="group relative isolate flex h-[176px] w-full overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface-light)] text-left text-[var(--gm-inverse-text)] ring-1 ring-[var(--gm-border-strong)] transition-shadow hover:shadow-[var(--gm-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
         >
-            {/* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材 */}
-            <img src={cover} alt="" aria-hidden className="absolute inset-y-0 right-0 -z-[1] h-full w-1/2 object-cover transition-transform duration-700 [mask-image:linear-gradient(90deg,transparent,#000_40%)] group-hover:scale-105" />
+            {/* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材；裁切区更宽、锚点偏右上，避免色块缩在左下角导致右上角露出大片底色 */}
+            <img src={cover} alt="" aria-hidden className="absolute inset-y-0 right-0 -z-[1] h-full w-[62%] object-cover object-[75%_20%] transition-transform duration-700 [mask-image:linear-gradient(90deg,transparent,#000_32%)] group-hover:scale-105" />
             <div className="flex flex-col justify-center gap-2 px-7">
                 <h3 className="text-xl leading-snug font-semibold">{title}</h3>
                 <p className="text-[13px] text-[var(--gm-inverse-text-2)]">{description}</p>

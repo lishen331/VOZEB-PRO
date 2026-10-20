@@ -18,7 +18,8 @@ html.gm-app {
 
     --gm-text: #f1f5ff;
     --gm-text-2: #9ba8c4;
-    --gm-text-3: #64718f;
+    /* 次要文字：在 bg / elevated / surface / 卡片上都 ≥ 4.5:1（WCAG AA 正文），原 #64718f 只有 3.5 */
+    --gm-text-3: #7985a1;
     --gm-text-on-cyan: #021627;
 
     --gm-blue: #0050f5;
@@ -83,25 +84,27 @@ html.gm-app {
 html.gm-app:not(.dark) {
     --gm-bg: #f3f6fb;
     --gm-bg-elevated: #ffffff;
+    /* 卡片面比页面底更亮一级且带描边，避免大块卡片在浅色下边界发虚 */
     --gm-surface: #ffffff;
-    --gm-surface-2: #f6f8fc;
-    --gm-surface-3: #e8eef8;
+    --gm-surface-2: #eef2f9;
+    --gm-surface-3: #e3eaf5;
     --gm-surface-light: #0b1530;
 
-    --gm-border: rgba(16, 38, 84, 0.08);
-    --gm-border-strong: rgba(16, 38, 84, 0.16);
+    --gm-border: rgba(16, 38, 84, 0.12);
+    --gm-border-strong: rgba(16, 38, 84, 0.22);
 
     --gm-text: #0b1530;
     --gm-text-2: #46526e;
-    --gm-text-3: #66718a;
+    /* 浅色下的次要文字与状态色：在白底 / 页面底 / 洗色块上都 ≥ 4.5:1 */
+    --gm-text-3: #606b82;
 
     --gm-blue-text: #0047d9;
     --gm-blue-soft: rgba(0, 80, 245, 0.08);
     --gm-cyan-soft: rgba(0, 166, 194, 0.12);
 
-    --gm-success: #0f9f63;
-    --gm-warning: #b86e00;
-    --gm-danger: #e5294b;
+    --gm-success: #0c7a4c;
+    --gm-warning: #925700;
+    --gm-danger: #d1193b;
 
     --gm-shadow: 0 12px 32px rgba(16, 38, 84, 0.12);
     --gm-glow-blue: 0 8px 22px rgba(0, 80, 245, 0.28);
