@@ -4,7 +4,8 @@ import type { InputHTMLAttributes } from "react";
 import { DramaLabAssetDetailFields } from "./drama-lab-asset-detail-fields";
 type RoleSelect = { value?: string; options: { value: string; label: string }[]; onChange: (value: string) => void };
 const captured = vi.hoisted(() => ({ inputs: [] as InputHTMLAttributes<HTMLInputElement>[], selects: [] as RoleSelect[] }));
-vi.mock("antd", () => ({
+// Select / Input 已迁到 gamma-ui 兼容层，mock 目标随之迁移
+vi.mock("@/components/gamma-ui/gamma-ant-select", () => ({
     Select: (props: RoleSelect) => {
         captured.selects.push(props);
         return (
@@ -18,7 +19,6 @@ vi.mock("antd", () => ({
         );
     },
 }));
-// Input 已迁到 gamma-ui 兼容层，mock 目标随之迁移
 vi.mock("@/components/gamma-ui/gamma-ant-input", () => ({
     Input: (props: InputHTMLAttributes<HTMLInputElement>) => {
         captured.inputs.push(props);

@@ -202,6 +202,35 @@ export function Tag({ color, icon, bordered = true, className, style, children, 
     );
 }
 
+export interface CheckableTagProps extends Omit<HTMLAttributes<HTMLSpanElement>, "onChange"> {
+    checked?: boolean;
+    onChange?: (checked: boolean) => void;
+}
+
+/** 与 antd Tag.CheckableTag 同 API：点击切换选中态的筛选标签 */
+function CheckableTag({ checked = false, onChange, className, children, onClick, ...rest }: CheckableTagProps) {
+    return (
+        <span
+            {...rest}
+            role="checkbox"
+            aria-checked={checked}
+            onClick={(event) => {
+                onChange?.(!checked);
+                onClick?.(event);
+            }}
+            className={cn(
+                "gm-tag-checkable inline-flex h-[22px] max-w-full cursor-pointer items-center gap-1 rounded-full border px-2 align-middle text-xs leading-none whitespace-nowrap transition-colors",
+                checked ? "border-[var(--gm-brand)] bg-[var(--gm-brand)]/12 text-[var(--gm-brand)]" : "border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-2)] hover:border-[var(--gm-brand)]/40",
+                className,
+            )}
+        >
+            {wrapText(children)}
+        </span>
+    );
+}
+
+Tag.CheckableTag = CheckableTag;
+
 /* ===== Segmented ===== */
 
 type SegmentedValue = string | number;

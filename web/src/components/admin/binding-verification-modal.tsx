@@ -1,6 +1,7 @@
 "use client";
 
-import { Image, Select } from "antd";
+import { Image } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
@@ -332,7 +333,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, onEnableWithou
                                         <Select
                                             value={reference.type}
                                             disabled={busy}
-                                            options={[{ value: "image", label: "图片" }, ...(capability === "video" ? [{ value: "video", label: "视频" }] : [])]}
+                                            options={[{ value: "image" as const, label: "图片" }, ...(capability === "video" ? [{ value: "video" as const, label: "视频" }] : [])]}
                                             onChange={(type) => changeReferences((items) => items.map((item, i) => (i === index ? { ...item, type } : item)))}
                                         />
                                         <Input value={reference.url} disabled={busy} placeholder="参考素材公开 URL" onChange={(event) => changeReferences((items) => items.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)))} />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Select, Form, message, Upload as AntUpload, Table, Image as AntImage } from "antd";
+import { Form, message, Upload as AntUpload, Table, Image as AntImage } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Card, Steps } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
@@ -23,7 +24,6 @@ import type { ReferenceImage } from "@/types/image";
 import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";
 
 const { TextArea } = Input;
-const { Option } = Select;
 
 interface Episode {
     id: string;
@@ -747,14 +747,16 @@ export default function ProjectOutlinePage() {
                                 </button>
                             </Form.Item>
                             <Form.Item label="画面比例" name="aspectRatio">
-                                <Select>
-                                    <Option value="16:9">16:9 横屏（默认）</Option>
-                                    <Option value="9:16">9:16 竖屏（短视频）</Option>
-                                    <Option value="3:4">3:4 竖版</Option>
-                                    <Option value="1:1">1:1 方形</Option>
-                                    <Option value="4:3">4:3 传统横屏</Option>
-                                    <Option value="21:9">21:9 宽银幕</Option>
-                                </Select>
+                                <Select
+                                    options={[
+                                        { value: "16:9", label: "16:9 横屏（默认）" },
+                                        { value: "9:16", label: "9:16 竖屏（短视频）" },
+                                        { value: "3:4", label: "3:4 竖版" },
+                                        { value: "1:1", label: "1:1 方形" },
+                                        { value: "4:3", label: "4:3 传统横屏" },
+                                        { value: "21:9", label: "21:9 宽银幕" },
+                                    ]}
+                                />
                             </Form.Item>
                         </div>
                         <Form.Item label="故事梗概" name="description">

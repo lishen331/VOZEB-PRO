@@ -2,7 +2,8 @@
 
 import { FileAudio, FileDown, FileUp, Film, Plus, Search, Upload } from "lucide-react";
 import { useRef, useState, type DragEvent as ReactDragEvent } from "react";
-import { App, Form, Select } from "antd";
+import { App, Form } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space, Typography } from "@/components/gamma-ui/gamma-ant-display";
 import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
@@ -375,7 +376,7 @@ export default function AssetsPage() {
                                     { label: "视频", value: "video" },
                                     { label: "音频", value: "audio" },
                                 ]}
-                                onChange={(value) => {
+                                onChange={(value: AssetKind) => {
                                     setFormKind(value);
                                     setMediaDraft(null);
                                 }}

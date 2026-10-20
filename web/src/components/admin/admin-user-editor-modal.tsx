@@ -1,6 +1,7 @@
 "use client";
 
-import { Form, Select } from "antd";
+import { Form } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 

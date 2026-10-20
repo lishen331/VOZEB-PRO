@@ -1,6 +1,7 @@
 "use client";
 
-import { message, Select } from "antd";
+import { message } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";

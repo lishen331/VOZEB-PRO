@@ -1,4 +1,4 @@
-import { Select } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Switch } from "@/components/gamma-ui/gamma-ant";
 import type { PracticeModuleCapability, PracticeModuleInputField, PracticeModuleKind } from "@/lib/practice-domain";
@@ -140,7 +140,7 @@ function WorkflowField({ field, value, onChange }: { field: PracticeModuleInputF
             </label>
         );
     return (
-        <label className="flex items-center justify-between gap-3 border border-border p-3 text-sm font-medium">
+        <label className="flex items-center justify-between gap-3 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3 text-sm font-medium">
             {field.label}
             <Switch checked={value === true} onChange={onChange} />
         </label>

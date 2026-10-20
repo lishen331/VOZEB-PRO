@@ -3,7 +3,7 @@
 import { ArrowRight, GalleryVerticalEnd, Plus, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Select } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 
 import { PublicWorkPreviewModal } from "@/components/works/public-work-preview-modal";
 import { PublicWorkGalleryCard } from "@/components/works/public-work-gallery-card";

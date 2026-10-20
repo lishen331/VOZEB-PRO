@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Image, Select } from "antd";
+import { App, Image } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";

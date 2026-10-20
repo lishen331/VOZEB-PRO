@@ -54,22 +54,32 @@ export interface CardProps {
     size?: "default" | "small";
     loading?: boolean;
     bordered?: boolean;
+    /** 鼠标悬停时抬升阴影，用于图片卡等可点击卡片 */
+    hoverable?: boolean;
+    /** 顶部媒体区（图片/视频等），渲染在标题栏之上 */
+    cover?: ReactNode;
+    styles?: { body?: CSSProperties };
     className?: string;
     children?: ReactNode;
 }
 
 /** 与 antd Card 同 API：标题栏（title + extra）+ 内容；loading 时内容换成骨架 */
-export function Card({ title, extra, size = "default", loading = false, bordered = true, className, children }: CardProps) {
+export function Card({ title, extra, size = "default", loading = false, bordered = true, hoverable = false, cover, styles, className, children }: CardProps) {
     const small = size === "small";
     return (
-        <section className={cn("gm-card overflow-hidden rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] text-[var(--gm-text)]", bordered && "ring-1 ring-[var(--gm-border)]", className)}>
+        <section
+            className={cn("gm-card overflow-hidden rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] text-[var(--gm-text)]", bordered && "ring-1 ring-[var(--gm-border)]", hoverable && "transition-shadow hover:shadow-[var(--gm-shadow-md)]", className)}
+        >
+            {cover}
             {title || extra ? (
                 <header className={cn("flex min-h-0 items-center justify-between gap-3 border-b border-[var(--gm-border)]", small ? "px-3 py-2" : "px-5 py-3")}>
                     <div className={cn("min-w-0 truncate font-semibold", small ? "text-[13px]" : "text-sm")}>{title}</div>
                     {extra ? <div className="shrink-0">{extra}</div> : null}
                 </header>
             ) : null}
-            <div className={small ? "p-3" : "p-5"}>{loading ? <Skeleton active paragraph={{ rows: 3 }} /> : children}</div>
+            <div style={styles?.body} className={small ? "p-3" : "p-5"}>
+                {loading ? <Skeleton active paragraph={{ rows: 3 }} /> : children}
+            </div>
         </section>
     );
 }

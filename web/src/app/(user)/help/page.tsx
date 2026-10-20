@@ -1,6 +1,6 @@
 "use client";
 
-import { Select } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { ArrowUpRight, BookOpenText, CircleHelp, Clapperboard, ImagePlus, Images, Maximize2, Rocket, Search, ShieldCheck, Sparkles, Video, WalletCards, Wrench, type LucideIcon } from "lucide-react";
 import Link from "next/link";

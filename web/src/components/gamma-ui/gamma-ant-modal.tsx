@@ -83,6 +83,8 @@ export interface ModalProps {
     forceRender?: boolean;
     styles?: SlotStyles;
     style?: CSSProperties;
+    /** 加到外层遮罩包裹层，供页面级样式覆盖（如滚动行为） */
+    rootClassName?: string;
     afterOpenChange?: (open: boolean) => void;
     afterClose?: () => void;
     children?: ReactNode;
@@ -111,6 +113,7 @@ function ModalBase({
     forceRender = false,
     styles,
     style,
+    rootClassName,
     afterOpenChange,
     afterClose,
     children,
@@ -149,7 +152,9 @@ function ModalBase({
                         className="ant-modal-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
                     />
                 ) : null}
-                <div className={cn("ant-modal-wrap pointer-events-none fixed inset-0 z-[1000] flex justify-center overflow-y-auto p-3 sm:p-6", centered ? "items-center" : "items-start pt-[min(100px,8vh)]", !open && keepMounted && "hidden")}>
+                <div
+                    className={cn("ant-modal-wrap pointer-events-none fixed inset-0 z-[1000] flex justify-center overflow-y-auto p-3 sm:p-6", centered ? "items-center" : "items-start pt-[min(100px,8vh)]", !open && keepMounted && "hidden", rootClassName)}
+                >
                     <DialogPrimitive.Content
                         forceMount={keepMounted ? true : undefined}
                         aria-describedby={undefined}

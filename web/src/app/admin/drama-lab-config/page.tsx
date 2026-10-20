@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Form, Select, Table, message } from "antd";
+import { Form, Table, message } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Card, Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tabs } from "@/components/gamma-ui/gamma-ant-overlay";

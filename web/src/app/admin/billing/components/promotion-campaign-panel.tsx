@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, DatePicker, Form, Select } from "antd";
+import { App, DatePicker, Form } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Switch, Tag } from "@/components/gamma-ui/gamma-ant";

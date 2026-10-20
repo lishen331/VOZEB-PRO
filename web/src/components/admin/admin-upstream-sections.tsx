@@ -5,7 +5,7 @@ import { AgentSkillCreateModal } from "@/components/admin/agent-skill-create-mod
 import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel-workspace";
 import type { AgentSkill, PracticeModuleVisibility } from "@/lib/auth/store";
 import { FEATURE_MODULES, type FeatureModuleId } from "@/lib/feature-modules";
-import { Select } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { useState } from "react";

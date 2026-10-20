@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { App, Select } from "antd";
+import { App } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";

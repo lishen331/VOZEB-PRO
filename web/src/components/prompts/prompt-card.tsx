@@ -2,7 +2,8 @@
 
 import { Copy } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button, Card, Tag } from "antd";
+import { Card } from "@/components/gamma-ui/gamma-ant-display";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 
 import { LazyMediaImage } from "@/components/media/lazy-media-image";
 import { imagePreviewUrl } from "@/lib/media-image-url";

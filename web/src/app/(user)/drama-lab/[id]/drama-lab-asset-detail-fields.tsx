@@ -1,5 +1,5 @@
 ﻿"use client";
-import { Select } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import type { VisualAssetKind } from "./drama-lab-asset-library-pager";

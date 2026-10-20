@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Select } from "antd";
+import { App } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
 import { Collapse, Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
@@ -279,7 +280,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                                     <Select
                                         className="w-full"
                                         value={draft.adapterType || "generic"}
-                                        options={["generic", "character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video"].map((value) => ({
+                                        options={(["generic", "character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video"] as const).map((value) => ({
                                             value,
                                             label: value,
                                         }))}

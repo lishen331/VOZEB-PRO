@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Checkbox, Form, Select } from "antd";
+import { Checkbox, Form } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { AuthSettings } from "@/lib/auth/store";

@@ -1,6 +1,8 @@
 "use client";
 
-import { App, Empty, Modal, Spin } from "antd";
+import { App } from "antd";
+import { Empty, Spin } from "@/components/gamma-ui/gamma-ant";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { BadgeCheck, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 

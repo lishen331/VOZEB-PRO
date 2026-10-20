@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Select, Upload } from "antd";
+import { App, Upload } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";

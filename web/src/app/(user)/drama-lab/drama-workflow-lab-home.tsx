@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Select } from "antd";
+import { App } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
@@ -229,7 +230,7 @@ export function DramaWorkflowLabHome() {
 
                 <section aria-label="短剧制作阶段" className="mt-6 grid gap-2 md:grid-cols-6">
                     {DRAMA_WORKFLOW_LAB_STAGES.map((stage, index) => (
-                        <div key={stage.id} className="relative border border-border bg-card px-3 py-3">
+                        <div key={stage.id} className="relative rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-3">
                             <div className="flex items-center gap-2">
                                 <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{index + 1}</span>
                                 <span className="min-w-0 truncate text-sm font-medium">{stage.label}</span>
@@ -273,7 +274,7 @@ export function DramaWorkflowLabHome() {
                     ) : projects.length ? (
                         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                             {projects.map((project) => (
-                                <article key={project.id} className="group border border-border bg-card p-5 transition hover:border-primary/60 hover:shadow-sm">
+                                <article key={project.id} className="group rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5 transition hover:border-[var(--gm-border-strong)] hover:shadow-[var(--gm-shadow)]">
                                     <div className="flex items-start justify-between gap-3">
                                         <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">

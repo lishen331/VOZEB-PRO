@@ -1,7 +1,8 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Select, Table } from "antd";
+import { Table } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";

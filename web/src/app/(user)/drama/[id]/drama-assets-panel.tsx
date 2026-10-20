@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Dropdown, Image, Select } from "antd";
+import { App, Dropdown, Image } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";

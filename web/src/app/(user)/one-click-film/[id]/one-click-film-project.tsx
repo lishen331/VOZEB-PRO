@@ -1,6 +1,7 @@
 "use client";
 
-import { Select, message } from "antd";
+import { message } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Progress } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
@@ -536,10 +537,7 @@ export default function OneClickFilmProject() {
                                 value={librarySelection}
                                 onChange={setLibrarySelection}
                                 aria-label="选择剧本库剧本"
-                                options={libraryProjects.map((item) => ({
-                                    label: item.title,
-                                    options: item.episodes.map((episode) => ({ value: `${item.id}::${episode.id}`, label: `${episode.title}（${episode.script.length} 字）` })),
-                                }))}
+                                options={libraryProjects.flatMap((item) => item.episodes.map((episode) => ({ value: `${item.id}::${episode.id}`, label: `${item.title} · ${episode.title}（${episode.script.length} 字）` })))}
                             />
                         </Spin>
                     </Modal>

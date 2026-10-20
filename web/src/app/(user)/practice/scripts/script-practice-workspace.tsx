@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App, Select } from "antd";
+import { App } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
