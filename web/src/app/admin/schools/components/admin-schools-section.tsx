@@ -1,7 +1,8 @@
 "use client";
 
 import type { FormInstance, TableColumnsType } from "antd";
-import { App, Form, Select, Table } from "antd";
+import { App, Form, Table } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
@@ -368,10 +369,13 @@ function SchoolEditorForm({ form, editing, onFinish }: { form: FormInstance<Scho
                             <Input.Password autoComplete="new-password" />
                         </Form.Item>
                         <Form.Item label="学校状态" name="status" className="sm:col-span-2">
-                            <Select disabled>
-                                <Select.Option value="active">可用</Select.Option>
-                                <Select.Option value="disabled">停用</Select.Option>
-                            </Select>
+                            <Select
+                                disabled
+                                options={[
+                                    { value: "active", label: "可用" },
+                                    { value: "disabled", label: "停用" },
+                                ]}
+                            />
                         </Form.Item>
                     </>
                 )}

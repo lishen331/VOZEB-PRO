@@ -1,7 +1,8 @@
 "use client";
 
 import type { FormInstance, TableColumnsType } from "antd";
-import { App, Form, Select, Table, Upload } from "antd";
+import { App, Form, Table, Upload } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";

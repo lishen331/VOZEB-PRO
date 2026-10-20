@@ -20,6 +20,8 @@ export interface SelectOption<V = string> {
     value: V;
     label: ReactNode;
     disabled?: boolean;
+    /** 原生 title 属性，常用于悬浮提示的补充说明 */
+    title?: string;
 }
 
 type SelectSize = "small" | "middle" | "large";
@@ -37,6 +39,8 @@ interface SelectBaseProps<V> {
     filterOption?: boolean | ((input: string, option: SelectOption<V>) => boolean);
     /** 同 filterOption，只按指定字段做默认子串匹配；两者同时出现时 filterOption 优先 */
     optionFilterProp?: string;
+    /** 数字时浮层固定该宽度（不跟随触发器宽度），默认跟随触发器宽度 */
+    popupMatchSelectWidth?: number | boolean;
     onSearch?: (keyword: string) => void;
     onOpenChange?: (open: boolean) => void;
     onPopupScroll?: (event: React.UIEvent<HTMLDivElement>) => void;
@@ -112,6 +116,7 @@ function SelectImpl<V = string>(props: SelectProps<V>) {
         showSearch = false,
         filterOption,
         optionFilterProp,
+        popupMatchSelectWidth = true,
         onSearch,
         onOpenChange,
         onPopupScroll,
@@ -324,7 +329,11 @@ function SelectImpl<V = string>(props: SelectProps<V>) {
                         (searchRef.current ?? (event.currentTarget as HTMLElement | null))?.focus();
                     }}
                     onKeyDown={handleKey}
-                    className="gm-glass gm-glass-strong z-[140] w-[var(--radix-popover-trigger-width)] min-w-[220px] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+                    style={typeof popupMatchSelectWidth === "number" ? { width: popupMatchSelectWidth } : undefined}
+                    className={cn(
+                        "gm-glass gm-glass-strong z-[140] min-w-[220px] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+                        popupMatchSelectWidth === true ? "w-[var(--radix-popover-trigger-width)]" : "",
+                    )}
                     tabIndex={-1}
                 >
                     {showSearch || mode === "tags" ? (
@@ -361,6 +370,7 @@ function SelectImpl<V = string>(props: SelectProps<V>) {
                                         key={String(option.value)}
                                         id={`${resolvedId}-opt-${String(option.value)}`}
                                         role="option"
+                                        title={option.title}
                                         aria-selected={isSelected}
                                         aria-disabled={option.disabled || undefined}
                                         onPointerMove={() => !option.disabled && setCursor(enabled.findIndex((item) => item.value === option.value))}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { App, Select } from "antd";
+import { App } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
@@ -274,14 +275,19 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
                                     className="w-full"
                                     mode="multiple"
                                     maxTagCount={1}
-                                    maxTagPlaceholder={(omitted) => `另 ${omitted.length} 个接口`}
                                     placeholder="选择接口范围"
                                     value={selectedGlobalPresets.map((preset) => preset.id)}
                                     options={[
-                                        { label: "快捷选择", options: [{ value: ALL_GLOBAL_AIOPC_PRESETS, label: "当前服务全部接口" }] },
-                                        { label: "文本", options: globalAiOpcPresetOptions().filter((item) => item.capability === "text") },
-                                        { label: "图片", options: globalAiOpcPresetOptions().filter((item) => item.capability === "image") },
-                                        { label: "视频", options: globalAiOpcPresetOptions().filter((item) => item.capability === "video") },
+                                        { value: ALL_GLOBAL_AIOPC_PRESETS, label: "快捷选择 · 当前服务全部接口" },
+                                        ...globalAiOpcPresetOptions()
+                                            .filter((item) => item.capability === "text")
+                                            .map((item) => ({ ...item, label: `文本 · ${item.label}` })),
+                                        ...globalAiOpcPresetOptions()
+                                            .filter((item) => item.capability === "image")
+                                            .map((item) => ({ ...item, label: `图片 · ${item.label}` })),
+                                        ...globalAiOpcPresetOptions()
+                                            .filter((item) => item.capability === "video")
+                                            .map((item) => ({ ...item, label: `视频 · ${item.label}` })),
                                     ]}
                                     onChange={applyGlobalAiOpcPresets}
                                 />

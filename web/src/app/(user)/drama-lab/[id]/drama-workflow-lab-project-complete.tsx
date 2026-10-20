@@ -14,7 +14,8 @@ import { normalizeDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 
-import { Select, Form, message, QRCode, Image } from "antd";
+import { Form, message, QRCode, Image } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { List, Radio } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
@@ -78,7 +79,6 @@ import { optimizePrompt } from "@/services/api/prompt-optimization";
 import { DRAMA_LAB_CUSTOM_OPTION_VALUE, DRAMA_LAB_SCRIPT_TYPE_PRESETS, DRAMA_LAB_STORY_STYLE_PRESETS, type DramaLabStoryOptionKind } from "@/lib/drama-lab-story-options";
 
 const { TextArea } = Input;
-const { Option } = Select;
 
 function announceDramaLabTaskCreated(projectId: string) {
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("drama-lab-task-created", { detail: { projectId } }));
@@ -2447,10 +2447,7 @@ function ScriptEditor({
                                                         aria-label="选择剧集"
                                                         value={episode.id}
                                                         onChange={(value) => void switchScriptEpisode(value)}
-                                                        suffixIcon={<ChevronDown className="size-4" />}
-                                                        placement="bottomLeft"
                                                         popupMatchSelectWidth={280}
-                                                        getPopupContainer={(trigger) => trigger.parentElement || trigger}
                                                         style={{ width: 48 }}
                                                         options={project.episodes.map((item) => ({ value: item.id, label: item.title || `第 ${item.number} 集` }))}
                                                         optionRender={(option) => <span className="block truncate">{option.label}</span>}
@@ -2482,33 +2479,31 @@ function ScriptEditor({
                                                     scheduleSave({ storyStyle: value });
                                                 }}
                                                 style={{ width: 160 }}
-                                            >
-                                                {DRAMA_LAB_STORY_STYLE_PRESETS.map((option) => (
-                                                    <Option key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </Option>
-                                                ))}
-                                                {customStoryOptions.styles.map((value) => (
-                                                    <Option key={`custom-style-${value}`} value={value}>
-                                                        <span className="flex items-center justify-between gap-2">
-                                                            <span className="truncate">{value}</span>
-                                                            <button
-                                                                type="button"
-                                                                aria-label={`删除自定义选项 ${value}`}
-                                                                title="删除自定义选项"
-                                                                className="inline-flex size-5 items-center justify-center rounded text-sm leading-none text-destructive hover:bg-destructive/10"
-                                                                onClick={(event) => {
-                                                                    event.stopPropagation();
-                                                                    void deleteCustomOption("style", value);
-                                                                }}
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </span>
-                                                    </Option>
-                                                ))}
-                                                <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义风格</Option>
-                                            </Select>
+                                                options={[
+                                                    ...DRAMA_LAB_STORY_STYLE_PRESETS.map((option) => ({ value: option.value, label: option.label })),
+                                                    ...customStoryOptions.styles.map((value) => ({
+                                                        value,
+                                                        label: (
+                                                            <span className="flex items-center justify-between gap-2">
+                                                                <span className="truncate">{value}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label={`删除自定义选项 ${value}`}
+                                                                    title="删除自定义选项"
+                                                                    className="inline-flex size-5 items-center justify-center rounded text-sm leading-none text-destructive hover:bg-destructive/10"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        void deleteCustomOption("style", value);
+                                                                    }}
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            </span>
+                                                        ),
+                                                    })),
+                                                    { value: DRAMA_LAB_CUSTOM_OPTION_VALUE, label: "＋ 自定义风格" },
+                                                ]}
+                                            />
 
                                             <Select
                                                 aria-label="剧本类型"
@@ -2520,33 +2515,31 @@ function ScriptEditor({
                                                     scheduleSave({ scriptType: value });
                                                 }}
                                                 style={{ width: 160 }}
-                                            >
-                                                {DRAMA_LAB_SCRIPT_TYPE_PRESETS.map((option) => (
-                                                    <Option key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </Option>
-                                                ))}
-                                                {customStoryOptions.types.map((value) => (
-                                                    <Option key={`custom-type-${value}`} value={value}>
-                                                        <span className="flex items-center justify-between gap-2">
-                                                            <span className="truncate">{value}</span>
-                                                            <button
-                                                                type="button"
-                                                                aria-label={`删除自定义选项 ${value}`}
-                                                                title="删除自定义选项"
-                                                                className="inline-flex size-5 items-center justify-center rounded text-sm leading-none text-destructive hover:bg-destructive/10"
-                                                                onClick={(event) => {
-                                                                    event.stopPropagation();
-                                                                    void deleteCustomOption("type", value);
-                                                                }}
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </span>
-                                                    </Option>
-                                                ))}
-                                                <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义类型</Option>
-                                            </Select>
+                                                options={[
+                                                    ...DRAMA_LAB_SCRIPT_TYPE_PRESETS.map((option) => ({ value: option.value, label: option.label })),
+                                                    ...customStoryOptions.types.map((value) => ({
+                                                        value,
+                                                        label: (
+                                                            <span className="flex items-center justify-between gap-2">
+                                                                <span className="truncate">{value}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label={`删除自定义选项 ${value}`}
+                                                                    title="删除自定义选项"
+                                                                    className="inline-flex size-5 items-center justify-center rounded text-sm leading-none text-destructive hover:bg-destructive/10"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        void deleteCustomOption("type", value);
+                                                                    }}
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            </span>
+                                                        ),
+                                                    })),
+                                                    { value: DRAMA_LAB_CUSTOM_OPTION_VALUE, label: "＋ 自定义类型" },
+                                                ]}
+                                            />
 
                                             <InputNumber
                                                 addonBefore="集数"
@@ -2885,7 +2878,7 @@ function CollaborationPanel({
 
     return (
         <div className="space-y-5">
-            <section className="border border-border bg-muted/20 p-3">
+            <section className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
                 <div className="flex items-start gap-3">
                     <span className="grid size-8 shrink-0 place-items-center border border-primary/30 bg-primary/10 text-primary">
                         <Users className="size-4" />
@@ -2948,7 +2941,7 @@ function CollaborationPanel({
             </section>
 
             {overview ? (
-                <section className="border border-border p-3">
+                <section className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3">
                     <div className="mb-2 flex items-center justify-between gap-3">
                         <div>
                             <h3 className="text-sm font-semibold">项目邀请</h3>
@@ -3022,7 +3015,7 @@ function CollaborationPanel({
                             <h3 className="text-sm font-semibold">审批配置</h3>
                             <span className="text-xs text-muted-foreground">组长决定</span>
                         </div>
-                        <div className="divide-y border border-border">
+                        <div className="divide-y divide-[var(--gm-border)] overflow-hidden rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)]">
                             {COLLABORATION_STAGES.map((stage) => {
                                 const enabled = approvalStages[stage.key];
                                 const status = approvalStatuses[stage.key];
@@ -3065,7 +3058,7 @@ function CollaborationPanel({
 
                     <section>
                         <h3 className="mb-2 text-sm font-semibold">反馈与提醒</h3>
-                        <div className="space-y-1 border border-border p-3">
+                        <div className="space-y-1 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3">
                             <ToggleRow label="打回时必须填写反馈" checked={feedbackRequired} onChange={onFeedbackRequiredChange} />
                             <ToggleRow label="打回后提醒负责人" checked={notifyOnReturn} onChange={onNotifyOnReturnChange} />
                             <ToggleRow label="允许反馈附件" checked={allowFeedbackAttachments} onChange={onAllowFeedbackAttachmentsChange} />
@@ -3079,7 +3072,7 @@ function CollaborationPanel({
                             <span className="text-xs text-muted-foreground">仅显示本项目成员</span>
                         </div>
                         {overview?.members.length ? <Input.Search className="mb-2" size="small" value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} allowClear placeholder="搜索项目内成员" /> : null}
-                        <div className="space-y-2 border border-border p-3 text-xs">
+                        <div className="space-y-2 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3 text-xs">
                             {filteredMembers.length ? (
                                 filteredMembers.map((member) => {
                                     const isViewer = member.userId === overview?.viewerUserId;
@@ -3166,7 +3159,7 @@ function CollaborationPanel({
                                 <h3 className="text-sm font-semibold">待处理加入申请</h3>
                                 <span className="text-xs text-muted-foreground">管理员确认后生效</span>
                             </div>
-                            <div className="space-y-2 border border-border p-3 text-xs">
+                            <div className="space-y-2 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3 text-xs">
                                 {overview.joinRequests
                                     .filter((item) => item.status === "pending")
                                     .map((request) => (
@@ -3193,7 +3186,7 @@ function CollaborationPanel({
                                 <h3 className="text-sm font-semibold">审批历史</h3>
                                 <span className="text-xs text-muted-foreground">服务端记录</span>
                             </div>
-                            <div className="space-y-2 border border-border p-3">
+                            <div className="space-y-2 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3">
                                 {approvals.map((approval) => (
                                     <button key={approval.id} type="button" className="block w-full border-l-2 border-border pl-2 text-left text-xs hover:border-primary" onClick={() => onLocateApproval(approval)} title="定位到审批内容">
                                         <div className="flex items-center justify-between gap-2">
@@ -3566,7 +3559,7 @@ function WorkflowRunModal({
                     </div>
                 </div>
 
-                <div className="border border-border bg-muted/30">
+                <div className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-wash)]">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
                         <div>
                             <h2 className="font-semibold">执行预览</h2>
@@ -3646,7 +3639,7 @@ function WorkflowRunModal({
                 </div>
 
                 {workflowTask ? (
-                    <div className="border border-border bg-muted/30 px-4 py-3">
+                    <div className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-wash)] px-4 py-3">
                         <div className="flex items-center justify-between gap-3 text-sm">
                             <span>任务 {workflowTask.id.slice(0, 8)}</span>
                             <span className="font-medium">{Math.max(0, Math.min(100, workflowTask.progress))}%</span>
@@ -3759,7 +3752,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
 
     return (
         <div className="mx-auto max-w-6xl space-y-6">
-            <section className="flex flex-wrap items-start justify-between gap-4 border border-border bg-card px-5 py-5 sm:px-6">
+            <section className="flex flex-wrap items-start justify-between gap-4 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] px-5 py-5 sm:px-6">
                 <div className="flex min-w-0 items-start gap-3">
                     <span className="grid size-10 shrink-0 place-items-center border border-primary/30 bg-primary/10 text-primary">
                         <Sparkles className="size-5" />
@@ -3779,7 +3772,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                 </Button>
             </section>
             {reviewError ? <Alert type="error" showIcon message="审核请求失败" description={reviewError} /> : null}
-            <section className="grid border border-border bg-card lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+            <section className="grid rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
                 <div className="border-b border-border p-6 lg:border-b-0 lg:border-r">
                     <p className="text-sm text-muted-foreground">审核结论</p>
                     <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -3814,7 +3807,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                     </div>
                 </div>
             </section>
-            <section className="border border-border bg-card">
+            <section className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)]">
                 <div className="border-b border-border px-5 py-4 sm:px-6">
                     <h3 className="font-semibold">审核覆盖范围</h3>
                 </div>
@@ -3834,7 +3827,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                 </div>
             </section>
             <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                <section className="border border-border bg-card">
+                <section className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)]">
                     <div className="border-b border-border px-5 py-4 sm:px-6">
                         <h3 className="font-semibold">审核评分</h3>
                     </div>
@@ -3854,7 +3847,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                         )}
                     </div>
                 </section>
-                <section className="border border-border bg-card">
+                <section className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)]">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
                         <h3 className="font-semibold">待处理问题</h3>
                         <span className="text-sm text-muted-foreground">{issues.length} 项</span>
@@ -5854,33 +5847,15 @@ function StoryboardPanel({
                     </Form.Item>
 
                     <Form.Item label="场景" name="sceneId">
-                        <Select placeholder="选择场景" allowClear>
-                            {project.scenes.map((scene) => (
-                                <Option key={scene.id} value={scene.id}>
-                                    {scene.location} {scene.time ? `(${scene.time})` : ""}
-                                </Option>
-                            ))}
-                        </Select>
+                        <Select placeholder="选择场景" allowClear options={project.scenes.map((scene) => ({ value: scene.id, label: `${scene.location} ${scene.time ? `(${scene.time})` : ""}` }))} />
                     </Form.Item>
 
                     <Form.Item label="出场角色" name="characterIds">
-                        <Select mode="multiple" placeholder="选择角色" allowClear>
-                            {project.characters.map((char) => (
-                                <Option key={char.id} value={char.id}>
-                                    {char.name}
-                                </Option>
-                            ))}
-                        </Select>
+                        <Select mode="multiple" placeholder="选择角色" allowClear options={project.characters.map((char) => ({ value: char.id, label: char.name }))} />
                     </Form.Item>
 
                     <Form.Item label="出场道具" name="propIds">
-                        <Select mode="multiple" placeholder="选择道具" allowClear>
-                            {project.props.map((prop) => (
-                                <Option key={prop.id} value={prop.id}>
-                                    {prop.name}
-                                </Option>
-                            ))}
-                        </Select>
+                        <Select mode="multiple" placeholder="选择道具" allowClear options={project.props.map((prop) => ({ value: prop.id, label: prop.name }))} />
                     </Form.Item>
 
                     <Form.Item label="分镜标题" name="title" rules={[{ required: true }]}>
@@ -5900,13 +5875,17 @@ function StoryboardPanel({
                     </Form.Item>
 
                     <Form.Item label="镜头角度" name="cameraAngle">
-                        <Select placeholder="选择镜头角度" allowClear>
-                            <Option value="特写">特写</Option>
-                            <Option value="中景">中景</Option>
-                            <Option value="全景">全景</Option>
-                            <Option value="过肩">过肩</Option>
-                            <Option value="主观视角">主观视角</Option>
-                        </Select>
+                        <Select
+                            placeholder="选择镜头角度"
+                            allowClear
+                            options={[
+                                { value: "特写", label: "特写" },
+                                { value: "中景", label: "中景" },
+                                { value: "全景", label: "全景" },
+                                { value: "过肩", label: "过肩" },
+                                { value: "主观视角", label: "主观视角" },
+                            ]}
+                        />
                     </Form.Item>
 
                     <Form.Item label="时长(秒)" name="duration" rules={[{ required: true }]}>
