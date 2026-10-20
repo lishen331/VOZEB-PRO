@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Table, message, DatePicker } from "antd";
+import { message, DatePicker } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Eye, RefreshCw, Search, Trash2 } from "lucide-react";
-import type { ColumnsType } from "antd/es/table";
+import type { ColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import dayjs from "dayjs";
 
 interface DramaProject {

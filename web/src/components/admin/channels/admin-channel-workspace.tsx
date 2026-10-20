@@ -1,13 +1,13 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Table } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
-import type { TableColumnsType } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { Blocks, Plus, RefreshCw, Route, Search, Settings2, Trash2 } from "lucide-react";
 
 import { AdminLogicalModelManager } from "@/components/admin/admin-logical-model-manager";

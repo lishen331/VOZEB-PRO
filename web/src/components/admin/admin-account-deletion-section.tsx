@@ -1,7 +1,8 @@
 "use client";
 
-import type { TableColumnsType } from "antd";
-import { App, Grid, Table } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
+import { App, Grid } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";

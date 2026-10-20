@@ -4,7 +4,7 @@ import { formatAdminLogDuration, formatAdminLogTime, formatGenerationLogModel, g
 import { adminSections } from "@/components/admin/admin-section-nav";
 import type { AdminSectionKey } from "@/components/admin/admin-sections";
 import { toNumberOrZero } from "@/components/admin/admin-values";
-import type { TableColumnsType } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";

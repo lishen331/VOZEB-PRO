@@ -1,12 +1,13 @@
 "use client";
 
-import { App, Table } from "antd";
+import { App } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
-import type { TableColumnsType } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { Plus, RefreshCw, Settings2, TestTube, ToggleLeft, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -67,9 +68,6 @@ export function getRunningHubWorkflowActionColumn(render: WorkflowActionColumnRe
         key: "actions",
         fixed: "right",
         width: 320,
-        className: "runninghub-workflow-actions",
-        onHeaderCell: () => ({ className: "runninghub-workflow-actions" }),
-        onCell: () => ({ className: "runninghub-workflow-actions" }),
         render,
     };
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Form, message, Upload as AntUpload, Table, Image as AntImage } from "antd";
+import { Form, message, Upload as AntUpload, Image as AntImage } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Card, Steps } from "@/components/gamma-ui/gamma-ant-display";

@@ -1,7 +1,9 @@
 "use client";
 
-import type { FormInstance, TableColumnsType } from "antd";
-import { App, Form, Table } from "antd";
+import type { FormInstance } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
+import { App, Form } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";

@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Form, Table, message } from "antd";
+import { Form, message } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Card, Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
-import type { ColumnsType } from "antd/es/table";
+import type { ColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { Download, ExternalLink, Pencil, RotateCcw, Trash2 } from "lucide-react";
 
 type ApiResult<T> = { code: number; msg?: string; data: T };

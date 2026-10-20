@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Form, Table } from "antd";
+import { App, Form } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
-import type { TableColumnsType } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { Copy, FolderPlus, Plus, Trash2 } from "lucide-react";
 
 import { useAssetStore } from "@/stores/use-asset-store";

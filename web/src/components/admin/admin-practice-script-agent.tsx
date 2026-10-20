@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Table } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Alert, Button, Spin, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { AuthSettings } from "@/lib/auth/store";
