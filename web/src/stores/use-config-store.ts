@@ -115,6 +115,7 @@ export type AiConfig = {
     audioFormat: string;
     audioSpeed: string;
     audioInstructions: string;
+    audioParams: Record<string, string | number | boolean>;
     videoSeconds: string;
     vquality: string;
     videoGenerateAudio: string;
@@ -198,6 +199,7 @@ export const defaultConfig: AiConfig = {
     audioFormat: "mp3",
     audioSpeed: "1",
     audioInstructions: "",
+    audioParams: {},
     videoSeconds: "5",
     vquality: "720",
     videoGenerateAudio: "true",
@@ -310,6 +312,7 @@ export function applyPublicSystemSettings(config: AiConfig, settings?: PublicSys
         model: imageModel || textModel || videoModel || audioModel || "",
         systemPrompt: "",
         audioInstructions: "",
+        audioParams: {},
         modelPointCosts: materializeLogicalModelPointCosts(settings?.modelPointCosts, logicalModels),
         generationPointMultipliers: normalizeGenerationPointMultipliers(settings?.generationPointMultipliers),
         generationConcurrency: normalizeGenerationConcurrency(settings?.generationConcurrency),

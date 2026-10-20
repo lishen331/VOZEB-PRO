@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { FileText, Image as ImageIcon, Maximize2, Minimize2, Music2, Square, Video, X } from "lucide-react";
-import { Button, Modal, Tooltip } from "antd";
+import { Button, Dropdown, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
+import { audioModelFamily, audioModelPlaceholder, minimaxInterjections, minimaxPauseToken } from "@/lib/audio-model-params";
 import { CreditSymbol, formatCreditAmount, requestCreditCost } from "@/constant/credits";
 import { defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -150,6 +151,23 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         })}
                     </div>
                 ) : null}
+                {mode === "audio" && audioModelFamily(config.model) === "minimax" ? (
+                    <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2" aria-label="语音标记">
+                        <button
+                            type="button"
+                            className="rounded-md border px-2 py-0.5 text-xs font-medium hover:opacity-75"
+                            style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}
+                            onClick={() => updatePrompt(`${prompt}${minimaxPauseToken}`)}
+                        >
+                            {"<#> 停顿"}
+                        </button>
+                        <Dropdown trigger={["click"]} menu={{ items: minimaxInterjections.map((key) => ({ key, label: key })), onClick: ({ key }) => updatePrompt(`${prompt}${key}`) }}>
+                            <button type="button" className="rounded-md border px-2 py-0.5 text-xs font-medium hover:opacity-75" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
+                                () 语气词
+                            </button>
+                        </Dropdown>
+                    </div>
+                ) : null}
                 <CanvasResourceMentionTextarea
                     autoFocus
                     value={prompt}
@@ -160,7 +178,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     data-canvas-prompt-scroll="node"
                     className="thin-scrollbar h-36 max-h-full min-h-16 w-full flex-1 resize-none overflow-y-auto overscroll-contain bg-transparent px-3 py-2 pr-11 text-sm leading-5 outline-none"
                     style={{ color: theme.node.text }}
-                    placeholder={promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
+                    placeholder={mode === "audio" ? audioModelPlaceholder(config.model) : promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
                 />
                 <Tooltip title="放大提示词输入" placement="top">
                     <button
@@ -221,7 +239,12 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     ) : mode === "audio" ? (
                         <>
                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
-                            <CanvasAudioSettingsPopover config={config} buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS} onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))} />
+                            <CanvasAudioSettingsPopover
+                                config={config}
+                                buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS}
+                                onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))}
+                                onParamsChange={(audioParams) => onConfigChange(node.id, { audioParams })}
+                            />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
                                 <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                             </div>
@@ -342,7 +365,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                             data-canvas-prompt-scroll="expanded"
                             className="thin-scrollbar h-[min(52vh,26rem)] min-h-64 w-full resize-none overflow-y-auto overscroll-contain border-0 bg-transparent px-4 py-3 text-sm leading-6 outline-none"
                             style={{ color: theme.node.text }}
-                            placeholder={promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
+                            placeholder={mode === "audio" ? audioModelPlaceholder(config.model) : promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
                         />
                     </div>
                     <div className="mt-3 flex items-center justify-end gap-2">

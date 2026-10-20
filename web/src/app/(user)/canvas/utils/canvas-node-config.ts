@@ -18,6 +18,7 @@ export function buildCanvasNodeConfig(globalConfig: AiConfig, node: CanvasNodeDa
         audioFormat: node.metadata?.audioFormat || globalConfig.audioFormat || defaultConfig.audioFormat,
         audioSpeed: node.metadata?.audioSpeed || globalConfig.audioSpeed || defaultConfig.audioSpeed,
         audioInstructions: node.metadata?.audioInstructions || defaultConfig.audioInstructions,
+        audioParams: node.metadata?.audioParams || {},
         count: String(node.metadata?.count || (mode === "image" ? globalConfig.canvasImageCount || globalConfig.count : globalConfig.count) || defaultConfig.count),
     };
 }
