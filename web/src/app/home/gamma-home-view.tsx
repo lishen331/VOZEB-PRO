@@ -181,6 +181,13 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
 
     return (
         <div className="fixed inset-0 z-0 flex flex-col bg-[var(--gm-bg)] text-[var(--gm-text)]">
+            {/* 全屏半透明影像背景：和登录页同一条素材，压暗后衬在毛玻璃内容之下，减少动态时退化为静态海报 */}
+            <div aria-hidden className="gm-home-media">
+                <video className="motion-reduce:hidden" src="/login/hero.mp4" poster="/login/hero-poster.webp" autoPlay loop muted playsInline />
+                {/* eslint-disable-next-line @next/next/no-img-element -- 固定背景层，不参与布局 */}
+                <img src="/login/hero-poster.webp" alt="" className="motion-safe:hidden" />
+                <div className="gm-home-media-scrim" />
+            </div>
             {/* 公告条横跨整个顶部（含侧栏上方），关闭后整页随之上移 */}
             <AnimatePresence initial={false}>
                 {showAnnouncement ? (
@@ -201,7 +208,7 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
 
             <div className="flex min-h-0 flex-1">
                 <GammaAppSidebar collapsed={sidebar.collapsed} onToggle={sidebar.toggle} featureModules={featureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} onLogin={() => openLogin("/")} onPlans={openBillingPlans} />
-                <main className="gm-scroll relative min-w-0 flex-1 overflow-y-auto" onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 12)}>
+                <main className="gm-scroll relative min-w-0 flex-1 overflow-y-auto bg-transparent" onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 12)}>
                     <div aria-hidden className="gm-aurora pointer-events-none absolute -top-40 left-1/4 h-96 w-1/2 rounded-full bg-[var(--gm-blue)] blur-[120px]" style={{ opacity: "var(--gm-aurora-opacity)" }} />
                     <h1 className="sr-only">{site.title} · AI 创作平台</h1>
 
@@ -235,7 +242,7 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
                             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} className="flex items-end justify-between gap-4">
                                 <div>
                                     <p className="font-mono text-[11px] tracking-[0.2em] text-[var(--gm-accent)] uppercase">BlueGamma Studio</p>
-                                    <h2 className="mt-2 text-[32px] leading-[1.15] font-semibold tracking-tight" suppressHydrationWarning>
+                                    <h2 className="gm-home-greeting mt-2 text-[34px] leading-[1.15] font-semibold tracking-tight" suppressHydrationWarning>
                                         {hello}，今天想创作点什么？
                                     </h2>
                                 </div>

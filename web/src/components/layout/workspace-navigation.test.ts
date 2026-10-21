@@ -46,19 +46,27 @@ describe("workspaceNavItems", () => {
         expect(keys({ featureModules: modules, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS })).toEqual(["home", "gallery"]);
     });
 
-    it("puts the student's 学习中心 and 无限练习 in a school group under home", () => {
+    it("separates the student's school entry from 无限练习 with its own group", () => {
         const items = workspaceNavItems({ schoolContext: context("student", false), featureModules: ALL_MODULES, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS });
         expect(items.slice(0, 3).map((item) => [item.key, item.group])).toEqual([
             ["home", "home"],
             ["learning", "school"],
-            ["practice", "school"],
+            ["practice", "practice"],
         ]);
         expect(items.map((item) => item.key)).not.toContain("teaching");
     });
 
-    it("gives teachers 教学中心 and only school managers 学校管理", () => {
-        expect(keys({ schoolContext: context("teacher", false), featureModules: ALL_MODULES, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS }).slice(0, 3)).toEqual(["home", "teaching", "practice"]);
-        expect(keys({ schoolContext: context("teacher", true), featureModules: ALL_MODULES, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS }).slice(0, 4)).toEqual(["home", "teaching", "practice", "school"]);
+    it("puts the teacher's 教学中心 first and keeps the school block apart from practice", () => {
+        expect(
+            workspaceNavItems({ schoolContext: context("teacher", false), featureModules: ALL_MODULES, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS })
+                .slice(0, 3)
+                .map((item) => [item.key, item.group]),
+        ).toEqual([
+            ["home", "home"],
+            ["teaching", "school"],
+            ["practice", "practice"],
+        ]);
+        expect(keys({ schoolContext: context("teacher", true), featureModules: ALL_MODULES, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS }).slice(0, 4)).toEqual(["home", "teaching", "school", "practice"]);
     });
 
     it("shows everything to guests on the home page (protected pages ask for login)", () => {

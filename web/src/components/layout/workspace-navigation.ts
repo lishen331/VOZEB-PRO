@@ -9,7 +9,11 @@ import type { SchoolContext } from "@/lib/school-domain";
  * 这里只负责排序、分组和新版文案 / 图标，所以后台关掉的模块、没有权限的角色都不会出现。
  */
 
-export type WorkspaceNavGroup = "home" | "school" | "create" | "assets" | "community";
+/**
+ * 侧栏分组，相邻分组之间自动出现分隔线。
+ * 学校身份（老师 / 学生）先看到自己学校的入口（school），中间隔开，才是练习（practice）与创作（create）。
+ */
+export type WorkspaceNavGroup = "home" | "school" | "practice" | "create" | "assets" | "community";
 
 export type WorkspaceNavItem = {
     key: string;
@@ -21,13 +25,16 @@ export type WorkspaceNavItem = {
 
 type Entry = { slug: string; label: string; icon: GammaNavIconName; group: WorkspaceNavGroup };
 
-/** 展示顺序即侧栏顺序；slug 与 navigation-tools 一致 */
+/**
+ * 展示顺序即侧栏顺序；slug 与 navigation-tools 一致。
+ * 学校身份（老师 / 学生 / 学校管理员）才会出现，紧跟在首页后面单独成组；
+ * 无限练习属于练习区，与学校板块之间用分隔线隔开。
+ */
 const ENTRIES: readonly Entry[] = [
-    // 学校身份（老师 / 学生 / 学校管理员）才会出现，排在首页下面
-    { slug: "learning", label: "学习中心", icon: "learning", group: "school" },
     { slug: "teaching", label: "教学中心", icon: "teaching", group: "school" },
-    { slug: "practice", label: "无限练习", icon: "practice", group: "school" },
+    { slug: "learning", label: "学习中心", icon: "learning", group: "school" },
     { slug: "school", label: "学校管理", icon: "school", group: "school" },
+    { slug: "practice", label: "无限练习", icon: "practice", group: "practice" },
     { slug: "create", label: "AI 创作", icon: "subjects", group: "create" },
     { slug: "drama", label: "短剧制作", icon: "courseware", group: "create" },
     { slug: "canvas", label: "无限画布", icon: "canvas", group: "create" },

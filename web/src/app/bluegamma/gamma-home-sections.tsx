@@ -59,7 +59,7 @@ export function GammaRecentProjects({ onOpen, projects, loading = false }: { onO
                             <button
                                 type="button"
                                 onClick={() => onOpen(project.title, project.id)}
-                                className="group relative flex w-full items-center gap-4 overflow-hidden rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] p-3 text-left ring-1 ring-[var(--gm-border)] transition-shadow duration-300 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                                className="group gm-glass gm-glass-refract relative flex w-full items-center gap-4 overflow-hidden rounded-[var(--gm-radius-lg)] p-3 text-left transition-shadow duration-300 hover:shadow-[0_18px_40px_-20px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
                             >
                                 <GammaCardCorners />
                                 <span className="relative size-[72px] shrink-0 overflow-hidden rounded-[var(--gm-radius)]">
@@ -164,7 +164,7 @@ const RANK_STYLE = ["bg-[image:var(--gm-gradient)] text-white", "bg-[var(--gm-su
 
 export function GammaCreatorBoard({ onFollow }: { onFollow: (name: string) => void }) {
     return (
-        <aside aria-labelledby="creators-title" className="relative flex flex-col overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 ring-1 ring-[var(--gm-border)]">
+        <aside aria-labelledby="creators-title" className="gm-glass gm-glass-strong gm-glass-sheen gm-glass-refract relative flex flex-col overflow-hidden rounded-[var(--gm-radius-xl)] p-5">
             <div aria-hidden className="pointer-events-none absolute -top-16 -right-10 size-44 rounded-full bg-[var(--gm-blue)] opacity-20 blur-3xl" />
             <header className="relative mb-3 flex items-center justify-between">
                 <h2 id="creators-title" className="flex items-center gap-2 text-[15px] font-semibold">

@@ -9,6 +9,8 @@ export const GAMMA_RAIL_ITEMS: readonly GammaRailItem[] = [
     { key: "home", label: "首页", icon: "home", href: "/bluegamma", group: "create" },
     { key: "majors", label: "专业", icon: "subjects", group: "create" },
     { key: "studio", label: "工作台", icon: "courseware", group: "create" },
+    { key: "courses", label: "课程", icon: "lessons", href: "/bluegamma/courses", group: "create" },
+    { key: "practice", label: "无限练习", icon: "practice", href: "/bluegamma/practice", group: "create" },
     { key: "assets", label: "素材", icon: "assets", group: "assets" },
     { key: "prompts", label: "提示词", icon: "prompts", group: "assets" },
     { key: "plaza", label: "作品广场", icon: "plaza", group: "community" },

@@ -28,12 +28,18 @@ export function GammaPlaza({
     onRemix,
     onNotice,
     compact = false,
+    hideSearch = false,
+    hideTabs = false,
 }: {
     onPreview: (item: { src: string; title: string }) => void;
     onRemix: (prompt: string, slug: string) => void;
     onNotice: (message: string) => void;
     /** 紧凑模式：无标题块、控件与筛选更密、瀑布流列数更多 */
     compact?: boolean;
+    /** 首页已把搜索放进顶栏，这里不再重复一个搜索框 */
+    hideSearch?: boolean;
+    /** 首页展示区只要作品，不要推荐/关注/活动分类 */
+    hideTabs?: boolean;
 }) {
     const [feedTab, setFeedTab] = useState<FeedTab>("recommend");
     const [filter, setFilter] = useState(ALL);
@@ -120,18 +126,24 @@ export function GammaPlaza({
                 <p className="mt-1 text-[13px] text-[var(--gm-text-3)]">来自 12 个专业的同学作品，喜欢就「做同款」</p>
             </div>
             <div className={cn("flex flex-wrap items-center", compact ? "gap-3" : "gap-4")}>
-                <GammaTabs label="广场分类" options={FEED_TABS} value={feedTab} onChange={setFeedTab} />
-                <span aria-hidden className="h-6 w-px bg-[var(--gm-border-strong)]" />
-                <label
-                    className={cn(
-                        "flex w-80 items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-3 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]",
-                        compact ? "h-9" : "h-10",
-                    )}
-                >
-                    <Search className="size-4 text-[var(--gm-text-3)]" />
-                    <span className="sr-only">搜索作品</span>
-                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索作品、专业、作者" className="h-full flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--gm-text-3)]" />
-                </label>
+                {hideTabs ? null : (
+                    <>
+                        <GammaTabs label="广场分类" options={FEED_TABS} value={feedTab} onChange={setFeedTab} />
+                        <span aria-hidden className="h-6 w-px bg-[var(--gm-border-strong)]" />
+                    </>
+                )}
+                {hideSearch ? null : (
+                    <label
+                        className={cn(
+                            "flex w-80 items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-3 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]",
+                            compact ? "h-9" : "h-10",
+                        )}
+                    >
+                        <Search className="size-4 text-[var(--gm-text-3)]" />
+                        <span className="sr-only">搜索作品</span>
+                        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索作品、专业、作者" className="h-full flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--gm-text-3)]" />
+                    </label>
+                )}
                 <GammaButton className="ml-auto" variant="outline" size={compact ? "sm" : "md"} onClick={() => onNotice("发布功能即将上线")}>
                     发布作品
                 </GammaButton>

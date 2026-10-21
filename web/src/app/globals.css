@@ -21,3 +21,5 @@
 /* 布鲁伽马换肤：token + 全站皮肤，只作用于 html.gm-app（画布编辑器不挂），必须在最后 */
 @import "../components/gamma-ui/gamma-tokens.css";
 @import "./styles/global-gamma-skin.css";
+/* 首页视觉重做：影像背景 + 问候语渐变，只作用于 html.gm-app，必须在皮肤之后 */
+@import "./styles/global-home.css";
