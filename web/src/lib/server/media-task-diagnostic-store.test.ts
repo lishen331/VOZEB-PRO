@@ -42,3 +42,18 @@ describe("persistent media diagnostics", () => {
         expect(sql).toContain("diagnostic_events='[]'");
     });
 });
+
+it("includes only missing-surface historical Canvas rows without weakening diagnostic owner or task guards", async () => {
+    await persistMediaDiagnostic(context, { phase: "result_media_complete" });
+    const [sql, params] = mocks.query.mock.calls.find(([sql]) => sql.startsWith("SELECT diagnostic"))!;
+    expect(sql).toContain("payload->>'source'='canvas'");
+    expect(sql).toContain("COALESCE(surface, '')=''");
+    expect(sql).toContain("id=$1 AND task_type=$2 AND user_id=$3");
+    expect(sql).toContain("expires_at>now() FOR UPDATE");
+    expect(params).toEqual(["task", "image", "owner"]);
+    mocks.query.mockClear();
+    await resolveMediaDiagnosticContext("task", "owner", "channel");
+    expect(mocks.query.mock.calls[0][0]).toContain("payload->>'source'='canvas'");
+    expect(mocks.query.mock.calls[0][0]).toContain("user_id=$2");
+    expect(mocks.query.mock.calls[0][0]).toContain("payload->'config'->>'channelId'=$3");
+});
