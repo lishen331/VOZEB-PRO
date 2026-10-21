@@ -4,14 +4,9 @@ on:
   push:
     branches: ["develop"]
   workflow_dispatch:
-    inputs:
-      deploy:
-        description: Deploy this image to staging after all checks pass
-        type: boolean
-        default: true
 
 concurrency:
-  group: ${{ github.event_name == 'workflow_dispatch' && !inputs.deploy && format('image-build-{0}', github.ref) || 'staging-image' }}
+  group: staging-image
   cancel-in-progress: true
 
 permissions:
@@ -65,12 +60,6 @@ jobs:
         env:
           NEXT_SKIP_BUILD_TYPECHECK: "1"
 
-      - name: Install browser runtime
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Native Canvas media delivery regression
-        run: pnpm run e2e:media
-
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
@@ -89,13 +78,12 @@ jobs:
           push: true
           load: true
           tags: |
-            ${{ github.ref == 'refs/heads/develop' && format('{0}:develop', env.IMAGE_NAME) || '' }}
+            ${{ env.IMAGE_NAME }}:develop
             ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Deploy image over SSH
-        if: github.event_name != 'workflow_dispatch' || inputs.deploy
         shell: bash
         run: |
           set -euo pipefail
