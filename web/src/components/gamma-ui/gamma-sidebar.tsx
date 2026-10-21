@@ -58,8 +58,8 @@ interface GammaSidebarRowProps {
 export function GammaSidebarRow({ collapsed, icon, label, active = false, onClick, href, trailing, layoutId }: GammaSidebarRowProps) {
     const reduce = useReducedMotion();
     const className = cn(
-        "group relative flex h-9 w-full items-center gap-3 rounded-[10px] text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
-        collapsed ? "justify-center px-0" : "px-3",
+        "group relative flex w-full rounded-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
+        collapsed ? "h-[54px] flex-col items-center justify-center gap-1 text-[10px] leading-none" : "h-9 items-center gap-3 px-3 text-[13px]",
         active ? "text-[var(--gm-accent)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
     );
     const body = (
@@ -70,17 +70,8 @@ export function GammaSidebarRow({ collapsed, icon, label, active = false, onClic
                 </motion.span>
             ) : null}
             <span className="relative grid size-5 shrink-0 place-items-center">{icon}</span>
-            {collapsed ? null : <span className="relative min-w-0 flex-1 truncate text-left">{label}</span>}
+            <span className={cn("relative truncate", collapsed ? "max-w-full text-[10px]" : "min-w-0 flex-1 text-left")}>{label}</span>
             {collapsed || !trailing ? null : <span className="relative shrink-0">{trailing}</span>}
-            {/* 收起时的浮动提示 */}
-            {collapsed ? (
-                <span
-                    role="tooltip"
-                    className="pointer-events-none absolute top-1/2 left-full z-[70] ml-3 -translate-x-1 -translate-y-1/2 rounded-md bg-[var(--gm-surface-light)] px-2 py-1 text-xs font-medium whitespace-nowrap text-[var(--gm-inverse-text)] opacity-0 shadow-lg transition-[opacity,transform] duration-150 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
-                >
-                    {label}
-                </span>
-            ) : null}
         </>
     );
     if (href) {

@@ -38,7 +38,7 @@ export function GammaBannerCarousel({ slides }: { slides: readonly GammaBannerSl
             aria-label="活动推荐"
             onPointerEnter={() => setPaused(true)}
             onPointerLeave={() => setPaused(false)}
-            className="gm-on-dark relative isolate h-[176px] overflow-hidden rounded-[var(--gm-radius-xl)] bg-[#04060c] ring-1 ring-[var(--gm-border)]"
+            className="gm-on-dark gm-glass-refract relative isolate h-[176px] overflow-hidden rounded-[var(--gm-radius-xl)] bg-[#04060c]/70 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.65)] backdrop-blur-xl"
         >
             <AnimatePresence initial={false}>
                 <motion.div key={slide.key} className="absolute inset-0 -z-[1]" initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}>
@@ -87,13 +87,13 @@ export function GammaPromoCard({ title, description, cover, onClick }: { title: 
         <button
             type="button"
             onClick={onClick}
-            className="group relative isolate flex h-[176px] w-full overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface-light)] text-left text-[var(--gm-inverse-text)] ring-1 ring-[var(--gm-border-strong)] transition-shadow hover:shadow-[var(--gm-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+            className="group gm-glass gm-glass-sheen gm-glass-refract relative isolate flex h-[176px] w-full overflow-hidden rounded-[var(--gm-radius-xl)] text-left text-[var(--gm-text)] transition-shadow hover:shadow-[0_24px_60px_-28px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
         >
             {/* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材；裁切区更宽、锚点偏右上，避免色块缩在左下角导致右上角露出大片底色 */}
             <img src={cover} alt="" aria-hidden className="absolute inset-y-0 right-0 -z-[1] h-full w-[62%] object-cover object-[75%_20%] transition-transform duration-700 [mask-image:linear-gradient(90deg,transparent,#000_32%)] group-hover:scale-105" />
             <div className="flex flex-col justify-center gap-2 px-7">
                 <h3 className="text-xl leading-snug font-semibold">{title}</h3>
-                <p className="text-[13px] text-[var(--gm-inverse-text-2)]">{description}</p>
+                <p className="text-[13px] text-[var(--gm-text-2)]">{description}</p>
                 <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-[var(--gm-blue)] px-3 py-1 text-xs font-medium text-white transition-transform duration-300 group-hover:translate-x-1">立即了解 →</span>
             </div>
         </button>

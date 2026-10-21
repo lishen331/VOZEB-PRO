@@ -75,7 +75,8 @@ export function GammaChip({ active = false, children, onClick, icon, count }: { 
             onClick={onClick}
             whileTap={{ scale: 0.95 }}
             className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
+                // 不换行、不被挤压：在横向滚动的筛选条里，窄屏下也保持一个胶囊一行
+                "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] whitespace-nowrap transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
                 active ? "bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[var(--gm-accent-ring)]" : "bg-[var(--gm-wash)] text-[var(--gm-text-2)] ring-1 ring-[var(--gm-border)] hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)]",
             )}
         >

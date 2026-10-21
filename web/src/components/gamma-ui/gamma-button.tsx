@@ -16,7 +16,8 @@ const VARIANT: Record<GammaButtonVariant, string> = {
     soft: "text-[var(--gm-blue-text)] bg-[var(--gm-blue-soft)] ring-1 ring-inset ring-[rgba(0,80,245,0.35)] hover:bg-[rgba(0,80,245,0.26)] [--gm-ripple:rgba(0,80,245,0.3)]",
     outline: "text-[var(--gm-text)] ring-1 ring-inset ring-[var(--gm-border-strong)] hover:ring-[var(--gm-accent)] hover:text-[var(--gm-accent)] [--gm-ripple:var(--gm-accent-soft)]",
     ghost: "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] [--gm-ripple:var(--gm-accent-soft)]",
-    danger: "text-white bg-[var(--gm-danger)] hover:brightness-110",
+    // 实心危险按钮单独用更深的红：--gm-danger 是给文字用的（深色下偏亮），白字压在上面不到 4.5:1
+    danger: "text-white bg-[#dc2847] hover:bg-[#c81e3c]",
     glass: "text-[var(--gm-text)] bg-[var(--gm-wash-strong)] ring-1 ring-inset ring-[var(--gm-border-strong)] backdrop-blur-xl hover:bg-[var(--gm-wash-heavy)] [--gm-ripple:var(--gm-accent-soft)]",
 };
 
