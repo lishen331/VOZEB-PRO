@@ -60,8 +60,14 @@ describe("one-click-film routes must have callers", () => {
         expect(routeFiles.length).toBeGreaterThan(0);
 
         const candidates = allFiles.filter((file) => /\.(ts|tsx)$/.test(file) && !file.endsWith(".test.ts") && !file.endsWith(".test.tsx"));
-        const sources = new Map<string, string>();
-        for (const file of candidates) sources.set(file, await readFile(file, "utf8"));
+        const sources = await Promise.all(
+            candidates.map(async (file) => {
+                const text = await readFile(file, "utf8");
+                if (!/fetch|fetchInternalApi/.test(text)) return { file, requestPaths: [] };
+                const requestPaths = [...text.matchAll(/\/api\/one-click-film[^\s]*/g), ...(text.includes("/api/one-click-film") ? text.matchAll(/\$\{base\}[^\s]*/g) : [])].map((match) => match[0]);
+                return { file, requestPaths };
+            }),
+        );
 
         const orphans: string[] = [];
         for (const routeFile of routeFiles) {
@@ -69,21 +75,7 @@ describe("one-click-film routes must have callers", () => {
             const leaf = staticLeaf(segments);
             // 集合根路由（/projects）由 leaf 自身覆盖；深层路由用最后一个静态段匹配。
             const needle = leaf;
-            const referenced = [...sources.entries()].some(([file, text]) => {
-                if (file === routeFile) return false;
-                if (!/fetch|fetchInternalApi/.test(text)) return false;
-                // 只认真正拼进请求路径的引用。
-                //
-                // 早期版本用 text.includes(needle) 判定，结果 "export" 这类 JS 关键字
-                // 在任何文件里都命中，导致 export 路由明明没有调用方却假通过。
-                // 这里改为提取所有 one-click-film 请求路径字面量，再在其中查段名。
-                const requestPaths = [
-                    ...text.matchAll(/\/api\/one-click-film[^\s`"']*/g),
-                    // UI 常用 `const base = \`/api/one-click-film/projects/\${id}\`` 再拼后缀
-                    ...(text.includes("/api/one-click-film") ? text.matchAll(/\$\{base\}[^`]*/g) : []),
-                ].map((match) => match[0]);
-                return requestPaths.some((path) => path.includes(needle));
-            });
+            const referenced = sources.some(({ file, requestPaths }) => file !== routeFile && requestPaths.some((requestPath) => requestPath.includes(needle)));
             if (!referenced) orphans.push(routeFile.slice(apiRoot.length).replace(/\\/g, "/"));
         }
 

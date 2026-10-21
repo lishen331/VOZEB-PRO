@@ -22,11 +22,7 @@ export function FlowArtwork({ step, label, compact = false, className }: { step:
     const Icon = KIND_ICON[step.kind];
     const hue = hueOf(step.key);
     return (
-        <span
-            aria-hidden
-            className={cn("relative block h-full w-full overflow-hidden", className)}
-            style={{ background: `linear-gradient(135deg, hsl(${hue} 70% 22%), hsl(${hue + 24} 80% 38%) 60%, hsl(${hue + 40} 85% 52%))` }}
-        >
+        <span aria-hidden className={cn("relative block h-full w-full overflow-hidden", className)} style={{ background: `linear-gradient(135deg, hsl(${hue} 70% 22%), hsl(${hue + 24} 80% 38%) 60%, hsl(${hue + 40} 85% 52%))` }}>
             {/* 细网格：像图纸 / 版面，暗示这是设计产出 */}
             <span
                 className="absolute inset-0 opacity-25"

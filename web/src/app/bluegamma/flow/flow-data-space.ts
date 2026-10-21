@@ -149,9 +149,7 @@ export const FASHION_FLOW: MajorFlow = {
             kind: "image",
             goal: "穿到模特身上，看比例和动态",
             refs: ["fabric", "style"],
-            presets: [
-                { name: "棚拍正侧背", prompt: "「{课题}」模特上身效果，棚拍白底，正面、侧面、背面三视图" },
-            ],
+            presets: [{ name: "棚拍正侧背", prompt: "「{课题}」模特上身效果，棚拍白底，正面、侧面、背面三视图" }],
         },
         {
             key: "lookbook",
@@ -177,9 +175,7 @@ export const PRODUCT_FLOW: MajorFlow = {
             name: "功能梳理",
             kind: "text",
             goal: "用户是谁、在什么场景用、必须解决哪几个问题",
-            presets: [
-                { name: "用户与场景", prompt: "为「{课题}」做产品定义：目标用户画像、使用场景、核心痛点、功能清单（必需 / 加分）、竞品对比，要点式输出。" },
-            ],
+            presets: [{ name: "用户与场景", prompt: "为「{课题}」做产品定义：目标用户画像、使用场景、核心痛点、功能清单（必需 / 加分）、竞品对比，要点式输出。" }],
             sample: ["用户：办公室久坐人群，桌面空间小", "痛点：加水麻烦、夜间灯光刺眼、清洗难", "必需功能：上加水、静音、可拆洗", "加分：氛围灯 + 定时"],
         },
         {
@@ -199,9 +195,7 @@ export const PRODUCT_FLOW: MajorFlow = {
             kind: "image",
             goal: "选定方案，局部改按键、出雾口、CMF",
             refs: ["concept"],
-            presets: [
-                { name: "CMF 方案", prompt: "选定方案的 CMF 设计：磨砂 PP 机身 + 透明水箱 + 金属旋钮，三套配色" },
-            ],
+            presets: [{ name: "CMF 方案", prompt: "选定方案的 CMF 设计：磨砂 PP 机身 + 透明水箱 + 金属旋钮，三套配色" }],
             tip: "只改不满意的局部，用局部重绘别整张重来。",
         },
         {
@@ -221,9 +215,7 @@ export const PRODUCT_FLOW: MajorFlow = {
             kind: "image",
             goal: "设计说明 + 使用场景 + 爆炸图排成展板",
             refs: ["model", "define"],
-            presets: [
-                { name: "产品展板", prompt: "A2 横版产品设计展板，标题「{课题}」，主渲染图、使用场景图、爆炸图、设计说明、尺寸图" },
-            ],
+            presets: [{ name: "产品展板", prompt: "A2 横版产品设计展板，标题「{课题}」，主渲染图、使用场景图、爆炸图、设计说明、尺寸图" }],
         },
     ],
 };

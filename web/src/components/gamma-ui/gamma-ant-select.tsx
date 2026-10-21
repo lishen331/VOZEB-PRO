@@ -171,7 +171,12 @@ function SelectImpl<V = string>(props: SelectProps<V>) {
         if (!query.trim()) return options;
         if (filterOption === false) return options;
         if (typeof filterOption === "function") return options.filter((option) => filterOption(query, option));
-        if (optionFilterProp) return options.filter((option) => String((option as unknown as Record<string, unknown>)[optionFilterProp] ?? "").toLowerCase().includes(query.toLowerCase()));
+        if (optionFilterProp)
+            return options.filter((option) =>
+                String((option as unknown as Record<string, unknown>)[optionFilterProp] ?? "")
+                    .toLowerCase()
+                    .includes(query.toLowerCase()),
+            );
         return options.filter((option) => defaultFilter(query, option));
     }, [options, query, filterOption, optionFilterProp]);
     const enabled = filtered.filter((option) => !option.disabled);
@@ -386,12 +391,7 @@ function SelectImpl<V = string>(props: SelectProps<V>) {
                                         )}
                                     >
                                         {multi ? (
-                                            <span
-                                                className={cn(
-                                                    "grid size-4 shrink-0 place-items-center rounded-[5px] ring-1 transition-colors",
-                                                    isSelected ? "bg-[var(--gm-blue)] text-white ring-[var(--gm-blue)]" : "ring-[var(--gm-border-strong)]",
-                                                )}
-                                            >
+                                            <span className={cn("grid size-4 shrink-0 place-items-center rounded-[5px] ring-1 transition-colors", isSelected ? "bg-[var(--gm-blue)] text-white ring-[var(--gm-blue)]" : "ring-[var(--gm-border-strong)]")}>
                                                 {isSelected ? <Check className="size-3" /> : null}
                                             </span>
                                         ) : null}

@@ -118,7 +118,10 @@ export function GammaStateView({ kind, title, description, actions, traceId, siz
                 className,
             )}
         >
-            <span aria-hidden className={cn("gm-aurora pointer-events-none absolute top-6 left-1/2 -translate-x-1/2 rounded-full blur-3xl", alarming ? "bg-[var(--gm-danger)] opacity-[0.12]" : "bg-[var(--gm-blue)] opacity-20", size === "sm" ? "size-28" : "size-44")} />
+            <span
+                aria-hidden
+                className={cn("gm-aurora pointer-events-none absolute top-6 left-1/2 -translate-x-1/2 rounded-full blur-3xl", alarming ? "bg-[var(--gm-danger)] opacity-[0.12]" : "bg-[var(--gm-blue)] opacity-20", size === "sm" ? "size-28" : "size-44")}
+            />
             <GammaStateArt kind={kind} size={size === "sm" ? 84 : 120} className="relative" />
             <h3 className={cn("relative font-semibold", size === "sm" ? "text-sm" : "text-base")}>{title ?? copy.title}</h3>
             <p className={cn("relative max-w-sm leading-relaxed text-[var(--gm-text-2)]", size === "sm" ? "text-xs" : "text-[13px]")}>{description ?? copy.description}</p>

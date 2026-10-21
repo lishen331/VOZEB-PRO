@@ -115,15 +115,7 @@ export function Table<T>({ columns, dataSource = [], rowKey, loading = false, pa
                             <tr key={key} className="text-[var(--gm-text)] hover:bg-[var(--gm-wash)]">
                                 {selectable ? (
                                     <td className={cellPad}>
-                                        <input
-                                            type="checkbox"
-                                            aria-label="选择此行"
-                                            title={checkboxProps?.title}
-                                            checked={checked}
-                                            disabled={checkboxProps?.disabled}
-                                            onChange={() => toggleRow(key, record)}
-                                            className="gm-checkbox"
-                                        />
+                                        <input type="checkbox" aria-label="选择此行" title={checkboxProps?.title} checked={checked} disabled={checkboxProps?.disabled} onChange={() => toggleRow(key, record)} className="gm-checkbox" />
                                     </td>
                                 ) : null}
                                 {columns.map((column, columnIndex) => {

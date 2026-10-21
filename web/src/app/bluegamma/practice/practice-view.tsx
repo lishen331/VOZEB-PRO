@@ -104,9 +104,7 @@ function PracticeHero() {
                     免费创作空间
                 </GammaBadge>
                 <h1 className="mt-4 text-4xl font-bold tracking-tight text-[var(--gm-text)] sm:text-5xl">无限练习</h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--gm-text-2)] sm:text-lg">
-                    每个模块是独立的单块练习，互不串联。你可以把生成的素材保存到资产库，再在其他模块中引用。这里不是完整的漫剧创作流水线，只用于单块技能的专项训练。
-                </p>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--gm-text-2)] sm:text-lg">每个模块是独立的单块练习，互不串联。你可以把生成的素材保存到资产库，再在其他模块中引用。这里不是完整的漫剧创作流水线，只用于单块技能的专项训练。</p>
             </div>
             <div aria-hidden className="absolute -right-12 -top-12 size-64 rounded-full bg-[var(--gm-accent-soft)] blur-3xl" />
             <div aria-hidden className="absolute -bottom-12 -left-12 size-64 rounded-full bg-[rgba(139,92,246,0.12)] blur-3xl" />
@@ -136,11 +134,7 @@ function ProjectCard({ card, creating, onCreate }: { card: PracticeProjectCardSp
                     {card.recent.length ? (
                         <div className="mt-3 space-y-1">
                             {card.recent.slice(0, 3).map((item) => (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    className="flex w-full items-center justify-between gap-3 rounded-[var(--gm-radius-sm)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--gm-wash-strong)]"
-                                >
+                                <button key={item.id} type="button" className="flex w-full items-center justify-between gap-3 rounded-[var(--gm-radius-sm)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--gm-wash-strong)]">
                                     <span className="truncate text-sm text-[var(--gm-text-2)]">{item.title}</span>
                                     <span className="shrink-0 text-xs text-[var(--gm-text-3)]">{item.updatedAt}</span>
                                 </button>

@@ -120,6 +120,7 @@ describe("导航图标几何", () => {
 
     it("设计系统页的分组覆盖全部图标", () => {
         const page = readFileSync(resolve(__dirname, "../../app/bluegamma/design/design-icons.tsx"), "utf8");
-        for (const name of GAMMA_NAV_ICON_NAMES) expect(page, name).toContain(`"${name}"`);
+        expect(page).toContain("GAMMA_NAV_ICON_NAMES.map");
+        expect(page).toContain("<GammaNavIcon name={name}");
     });
 });

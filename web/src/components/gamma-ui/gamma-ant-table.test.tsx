@@ -62,7 +62,7 @@ describe("gamma-ant-table：与 antd Table 同 API 子集", () => {
             />,
         );
         expect(markup).toContain('aria-label="选择此行"');
-        expect(markup).toContain("disabled=\"\"");
+        expect(markup).toContain('disabled=""');
         expect(markup).toContain('title="不可选"');
     });
 
