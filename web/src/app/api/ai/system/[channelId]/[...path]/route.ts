@@ -24,7 +24,15 @@ import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
 import { resolveGlobalAiOpcPathPreset, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { adaptGlobalAiOpcTextRequest, adaptGlobalAiOpcTextResponse, isGlobalAiOpcChannel } from "@/lib/server/globalaiopc-proxy";
-import { readVerifiedSystemAiBusinessRequest, readVerifiedSystemAiRouteLogicalModel, SYSTEM_AI_EXECUTION_PROFILE_HEADER, SYSTEM_AI_LOGICAL_MODEL_HEADER, SYSTEM_AI_UPSTREAM_MODEL_HEADER, systemAiPointsIdempotencyKey, systemAiRequestFingerprint } from "@/lib/server/system-ai-billing";
+import {
+    readVerifiedSystemAiBusinessRequest,
+    readVerifiedSystemAiRouteLogicalModel,
+    SYSTEM_AI_EXECUTION_PROFILE_HEADER,
+    SYSTEM_AI_LOGICAL_MODEL_HEADER,
+    SYSTEM_AI_UPSTREAM_MODEL_HEADER,
+    systemAiPointsIdempotencyKey,
+    systemAiRequestFingerprint,
+} from "@/lib/server/system-ai-billing";
 import { chargeGeneration, refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { resolveGenerationExecutionPolicy } from "@/lib/server/generation-execution-policy";
 import { isAgnesApiBaseUrl } from "@/lib/agnes-model-catalog";
@@ -266,7 +274,8 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     request.signal.addEventListener("abort", () => void refundConsumedPoints(), { once: true });
 
     const diagnosticContext = await resolveMediaDiagnosticContext(request.headers.get(MEDIA_TRACE_HEADER) || "", userId, channelId);
-    const http1Compatibility = bindingUsesHttp1(settings.logicalModels || [], access.logicalModelId, channelId, upstreamModel) || (verifiedRouteLogicalModel ? bindingUsesHttp1(settings.logicalModels || [], verifiedRouteLogicalModel, channelId, upstreamModel) : false);
+    const http1Compatibility =
+        bindingUsesHttp1(settings.logicalModels || [], access.logicalModelId, channelId, upstreamModel) || (verifiedRouteLogicalModel ? bindingUsesHttp1(settings.logicalModels || [], verifiedRouteLogicalModel, channelId, upstreamModel) : false);
     if (diagnosticContext) await persistMediaDiagnostic(diagnosticContext, { phase: "transport_policy", transportPolicy: http1Compatibility ? "http/1.1" : "default", model: upstreamModel });
     let upstream: Response;
     try {
