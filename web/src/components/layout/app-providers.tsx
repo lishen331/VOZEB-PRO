@@ -11,6 +11,7 @@ import "dayjs/locale/zh-cn";
 
 import { ClientRootInit } from "@/components/layout/client-root-init";
 import { GammaAntEmpty, gammaSpinIndicator } from "@/components/layout/gamma-ant-defaults";
+import { GammaAntAppProvider } from "@/components/gamma-ui/gamma-ant-app";
 import { getAntThemeConfig } from "@/lib/app-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 
@@ -79,9 +80,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
             spin={isCanvasEditorRoute ? undefined : { indicator: gammaSpinIndicator }}
         >
             <App message={{ top: 84, duration: 2.4, maxCount: 3 }}>
-                <QueryClientProvider client={queryClient}>
-                    <ClientRootInit>{children}</ClientRootInit>
-                </QueryClientProvider>
+                {/* 非画布页面用 gamma-ui 的 message/modal；画布及其共享组件继续走上面 antd 的 App */}
+                <GammaAntAppProvider>
+                    <QueryClientProvider client={queryClient}>
+                        <ClientRootInit>{children}</ClientRootInit>
+                    </QueryClientProvider>
+                </GammaAntAppProvider>
             </App>
         </ConfigProvider>
     );

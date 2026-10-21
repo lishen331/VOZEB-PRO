@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { loginHref, safeLoginNextPath } from "@/lib/login-navigation";
 import Link from "next/link";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Mail } from "lucide-react";

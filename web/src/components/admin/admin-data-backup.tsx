@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { saveAs } from "file-saver";
 import { DatabaseBackup, Download, FileJson2, HardDrive, ShieldCheck, Upload } from "lucide-react";

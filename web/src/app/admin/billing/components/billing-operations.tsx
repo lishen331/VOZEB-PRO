@@ -2,7 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { App, DatePicker, Form } from "antd";
+import { DatePicker, Form } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";

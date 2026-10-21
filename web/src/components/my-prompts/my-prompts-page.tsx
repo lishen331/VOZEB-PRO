@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Form } from "antd";
+import { Form } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";

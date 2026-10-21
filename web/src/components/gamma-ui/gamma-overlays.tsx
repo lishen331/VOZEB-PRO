@@ -9,17 +9,18 @@ import { cn } from "@/lib/utils";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-export type GammaToastTone = "success" | "error" | "info";
+export type GammaToastTone = "success" | "error" | "warning" | "info";
 
 export interface GammaToastItem {
     id: number;
     tone: GammaToastTone;
-    message: string;
+    message: ReactNode;
 }
 
 const TOAST_ICON: Record<GammaToastTone, ReactNode> = {
     success: <CheckCircle2 className="size-4 text-[var(--gm-success)]" />,
     error: <AlertTriangle className="size-4 text-[var(--gm-danger)]" />,
+    warning: <AlertTriangle className="size-4 text-[var(--gm-warning)]" />,
     info: <Info className="size-4 text-[var(--gm-accent)]" />,
 };
 

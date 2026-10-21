@@ -1,7 +1,8 @@
 "use client";
 
 import type { MenuProps } from "antd";
-import { App, Dropdown } from "antd";
+import { Dropdown } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Copy, Ellipsis, Eye, FileText, Film, ImagePlus, LoaderCircle, RefreshCw, Video } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";

@@ -1,6 +1,6 @@
 "use client";
 
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Camera } from "lucide-react";
 import { useRef, useState } from "react";

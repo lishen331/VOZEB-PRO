@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { BookOpen } from "lucide-react";
 
 import { GammaEmptyState } from "@/components/gamma-ui/gamma-overlays";

@@ -1,6 +1,6 @@
 "use client";
 
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowRight, School, UserRound } from "lucide-react";

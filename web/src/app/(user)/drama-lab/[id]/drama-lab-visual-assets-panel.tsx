@@ -11,7 +11,7 @@ import { Progress } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
-import type { MessageInstance } from "antd/es/message/interface";
+import type { MessageInstance } from "@/components/gamma-ui/gamma-ant-app";
 import { Check, CheckCircle2, CircleAlert, Download, ImagePlus, LibraryBig, LoaderCircle, MapPin, Package, PanelsTopLeft, Plus, Search, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";

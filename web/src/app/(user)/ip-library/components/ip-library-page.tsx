@@ -1,6 +1,6 @@
 "use client";
 
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Empty, Pagination, Segmented, Spin } from "@/components/gamma-ui/gamma-ant";
 import { BookOpen, Search } from "lucide-react";

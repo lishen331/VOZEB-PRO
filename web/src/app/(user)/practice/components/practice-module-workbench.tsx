@@ -1,7 +1,7 @@
 "use client";
 import styles from "./practice-workbench.module.css";
 
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Spin } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, BookOpen, Box, Film, Image, Mic2, Music2, PanelsTopLeft, RefreshCw, UserRound, type LucideIcon } from "lucide-react";

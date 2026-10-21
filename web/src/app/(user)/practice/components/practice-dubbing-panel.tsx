@@ -1,5 +1,5 @@
 "use client";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Slider } from "@/components/gamma-ui/gamma-ant-display";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";

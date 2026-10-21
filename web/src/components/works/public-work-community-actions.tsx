@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";

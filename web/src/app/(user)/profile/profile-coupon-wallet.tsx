@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Clock3, Gift, RefreshCw, TicketPercent } from "lucide-react";

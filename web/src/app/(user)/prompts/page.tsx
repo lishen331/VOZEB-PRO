@@ -2,7 +2,7 @@
 
 import { FolderPlus, RotateCcw, Search } from "lucide-react";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";

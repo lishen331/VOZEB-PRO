@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";

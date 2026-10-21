@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { message, DatePicker } from "antd";
+import { DatePicker } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";

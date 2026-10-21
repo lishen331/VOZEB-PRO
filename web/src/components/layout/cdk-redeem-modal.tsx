@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Gift } from "lucide-react";
 
 import { Button } from "@/components/gamma-ui/gamma-ant";

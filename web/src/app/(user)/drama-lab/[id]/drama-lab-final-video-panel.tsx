@@ -1,6 +1,6 @@
 "use client";
 
-import { message } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
 import { Card, Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Alert, Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RefreshCw, Square } from "lucide-react";

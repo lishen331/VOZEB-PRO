@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Gift, Link2, RefreshCw, ShieldCheck, UserPlus } from "lucide-react";
 

@@ -2,7 +2,7 @@
 
 import { generationUserMessage } from "@/lib/generation-feedback-message";
 import { useEffect, useRef, useState } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Button, Empty } from "@/components/gamma-ui/gamma-ant";
 import { ArrowRight, History } from "lucide-react";
 import { nanoid } from "nanoid";

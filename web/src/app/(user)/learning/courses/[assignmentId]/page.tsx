@@ -1,6 +1,6 @@
 "use client";
 
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ChevronLeft, Clock } from "lucide-react";
 import { useEffect, useState } from "react";

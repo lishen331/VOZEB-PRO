@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Grid } from "antd";
+import { Grid } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";

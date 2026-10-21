@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { message } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
 import { Button, Switch } from "@/components/gamma-ui/gamma-ant";
 
 export default function OneClickFilmFeaturesClient() {

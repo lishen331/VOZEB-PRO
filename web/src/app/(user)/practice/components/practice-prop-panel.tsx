@@ -1,7 +1,7 @@
 "use client";
 import { PracticePromptEditor } from "./practice-prompt-editor";
 
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Box } from "lucide-react";
 import { useState } from "react";

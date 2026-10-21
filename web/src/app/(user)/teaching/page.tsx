@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Form } from "antd";
+import { Form } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

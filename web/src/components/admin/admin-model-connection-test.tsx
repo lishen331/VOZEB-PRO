@@ -1,6 +1,6 @@
 "use client";
 
-import { message } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";

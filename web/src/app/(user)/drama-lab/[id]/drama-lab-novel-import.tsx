@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
-import type { MessageInstance } from "antd/es/message/interface";
+import type { MessageInstance } from "@/components/gamma-ui/gamma-ant-app";
 import { BookOpenText, FileText, Search } from "lucide-react";
 
 const IMPORT_PAGE_SIZE = 20;

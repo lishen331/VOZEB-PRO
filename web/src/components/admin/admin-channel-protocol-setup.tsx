@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox, Tag } from "@/components/gamma-ui/gamma-ant";

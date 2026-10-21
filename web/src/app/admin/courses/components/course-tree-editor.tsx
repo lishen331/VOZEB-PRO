@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Form, Upload } from "antd";
+import { Form, Upload } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
