@@ -23,6 +23,8 @@ export type ImageTaskConfig = {
     capabilityProfile?: LogicalModelCapabilityProfile;
     // 借用其它逻辑模型的渠道（本模型满载时的溢出路线），计费仍按 logicalModel 记。
     overflow?: true;
+    // 溢出路线实际所属的逻辑模型，只用于代理校验绑定。
+    routeLogicalModel?: string;
     quality?: string;
     size?: string;
     outputBackground?: "opaque" | "transparent";

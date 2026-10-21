@@ -11,6 +11,7 @@ export type SystemGenerationChannelConfig = {
     model: string;
     channelId?: string;
     logicalModel?: string;
+    routeLogicalModel?: string;
     advancedConfig?: import("@/lib/auth/store").SystemChannelAdvancedConfig;
     capabilityProfile?: ReturnType<typeof import("@/lib/model-routing-config").resolveLogicalModelCapabilityProfile>;
 };
@@ -54,6 +55,7 @@ export function toSystemGenerationChannel(resolved: ResolvedLogicalModel): Syste
         model: resolved.upstreamModel,
         channelId: resolved.channelId,
         logicalModel: resolved.logicalModelId,
+        ...(resolved.routeLogicalModelId ? { routeLogicalModel: resolved.routeLogicalModelId } : {}),
         advancedConfig,
         capabilityProfile: resolved.capabilityProfile,
     };
