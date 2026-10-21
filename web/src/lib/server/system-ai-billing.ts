@@ -8,6 +8,8 @@ export const SYSTEM_AI_POINTS_SIGNATURE_HEADER = "x-vozeb-pro-points-signature";
 export const SYSTEM_AI_UPSTREAM_MODEL_HEADER = "x-vozeb-pro-upstream-model";
 export const SYSTEM_AI_EXECUTION_PROFILE_HEADER = "x-vozeb-pro-execution-profile";
 export const SYSTEM_AI_BILLING_CONTEXT_HEADER = "x-vozeb-pro-billing-context";
+export const SYSTEM_AI_ROUTE_LOGICAL_MODEL_HEADER = "x-vozeb-pro-route-logical-model";
+export const SYSTEM_AI_ROUTE_SIGNATURE_HEADER = "x-vozeb-pro-route-signature";
 
 const SYSTEM_AI_POINTS_SIGNATURE_VERSION = "v1";
 const SYSTEM_AI_POINTS_PROCESS_SECRET = "__vozebProSystemAiPointsProcessSecret" as const;
@@ -73,6 +75,32 @@ export function systemAiIdempotencyKey(scope: string, ...parts: string[]) {
             .slice(0, 40) || "system-ai";
     const digest = createHash("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
     return `${prefix}:${digest}`;
+}
+
+// 溢出路线借用其它逻辑模型的绑定。签名绑定 计费模型+路由模型+渠道+上游模型，外部无法伪造路由模型越权调用渠道。
+export function systemAiRouteHeaders(input: { logicalModel: string; routeLogicalModel?: string; channelId?: string; upstreamModel: string }): Record<string, string> {
+    const routeLogicalModel = input.routeLogicalModel?.trim();
+    const channelId = input.channelId?.trim();
+    if (!routeLogicalModel || !channelId || normalizeBillingModel(routeLogicalModel) === normalizeBillingModel(input.logicalModel)) return {};
+    return {
+        [SYSTEM_AI_ROUTE_LOGICAL_MODEL_HEADER]: routeLogicalModel,
+        [SYSTEM_AI_ROUTE_SIGNATURE_HEADER]: signSystemAiRoute(input.logicalModel, routeLogicalModel, channelId, input.upstreamModel),
+    };
+}
+
+export function readVerifiedSystemAiRouteLogicalModel(headers: Headers, input: { logicalModel: string; channelId: string; upstreamModel: string }) {
+    const routeLogicalModel = headers.get(SYSTEM_AI_ROUTE_LOGICAL_MODEL_HEADER)?.trim().slice(0, 200) || "";
+    const signature = headers.get(SYSTEM_AI_ROUTE_SIGNATURE_HEADER)?.trim() || "";
+    if (!routeLogicalModel || !signature || !input.logicalModel.trim()) return "";
+    const expected = Buffer.from(signSystemAiRoute(input.logicalModel, routeLogicalModel, input.channelId, input.upstreamModel));
+    const received = Buffer.from(signature);
+    return received.length === expected.length && timingSafeEqual(received, expected) ? routeLogicalModel : "";
+}
+
+function signSystemAiRoute(logicalModel: string, routeLogicalModel: string, channelId: string, upstreamModel: string) {
+    return createHmac("sha256", systemAiPointsSigningSecret())
+        .update(["route-v1", normalizeBillingModel(logicalModel), normalizeBillingModel(routeLogicalModel), channelId.trim(), normalizeBillingModel(upstreamModel)].join("\0"))
+        .digest("base64url");
 }
 
 function signSystemAiBusinessRequest(logicalModel: string, businessRequestId: string, upstreamModel: string, executionProfile: PracticeExecutionProfile = "production", billingContext?: SchoolComputeBillingContext) {

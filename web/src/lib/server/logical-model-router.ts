@@ -13,6 +13,8 @@ export type ResolvedLogicalModel = {
     channel: SystemModelChannel;
     capabilityProfile?: ReturnType<typeof resolveLogicalModelCapabilityProfile>;
     overflow?: true;
+    // 溢出路线实际借用的逻辑模型：代理按它校验绑定，计费仍按 logicalModelId。
+    routeLogicalModelId?: string;
 };
 
 export function resolveLogicalModel(
@@ -93,6 +95,7 @@ function imageOverflowCandidates(settings: Pick<AuthSettings, "logicalModels" | 
                 channel,
                 capabilityProfile: resolveLogicalModelCapabilityProfile(binding, "image", channel, binding.upstreamModel),
                 overflow: true,
+                routeLogicalModelId: other.id,
             };
             if (hasHealthyRuntimeCandidate([candidate], "image") && !overflow.some((item) => item.channelId === candidate.channelId && item.upstreamModel === candidate.upstreamModel)) overflow.push(candidate);
         }

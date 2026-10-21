@@ -24,7 +24,7 @@ import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runti
 import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib/server/reference-asset-access";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { resolveModelPollingAttempts, resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
-import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
+import { systemAiBillingHeaders, systemAiRouteHeaders } from "@/lib/server/system-ai-billing";
 import { attachPracticeWorkflowToChannel, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
@@ -80,7 +80,7 @@ export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: A
         return {
             ...channel,
             channelId: resolved.channelId,
-            ...(resolved.overflow ? { overflow: true as const } : {}),
+            ...(resolved.overflow ? { overflow: true as const, ...(resolved.routeLogicalModelId ? { routeLogicalModel: resolved.routeLogicalModelId } : {}) } : {}),
             executionProfile,
             ...resolveImageTaskOptions(config || {}, settings.generationDefaults),
             systemPrompt: "",
@@ -268,7 +268,10 @@ export function taskHeaders(config: ImageTaskConfig, cookie: string, pointsIdemp
     const workerHeaders = maintenanceWorkerContextHeaders(cookie);
     if (internal && workerHeaders) Object.entries(workerHeaders).forEach(([key, value]) => headers.set(key, value));
     else if (internal && cookie) headers.set("cookie", cookie);
-    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, config.executionProfile, billingContext)).forEach(([key, value]) => headers.set(key, value));
+    if (internal) {
+        Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, config.executionProfile, billingContext)).forEach(([key, value]) => headers.set(key, value));
+        Object.entries(systemAiRouteHeaders({ logicalModel: generationModelId(config), routeLogicalModel: config.routeLogicalModel, channelId: config.channelId, upstreamModel: config.model })).forEach(([key, value]) => headers.set(key, value));
+    }
     if (pointsIdempotencyKey?.trim()) {
         headers.set("Idempotency-Key", pointsIdempotencyKey.trim());
         headers.set("X-Client-Request-Id", pointsIdempotencyKey.trim());
