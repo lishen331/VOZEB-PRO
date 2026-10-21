@@ -142,5 +142,5 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 function isCanvasResultTask(task: ImageTask) {
-    return task.surface === "canvas" || task.source === "canvas";
+    return task.surface === "canvas" || (!task.surface && task.source === "canvas");
 }
