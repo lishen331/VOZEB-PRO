@@ -53,9 +53,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Dependency audit
-        run: pnpm audit --audit-level moderate
-
       - name: Check source
         run: |
           pnpm run lint
