@@ -181,13 +181,6 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
 
     return (
         <div className="fixed inset-0 z-0 flex flex-col bg-[var(--gm-bg)] text-[var(--gm-text)]">
-            {/* 全屏半透明影像背景：和登录页同一条素材，压暗后衬在毛玻璃内容之下，减少动态时退化为静态海报 */}
-            <div aria-hidden className="gm-home-media">
-                <video className="motion-reduce:hidden" src="/login/hero.mp4" poster="/login/hero-poster.webp" autoPlay loop muted playsInline />
-                {/* eslint-disable-next-line @next/next/no-img-element -- 固定背景层，不参与布局 */}
-                <img src="/login/hero-poster.webp" alt="" className="motion-safe:hidden" />
-                <div className="gm-home-media-scrim" />
-            </div>
             {/* 公告条横跨整个顶部（含侧栏上方），关闭后整页随之上移 */}
             <AnimatePresence initial={false}>
                 {showAnnouncement ? (

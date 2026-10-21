@@ -1,63 +1,17 @@
 /*
- * 首页视觉重做：呼应登录页「半透明影像 + 毛玻璃」的调性，让登录前后是同一个产品。
- * 只影响 html.gm-app 下的 .gm-home-* 类，不改 gamma-ui 组件库本身，不影响 /bluegamma 预览页、
- * 画布、/create。所有数值从登录页 global-auth.css 的 --ae-* 抄来再按首页场景微调。
+ * 首页视觉：只影响 html.gm-app 下的 .gm-home-* 类，不改 gamma-ui 组件库本身，
+ * 不影响 /bluegamma 预览页、画布、/create。首页背景保持纯色 --gm-bg，影像动画只属于登录页。
  */
 
 html.gm-app {
-    /* 首页专属：背景影像的可见度与压暗层，深浅主题各一套 */
-    --gm-home-media-opacity: 0.3;
-    --gm-home-media-filter: saturate(0.9) brightness(0.85);
-    --gm-home-scrim-1: linear-gradient(180deg, rgba(4, 6, 12, 0.82) 0%, rgba(4, 6, 12, 0.46) 38%, rgba(4, 6, 12, 0.64) 72%, rgba(4, 6, 12, 0.92) 100%);
-    --gm-home-scrim-2: radial-gradient(120% 90% at 14% 0%, rgba(0, 80, 245, 0.32), transparent 56%);
     --gm-home-hero-a: #ffffff;
     --gm-home-hero-b: #d3e3ff;
     --gm-home-hero-c: #93e0ff;
 }
 html.gm-app:not(.dark) {
-    --gm-home-media-opacity: 0.34;
-    --gm-home-media-filter: saturate(0.82) brightness(1.12);
-    --gm-home-scrim-1: linear-gradient(180deg, rgba(243, 246, 251, 0.8) 0%, rgba(243, 246, 251, 0.5) 38%, rgba(243, 246, 251, 0.64) 72%, rgba(243, 246, 251, 0.92) 100%);
-    --gm-home-scrim-2: radial-gradient(120% 90% at 14% 0%, rgba(0, 80, 245, 0.16), transparent 56%);
     --gm-home-hero-a: #0b1530;
     --gm-home-hero-b: #0050f5;
     --gm-home-hero-c: #0a7fae;
-}
-
-/* 全屏背景影像：固定在视口后面，不随内容滚动；毛玻璃卡片在它前面才有「透出东西」的层次 */
-.gm-home-media {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    overflow: hidden;
-    pointer-events: none;
-}
-.gm-home-media > video,
-.gm-home-media > img {
-    position: absolute;
-    inset: 0;
-    height: 100%;
-    width: 100%;
-    object-fit: cover;
-    opacity: var(--gm-home-media-opacity);
-    filter: var(--gm-home-media-filter);
-    transition: opacity 900ms ease;
-}
-.gm-home-media-scrim {
-    position: absolute;
-    inset: 0;
-}
-.gm-home-media-scrim::before,
-.gm-home-media-scrim::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-}
-.gm-home-media-scrim::before {
-    background: var(--gm-home-scrim-1);
-}
-.gm-home-media-scrim::after {
-    background: var(--gm-home-scrim-2);
 }
 
 /* 问候语标题：渐变大字，呼应登录页 slogan */
@@ -66,10 +20,4 @@ html.gm-app:not(.dark) {
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .gm-home-media > video {
-        display: none;
-    }
 }
