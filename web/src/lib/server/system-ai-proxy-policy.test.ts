@@ -170,4 +170,42 @@ describe("system AI proxy policy", () => {
             }),
         ).toMatchObject({ allowed: false, status: 403 });
     });
+
+    describe("image overflow route", () => {
+        const imageModels = [
+            { id: "image-selected", name: "所选", capability: "image" as const, enabled: true, bindings: [{ id: "own", channelId: "own-channel", upstreamModel: "vendor-own", enabled: true, priority: 1 }] },
+            { id: "image-borrowed", name: "借用", capability: "image" as const, enabled: true, bindings: [{ id: "borrowed", channelId: "borrowed-channel", upstreamModel: "vendor-borrowed", enabled: true, priority: 1 }] },
+            ...logicalModels,
+        ];
+        const request = {
+            method: "POST",
+            path: ["images", "generations"],
+            search: "",
+            channelId: "borrowed-channel",
+            upstreamModel: "vendor-borrowed",
+            preferredLogicalModelId: "image-selected",
+            logicalModels: imageModels,
+            apiFormat: "openai" as const,
+            pointsUsageKind: "image" as const,
+        };
+
+        it("rejects a borrowed channel without a verified route model", () => {
+            expect(authorizeSystemAiProxyRequest(request)).toMatchObject({ allowed: false, status: 403 });
+        });
+
+        it("allows the borrowed channel and keeps billing on the selected model", () => {
+            expect(authorizeSystemAiProxyRequest({ ...request, verifiedRouteLogicalModelId: "image-borrowed" })).toMatchObject({ allowed: true, logicalModelId: "image-selected", operation: "create" });
+        });
+
+        it("rejects a route model that is not bound to this channel", () => {
+            expect(authorizeSystemAiProxyRequest({ ...request, channelId: "other-channel", verifiedRouteLogicalModelId: "image-borrowed" })).toMatchObject({ allowed: false, status: 403 });
+        });
+
+        it("does not let a route model bridge capabilities", () => {
+            expect(authorizeSystemAiProxyRequest({ ...request, channelId: "main", upstreamModel: "vendor-video", path: ["videos"], pointsUsageKind: "video", verifiedRouteLogicalModelId: "video-pro" })).toMatchObject({
+                allowed: false,
+                status: 403,
+            });
+        });
+    });
 });

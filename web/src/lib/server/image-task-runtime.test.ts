@@ -108,6 +108,48 @@ describe("image task runtime submission safety", () => {
         expect(state.attempts?.map(({ status }) => status)).toEqual(["failed"]);
     });
 
+    it("switches once when a channel we overflowed to rejects the request", async () => {
+        state = { ...state, config: { ...state.config, overflow: true } };
+        mocks.runCustom.mockRejectedValueOnce(new GenerationSubmissionSafeFailure("不支持 response_format", 400));
+
+        const step = await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
+        expect(step).toMatchObject({ state: "failed", status: "overflow_rejected", retryReason: "upstream_failed" });
+        await expect(prepareImageTaskAutomaticRetry(state, "不支持 response_format")).resolves.toMatchObject({ config: { channelId: "channel-two" }, candidateConfigs: [], attemptNo: 1 });
+
+        mocks.runGemini.mockRejectedValueOnce(new GenerationSubmissionSafeFailure("第二家也拒绝", 400));
+        await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).resolves.not.toHaveProperty("retryReason");
+        await expect(prepareImageTaskAutomaticRetry(state, "第二家也拒绝")).resolves.toBeNull();
+    });
+
+    it("does not switch on a content-policy rejection from an overflow channel", async () => {
+        state = { ...state, config: { ...state.config, overflow: true } };
+        mocks.runCustom.mockRejectedValueOnce(new GenerationSubmissionSafeFailure("内容未通过安全审核：x", 451));
+
+        const step = await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
+        expect(step).toMatchObject({ state: "failed" });
+        expect(step).not.toHaveProperty("retryReason");
+    });
+
+    it("does not switch when the overflow channel was the last candidate", async () => {
+        state = { ...state, config: { ...state.config, overflow: true }, candidateConfigs: [] };
+        mocks.runCustom.mockRejectedValueOnce(new GenerationSubmissionSafeFailure("参数不受支持", 422));
+
+        await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).resolves.not.toHaveProperty("retryReason");
+    });
+
+    it("shares the single retry budget when an upstream error is followed by an overflow rejection", async () => {
+        const third = { baseUrl: "https://three.example", apiKey: "three", apiFormat: "openai" as const, model: "image-three", channelId: "channel-three" };
+        state = { ...state, candidateConfigs: [{ ...state.candidateConfigs![0], overflow: true }, third] };
+        mocks.runCustom.mockRejectedValueOnce(new mocks.UpstreamTerminalError("HTTP 504"));
+        await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
+        await prepareImageTaskAutomaticRetry(state, "HTTP 504");
+        state = { ...state, candidateConfigs: [third] };
+
+        mocks.runGemini.mockRejectedValueOnce(new GenerationSubmissionSafeFailure("溢出渠道拒绝", 400));
+        await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
+        await expect(prepareImageTaskAutomaticRetry(state, "溢出渠道拒绝")).resolves.toBeNull();
+    });
+
     it("prepares exactly one new attempt after an explicit upstream generation failure", async () => {
         mocks.runCustom.mockRejectedValueOnce(new mocks.UpstreamTerminalError("上游生成失败"));
 
