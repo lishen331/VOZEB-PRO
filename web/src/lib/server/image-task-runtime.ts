@@ -124,6 +124,10 @@ export async function createImageTaskUpstreamStep(task: ImageTask, origin: strin
             const uncertain = generationSubmissionUncertainError(error, "图片任务创建结果未知");
             return { state: "failed", error: uncertain.message || "图片任务创建结果未知", status: "submission_failed_without_upstream_id", retryReason: "upstream_failed" };
         }
+        // 我们溢出切过去的渠道明确拒绝：换下一家一次（与出错重试共用次数）。用户所选模型自己的渠道拒绝、内容审核拒绝都直接失败。
+        if (config.overflow && error.status !== 451 && candidateConfigs.length) {
+            return { state: "failed", error: error.message || "图片生成失败", status: "overflow_rejected", retryReason: "upstream_failed" };
+        }
         attempts = finishGenerationAttempt(attempts, candidate.attemptNo, { status: "failed", error: error.message, upstreamError: upstreamErrorDetail(error) });
         await refundImageCandidate(candidate);
         await updateImageTask(task.id, { attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined });

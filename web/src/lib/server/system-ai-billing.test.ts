@@ -5,7 +5,9 @@ import {
     readSystemAiBilling,
     readVerifiedSystemAiBusinessRequest,
     readVerifiedSystemAiBusinessRequestId,
+    readVerifiedSystemAiRouteLogicalModel,
     systemAiBillingHeaders,
+    systemAiRouteHeaders,
     systemAiIdempotencyKey,
     systemAiPointsIdempotencyKey,
     systemAiRequestFingerprint,
@@ -80,5 +82,24 @@ describe("system AI billing helpers", () => {
         expect(firstKey).toBe(secondKey);
         expect(firstKey).toMatch(/^system-ai:[a-f0-9]{64}$/);
         expect(firstFingerprint).not.toBe(secondFingerprint);
+    });
+
+    it("signs the overflow route model so it cannot be forged or replayed on another channel", () => {
+        const route = { logicalModel: "image-selected", routeLogicalModel: "image-borrowed", channelId: "borrowed-channel", upstreamModel: "vendor-image" };
+        const headers = new Headers(systemAiRouteHeaders(route));
+        const verify = (input: Partial<typeof route> = {}) => readVerifiedSystemAiRouteLogicalModel(headers, { logicalModel: route.logicalModel, channelId: route.channelId, upstreamModel: route.upstreamModel, ...input });
+
+        expect(verify()).toBe("image-borrowed");
+        expect(verify({ channelId: "other-channel" })).toBe("");
+        expect(verify({ logicalModel: "image-cheaper" })).toBe("");
+        expect(verify({ upstreamModel: "vendor-other" })).toBe("");
+
+        headers.set("x-vozeb-pro-route-logical-model", "image-forged");
+        expect(verify()).toBe("");
+    });
+
+    it("emits no route headers for a model's own channel", () => {
+        expect(systemAiRouteHeaders({ logicalModel: "image-selected", channelId: "own", upstreamModel: "vendor-image" })).toEqual({});
+        expect(systemAiRouteHeaders({ logicalModel: "image-selected", routeLogicalModel: "image-selected", channelId: "own", upstreamModel: "vendor-image" })).toEqual({});
     });
 });

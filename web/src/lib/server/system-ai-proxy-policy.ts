@@ -13,6 +13,8 @@ type ProxyPolicyInput = {
     channelId: string;
     upstreamModel: string;
     preferredLogicalModelId?: string;
+    // 已验签的溢出路由模型：只用它校验绑定，access.logicalModelId 仍是用户所选模型（计费）。
+    verifiedRouteLogicalModelId?: string;
     logicalModels: LogicalModel[];
     workflowCapability?: LogicalModelCapability;
     workflowModel?: boolean;
@@ -38,6 +40,7 @@ export function authorizeSystemAiProxyRequest(input: ProxyPolicyInput): SystemAi
     if (!upstreamModel) return denied(400, "系统模型代理缺少上游模型标识");
     const logical =
         resolveBoundLogicalModel(input.logicalModels, input.channelId, upstreamModel, input.preferredLogicalModelId) ||
+        resolveOverflowRouteLogicalModel(input, upstreamModel) ||
         (input.workflowCapability && input.workflowModel ? { id: input.preferredLogicalModelId?.trim() || upstreamModel, capability: input.workflowCapability, name: upstreamModel, enabled: true, bindings: [] } : null);
     if (!logical) return denied(403, "该上游模型未绑定可用逻辑模型");
 
@@ -93,6 +96,17 @@ function resolveBoundLogicalModel(logicalModels: LogicalModel[], channelId: stri
     const preferred = preferredLogicalModelId.trim().toLowerCase();
     if (preferred) return matches.find((logical) => logical.id.toLowerCase() === preferred) || null;
     return matches.sort((left, right) => left.id.localeCompare(right.id))[0] || null;
+}
+
+// 溢出：路由模型必须真实绑定本渠道，且与用户所选模型同能力、同为启用；返回用户所选模型以便按它计费。
+function resolveOverflowRouteLogicalModel(input: ProxyPolicyInput, upstreamModel: string) {
+    const routeId = input.verifiedRouteLogicalModelId?.trim();
+    const preferredId = input.preferredLogicalModelId?.trim().toLowerCase();
+    if (!routeId || !preferredId) return null;
+    const route = resolveBoundLogicalModel(input.logicalModels, input.channelId, upstreamModel, routeId);
+    const selected = input.logicalModels.find((logical) => logical.enabled && logical.id.toLowerCase() === preferredId);
+    if (!route || !selected || route.capability !== "image" || selected.capability !== route.capability) return null;
+    return selected;
 }
 
 function standardCreatePaths(capability: LogicalModelCapability, apiFormat: "openai" | "gemini") {
