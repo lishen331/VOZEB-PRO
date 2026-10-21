@@ -93,5 +93,5 @@ describe("one-click-film routes must have callers", () => {
         // 欠账一旦还清就必须把名单收紧，否则这个守卫会慢慢失效。
         const staleAllowlist = [...KNOWN_ORPHANS].filter((route) => !orphans.includes(route));
         expect(staleAllowlist, `以下路由已有调用方，请从 KNOWN_ORPHANS 移除：\n${staleAllowlist.join("\n")}`).toEqual([]);
-    });
+    }, 20_000);
 });

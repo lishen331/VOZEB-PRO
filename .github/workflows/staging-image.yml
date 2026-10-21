@@ -54,7 +54,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Dependency audit
-        run: pnpm audit --audit-level moderate
+        run: |
+          # The workspace records one explicit, temporary unpatched dev-only GHSA exception.
+          # Keep the production dependency audit strict and audit all other dependencies.
+          pnpm audit --prod --audit-level moderate
+          pnpm audit --audit-level moderate
 
       - name: Check source
         run: |

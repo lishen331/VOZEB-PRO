@@ -35,7 +35,11 @@ export function GammaErrorPage({ code, actions, traceId, className, compact = fa
             <span
                 aria-hidden
                 className="pointer-events-none absolute inset-0 -z-10 opacity-[0.07]"
-                style={{ backgroundImage: "linear-gradient(var(--gm-text) 1px, transparent 1px), linear-gradient(90deg, var(--gm-text) 1px, transparent 1px)", backgroundSize: "40px 40px", maskImage: "radial-gradient(circle at center, #000, transparent 70%)" }}
+                style={{
+                    backgroundImage: "linear-gradient(var(--gm-text) 1px, transparent 1px), linear-gradient(90deg, var(--gm-text) 1px, transparent 1px)",
+                    backgroundSize: "40px 40px",
+                    maskImage: "radial-gradient(circle at center, #000, transparent 70%)",
+                }}
             />
             <motion.p
                 aria-hidden
