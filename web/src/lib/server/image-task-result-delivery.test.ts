@@ -57,3 +57,27 @@ it("applies Canvas delivery gates to canonical surface even if the logging sourc
     await expect(prepareImageTaskResults({ ...task, source: "image-workbench" }, { dataUrl: "https://cdn.example/fake.png" }, "https://platform.example", "")).rejects.toThrow("media_invalid_image");
     expect(mocks.normalize).not.toHaveBeenCalled();
 });
+
+describe("explicit non-Canvas identity takes precedence over legacy source", () => {
+    it.each(["agent", "chat", "drama"])("keeps surface=%s on the existing remote-result path even with source=canvas", async (surface) => {
+        const conflictingTask = { ...task };
+        // Persisted runtime identities can contain surfaces outside the current ImageTask union.
+        Object.defineProperty(conflictingTask, "surface", { value: surface });
+        const remoteUrl = "https://cdn.example/result.png";
+        mocks.read.mockRejectedValue(new Error("strict Canvas reader must not run"));
+        await expect(prepareImageTaskResults(conflictingTask, { dataUrl: remoteUrl, remoteUrl }, "https://platform.example", "")).resolves.toEqual([expect.objectContaining({ dataUrl: "/api/generation-log-assets/permanent/image.png" })]);
+        expect(mocks.read).not.toHaveBeenCalled();
+        expect(mocks.normalize).toHaveBeenCalledWith([expect.objectContaining({ type: "image", url: remoteUrl, remoteUrl })], expect.objectContaining({ ownerUserId: "owner" }));
+    });
+
+    it("does not impose Canvas all-or-nothing persistence on a conflicting Agent identity", async () => {
+        const conflictingTask = { ...task };
+        Object.defineProperty(conflictingTask, "surface", { value: "agent" });
+        mocks.read.mockRejectedValue(new Error("strict Canvas reader must not run"));
+        mocks.normalize.mockRejectedValueOnce(new Error("one existing non-Canvas asset failed"));
+        const results = ["https://cdn.example/a.png", "https://cdn.example/b.png"].map((remoteUrl) => ({ dataUrl: remoteUrl, remoteUrl }));
+        await expect(prepareImageTaskResults(conflictingTask, { ...results[0], results }, "https://platform.example", "")).resolves.toHaveLength(1);
+        expect(mocks.read).not.toHaveBeenCalled();
+        expect(mocks.normalize).toHaveBeenCalledTimes(2);
+    });
+});
