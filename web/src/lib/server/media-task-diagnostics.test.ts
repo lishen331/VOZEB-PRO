@@ -39,3 +39,21 @@ it("redacts provider errors while keeping timeout evidence", () => {
     expect(text).toContain("UND_ERR_HEADERS_TIMEOUT");
     expect(text).not.toMatch(/private|abc|pwd|xyz/);
 });
+
+it("retains bounded result-read correlation, hashes, stages and dimensions", () => {
+    expect(
+        sanitizeDiagnosticEvent({
+            phase: "result_media_failed",
+            mediaReadId: "read-1",
+            stage: "decode",
+            urlHost: "cdn.example",
+            urlPathHash: "a".repeat(64),
+            finalHost: "cdn2.example",
+            finalPathHash: "b".repeat(64),
+            width: 100,
+            height: 200,
+            logicalModel: "chosen-model",
+            responseBytes: 345,
+        }),
+    ).toMatchObject({ mediaReadId: "read-1", stage: "decode", urlHost: "cdn.example", urlPathHash: "a".repeat(64), finalHost: "cdn2.example", width: 100, height: 200, logicalModel: "chosen-model", responseBytes: 345 });
+});

@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
     wrap: vi.fn(),
     release: vi.fn(),
     mediaAccess: vi.fn(),
+    mediaClaim: vi.fn(),
+    mediaRecord: vi.fn(),
+    mediaDiagnostic: vi.fn(),
     taskAccess: vi.fn(),
 }));
 
@@ -41,6 +44,9 @@ vi.mock("@/lib/server/media-concurrency", () => ({ acquireMediaConcurrency: mock
 vi.mock("@/lib/server/safe-outbound-fetch", () => ({ fetchSafeOutbound: (url: string | URL, init?: RequestInit) => fetch(url, init) }));
 vi.mock("@/lib/server/generation-media-access", () => ({ authorizeGenerationMediaProxyRequest: mocks.mediaAccess }));
 vi.mock("@/lib/server/generation-task-authorization", () => ({ userOwnsGenerationUpstreamTask: mocks.taskAccess }));
+vi.mock("@/lib/server/generation-media-authorization", () => ({ readGenerationMediaClaim: mocks.mediaClaim }));
+vi.mock("@/lib/server/generation-task-store", async (original) => ({ ...(await original<typeof import("@/lib/server/generation-task-store")>()), getStoredGenerationTaskRecord: mocks.mediaRecord }));
+vi.mock("@/lib/server/media-task-diagnostic-store", () => ({ persistMediaDiagnostic: mocks.mediaDiagnostic, resolveMediaDiagnosticContext: vi.fn() }));
 vi.mock("@/lib/server/security", () => ({
     checkMediaProxyRateLimit: mocks.checkMediaProxyRateLimit,
     isSafeOutboundUrl: mocks.safeUrl,
@@ -56,6 +62,9 @@ import { systemAiBillingHeaders, systemAiPointsIdempotencyKey } from "@/lib/serv
 const context = { params: Promise.resolve({ channelId: "channel-one", path: ["_media"] }) };
 
 beforeEach(() => {
+    mocks.mediaClaim.mockReset().mockReturnValue(null);
+    mocks.mediaRecord.mockReset().mockResolvedValue(null);
+    mocks.mediaDiagnostic.mockReset().mockResolvedValue(undefined);
     mocks.chargeGeneration.mockClear();
     mocks.refundGenerationCharge.mockClear();
 });
@@ -87,6 +96,64 @@ describe("system media proxy", () => {
         });
     });
 
+    it.each([{ surface: "canvas" }, { payloadSource: "canvas" }])("retains the generated-result CDN failure and each redirect for Canvas identity %j without persisting URL secrets", async (identity) => {
+        mocks.mediaClaim.mockReturnValue({ taskId: "task-one", taskType: "image", upstreamModel: "vendor/image" });
+        mocks.mediaRecord.mockResolvedValue({
+            surface: "surface" in identity ? identity.surface : undefined,
+            projectId: "canvas-one",
+            payload: { source: "payloadSource" in identity ? identity.payloadSource : undefined, config: { model: "vendor/image" } },
+        });
+        vi.spyOn(globalThis, "fetch")
+            .mockResolvedValueOnce(new Response(null, { status: 307, headers: { location: "https://cdn2.example/private/image.png?signature=secret-token" } }))
+            .mockResolvedValueOnce(new Response("Forbidden", { status: 403, headers: { "content-type": "text/plain" } }));
+        await GET(request("https://cdn.example/private/image.png?signature=secret-token", { "x-vozeb-media-read-id": "d55196ba-3a2a-4165-a34a-4ef7c44ad913" }), context);
+        expect(mocks.mediaDiagnostic).toHaveBeenCalledWith(
+            expect.objectContaining({ taskId: "task-one", channelId: "channel-one" }),
+            expect.objectContaining({ phase: "result_media_upstream_response", status: 307, redirectCount: 0, urlHost: "cdn.example" }),
+        );
+        expect(mocks.mediaDiagnostic).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ phase: "result_media_upstream_response", status: 403, redirectCount: 1, urlHost: "cdn2.example" }));
+        expect(JSON.stringify(mocks.mediaDiagnostic.mock.calls)).not.toMatch(/secret-token|private\/image/);
+    });
+
+    it("keeps non-Canvas identity and denied historical requests outside result diagnostics", async () => {
+        mocks.mediaClaim.mockReturnValue({ taskId: "task-one", taskType: "image", upstreamModel: "vendor/image" });
+        mocks.mediaRecord.mockResolvedValue({ surface: "drama", payload: { source: "canvas", config: { model: "vendor/image" } } });
+        const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(pngBytes(), { headers: { "content-type": "image/png" } }));
+        const response = await GET(request("https://cdn.example/result.png"), context);
+        await response.body?.cancel();
+        expect(mocks.mediaDiagnostic).not.toHaveBeenCalled();
+        fetcher.mockClear();
+        mocks.mediaAccess.mockResolvedValue(false);
+        mocks.mediaRecord.mockResolvedValue({ payload: { source: "canvas" } });
+        expect((await GET(request("https://cdn.example/result.png"), context)).status).toBe(403);
+        expect(fetcher).not.toHaveBeenCalled();
+        expect(mocks.mediaDiagnostic).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])("records a CDN body failure after HTTP200 (afterPrefix=%s)", async (afterPrefix) => {
+        mocks.mediaClaim.mockReturnValue({ taskId: "task-one", taskType: "image", upstreamModel: "vendor/image" });
+        mocks.mediaRecord.mockResolvedValue({ surface: "canvas", projectId: "canvas-one", payload: { config: { model: "vendor/image" } } });
+        const broken = new Error("connection reset", { cause: { code: "ECONNRESET" } });
+        let pulls = 0;
+        const body = new ReadableStream<Uint8Array>(
+            {
+                pull(c) {
+                    if (afterPrefix && pulls++ === 0) {
+                        const prefix = new Uint8Array(8192);
+                        prefix.set(pngBytes());
+                        c.enqueue(prefix);
+                    } else c.error(broken);
+                },
+            },
+            { highWaterMark: 0 },
+        );
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(body, { headers: { "content-type": "image/png" } }));
+        const response = await GET(request(), context);
+        if (afterPrefix) await expect(response.arrayBuffer()).rejects.toThrow("connection reset");
+        else expect(response.status).toBe(502);
+        expect(mocks.mediaDiagnostic).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ phase: "result_media_upstream_body_failed", stage: "body", errorCode: "ECONNRESET", responseBytes: afterPrefix ? 8192 : 0 }));
+    });
+
     it("blocks authenticated media requests when the rate limit is exhausted", async () => {
         mocks.checkMediaProxyRateLimit.mockResolvedValue({ allowed: false, remaining: 0, resetAt: Date.now() + 60_000 });
         const fetchMock = vi.spyOn(globalThis, "fetch");
@@ -112,6 +179,15 @@ describe("system media proxy", () => {
         const response = await GET(request(), context);
 
         expect(response.status).toBe(413);
+    });
+
+    it("does not label decoded CDN bytes with their compressed wire Content-Length", async () => {
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(pngBytes(), { headers: { "content-type": "image/png", "content-encoding": "gzip", "content-length": "20" } }));
+        const response = await GET(request(), context);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-encoding")).toBeNull();
+        expect(response.headers.get("content-length")).toBeNull();
+        expect(new Uint8Array(await response.arrayBuffer())).toEqual(pngBytes());
     });
 
     it("forces private caching for channel media", async () => {

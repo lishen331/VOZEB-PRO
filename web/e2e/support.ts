@@ -83,7 +83,13 @@ export function e2eSettingsPatch(settingsRevision?: number) {
     const modelConfigs = Object.fromEntries(models.map((model) => [model, operations[modelCapabilities[model] as keyof typeof operations]]));
     return {
         systemChannels: [channel("e2e-primary", "E2E 主渠道", "e2e-primary-secret", modelCapabilities, modelConfigs), channel("e2e-backup", "E2E 备用渠道", "e2e-backup-secret", modelCapabilities, modelConfigs)],
-        logicalModels: [],
+        logicalModels: models.map((model) => ({
+            id: model,
+            name: model,
+            capability: modelCapabilities[model],
+            enabled: true,
+            bindings: ["e2e-primary", "e2e-backup"].map((channelId, index) => ({ id: `${channelId}-${model}`, channelId, upstreamModel: model, enabled: true, priority: index + 1 })),
+        })),
         defaultModels: { textModel: "e2e-text", imageModel: "e2e-image", videoModel: "e2e-video", audioModel: "e2e-audio" },
         modelPointCosts: Object.fromEntries(models.map((model) => [model, 0])),
         generationConcurrency: { agent: 2, image: 2, video: 2, audio: 2, text: 2, render: 1 },
