@@ -3,8 +3,8 @@ import { authorizeBindingVerificationProxy, assertBindingVerificationSubmission 
 import { readGenerationMediaClaim } from "@/lib/server/generation-media-authorization";
 import { getStoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
 import { bindingUsesHttp1 } from "@/lib/server/binding-http-transport";
-import { readObservedResponseBody } from "@/lib/server/media-response-body";
-import { persistMediaDiagnostic } from "@/lib/server/media-task-diagnostic-store";
+import { readObservedResponseBody, observeMediaResponseStream } from "@/lib/server/media-response-body";
+import { persistMediaDiagnostic, type MediaDiagnosticContext } from "@/lib/server/media-task-diagnostic-store";
 import { observeMediaFetch, MEDIA_TRACE_HEADER } from "@/lib/server/media-task-trace";
 import { resolveMediaDiagnosticContext } from "@/lib/server/media-task-diagnostic-store";
 import { createHash, randomUUID } from "node:crypto";
@@ -407,6 +407,12 @@ async function proxySystemMediaRequest(request: Request, channel: SystemMediaCha
     const claim = readGenerationMediaClaim(request, { userId, channelId: channel.id, url: rawUrl });
     const record = claim ? await getStoredGenerationTaskRecord(claim.taskType, claim.taskId) : null;
     const config = record?.payload.config as { logicalModel?: string; model?: string } | undefined;
+    const mediaContext: MediaDiagnosticContext | undefined =
+        claim && record && (record.surface === "canvas" || (!record.surface && record.payload.source === "canvas")) && claim.taskType !== "audio"
+            ? { type: claim.taskType, taskId: claim.taskId, userId, surface: "canvas", channelId: channel.id, projectId: record.projectId, model: claim.upstreamModel }
+            : undefined;
+    const readId = request.headers.get("x-vozeb-media-read-id") || "";
+    const mediaReadId = /^[a-f0-9-]{36}$/i.test(readId) ? readId : undefined;
     const currentSettings = await getAuthSettings();
     const http1Compatibility = config ? bindingUsesHttp1(currentSettings.logicalModels || [], config.logicalModel || config.model || "", channel.id, config.model || "") : false;
     const target = mediaTargetRequest(channel.baseUrl, channel.apiFormat, rawUrl, isGlobalAiOpcChannel(channel.advancedConfig));
@@ -433,7 +439,7 @@ async function proxySystemMediaRequest(request: Request, channel: SystemMediaCha
             fetcher: (nextMethod, nextRange) => {
                 const requestHeaders = new Headers(headers);
                 if (nextRange) requestHeaders.set("range", nextRange);
-                return fetchSystemMedia(target, nextMethod, requestHeaders, signal, http1Compatibility);
+                return fetchSystemMedia(target, nextMethod, requestHeaders, signal, http1Compatibility, mediaContext, mediaReadId);
             },
         });
         const response = new Response(media.body, {
@@ -454,7 +460,7 @@ async function proxySystemMediaRequest(request: Request, channel: SystemMediaCha
     }
 }
 
-async function fetchSystemMedia(target: { url: string; includeAuth: boolean }, method: "GET" | "HEAD", baseHeaders: Headers, signal: AbortSignal, http1Compatibility = false) {
+async function fetchSystemMedia(target: { url: string; includeAuth: boolean }, method: "GET" | "HEAD", baseHeaders: Headers, signal: AbortSignal, http1Compatibility = false, context?: MediaDiagnosticContext, mediaReadId?: string) {
     let currentUrl = target.url;
     let includeAuth = target.includeAuth;
     for (let redirects = 0; redirects <= MAX_SYSTEM_MEDIA_REDIRECTS; redirects += 1) {
@@ -462,8 +468,36 @@ async function fetchSystemMedia(target: { url: string; includeAuth: boolean }, m
         const headers = includeAuth ? new Headers(baseHeaders) : new Headers();
         const range = baseHeaders.get("range");
         if (range) headers.set("range", range);
-        const upstream = await fetchSafeOutbound(currentUrl, { method, headers, cache: "no-store", redirect: "manual", signal }, { http1Compatibility });
-        if (!isRedirectStatus(upstream.status)) return upstream;
+        const parsed = new URL(currentUrl);
+        const locationFields = { mediaReadId, urlHost: parsed.host, urlPathHash: createHash("sha256").update(parsed.pathname).digest("hex"), redirectCount: redirects, method };
+        const started = Date.now();
+        if (context) await persistMediaDiagnostic(context, { phase: "result_media_upstream_request", ...locationFields });
+        let upstream: Response;
+        try {
+            upstream = await fetchSafeOutbound(currentUrl, { method, headers, cache: "no-store", redirect: "manual", signal }, { http1Compatibility });
+        } catch (error) {
+            if (context)
+                await persistMediaDiagnostic(context, {
+                    phase: "result_media_upstream_failed",
+                    ...locationFields,
+                    stage: "connect",
+                    errorName: error instanceof Error ? error.name : "Error",
+                    cause: error instanceof Error ? String((error.cause as { code?: string } | undefined)?.code || "") : undefined,
+                    durationMs: Date.now() - started,
+                });
+            throw error;
+        }
+        if (context)
+            await persistMediaDiagnostic(context, {
+                phase: "result_media_upstream_response",
+                ...locationFields,
+                status: upstream.status,
+                contentType: upstream.headers.get("content-type") || undefined,
+                contentEncoding: upstream.headers.get("content-encoding") || undefined,
+                contentLength: upstream.headers.has("content-length") ? Number(upstream.headers.get("content-length")) : undefined,
+                durationMs: Date.now() - started,
+            });
+        if (!isRedirectStatus(upstream.status)) return context ? observeMediaResponseStream(upstream, (event) => persistMediaDiagnostic(context, { ...locationFields, ...event })) : upstream;
         const location = upstream.headers.get("location");
         await upstream.body?.cancel().catch(() => undefined);
         if (!location || redirects === MAX_SYSTEM_MEDIA_REDIRECTS) throw new Error("Too many media redirects");
@@ -514,6 +548,8 @@ function mediaResponseHeaders(headers: Headers, mimeType: string) {
         const value = headers.get(key);
         if (value) nextHeaders.set(key, value);
     });
+    // fetch has already decoded content codings; the wire length is no longer the body length.
+    if (headers.get("content-encoding") && headers.get("content-encoding") !== "identity") nextHeaders.delete("content-length");
     nextHeaders.set("content-type", mimeType);
     nextHeaders.set("cache-control", "private, max-age=600");
     nextHeaders.set("cross-origin-resource-policy", "same-site");
