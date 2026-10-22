@@ -4,8 +4,10 @@ export const GENERATION_POLICY_MESSAGE = "内容未通过安全审核，请修�
 export const GENERATION_POINTS_MESSAGE = "积分不足，请充值后重试";
 export const GENERATION_REAL_FACE_MESSAGE = "参考图包含真人人脸，请更换图片后重试";
 export const GENERATION_COPYRIGHT_MESSAGE = "生成内容可能涉及版权限制，请修改描述或参考素材后重试";
+export const GENERATION_REFERENCE_SIZE_MESSAGE = "参考图尺寸不符合要求（每边需 300–6000 像素），请更换更清晰的图片后重试";
 export const GENERATION_LAST_FRAME_MESSAGE = "首尾帧模式不能同时使用参考图，请移除参考图或尾帧后重试";
 
+const REFERENCE_SIZE_PATTERN = /(width|height) must be between 300\s*px and 6000\s*px|300 至 6000 像素|比例过于狭长/i;
 const COPYRIGHT_PATTERN = /版权|copyright/i;
 const LAST_FRAME_CONFLICT_PATTERN = /last[\s_-]?frame.{0,80}(cannot|can't|can not|not allowed to).{0,20}(be )?mix|尾帧.{0,20}(不能|无法|不可).{0,10}(混用|同时)/i;
 
@@ -17,7 +19,16 @@ const UNAVAILABLE_PATTERN =
 // 前端自己生成、用户能据此操作的文案，展示时原样保留。
 const PASSTHROUGH_MESSAGES = /^(?:参考图片已丢失，无法继续重试|背景补全蒙版已丢失，无法继续重试)$/;
 const CAPACITY_PATTERN = /当前用户.{0,4}任务已达到并发上限/;
-const USER_FACING_MESSAGES = new Set([GENERATION_BUSY_MESSAGE, GENERATION_UNAVAILABLE_MESSAGE, GENERATION_POLICY_MESSAGE, GENERATION_POINTS_MESSAGE, GENERATION_REAL_FACE_MESSAGE, GENERATION_COPYRIGHT_MESSAGE, GENERATION_LAST_FRAME_MESSAGE]);
+const USER_FACING_MESSAGES = new Set([
+    GENERATION_BUSY_MESSAGE,
+    GENERATION_UNAVAILABLE_MESSAGE,
+    GENERATION_POLICY_MESSAGE,
+    GENERATION_POINTS_MESSAGE,
+    GENERATION_REAL_FACE_MESSAGE,
+    GENERATION_COPYRIGHT_MESSAGE,
+    GENERATION_LAST_FRAME_MESSAGE,
+    GENERATION_REFERENCE_SIZE_MESSAGE,
+]);
 
 /** 任意生成失败文本 → 给用户看的文案。纯函数，可在渲染时调用；原始错误只留在后台。 */
 export function generationUserMessage(raw: string | undefined | null) {
@@ -27,6 +38,7 @@ export function generationUserMessage(raw: string | undefined | null) {
     const capacity = text.match(CAPACITY_PATTERN);
     if (capacity) return `${capacity[0]}，请稍后再试`;
     if (/积分不足|余额不足|insufficient[\s_-]?points/i.test(text)) return GENERATION_POINTS_MESSAGE;
+    if (REFERENCE_SIZE_PATTERN.test(text)) return /比例过于狭长/.test(text) ? text : GENERATION_REFERENCE_SIZE_MESSAGE;
     if (LAST_FRAME_CONFLICT_PATTERN.test(text)) return GENERATION_LAST_FRAME_MESSAGE;
     if (COPYRIGHT_PATTERN.test(text)) return GENERATION_COPYRIGHT_MESSAGE;
     if (REAL_FACE_PATTERN.test(text)) return GENERATION_REAL_FACE_MESSAGE;

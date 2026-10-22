@@ -8,6 +8,7 @@ import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-acce
 import { writeReferenceMediaDataUrl } from "@/lib/server/reference-asset-store";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import type { VideoGenerationReference } from "@/lib/video-reference-contract";
+import { fitVideoReferenceSize, VIDEO_REFERENCE_MAX_SIDE, VIDEO_REFERENCE_MIN_SIDE } from "@/lib/video-reference-size";
 
 const UPSTREAM_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg"]);
 
@@ -18,12 +19,16 @@ export async function normalizeVideoProviderImageReferences(input: { references:
 async function normalizeReference(reference: VideoGenerationReference, context: { userId: string; internalOrigin: string; publicOrigin: string }) {
     if (reference.type !== "image") return reference;
     const sourceReference = { ...reference, url: originalImageSourceUrl(reference.url) };
-    if (hasUpstreamImageExtension(sourceReference.url)) return sourceReference;
     const source = await readReferenceImage(sourceReference.url, context);
-    if (UPSTREAM_IMAGE_MIME_TYPES.has(source.mimeType)) return sourceReference;
     if (!source.mimeType.startsWith("image/")) throw new Error("视频参考素材不是有效图片");
+    const image = sharp(source.bytes, { failOn: "error" }).rotate();
+    const { width = 0, height = 0, orientation } = await image.metadata();
+    const [w, h] = orientation && orientation >= 5 ? [height, width] : [width, height];
+    const fitted = fitVideoReferenceSize(w, h);
+    if (fitted === "impossible") throw new Error(`参考图比例过于狭长（${w}×${h}），无法满足视频模型每边 ${VIDEO_REFERENCE_MIN_SIDE}–${VIDEO_REFERENCE_MAX_SIDE} 像素的要求，请先裁剪`);
+    if (!fitted && UPSTREAM_IMAGE_MIME_TYPES.has(source.mimeType)) return sourceReference;
 
-    const png = await sharp(source.bytes, { failOn: "error" }).rotate().png().toBuffer();
+    const png = await (fitted ? image.resize(fitted.width, fitted.height, { fit: "fill" }) : image).png().toBuffer();
     const asset = await writeReferenceMediaDataUrl(`data:image/png;base64,${png.toString("base64")}`, "image", {
         ownerUserId: context.userId,
         source: "video-reference-normalization",
@@ -73,14 +78,4 @@ async function readBoundedBytes(body: ReadableStream<Uint8Array>) {
         chunks.map((chunk) => Buffer.from(chunk)),
         total,
     );
-}
-
-function hasUpstreamImageExtension(value: string) {
-    try {
-        const url = new URL(value);
-        if (url.searchParams.get("format")?.toLowerCase() === "webp") return false;
-        return /\.(?:png|jpe?g)$/i.test(url.pathname);
-    } catch {
-        return false;
-    }
 }

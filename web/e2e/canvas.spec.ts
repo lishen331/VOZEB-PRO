@@ -241,6 +241,69 @@ test("canvas node prompt keeps image and video mentions after long text", async 
     }
 });
 
+test("canvas video warns about undersized reference images and asks before upscaling", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    const project = await createCanvasProject(request, {
+        title: `Canvas 参考图尺寸 ${randomUUID().slice(0, 8)}`,
+        viewport: { x: 36, y: 110, k: 1 },
+        nodes: [
+            { ...node("small-ref", "image", 430, 60, 222, 141, { content: "https://cdn.example.com/canvas-small.png", remoteUrl: "https://cdn.example.com/canvas-small.png", naturalWidth: 444, naturalHeight: 283 }), title: "小截图" },
+            { ...node("large-ref", "image", 430, 260, 220, 124, { content: "https://cdn.example.com/canvas-large.png", remoteUrl: "https://cdn.example.com/canvas-large.png", naturalWidth: 1824, naturalHeight: 1024 }), title: "正常图" },
+            node("size-config", "config", 20, 90, 300, 180, { generationMode: "video", composerContent: "让小猫在广场上奔跑", size: "1280x720", seconds: "5", vquality: "720" }),
+        ],
+        connections: [
+            { id: "small-ref-edge", fromNodeId: "small-ref", toNodeId: "size-config" },
+            { id: "large-ref-edge", fromNodeId: "large-ref", toNodeId: "size-config" },
+        ],
+    });
+    const submitted: unknown[] = [];
+    await page.route("**/api/video-generation-tasks", async (route) => {
+        if (route.request().method() !== "POST") return route.continue();
+        submitted.push(route.request().postDataJSON());
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ task: { id: `canvas-size-task-${submitted.length}`, model: "video-v1", durationSeconds: 5 } }) });
+    });
+    await page.route("**/api/video-tasks/**", async (route) => {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ task: { status: "running" } }) });
+    });
+
+    try {
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+        await expect(page.locator("[data-canvas-surface]")).toBeVisible({ timeout: 20_000 });
+        const configNode = page.locator('[data-node-id="size-config"]');
+        await expect(configNode).toBeVisible();
+
+        const settingsTrigger = configNode.getByRole("button", { name: /^视频设置：/ });
+        await settingsTrigger.click();
+        const warning = page.locator("[data-canvas-video-reference-size-warning]");
+        await expect(warning).toBeVisible();
+        await expect(warning).toContainText("444×283");
+        await expect(warning).not.toContainText("1824×1024");
+        await expect(warning).toContainText("放大会降低清晰度");
+        await settingsTrigger.click();
+
+        const generate = configNode.getByRole("button", { name: "开始生成" });
+        await generate.click();
+        let dialog = page.getByRole("dialog").filter({ hasText: "参考图尺寸不符合视频模型要求" });
+        await expect(dialog).toBeVisible();
+        await expect(dialog).toContainText("444×283 → 471×300（放大）");
+        await expect(dialog).toContainText("放大会降低参考图清晰度");
+        await dialog.getByRole("button", { name: "取消" }).click();
+        await expect(dialog).toBeHidden();
+        expect(submitted).toHaveLength(0);
+        await expectCanvasSaved(page);
+        expect((await readCanvasProject(request, `/api/canvas/projects/${project.id}`)).nodes.some((item) => item.type === "video")).toBe(false);
+
+        await generate.click();
+        dialog = page.getByRole("dialog").filter({ hasText: "参考图尺寸不符合视频模型要求" });
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole("button", { name: "继续生成" }).click();
+        await expect.poll(() => submitted.length).toBe(1);
+    } finally {
+        await deleteCanvasProject(request, project.id);
+    }
+});
+
 test("canvas video first and last frame roles persist and retry from the output snapshot", async ({ page, request }) => {
     test.setTimeout(120_000);
     const project = await createCanvasProject(request, {

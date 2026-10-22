@@ -9,6 +9,7 @@ import { readImageMeta } from "@/lib/image-utils";
 import { createAudioGenerationTask } from "@/services/api/audio";
 import { createTextGenerationTask } from "@/services/api/text";
 import { createServerVideoGenerationTask } from "@/services/api/video";
+import { VIDEO_REFERENCE_MAX_SIDE, VIDEO_REFERENCE_MIN_SIDE, videoReferenceSizeIssues } from "@/lib/video-reference-size";
 import type { InsertAssetPayload } from "../components/canvas-asset-insert";
 import { CANVAS_AGENT_PANEL_MOTION_MS } from "../components/canvas-agent-panel-motion";
 import { retryCanvasAgentNode } from "../components/canvas-agent-node-retry";
@@ -47,6 +48,7 @@ import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
 export function useCanvasGenerationActions({ state, tasks, interactions }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions }) {
     const {
         message,
+        modal,
         projectId,
         containerRef,
         effectiveConfig,
@@ -75,6 +77,45 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
         generationRequestsRef,
     } = state;
     const { startGenerationRequest, finishGenerationRequest, completeVideoTask, startAndCompleteImageTask, completeTextTask, completeAudioTask } = tasks;
+    // 参考图不在视频上游 300–6000px 范围内：超窄图直接拦截；其余先让用户确认放大/缩小会影响清晰度。
+    const confirmVideoReferenceSizes = useCallback(
+        (images: Array<{ width?: number; height?: number }>) => {
+            const issues = videoReferenceSizeIssues(images);
+            if (!issues.length) return Promise.resolve(true);
+            const blocked = issues.find((issue) => issue.target === "impossible");
+            if (blocked) {
+                message.warning(`图片${blocked.index}（${blocked.width}×${blocked.height}）比例过于狭长，视频模型要求每边 ${VIDEO_REFERENCE_MIN_SIDE}–${VIDEO_REFERENCE_MAX_SIDE} 像素，请先裁剪后再生成`);
+                return Promise.resolve(false);
+            }
+            const lines = issues.map((issue) => {
+                const target = issue.target as { width: number; height: number };
+                return `图片${issue.index}：${issue.width}×${issue.height} → ${target.width}×${target.height}（${target.width > issue.width ? "放大" : "缩小"}）`;
+            });
+            return new Promise<boolean>((resolve) => {
+                modal.confirm({
+                    title: "参考图尺寸不符合视频模型要求",
+                    content: (
+                        <div className="space-y-2 text-sm">
+                            <p>
+                                视频模型要求参考图每边在 {VIDEO_REFERENCE_MIN_SIDE}–{VIDEO_REFERENCE_MAX_SIDE} 像素之间，提交时将自动等比调整：
+                            </p>
+                            <ul className="list-disc pl-5">
+                                {lines.map((line) => (
+                                    <li key={line}>{line}</li>
+                                ))}
+                            </ul>
+                            <p>放大会降低参考图清晰度，可能影响视频效果。也可以取消后更换更清晰的图片。</p>
+                        </div>
+                    ),
+                    okText: "继续生成",
+                    cancelText: "取消",
+                    onOk: () => resolve(true),
+                    onCancel: () => resolve(false),
+                });
+            });
+        },
+        [message, modal],
+    );
     const { screenToCanvas, applyAgentOps } = interactions;
     /**
      * 生成失败时的统一出口：
@@ -324,6 +365,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                         availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(nodeId, nodesRef.current, connectionsRef.current),
                         sourceImage: !isTextToVideo && sourceNode && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                     });
+                    if (!(await confirmVideoReferenceSizes(videoReferences.images))) return;
                     const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
                     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
                     const videoId = isEmptyVideoNode ? nodeId : nanoid();
@@ -502,6 +544,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             completeAudioTask,
             completeTextTask,
             completeVideoTask,
+            confirmVideoReferenceSizes,
             currentProject?.creativeConversationId,
             effectiveConfig,
             finishGenerationRequest,
