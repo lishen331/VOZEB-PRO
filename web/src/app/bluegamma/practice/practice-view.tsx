@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, Plus, Sparkles } from "lucide-react";
 
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { GammaStatCard, GammaTaskCard } from "@/components/gamma-ui/gamma-cards";
@@ -10,7 +11,7 @@ import { GammaStagger, GammaStaggerItem } from "@/components/gamma-ui/gamma-moti
 import { GammaEmptyState } from "@/components/gamma-ui/gamma-overlays";
 import { SUBJECT_ACCENT } from "@/components/gamma-ui/gamma-subjects";
 import { cn } from "@/lib/utils";
-import { PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, PRACTICE_SCRIPT_ENTRY, PRACTICE_SESSIONS, PRACTICE_STATS, type PracticeProjectCardSpec } from "./practice-data";
+import { PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, PRACTICE_SESSIONS, PRACTICE_STATS, PRACTICE_WIDE_MODULES, type PracticeProjectCardSpec } from "./practice-data";
 
 /**
  * 无限练习 · 设计稿（本地模拟数据，不调接口）。
@@ -32,6 +33,12 @@ export function PracticeView() {
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]">
             <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+                <div className="mb-4 flex items-center gap-2">
+                    <Link href="/bluegamma/home" aria-label="返回首页" className="gm-glass grid size-9 shrink-0 place-items-center rounded-full text-[var(--gm-text-2)] hover:text-[var(--gm-text)]">
+                        <ChevronLeft className="size-4" />
+                    </Link>
+                    <span className="text-sm text-[var(--gm-text-3)]">返回首页</span>
+                </div>
                 <PracticeHero />
 
                 <section className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -53,23 +60,20 @@ export function PracticeView() {
                     </GammaStagger>
                 </section>
 
-                <section className="mt-10" aria-labelledby="practice-script-heading">
-                    <h2 id="practice-script-heading" className="text-xl font-semibold text-[var(--gm-text)] sm:text-2xl">
-                        剧本练习
-                    </h2>
-                    <ScriptEntry />
-                </section>
-
                 <section className="mt-10" aria-labelledby="practice-modules-heading">
                     <h2 id="practice-modules-heading" className="text-xl font-semibold text-[var(--gm-text)] sm:text-2xl">
                         练习模块
                     </h2>
+                    {/* bento：宽卡在数据顺序里已经和小卡交错排布（见 practice-data.ts 注释），这里只负责按模块判断是否宽卡 */}
                     <GammaStagger className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {PRACTICE_MODULES.map((card) => (
-                            <GammaStaggerItem key={card.module}>
-                                <ModuleCard card={card} />
-                            </GammaStaggerItem>
-                        ))}
+                        {PRACTICE_MODULES.map((card) => {
+                            const wide = PRACTICE_WIDE_MODULES.includes(card.module);
+                            return (
+                                <GammaStaggerItem key={card.module} className={wide ? "sm:col-span-2" : undefined}>
+                                    <ModuleCard card={card} wide={wide} />
+                                </GammaStaggerItem>
+                            );
+                        })}
                     </GammaStagger>
                 </section>
 
@@ -104,9 +108,7 @@ function PracticeHero() {
                     免费创作空间
                 </GammaBadge>
                 <h1 className="mt-4 text-4xl font-bold tracking-tight text-[var(--gm-text)] sm:text-5xl">无限练习</h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--gm-text-2)] sm:text-lg">
-                    每个模块是独立的单块练习，互不串联。你可以把生成的素材保存到资产库，再在其他模块中引用。这里不是完整的漫剧创作流水线，只用于单块技能的专项训练。
-                </p>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--gm-text-2)] sm:text-lg">每个模块是独立的单块练习，互不串联。你可以把生成的素材保存到资产库，再在其他模块中引用。这里不是完整的漫剧创作流水线，只用于单块技能的专项训练。</p>
             </div>
             <div aria-hidden className="absolute -right-12 -top-12 size-64 rounded-full bg-[var(--gm-accent-soft)] blur-3xl" />
             <div aria-hidden className="absolute -bottom-12 -left-12 size-64 rounded-full bg-[rgba(139,92,246,0.12)] blur-3xl" />
@@ -136,11 +138,7 @@ function ProjectCard({ card, creating, onCreate }: { card: PracticeProjectCardSp
                     {card.recent.length ? (
                         <div className="mt-3 space-y-1">
                             {card.recent.slice(0, 3).map((item) => (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    className="flex w-full items-center justify-between gap-3 rounded-[var(--gm-radius-sm)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--gm-wash-strong)]"
-                                >
+                                <button key={item.id} type="button" className="flex w-full items-center justify-between gap-3 rounded-[var(--gm-radius-sm)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--gm-wash-strong)]">
                                     <span className="truncate text-sm text-[var(--gm-text-2)]">{item.title}</span>
                                     <span className="shrink-0 text-xs text-[var(--gm-text-3)]">{item.updatedAt}</span>
                                 </button>
@@ -155,47 +153,33 @@ function ProjectCard({ card, creating, onCreate }: { card: PracticeProjectCardSp
     );
 }
 
-function ScriptEntry() {
-    const Icon = PRACTICE_SCRIPT_ENTRY.icon;
-    return (
-        <button
-            type="button"
-            className="group mt-4 flex w-full items-center gap-4 overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)]"
-        >
-            <div className={cn("grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-lg)] transition-transform duration-300 group-hover:scale-105", SUBJECT_ACCENT.teal.chip)}>
-                <Icon className={cn("size-7", SUBJECT_ACCENT.teal.text)} />
-            </div>
-            <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                    <span className="text-base font-semibold text-[var(--gm-text)]">{PRACTICE_SCRIPT_ENTRY.title}</span>
-                    <GammaBadge tone="neutral">{PRACTICE_SCRIPT_ENTRY.tag}</GammaBadge>
-                </div>
-                <span className="mt-1 block text-sm text-[var(--gm-text-2)]">{PRACTICE_SCRIPT_ENTRY.description}</span>
-            </div>
-        </button>
-    );
-}
-
-function ModuleCard({ card }: { card: (typeof PRACTICE_MODULES)[number] }) {
+/** wide：用量最高的模块占两列，图标更大、带「已练习」徽标和（如有）tag，和小卡拉出明显的主次层级 */
+function ModuleCard({ card, wide = false }: { card: (typeof PRACTICE_MODULES)[number]; wide?: boolean }) {
     const Icon = card.icon;
     const accent = SUBJECT_ACCENT[card.accent];
     return (
         <button
             type="button"
-            className="group relative overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+            className={cn(
+                "group relative w-full overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
+                wide ? "flex items-center gap-5 p-6" : "p-5",
+            )}
         >
-            <div aria-hidden className={cn("absolute -bottom-12 -right-12 size-48 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100", accent.chip)} />
-            <div className="relative z-10">
+            <div aria-hidden className={cn("absolute -bottom-12 -right-12 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100", wide ? "size-56" : "size-48", accent.chip)} />
+            <div className={cn("relative z-10 shrink-0 place-items-center rounded-[var(--gm-radius-lg)] transition-transform duration-300", wide ? "grid size-16 group-hover:scale-105" : "inline-grid size-12 group-hover:scale-110", accent.chip)}>
+                <Icon className={cn(wide ? "size-8" : "size-6", accent.text)} />
+            </div>
+            <div className={cn("relative z-10 min-w-0 flex-1", wide ? "" : "mt-4")}>
                 <div className="flex items-start justify-between gap-3">
-                    <div className={cn("inline-grid size-12 place-items-center rounded-[var(--gm-radius-lg)] transition-transform duration-300 group-hover:scale-110", accent.chip)}>
-                        <Icon className={cn("size-6", accent.text)} />
+                    <div className="flex items-center gap-2">
+                        <h3 className={cn("font-semibold text-[var(--gm-text)]", wide ? "text-lg" : "text-base")}>{card.title}</h3>
+                        {card.tag ? <GammaBadge tone="neutral">{card.tag}</GammaBadge> : null}
                     </div>
-                    <span aria-label={`已练习 ${card.doneCount} 次`} className="rounded-full bg-[var(--gm-wash)] px-2 py-0.5 text-xs tabular-nums text-[var(--gm-text-3)]">
+                    <span aria-label={`已练习 ${card.doneCount} 次`} className="shrink-0 rounded-full bg-[var(--gm-wash)] px-2 py-0.5 text-xs tabular-nums text-[var(--gm-text-3)]">
                         {card.doneCount} 次
                     </span>
                 </div>
-                <h3 className="mt-4 text-base font-semibold text-[var(--gm-text)]">{card.title}</h3>
-                <p className="mt-1 text-sm leading-6 text-[var(--gm-text-2)]">{card.description}</p>
+                <p className={cn("text-[var(--gm-text-2)]", wide ? "mt-1.5 text-sm leading-6" : "mt-1 text-sm leading-6")}>{card.description}</p>
             </div>
         </button>
     );

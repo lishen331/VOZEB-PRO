@@ -44,13 +44,6 @@ export const PRACTICE_PROJECT_CARDS: readonly PracticeProjectCardSpec[] = [
     },
 ];
 
-export const PRACTICE_SCRIPT_ENTRY = {
-    title: "剧本",
-    description: "从创意到剧本文本的单人练习。",
-    icon: ScrollText,
-    tag: "单人 · 文本",
-} as const;
-
 export interface PracticeModuleSpec {
     module: string;
     title: string;
@@ -58,16 +51,31 @@ export interface PracticeModuleSpec {
     icon: LucideIcon;
     accent: SubjectAccent;
     doneCount: number;
+    /** 单人·纯文本练习（剧本），和视觉素材类模块区分一下输出形态 */
+    tag?: string;
 }
 
+/**
+ * 练习模块：按 doneCount 降序排列，用量最高的两个在 practice-view.tsx 里做跨列宽卡（bento 排版）。
+ * 「剧本」原来是单独区块，这里并入同一张网格，不再孤立成区。
+ */
+/**
+ * 顺序即渲染顺序：3 列网格里两张宽卡（分镜图、角色）不能相邻，各自搭一张小卡凑满一行，
+ * 否则 CSS Grid 的默认 auto-flow 会在每张宽卡右侧各留一个回填不到的空位。
+ * 行 1：分镜图(宽) + 剧本；行 2：角色(宽) + 场景；行 3：音频 + 道具 + 分镜视频。
+ */
 export const PRACTICE_MODULES: readonly PracticeModuleSpec[] = [
+    { module: "storyboard-image", title: "分镜图", description: "组合场景、角色和道具完成镜头画面。", icon: ImageIcon, accent: "cyan", doneCount: 20 },
+    { module: "script", title: "剧本", description: "从创意到剧本文本的单人练习。", icon: ScrollText, accent: "teal", doneCount: 4, tag: "单人 · 文本" },
     { module: "character", title: "角色", description: "生成角色主体图，并继续扩展多视角设定。", icon: UserRound, accent: "violet", doneCount: 12 },
     { module: "scene", title: "场景", description: "建立空间、光线和环境氛围。", icon: PanelsTopLeft, accent: "sky", doneCount: 8 },
-    { module: "prop", title: "道具", description: "把关键物件设定成可用素材。", icon: Box, accent: "teal", doneCount: 5 },
-    { module: "storyboard-image", title: "分镜图", description: "组合场景、角色和道具完成镜头画面。", icon: ImageIcon, accent: "cyan", doneCount: 20 },
-    { module: "storyboard-video", title: "分镜视频", description: "让静态分镜进入动态镜头。", icon: Film, accent: "blue", doneCount: 3 },
     { module: "dubbing", title: "音频", description: "为台词和旁白生成情绪化配音。", icon: Mic2, accent: "indigo", doneCount: 7 },
+    { module: "prop", title: "道具", description: "把关键物件设定成可用素材。", icon: Box, accent: "teal", doneCount: 5 },
+    { module: "storyboard-video", title: "分镜视频", description: "让静态分镜进入动态镜头。", icon: Film, accent: "blue", doneCount: 3 },
 ];
+
+/** 占 2 列宽卡的模块（用量最高的两个）；其余按小卡渲染 */
+export const PRACTICE_WIDE_MODULES: readonly string[] = ["storyboard-image", "character"];
 
 export interface PracticeSessionSpec {
     id: string;
