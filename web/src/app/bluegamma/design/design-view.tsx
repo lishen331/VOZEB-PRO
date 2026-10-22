@@ -21,6 +21,10 @@ import { DesignGlass } from "@/app/bluegamma/design/design-glass";
 import { DesignNavIcons } from "@/app/bluegamma/design/design-icons";
 import { DesignInteractions } from "@/app/bluegamma/design/design-interactions";
 import { DesignLayout } from "@/app/bluegamma/design/design-layout";
+import { DesignForms } from "@/app/bluegamma/design/design-forms";
+import { DesignStateSpecs } from "@/app/bluegamma/design/design-state-specs";
+import { DesignMorphLab } from "@/app/bluegamma/design/design-morph-lab";
+import { DesignAppleMaterial, DesignHeroButtons, DesignStates } from "@/app/bluegamma/design/design-showpieces";
 import { GammaMajorTabs } from "@/components/gamma-ui/gamma-major-tabs";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +37,13 @@ const TOC = [
     { id: "buttons", label: "按钮" },
     { id: "nav-icons", label: "导航图标" },
     { id: "morph", label: "形变图标" },
+    { id: "morph-lab", label: "任意图标形变" },
+    { id: "states", label: "状态" },
+    { id: "hero-buttons", label: "醒目点击位" },
+    { id: "material", label: "苹果风材质" },
     { id: "majors", label: "专业切换" },
+    { id: "forms", label: "表单 · 选择 · 上传" },
+    { id: "state-specs", label: "状态规范" },
     { id: "controls", label: "表单控件" },
     { id: "data", label: "数据展示" },
     { id: "cards", label: "卡片" },
@@ -137,10 +147,28 @@ export function GammaDesignView() {
                         <GammaSection id="morph" title="形变图标" description="参考 morphicons：线条之间弹簧过渡，而不是硬切">
                             <DesignMorphIcons />
                         </GammaSection>
+                        <GammaSection id="morph-lab" title="任意图标形变" description="对照 morphicons：任意两个 lucide 图标之间逐点弹簧插值，可调弹簧、速度、描边">
+                            <DesignMorphLab />
+                        </GammaSection>
+                        <GammaSection id="states" title="状态" description="任务、提交、开关类图标的全部状态；切换都走形变，不硬切">
+                            <DesignStates />
+                        </GammaSection>
+                        <GammaSection id="hero-buttons" title="醒目点击位" description="关键动作专用，一页最多一两个；其余按钮仍用标准按钮">
+                            <DesignHeroButtons onNotice={notice} />
+                        </GammaSection>
+                        <GammaSection id="material" title="苹果风材质" description="连续曲率大圆角、极细高光描边、强模糊高饱和；控制中心 / Dock / 通知 / iOS 开关">
+                            <DesignAppleMaterial onNotice={notice} />
+                        </GammaSection>
                         <GammaSection id="majors" title="专业切换" description="12 个专业胶囊，选中项是一片滑动的发光玻璃；宽度不够时两端渐隐、出现翻页按钮">
                             <div className="rounded-[var(--gm-radius-xl)] bg-[var(--gm-bg-elevated)] p-4 ring-1 ring-[var(--gm-border)]">
                                 <GammaMajorTabs value={major} onChange={setMajor} />
                             </div>
+                        </GammaSection>
+                        <GammaSection id="forms" title="表单 · 选择器 · 上传" description="以「新建课程」为例：校验时机（碰过才报、提交全报）、聚焦首个错误、字数、多选 / 标签、拖拽 / 粘贴上传与重传">
+                            <DesignForms onNotice={notice} />
+                        </GammaSection>
+                        <GammaSection id="state-specs" title="状态规范" description="空 / 错 / 无权限 / 离线、生成排队与失败退款、积分不足、骨架屏、错误页、极端数据；所有页面直接套用">
+                            <DesignStateSpecs onNotice={notice} />
                         </GammaSection>
                         <GammaSection id="controls" title="表单控件">
                             <DesignControls />

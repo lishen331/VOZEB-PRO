@@ -52,7 +52,7 @@ const MASONRY_SPLIT = [
 function Box({ className, children, label }: { className?: string; children?: ReactNode; label?: string }) {
     return (
         <div className={cn("relative rounded-md bg-[var(--gm-wash-strong)] ring-1 ring-[var(--gm-border-strong)]", className)}>
-            {label ? <span className="absolute top-1 left-1.5 font-mono text-[9px] text-[var(--gm-text-3)]">{label}</span> : null}
+            {label ? <span className="absolute top-1 left-1.5 font-mono text-[9px] text-[var(--gm-text-2)]">{label}</span> : null}
             {children}
         </div>
     );
