@@ -103,6 +103,7 @@ import {
     shouldRetryJsonImageEditPayload,
     shouldFallbackToResponsesImage,
     allowsImageProtocolFallback,
+    allowsImageResponseFormatFallback,
     stringField,
     delay,
     parseGeminiImagePayload,
@@ -142,6 +143,7 @@ async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publi
     const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
     const responseFormat = await preferredImageResponseFormat(config);
     const allowProtocolFallback = allowsImageProtocolFallback(config);
+    const allowFormatFallback = allowsImageResponseFormatFallback(config);
     const sendResponseFormat = allowProtocolFallback || Boolean(explicitImageResponseFormat(config)) || responseFormat !== "url";
     const useJsonImageEdit = task.kind === "edit" && (await shouldUseJsonImageEdit(config));
     if (useJsonImageEdit) return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, responseFormat, singleStep);
@@ -157,9 +159,9 @@ async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publi
         response = await imageSubmissionFetch(config, url, { method: "POST", headers, body: formData, cache: "no-store" });
         if (!response.ok) {
             const message = await readFetchError(response, "图片生成失败");
-            if (allowProtocolFallback && shouldFallbackToJsonImageEdit(response.status, message)) return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, "url", singleStep, "json-edit");
-            if (allowProtocolFallback && shouldTryNextImageResponseFormat("url", response.status, message)) return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
-            if (allowProtocolFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
+            if (allowProtocolFallback && shouldFallbackToJsonImageEdit(response.status, message)) return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, responseFormat, singleStep, "json-edit");
+            if (allowFormatFallback && shouldTryNextImageResponseFormat("url", response.status, message)) return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
+            if (allowFormatFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
             throw imageSubmissionResponseError(response.status, message);
         }
     } else {
@@ -180,8 +182,8 @@ async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publi
         });
         if (!response.ok) {
             const message = await readFetchError(response, "图片生成失败");
-            if (allowProtocolFallback && shouldTryNextImageResponseFormat(responseFormat, response.status, message)) return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
-            if (allowProtocolFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
+            if (allowFormatFallback && shouldTryNextImageResponseFormat(responseFormat, response.status, message)) return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
+            if (allowFormatFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
             throw imageSubmissionResponseError(response.status, message);
         }
     }
@@ -190,7 +192,7 @@ async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publi
     const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
     const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
-    if (allowProtocolFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
+    if (allowFormatFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
         await refundChargedImageResponse(task, response.headers);
         return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
     }
@@ -251,6 +253,7 @@ export async function runOpenAiJsonImageEditTask(
     const referenceMode = configuredImageEditReferenceMode(config);
     const imageUrlObjectOnlyMode = shouldUseSub2ApiImageEdit(config, apiBase);
     const allowProtocolFallback = allowsImageProtocolFallback(config);
+    const allowFormatFallback = allowsImageResponseFormatFallback(config);
     const publicUrlReferenceMode = imageUrlObjectOnlyMode || referenceMode === "public-url";
     for (const [index, body] of (
         await buildJsonImageEditBodies(task, quality, requestSize, responseFormat, origin, publicOrigin, publicUrlReferenceMode, imageUrlObjectOnlyMode, allowProtocolFallback || Boolean(explicitImageResponseFormat(config)))
@@ -263,23 +266,23 @@ export async function runOpenAiJsonImageEditTask(
             lastMessage = message;
             if (imageUrlObjectOnlyMode) throw imageSubmissionResponseError(response.status, message);
             if (allowProtocolFallback && shouldRetryJsonImageEditPayload(response.status, message)) continue;
-            if (allowProtocolFallback && shouldTryNextImageResponseFormat(responseFormat, response.status, message)) {
+            if (allowFormatFallback && shouldTryNextImageResponseFormat(responseFormat, response.status, message)) {
                 if (responseFormat === "url") return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, "b64_json", singleStep, "base64");
                 return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
             }
-            if (allowProtocolFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
+            if (allowFormatFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
             throw imageSubmissionResponseError(response.status, message);
         }
         const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
         const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
         const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep, task.billingContext, response.headers));
-        if (allowProtocolFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
+        if (allowFormatFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
             await refundChargedImageResponse(task, response.headers);
             return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, "b64_json", singleStep, "base64");
         }
         return result;
     }
-    if (allowProtocolFallback && shouldTryNextImageResponseFormat(responseFormat, 400, lastMessage)) {
+    if (allowFormatFallback && shouldTryNextImageResponseFormat(responseFormat, 400, lastMessage)) {
         if (responseFormat === "url") return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, "b64_json", singleStep, "base64");
         return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, "responses");
     }
@@ -293,6 +296,7 @@ export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, orig
     const path = await openAiImageTaskPath(config, task.kind);
     const url = taskUrl(config, path, origin);
     const allowProtocolFallback = allowsImageProtocolFallback(config);
+    const allowFormatFallback = allowsImageResponseFormatFallback(config);
     const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task, billingVariant), task.billingContext);
 
     if (task.kind === "edit") {
@@ -306,7 +310,7 @@ export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, orig
         if (!response.ok) {
             const message = await readFetchError(response, "图片生成失败");
             if (allowProtocolFallback && shouldFallbackToJsonImageEdit(response.status, message)) return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, "b64_json", singleStep, `${billingVariant}-json-edit`);
-            if (allowProtocolFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, `${billingVariant}-responses`);
+            if (allowFormatFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, `${billingVariant}-responses`);
             throw imageSubmissionResponseError(response.status, message);
         }
         const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
@@ -331,7 +335,7 @@ export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, orig
     });
     if (!response.ok) {
         const message = await readFetchError(response, "图片生成失败");
-        if (allowProtocolFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, `${billingVariant}-responses`);
+        if (allowFormatFallback && shouldFallbackToResponsesImage(response.status, message)) return runOpenAiResponsesImageTask(task, origin, cookie, singleStep, `${billingVariant}-responses`);
         throw imageSubmissionResponseError(response.status, message);
     }
     const payload = await parseImageSubmissionJson<ImageApiResponse>(task, response);
