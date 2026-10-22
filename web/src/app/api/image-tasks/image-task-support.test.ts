@@ -6,6 +6,7 @@ import { GenerationSubmissionSafeFailure } from "@/lib/server/generation-submiss
 import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 import {
     allowsImageProtocolFallback,
+    allowsImageResponseFormatFallback,
     alternateManagedMediaUrl,
     configuredImageTaskRequestIdUrl,
     findImageResult,
@@ -404,4 +405,13 @@ describe("recovery by upstream request id", () => {
 
         await expect(queryImageUpstreamTaskIdByRequestId(externalRequestIdConfig("/requests/{{requestId}}"), "req-abc123", "http://localhost", "session=test")).resolves.toBe("");
     });
+});
+
+it("uses the selected model URL contract ahead of the parent channel default", async () => {
+    await expect(preferredImageResponseFormat({ model: "vendor-image", advancedConfig: { protocol: "auto", imageResponseFormat: "b64_json", modelConfigs: { "vendor-image": { capability: "image", imageResponseFormat: "url" } } } } as never)).resolves.toBe(
+        "url",
+    );
+});
+it("does not probe a second paid response format when the administrator explicitly selected URL", () => {
+    expect(allowsImageResponseFormatFallback({ model: "vendor-image", advancedConfig: { protocol: "compatible", modelConfigs: { "vendor-image": { capability: "image", imageResponseFormat: "url" } } } } as never)).toBe(false);
 });
