@@ -5,6 +5,11 @@ import { redactDiagnosticText } from "./media-task-diagnostics";
 
 const scopes = new AsyncLocalStorage<MediaDiagnosticContext>();
 export const MEDIA_TRACE_HEADER = "x-vozeb-media-trace-id";
+const PROGRAM_ERROR_NAMES = new Set(["RangeError", "TypeError", "ReferenceError"]);
+const STACK_LOG_FRAMES = 60;
+const STACK_DIAGNOSTIC_FRAMES = 20;
+// V8 默认只留 10 层：递归爆栈时 10 层全是同一个函数，看不出从哪调进来。只在抛异常时有开销。
+if ((Error.stackTraceLimit ?? 10) < STACK_LOG_FRAMES) Error.stackTraceLimit = STACK_LOG_FRAMES;
 type TaskLike = {
     id: string;
     userId: string;
@@ -53,10 +58,42 @@ export async function withMediaDiagnosticScope<T>(type: "image" | "video", task:
 
 export async function traceMediaException(error: unknown, phase = "exception") {
     const context = scopes.getStore();
-    if (!context) return;
     const value = error instanceof Error ? error : new Error(String(error));
+    // 程序异常（如大图后的栈溢出）只有 errorName/errorMessage 定位不到代码行，必须留栈；业务拒绝不打栈，避免刷屏。
+    const stack = PROGRAM_ERROR_NAMES.has(value.name) ? logProgramErrorStack(value, phase, context) : undefined;
+    if (!context) return;
     const cause = value.cause as { name?: string; code?: string; message?: string } | undefined;
-    await persistMediaDiagnostic(context, { phase, errorName: value.name, errorMessage: value.message, errorCode: (value as Error & { code?: string }).code, cause: cause ? `${cause.name || ""} ${cause.code || ""} ${cause.message || ""}` : undefined });
+    await persistMediaDiagnostic(context, {
+        phase,
+        errorName: value.name,
+        errorMessage: value.message,
+        errorCode: (value as Error & { code?: string }).code,
+        cause: cause ? `${cause.name || ""} ${cause.code || ""} ${cause.message || ""}` : undefined,
+        stack,
+    });
+}
+
+function logProgramErrorStack(error: Error, phase: string, context?: MediaDiagnosticContext) {
+    try {
+        console.error("[media-stack]", phase, context?.type || "-", context?.taskId || "-", stackFrames(error, STACK_LOG_FRAMES));
+        return stackFrames(error, STACK_DIAGNOSTIC_FRAMES);
+    } catch {
+        return undefined;
+    }
+}
+
+function stackFrames(error: Error, limit: number) {
+    return (error.stack || "")
+        .split("\n")
+        .slice(1, limit + 1)
+        .map((line) =>
+            line
+                .trim()
+                .replace(/^at\s+/, "")
+                .replace(/\/app\/web\/\.next\/server\//g, ""),
+        )
+        .filter(Boolean)
+        .join(" | ");
 }
 
 export function currentMediaTraceHeaders(url: string, headers?: HeadersInit) {

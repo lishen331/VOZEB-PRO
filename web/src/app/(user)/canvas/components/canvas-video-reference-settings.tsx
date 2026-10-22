@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import type { VideoReferenceRole } from "@/lib/video-reference-contract";
+import { VIDEO_REFERENCE_MAX_SIDE, VIDEO_REFERENCE_MIN_SIDE, videoReferenceSizeIssues } from "@/lib/video-reference-size";
 
 import type { CanvasNodeMetadata, CanvasVideoFrameSelection } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
@@ -69,11 +70,19 @@ export function CanvasVideoReferenceSettings({
 
     if (generationMode !== "first_last") {
         const hint = generationMode === "text_to_video" ? "纯文本生成，不使用任何参考素材。" : generationMode === "omni_reference" ? "已连接的图片、视频和音频会按普通参考素材发送。" : "已连接的图片会按参考素材发送。";
+        const sizeIssues = generationMode === "text_to_video" ? [] : videoReferenceSizeIssues(frameOptions.map(({ reference }) => reference));
         return (
             <section className="space-y-2" data-canvas-video-reference-settings>
                 <p className="text-[11px] leading-4" style={{ color: theme.node.faint }}>
                     {hint}
                 </p>
+                {sizeIssues.length ? (
+                    <p data-canvas-video-reference-size-warning className="rounded-md border px-2 py-1.5 text-[11px] leading-4" style={{ background: theme.node.warningSurface, borderColor: theme.node.warningBorder, color: theme.node.warningText }}>
+                        {sizeIssues.map((issue) => `图片${issue.index}（${issue.width}×${issue.height}）`).join("、")}
+                        不在视频模型要求的每边 {VIDEO_REFERENCE_MIN_SIDE}–{VIDEO_REFERENCE_MAX_SIDE} 像素内，
+                        {sizeIssues.some((issue) => issue.target === "impossible") ? "比例过于狭长，请先裁剪。" : "提交时会自动调整尺寸，放大会降低清晰度。"}
+                    </p>
+                ) : null}
             </section>
         );
     }

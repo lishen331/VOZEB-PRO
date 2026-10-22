@@ -22,17 +22,36 @@ describe("video provider image references", () => {
         mocks.sign.mockReturnValue("https://site.example/api/reference-assets/temporary/reference.png?purpose=provider-read&expires=9999999999&signature=normalized");
     });
 
-    it("keeps PNG and JPEG references on the zero-copy path", async () => {
+    it("keeps in-range PNG and JPEG references unchanged without writing a copy", async () => {
+        const png = await sharp({ create: { width: 640, height: 360, channels: 3, background: "red" } })
+            .png()
+            .toBuffer();
+        const jpeg = await sharp({ create: { width: 640, height: 360, channels: 3, background: "red" } })
+            .jpeg()
+            .toBuffer();
+        mocks.fetchExternal.mockImplementation(async (url: string) => new Response(url.endsWith(".png") ? png : jpeg));
         const references = [image("https://cdn.example.com/reference.png"), image("https://cdn.example.com/reference.jpg")];
 
         await expect(normalize(references)).resolves.toEqual(references);
-        expect(mocks.fetchInternal).not.toHaveBeenCalled();
-        expect(mocks.fetchExternal).not.toHaveBeenCalled();
         expect(mocks.writeReference).not.toHaveBeenCalled();
     });
 
-    it("converts an internal WebP original to a lossless PNG reference without resizing", async () => {
-        const webp = await sharp({ create: { width: 37, height: 23, channels: 4, background: { r: 20, g: 40, b: 60, alpha: 0.5 } } })
+    it("upscales a reference whose short side is below 300px", async () => {
+        const png = await sharp({ create: { width: 444, height: 283, channels: 3, background: "red" } })
+            .png()
+            .toBuffer();
+        mocks.fetchExternal.mockResolvedValue(new Response(png));
+
+        const [result] = await normalize([image("https://cdn.example.com/small.png")]);
+
+        expect(result?.url).toContain("signature=normalized");
+        const dataUrl = mocks.writeReference.mock.calls[0]?.[0] as string;
+        const bytes = Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
+        await expect(sharp(bytes).metadata()).resolves.toMatchObject({ format: "png", width: 471, height: 300 });
+    });
+
+    it("converts an in-range internal WebP original to a lossless PNG reference without resizing", async () => {
+        const webp = await sharp({ create: { width: 370, height: 330, channels: 4, background: { r: 20, g: 40, b: 60, alpha: 0.5 } } })
             .webp()
             .toBuffer();
         mocks.fetchInternal.mockResolvedValue(new Response(webp, { headers: { "content-type": "image/webp", "content-length": String(webp.length) } }));
@@ -43,15 +62,18 @@ describe("video provider image references", () => {
         expect(mocks.fetchInternal).toHaveBeenCalledWith("http://internal/api/reference-assets/temporary/source.webp?purpose=provider-read&signature=test", { cache: "no-store" });
         const dataUrl = mocks.writeReference.mock.calls[0]?.[0] as string;
         const bytes = Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
-        await expect(sharp(bytes).metadata()).resolves.toMatchObject({ format: "png", width: 37, height: 23 });
+        await expect(sharp(bytes).metadata()).resolves.toMatchObject({ format: "png", width: 370, height: 330 });
         expect(mocks.writeReference).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/png;base64,/), "image", expect.objectContaining({ ownerUserId: "user-one", source: "video-reference-normalization", maxBytes: 20 * 1024 * 1024 }));
     });
 
     it("removes local WebP preview parameters and submits the original PNG source", async () => {
+        const png = await sharp({ create: { width: 640, height: 360, channels: 3, background: "red" } })
+            .png()
+            .toBuffer();
+        mocks.fetchInternal.mockResolvedValue(new Response(png));
         const [result] = await normalize([image("https://site.example/api/reference-assets/permanent/source.png?purpose=provider-read&expires=9999999999&signature=source&format=webp&width=320")]);
 
         expect(result?.url).toBe("https://site.example/api/reference-assets/permanent/source.png?expires=9999999999&purpose=provider-read&signature=source");
-        expect(mocks.fetchInternal).not.toHaveBeenCalled();
         expect(mocks.fetchExternal).not.toHaveBeenCalled();
         expect(mocks.writeReference).not.toHaveBeenCalled();
     });
