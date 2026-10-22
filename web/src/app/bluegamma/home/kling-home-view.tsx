@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { Download } from "lucide-react";
@@ -22,6 +22,11 @@ import { useGammaDemo } from "@/app/bluegamma/use-gamma-demo";
 
 /** 工具行主卡推荐的专业（对应可灵 Omni 的位置） */
 const FEATURED_SLUG = "film";
+const SMOOTH_START: ScrollIntoViewOptions = { behavior: "smooth", block: "start" };
+
+function scrollToId(id: string) {
+    document.getElementById(id)?.scrollIntoView(SMOOTH_START);
+}
 
 /**
  * 本页侧栏：本身就是首页，不再放「首页 / 新首页」两个重复入口（Logo 即回首页）；
@@ -50,6 +55,16 @@ export function KlingHomeView() {
     const slides = useMemo(() => buildHomeSlides(openSubject), [openSubject]);
     const featured = gammaSubjectBySlug(FEATURED_SLUG);
     const toolSubjects = useMemo(() => GAMMA_SUBJECTS.filter((subject) => subject.slug !== FEATURED_SLUG), []);
+    const majorsRef = useRef<HTMLDivElement>(null);
+
+    const handleSidebarSelect = useCallback(
+        (key: string) => {
+            if (key === "majors") majorsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            else if (key === "plaza") scrollToId("plaza");
+            else notice("该模块的新版页面正在设计中");
+        },
+        [notice],
+    );
 
     const handleRemix = (prompt: string, slug: string) => {
         void navigator.clipboard?.writeText(prompt).catch(() => undefined);
@@ -81,7 +96,7 @@ export function KlingHomeView() {
                     activeKey="kling-home"
                     collapsed={sidebar.collapsed}
                     onToggle={sidebar.toggle}
-                    onSelect={() => notice("该模块的新版页面正在设计中")}
+                    onSelect={handleSidebarSelect}
                     actions={
                         <GammaSidebarActions
                             collapsed={sidebar.collapsed}
@@ -117,8 +132,10 @@ export function KlingHomeView() {
                             />
                         </div>
 
-                        {/* 第二行：可灵的工具行 → 12 个专业方向 */}
-                        <GammaToolRow featured={featured} subjects={toolSubjects} onPick={openSubject} />
+                        {/* 第二行：可灵的工具行 → 12 个专业方向；侧栏「专业」点击跳转到这里 */}
+                        <div ref={majorsRef} className="scroll-mt-4">
+                            <GammaToolRow featured={featured} subjects={toolSubjects} onPick={openSubject} />
+                        </div>
 
                         {/* 下方：推荐 / 关注 / 活动 + 搜索 + 专业筛选 + 瀑布流 */}
                         <div className="mt-2">
