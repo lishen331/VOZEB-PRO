@@ -222,7 +222,7 @@ export function GammaFeaturedReel({ onPlay }: { onPlay: () => void }) {
             <span className="flex flex-col items-start gap-2 text-white">
                 <GammaBadge tone="cyan">本周精选</GammaBadge>
                 <span className="text-xl font-semibold">《雾港》· 毕业设计短片</span>
-                <span className="text-[13px] text-white/70">影视摄影与制作 · 周屿 · 全片 4 分 12 秒，镜头全部由布鲁伽马生成</span>
+                <span className="text-[13px] text-white/70">影视摄影与制作 · 周屿 · 全片 4 分 12 秒，镜头全部由蓝色伽马生成</span>
             </span>
         </button>
     );
@@ -256,7 +256,7 @@ export function GammaFooter({ onNavigate }: { onNavigate: (label: string) => voi
                 ))}
             </div>
             <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--gm-border)] py-5 text-[11px] text-[var(--gm-text-3)]">
-                <span>© 2026 布鲁伽马 BlueGamma</span>
+                <span>© 2026 蓝色伽马 BlueGamma</span>
                 <span className="font-mono">v2.0 · preview</span>
             </div>
         </footer>

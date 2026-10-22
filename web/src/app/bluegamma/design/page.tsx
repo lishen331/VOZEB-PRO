@@ -4,7 +4,7 @@ import { GammaThemeProvider } from "@/components/gamma-ui/gamma-theme";
 import { GammaDesignView } from "@/app/bluegamma/design/design-view";
 
 export const metadata: Metadata = {
-    title: "布鲁伽马 · 设计系统",
+    title: "蓝色伽马 · 设计系统",
     robots: { index: false, follow: false },
 };
 

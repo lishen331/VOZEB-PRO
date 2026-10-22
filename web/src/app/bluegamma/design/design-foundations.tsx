@@ -75,7 +75,7 @@ export function DesignBrand() {
                         {/* eslint-disable-next-line @next/next/no-img-element -- 品牌资源 */}
                         <img src="/brand/bluegamma-mark.png" alt="" width={40} height={40} className="rounded-full" />
                         <span className="flex flex-col leading-none">
-                            <span className="text-[15px] font-semibold tracking-[0.06em] text-[#0b1530]">布鲁伽马</span>
+                            <span className="text-[15px] font-semibold tracking-[0.06em] text-[#0b1530]">蓝色伽马</span>
                             <span className="mt-1 text-[10px] font-medium tracking-[0.22em] text-[var(--gm-blue)] uppercase">BlueGamma</span>
                         </span>
                     </span>

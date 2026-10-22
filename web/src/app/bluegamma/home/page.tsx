@@ -4,7 +4,7 @@ import { GammaThemeProvider } from "@/components/gamma-ui/gamma-theme";
 import { KlingHomeView } from "@/app/bluegamma/home/kling-home-view";
 
 export const metadata: Metadata = {
-    title: "布鲁伽马 BlueGamma · 首页（可灵版式）",
+    title: "蓝色伽马 BlueGamma · 首页（可灵版式）",
     robots: { index: false, follow: false },
 };
 

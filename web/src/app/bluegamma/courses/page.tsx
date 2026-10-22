@@ -5,7 +5,7 @@ import { GammaThemeProvider } from "@/components/gamma-ui/gamma-theme";
 import { CourseView } from "@/app/bluegamma/courses/course-view";
 
 export const metadata: Metadata = {
-    title: "布鲁伽马 BlueGamma · 课程（教师备课）",
+    title: "蓝色伽马 BlueGamma · 课程（教师备课）",
     robots: { index: false, follow: false },
 };
 

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 export const GAMMA_BRAND = {
-    name: "布鲁伽马",
+    name: "蓝色伽马",
     nameEn: "BlueGamma",
     mark: "/brand/bluegamma-mark.png",
 } as const;

@@ -56,7 +56,7 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
                     >
                         <Menu className="size-5" />
                     </button>
-                    <Link href="/" aria-label="布鲁伽马首页" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
+                    <Link href="/" aria-label="蓝色伽马首页" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
                         <GammaLogo size={26} showText />
                     </Link>
                 </header>

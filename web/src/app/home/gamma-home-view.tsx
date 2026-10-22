@@ -193,7 +193,7 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
                                 </button>
                             }
                         >
-                            ✦ 品牌焕新：正式更名「布鲁伽马 BlueGamma」，12 个设计专业全面上线
+                            ✦ 品牌焕新：正式更名「蓝色伽马 BlueGamma」，12 个设计专业全面上线
                         </GammaAnnouncement>
                     </motion.div>
                 ) : null}

@@ -14,6 +14,8 @@ vi.mock("./install/install-wizard", () => ({ InstallWizard: () => null }));
 // 首页侧栏按登录态与功能模块过滤：这里按未登录访客处理，不连数据库
 vi.mock("@/lib/server/page-access", () => ({ getAuthenticatedPageAccess: vi.fn().mockResolvedValue({ user: null, install: null }) }));
 vi.mock("@/lib/auth/store", () => ({ getFreshAuthSettings: vi.fn().mockResolvedValue({ featureModules: {} }) }));
+vi.mock("@/lib/server/school-access-service", () => ({ getSchoolContextForUser: vi.fn().mockResolvedValue(null) }));
+vi.mock("@/lib/server/user-navigation-permissions", () => ({ getUserNavigationMenuPermissions: vi.fn().mockResolvedValue({}) }));
 
 import HomePage from "./page";
 import InstallPage from "./install/page";
@@ -43,7 +45,16 @@ describe("installation page routing", () => {
         expect(mocks.redirect).toHaveBeenCalledWith("/install");
     });
 
-    it("renders the homepage after setup is complete", async () => {
+    it("redirects anonymous visitors to the login page once setup is complete", async () => {
+        mocks.getInstallStatus.mockResolvedValue({ ready: true });
+
+        await expect(HomePage()).rejects.toThrow("redirect:/login?next=%2F");
+        expect(mocks.redirect).toHaveBeenCalledWith("/login?next=%2F");
+    });
+
+    it("renders the homepage for a logged-in user once setup is complete", async () => {
+        const { getAuthenticatedPageAccess } = await import("@/lib/server/page-access");
+        vi.mocked(getAuthenticatedPageAccess).mockResolvedValue({ user: { id: "u1" }, install: null } as never);
         mocks.getInstallStatus.mockResolvedValue({ ready: true });
 
         await expect(HomePage()).resolves.toBeTruthy();

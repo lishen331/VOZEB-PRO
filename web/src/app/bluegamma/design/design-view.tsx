@@ -97,7 +97,7 @@ export function GammaDesignView() {
                         <header className="flex flex-col gap-3">
                             <span className="text-xs font-medium tracking-[0.2em] text-[var(--gm-accent)] uppercase">Community · Design System</span>
                             <h1 className="text-[32px] leading-tight font-semibold">
-                                布鲁伽马 <span className="gm-gradient-text">Gamma UI</span>
+                                蓝色伽马 <span className="gm-gradient-text">Gamma UI</span>
                             </h1>
                             <p className="max-w-2xl text-sm leading-relaxed text-[var(--gm-text-2)]">新版视觉的完整组件与动效规范。所有组件都可以直接点、拖、输入，看到的就是上线后的真实效果。</p>
                             <div className="mt-2 flex gap-2">

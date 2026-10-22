@@ -62,7 +62,7 @@ export function GammaRail({ items, activeKey, onSelect, footer }: { items: reado
             className="gm-scroll relative z-30 flex h-full shrink-0 flex-col overflow-y-auto border-r border-[var(--gm-border)] bg-[var(--gm-bg-elevated)] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-[linear-gradient(180deg,transparent,var(--gm-glass-edge),transparent)] after:opacity-40"
         >
             <div className={cn("flex h-14 shrink-0 items-center", expanded ? "px-4" : "justify-center")}>
-                <Link href="/bluegamma" aria-label="布鲁伽马首页" className="rounded-full transition-transform duration-300 hover:rotate-[-8deg] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
+                <Link href="/bluegamma" aria-label="蓝色伽马首页" className="rounded-full transition-transform duration-300 hover:rotate-[-8deg] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
                     <GammaLogo size={expanded ? 30 : 36} showText={expanded} />
                 </Link>
             </div>

@@ -9,7 +9,7 @@ import { useGammaTheme } from "@/components/gamma-ui/gamma-theme";
 import { cn } from "@/lib/utils";
 
 const SAMPLE_TITLE = "把每个灵感，变成一件作品";
-const SAMPLE_BODY = "选择专业方向，描述你的设计构想，布鲁伽马会生成效果图、概念镜头与成片。";
+const SAMPLE_BODY = "选择专业方向，描述你的设计构想，蓝色伽马会生成效果图、概念镜头与成片。";
 const SAMPLE_META = "2,680 积分 · 1080P · 12 个专业";
 
 /** 字体方案对比：四套方案同时渲染同一段样例，点击即切换预览字体 */

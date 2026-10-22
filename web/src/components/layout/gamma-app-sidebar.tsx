@@ -11,6 +11,7 @@ import { isHelpCenterVisible, workspaceNavActiveKey, workspaceNavItems } from "@
 import type { FeatureModuleSettings, UserNavigationMenuPermission } from "@/lib/feature-modules";
 import type { SchoolContext } from "@/lib/school-domain";
 import { resetClientSessionState } from "@/lib/client-session-reset";
+import { loginHref } from "@/lib/login-navigation";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -61,7 +62,7 @@ export function GammaAppSidebar({ collapsed, onToggle, featureModules, menuPermi
             await fetch("/api/auth/logout", { method: "POST" });
         } finally {
             resetClientSessionState();
-            window.location.assign("/");
+            window.location.assign(loginHref());
         }
     };
 

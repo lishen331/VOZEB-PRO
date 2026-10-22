@@ -16,7 +16,7 @@ const COPY: Record<GammaErrorCode, { big: string; title: string; description: st
     "403": { big: "403", title: "没有访问权限", description: "这个页面需要老师或管理员身份，如果你认为是误判，请联系学校管理员开通。" },
     "404": { big: "404", title: "页面走丢了", description: "链接可能已经失效，或者内容已被作者删除。" },
     "500": { big: "500", title: "服务开了个小差", description: "我们已经收到报错并在处理，稍后刷新即可；你未保存的内容不会丢失。" },
-    maintenance: { big: "升级中", title: "布鲁伽马正在升级", description: "预计 30 分钟内完成，升级期间生成任务会暂停排队，不会扣除积分。" },
+    maintenance: { big: "升级中", title: "蓝色伽马正在升级", description: "预计 30 分钟内完成，升级期间生成任务会暂停排队，不会扣除积分。" },
 };
 
 export function GammaErrorPage({ code, actions, traceId, className, compact = false }: { code: GammaErrorCode; actions?: ReactNode; traceId?: string; className?: string; compact?: boolean }) {

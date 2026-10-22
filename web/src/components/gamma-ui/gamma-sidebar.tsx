@@ -70,7 +70,7 @@ export function GammaSidebarRow({ collapsed, icon, label, active = false, onClic
                 </motion.span>
             ) : null}
             <span className="relative grid size-5 shrink-0 place-items-center">{icon}</span>
-            <span className={cn("relative truncate", collapsed ? "max-w-full text-[10px]" : "min-w-0 flex-1 text-left")}>{label}</span>
+            <span className={cn("relative truncate", collapsed ? "sr-only" : "min-w-0 flex-1 text-left")}>{label}</span>
             {collapsed || !trailing ? null : <span className="relative shrink-0">{trailing}</span>}
         </>
     );
@@ -136,7 +136,7 @@ export function GammaSidebar({ items, activeKey, collapsed, onToggle, onSelect, 
             className="group/sidebar relative z-30 flex h-full shrink-0 flex-col border-r border-[var(--gm-border)] bg-[var(--gm-bg-elevated)]"
         >
             <div className={cn("flex h-14 shrink-0 items-center", collapsed ? "justify-center" : "px-4")}>
-                <Link href={homeHref} aria-label="布鲁伽马首页" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
+                <Link href={homeHref} aria-label="蓝色伽马首页" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]">
                     <GammaLogo size={30} showText={!collapsed} />
                 </Link>
             </div>

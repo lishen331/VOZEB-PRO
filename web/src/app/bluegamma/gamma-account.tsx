@@ -27,7 +27,7 @@ export function GammaUpgradeModal({ open, onClose, onConfirm }: { open: boolean;
     return (
         <GammaModal
             open={open}
-            title="升级布鲁伽马创作者年卡"
+            title="升级蓝色伽马创作者年卡"
             description="12 个专业不限次数生成、作品集一键排版、工作室空间与作品共享。"
             onClose={onClose}
             footer={

@@ -5,7 +5,7 @@ import { GammaThemeProvider } from "@/components/gamma-ui/gamma-theme";
 import { FlowView } from "@/app/bluegamma/flow/flow-view";
 
 export const metadata: Metadata = {
-    title: "布鲁伽马 BlueGamma · 专业创作画布",
+    title: "蓝色伽马 BlueGamma · 专业创作画布",
     robots: { index: false, follow: false },
 };
 

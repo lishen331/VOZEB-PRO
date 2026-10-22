@@ -4,7 +4,7 @@ import { GammaThemeProvider } from "@/components/gamma-ui/gamma-theme";
 import { PracticeView } from "@/app/bluegamma/practice/practice-view";
 
 export const metadata: Metadata = {
-    title: "布鲁伽马 BlueGamma · 无限练习",
+    title: "蓝色伽马 BlueGamma · 无限练习",
     robots: { index: false, follow: false },
 };
 
