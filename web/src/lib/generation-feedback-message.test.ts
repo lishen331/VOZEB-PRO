@@ -46,3 +46,13 @@ describe("upstreamErrorDetail", () => {
         expect(upstreamErrorDetail(null)).toBeUndefined();
     });
 });
+
+describe("reference size errors", () => {
+    it.each([
+        ["Height must be between 300px and 6000px.", "参考图尺寸不符合要求（每边需 300–6000 像素），请更换更清晰的图片后重试"],
+        ["素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 Height must be between 300px and 6000px.（素材格式或规格不支持）", "参考图尺寸不符合要求（每边需 300–6000 像素），请更换更清晰的图片后重试"],
+        ["素材转换失败: Width must be between 300px and 6000px.", "参考图尺寸不符合要求（每边需 300–6000 像素），请更换更清晰的图片后重试"],
+    ])("maps %j", (raw, expected) => {
+        expect(generationUserMessage(raw)).toBe(expected);
+    });
+});
