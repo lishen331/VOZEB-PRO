@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ persist: vi.fn(async () => undefined) }));
 vi.mock("./media-task-diagnostic-store", () => ({ persistMediaDiagnostic: mocks.persist }));
-import { diagnosticNodeId, currentMediaTraceHeaders, observeMediaFetch, recordMediaTaskEvent, withMediaDiagnosticScope } from "./media-task-trace";
+import { diagnosticNodeId, currentMediaTraceHeaders, observeMediaFetch, recordMediaTaskEvent, traceMediaException, withMediaDiagnosticScope } from "./media-task-trace";
 const task = { id: "task-1", userId: "user-1", surface: "canvas", config: { channelId: "channel-1", model: "model-1" } };
 beforeEach(() => mocks.persist.mockClear());
 
@@ -49,6 +49,51 @@ describe("media trace does not change generation semantics", () => {
         await withMediaDiagnosticScope("image", task, "submit", () => observeMediaFetch("https://example.test/images", { method: "POST" }, async () => response));
         expect(clone).not.toHaveBeenCalled();
         expect(response.bodyUsed).toBe(false);
+    });
+});
+
+describe("program error stacks", () => {
+    function overflow(depth = 0): number {
+        return overflow(depth + 1) + 1;
+    }
+    function persistedEvents() {
+        return mocks.persist.mock.calls.map((call) => (call as unknown as [unknown, Record<string, unknown>])[1]);
+    }
+
+    it("logs and persists the stack of a RangeError inside a task scope", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        await expect(withMediaDiagnosticScope("image", task, "provider", async () => overflow())).rejects.toBeInstanceOf(RangeError);
+        const line = log.mock.calls.find((call) => call[0] === "[media-stack]");
+        expect(line?.slice(1, 4)).toEqual(["provider_exception", "image", "task-1"]);
+        expect(String(line?.[4])).toContain("overflow");
+        const event = persistedEvents().find((item) => item.phase === "provider_exception");
+        expect(event?.errorName).toBe("RangeError");
+        expect(String(event?.stack)).toContain("overflow");
+        log.mockRestore();
+    });
+
+    it("logs the stack even without a diagnostic context", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        await traceMediaException(new TypeError("x is not a function"));
+        expect(log.mock.calls.find((call) => call[0] === "[media-stack]")?.slice(1, 4)).toEqual(["exception", "-", "-"]);
+        expect(mocks.persist).not.toHaveBeenCalled();
+        log.mockRestore();
+    });
+
+    it("does not log stacks for ordinary business errors", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        await expect(
+            withMediaDiagnosticScope("image", task, "provider", async () => {
+                throw new Error("上游拒绝");
+            }),
+        ).rejects.toThrow("上游拒绝");
+        expect(log.mock.calls.some((call) => call[0] === "[media-stack]")).toBe(false);
+        expect(persistedEvents().find((item) => item.phase === "provider_exception")?.stack).toBeUndefined();
+        log.mockRestore();
+    });
+
+    it("keeps at least 60 stack frames", () => {
+        expect(Error.stackTraceLimit).toBeGreaterThanOrEqual(60);
     });
 });
 

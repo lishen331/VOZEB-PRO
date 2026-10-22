@@ -34,12 +34,14 @@ const stringFields = [
     "references",
     "protocol",
     "kind",
+    "stack",
 ] as const;
+const STACK_DIAGNOSTIC_MAX_CHARS = 1500;
 const numberFields = ["status", "durationMs", "referenceCount", "responseBytes", "attemptNo", "firstByteMs", "idleMs", "contentLength", "width", "height", "redirectCount"] as const;
 
 export function sanitizeDiagnosticEvent(input: Record<string, unknown>, now = Date.now()): MediaDiagnosticEvent {
     const event: MediaDiagnosticEvent = { at: now, phase: typeof input.phase === "string" ? redactDiagnosticText(input.phase).slice(0, 64) : "unknown" };
-    for (const key of stringFields) if (typeof input[key] === "string") event[key] = redactDiagnosticText(input[key]).slice(0, key === "errorMessage" || key === "references" ? 2048 : 512);
+    for (const key of stringFields) if (typeof input[key] === "string") event[key] = redactDiagnosticText(input[key]).slice(0, key === "stack" ? STACK_DIAGNOSTIC_MAX_CHARS : key === "errorMessage" || key === "references" ? 2048 : 512);
     for (const key of numberFields) if (typeof input[key] === "number" && Number.isFinite(input[key])) event[key] = input[key];
     if (typeof input.url === "string") {
         try {

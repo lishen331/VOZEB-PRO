@@ -120,7 +120,7 @@ export function textOrEmpty(value: unknown) {
 }
 
 export function explicitImageResponseFormat(config: ImageTaskConfig): (typeof IMAGE_RESPONSE_FORMATS)[number] | undefined {
-    const value = config.advancedConfig?.imageResponseFormat ?? resolveChannelModelConfig(config.advancedConfig, config.model)?.imageResponseFormat;
+    const value = resolveChannelModelConfig(config.advancedConfig, config.model)?.imageResponseFormat ?? config.advancedConfig?.imageResponseFormat;
     return value === "url" || value === "b64_json" ? value : undefined;
 }
 
@@ -755,6 +755,11 @@ export function allowsImageProtocolFallback(config: ImageTaskConfig) {
     // A model-level protocol is authoritative even when the parent channel is legacy auto/compatible.
     const protocol = resolveChannelModelConfig(config.advancedConfig, config.model)?.protocol || config.advancedConfig?.protocol;
     return !protocol || protocol === "auto" || protocol === "compatible";
+}
+
+/** An explicit per-model result format is a contract, not a hint to resubmit a paid generation. */
+export function allowsImageResponseFormatFallback(config: ImageTaskConfig) {
+    return !explicitImageResponseFormat(config) && allowsImageProtocolFallback(config);
 }
 
 export function shouldRetryJsonImageEditPayload(status: number, message: string) {
