@@ -10,6 +10,14 @@ describe("bounded media task diagnostics", () => {
         expect(event).toMatchObject({ phase: "submit", taskId: "task-1", channelId: "channel-1", url: "https://example.com/images/edits", status: 403, at: 10 });
         expect(JSON.stringify(event)).not.toMatch(/secret|password|private/);
     });
+
+    it("keeps a bounded, redacted stack summary", () => {
+        const frames = Array.from({ length: 80 }, (_, index) => `fn${index} (chunks/a._.js:1:${index})`).join(" | ");
+        const event = sanitizeDiagnosticEvent({ phase: "provider_exception", stack: `${frames} | leaked sk-abcdefghijklmnop Bearer tokenvalue123` }, 10);
+        expect(String(event.stack)).toContain("fn0 (chunks/a._.js:1:0)");
+        expect(String(event.stack).length).toBeLessThanOrEqual(1500);
+        expect(sanitizeDiagnosticEvent({ phase: "x", stack: "at f | sk-abcdefghijklmnop | Bearer tokenvalue123" }, 10).stack).not.toMatch(/sk-abcdefghijklmnop|tokenvalue123/);
+    });
     it("bounds oversized fields and the total UTF-8 event budget", () => {
         let events: ReturnType<typeof appendDiagnosticEvent> = [];
         for (let i = 0; i < 100; i++) events = appendDiagnosticEvent(events, { phase: "response", requestId: "中".repeat(10000), status: i }, i);
