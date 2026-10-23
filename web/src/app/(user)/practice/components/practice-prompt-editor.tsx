@@ -96,7 +96,7 @@ export function PracticePromptEditor({
                     autoSize={{ minRows: 4, maxRows: 10 }}
                     placeholder="可直接输入提示词，或根据上方设定生成后编辑"
                 />
-                <p className="mt-1.5 text-xs text-muted-foreground">提示词生成使用后台文本模型；编辑确认后再提交生成。</p>
+                <p className="mt-1.5 text-xs text-[var(--gm-text-3)]">提示词生成使用后台文本模型；编辑确认后再提交生成。</p>
             </div>
         </div>
     );

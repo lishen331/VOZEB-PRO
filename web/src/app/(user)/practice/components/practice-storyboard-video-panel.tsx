@@ -221,12 +221,12 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
             <PracticeMediaInput label="分镜图（必需）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={image?.url} onRemove={() => setImage(undefined)}>
                 <PracticeAssetPicker disabled={uploading} onSelect={setImage} label="从资产库选（分镜图）" />
             </PracticeMediaInput>
-            <section aria-label="音频信息" className="space-y-3 rounded-lg border border-border p-3">
+            <section aria-label="音频信息" className="space-y-3 rounded-lg border border-[var(--gm-border)] p-3">
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">音频信息 / 台词配音</span>
                     <Switch aria-label="启用台词音频" checked={audioEnabled} onChange={toggleAudio} />
                 </div>
-                <p className="text-xs text-muted-foreground">参考 Demo：选择默认音色、平台音色、历史配音或自定义音频；关闭时生成无台词音频的视频。</p>
+                <p className="text-xs text-[var(--gm-text-3)]">参考 Demo：选择默认音色、平台音色、历史配音或自定义音频；关闭时生成无台词音频的视频。</p>
                 {audioEnabled ? (
                     <>
                         <Select
@@ -244,7 +244,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
                         {audioSource === "preset" ? (
                             <>
                                 {audio?.url ? <audio controls preload="metadata" src={audio.url} className="w-full" /> : null}
-                                <p className="text-xs text-muted-foreground">{audio ? "音色已准备好，生成的视频会带上这段台词音频。" : uploading ? "正在准备音色…" : "请选择音色以准备台词音频。"}</p>
+                                <p className="text-xs text-[var(--gm-text-3)]">{audio ? "音色已准备好，生成的视频会带上这段台词音频。" : uploading ? "正在准备音色…" : "请选择音色以准备台词音频。"}</p>
                             </>
                         ) : audioSource === "upload" ? (
                             <PracticeMediaInput label="台词音频" accept="audio/*" disabled={uploading} onChoose={(file) => void chooseAudio(file)} url={audio?.url} onRemove={() => setAudio(undefined)} />
@@ -260,7 +260,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
                                     onChange={(id) => void selectAudioResult(id)}
                                 />
                                 {audio?.url ? <audio controls preload="metadata" src={audio.url} className="w-full" /> : null}
-                                {!audioHistoryLoading && !audioHistory.length ? <p className="text-xs text-muted-foreground">暂无已完成的配音，先去配音或改用上传。</p> : null}
+                                {!audioHistoryLoading && !audioHistory.length ? <p className="text-xs text-[var(--gm-text-3)]">暂无已完成的配音，先去配音或改用上传。</p> : null}
                             </>
                         )}
                         <div className="flex flex-wrap gap-2">

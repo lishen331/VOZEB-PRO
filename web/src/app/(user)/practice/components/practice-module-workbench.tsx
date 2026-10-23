@@ -293,9 +293,9 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             );
     }
     return (
-        <main className={`${styles.workbench} h-full min-h-0 overflow-y-auto bg-background text-foreground`} data-practice-workbench={module}>
+        <main className={`${styles.workbench} h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]`} data-practice-workbench={module}>
             <div className="mx-auto w-full max-w-[1440px] px-3 py-4 sm:px-6 sm:py-6">
-                <button type="button" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" onClick={() => router.push("/practice")}>
+                <button type="button" className="inline-flex items-center gap-1.5 text-sm text-[var(--gm-text-3)] hover:text-[var(--gm-text)]" onClick={() => router.push("/practice")}>
                     <ArrowLeft className="size-4" />
                     返回练习
                 </button>
@@ -312,21 +312,21 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                 >
                     新建练习
                 </Button>
-                <header className="mt-4 flex items-center justify-between border-b border-border pb-4">
+                <header className="mt-4 flex items-center justify-between border-b border-[var(--gm-border)] pb-4">
                     <div className="flex items-start gap-3">
                         <Icon className="mt-0.5 size-6 shrink-0" />
                         <div>
                             <h1 className="text-2xl font-semibold">{meta.title}</h1>
-                            <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{meta.description}</p>
+                            <p className="mt-1.5 text-sm leading-6 text-[var(--gm-text-3)]">{meta.description}</p>
                         </div>
                     </div>
                 </header>
                 <div className={styles.grid}>
-                    <section className={`${styles.input} rounded-xl border border-border bg-card p-4 sm:p-6`} aria-label="练习工具">
-                        <div className="mb-5 flex items-center gap-2 border-b border-border pb-3">
+                    <section className={`${styles.input} rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-6`} aria-label="练习工具">
+                        <div className="mb-5 flex items-center gap-2 border-b border-[var(--gm-border)] pb-3">
                             <Icon className="size-4 text-primary" />
                             <h2 className="text-sm font-semibold">创作输入</h2>
-                            <span className="ml-auto text-xs text-muted-foreground">素材与生成参数</span>
+                            <span className="ml-auto text-xs text-[var(--gm-text-3)]">素材与生成参数</span>
                         </div>
                         {loading ? (
                             <div className="grid min-h-40 place-items-center">
@@ -334,14 +334,14 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                             </div>
                         ) : capability ? (
                             <>
-                                {!capability.available ? <p className="mb-4 border border-dashed border-border p-3 text-sm text-muted-foreground">{capability.unavailableReason}</p> : null}
+                                {!capability.available ? <p className="mb-4 border border-dashed border-[var(--gm-border)] p-3 text-sm text-[var(--gm-text-3)]">{capability.unavailableReason}</p> : null}
                                 <div key={draftVersion}>{panel}</div>
                             </>
                         ) : (
                             <Empty description="当前模块不可用" />
                         )}
                     </section>
-                    <section className={`${styles.result} rounded-xl border border-border bg-card p-4 sm:p-6`} aria-label="当前结果">
+                    <section className={`${styles.result} rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-6`} aria-label="当前结果">
                         <div className="flex items-center justify-between gap-3">
                             <h2 className="text-base font-semibold">练习结果</h2>
                             <Button type="text" size="small" icon={<RefreshCw className="size-4" />} loading={refreshing} onClick={() => void refresh()} aria-label="刷新练习状态" />
@@ -349,7 +349,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                         <SessionResult module={module} session={current} onRetry={(session) => void loadIntoForm(session)} onRefresh={() => void refresh()} />
                     </section>
                 </div>
-                <section className="mt-7 border-t border-border pt-5" aria-labelledby="practice-module-history">
+                <section className="mt-7 border-t border-[var(--gm-border)] pt-5" aria-labelledby="practice-module-history">
                     <h2 id="practice-module-history" className="text-base font-semibold">
                         历史练习
                     </h2>
