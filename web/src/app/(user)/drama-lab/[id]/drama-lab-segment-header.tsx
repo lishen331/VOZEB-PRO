@@ -12,11 +12,11 @@ type Props = {
 
 export function DramaLabSegmentHeader({ group }: Props) {
     return (
-        <h3 className="border-b border-border bg-muted/30 px-3 py-2">
+        <h3 className="border-b border-[var(--gm-border)] bg-[var(--gm-wash)]/30 px-3 py-2">
             <div className="flex w-full min-w-0 flex-wrap items-center gap-2 text-left">
                 <span className="min-w-0 break-words font-medium">{group.label}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{group.rangeLabel}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{group.shots.length} 个镜头</span>
+                <span className="shrink-0 text-xs text-[var(--gm-text-3)]">{group.rangeLabel}</span>
+                <span className="shrink-0 text-xs text-[var(--gm-text-3)]">{group.shots.length} 个镜头</span>
             </div>
         </h3>
     );

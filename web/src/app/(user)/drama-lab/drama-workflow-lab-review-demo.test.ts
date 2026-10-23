@@ -18,7 +18,7 @@ describe("drama workflow lab review panel", () => {
         expect(reviewPanel).not.toContain("setTimeout");
         expect(reviewPanel).not.toContain("演示报告");
 
-        expect(source).toContain("overflow-x-auto border-b border-border bg-card");
+        expect(source).toContain("overflow-x-auto border-b border-[var(--gm-border)] bg-[var(--gm-surface)]");
         expect(source).toContain("lg:flex");
         expect(source).toContain('className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6"');
     });

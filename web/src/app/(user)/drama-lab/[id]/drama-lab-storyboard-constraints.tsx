@@ -33,7 +33,7 @@ export function DramaLabStoryboardConstraints({
 }: DramaLabStoryboardConstraintsProps) {
     const visible = (id: keyof typeof DRAMA_LAB_UI_FEATURES) => isDramaLabUiFeatureEnabled({ featureModules }, DRAMA_LAB_UI_FEATURES[id]);
     return (
-        <div className="mb-4 space-y-3 rounded-lg border border-border p-3" aria-label="分镜生成配置">
+        <div className="mb-4 space-y-3 rounded-lg border border-[var(--gm-border)] p-3" aria-label="分镜生成配置">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3" aria-label="分镜数量与时长">
                 {(
                     [
@@ -43,7 +43,7 @@ export function DramaLabStoryboardConstraints({
                 ).map(([key, title, label]) => (
                     <div key={key} style={{ display: visible(key === "shotCount" ? "storyboardCount" : "storyboardDuration") ? undefined : "none" }} className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label={`${title}配置`}>
                         <span>{label}</span>
-                        <div className="inline-flex h-9 overflow-hidden rounded border border-input bg-background">
+                        <div className="inline-flex h-9 overflow-hidden rounded border border-input bg-[var(--gm-bg)]">
                             <button
                                 type="button"
                                 aria-label={`减少${title}`}
@@ -52,7 +52,7 @@ export function DramaLabStoryboardConstraints({
                                     const next = Number(value[key]) - 5;
                                     onChange({ ...value, [key]: next > 0 ? String(next) : "" });
                                 }}
-                                className="w-8 border-r border-input hover:bg-muted disabled:opacity-40"
+                                className="w-8 border-r border-input hover:bg-[var(--gm-wash)] disabled:opacity-40"
                             >
                                 −
                             </button>
@@ -72,7 +72,7 @@ export function DramaLabStoryboardConstraints({
                                 disabled={disabled}
                                 // L uses five-unit buttons; manual count entry still accepts every positive integer.
                                 onClick={() => onChange({ ...value, [key]: String((Number(value[key]) || 0) + 5) })}
-                                className="w-8 border-l border-input hover:bg-muted disabled:opacity-40"
+                                className="w-8 border-l border-input hover:bg-[var(--gm-wash)] disabled:opacity-40"
                             >
                                 +
                             </button>
@@ -82,11 +82,11 @@ export function DramaLabStoryboardConstraints({
                             aria-label={`${title}由 AI 决定`}
                             disabled={disabled || !value[key].trim()}
                             onClick={() => onChange({ ...value, [key]: "" })}
-                            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                            className="text-xs text-[var(--gm-text-3)] hover:text-[var(--gm-text)] disabled:opacity-40"
                         >
                             自动
                         </button>
-                        <span className="text-xs text-muted-foreground">留空由 AI 决定</span>
+                        <span className="text-xs text-[var(--gm-text-3)]">留空由 AI 决定</span>
                     </div>
                 ))}
                 {onSequenceModeChange && (
@@ -97,7 +97,7 @@ export function DramaLabStoryboardConstraints({
                             value={sequenceMode}
                             disabled={disabled || storyboardFrameMode === "first_last"}
                             onChange={(event) => onSequenceModeChange(event.target.value as DramaLabStoryboardSequenceMode)}
-                            className="h-9 w-28 rounded border border-input bg-background px-2"
+                            className="h-9 w-28 rounded border border-input bg-[var(--gm-bg)] px-2"
                         >
                             <option value="single">单张</option>
                             <option value="quad_grid">四宫格</option>
@@ -106,7 +106,7 @@ export function DramaLabStoryboardConstraints({
                     </label>
                 )}
             </div>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-border pt-3" aria-label="分镜创作与旁白">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-[var(--gm-border)] pt-3" aria-label="分镜创作与旁白">
                 {onStoryboardFrameModeChange && visible("storyboardFirstLast") && (
                     <label className="flex items-center gap-2 text-sm">
                         <input aria-label="首尾帧参考图" type="checkbox" checked={storyboardFrameMode === "first_last"} disabled={disabled} onChange={(event) => onStoryboardFrameModeChange(event.target.checked ? "first_last" : "single")} />
@@ -141,7 +141,7 @@ export function DramaLabStoryboardConstraints({
                     </button>
                 ) : null}
             </div>
-            <p className="text-xs text-muted-foreground">本次提取目标；提交后随任务保存，重试沿用。数量允许 ±20%，总时长允许 ±10%。</p>
+            <p className="text-xs text-[var(--gm-text-3)]">本次提取目标；提交后随任务保存，重试沿用。数量允许 ±20%，总时长允许 ±10%。</p>
         </div>
     );
 }

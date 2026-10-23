@@ -22,7 +22,7 @@ describe("outline resource editor autosave and mentions", () => {
         const source = await readFile(new URL("./page.tsx", import.meta.url), "utf8");
         expect(source).toContain("/@图[1-9]/.test");
         expect(source).toContain("!text-transparent");
-        expect(source).toContain("leading-[1.5715] text-foreground");
+        expect(source).toContain("leading-[1.5715] text-[var(--gm-text)]");
         expect(source).toContain("? (");
         expect(source).toContain("caret-foreground");
         expect(source).toContain("resourceMentionMirrorRef");

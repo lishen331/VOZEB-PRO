@@ -27,8 +27,8 @@ export function DramaLabShotAssetPicker({ label, assets, selectedIds, single = f
                         const url = asset.references?.find((ref) => ref.id === asset.primaryReferenceId)?.url || asset.references?.[0]?.url || asset.referenceImageUrl || asset.imageUrl;
                         const name = asset.location || asset.name || asset.id;
                         return (
-                            <div key={asset.id} className="flex max-w-full items-center gap-1.5 rounded border border-border p-1" title={name}>
-                                {url ? <Image src={url} alt={name} width={36} height={36} style={{ objectFit: "cover" }} /> : <span className="grid size-9 place-items-center bg-muted text-[10px]">缺图</span>}
+                            <div key={asset.id} className="flex max-w-full items-center gap-1.5 rounded border border-[var(--gm-border)] p-1" title={name}>
+                                {url ? <Image src={url} alt={name} width={36} height={36} style={{ objectFit: "cover" }} /> : <span className="grid size-9 place-items-center bg-[var(--gm-wash)] text-[10px]">缺图</span>}
                                 <span className="max-w-24 truncate text-xs">{name}</span>
                             </div>
                         );
