@@ -9,8 +9,8 @@ describe("drama lab visual asset card layout", () => {
         const source = await readFile(path, "utf8");
 
         expect(source).toContain('className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"');
-        expect(source).toContain('className="group relative flex h-[430px] cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-card transition-colors hover:border-primary/50"');
-        expect(source).toContain('className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-muted/50"');
+        expect(source).toContain('className="group relative flex h-[430px] cursor-pointer flex-col overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] transition-colors hover:border-primary/50"');
+        expect(source).toContain('className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-[var(--gm-wash)]/50"');
     });
 
     it("summarizes affected shots and opens a clickable detail modal without a locate button", async () => {

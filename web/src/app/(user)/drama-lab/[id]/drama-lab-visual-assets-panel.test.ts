@@ -198,7 +198,7 @@ describe("asset card and editor reference interactions", () => {
     it("renders the card thumbnail inside a fixed frame without forcing the image to fill it", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         const cardFrame = source.slice(source.indexOf("data-drama-lab-asset-card"), source.indexOf('<div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">'));
-        expect(cardFrame).toContain('className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-muted/50"');
+        expect(cardFrame).toContain('className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-[var(--gm-wash)]/50"');
         expect(cardFrame).toContain('className="block max-h-full max-w-full object-contain"');
         expect(cardFrame).toContain("setPreviewImage");
     });

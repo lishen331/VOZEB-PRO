@@ -22,7 +22,7 @@ describe("drama lab batch episode import dialog", () => {
         expect(source).toContain("text-left text-sm");
         expect(source).toContain("Math.max(1, value - 1)");
         expect(source).toContain("Math.min(100, value + 1)");
-        expect(source).toContain("place-items-center border-y border-border");
+        expect(source).toContain("place-items-center border-y border-[var(--gm-border)]");
     });
 
     it("accepts dropped files in the text area and parses them through the server preview route", async () => {

@@ -55,15 +55,15 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
 
     if (loading)
         return (
-            <main className="grid h-full place-items-center bg-background">
+            <main className="grid h-full place-items-center bg-[var(--gm-bg)]">
                 <Spin />
             </main>
         );
     if (error || !project || !progress) {
         return (
-            <main className="h-full overflow-y-auto bg-background px-4 py-6 sm:px-6">
+            <main className="h-full overflow-y-auto bg-[var(--gm-bg)] px-4 py-6 sm:px-6">
                 <div className="mx-auto max-w-3xl">
-                    <Link href="/drama-lab" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                    <Link href="/drama-lab" className="inline-flex items-center gap-2 text-sm text-[var(--gm-text-3)] hover:text-[var(--gm-text)]">
                         <ArrowLeft className="size-4" /> 返回短剧项目
                     </Link>
                     <Alert
@@ -83,14 +83,14 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
     }
 
     return (
-        <main className="flex h-full min-h-0 flex-col bg-background text-foreground">
-            <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border px-4 sm:px-6">
-                <Link href="/drama-lab" className="grid size-9 shrink-0 place-items-center border border-border text-muted-foreground hover:text-foreground" aria-label="返回项目列表">
+        <main className="flex h-full min-h-0 flex-col bg-[var(--gm-bg)] text-[var(--gm-text)]">
+            <header className="flex h-16 shrink-0 items-center gap-4 border-b border-[var(--gm-border)] px-4 sm:px-6">
+                <Link href="/drama-lab" className="grid size-9 shrink-0 place-items-center border border-[var(--gm-border)] text-[var(--gm-text-3)] hover:text-[var(--gm-text)]" aria-label="返回项目列表">
                     <ArrowLeft className="size-4" />
                 </Link>
                 <div className="min-w-0">
                     <h1 className="truncate text-base font-semibold">{project.title}</h1>
-                    <p className="truncate text-xs text-muted-foreground">{activeEpisode?.title || "第 1 集"}</p>
+                    <p className="truncate text-xs text-[var(--gm-text-3)]">{activeEpisode?.title || "第 1 集"}</p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                     <Button icon={<Settings2 className="size-4" />} className="hidden sm:inline-flex">
@@ -104,7 +104,7 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
                 </div>
             </header>
 
-            <nav className="shrink-0 overflow-x-auto border-b border-border bg-card px-4 sm:px-6" aria-label="短剧制作阶段">
+            <nav className="shrink-0 overflow-x-auto border-b border-[var(--gm-border)] bg-[var(--gm-surface)] px-4 sm:px-6" aria-label="短剧制作阶段">
                 <div className="mx-auto flex min-w-max justify-center">
                     {DRAMA_WORKFLOW_LAB_STAGES.map((stage, index) => {
                         const status = getDramaWorkflowLabStageStatus(stage.id, progress.activeStageId, progress.completedStageIds);
@@ -114,11 +114,11 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
                                 key={stage.id}
                                 type="button"
                                 onClick={() => setActiveStage(stage.id)}
-                                className={cn("relative flex h-16 items-center gap-2 px-4 text-sm font-medium text-muted-foreground transition hover:text-foreground", selected && "bg-muted/50 text-foreground")}
+                                className={cn("relative flex h-16 items-center gap-2 px-4 text-sm font-medium text-[var(--gm-text-3)] transition hover:text-[var(--gm-text)]", selected && "bg-[var(--gm-wash)]/50 text-[var(--gm-text)]")}
                             >
                                 <span
                                     className={cn(
-                                        "grid size-6 place-items-center rounded-full border border-border text-xs",
+                                        "grid size-6 place-items-center rounded-full border border-[var(--gm-border)] text-xs",
                                         selected && "border-primary bg-primary text-primary-foreground",
                                         status === "completed" && !selected && "border-emerald-500 text-emerald-600",
                                     )}
@@ -126,7 +126,7 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
                                     {status === "completed" && !selected ? <Check className="size-3.5" /> : index + 1}
                                 </span>
                                 <span>{stage.label}</span>
-                                {index < DRAMA_WORKFLOW_LAB_STAGES.length - 1 ? <ArrowRight className="ml-2 size-3.5 text-muted-foreground/50" /> : null}
+                                {index < DRAMA_WORKFLOW_LAB_STAGES.length - 1 ? <ArrowRight className="ml-2 size-3.5 text-[var(--gm-text-3)]/50" /> : null}
                                 {selected ? <span className="absolute inset-x-3 bottom-0 h-0.5 bg-primary" /> : null}
                             </button>
                         );
@@ -135,10 +135,10 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
             </nav>
 
             <div className="grid min-h-0 flex-1 lg:grid-cols-[260px_minmax(0,1fr)]">
-                <aside className="hidden min-h-0 border-r border-border bg-card lg:flex lg:flex-col">
-                    <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+                <aside className="hidden min-h-0 border-r border-[var(--gm-border)] bg-[var(--gm-surface)] lg:flex lg:flex-col">
+                    <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--gm-border)] px-4">
                         <span className="text-sm font-semibold">
-                            剧集 <span className="ml-1 text-muted-foreground">{project.episodes.length}</span>
+                            剧集 <span className="ml-1 text-[var(--gm-text-3)]">{project.episodes.length}</span>
                         </span>
                         <Button type="text" size="small" icon={<Plus className="size-4" />} aria-label="新建集数" />
                     </div>
@@ -148,12 +148,12 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
                                 key={episode.id}
                                 type="button"
                                 onClick={() => setActiveEpisodeId(episode.id)}
-                                className={cn("mb-2 flex w-full items-start gap-3 border border-transparent px-3 py-3 text-left hover:bg-muted/50", activeEpisode?.id === episode.id && "border-primary/40 bg-primary/5")}
+                                className={cn("mb-2 flex w-full items-start gap-3 border border-transparent px-3 py-3 text-left hover:bg-[var(--gm-wash)]/50", activeEpisode?.id === episode.id && "border-primary/40 bg-primary/5")}
                             >
-                                <span className="grid size-9 shrink-0 place-items-center bg-muted text-xs font-semibold">{String(index + 1).padStart(2, "0")}</span>
+                                <span className="grid size-9 shrink-0 place-items-center bg-[var(--gm-wash)] text-xs font-semibold">{String(index + 1).padStart(2, "0")}</span>
                                 <span className="min-w-0">
                                     <span className="block truncate text-sm font-medium">{episode.title || `第 ${index + 1} 集`}</span>
-                                    <span className="mt-1 block truncate text-xs text-muted-foreground">
+                                    <span className="mt-1 block truncate text-xs text-[var(--gm-text-3)]">
                                         {episode.script.length} 字 · {episode.shots.length} 分镜
                                     </span>
                                 </span>
@@ -167,14 +167,14 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
 
                 <section className="min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
                     <div className="mx-auto max-w-6xl">
-                        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
+                        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--gm-border)] pb-5">
                             <div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
                                     <FlaskConical className="size-4" />
                                     LocalMiniDrama 工作区
                                 </div>
                                 <h2 className="mt-2 text-xl font-semibold">{DRAMA_WORKFLOW_LAB_STAGES.find((stage) => stage.id === activeStage)?.label}</h2>
-                                <p className="mt-1 text-sm text-muted-foreground">{DRAMA_WORKFLOW_LAB_STAGES.find((stage) => stage.id === activeStage)?.description}</p>
+                                <p className="mt-1 text-sm text-[var(--gm-text-3)]">{DRAMA_WORKFLOW_LAB_STAGES.find((stage) => stage.id === activeStage)?.description}</p>
                             </div>
                             <Tag color={activeStage === progress.activeStageId ? "processing" : "default"}>{activeStage === progress.activeStageId ? "当前阶段" : "阶段预览"}</Tag>
                         </div>
@@ -195,19 +195,19 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
 function ScriptStage({ project, episode }: { project: DramaProject; episode?: DramaProject["episodes"][number] }) {
     return (
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <div className="border border-[var(--gm-border)] bg-[var(--gm-surface)]">
+                <div className="flex items-center justify-between border-b border-[var(--gm-border)] px-5 py-4">
                     <div>
                         <h3 className="font-semibold">{episode?.title || "第 1 集"} · 剧本</h3>
-                        <p className="mt-1 text-xs text-muted-foreground">先生成或导入剧本，再进入内容审核。</p>
+                        <p className="mt-1 text-xs text-[var(--gm-text-3)]">先生成或导入剧本，再进入内容审核。</p>
                     </div>
                     <Link href={`/drama/${project.id}`}>
                         <Button type="primary">编辑剧本</Button>
                     </Link>
                 </div>
-                <div className="min-h-72 whitespace-pre-wrap p-5 text-sm leading-7 text-muted-foreground">{episode?.script || "当前剧集还没有剧本内容。打开制作编辑器，可从故事梗概生成剧本或直接导入文本。"}</div>
+                <div className="min-h-72 whitespace-pre-wrap p-5 text-sm leading-7 text-[var(--gm-text-3)]">{episode?.script || "当前剧集还没有剧本内容。打开制作编辑器，可从故事梗概生成剧本或直接导入文本。"}</div>
             </div>
-            <div className="border border-border bg-muted/20 p-5">
+            <div className="border border-[var(--gm-border)] bg-[var(--gm-wash)]/20 p-5">
                 <h3 className="text-sm font-semibold">项目信息</h3>
                 <dl className="mt-4 grid gap-3 text-sm">
                     <Info label="画面比例" value={project.ratio} />
@@ -233,7 +233,7 @@ function AssetsStage({ project }: { project: DramaProject }) {
     return (
         <div className="mt-6 grid gap-4 md:grid-cols-3">
             {groups.map(({ label, icon: Icon, items }) => (
-                <div key={label} className="border border-border bg-card p-5">
+                <div key={label} className="border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
                     <div className="flex items-center justify-between">
                         <span className="flex items-center gap-2 font-semibold">
                             <Icon className="size-4" />
@@ -243,11 +243,11 @@ function AssetsStage({ project }: { project: DramaProject }) {
                     </div>
                     <div className="mt-4 space-y-2">
                         {items.slice(0, 5).map((item) => (
-                            <div key={item.id} className="border-t border-border pt-2 text-sm">
+                            <div key={item.id} className="border-t border-[var(--gm-border)] pt-2 text-sm">
                                 {item.name}
                             </div>
                         ))}
-                        {!items.length ? <p className="py-8 text-center text-sm text-muted-foreground">暂无{label}</p> : null}
+                        {!items.length ? <p className="py-8 text-center text-sm text-[var(--gm-text-3)]">暂无{label}</p> : null}
                     </div>
                 </div>
             ))}
@@ -267,11 +267,11 @@ function ExportStage({ project }: { project: DramaProject }) {
 
 function StageEmpty({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
     return (
-        <div className="mt-6 grid min-h-72 place-items-center border border-border bg-card p-8 text-center">
+        <div className="mt-6 grid min-h-72 place-items-center border border-[var(--gm-border)] bg-[var(--gm-surface)] p-8 text-center">
             <div>
-                <span className="mx-auto grid size-11 place-items-center rounded-full bg-muted text-muted-foreground">{icon}</span>
+                <span className="mx-auto grid size-11 place-items-center rounded-full bg-[var(--gm-wash)] text-[var(--gm-text-3)]">{icon}</span>
                 <h3 className="mt-4 font-semibold">{title}</h3>
-                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">{description}</p>
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[var(--gm-text-3)]">{description}</p>
             </div>
         </div>
     );
@@ -280,7 +280,7 @@ function StageEmpty({ icon, title, description }: { icon: React.ReactNode; title
 function Info({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex items-center justify-between gap-3">
-            <dt className="text-muted-foreground">{label}</dt>
+            <dt className="text-[var(--gm-text-3)]">{label}</dt>
             <dd className="truncate font-medium">{value}</dd>
         </div>
     );

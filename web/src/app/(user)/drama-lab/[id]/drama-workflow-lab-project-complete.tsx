@@ -122,7 +122,7 @@ const COLLABORATION_STAGES: Array<{ key: CollaborationStageKey; label: string; s
 ];
 
 const COLLABORATION_STATUS_STYLE: Record<CollaborationApprovalStatus, { label: string; className: string }> = {
-    draft: { label: "待提交", className: "border-border bg-muted text-muted-foreground" },
+    draft: { label: "待提交", className: "border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]" },
     submitted: { label: "审核中", className: "border-sky-300 bg-sky-50 text-sky-800" },
     approved: { label: "已通过", className: "border-emerald-300 bg-emerald-50 text-emerald-800" },
     returned: { label: "已打回", className: "border-rose-300 bg-rose-50 text-rose-800" },
@@ -1664,7 +1664,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
 
     if (loading) {
         return (
-            <main className="grid h-screen place-items-center bg-background">
+            <main className="grid h-screen place-items-center bg-[var(--gm-bg)]">
                 <Spin size="large" />
             </main>
         );
@@ -1672,7 +1672,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
 
     if (error || !project) {
         return (
-            <main className="h-screen overflow-y-auto bg-background px-4 py-6">
+            <main className="h-screen overflow-y-auto bg-[var(--gm-bg)] px-4 py-6">
                 <div className="mx-auto max-w-3xl">
                     <Link href="/drama-lab" className="inline-flex items-center gap-2 text-sm hover:underline">
                         <ArrowLeft className="size-4" /> 返回项目列表
@@ -1687,7 +1687,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     }
 
     return (
-        <main className="flex h-screen flex-col bg-background">
+        <main className="flex h-screen flex-col bg-[var(--gm-bg)]">
             {contextHolder}
             {workflowModalOpen ? (
                 <WorkflowRunModal
@@ -1742,13 +1742,13 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 />
             </Drawer>
             {/* 顶部导航栏 */}
-            <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4">
-                <Link href={`/drama-lab/${encodeURIComponent(projectId)}/outline`} aria-label="返回项目大纲" className="grid size-8 place-items-center rounded border border-border hover:bg-muted">
+            <header className="flex h-14 shrink-0 items-center gap-4 border-b border-[var(--gm-border)] bg-[var(--gm-surface)] px-4">
+                <Link href={`/drama-lab/${encodeURIComponent(projectId)}/outline`} aria-label="返回项目大纲" className="grid size-8 place-items-center rounded border border-[var(--gm-border)] hover:bg-[var(--gm-wash)]">
                     <ArrowLeft className="size-4" />
                 </Link>
                 <div className="min-w-0 flex-1">
                     <h1 className="truncate text-base font-semibold">{project.title}</h1>
-                    <p className="truncate text-xs text-muted-foreground">{activeEpisode?.title || `第 ${activeEpisode?.number || 1} 集`}</p>
+                    <p className="truncate text-xs text-[var(--gm-text-3)]">{activeEpisode?.title || `第 ${activeEpisode?.number || 1} 集`}</p>
                 </div>
                 {activeEpisode ? (
                     <Button href={dramaLabEpisodeCanvasHref(projectId, activeEpisode.id)} icon={<PanelsTopLeft className="size-4" />} aria-label="打开本集画布" title="打开本集画布">
@@ -1765,7 +1765,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             </header>
 
             {/* 步骤导航 */}
-            <nav className="flex h-14 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-card px-2 sm:justify-center sm:gap-8 sm:px-4">
+            <nav className="flex h-14 shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--gm-border)] bg-[var(--gm-surface)] px-2 sm:justify-center sm:gap-8 sm:px-4">
                 {WORKFLOW_STEPS.map((step, index) => {
                     const Icon = step.icon;
                     const isActive = activeStep === step.key;
@@ -1773,9 +1773,9 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                         <button
                             key={step.key}
                             onClick={() => setActiveStep(step.key)}
-                            className={cn("flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-medium transition-colors", isActive ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+                            className={cn("flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-medium transition-colors", isActive ? "text-primary" : "text-[var(--gm-text-3)] hover:text-[var(--gm-text)]")}
                         >
-                            <span className={cn("grid size-6 place-items-center rounded-full border text-xs", isActive ? "border-primary bg-primary text-primary-foreground" : "border-border")}>{index + 1}</span>
+                            <span className={cn("grid size-6 place-items-center rounded-full border text-xs", isActive ? "border-primary bg-primary text-primary-foreground" : "border-[var(--gm-border)]")}>{index + 1}</span>
                             <span>{step.label}</span>
                         </button>
                     );
@@ -1785,11 +1785,11 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             {/* 主内容区 */}
             <div className="flex min-h-0 flex-1">
                 {/* 左侧边栏 - 剧集列表 */}
-                <aside className={cn("hidden min-h-0 shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 lg:flex", sidebarCollapsed ? "w-14" : "w-64")}>
-                    <div className={cn("flex h-12 items-center border-b border-border", sidebarCollapsed ? "justify-center px-2" : "justify-between px-4")}>
+                <aside className={cn("hidden min-h-0 shrink-0 flex-col border-r border-[var(--gm-border)] bg-[var(--gm-surface)] transition-[width] duration-200 lg:flex", sidebarCollapsed ? "w-14" : "w-64")}>
+                    <div className={cn("flex h-12 items-center border-b border-[var(--gm-border)]", sidebarCollapsed ? "justify-center px-2" : "justify-between px-4")}>
                         {!sidebarCollapsed ? (
                             <span className="text-sm font-semibold">
-                                剧集 <span className="text-muted-foreground">{project.episodes.length}</span>
+                                剧集 <span className="text-[var(--gm-text-3)]">{project.episodes.length}</span>
                             </span>
                         ) : null}
                         <Button
@@ -1809,7 +1809,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
 
                             return (
                                 <div key={ep.id} className="mb-1">
-                                    <div className={cn("group flex min-w-0 items-center rounded text-sm transition-colors", isActive ? "bg-primary/10 text-primary" : "hover:bg-muted")}>
+                                    <div className={cn("group flex min-w-0 items-center rounded text-sm transition-colors", isActive ? "bg-primary/10 text-primary" : "hover:bg-[var(--gm-wash)]")}>
                                         {!sidebarCollapsed && episodeShots.length > 0 ? (
                                             <Button
                                                 type="text"
@@ -1849,7 +1849,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                                 ) : (
                                                     <>
                                                         <div className="font-medium truncate">{ep.title}</div>
-                                                        <div className="text-xs text-muted-foreground">
+                                                        <div className="text-xs text-[var(--gm-text-3)]">
                                                             {ep.script ? `${ep.script.length} 字` : "暂无剧本"}
                                                             {episodeShots.length > 0 && ` • ${episodeShots.length} 个分镜`}
                                                         </div>
@@ -1881,7 +1881,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                                     <button
                                                         key={shot.id}
                                                         type="button"
-                                                        className="block w-full truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                        className="block w-full truncate rounded px-2 py-1 text-left text-xs text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
                                                         onClick={() => locateStoryboardShot(ep.id, shot.id)}
                                                     >
                                                         镜头 {shot.shotNumber}: {shot.script?.slice(0, 20) || "未命名"}
@@ -1941,8 +1941,8 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     )}
                     {activeStep === "export" && <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />}
                 </div>
-                <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
-                    <div className={cn("flex h-12 items-center border-b border-border", collaborationCollapsed ? "justify-center px-2" : "justify-between px-4")}>
+                <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-[var(--gm-border)] bg-[var(--gm-surface)] transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
+                    <div className={cn("flex h-12 items-center border-b border-[var(--gm-border)]", collaborationCollapsed ? "justify-center px-2" : "justify-between px-4")}>
                         {!collaborationCollapsed ? <span className="text-sm font-semibold">团队协作与审批</span> : null}
                         <Button
                             type="text"
@@ -2398,7 +2398,7 @@ function ScriptEditor({
     return (
         <div className="mx-auto max-w-5xl space-y-6">
             {episode && (
-                <div className="rounded-lg border border-border bg-card p-6">
+                <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-6">
                     <Tabs
                         activeKey={activeTab}
                         onChange={(key) => setActiveTab(key as "create" | "select")}
@@ -2410,7 +2410,7 @@ function ScriptEditor({
                                     <div className="flex flex-col gap-4">
                                         <div className="order-1">
                                             <h2 className="text-xl font-semibold">故事生成</h2>
-                                            <p className="mt-2 text-sm text-muted-foreground">输入一段故事梗概，AI 帮你扩展成整集剧本，或直接输入小说章节。</p>
+                                            <p className="mt-2 text-sm text-[var(--gm-text-3)]">输入一段故事梗概，AI 帮你扩展成整集剧本，或直接输入小说章节。</p>
                                         </div>
 
                                         <Form className="order-2" form={form} layout="vertical" onValuesChange={scheduleSave}>
@@ -2563,7 +2563,7 @@ function ScriptEditor({
                                             <span id="drama-lab-novel-import-actions" className="inline-flex" />
 
                                             {customOptionKind ? (
-                                                <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
+                                                <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
                                                     <Input
                                                         autoFocus
                                                         value={customOptionDraft}
@@ -2581,7 +2581,7 @@ function ScriptEditor({
                                                     </Button>
                                                 </div>
                                             ) : null}
-                                            <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
+                                            <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-[var(--gm-text-3)]" aria-live="polite">
                                                 {saveStatus === "pending" ? (
                                                     <>
                                                         <LoaderCircle className="size-3.5 animate-spin" /> 自动保存等待中
@@ -2604,13 +2604,13 @@ function ScriptEditor({
                                                 ) : null}
                                             </div>
                                         </div>
-                                        <div className="order-4 border-t border-border pt-4 text-sm text-muted-foreground">
+                                        <div className="order-4 border-t border-[var(--gm-border)] pt-4 text-sm text-[var(--gm-text-3)]">
                                             <span className="font-semibold">剧本</span>
                                             <span className="mx-2">·</span>
                                             <span>{episode.script.length} 字</span>
                                         </div>
 
-                                        <div className="order-6 flex justify-end border-t border-border pt-4">
+                                        <div className="order-6 flex justify-end border-t border-[var(--gm-border)] pt-4">
                                             <Button
                                                 type="primary"
                                                 aria-label="进入资产准备"
@@ -2630,7 +2630,7 @@ function ScriptEditor({
                                 label: "选择剧本",
                                 children: (
                                     <div className="space-y-5">
-                                        <p className="text-sm text-muted-foreground">从已有项目中选择剧本后，仅把故事梗概与各集剧本文字写入当前项目，不会导入角色、场景、分镜、图片或视频。</p>
+                                        <p className="text-sm text-[var(--gm-text-3)]">从已有项目中选择剧本后，仅把故事梗概与各集剧本文字写入当前项目，不会导入角色、场景、分镜、图片或视频。</p>
                                         <Button
                                             type="primary"
                                             icon={<FileText className="size-4" />}
@@ -2666,7 +2666,7 @@ function ScriptEditor({
                                                 <Button onClick={() => setActiveTab("create")}>切换到创作剧本以编辑</Button>
                                             </div>
                                         ) : (
-                                            <div className="py-8 text-center text-muted-foreground">尚未选择剧本，请点击上方按钮</div>
+                                            <div className="py-8 text-center text-[var(--gm-text-3)]">尚未选择剧本，请点击上方按钮</div>
                                         )}
                                     </div>
                                 ),
@@ -2685,16 +2685,16 @@ function ScriptEditor({
                                         key={item.id}
                                         type="button"
                                         disabled={scriptLibraryImporting}
-                                        className="w-full rounded-lg border border-border p-3 text-left transition-colors hover:border-primary hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="w-full rounded-lg border border-[var(--gm-border)] p-3 text-left transition-colors hover:border-primary hover:bg-[var(--gm-wash)] disabled:cursor-not-allowed disabled:opacity-50"
                                         onClick={() => handleImportScript(item.id)}
                                     >
                                         <div className="font-medium">{item.title || "未命名剧本"}</div>
-                                        <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || "暂无简介"}</div>
-                                        <div className="mt-2 text-xs text-muted-foreground">{item.episodeCount} 集</div>
+                                        <div className="mt-1 line-clamp-2 text-sm text-[var(--gm-text-3)]">{item.summary || "暂无简介"}</div>
+                                        <div className="mt-2 text-xs text-[var(--gm-text-3)]">{item.episodeCount} 集</div>
                                     </button>
                                 ))
                             ) : (
-                                <div className="py-8 text-center text-muted-foreground">暂无可选择的已有项目</div>
+                                <div className="py-8 text-center text-[var(--gm-text-3)]">暂无可选择的已有项目</div>
                             )}
                         </div>
                     </Modal>
@@ -2892,10 +2892,10 @@ function CollaborationPanel({
                                 <Switch size="small" checked={collaborationEnabled} onChange={onCollaborationEnabledChange} disabled={loading} aria-label="启用团队协作" />
                             </div>
                         </div>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">项目组长和副管理员可配置审批节点，成员权限由服务端校验。</p>
+                        <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">项目组长和副管理员可配置审批节点，成员权限由服务端校验。</p>
                         {activeStage ? <p className="mt-1 text-xs text-primary">当前制作阶段：{activeStage.label}</p> : null}
                         {overview ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">
                                 当前成员 {overview.members.length} 人 · 待处理申请 {overview.joinRequests.filter((item) => item.status === "pending").length} 条
                             </p>
                         ) : null}
@@ -2920,7 +2920,7 @@ function CollaborationPanel({
                         <button
                             type="button"
                             onClick={() => onCollaborationModeChange("strict")}
-                            className={cn("border px-2 py-2 text-left text-xs", collaborationMode === "strict" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}
+                            className={cn("border px-2 py-2 text-left text-xs", collaborationMode === "strict" ? "border-primary bg-primary/10 text-primary" : "border-[var(--gm-border)] text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)]")}
                         >
                             <span className="flex items-center gap-1.5 font-medium">
                                 <LockKeyhole className="size-3.5" /> 严格
@@ -2930,7 +2930,7 @@ function CollaborationPanel({
                         <button
                             type="button"
                             onClick={() => onCollaborationModeChange("parallel")}
-                            className={cn("border px-2 py-2 text-left text-xs", collaborationMode === "parallel" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}
+                            className={cn("border px-2 py-2 text-left text-xs", collaborationMode === "parallel" ? "border-primary bg-primary/10 text-primary" : "border-[var(--gm-border)] text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)]")}
                         >
                             <span className="flex items-center gap-1.5 font-medium">
                                 <GitPullRequest className="size-3.5" /> 并行
@@ -2946,7 +2946,7 @@ function CollaborationPanel({
                     <div className="mb-2 flex items-center justify-between gap-3">
                         <div>
                             <h3 className="text-sm font-semibold">项目邀请</h3>
-                            <p className="mt-1 text-xs text-muted-foreground">通过链接或二维码申请加入，管理员确认后生效。</p>
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">通过链接或二维码申请加入，管理员确认后生效。</p>
                         </div>
                         {canManageMembers ? (
                             <Button size="small" icon={<Link2 className="size-3.5" />} loading={inviteBusy} onClick={() => void handleCreateInvite()}>
@@ -2995,7 +2995,7 @@ function CollaborationPanel({
                             </div>
                         </div>
                     ) : activeInvite ? (
-                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between gap-2 text-xs text-[var(--gm-text-3)]">
                             <span>已有有效邀请（{new Date(activeInvite.expiresAt).toLocaleDateString("zh-CN")} 到期）</span>
                             {canManageMembers ? (
                                 <Button type="link" size="small" onClick={() => void handleCreateInvite()}>
@@ -3004,7 +3004,7 @@ function CollaborationPanel({
                             ) : null}
                         </div>
                     ) : (
-                        <p className="text-xs text-muted-foreground">暂无有效邀请链接。</p>
+                        <p className="text-xs text-[var(--gm-text-3)]">暂无有效邀请链接。</p>
                     )}
                 </section>
             ) : null}
@@ -3014,7 +3014,7 @@ function CollaborationPanel({
                     <section>
                         <div className="mb-2 flex items-center justify-between gap-3">
                             <h3 className="text-sm font-semibold">审批配置</h3>
-                            <span className="text-xs text-muted-foreground">组长决定</span>
+                            <span className="text-xs text-[var(--gm-text-3)]">组长决定</span>
                         </div>
                         <div className="divide-y divide-[var(--gm-border)] overflow-hidden rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)]">
                             {COLLABORATION_STAGES.map((stage) => {
@@ -3027,9 +3027,9 @@ function CollaborationPanel({
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="text-sm font-medium">{stage.label}</span>
-                                                    {enabled ? <ApprovalStatusTag status={status} /> : <span className="border border-border px-1.5 py-0.5 text-xs text-muted-foreground">未启用</span>}
+                                                    {enabled ? <ApprovalStatusTag status={status} /> : <span className="border border-[var(--gm-border)] px-1.5 py-0.5 text-xs text-[var(--gm-text-3)]">未启用</span>}
                                                 </div>
-                                                <p className="mt-1 text-xs leading-4 text-muted-foreground">{stage.description}</p>
+                                                <p className="mt-1 text-xs leading-4 text-[var(--gm-text-3)]">{stage.description}</p>
                                             </div>
                                         </div>
                                         {enabled ? (
@@ -3070,7 +3070,7 @@ function CollaborationPanel({
                     <section>
                         <div className="mb-2 flex items-center justify-between gap-3">
                             <h3 className="text-sm font-semibold">项目成员</h3>
-                            <span className="text-xs text-muted-foreground">仅显示本项目成员</span>
+                            <span className="text-xs text-[var(--gm-text-3)]">仅显示本项目成员</span>
                         </div>
                         {overview?.members.length ? <Input.Search className="mb-2" size="small" value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} allowClear placeholder="搜索项目内成员" /> : null}
                         <div className="space-y-2 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3 text-xs">
@@ -3087,7 +3087,7 @@ function CollaborationPanel({
                                                     {memberLabel(member)}
                                                     {isViewer ? "（我）" : ""}
                                                 </p>
-                                                <p className="text-muted-foreground">{roleLabel(member.role)}</p>
+                                                <p className="text-[var(--gm-text-3)]">{roleLabel(member.role)}</p>
                                             </div>
                                             {isOwner && canEdit ? (
                                                 <Button
@@ -3143,7 +3143,7 @@ function CollaborationPanel({
                                     );
                                 })
                             ) : (
-                                <span className="text-muted-foreground">没有匹配的项目成员</span>
+                                <span className="text-[var(--gm-text-3)]">没有匹配的项目成员</span>
                             )}
                         </div>
                         {viewer && viewer.role !== "owner" ? (
@@ -3158,7 +3158,7 @@ function CollaborationPanel({
                         <section>
                             <div className="mb-2 flex items-center justify-between gap-3">
                                 <h3 className="text-sm font-semibold">待处理加入申请</h3>
-                                <span className="text-xs text-muted-foreground">管理员确认后生效</span>
+                                <span className="text-xs text-[var(--gm-text-3)]">管理员确认后生效</span>
                             </div>
                             <div className="space-y-2 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3 text-xs">
                                 {overview.joinRequests
@@ -3185,27 +3185,27 @@ function CollaborationPanel({
                         <section>
                             <div className="mb-2 flex items-center justify-between gap-3">
                                 <h3 className="text-sm font-semibold">审批历史</h3>
-                                <span className="text-xs text-muted-foreground">服务端记录</span>
+                                <span className="text-xs text-[var(--gm-text-3)]">服务端记录</span>
                             </div>
                             <div className="space-y-2 rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] p-3">
                                 {approvals.map((approval) => (
-                                    <button key={approval.id} type="button" className="block w-full border-l-2 border-border pl-2 text-left text-xs hover:border-primary" onClick={() => onLocateApproval(approval)} title="定位到审批内容">
+                                    <button key={approval.id} type="button" className="block w-full border-l-2 border-[var(--gm-border)] pl-2 text-left text-xs hover:border-primary" onClick={() => onLocateApproval(approval)} title="定位到审批内容">
                                         <div className="flex items-center justify-between gap-2">
                                             <p className="font-medium">{approvalLabel(approval)}</p>
-                                            <span className="text-muted-foreground">{approvalStatusLabel(approval.status)}</span>
+                                            <span className="text-[var(--gm-text-3)]">{approvalStatusLabel(approval.status)}</span>
                                         </div>
-                                        <p className="mt-1 text-muted-foreground">
+                                        <p className="mt-1 text-[var(--gm-text-3)]">
                                             资源：{approval.resourceType}/{approval.resourceId}
                                         </p>
                                         {approval.reviewComment ? <p className="mt-1 leading-4 text-rose-700">意见：{approval.reviewComment}</p> : null}
-                                        <p className="mt-1 text-[11px] text-muted-foreground">{new Date(approval.createdAt).toLocaleString("zh-CN")}</p>
+                                        <p className="mt-1 text-[11px] text-[var(--gm-text-3)]">{new Date(approval.createdAt).toLocaleString("zh-CN")}</p>
                                     </button>
                                 ))}
                                 {!approvals.length &&
                                     feedback.slice(0, 3).map((item) => (
                                         <div key={item.id} className="border-l-2 border-rose-400 pl-2 text-xs">
                                             <p className="font-medium">{COLLABORATION_STAGES.find((stage) => stage.key === item.stage)?.label}</p>
-                                            <p className="mt-1 leading-4 text-muted-foreground">{item.content}</p>
+                                            <p className="mt-1 leading-4 text-[var(--gm-text-3)]">{item.content}</p>
                                         </div>
                                     ))}
                             </div>
@@ -3470,7 +3470,7 @@ function WorkflowRunModal({
             <div className="space-y-6 pb-2">
                 <div>
                     <h2 className="text-base font-semibold">执行终点</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">从提示词开始自动推进；个人创作不要求逐项人工确认。</p>
+                    <p className="mt-1 text-sm text-[var(--gm-text-3)]">从提示词开始自动推进；个人创作不要求逐项人工确认。</p>
                     <Radio.Group
                         value={mode}
                         onChange={(event) => {
@@ -3480,21 +3480,21 @@ function WorkflowRunModal({
                         className="mt-4 grid w-full gap-3 md:grid-cols-3"
                     >
                         {WORKFLOW_RUN_MODES.map((item) => (
-                            <Radio key={item.value} value={item.value} className={cn("mr-0 flex min-h-28 items-start border p-4", mode === item.value ? "border-primary bg-primary/5" : "border-border")}>
+                            <Radio key={item.value} value={item.value} className={cn("mr-0 flex min-h-28 items-start border p-4", mode === item.value ? "border-primary bg-primary/5" : "border-[var(--gm-border)]")}>
                                 <span className="block pr-2">
                                     <span className="block font-medium">{item.label}</span>
-                                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                                    <span className="mt-1 block text-xs leading-5 text-[var(--gm-text-3)]">{item.description}</span>
                                 </span>
                             </Radio>
                         ))}
                     </Radio.Group>
                 </div>
 
-                <div className="border-y border-border py-5">
+                <div className="border-y border-[var(--gm-border)] py-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h2 className="text-base font-semibold">执行范围</h2>
-                            <p className="mt-1 text-sm text-muted-foreground">选择本次自动推进的剧集范围。</p>
+                            <p className="mt-1 text-sm text-[var(--gm-text-3)]">选择本次自动推进的剧集范围。</p>
                         </div>
                         <Radio.Group value={scope} onChange={(event) => setScope(event.target.value)} optionType="button" buttonStyle="solid">
                             <Radio.Button value="current">当前集</Radio.Button>
@@ -3547,24 +3547,24 @@ function WorkflowRunModal({
                             <Input value={visualStyle} onChange={(event) => setVisualStyle(event.target.value)} placeholder="例如：电影感写实" />
                         </label>
                     </div>
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-[var(--gm-border)] pt-4">
                         <div>
                             <p className="text-sm font-medium">自动导出</p>
-                            <p className="mt-1 text-xs text-muted-foreground">仅在“生成完整视频”时可用，内容审核完成后创建导出任务。</p>
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">仅在“生成完整视频”时可用，内容审核完成后创建导出任务。</p>
                         </div>
                         <Switch checked={autoExport} disabled={mode !== "video"} onChange={setAutoExport} />
                     </div>
-                    <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 text-sm text-muted-foreground">
+                    <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 text-sm text-[var(--gm-text-3)]">
                         <span>模型：使用后台默认渠道</span>
                         <span>失败策略：跳过失败项并在完成后汇总</span>
                     </div>
                 </div>
 
                 <div className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-wash)]">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gm-border)] px-4 py-3">
                         <div>
                             <h2 className="font-semibold">执行预览</h2>
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">
                                 {episodeLabel} · {selectedMode.label}
                             </p>
                         </div>
@@ -3575,7 +3575,7 @@ function WorkflowRunModal({
                                 {taskStatusLabel}
                             </span>
                         ) : workflowLoading ? (
-                            <span className="text-sm text-muted-foreground">正在读取任务状态…</span>
+                            <span className="text-sm text-[var(--gm-text-3)]">正在读取任务状态…</span>
                         ) : null}
                     </div>
                     <ol className="divide-y divide-border">
@@ -3596,20 +3596,20 @@ function WorkflowRunModal({
                                                         ? "border-rose-500 text-rose-700"
                                                         : status === "已取消"
                                                           ? "border-amber-500 text-amber-700"
-                                                          : "border-border text-muted-foreground",
+                                                          : "border-[var(--gm-border)] text-[var(--gm-text-3)]",
                                             )}
                                         >
                                             {status === "已完成" ? <CheckCircle2 className="size-3.5" /> : status === "执行中" ? <LoaderCircle className="size-3.5 animate-spin" /> : status === "失败" ? <AlertCircle className="size-3.5" /> : index + 1}
                                         </span>
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-medium">{step.label}</p>
-                                            <p className={cn("mt-0.5 text-xs text-muted-foreground", step.error ? "text-rose-700" : "truncate")}>{step.detail}</p>
+                                            <p className={cn("mt-0.5 text-xs text-[var(--gm-text-3)]", step.error ? "text-rose-700" : "truncate")}>{step.detail}</p>
                                         </div>
-                                        <span className="shrink-0 text-xs text-muted-foreground">{status}</span>
+                                        <span className="shrink-0 text-xs text-[var(--gm-text-3)]">{status}</span>
                                     </div>
                                     {children.length ? (
-                                        <div className="ml-9 mt-2 space-y-1 border-l border-border pl-3">
-                                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">子任务 · {children.length}</p>
+                                        <div className="ml-9 mt-2 space-y-1 border-l border-[var(--gm-border)] pl-3">
+                                            <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--gm-text-3)]">子任务 · {children.length}</p>
                                             {children.map((child) => {
                                                 const childStatus = child.status === "success" ? "已完成" : child.status === "running" ? "执行中" : child.status === "error" ? "失败" : child.status === "cancelled" ? "已取消" : "待执行";
                                                 const childDetail = (child.error && generationUserMessage(child.error)) || [child.episodeId && `剧集 ${child.episodeId}`, child.shotId && `镜头 ${child.shotId}`].filter(Boolean).join(" · ") || child.type;
@@ -3622,12 +3622,12 @@ function WorkflowRunModal({
                                                         ) : child.status === "error" ? (
                                                             <AlertCircle className="size-3 shrink-0 text-rose-600" />
                                                         ) : (
-                                                            <span className="size-3 shrink-0 rounded-full border border-border" />
+                                                            <span className="size-3 shrink-0 rounded-full border border-[var(--gm-border)]" />
                                                         )}
                                                         <span className="min-w-0 flex-1 truncate" title={child.key}>
                                                             {childDetail}
                                                         </span>
-                                                        <span className={cn("shrink-0", child.status === "error" ? "text-rose-700" : "text-muted-foreground")}>{childStatus}</span>
+                                                        <span className={cn("shrink-0", child.status === "error" ? "text-rose-700" : "text-[var(--gm-text-3)]")}>{childStatus}</span>
                                                     </div>
                                                 );
                                             })}
@@ -3742,7 +3742,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
     const conclusion = !review ? "尚未执行审核" : review.status === "passed" ? "可以进入成片导出" : review.status === "needs_revision" ? "建议修改后再导出" : "审核服务暂不可用";
     const statusLabel = !review ? "待执行" : review.status === "passed" ? "已通过" : review.status === "needs_revision" ? "需修改" : "暂不可用";
     const statusClass = !review
-        ? "border-border bg-muted text-muted-foreground"
+        ? "border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]"
         : review.status === "passed"
           ? "border-emerald-300 bg-emerald-50 text-emerald-800"
           : review.status === "needs_revision"
@@ -3763,7 +3763,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                             <h2 className="text-lg font-semibold">AI 内容审核</h2>
                             <span className={cn("border px-2 py-0.5 text-xs", statusClass)}>{statusLabel}</span>
                         </div>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-sm text-[var(--gm-text-3)]">
                             第 {episode?.number || 1} 集 · {episode?.title || "未命名剧集"}
                         </p>
                     </div>
@@ -3774,15 +3774,15 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
             </section>
             {reviewError ? <Alert type="error" showIcon message="审核请求失败" description={reviewError} /> : null}
             <section className="grid rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
-                <div className="border-b border-border p-6 lg:border-b-0 lg:border-r">
-                    <p className="text-sm text-muted-foreground">审核结论</p>
+                <div className="border-b border-[var(--gm-border)] p-6 lg:border-b-0 lg:border-r">
+                    <p className="text-sm text-[var(--gm-text-3)]">审核结论</p>
                     <div className="mt-2 flex flex-wrap items-center gap-3">
                         <h3 className="text-2xl font-semibold">{conclusion}</h3>
                         <span className={cn("border px-2 py-1 text-xs font-medium", statusClass)}>
                             {review ? (blockingIssueCount ? `${blockingIssueCount} 个高优先级问题` : review.status === "passed" ? "未发现阻塞项" : "请查看审核意见") : "点击开始审核"}
                         </span>
                     </div>
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">审核请求由服务端组合项目方向、资产关系和当前剧集产物后提交，结果会随任务状态持久化。</p>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--gm-text-3)]">审核请求由服务端组合项目方向、资产关系和当前剧集产物后提交，结果会随任务状态持久化。</p>
                     <div className="mt-5 flex flex-wrap gap-x-7 gap-y-3 text-sm">
                         <span>
                             <strong className="font-semibold">{issues.length}</strong> 个问题
@@ -3799,17 +3799,17 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                     <div className="grid size-24 shrink-0 place-items-center rounded-full border-8 border-primary/15 text-center">
                         <span>
                             <strong className="block text-2xl leading-none">{review?.score ?? "--"}</strong>
-                            <small className="mt-1 block text-xs text-muted-foreground">综合评分</small>
+                            <small className="mt-1 block text-xs text-[var(--gm-text-3)]">综合评分</small>
                         </span>
                     </div>
                     <div>
                         <p className="font-medium">{review ? "服务端审核结果" : "等待审核"}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">{review?.summary || "尚未生成审核报告"}</p>
+                        <p className="mt-1 text-sm text-[var(--gm-text-3)]">{review?.summary || "尚未生成审核报告"}</p>
                     </div>
                 </div>
             </section>
             <section className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)]">
-                <div className="border-b border-border px-5 py-4 sm:px-6">
+                <div className="border-b border-[var(--gm-border)] px-5 py-4 sm:px-6">
                     <h3 className="font-semibold">审核覆盖范围</h3>
                 </div>
                 <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
@@ -3820,16 +3820,16 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                         { label: "镜头视频", value: `${videoCount}/${episodeShots.length}`, detail: "动态、节奏、可用性" },
                     ].map((item) => (
                         <div key={item.label} className="px-5 py-4 sm:px-6">
-                            <p className="text-sm text-muted-foreground">{item.label}</p>
+                            <p className="text-sm text-[var(--gm-text-3)]">{item.label}</p>
                             <p className="mt-1 text-xl font-semibold">{item.value}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">{item.detail}</p>
                         </div>
                     ))}
                 </div>
             </section>
             <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <section className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)]">
-                    <div className="border-b border-border px-5 py-4 sm:px-6">
+                    <div className="border-b border-[var(--gm-border)] px-5 py-4 sm:px-6">
                         <h3 className="font-semibold">审核评分</h3>
                     </div>
                     <div className="p-5 sm:p-6">
@@ -3839,19 +3839,19 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                                     <span>综合评分</span>
                                     <strong className="font-semibold">{review.score}</strong>
                                 </div>
-                                <div className="mt-2 h-2 overflow-hidden bg-muted" role="progressbar" aria-label="综合评分" aria-valuemin={0} aria-valuemax={100} aria-valuenow={review.score}>
+                                <div className="mt-2 h-2 overflow-hidden bg-[var(--gm-wash)]" role="progressbar" aria-label="综合评分" aria-valuemin={0} aria-valuemax={100} aria-valuenow={review.score}>
                                     <div className={cn("h-full", review.score >= 85 ? "bg-emerald-500" : review.score >= 70 ? "bg-amber-500" : "bg-rose-500")} style={{ width: `${review.score}%` }} />
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">执行审核后显示模型返回的评分，不使用前端估算值。</p>
+                            <p className="text-sm text-[var(--gm-text-3)]">执行审核后显示模型返回的评分，不使用前端估算值。</p>
                         )}
                     </div>
                 </section>
                 <section className="rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)]">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gm-border)] px-5 py-4 sm:px-6">
                         <h3 className="font-semibold">待处理问题</h3>
-                        <span className="text-sm text-muted-foreground">{issues.length} 项</span>
+                        <span className="text-sm text-[var(--gm-text-3)]">{issues.length} 项</span>
                     </div>
                     <div className="divide-y divide-border">
                         {issues.length ? (
@@ -3870,13 +3870,13 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                                         </span>
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <span className="text-xs text-muted-foreground">{issue.category}</span>
+                                                <span className="text-xs text-[var(--gm-text-3)]">{issue.category}</span>
                                                 <span className={cn("px-1.5 py-0.5 text-xs", issue.severity === "high" ? "bg-rose-100 text-rose-700" : issue.severity === "medium" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700")}>
                                                     {label}优先级
                                                 </span>
                                             </div>
                                             <h4 className="mt-1 font-medium">{issue.message}</h4>
-                                            {issue.correction ? <p className="mt-1 text-sm leading-6 text-muted-foreground">修改建议：{issue.correction}</p> : null}
+                                            {issue.correction ? <p className="mt-1 text-sm leading-6 text-[var(--gm-text-3)]">修改建议：{issue.correction}</p> : null}
                                         </div>
                                         {issue.taskId ? (
                                             <Button size="small" onClick={() => onStepChange(target)}>
@@ -3887,7 +3887,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                                 );
                             })
                         ) : (
-                            <p className="p-6 text-sm text-muted-foreground">{review ? "服务端未返回需要处理的问题。" : "执行审核后显示服务端问题清单。"}</p>
+                            <p className="p-6 text-sm text-[var(--gm-text-3)]">{review ? "服务端未返回需要处理的问题。" : "执行审核后显示服务端问题清单。"}</p>
                         )}
                     </div>
                 </section>
@@ -4047,7 +4047,7 @@ function AssetResourceActions({
                     从素材库添加
                 </Button>
                 {manualAction}
-                {!episode?.script.trim() ? <span className="text-xs text-muted-foreground">请先填写当前集剧本后再提取</span> : null}
+                {!episode?.script.trim() ? <span className="text-xs text-[var(--gm-text-3)]">请先填写当前集剧本后再提取</span> : null}
             </div>
             <Modal title={`从素材库添加${label}`} open={libraryOpen} footer={null} onCancel={() => setLibraryOpen(false)}>
                 <Input allowClear className="mb-3" placeholder={`搜索素材${label}`} value={libraryKeyword} onChange={(event) => setLibraryKeyword(event.target.value)} />
@@ -4068,7 +4068,7 @@ function AssetResourceActions({
                             >
                                 <List.Item.Meta
                                     avatar={
-                                        <div className="grid size-9 place-items-center rounded bg-muted">
+                                        <div className="grid size-9 place-items-center rounded bg-[var(--gm-wash)]">
                                             <LibraryBig className="size-4" />
                                         </div>
                                     }
@@ -4079,7 +4079,7 @@ function AssetResourceActions({
                         )}
                     />
                 ) : (
-                    <div className="py-8 text-center text-sm text-muted-foreground">没有可导入的素材</div>
+                    <div className="py-8 text-center text-sm text-[var(--gm-text-3)]">没有可导入的素材</div>
                 )}
             </Modal>
         </>
@@ -4150,14 +4150,14 @@ function CharactersList({ project, episode, onSave, messageApi }: { project: Pro
                 }
             />
             <div className="mb-4">
-                <span className="text-sm text-muted-foreground">暂无本剧角色库记录，可在素材库中导入或手动添加</span>
+                <span className="text-sm text-[var(--gm-text-3)]">暂无本剧角色库记录，可在素材库中导入或手动添加</span>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
                 {project.characters.map((char) => (
-                    <div key={char.id} className="rounded-lg border border-border bg-card p-4">
+                    <div key={char.id} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4">
                         <div className="mb-2 text-base font-semibold">{char.name}</div>
-                        <div className="mb-4 text-sm text-muted-foreground">{char.description || "暂无描述"}</div>
+                        <div className="mb-4 text-sm text-[var(--gm-text-3)]">{char.description || "暂无描述"}</div>
                         <div className="flex gap-2">
                             <Button
                                 size="small"
@@ -4253,15 +4253,15 @@ function ScenesList({ project, episode, onSave, messageApi }: { project: Project
                 }
             />
             <div className="mb-4">
-                <span className="text-sm text-muted-foreground">暂无本剧场景库记录，可在素材库中导入或手动添加</span>
+                <span className="text-sm text-[var(--gm-text-3)]">暂无本剧场景库记录，可在素材库中导入或手动添加</span>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
                 {project.scenes.map((scene) => (
-                    <div key={scene.id} className="rounded-lg border border-border bg-card p-4">
+                    <div key={scene.id} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4">
                         <div className="mb-2 text-base font-semibold">{scene.location}</div>
-                        <div className="mb-1 text-xs text-muted-foreground">{scene.time || "未设置时间"}</div>
-                        <div className="mb-4 text-sm text-muted-foreground">{scene.description || "暂无描述"}</div>
+                        <div className="mb-1 text-xs text-[var(--gm-text-3)]">{scene.time || "未设置时间"}</div>
+                        <div className="mb-4 text-sm text-[var(--gm-text-3)]">{scene.description || "暂无描述"}</div>
                         <div className="flex gap-2">
                             <Button size="small" icon={<Edit2 className="size-3" />} onClick={() => handleEdit(scene)}>
                                 编辑
@@ -4352,14 +4352,14 @@ function PropsList({ project, episode, onSave, messageApi }: { project: Project;
                 }
             />
             <div className="mb-4">
-                <span className="text-sm text-muted-foreground">暂无本剧道具库记录，可在素材库中导入或手动添加</span>
+                <span className="text-sm text-[var(--gm-text-3)]">暂无本剧道具库记录，可在素材库中导入或手动添加</span>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
                 {project.props.map((prop) => (
-                    <div key={prop.id} className="rounded-lg border border-border bg-card p-4">
+                    <div key={prop.id} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4">
                         <div className="mb-2 text-base font-semibold">{prop.name}</div>
-                        <div className="mb-4 text-sm text-muted-foreground">{prop.description || "暂无描述"}</div>
+                        <div className="mb-4 text-sm text-[var(--gm-text-3)]">{prop.description || "暂无描述"}</div>
                         <div className="flex gap-2">
                             <Button size="small" icon={<Edit2 className="size-3" />} onClick={() => handleEdit(prop)}>
                                 编辑
@@ -5748,14 +5748,14 @@ function StoryboardPanel({
     };
 
     if (!episode) {
-        return <div className="text-center text-muted-foreground">请先选择一个剧集</div>;
+        return <div className="text-center text-[var(--gm-text-3)]">请先选择一个剧集</div>;
     }
 
     return (
         <div className="mx-auto max-w-[1440px]" aria-label="分镜工作台模块">
-            <section className="mb-5 space-y-4 rounded-xl border border-border bg-card p-4">
+            <section className="mb-5 space-y-4 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4">
                 <h2 className="text-lg font-semibold">
-                    分镜生成 <span className="text-sm font-normal text-muted-foreground">根据剧本、角色、场景生成分镜头脚本</span>
+                    分镜生成 <span className="text-sm font-normal text-[var(--gm-text-3)]">根据剧本、角色、场景生成分镜头脚本</span>
                 </h2>
                 <DramaLabStoryboardConstraints
                     value={constraintDraft}
@@ -5834,7 +5834,7 @@ function StoryboardPanel({
                     </section>
                 ))}
 
-                {episodeShots.length === 0 && <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">暂无分镜，点击“从剧本提取分镜”开始拆解，也可手工添加</div>}
+                {episodeShots.length === 0 && <div className="rounded-lg border border-dashed border-[var(--gm-border)] p-8 text-center text-[var(--gm-text-3)]">暂无分镜，点击“从剧本提取分镜”开始拆解，也可手工添加</div>}
             </div>
 
             <Modal title={editingShot ? "分镜配置" : "添加分镜"} open={modalVisible} onOk={handleSave} onCancel={() => setModalVisible(false)} width={800}>
@@ -6136,8 +6136,8 @@ function StoryboardWorkbenchCard({
         openPromptEditor();
     };
     return (
-        <article id={`storyboard-shot-${shot.id}`} aria-label="分镜卡片空白区域" className="group/storyboard @container/storyboard relative min-w-0 overflow-hidden rounded-lg border border-border bg-card" onClick={openPromptFromCardBlank}>
-            <header className="flex flex-row flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-3">
+        <article id={`storyboard-shot-${shot.id}`} aria-label="分镜卡片空白区域" className="group/storyboard @container/storyboard relative min-w-0 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]" onClick={openPromptFromCardBlank}>
+            <header className="flex flex-row flex-wrap items-start justify-between gap-2 border-b border-[var(--gm-border)] px-4 py-3">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-base font-semibold">
@@ -6146,7 +6146,7 @@ function StoryboardWorkbenchCard({
                         <StoryboardTaskTag status={shot.storyboardStatus} label="分镜图" />
                         <StoryboardTaskTag status={shot.generationStatus} executionPhase={shot.generationExecutionPhase} label="视频" needsReview={videoNeedsCheck} />
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-[var(--gm-text-3)]">
                         {shot.duration}s{shot.cameraAngle ? ` · ${shot.cameraAngle}` : ""}
                         {shot.cameraMotion ? ` · ${shot.cameraMotion}` : ""}
                     </p>
@@ -6192,12 +6192,12 @@ function StoryboardWorkbenchCard({
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
                     <h4 className="text-sm font-medium">{isFirstLast ? "首尾帧参考图" : isUniversal ? "全能片段与参考图" : "分镜图"}</h4>
                     {!isUniversal ? (
-                        <div data-storyboard-media="image" className="grid h-80 min-h-0 min-w-0 overflow-hidden rounded border border-border bg-muted/30">
+                        <div data-storyboard-media="image" className="grid h-80 min-h-0 min-w-0 overflow-hidden rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/30">
                             {isFirstLast ? (
                                 <div className="grid min-h-0 grid-cols-2 divide-x divide-border">
                                     {(["first", "last"] as const).map((frameType) => (
                                         <div key={frameType} className="flex min-h-0 min-w-0 flex-col p-2">
-                                            <span className="mb-1 text-xs text-muted-foreground">{frameLabel[frameType]}</span>
+                                            <span className="mb-1 text-xs text-[var(--gm-text-3)]">{frameLabel[frameType]}</span>
                                             {shot.frames?.[frameType]?.url ? (
                                                 <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
                                                     <Image
@@ -6209,7 +6209,7 @@ function StoryboardWorkbenchCard({
                                                     />
                                                 </div>
                                             ) : (
-                                                <div className="grid flex-1 place-items-center text-xs text-muted-foreground">待生成 / 上传</div>
+                                                <div className="grid flex-1 place-items-center text-xs text-[var(--gm-text-3)]">待生成 / 上传</div>
                                             )}
                                         </div>
                                     ))}
@@ -6225,7 +6225,7 @@ function StoryboardWorkbenchCard({
                                     />
                                 </div>
                             ) : (
-                                <div className="grid place-items-center text-sm text-muted-foreground">尚未生成分镜图</div>
+                                <div className="grid place-items-center text-sm text-[var(--gm-text-3)]">尚未生成分镜图</div>
                             )}
                         </div>
                     ) : null}
@@ -6233,7 +6233,7 @@ function StoryboardWorkbenchCard({
                         <div data-universal-workspace="true" className="h-80 space-y-3 overflow-y-auto rounded border border-primary/20 bg-primary/5 p-3" aria-label="全能模式片段与参考图">
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-sm font-medium">片段描述</span>
-                                <span className="text-xs text-muted-foreground">视频优先使用此字段</span>
+                                <span className="text-xs text-[var(--gm-text-3)]">视频优先使用此字段</span>
                             </div>
                             <PromptTextToolbar value={shot.universalSegmentText || ""} wrap={promptWrap} onWrapChange={setPromptWrap} />
                             <div className="flex flex-wrap items-center gap-2">
@@ -6265,7 +6265,7 @@ function StoryboardWorkbenchCard({
                                 onChange={setUniversalPromptValue}
                                 onBlur={() => onUpdate({ universalSegmentText: universalPromptValue.trim() })}
                             />
-                            {!universalReferences.length ? <div className="text-xs text-muted-foreground">请先在左栏绑定带参考图的场景、角色或道具</div> : null}
+                            {!universalReferences.length ? <div className="text-xs text-[var(--gm-text-3)]">请先在左栏绑定带参考图的场景、角色或道具</div> : null}
                         </div>
                     ) : null}
 
@@ -6393,10 +6393,10 @@ function StoryboardWorkbenchCard({
                         {(["first", "last"] as const).map((frameType) => {
                             const frame = shot.frames?.[frameType];
                             return (
-                                <div key={frameType} className="space-y-2 rounded border border-border bg-background p-2">
+                                <div key={frameType} className="space-y-2 rounded border border-[var(--gm-border)] bg-[var(--gm-bg)] p-2">
                                     <div className="flex items-center justify-between gap-2">
-                                        <div className="text-xs font-medium text-muted-foreground">{frameLabel[frameType]}</div>
-                                        <span className="text-[11px] text-muted-foreground">{frame?.status === "success" ? "已完成" : frame?.status === "running" ? "生成中" : "待生成"}</span>
+                                        <div className="text-xs font-medium text-[var(--gm-text-3)]">{frameLabel[frameType]}</div>
+                                        <span className="text-[11px] text-[var(--gm-text-3)]">{frame?.status === "success" ? "已完成" : frame?.status === "running" ? "生成中" : "待生成"}</span>
                                     </div>
                                 </div>
                             );
@@ -6422,11 +6422,11 @@ function StoryboardWorkbenchCard({
                 </section>
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 视频`}>
                     <h4 className="text-sm font-medium">分镜视频</h4>
-                    <div data-storyboard-media="video" className="grid h-80 min-w-0 rounded border border-border bg-muted/30">
+                    <div data-storyboard-media="video" className="grid h-80 min-w-0 rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/30">
                         {shot.videoUrl ? (
                             <video src={shot.videoUrl} controls className="h-full min-h-0 w-full object-contain" />
                         ) : (
-                            <div className="grid place-items-center p-3 text-center text-sm text-muted-foreground">{isUniversal ? "绑定资产参考图并完善全能提示词后可生成视频" : "生成或上传分镜图后可生成视频"}</div>
+                            <div className="grid place-items-center p-3 text-center text-sm text-[var(--gm-text-3)]">{isUniversal ? "绑定资产参考图并完善全能提示词后可生成视频" : "生成或上传分镜图后可生成视频"}</div>
                         )}
                     </div>
 
@@ -6502,11 +6502,11 @@ function StoryboardWorkbenchCard({
                         const text = audioTextForKind(shot, kind);
                         const state = audioStateForKind(shot, kind);
                         return (
-                            <div key={kind} className="rounded border border-border p-3">
+                            <div key={kind} className="rounded border border-[var(--gm-border)] p-3">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <b>{label}</b>
-                                        <p className="mt-1 text-xs text-muted-foreground">{text || `暂无${label}文本`}</p>
+                                        <p className="mt-1 text-xs text-[var(--gm-text-3)]">{text || `暂无${label}文本`}</p>
                                     </div>
                                     <Button icon={<Sparkles className="size-4" />} disabled={!text} loading={busyKeys.has(`audio:${kind}:${shot.id}`)} onClick={() => void onStartAudio(shot, kind)}>
                                         {state?.url ? `重新生成${label}` : `生成${label}`}
@@ -6528,7 +6528,7 @@ function UniversalMentionEditor({ value, references, wrap, placeholder, onChange
     const [hoveredReference, setHoveredReference] = useState<{ reference: { label: string; url: string }; rect: DOMRect }>();
     const parts = value.split(/(@图片[1-9]\d*)/g);
     return (
-        <div className="relative min-h-[132px] overflow-visible rounded-md border border-border bg-background focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-universal-mention-editor>
+        <div className="relative min-h-[132px] overflow-visible rounded-md border border-[var(--gm-border)] bg-[var(--gm-bg)] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-universal-mention-editor>
             <div ref={mirrorRef} className={cn("pointer-events-none absolute inset-0 z-30 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.5715]", !wrap && "whitespace-pre")} aria-hidden="true">
                 {value ? (
                     parts.map((part, index) => {
@@ -6547,7 +6547,7 @@ function UniversalMentionEditor({ value, references, wrap, placeholder, onChange
                         );
                     })
                 ) : (
-                    <span className="text-muted-foreground/60">{placeholder}</span>
+                    <span className="text-[var(--gm-text-3)]/60">{placeholder}</span>
                 )}
             </div>
             <textarea
@@ -6624,7 +6624,7 @@ function StoryboardPromptDialog({
 }) {
     const field = (key: keyof StoryboardPromptDraft, label: string, action?: ReactNode) => (
         <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-between gap-2 text-xs text-[var(--gm-text-3)]">
                 <span>{label}</span>
                 {action}
             </div>
@@ -6711,12 +6711,12 @@ function PromptTextToolbar({ value, wrap, onWrapChange }: { value: string; wrap:
         }
     };
     return (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" aria-label="文本工具栏">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gm-text-3)]" aria-label="文本工具栏">
             <span className="font-medium">纯文本</span>
-            <button type="button" className="rounded border border-border px-2 py-1 hover:bg-muted" onClick={() => onWrapChange(!wrap)}>
+            <button type="button" className="rounded border border-[var(--gm-border)] px-2 py-1 hover:bg-[var(--gm-wash)]" onClick={() => onWrapChange(!wrap)}>
                 {wrap ? "关闭自动换行" : "启用自动换行"}
             </button>
-            <button type="button" className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 hover:bg-muted disabled:opacity-50" disabled={!value.trim()} onClick={() => void copyPrompt()}>
+            <button type="button" className="inline-flex items-center gap-1 rounded border border-[var(--gm-border)] px-2 py-1 hover:bg-[var(--gm-wash)] disabled:opacity-50" disabled={!value.trim()} onClick={() => void copyPrompt()}>
                 <Copy className="size-3.5" />
                 复制
             </button>
@@ -6728,13 +6728,13 @@ function StoryboardTaskTag({ status, executionPhase, label, needsReview = false 
     const value = status || "idle";
     const labelMap: Record<DramaLabTaskStatus, string> = { idle: "待生成", queued: "排队中", pending: "等待中", running: "生成中", success: "已完成", error: "失败", cancelled: "已取消" };
     const classMap: Record<DramaLabTaskStatus, string> = {
-        idle: "border-border bg-muted text-muted-foreground",
+        idle: "border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]",
         queued: "border-amber-300 bg-amber-50 text-amber-800",
         pending: "border-amber-300 bg-amber-50 text-amber-800",
         running: "border-sky-300 bg-sky-50 text-sky-800",
         success: "border-emerald-300 bg-emerald-50 text-emerald-800",
         error: "border-rose-300 bg-rose-50 text-rose-800",
-        cancelled: "border-border bg-muted text-muted-foreground",
+        cancelled: "border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]",
     };
     const phaseLabelMap: Partial<Record<DramaLabVideoBatchExecutionPhase, string>> = {
         created: "已创建",
@@ -6776,7 +6776,7 @@ function GenerationHistory({ history = [], activeUrl, type, onRestore }: { histo
                     type="button"
                     title={`恢复历史结果 ${index + 1}`}
                     aria-label={`恢复历史结果 ${index + 1}`}
-                    className={cn("grid size-7 place-items-center border text-xs", activeUrl === entry.url ? "border-primary text-primary" : "border-border text-muted-foreground hover:bg-muted")}
+                    className={cn("grid size-7 place-items-center border text-xs", activeUrl === entry.url ? "border-primary text-primary" : "border-[var(--gm-border)] text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)]")}
                     onClick={() => onRestore(entry.url)}
                 >
                     {type === "image" ? <img src={entry.url} alt="" className="size-full object-cover" /> : index + 1}
@@ -6861,30 +6861,30 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
             <DramaLabFinalVideoPanel projectId={project.id} episodeId={episode.id} disabled={exportBlockedByApproval} totalShots={episodeShots.length} videoShots={videoShots.length} />
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">导出剪映草稿</h2>
-                <p className="text-sm text-muted-foreground">将当前剧集的所有分镜视频导出为剪映草稿，可直接在剪映中打开继续编辑</p>
+                <p className="text-sm text-[var(--gm-text-3)]">将当前剧集的所有分镜视频导出为剪映草稿，可直接在剪映中打开继续编辑</p>
             </div>
 
             {/* 剧集信息 */}
-            <div className="rounded-lg border border-border bg-card p-6">
+            <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-6">
                 <div className="mb-4 flex items-start justify-between">
                     <div>
                         <h3 className="text-lg font-semibold">{episode.title}</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">{project.title}</p>
+                        <p className="mt-1 text-sm text-[var(--gm-text-3)]">{project.title}</p>
                     </div>
                     <div className="rounded-lg bg-primary/10 px-3 py-1 text-sm font-medium text-primary">{videoShots.length} 个分镜</div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 border-t border-border pt-4">
+                <div className="grid grid-cols-3 gap-4 border-t border-[var(--gm-border)] pt-4">
                     <div>
-                        <div className="text-xs text-muted-foreground">总时长</div>
+                        <div className="text-xs text-[var(--gm-text-3)]">总时长</div>
                         <div className="mt-1 text-sm font-medium">{Math.round(episodeShots.reduce((sum, shot) => sum + (shot.duration || 0), 0))}秒</div>
                     </div>
                     <div>
-                        <div className="text-xs text-muted-foreground">画面比例</div>
+                        <div className="text-xs text-[var(--gm-text-3)]">画面比例</div>
                         <div className="mt-1 text-sm font-medium">{project.aspectRatio || "16:9"}</div>
                     </div>
                     <div>
-                        <div className="text-xs text-muted-foreground">视频分镜</div>
+                        <div className="text-xs text-[var(--gm-text-3)]">视频分镜</div>
                         <div className="mt-1 text-sm font-medium">
                             {videoShots.length} / {episodeShots.length}
                         </div>
@@ -6893,7 +6893,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
             </div>
 
             {/* 导出设置 */}
-            <div className="space-y-4 rounded-lg border border-border bg-card p-6">
+            <div className="space-y-4 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-6">
                 <h3 className="font-semibold">导出设置</h3>
 
                 {/* 剪映版本 */}
@@ -6911,7 +6911,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
                         剪映草稿文件夹路径 <span className="text-red-500">*</span>
                     </label>
                     <Input value={draftPath} onChange={(e) => setDraftPath(e.target.value)} placeholder="例如: C:\Users\YourName\AppData\Local\JianyingPro\User Data\Projects\com.lveditor.draft" className="font-mono text-sm" />
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-[var(--gm-text-3)]">
                         Windows 示例: C:\Users\用户名\AppData\Local\JianyingPro\User Data\Projects\com.lveditor.draft
                         <br />
                         Mac 示例: /Users/用户名/Movies/JianyingPro/User Data/Projects/com.lveditor.draft
@@ -6934,9 +6934,9 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
             </div>
 
             {/* 使用说明 */}
-            <div className="rounded-lg border border-border bg-muted/50 p-6">
+            <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)]/50 p-6">
                 <h4 className="mb-3 font-semibold">📖 使用说明</h4>
-                <ol className="space-y-2 text-sm text-muted-foreground">
+                <ol className="space-y-2 text-sm text-[var(--gm-text-3)]">
                     <li>1. 确保已安装剪映专业版（Windows/Mac）</li>
                     <li>2. 填写剪映草稿文件夹的绝对路径（可在剪映设置中查看）</li>
                     <li>3. 点击「导出剪映草稿」按钮，下载 ZIP 文件</li>
