@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
-import { ChevronLeft, Clock3, LayoutDashboard, Layers, Library, Presentation, Target } from "lucide-react";
+import { ChevronLeft, ClipboardCheck, Clock3, Inbox, LayoutDashboard, Layers, Library, PackageCheck, Presentation, Target, Users } from "lucide-react";
 
 import "@/components/gamma-ui/gamma-tokens.css";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
@@ -18,6 +18,10 @@ import { TeachDashboard } from "@/app/bluegamma/courses/teach-dashboard";
 import { GammaTabs } from "@/components/gamma-ui/gamma-controls";
 import { CourseOutline, PrepPanel, SlideViewer } from "@/app/bluegamma/courses/course-prep";
 import { CoursePresent } from "@/app/bluegamma/courses/course-present";
+import { TeachingClassesTab } from "@/app/bluegamma/courses/teaching-classes-tab";
+import { TeachingAssignmentsTab } from "@/app/bluegamma/courses/teaching-assignments-tab";
+import { TeachingSubmissionsTab } from "@/app/bluegamma/courses/teaching-submissions-tab";
+import { TeachingOrdersTab } from "@/app/bluegamma/courses/teaching-orders-tab";
 
 /** 侧栏与首页一致（课程入口已在 GAMMA_RAIL_ITEMS 里），当前页高亮「课程」 */
 const SIDEBAR_ITEMS = GAMMA_RAIL_ITEMS.filter((item) => item.key !== "home" && item.key !== "kling-home").map((item) => (item.group === "more" ? { ...item, group: "community" } : item));
@@ -148,8 +152,23 @@ export function CourseView() {
     const sidebar = useGammaSidebarState();
     const { prepared, mark } = usePrepared();
     const course = courseBySlug(params.get("c"));
-    const tab: "board" | "library" = params.get("v") === "library" ? "library" : "board";
+    const TABS = ["board", "library", "classes", "assignments", "submissions", "orders"] as const;
+    type Tab = (typeof TABS)[number];
+    const tab: Tab = (TABS as readonly string[]).includes(params.get("v") ?? "") ? (params.get("v") as Tab) : "board";
+    const presetClass = params.get("class") ?? undefined;
+    const presetAssignment = params.get("assignment") ?? undefined;
     const notice = useCallback((message: string) => demo.toast("info", message), [demo]);
+
+    const goTab = useCallback(
+        (next: Tab, extra?: Record<string, string>) => {
+            const query = new URLSearchParams();
+            if (next !== "board") query.set("v", next);
+            for (const [key, value] of Object.entries(extra ?? {})) query.set(key, value);
+            const search = query.toString();
+            router.push(`/bluegamma/courses${search ? `?${search}` : ""}`, { scroll: false });
+        },
+        [router],
+    );
 
     const go = useCallback(
         (slug?: string, lessonKey?: string) => {
@@ -185,15 +204,19 @@ export function CourseView() {
                 ) : (
                     <main className="gm-scroll relative min-w-0 flex-1 overflow-y-auto">
                         {/* 顶部切换：教学看板（默认）/ 课程资源 */}
-                        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--gm-border)] bg-[var(--gm-bg)]/80 px-6 py-3 backdrop-blur">
+                        <div className="sticky top-0 z-20 flex items-center gap-3 overflow-x-auto border-b border-[var(--gm-border)] bg-[var(--gm-bg)]/80 px-6 py-3 backdrop-blur">
                             <GammaTabs
                                 label="教学中心"
                                 size="sm"
                                 value={tab}
-                                onChange={(next) => router.push(next === "board" ? "/bluegamma/courses" : "/bluegamma/courses?v=library", { scroll: false })}
+                                onChange={(next) => goTab(next as Tab)}
                                 options={[
                                     { value: "board", label: "教学看板", icon: <LayoutDashboard className="size-3.5" /> },
                                     { value: "library", label: "课程资源", icon: <Library className="size-3.5" /> },
+                                    { value: "classes", label: "我的班级", icon: <Users className="size-3.5" /> },
+                                    { value: "assignments", label: "作业", icon: <ClipboardCheck className="size-3.5" /> },
+                                    { value: "submissions", label: "学生提交", icon: <Inbox className="size-3.5" /> },
+                                    { value: "orders", label: "商单任务", icon: <PackageCheck className="size-3.5" /> },
                                 ]}
                             />
                         </div>
@@ -201,8 +224,20 @@ export function CourseView() {
                             <div className="px-6 pt-5 pb-16">
                                 <TeachDashboard onPrep={(slug, lessonKey) => go(slug, lessonKey)} />
                             </div>
-                        ) : (
+                        ) : tab === "library" ? (
                             <CourseList prepared={prepared} onOpen={go} />
+                        ) : (
+                            <div className="px-6 pt-5 pb-16">
+                                {tab === "classes" ? (
+                                    <TeachingClassesTab onPrep={(slug, lessonKey) => go(slug, lessonKey)} onAssign={(className) => goTab("assignments", { class: className })} />
+                                ) : tab === "assignments" ? (
+                                    <TeachingAssignmentsTab presetClass={presetClass} onOpenSubmissions={(assignmentId) => goTab("submissions", { assignment: assignmentId })} />
+                                ) : tab === "submissions" ? (
+                                    <TeachingSubmissionsTab presetAssignmentId={presetAssignment} />
+                                ) : (
+                                    <TeachingOrdersTab />
+                                )}
+                            </div>
                         )}
                     </main>
                 )}
