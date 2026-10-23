@@ -24,14 +24,14 @@ export default function PracticeSessionHistory({
     return (
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {sessions.map((session) => (
-                <article key={session.id} className={`min-w-0 border p-3 ${currentId === session.id ? "border-foreground" : "border-border"}`}>
-                    <button type="button" className="flex w-full min-w-0 items-start gap-3 text-left hover:bg-muted/30" onClick={() => onOpen(session)}>
+                <article key={session.id} className={`min-w-0 border p-3 ${currentId === session.id ? "border-foreground" : "border-[var(--gm-border)]"}`}>
+                    <button type="button" className="flex w-full min-w-0 items-start gap-3 text-left hover:bg-[var(--gm-wash)]/30" onClick={() => onOpen(session)}>
                         <Preview session={session} />
                         <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-medium">{session.title}</span>
-                            <span className="mt-1 block text-xs text-muted-foreground">{practiceSessionStatusLabel(session)}</span>
+                            <span className="mt-1 block text-xs text-[var(--gm-text-3)]">{practiceSessionStatusLabel(session)}</span>
                             <SessionPrompt session={session} />
-                            <time className="mt-1 block text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleString()}</time>
+                            <time className="mt-1 block text-xs text-[var(--gm-text-3)]">{new Date(session.createdAt).toLocaleString()}</time>
                         </span>
                     </button>
                     {practiceSessionCanRetry(session) && onRetry ? (
@@ -58,7 +58,7 @@ function SessionPrompt({ session }: { session: PracticeSession }) {
     if (session.errorMessage) return <span className="mt-2 block truncate text-xs text-red-500">{session.errorMessage}</span>;
     if (!prompt) return null;
     return (
-        <span className="mt-2 block truncate text-xs text-muted-foreground" title={prompt}>
+        <span className="mt-2 block truncate text-xs text-[var(--gm-text-3)]" title={prompt}>
             {prompt}
         </span>
     );
@@ -69,24 +69,24 @@ function Preview({ session }: { session: PracticeSession }) {
     if (media?.kind === "image") return <img src={media.url} alt="" className="size-14 shrink-0 object-cover" />;
     if (media?.kind === "video")
         return (
-            <span className="grid size-14 shrink-0 place-items-center bg-muted">
+            <span className="grid size-14 shrink-0 place-items-center bg-[var(--gm-wash)]">
                 <Film className="size-5" />
             </span>
         );
     if (media?.kind === "audio")
         return (
-            <span className="grid size-14 shrink-0 place-items-center bg-muted">
+            <span className="grid size-14 shrink-0 place-items-center bg-[var(--gm-wash)]">
                 <AudioLines className="size-5" />
             </span>
         );
     if (session.module === "script")
         return (
-            <span className="grid size-14 shrink-0 place-items-center bg-muted">
+            <span className="grid size-14 shrink-0 place-items-center bg-[var(--gm-wash)]">
                 <FileText className="size-5" />
             </span>
         );
     return (
-        <span className="grid size-14 shrink-0 place-items-center bg-muted">
+        <span className="grid size-14 shrink-0 place-items-center bg-[var(--gm-wash)]">
             <ImageIcon className="size-5" />
         </span>
     );

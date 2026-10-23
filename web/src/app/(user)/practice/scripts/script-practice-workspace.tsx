@@ -418,14 +418,14 @@ export default function ScriptPracticeWorkspace() {
     const adaptationParameterValidationResult = adaptationParameterValidation(adaptationParameters);
     const confirmationActionBusy = regenerating || confirming || savingAdaptationParameters;
     return (
-        <main className="flex h-full min-h-0 flex-col bg-background text-foreground" data-script-practice-workspace>
-            <header className="flex items-center justify-between border-b border-border px-4 py-3">
+        <main className="flex h-full min-h-0 flex-col bg-[var(--gm-bg)] text-[var(--gm-text)]" data-script-practice-workspace>
+            <header className="flex items-center justify-between border-b border-[var(--gm-border)] px-4 py-3">
                 <div className="flex items-center gap-3">
                     <Button type="text" icon={<ArrowLeft className="size-4" />} onClick={() => router.push("/practice")}>
                         返回练习
                     </Button>
                     <div>
-                        <p className="text-xs text-muted-foreground">纯文字创作 · 到镜头级分镜为止</p>
+                        <p className="text-xs text-[var(--gm-text-3)]">纯文字创作 · 到镜头级分镜为止</p>
                         <h1 className="text-lg font-semibold">{selectedProject?.title || "剧本 Agent"}</h1>
                     </div>
                 </div>
@@ -444,7 +444,7 @@ export default function ScriptPracticeWorkspace() {
                 </div>
             </header>
             <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)_340px]">
-                <aside aria-label="剧本工作目录" className="min-h-0 overflow-y-auto border-r border-border bg-card p-3">
+                <aside aria-label="剧本工作目录" className="min-h-0 overflow-y-auto border-r border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                     <h2 className="mb-3 text-sm font-semibold">工作目录</h2>
                     <div className="mt-4 space-y-1">
                         {tree.map((item) => (
@@ -452,7 +452,7 @@ export default function ScriptPracticeWorkspace() {
                                 type="button"
                                 key={item.id}
                                 onClick={() => setSelectedKey(item.key)}
-                                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${selectedKey === item.key ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
+                                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${selectedKey === item.key ? "bg-primary/10 text-primary" : "hover:bg-[var(--gm-wash)]"}`}
                             >
                                 <span className="truncate">{item.label}</span>
                                 <Tag className="m-0" bordered={false} color={STATUS[item.status]?.color}>
@@ -460,11 +460,11 @@ export default function ScriptPracticeWorkspace() {
                                 </Tag>
                             </button>
                         ))}
-                        {!tree.length ? <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">从右侧告诉统筹 Agent 你的创意，成果会自动进入这里。</div> : null}
+                        {!tree.length ? <div className="rounded-lg border border-dashed border-[var(--gm-border)] p-4 text-xs text-[var(--gm-text-3)]">从右侧告诉统筹 Agent 你的创意，成果会自动进入这里。</div> : null}
                     </div>
                 </aside>
-                <section aria-label="正式创作成果" className="min-h-0 overflow-y-auto bg-muted/20 p-5">
-                    <div className="mx-auto min-h-full max-w-4xl rounded-xl border border-border bg-card p-6 shadow-sm">
+                <section aria-label="正式创作成果" className="min-h-0 overflow-y-auto bg-[var(--gm-wash)]/20 p-5">
+                    <div className="mx-auto min-h-full max-w-4xl rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-6 shadow-sm">
                         <div className="mb-5 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <BookOpen className="size-5 text-primary" />
@@ -488,7 +488,7 @@ export default function ScriptPracticeWorkspace() {
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{visible}</ReactMarkdown>
                             </article>
                         ) : (
-                            <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-muted-foreground">
+                            <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-[var(--gm-text-3)]">
                                 <Sparkles className="mb-3 size-8" />
                                 <p>成果将在 Agent 生成并保存后显示</p>
                                 <p className="mt-1 text-xs">这里不展示原始 JSON</p>
@@ -496,8 +496,8 @@ export default function ScriptPracticeWorkspace() {
                         )}
                     </div>
                 </section>
-                <aside aria-label="剧本 Agent 对话" className="flex min-h-0 flex-col border-l border-border bg-card">
-                    <div className="border-b border-border px-4 py-3">
+                <aside aria-label="剧本 Agent 对话" className="flex min-h-0 flex-col border-l border-[var(--gm-border)] bg-[var(--gm-surface)]">
+                    <div className="border-b border-[var(--gm-border)] px-4 py-3">
                         <div className="mb-2 flex items-center gap-1">
                             <Select className="min-w-0 flex-1" value={selectedId || undefined} placeholder="选择剧本对话" options={projects.map((project) => ({ value: project.id, label: project.title }))} onChange={(value) => selectProject(value)} />
                             <Button type="text" size="small" aria-label="新建剧本对话" icon={<Plus className="size-4" />} onClick={() => void runAction(create, "新建剧本失败")} />
@@ -505,7 +505,7 @@ export default function ScriptPracticeWorkspace() {
                         <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
                                 <h2 className="font-semibold">剧本 Agent</h2>
-                                <p className="truncate text-xs text-muted-foreground" title={sessionTitle}>
+                                <p className="truncate text-xs text-[var(--gm-text-3)]" title={sessionTitle}>
                                     {sessionTitle || "新剧本对话"}
                                 </p>
                             </div>
@@ -549,17 +549,17 @@ export default function ScriptPracticeWorkspace() {
                     <div className="flex-1 space-y-3 overflow-y-auto p-4">
                         {messages.map((item) => (
                             <div key={item.id} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"}`}>
-                                <div className={`max-w-[88%] rounded-xl px-3 py-2 text-sm ${item.role === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-muted/60"}`}>
+                                <div className={`max-w-[88%] rounded-xl px-3 py-2 text-sm ${item.role === "user" ? "bg-primary text-primary-foreground" : "border border-[var(--gm-border)] bg-[var(--gm-wash)]/60"}`}>
                                     {item.agent ? <div className="mb-1 text-[11px] font-medium text-primary">{item.agent || AGENT_LABEL}</div> : null}
                                     <div className="whitespace-pre-wrap">{item.content}</div>
                                 </div>
                             </div>
                         ))}
-                        {!messages.length ? <div className="rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">告诉我你想创作什么。我会先确认参数，再调度专业 Agent，并在重要节点等待你确认。</div> : null}
+                        {!messages.length ? <div className="rounded-xl bg-[var(--gm-wash)]/60 p-3 text-sm text-[var(--gm-text-3)]">告诉我你想创作什么。我会先确认参数，再调度专业 Agent，并在重要节点等待你确认。</div> : null}
                     </div>
-                    <div className="border-t border-border p-3">
+                    <div className="border-t border-[var(--gm-border)] p-3">
                         {busy && streamStatus !== "idle" ? (
-                            <div className="mb-2 text-xs text-muted-foreground">{streamStatus === "connecting" ? "正在连接 Agent…" : streamStatus === "waiting_first_token" ? "Agent 正在组织内容…" : "正在流式写作…"}</div>
+                            <div className="mb-2 text-xs text-[var(--gm-text-3)]">{streamStatus === "connecting" ? "正在连接 Agent…" : streamStatus === "waiting_first_token" ? "Agent 正在组织内容…" : "正在流式写作…"}</div>
                         ) : null}
                         {publicProgress ? <div className="mb-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">{publicProgress}</div> : null}
                         {runError ? <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">上次执行失败：{runError}</div> : null}
@@ -632,7 +632,7 @@ export default function ScriptPracticeWorkspace() {
                     </Button>,
                 ]}
             >
-                <p className="mb-3 text-sm text-muted-foreground">
+                <p className="mb-3 text-sm text-[var(--gm-text-3)]">
                     {pendingConfirmation?.artifactType === "adaptation_strategy"
                         ? "填写成片规格后，确认继续生成分集剧本；也可以直接写修改意见重新生成当前方案。"
                         : "这一阶段的成果已经完成。确认后，剧本 Agent 才会进入下一阶段；如需调整，请在下方说明后重新生成。"}
@@ -676,7 +676,7 @@ export default function ScriptPracticeWorkspace() {
                     </div>
                 ) : null}
                 {pendingConfirmation?.artifactType === "adaptation_strategy" ? (
-                    <p className={`mt-3 text-xs ${adaptationParameterValidationResult.valid ? "text-muted-foreground" : "text-destructive"}`}>
+                    <p className={`mt-3 text-xs ${adaptationParameterValidationResult.valid ? "text-[var(--gm-text-3)]" : "text-destructive"}`}>
                         {adaptationParameterValidationResult.valid
                             ? `单镜约 ${adaptationParameterValidationResult.secondsPerShot?.toFixed(1)} 秒；当前时长可拆 ${adaptationParameterValidationResult.minShotCount}–${adaptationParameterValidationResult.maxShotCount} 镜。`
                             : adaptationParameterValidationResult.message}
