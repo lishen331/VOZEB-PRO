@@ -61,11 +61,11 @@ function DramaEpisodePanel({ project, episode, permanent, onOpenChange, onStageC
 
     const filteredEpisodes = project.episodes.filter((item, index) => `${item.episodeNumber || index + 1} ${item.title}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
     return (
-        <div className="flex h-full min-h-0 flex-col bg-card" data-drama-episode-panel>
-            <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-3.5">
+        <div className="flex h-full min-h-0 flex-col bg-[var(--gm-surface)]" data-drama-episode-panel>
+            <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[var(--gm-border)] px-3.5">
                 <div className="flex min-w-0 items-center gap-2">
                     <div className="text-sm font-semibold">剧集</div>
-                    <span className="text-xs tabular-nums text-muted-foreground">{project.episodes.length}</span>
+                    <span className="text-xs tabular-nums text-[var(--gm-text-3)]">{project.episodes.length}</span>
                 </div>
                 <div className="flex items-center gap-1">
                     <Tooltip title="添加剧集">
@@ -99,7 +99,7 @@ function DramaEpisodePanel({ project, episode, permanent, onOpenChange, onStageC
                     return (
                         <div
                             key={item.id}
-                            className={`group flex min-w-0 items-center rounded-md border transition ${active ? "border-violet-300 bg-violet-50/70 dark:border-violet-700/70 dark:bg-violet-950/25" : "border-transparent bg-transparent hover:border-border hover:bg-muted/60"}`}
+                            className={`group flex min-w-0 items-center rounded-md border transition ${active ? "border-violet-300 bg-violet-50/70 dark:border-violet-700/70 dark:bg-violet-950/25" : "border-transparent bg-transparent hover:border-[var(--gm-border)] hover:bg-[var(--gm-wash)]/60"}`}
                         >
                             <button
                                 type="button"
@@ -112,13 +112,13 @@ function DramaEpisodePanel({ project, episode, permanent, onOpenChange, onStageC
                                 aria-label={`打开${item.title}`}
                             >
                                 <span
-                                    className={`grid size-8 shrink-0 place-items-center rounded text-[11px] font-semibold tabular-nums ${active ? "bg-violet-100 text-violet-700 dark:bg-violet-900/45 dark:text-violet-300" : "border border-border bg-background text-muted-foreground"}`}
+                                    className={`grid size-8 shrink-0 place-items-center rounded text-[11px] font-semibold tabular-nums ${active ? "bg-violet-100 text-violet-700 dark:bg-violet-900/45 dark:text-violet-300" : "border border-[var(--gm-border)] bg-[var(--gm-bg)] text-[var(--gm-text-3)]"}`}
                                 >
                                     {String(item.episodeNumber || index + 1).padStart(2, "0")}
                                 </span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-sm font-medium text-foreground">{item.title}</span>
-                                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                                    <span className="block truncate text-sm font-medium text-[var(--gm-text)]">{item.title}</span>
+                                    <span className="mt-0.5 block truncate text-[11px] text-[var(--gm-text-3)]">
                                         {item.script.length} 字 · {item.shots.length} 场 · {progress}
                                     </span>
                                 </span>
@@ -128,7 +128,7 @@ function DramaEpisodePanel({ project, episode, permanent, onOpenChange, onStageC
                                     <Button
                                         type="text"
                                         shape="circle"
-                                        className="!mr-1 !size-8 !min-w-8 !text-muted-foreground opacity-60 transition hover:!bg-rose-50 hover:!text-rose-600 group-hover:opacity-100 focus:opacity-100 dark:hover:!bg-rose-950/30 dark:hover:!text-rose-300"
+                                        className="!mr-1 !size-8 !min-w-8 !text-[var(--gm-text-3)] opacity-60 transition hover:!bg-rose-50 hover:!text-rose-600 group-hover:opacity-100 focus:opacity-100 dark:hover:!bg-rose-950/30 dark:hover:!text-rose-300"
                                         icon={<Trash2 className="size-3.5" />}
                                         onClick={() => confirmDelete(item.id)}
                                         aria-label={`删除${item.title}`}
@@ -139,7 +139,7 @@ function DramaEpisodePanel({ project, episode, permanent, onOpenChange, onStageC
                     );
                 })}
             </nav>
-            <div className="shrink-0 border-t border-border p-2.5">
+            <div className="shrink-0 border-t border-[var(--gm-border)] p-2.5">
                 <Button
                     block
                     type="text"
@@ -159,7 +159,7 @@ function DramaEpisodePanel({ project, episode, permanent, onOpenChange, onStageC
 export function DramaEpisodeSidebar({ project, episode, open, onOpenChange, onStageChange }: { project: DramaProject; episode: DramaEpisode; open: boolean; onOpenChange: (open: boolean) => void; onStageChange: (stage: DramaProjectStage) => void }) {
     if (!open) return null;
     return (
-        <aside className="hidden h-full min-h-0 w-[190px] shrink-0 border-r border-border min-[1366px]:block" aria-label="集数管理侧栏" data-drama-episode-sidebar>
+        <aside className="hidden h-full min-h-0 w-[190px] shrink-0 border-r border-[var(--gm-border)] min-[1366px]:block" aria-label="集数管理侧栏" data-drama-episode-sidebar>
             <DramaEpisodePanel project={project} episode={episode} permanent onOpenChange={onOpenChange} onStageChange={onStageChange} />
         </aside>
     );
@@ -176,7 +176,7 @@ export function DramaEpisodeNavigator({ project, episode, open, onOpenChange, on
     const trigger = (
         <button
             type="button"
-            className="mt-0.5 flex max-w-full items-center gap-1.5 text-left text-xs text-muted-foreground transition hover:text-foreground"
+            className="mt-0.5 flex max-w-full items-center gap-1.5 text-left text-xs text-[var(--gm-text-3)] transition hover:text-[var(--gm-text)]"
             onClick={() => onOpenChange(!open)}
             aria-expanded={open}
             aria-label={open ? "收起剧集导航" : "打开剧集导航"}
@@ -229,8 +229,8 @@ export function DramaWorkspaceHeader({
     const stageStatuses = dramaStageStatuses(project, episode);
 
     return (
-        <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] border-b border-border bg-card/95 min-[1366px]:h-[64px] min-[1366px]:grid-cols-[190px_minmax(0,1fr)_auto]" data-drama-workspace-header>
-            <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2 px-2.5 py-2 sm:px-4 min-[1366px]:h-full min-[1366px]:border-r min-[1366px]:border-border min-[1366px]:px-4 min-[1366px]:py-0">
+        <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] border-b border-[var(--gm-border)] bg-[var(--gm-surface)]/95 min-[1366px]:h-[64px] min-[1366px]:grid-cols-[190px_minmax(0,1fr)_auto]" data-drama-workspace-header>
+            <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2 px-2.5 py-2 sm:px-4 min-[1366px]:h-full min-[1366px]:border-r min-[1366px]:border-[var(--gm-border)] min-[1366px]:px-4 min-[1366px]:py-0">
                 <Tooltip title="返回短剧项目">
                     <Button type="text" shape="circle" className="!size-9 !min-w-9" icon={<ArrowLeft className="size-4" />} onClick={() => router.push("/drama")} aria-label="返回短剧项目" />
                 </Tooltip>
@@ -240,14 +240,14 @@ export function DramaWorkspaceHeader({
                         <span className="mt-1 inline-flex w-fit border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">练习 · 资源保护</span>
                     ) : null}
                     {assetsOpen ? (
-                        <div className="mt-0.5 text-xs text-muted-foreground">项目资产库</div>
+                        <div className="mt-0.5 text-xs text-[var(--gm-text-3)]">项目资产库</div>
                     ) : (
                         <DramaEpisodeNavigator project={project} episode={episode} open={episodeNavigatorOpen} onOpenChange={onEpisodeNavigatorOpenChange} onStageChange={onStageChange} />
                     )}
                 </div>
             </div>
             <nav
-                className="hide-scrollbar col-span-2 row-start-2 flex min-w-0 items-center justify-start overflow-x-auto border-t border-border/70 px-2 py-1.5 sm:px-4 min-[1366px]:col-span-1 min-[1366px]:col-start-2 min-[1366px]:row-start-1 min-[1366px]:justify-center min-[1366px]:border-t-0 min-[1366px]:px-4 min-[1366px]:py-1.5"
+                className="hide-scrollbar col-span-2 row-start-2 flex min-w-0 items-center justify-start overflow-x-auto border-t border-[var(--gm-border)]/70 px-2 py-1.5 sm:px-4 min-[1366px]:col-span-1 min-[1366px]:col-start-2 min-[1366px]:row-start-1 min-[1366px]:justify-center min-[1366px]:border-t-0 min-[1366px]:px-4 min-[1366px]:py-1.5"
                 aria-label="短剧单集生产阶段"
                 data-drama-stage-navigation
             >
@@ -260,10 +260,10 @@ export function DramaWorkspaceHeader({
                                 onClick={() => onStageChange(item.value)}
                                 aria-label={`切换到${item.label}`}
                                 aria-current={active ? "step" : undefined}
-                                className={`relative flex h-11 min-w-[74px] items-center justify-center gap-2 px-3 text-xs font-medium transition sm:min-w-[96px] ${active ? "bg-violet-50 text-violet-700 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-violet-600 dark:bg-violet-950/30 dark:text-violet-300 dark:after:bg-violet-400" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+                                className={`relative flex h-11 min-w-[74px] items-center justify-center gap-2 px-3 text-xs font-medium transition sm:min-w-[96px] ${active ? "bg-violet-50 text-violet-700 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-violet-600 dark:bg-violet-950/30 dark:text-violet-300 dark:after:bg-violet-400" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)]/60 hover:text-[var(--gm-text)]"}`}
                             >
                                 <span
-                                    className={`grid size-5 shrink-0 place-items-center rounded-full border text-[10px] tabular-nums ${active ? "border-violet-500 bg-violet-600 text-white dark:border-violet-400 dark:bg-violet-400 dark:text-violet-950" : "border-border bg-background"}`}
+                                    className={`grid size-5 shrink-0 place-items-center rounded-full border text-[10px] tabular-nums ${active ? "border-violet-500 bg-violet-600 text-white dark:border-violet-400 dark:bg-violet-400 dark:text-violet-950" : "border-[var(--gm-border)] bg-[var(--gm-bg)]"}`}
                                 >
                                     {index + 1}
                                 </span>
@@ -271,7 +271,7 @@ export function DramaWorkspaceHeader({
                                 <span className="hidden sm:block">{item.label}</span>
                                 <span className="sr-only">{stageStatuses[item.value]}</span>
                             </button>
-                            {index < stages.length - 1 ? <ChevronRight className="size-3.5 text-border" aria-hidden="true" /> : null}
+                            {index < stages.length - 1 ? <ChevronRight className="size-3.5 text-[var(--gm-border-strong)]" aria-hidden="true" /> : null}
                         </div>
                     );
                 })}
@@ -279,7 +279,7 @@ export function DramaWorkspaceHeader({
             <div className="col-start-2 row-start-1 flex min-w-0 shrink-0 items-center justify-end gap-1 px-2.5 py-2 sm:px-4 min-[1366px]:col-start-3 min-[1366px]:h-full min-[1366px]:py-0">
                 <Tooltip title="项目资产">
                     <Button
-                        className={`!h-9 !px-2.5 ${assetsOpen ? "!border-foreground !bg-foreground !text-background" : "!border-border !bg-background hover:!border-foreground/25 hover:!bg-muted"}`}
+                        className={`!h-9 !px-2.5 ${assetsOpen ? "!border-[var(--gm-text)] !bg-[var(--gm-text)] !text-[var(--gm-bg)]" : "!border-[var(--gm-border)] !bg-[var(--gm-bg)] hover:!border-[var(--gm-text)]/25 hover:!bg-[var(--gm-wash)]"}`}
                         icon={<Boxes className="size-4" />}
                         onClick={assetsOpen ? onCloseAssets : onOpenAssets}
                         aria-current={assetsOpen ? "page" : undefined}

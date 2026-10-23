@@ -48,7 +48,7 @@ describe("drama mobile list layout", () => {
         expect(sections).toContain("data-drama-script-statusbar");
         expect(sections).toContain('step="01"');
         expect(elements).toContain("data-drama-stage-metrics");
-        expect(elements).toContain("border-l border-border/80");
+        expect(elements).toContain("border-l border-[var(--gm-border)]/80");
         expect(page).toContain("data-drama-script-global-bar");
         expect(page).toContain("min-[1366px]:!pl-[210px]");
         expect(sections).toContain("w-[190px]");

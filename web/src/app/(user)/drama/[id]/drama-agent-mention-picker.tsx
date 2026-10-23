@@ -18,10 +18,10 @@ export function DramaAgentMentionPicker({ items, selectedIds, onSelect }: { item
     const visibleItems = visibleKind ? groups.get(visibleKind) || [] : [];
     const tabColumns = availableKinds.length === 1 ? "grid-cols-1" : availableKinds.length === 2 ? "grid-cols-2" : "grid-cols-3";
 
-    if (!visibleKind) return <p className="w-[min(17rem,calc(100vw-1.5rem))] px-3 py-4 text-center text-xs text-muted-foreground">没有匹配的项目内容</p>;
+    if (!visibleKind) return <p className="w-[min(17rem,calc(100vw-1.5rem))] px-3 py-4 text-center text-xs text-[var(--gm-text-3)]">没有匹配的项目内容</p>;
     return (
         <div className="flex w-[min(17rem,calc(100vw-1.5rem))] min-w-0 flex-col overflow-hidden p-1.5" data-drama-agent-mention-picker>
-            <div className={`mb-1.5 grid gap-1 rounded-lg bg-muted/60 p-1 ${tabColumns}`} role="tablist" aria-label="引用项目内容类型">
+            <div className={`mb-1.5 grid gap-1 rounded-lg bg-[var(--gm-wash)]/60 p-1 ${tabColumns}`} role="tablist" aria-label="引用项目内容类型">
                 {availableKinds.map((kind) => {
                     const Icon = KIND_ICONS[kind];
                     const active = kind === visibleKind;
@@ -32,7 +32,7 @@ export function DramaAgentMentionPicker({ items, selectedIds, onSelect }: { item
                             role="tab"
                             aria-selected={active}
                             className={`flex h-7 min-w-0 items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                                active ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
+                                active ? "bg-[var(--gm-bg)] text-primary shadow-sm" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-bg)]/70 hover:text-[var(--gm-text)]"
                             }`}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => setActiveKind(kind)}
@@ -51,7 +51,7 @@ export function DramaAgentMentionPicker({ items, selectedIds, onSelect }: { item
                         <button
                             key={item.id}
                             type="button"
-                            className={`flex h-8 min-w-0 items-center gap-2 rounded-md px-1.5 text-left text-[13px] font-medium transition-colors ${selected ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/70"}`}
+                            className={`flex h-8 min-w-0 items-center gap-2 rounded-md px-1.5 text-left text-[13px] font-medium transition-colors ${selected ? "bg-primary/10 text-primary" : "text-[var(--gm-text)] hover:bg-[var(--gm-wash)]/70"}`}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => onSelect(item)}
                             aria-label={`引用${dramaAgentMentionKindLabel(item.kind)}：${item.title}`}

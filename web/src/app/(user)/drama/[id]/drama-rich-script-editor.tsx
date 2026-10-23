@@ -102,7 +102,7 @@ export function DramaRichScriptEditor({
         content: episode.scriptRichContent || plainTextToDramaRichContent(episode.script),
         editorProps: {
             attributes: {
-                class: "min-h-full w-full max-w-none px-8 py-6 text-left text-[16px] leading-[1.8] text-foreground outline-none sm:px-10 sm:py-7 [&_a]:text-violet-600 [&_a]:underline dark:[&_a]:text-violet-300 [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:border-violet-300 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_h1]:mb-4 [&_h1]:mt-6 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-lg [&_h3]:font-semibold [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:m-0 [&_p]:min-h-[1.8em] [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-7",
+                class: "min-h-full w-full max-w-none px-8 py-6 text-left text-[16px] leading-[1.8] text-[var(--gm-text)] outline-none sm:px-10 sm:py-7 [&_a]:text-violet-600 [&_a]:underline dark:[&_a]:text-violet-300 [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:border-violet-300 [&_blockquote]:pl-4 [&_blockquote]:text-[var(--gm-text-3)] [&_h1]:mb-4 [&_h1]:mt-6 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-lg [&_h3]:font-semibold [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:m-0 [&_p]:min-h-[1.8em] [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-7",
                 "aria-label": "本集剧本编辑器",
             },
             handleClick: (view) => {
@@ -155,7 +155,7 @@ export function DramaRichScriptEditor({
         return () => window.removeEventListener("keydown", openSearch);
     }, []);
 
-    if (!editor) return <div className="min-h-0 flex-1 bg-background" />;
+    if (!editor) return <div className="min-h-0 flex-1 bg-[var(--gm-bg)]" />;
 
     const findNext = () => {
         if (!searchText) return;
@@ -197,8 +197,8 @@ export function DramaRichScriptEditor({
     };
 
     return (
-        <section className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-border bg-background ${fullscreen ? "fixed inset-3 z-[1100] rounded-md shadow-2xl" : "rounded-md"}`} data-drama-script-editor>
-            <div className="hide-scrollbar flex h-[46px] shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2" aria-label="剧本编辑工具栏" data-drama-script-toolbar>
+        <section className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-[var(--gm-border)] bg-[var(--gm-bg)] ${fullscreen ? "fixed inset-3 z-[1100] rounded-md shadow-2xl" : "rounded-md"}`} data-drama-script-editor>
+            <div className="hide-scrollbar flex h-[46px] shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--gm-border)] px-2" aria-label="剧本编辑工具栏" data-drama-script-toolbar>
                 <Select
                     size="small"
                     className="!w-[88px] shrink-0"
@@ -281,9 +281,9 @@ export function DramaRichScriptEditor({
                 <ToolButton label="恢复 Ctrl+Shift+Z" disabled={!editor.can().redo()} icon={<Redo2 />} onClick={() => editor.chain().focus().redo().run()} />
                 <ToolButton label="查找 Ctrl+F" icon={<Search />} onClick={() => setSearchOpen(true)} />
                 <ToolButton label={fullscreen ? "退出全屏" : "全屏编辑"} icon={fullscreen ? <Minimize2 /> : <Maximize2 />} onClick={() => onFullscreenChange(!fullscreen)} />
-                <span className="ml-auto shrink-0 px-2 text-[11px] tabular-nums text-muted-foreground">{episode.script.length.toLocaleString("zh-CN")} 字</span>
+                <span className="ml-auto shrink-0 px-2 text-[11px] tabular-nums text-[var(--gm-text-3)]">{episode.script.length.toLocaleString("zh-CN")} 字</span>
             </div>
-            <EditorContent editor={editor} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-card/35" />
+            <EditorContent editor={editor} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-[var(--gm-surface)]/35" />
             <Modal
                 title="查找与替换"
                 open={searchOpen}
@@ -305,11 +305,11 @@ export function DramaRichScriptEditor({
             >
                 <div className="grid gap-4 py-1" data-drama-search-dialog>
                     <label className="grid gap-1.5">
-                        <span className="text-xs font-medium text-muted-foreground">查找</span>
+                        <span className="text-xs font-medium text-[var(--gm-text-3)]">查找</span>
                         <Input
                             autoFocus
                             allowClear
-                            prefix={<Search className="size-4 text-muted-foreground" />}
+                            prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                             value={searchText}
                             onChange={(event) => setSearchText(event.target.value)}
                             placeholder="输入要查找的内容"
@@ -318,10 +318,10 @@ export function DramaRichScriptEditor({
                         />
                     </label>
                     <label className="grid gap-1.5">
-                        <span className="text-xs font-medium text-muted-foreground">替换为</span>
+                        <span className="text-xs font-medium text-[var(--gm-text-3)]">替换为</span>
                         <Input
                             allowClear
-                            prefix={<ReplaceAll className="size-4 text-muted-foreground" />}
+                            prefix={<ReplaceAll className="size-4 text-[var(--gm-text-3)]" />}
                             value={replaceText}
                             onChange={(event) => setReplaceText(event.target.value)}
                             placeholder="输入替换后的内容"
@@ -340,7 +340,7 @@ function ToolButton({ label, icon, active = false, disabled = false, onClick }: 
         <Tooltip title={label}>
             <Button
                 type="text"
-                className={`!size-8 !min-w-8 !rounded ${active ? "!bg-violet-100 !text-violet-700 dark:!bg-violet-950/60 dark:!text-violet-300" : "!text-muted-foreground hover:!bg-muted hover:!text-foreground"} [&_svg]:!size-4`}
+                className={`!size-8 !min-w-8 !rounded ${active ? "!bg-violet-100 !text-violet-700 dark:!bg-violet-950/60 dark:!text-violet-300" : "!text-[var(--gm-text-3)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)]"} [&_svg]:!size-4`}
                 icon={icon}
                 disabled={disabled}
                 onMouseDown={(event) => event.preventDefault()}
@@ -365,7 +365,7 @@ function PaletteButton({ label, icon, colors, activeColor, onSelect }: { label: 
                             <Tooltip key={color.label} title={color.label}>
                                 <button
                                     type="button"
-                                    className={`grid size-8 place-items-center rounded border transition hover:scale-105 ${activeColor === color.value ? "border-violet-500 ring-2 ring-violet-200 dark:ring-violet-900" : "border-border"}`}
+                                    className={`grid size-8 place-items-center rounded border transition hover:scale-105 ${activeColor === color.value ? "border-violet-500 ring-2 ring-violet-200 dark:ring-violet-900" : "border-[var(--gm-border)]"}`}
                                     style={{ backgroundColor: color.value || undefined }}
                                     onClick={() => onSelect(color.value)}
                                     aria-label={color.label}
@@ -378,7 +378,7 @@ function PaletteButton({ label, icon, colors, activeColor, onSelect }: { label: 
                 </div>
             }
         >
-            <Button type="text" className="relative !size-8 !min-w-8 !rounded !text-muted-foreground hover:!bg-muted hover:!text-foreground [&_svg]:!size-4" icon={icon} aria-label={label}>
+            <Button type="text" className="relative !size-8 !min-w-8 !rounded !text-[var(--gm-text-3)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)] [&_svg]:!size-4" icon={icon} aria-label={label}>
                 <ChevronDown className="absolute bottom-0.5 right-0.5 !size-2.5" />
                 {activeColor ? <span className="absolute inset-x-1.5 bottom-0 h-0.5 rounded" style={{ backgroundColor: activeColor }} /> : null}
             </Button>
@@ -406,13 +406,13 @@ function AlignmentButton({ editor }: { editor: NonNullable<ReturnType<typeof use
                 </div>
             }
         >
-            <Button type="text" className="!size-8 !min-w-8 !rounded !text-muted-foreground hover:!bg-muted hover:!text-foreground [&_svg]:!size-4" icon={current.icon} aria-label="文本对齐" />
+            <Button type="text" className="!size-8 !min-w-8 !rounded !text-[var(--gm-text-3)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)] [&_svg]:!size-4" icon={current.icon} aria-label="文本对齐" />
         </Popover>
     );
 }
 
 function ToolbarDivider() {
-    return <Divider orientation="vertical" className="!mx-1 !h-5 !border-border" />;
+    return <Divider orientation="vertical" className="!mx-1 !h-5 !border-[var(--gm-border)]" />;
 }
 
 function selectText(editor: NonNullable<ReturnType<typeof useEditor>>, value: string) {
