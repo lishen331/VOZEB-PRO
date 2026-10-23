@@ -196,7 +196,7 @@
         --ae-headline-b: #1a3d7c;
         --ae-headline-c: #0050f5;
         --ae-media-opacity: 0.62;
-        --ae-media-filter: saturate(0.94) brightness(1.0);
+        --ae-media-filter: saturate(0.94) brightness(1);
         --ae-scrim-1: linear-gradient(180deg, rgba(244, 248, 255, 0.82) 0%, rgba(244, 248, 255, 0.2) 34%, rgba(242, 246, 253, 0.54) 78%, rgba(238, 243, 251, 0.94) 100%);
         --ae-scrim-2: linear-gradient(104deg, rgba(246, 250, 255, 0.86) 0%, rgba(244, 248, 255, 0.36) 46%, rgba(240, 245, 253, 0.06) 72%);
         --ae-aurora-1: rgba(0, 80, 245, 0.16);
@@ -310,9 +310,7 @@
     .auth-education-aurora {
         position: absolute;
         inset: 0;
-        background:
-            radial-gradient(48% 44% at 10% 70%, var(--ae-aurora-1) 0%, transparent 70%),
-            radial-gradient(38% 34% at 84% 10%, var(--ae-aurora-2) 0%, transparent 72%);
+        background: radial-gradient(48% 44% at 10% 70%, var(--ae-aurora-1) 0%, transparent 70%), radial-gradient(38% 34% at 84% 10%, var(--ae-aurora-2) 0%, transparent 72%);
         mix-blend-mode: var(--ae-aurora-blend);
     }
 
@@ -520,9 +518,7 @@
         height: 12px;
         border-radius: 62% 38% 46% 54% / 55% 48% 52% 45%;
         border: 1px solid var(--ae-feature-dot-border);
-        background:
-            radial-gradient(circle at 50% 50%, var(--ae-feature-dot-core) 0%, var(--ae-feature-dot-core) 38%, transparent 62%),
-            var(--ae-feature-dot-bg);
+        background: radial-gradient(circle at 50% 50%, var(--ae-feature-dot-core) 0%, var(--ae-feature-dot-core) 38%, transparent 62%), var(--ae-feature-dot-bg);
         box-shadow: 0 0 0 4px var(--ae-feature-dot-halo);
         animation: ae-blob-morph 8.4s ease-in-out infinite;
         transition:
@@ -937,4 +933,3 @@
         }
     }
 }
-

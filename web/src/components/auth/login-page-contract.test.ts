@@ -38,8 +38,8 @@ describe("unified education login page contract", () => {
         const css = await readFile(resolve(process.cwd(), "src/app/styles/global-auth.css"), "utf8");
 
         // 联合品牌条：中国动漫集团 → BLUEGAMMA → 两行说明文字，顺序固定
-        expect(form.indexOf('brand-cacg.png')).toBeLessThan(form.indexOf('brand-bluegamma.png'));
-        expect(form.indexOf('brand-bluegamma.png')).toBeLessThan(form.indexOf('auth-education-partner-desc'));
+        expect(form.indexOf("brand-cacg.png")).toBeLessThan(form.indexOf("brand-bluegamma.png"));
+        expect(form.indexOf("brand-bluegamma.png")).toBeLessThan(form.indexOf("auth-education-partner-desc"));
         expect(form).toContain("广东AIGC培训产教融合基地");
         expect(form).toContain("以智能开创影像创作新生态");
         // 同一张原图同时服务明暗两套，不能有暗色专用变体
