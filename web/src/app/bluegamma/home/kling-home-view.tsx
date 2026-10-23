@@ -102,7 +102,6 @@ export function KlingHomeView() {
                             collapsed={sidebar.collapsed}
                             points={demo.points}
                             checkedIn={demo.checkedIn}
-                            onSearch={() => notice("搜索功能正在设计中")}
                             onCheckIn={demo.checkIn}
                             onNotify={() => notice("暂无新通知")}
                             onUpgrade={() => setUpgradeOpen(true)}
