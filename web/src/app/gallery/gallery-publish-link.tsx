@@ -13,7 +13,7 @@ export function GalleryPublishLink({ className, label = "发布作品" }: { clas
 
     return (
         <Link href="/works" className={className}>
-            <Plus className="size-4" />
+            <Plus className="size-4" aria-hidden />
             {label}
         </Link>
     );
