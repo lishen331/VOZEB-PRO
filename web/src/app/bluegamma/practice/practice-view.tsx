@@ -157,9 +157,10 @@ function ProjectCard({ card, creating, onCreate }: { card: PracticeProjectCardSp
 function ModuleCard({ card, wide = false }: { card: (typeof PRACTICE_MODULES)[number]; wide?: boolean }) {
     const Icon = card.icon;
     const accent = SUBJECT_ACCENT[card.accent];
+    const href = card.module === "script" ? "/bluegamma/practice/scripts" : `/bluegamma/practice/${card.module}`;
     return (
-        <button
-            type="button"
+        <Link
+            href={href}
             className={cn(
                 "group relative w-full overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
                 wide ? "flex items-center gap-5 p-6" : "p-5",
@@ -181,7 +182,7 @@ function ModuleCard({ card, wide = false }: { card: (typeof PRACTICE_MODULES)[nu
                 </div>
                 <p className={cn("text-[var(--gm-text-2)]", wide ? "mt-1.5 text-sm leading-6" : "mt-1 text-sm leading-6")}>{card.description}</p>
             </div>
-        </button>
+        </Link>
     );
 }
 

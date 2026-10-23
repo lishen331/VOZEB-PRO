@@ -35,19 +35,14 @@ export function AssetsView() {
 
     const items = useMemo(() => {
         const keyword = query.trim();
-        return GAMMA_GALLERY.filter(
-            (item) => (kind === "all" || item.kind === kind) && (!keyword || [item.title, item.subject].some((field) => field.includes(keyword))),
-        );
+        return GAMMA_GALLERY.filter((item) => (kind === "all" || item.kind === kind) && (!keyword || [item.title, item.subject].some((field) => field.includes(keyword))));
     }, [kind, query]);
 
     return (
         <GammaThemeProvider>
             <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]">
                 <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-8">
-                    <Link
-                        href="/bluegamma/home"
-                        className="gm-glass mb-8 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]"
-                    >
+                    <Link href="/bluegamma/home" className="gm-glass mb-8 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]">
                         <ChevronLeft className="size-4" />
                         返回首页
                     </Link>
@@ -62,12 +57,7 @@ export function AssetsView() {
                         <span aria-hidden className="h-6 w-px bg-[var(--gm-border-strong)]" />
                         <label className="flex h-10 w-80 items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-3 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]">
                             <Search className="size-4 text-[var(--gm-text-3)]" />
-                            <input
-                                value={query}
-                                onChange={(event) => setQuery(event.target.value)}
-                                placeholder="搜索素材标题"
-                                className="h-full w-full bg-transparent text-sm text-[var(--gm-text)] outline-none placeholder:text-[var(--gm-text-3)]"
-                            />
+                            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索素材标题" className="h-full w-full bg-transparent text-sm text-[var(--gm-text)] outline-none placeholder:text-[var(--gm-text-3)]" />
                         </label>
                     </div>
 
@@ -96,7 +86,14 @@ export function AssetsView() {
                             title="没有找到相关素材"
                             description="换个关键词，或切回「全部」看看"
                             action={
-                                <GammaButton size="sm" variant="soft" onClick={() => { setQuery(""); setKind("all"); }}>
+                                <GammaButton
+                                    size="sm"
+                                    variant="soft"
+                                    onClick={() => {
+                                        setQuery("");
+                                        setKind("all");
+                                    }}
+                                >
                                     清空筛选
                                 </GammaButton>
                             }

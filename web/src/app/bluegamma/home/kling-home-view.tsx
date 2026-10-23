@@ -97,17 +97,7 @@ export function KlingHomeView() {
                     collapsed={sidebar.collapsed}
                     onToggle={sidebar.toggle}
                     onSelect={handleSidebarSelect}
-                    actions={
-                        <GammaSidebarActions
-                            collapsed={sidebar.collapsed}
-                            points={demo.points}
-                            checkedIn={demo.checkedIn}
-                            onCheckIn={demo.checkIn}
-                            onNotify={() => notice("暂无新通知")}
-                            onUpgrade={() => setUpgradeOpen(true)}
-                            onNotice={notice}
-                        />
-                    }
+                    actions={<GammaSidebarActions collapsed={sidebar.collapsed} points={demo.points} checkedIn={demo.checkedIn} onCheckIn={demo.checkIn} onNotify={() => notice("暂无新通知")} onUpgrade={() => setUpgradeOpen(true)} onNotice={notice} />}
                 />
                 {/* 顶栏已撤掉，所有操作在侧栏；内容区占满宽度，不再居中留白 */}
                 <main className="gm-scroll relative min-w-0 flex-1 overflow-y-auto">

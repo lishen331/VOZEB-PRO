@@ -13,10 +13,7 @@ export function StudiosView() {
         <GammaThemeProvider>
             <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]">
                 <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-8">
-                    <Link
-                        href="/bluegamma/home"
-                        className="gm-glass mb-8 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]"
-                    >
+                    <Link href="/bluegamma/home" className="gm-glass mb-8 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]">
                         <ChevronLeft className="size-4" />
                         返回首页
                     </Link>

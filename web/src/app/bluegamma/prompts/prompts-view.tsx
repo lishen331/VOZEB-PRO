@@ -34,10 +34,7 @@ export function PromptsView() {
         <GammaThemeProvider>
             <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]">
                 <div className="mx-auto w-full max-w-3xl px-6 py-10 sm:px-8">
-                    <Link
-                        href="/bluegamma/home"
-                        className="gm-glass mb-8 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]"
-                    >
+                    <Link href="/bluegamma/home" className="gm-glass mb-8 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]">
                         <ChevronLeft className="size-4" />
                         返回首页
                     </Link>
@@ -49,12 +46,7 @@ export function PromptsView() {
 
                     <label className="mb-8 flex h-11 w-full items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-4 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]">
                         <Search className="size-4 text-[var(--gm-text-3)]" />
-                        <input
-                            value={query}
-                            onChange={(event) => setQuery(event.target.value)}
-                            placeholder="搜索提示词、作品或专业"
-                            className="h-full w-full bg-transparent text-sm text-[var(--gm-text)] outline-none placeholder:text-[var(--gm-text-3)]"
-                        />
+                        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索提示词、作品或专业" className="h-full w-full bg-transparent text-sm text-[var(--gm-text)] outline-none placeholder:text-[var(--gm-text-3)]" />
                     </label>
 
                     {items.length ? (
