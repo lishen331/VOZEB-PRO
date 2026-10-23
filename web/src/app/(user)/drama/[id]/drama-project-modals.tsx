@@ -12,7 +12,7 @@ export function DramaVersionModal({ open, loading, versions, onClose, onSave, on
     return (
         <Modal title="版本历史" open={open} onCancel={onClose} footer={<Button onClick={onClose}>关闭</Button>} width={640}>
             <div className="space-y-3 pt-3">
-                <div className="flex flex-col items-stretch gap-2.5 border-b border-border pb-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div className="flex flex-col items-stretch gap-2.5 border-b border-[var(--gm-border)] pb-3 text-sm text-[var(--gm-text-3)] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <span>关键重生成前会自动保存当前项目快照。</span>
                     <Button icon={<Save className="size-4" />} onClick={onSave}>
                         保存当前版本
@@ -24,10 +24,10 @@ export function DramaVersionModal({ open, loading, versions, onClose, onSave, on
                     </div>
                 ) : versions.length ? (
                     versions.map((version) => (
-                        <div key={version.id} className="flex flex-col items-stretch gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4">
+                        <div key={version.id} className="flex flex-col items-stretch gap-3 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-bg)] p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4">
                             <div className="min-w-0">
                                 <div className="font-medium">版本 {version.version}</div>
-                                <div className="mt-1 text-xs text-muted-foreground">
+                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">
                                     {version.reason} · {new Date(version.createdAt).toLocaleString()}
                                 </div>
                             </div>
@@ -92,11 +92,11 @@ export function DramaSubtitleModal({ open, shots, onClose }: { open: boolean; sh
         <Modal title="字幕时间轴" open={open} footer={<Button onClick={onClose}>关闭</Button>} onCancel={onClose} width={720}>
             <div className="max-h-[60vh] space-y-3 overflow-y-auto pt-3">
                 {buildSubtitleCues(shots).map((cue) => (
-                    <div key={cue.index} className="grid gap-2 rounded-lg border border-border/80 bg-background/65 p-3 sm:grid-cols-[92px_minmax(0,1fr)] sm:gap-3 sm:rounded-2xl sm:p-4">
-                        <div className="text-xs font-medium text-muted-foreground">
+                    <div key={cue.index} className="grid gap-2 rounded-lg border border-[var(--gm-border)]/80 bg-[var(--gm-bg)]/65 p-3 sm:grid-cols-[92px_minmax(0,1fr)] sm:gap-3 sm:rounded-2xl sm:p-4">
+                        <div className="text-xs font-medium text-[var(--gm-text-3)]">
                             {formatTimelineTime(cue.startMs)}–{formatTimelineTime(cue.endMs)}
                         </div>
-                        <div className="text-sm leading-6 text-foreground">{cue.text}</div>
+                        <div className="text-sm leading-6 text-[var(--gm-text)]">{cue.text}</div>
                     </div>
                 ))}
             </div>

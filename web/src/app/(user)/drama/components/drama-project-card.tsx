@@ -17,7 +17,7 @@ export function DramaProjectCard({ project }: { project: DramaProjectSummary }) 
     const pendingCount = project.pendingTaskCount;
     const failedCount = project.failedTaskCount;
     return (
-        <article className="group relative rounded-lg border border-border bg-card p-3 text-card-foreground transition hover:-translate-y-px hover:border-foreground/25 hover:shadow-sm focus-within:border-foreground/35 focus-within:ring-2 focus-within:ring-ring/20 sm:p-3.5">
+        <article className="group relative rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 text-card-foreground transition hover:-translate-y-px hover:border-foreground/25 hover:shadow-sm focus-within:border-foreground/35 focus-within:ring-2 focus-within:ring-ring/20 sm:p-3.5">
             <Link href={`/drama/${project.id}`} className="absolute inset-0 z-0 rounded-lg outline-none" aria-label={`进入短剧项目：${project.title}`}>
                 <span className="sr-only">进入短剧项目：{project.title}</span>
             </Link>
@@ -27,7 +27,7 @@ export function DramaProjectCard({ project }: { project: DramaProjectSummary }) 
                 </span>
                 <div className="min-w-0 flex-1">
                     <h2 className="truncate text-[15px] font-semibold sm:text-base">{project.title}</h2>
-                    <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-muted-foreground">{project.summary || "还没有填写项目简介"}</p>
+                    <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-[var(--gm-text-3)]">{project.summary || "还没有填写项目简介"}</p>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                     {pendingCount ? (
@@ -39,11 +39,11 @@ export function DramaProjectCard({ project }: { project: DramaProjectSummary }) 
                         </Tag>
                     ) : null}
                     <Tag className="m-0">{project.ratio}</Tag>
-                    <ArrowUpRight className="size-3.5 text-muted-foreground transition group-hover:text-foreground" />
+                    <ArrowUpRight className="size-3.5 text-[var(--gm-text-3)] transition group-hover:text-[var(--gm-text)]" />
                 </div>
             </div>
-            <div className="relative z-10 mt-2.5 flex min-w-0 items-center justify-between gap-2 border-t border-border pt-2.5">
-                <div className="pointer-events-none min-w-0 truncate text-xs leading-5 text-muted-foreground">
+            <div className="relative z-10 mt-2.5 flex min-w-0 items-center justify-between gap-2 border-t border-[var(--gm-border)] pt-2.5">
+                <div className="pointer-events-none min-w-0 truncate text-xs leading-5 text-[var(--gm-text-3)]">
                     {project.episodeCount} 集 · {project.characterCount} 角色 · {project.sceneCount} 场景 · {project.shotCount} 分镜
                 </div>
                 <div className="flex shrink-0 justify-end gap-1.5">
@@ -52,7 +52,7 @@ export function DramaProjectCard({ project }: { project: DramaProjectSummary }) 
                             <Button
                                 type="text"
                                 shape="circle"
-                                className="!size-8 !text-muted-foreground hover:!bg-rose-50 hover:!text-rose-600 dark:hover:!bg-rose-950/30 dark:hover:!text-rose-300"
+                                className="!size-8 !text-[var(--gm-text-3)] hover:!bg-rose-50 hover:!text-rose-600 dark:hover:!bg-rose-950/30 dark:hover:!text-rose-300"
                                 icon={<Trash2 className="size-3.5" />}
                                 aria-label="删除项目"
                             />

@@ -280,7 +280,7 @@ export function DramaGenerationPanel({ project, episode, onStageChange, onOpenAs
             {readiness.totalShots ? (
                 <div className="mt-3 flex items-center gap-3" aria-label="镜头完成进度">
                     <Progress className="!m-0 min-w-0 flex-1" percent={readiness.progressPercent} showInfo={false} />
-                    <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">{readiness.progressPercent}%</span>
+                    <span className="shrink-0 text-xs font-medium tabular-nums text-[var(--gm-text-3)]">{readiness.progressPercent}%</span>
                 </div>
             ) : null}
 
@@ -290,9 +290,9 @@ export function DramaGenerationPanel({ project, episode, onStageChange, onOpenAs
                         <h3 id="drama-preflight-title" className="shrink-0 text-sm font-semibold">
                             生成前检查
                         </h3>
-                        <p className="truncate text-xs text-muted-foreground">阻塞项会说明原因，并带你回到真正需要处理的位置。</p>
+                        <p className="truncate text-xs text-[var(--gm-text-3)]">阻塞项会说明原因，并带你回到真正需要处理的位置。</p>
                     </div>
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{checklist.filter((item) => item.tone === "done" || item.tone === "optional").length}/4 可继续</span>
+                    <span className="shrink-0 text-xs tabular-nums text-[var(--gm-text-3)]">{checklist.filter((item) => item.tone === "done" || item.tone === "optional").length}/4 可继续</span>
                 </div>
                 <div className={`mt-2 grid gap-1.5 ${readiness.totalShots ? "sm:grid-cols-2 xl:grid-cols-4" : "max-w-xl"}`}>
                     {(readiness.totalShots ? checklist : checklist.slice(0, 1)).map(({ id, ...item }) => (
@@ -302,7 +302,7 @@ export function DramaGenerationPanel({ project, episode, onStageChange, onOpenAs
             </section>
 
             {readiness.totalShots ? (
-                <section className="mt-3 border-y border-border" aria-labelledby="drama-production-tools" data-drama-generation-tools>
+                <section className="mt-3 border-y border-[var(--gm-border)]" aria-labelledby="drama-production-tools" data-drama-generation-tools>
                     <h3 id="drama-production-tools" className="sr-only">
                         生产辅助工具
                     </h3>
@@ -348,16 +348,16 @@ export function DramaGenerationPanel({ project, episode, onStageChange, onOpenAs
                             <h3 id="drama-shot-task-title" className="text-sm font-semibold">
                                 镜头任务
                             </h3>
-                            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">每个镜头独立显示分镜、视频和配音状态；失败时只重试目标镜头。</p>
+                            <p className="mt-0.5 text-xs leading-5 text-[var(--gm-text-3)]">每个镜头独立显示分镜、视频和配音状态；失败时只重试目标镜头。</p>
                         </div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-[var(--gm-text-3)]">
                             <span>{readiness.completedVideoCount} 已完成</span>
                             <span>{readiness.activeShotIds.length} 处理中</span>
                             <span>{readiness.failedShotIds.length} 失败</span>
                         </div>
                     </div>
 
-                    <div className="mt-2.5 overflow-hidden rounded-lg border border-border bg-card" data-drama-shot-task-list>
+                    <div className="mt-2.5 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]" data-drama-shot-task-list>
                         {episode.shots.map((shot) => (
                             <ShotTaskRow key={shot.id} project={project} episode={episode} shot={shot} audioReady={audioReady} onPreview={setPreviewMedia} onCancel={() => void cancelShot(shot)} onSendToAgent={() => sendToAgent(shot)} />
                         ))}
@@ -385,11 +385,11 @@ type ReadinessTone = "done" | "blocked" | "optional";
 
 function ReadinessItem({ title, detail, tone, action, actionLabel }: { title: string; detail: string; tone: ReadinessTone; action: () => void; actionLabel: string }) {
     const Icon = tone === "done" ? CircleCheck : tone === "blocked" ? CircleAlert : CircleDashed;
-    const iconClass = tone === "done" ? "text-emerald-600 dark:text-emerald-300" : tone === "blocked" ? "text-amber-600 dark:text-amber-300" : "text-muted-foreground";
+    const iconClass = tone === "done" ? "text-emerald-600 dark:text-emerald-300" : tone === "blocked" ? "text-amber-600 dark:text-amber-300" : "text-[var(--gm-text-3)]";
     return (
         <button
             type="button"
-            className="group flex h-12 min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-left transition hover:border-foreground/20 hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35"
+            className="group flex h-12 min-w-0 items-center gap-2 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2.5 text-left transition hover:border-foreground/20 hover:bg-[var(--gm-wash)]/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35"
             onClick={action}
             title={`${title}：${detail}`}
             aria-label={`${title}，${actionLabel}`}
@@ -397,18 +397,18 @@ function ReadinessItem({ title, detail, tone, action, actionLabel }: { title: st
             <Icon className={`size-4 shrink-0 ${iconClass}`} />
             <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-medium">{title}</span>
-                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{detail}</span>
+                <span className="mt-0.5 block truncate text-[11px] text-[var(--gm-text-3)]">{detail}</span>
             </span>
-            <span className="shrink-0 text-[11px] text-muted-foreground transition group-hover:text-foreground">{actionLabel}</span>
+            <span className="shrink-0 text-[11px] text-[var(--gm-text-3)] transition group-hover:text-[var(--gm-text)]">{actionLabel}</span>
         </button>
     );
 }
 
 function ToolGroup({ title, description, children }: { title: string; description: string; children: ReactNode }) {
     return (
-        <div className="min-w-0 border-b border-border py-3 last:border-b-0 lg:border-b-0 lg:px-4 lg:first:pl-0 lg:last:pr-0">
+        <div className="min-w-0 border-b border-[var(--gm-border)] py-3 last:border-b-0 lg:border-b-0 lg:px-4 lg:first:pl-0 lg:last:pr-0">
             <div className="text-sm font-semibold">{title}</div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">{description}</p>
             <div className="mt-2 flex min-w-0 flex-wrap gap-2">{children}</div>
         </div>
     );
@@ -418,15 +418,15 @@ function VisualReview({ project, episode }: { project: DramaProject; episode: Dr
     const queueShots = useDramaStore((state) => state.queueShots);
     const review = episode.visualReview!;
     return (
-        <section className="mt-6 border-b border-border pb-5" aria-label="分镜视觉复盘">
+        <section className="mt-6 border-b border-[var(--gm-border)] pb-5" aria-label="分镜视觉复盘">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-sm font-semibold">分镜视觉复盘</h3>
                         <Tag color={review.status === "passed" ? "success" : review.status === "needs_revision" ? "warning" : "default"}>{review.status === "passed" ? "通过" : review.status === "needs_revision" ? "需调整" : "未完成"}</Tag>
-                        {typeof review.score === "number" ? <span className="text-xs tabular-nums text-muted-foreground">{review.score} 分</span> : null}
+                        {typeof review.score === "number" ? <span className="text-xs tabular-nums text-[var(--gm-text-3)]">{review.score} 分</span> : null}
                     </div>
-                    <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{review.summary}</p>
+                    <p className="mt-1.5 text-sm leading-6 text-[var(--gm-text-3)]">{review.summary}</p>
                 </div>
                 {review.retryTaskIds.length ? (
                     <Button className="!h-9 shrink-0" icon={<RefreshCw className="size-4" />} onClick={() => queueShots(project.id, episode.id, review.retryTaskIds)}>
@@ -441,7 +441,7 @@ function VisualReview({ project, episode }: { project: DramaProject; episode: Dr
                         return (
                             <div key={`${issue.taskId || "general"}-${index}`} className="border-l-2 border-amber-400 pl-3 text-sm">
                                 <div className="font-medium">{shot?.title || issue.category}</div>
-                                <p className="mt-1 leading-5 text-muted-foreground">{issue.message}</p>
+                                <p className="mt-1 leading-5 text-[var(--gm-text-3)]">{issue.message}</p>
                                 {issue.correction ? <p className="mt-1 leading-5">建议：{issue.correction}</p> : null}
                             </div>
                         );
@@ -455,14 +455,14 @@ function VisualReview({ project, episode }: { project: DramaProject; episode: Dr
 function RenderTaskCard({ task, onCancel }: { task: DramaRenderTask; onCancel: () => void }) {
     const active = task.status === "pending" || task.status === "running";
     return (
-        <section className="mt-6 rounded-xl border border-border bg-card p-4 sm:p-5" aria-label="整集合成任务">
+        <section className="mt-6 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5" aria-label="整集合成任务">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 font-semibold">
                         {active ? <LoaderCircle className="size-4 animate-spin text-sky-600 dark:text-sky-300" /> : <Film className="size-4" />}
                         整集合成
                     </div>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    <p className="mt-1 text-sm leading-6 text-[var(--gm-text-3)]">
                         {task.status === "success"
                             ? "成片已经完成，可预览并下载原文件。"
                             : task.status === "error"
@@ -516,12 +516,12 @@ function ShotTaskRow({
 
     return (
         <article
-            className="grid min-w-0 gap-4 overflow-hidden border-b border-border p-3.5 last:border-b-0 hover:bg-muted/20 [content-visibility:visible] sm:p-4 sm:[content-visibility:auto] lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start"
+            className="grid min-w-0 gap-4 overflow-hidden border-b border-[var(--gm-border)] p-3.5 last:border-b-0 hover:bg-[var(--gm-wash)]/20 [content-visibility:visible] sm:p-4 sm:[content-visibility:auto] lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start"
             data-drama-shot-task
         >
             <div className="min-w-0">
                 <div className="flex min-w-0 items-start gap-3">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-xs font-semibold tabular-nums">{String(shot.order).padStart(2, "0")}</span>
+                    <span className="grid size-8 shrink-0 place-items-center rounded-md bg-[var(--gm-wash)] text-xs font-semibold tabular-nums">{String(shot.order).padStart(2, "0")}</span>
                     <div className="min-w-0 flex-1">
                         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
                             <h4 className="min-w-0 truncate font-semibold">{shot.title || `镜头 ${String(shot.order).padStart(2, "0")}`}</h4>
@@ -532,7 +532,7 @@ function ShotTaskRow({
                                 {shot.audioMode === "voiceover" ? <AudioTag status={shot.audioStatus} /> : <Tag className="!m-0">{shot.audioMode === "mute" ? "静音" : "视频原声"}</Tag>}
                             </div>
                         </div>
-                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{shot.videoPrompt || "动态提示词尚未填写，请回到分镜阶段补充。"}</p>
+                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--gm-text-3)]">{shot.videoPrompt || "动态提示词尚未填写，请回到分镜阶段补充。"}</p>
                     </div>
                 </div>
 
@@ -545,7 +545,7 @@ function ShotTaskRow({
                         {shot.videoUrl ? <DramaMediaThumbnail media={{ type: "video", url: shot.videoUrl, title: `${shot.title}生成视频` }} onOpen={onPreview} /> : null}
                     </div>
                 ) : null}
-                {dialogue ? <p className="ml-11 mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">字幕：{dialogue}</p> : null}
+                {dialogue ? <p className="ml-11 mt-2 max-w-2xl text-xs leading-5 text-[var(--gm-text-3)]">字幕：{dialogue}</p> : null}
                 {shot.audioUrl ? <audio className="ml-11 mt-3 h-10 w-[calc(100%_-_2.75rem)] max-w-sm" src={shot.audioUrl} controls preload="metadata" /> : null}
             </div>
 
@@ -573,7 +573,7 @@ function ShotTaskRow({
                         {failed ? "重试镜头" : shot.videoUrl ? "重新生成" : "生成镜头"}
                     </Button>
                 )}
-                <Button type="text" disabled={!shot.videoPrompt} className={`col-span-2 !bg-muted/60 hover:!bg-muted lg:col-span-1 ${actionButtonClass}`} icon={<Send className="size-4" />} onClick={onSendToAgent}>
+                <Button type="text" disabled={!shot.videoPrompt} className={`col-span-2 !bg-[var(--gm-wash)]/60 hover:!bg-[var(--gm-wash)] lg:col-span-1 ${actionButtonClass}`} icon={<Send className="size-4" />} onClick={onSendToAgent}>
                     交给创作 Agent
                 </Button>
             </div>

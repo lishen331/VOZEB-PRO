@@ -79,16 +79,16 @@ export default function DramaPage() {
         }
     };
     return (
-        <main className="h-full overflow-y-auto bg-background text-foreground">
+        <main className="h-full overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-7xl px-2 py-2 sm:px-6 sm:py-8">
-                <header className="flex items-end justify-between gap-3 border-b border-border pb-3 sm:gap-5 sm:pb-6">
+                <header className="flex items-end justify-between gap-3 border-b border-[var(--gm-border)] pb-3 sm:gap-5 sm:pb-6">
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
                             <Clapperboard className="size-4" />
                             短剧生产线
                         </div>
                         <h1 className="mt-1.5 text-xl font-semibold sm:mt-2 sm:text-2xl">短剧项目</h1>
-                        <p className="mt-1.5 text-xs leading-5 text-muted-foreground sm:mt-2 sm:text-sm">
+                        <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-3)] sm:mt-2 sm:text-sm">
                             共 {projectTotal} 个项目 · 已加载 {projects.length} 个 / {episodeCount} 集 · {pendingCount} 个执行中任务
                         </p>
                     </div>
@@ -98,7 +98,7 @@ export default function DramaPage() {
                 </header>
                 {syncError ? <div className="mt-4 border-l-2 border-amber-400 pl-3 text-sm text-amber-700 dark:text-amber-200">项目服务暂不可用：{syncError}</div> : null}
                 {!hydrated ? (
-                    <div className="grid min-h-16 place-items-center text-sm text-muted-foreground sm:min-h-32">正在加载短剧项目…</div>
+                    <div className="grid min-h-16 place-items-center text-sm text-[var(--gm-text-3)] sm:min-h-32">正在加载短剧项目…</div>
                 ) : projects.length ? (
                     <>
                         <section className="grid gap-1.5 py-1 sm:grid-cols-2 sm:gap-4 sm:py-6 xl:grid-cols-3">
@@ -190,7 +190,7 @@ export default function DramaPage() {
                                         setRatio(`${width}x${customHeight}`);
                                     }}
                                 />
-                                <span className="text-muted-foreground">×</span>
+                                <span className="text-[var(--gm-text-3)]">×</span>
                                 <InputNumber
                                     className="!w-full"
                                     min={256}
