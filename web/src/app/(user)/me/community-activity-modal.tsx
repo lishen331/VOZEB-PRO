@@ -164,11 +164,11 @@ function CommunityUserList({
                             {item.avatarUrl ? <img src={item.avatarUrl} alt="" className="size-full object-cover" loading="lazy" /> : userAvatarFallback(item.displayName || item.username)}
                         </span>
                         <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-foreground">{item.displayName || item.username}</span>
-                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            <span className="block truncate text-sm font-semibold text-[var(--gm-text)]">{item.displayName || item.username}</span>
+                            <span className="mt-0.5 block truncate text-xs text-[var(--gm-text-3)]">
                                 @{item.username} · {item.followerCount} 位关注者
                             </span>
-                            {item.bio ? <span className="mt-1 line-clamp-1 block text-xs text-muted-foreground">{item.bio}</span> : null}
+                            {item.bio ? <span className="mt-1 line-clamp-1 block text-xs text-[var(--gm-text-3)]">{item.bio}</span> : null}
                         </span>
                     </>
                 );
@@ -182,7 +182,7 @@ function CommunityUserList({
                             <div className="flex min-w-0 flex-1 items-center gap-3">{identity}</div>
                         )}
                         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-                            <time className="hidden text-[10px] text-muted-foreground md:block" title={relation === "following" ? "关注时间" : "成为粉丝时间"}>
+                            <time className="hidden text-[10px] text-[var(--gm-text-3)] md:block" title={relation === "following" ? "关注时间" : "成为粉丝时间"}>
                                 {formatShortTime(item.relatedAt)}
                             </time>
                             {relation === "following" ? (
@@ -207,13 +207,13 @@ function LikedWorkList({ items, actionKey, onOpen, onUnlike }: { items: Array<Pu
             {items.map((item) => (
                 <div key={item.slug} className="flex min-w-0 items-center gap-2 py-3 first:pt-0 last:pb-0">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen(item.slug)}>
-                        <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md bg-muted text-muted-foreground">
+                        <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--gm-wash)] text-[var(--gm-text-3)]">
                             {item.preview?.mediaType === "image" ? <LazyMediaImage src={imagePreviewUrl(item.preview.url, 192)} alt="" containerClassName="size-full" imageClassName="size-full object-cover" /> : <Video className="size-5" />}
                         </span>
                         <span className="min-w-0 flex-1">
-                            <span className="line-clamp-2 block text-sm font-semibold leading-5 text-foreground">{item.title}</span>
-                            <span className="mt-1 block truncate text-xs text-muted-foreground">{item.authorName || "匿名作者"}</span>
-                            <span className="mt-1 block text-[10px] text-muted-foreground">点赞于 {formatShortTime(item.likedAt)}</span>
+                            <span className="line-clamp-2 block text-sm font-semibold leading-5 text-[var(--gm-text)]">{item.title}</span>
+                            <span className="mt-1 block truncate text-xs text-[var(--gm-text-3)]">{item.authorName || "匿名作者"}</span>
+                            <span className="mt-1 block text-[10px] text-[var(--gm-text-3)]">点赞于 {formatShortTime(item.likedAt)}</span>
                         </span>
                     </button>
                     <Button type="text" danger size="small" icon={<Heart className="size-3.5 fill-current" />} loading={actionKey === `unlike:${item.slug}`} disabled={Boolean(actionKey)} onClick={() => onUnlike(item)}>

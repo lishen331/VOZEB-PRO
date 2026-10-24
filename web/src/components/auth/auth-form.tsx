@@ -427,7 +427,7 @@ export function AuthForm({
     }
 
     return (
-        <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-foreground sm:px-6 sm:py-10">
+        <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-[var(--gm-text)] sm:px-6 sm:py-10">
             <div className="auth-page-card grid w-full max-w-5xl overflow-hidden border backdrop-blur md:grid-cols-[0.9fr_1fr]">
                 <section className="auth-page-brand-panel flex min-h-[220px] flex-col justify-between gap-5 border-b p-5 text-stone-950 sm:min-h-[360px] sm:gap-8 sm:p-8 md:border-b-0 md:border-r dark:text-white">
                     <div className="flex items-start justify-between gap-4">

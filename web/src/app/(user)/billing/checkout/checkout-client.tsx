@@ -419,8 +419,8 @@ function formatYuan(amountCents: number) {
 function CouponPickerMenu({ coupons, selectedCouponId, loading, onRefresh, onSelect }: { coupons: UserCoupon[]; selectedCouponId: string; loading: boolean; onRefresh: () => void; onSelect: (value: string) => void }) {
     const hasOptions = coupons.length > 0 || Boolean(selectedCouponId);
     return (
-        <div className="w-[min(292px,calc(100vw-32px))] text-foreground">
-            <div className="flex h-8 items-center justify-between border-b border-border pb-1.5">
+        <div className="w-[min(292px,calc(100vw-32px))] text-[var(--gm-text)]">
+            <div className="flex h-8 items-center justify-between border-b border-[var(--gm-border)] pb-1.5">
                 <p className="text-sm font-semibold">选择优惠券</p>
                 <Button type="text" shape="circle" size="small" icon={<RefreshCw className="size-3.5" />} loading={loading} onClick={onRefresh} aria-label="刷新优惠券" />
             </div>
@@ -429,7 +429,7 @@ function CouponPickerMenu({ coupons, selectedCouponId, loading, onRefresh, onSel
                 {coupons.map((coupon) => (
                     <CouponPickerItem key={coupon.id} selected={selectedCouponId === coupon.id} disabled={!isCouponAvailable(coupon)} title={coupon.template?.name || "优惠券"} detail={couponDiscountLabel(coupon)} onClick={() => onSelect(coupon.id)} />
                 ))}
-                {!loading && !coupons.length ? <p className="px-2 py-2.5 text-center text-xs text-muted-foreground">当前没有可用优惠券</p> : null}
+                {!loading && !coupons.length ? <p className="px-2 py-2.5 text-center text-xs text-[var(--gm-text-3)]">当前没有可用优惠券</p> : null}
             </div>
         </div>
     );
@@ -440,14 +440,14 @@ function CouponPickerItem({ selected, disabled = false, title, detail, onClick }
         <button
             type="button"
             disabled={disabled}
-            className={`flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition ${selected ? "!bg-foreground !text-background" : "!bg-transparent !text-foreground hover:!bg-muted"} disabled:cursor-not-allowed disabled:!text-muted-foreground disabled:opacity-60`}
+            className={`flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition ${selected ? "!bg-[var(--gm-text)] !text-[var(--gm-bg)]" : "!bg-transparent !text-[var(--gm-text)] hover:!bg-[var(--gm-wash)]"} disabled:cursor-not-allowed disabled:!text-[var(--gm-text-3)] disabled:opacity-60`}
             onClick={onClick}
         >
             <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold">{title}</span>
                 <span className="mt-0.5 block truncate text-[11px] opacity-65">{detail}</span>
             </span>
-            <span className={`grid size-4 shrink-0 place-items-center rounded-full border ${selected ? "border-current" : "border-border"}`}>{selected ? <Check className="size-3" /> : null}</span>
+            <span className={`grid size-4 shrink-0 place-items-center rounded-full border ${selected ? "border-current" : "border-[var(--gm-border)]"}`}>{selected ? <Check className="size-3" /> : null}</span>
         </button>
     );
 }

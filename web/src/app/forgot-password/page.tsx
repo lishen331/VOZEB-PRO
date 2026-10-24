@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-foreground sm:px-6 sm:py-10">
+        <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-[var(--gm-text)] sm:px-6 sm:py-10">
             <section className="auth-reset-card w-full max-w-md border p-6 backdrop-blur">
                 <Link href={backToLogin} className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white">
                     <ArrowLeft className="size-4" />

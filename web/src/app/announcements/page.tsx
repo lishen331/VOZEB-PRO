@@ -20,7 +20,7 @@ export default async function AnnouncementsPage({ searchParams }: { searchParams
     const totalPages = Math.max(1, Math.ceil(announcementPage.total / announcementPage.pageSize));
 
     return (
-        <main className="app-scroll-page bg-background px-4 py-8 text-stone-950 dark:text-stone-100 sm:px-6">
+        <main className="app-scroll-page bg-[var(--gm-bg)] px-4 py-8 text-stone-950 dark:text-stone-100 sm:px-6">
             <div className="mx-auto max-w-4xl">
                 <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-200/50 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

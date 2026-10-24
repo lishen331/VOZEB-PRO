@@ -88,7 +88,7 @@ export default async function RootLayout({
                 <link rel="stylesheet" href="/fonts/geist-mono/wght.css" />
             </head>
             <body
-                className="bg-background text-foreground antialiased"
+                className="bg-[var(--gm-bg)] text-[var(--gm-text)] antialiased"
                 style={{
                     // 画布编辑器沿用这套字体；非画布页由 global-gamma-skin.css 的 html.gm-app body 覆盖为 MiSans
                     fontFamily: '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif',

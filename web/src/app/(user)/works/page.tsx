@@ -189,16 +189,16 @@ export default function WorksPage() {
     };
 
     return (
-        <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground">
+        <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-7xl px-2 py-2 sm:px-6 sm:py-8">
-                <header className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5 sm:pb-6">
+                <header className="flex flex-col gap-3 border-b border-[var(--gm-border)] pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5 sm:pb-6">
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
                             <GalleryVerticalEnd className="size-4" />
                             发布中心
                         </div>
                         <h1 className="mt-1.5 text-xl font-semibold sm:mt-2 sm:text-2xl">作品管理</h1>
-                        <p className="mt-1.5 text-xs leading-5 text-muted-foreground sm:mt-2 sm:text-sm">管理草稿、审核状态和当前公开版本</p>
+                        <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-3)] sm:mt-2 sm:text-sm">管理草稿、审核状态和当前公开版本</p>
                     </div>
                     <div className="flex items-center justify-end gap-2">
                         <Button className="!size-9 !p-0 sm:!size-auto sm:!h-8 sm:!px-3" href="/community" icon={<Compass className="size-4" />} aria-label="浏览作品广场">
@@ -211,7 +211,7 @@ export default function WorksPage() {
                     </div>
                 </header>
 
-                <section className="flex min-w-0 flex-row items-center gap-2 border-b border-border py-3 sm:justify-between sm:gap-3 sm:py-4">
+                <section className="flex min-w-0 flex-row items-center gap-2 border-b border-[var(--gm-border)] py-3 sm:justify-between sm:gap-3 sm:py-4">
                     <div className="hidden shrink-0 sm:block">
                         <Segmented
                             value={status}
@@ -254,7 +254,7 @@ export default function WorksPage() {
                         </Button>
                     </section>
                 ) : loading && !items.length ? (
-                    <section className="grid min-h-40 place-items-center text-sm text-muted-foreground">正在加载作品...</section>
+                    <section className="grid min-h-40 place-items-center text-sm text-[var(--gm-text-3)]">正在加载作品...</section>
                 ) : items.length ? (
                     <section className="grid min-w-0 gap-2 py-3 sm:gap-3 sm:py-5">
                         {items.map((work) => (
@@ -316,7 +316,7 @@ export default function WorksPage() {
                 onOk={() => void appeal()}
                 onCancel={() => !actionId && setAppealWork(undefined)}
             >
-                <p className="mb-3 text-sm leading-6 text-muted-foreground">请说明下架判断需要复核的原因和可验证信息。申诉通过后，仅在没有其他线上版本时恢复该版本。</p>
+                <p className="mb-3 text-sm leading-6 text-[var(--gm-text-3)]">请说明下架判断需要复核的原因和可验证信息。申诉通过后，仅在没有其他线上版本时恢复该版本。</p>
                 <Input.TextArea value={appealDescription} rows={5} maxLength={1000} showCount placeholder="例如：作品使用的素材均为本人原创，可提供创作记录进行核验" onChange={(event) => setAppealDescription(event.target.value)} />
             </Modal>
         </main>
@@ -354,10 +354,10 @@ function WorkListItem({
     const shareable = active && Boolean(work.publishedVersionId) && work.publishedVersion?.visibility !== "private";
     const sourceIcon = work.sourceType === "media" ? <ImageIcon className="size-4" /> : work.sourceType === "canvas" ? <GalleryVerticalEnd className="size-4" /> : <Film className="size-4" />;
     return (
-        <article className="min-w-0 rounded-lg border border-border bg-card p-3.5 text-card-foreground transition hover:border-foreground/20 sm:p-4">
+        <article className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3.5 text-card-foreground transition hover:border-foreground/20 sm:p-4">
             <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-muted text-muted-foreground">{sourceIcon}</span>
+                    <span className="grid size-9 shrink-0 place-items-center rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]">{sourceIcon}</span>
                     <div className="min-w-0 flex-1">
                         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                             <h2 className="min-w-0 max-w-full truncate text-sm font-semibold">{version.title}</h2>
@@ -366,8 +366,8 @@ function WorkListItem({
                             </span>
                             {work.publishedVersion && work.publishedVersion.id !== version.id ? <Tag color="success">线上 v{work.publishedVersion.versionNumber}</Tag> : null}
                         </div>
-                        <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-muted-foreground">{version.description || "暂未填写作品说明"}</p>
-                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                        <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-[var(--gm-text-3)]">{version.description || "暂未填写作品说明"}</p>
+                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--gm-text-3)]">
                             <span>{SOURCE_TYPE_LABELS[work.sourceType]}来源</span>
                             <span>v{version.versionNumber}</span>
                             <span>{VISIBILITY_LABELS[version.visibility]}</span>
@@ -377,7 +377,7 @@ function WorkListItem({
                         {version.rejectionReason ? <div className="mt-1.5 border-l-2 border-rose-400 pl-2 text-xs leading-5 text-rose-700 dark:text-rose-300">驳回原因：{version.rejectionReason}</div> : null}
                     </div>
                 </div>
-                <div className="flex min-w-0 flex-wrap gap-1.5 border-t border-border pt-3 md:max-w-md md:shrink-0 md:justify-end md:border-t-0 md:pt-0">
+                <div className="flex min-w-0 flex-wrap gap-1.5 border-t border-[var(--gm-border)] pt-3 md:max-w-md md:shrink-0 md:justify-end md:border-t-0 md:pt-0">
                     {shareable ? (
                         <>
                             <Button size="small" icon={<Eye className="size-3.5" />} onClick={onPreview}>

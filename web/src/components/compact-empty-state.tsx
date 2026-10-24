@@ -15,8 +15,8 @@ export function CompactEmptyState({ title, description, icon, action, className 
             <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--gm-blue,transparent)] opacity-10 blur-3xl" />
             <div className="relative flex max-w-md flex-col items-center">
                 <span className="grid size-8 place-items-center rounded-[10px] bg-[var(--gm-blue-soft,var(--muted))] text-[var(--gm-accent,var(--muted-foreground))] ring-1 ring-[var(--gm-accent-ring,transparent)] [&_svg]:size-4">{icon || <Inbox />}</span>
-                <div className="mt-2 text-sm font-medium text-foreground">{title}</div>
-                {description ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p> : null}
+                <div className="mt-2 text-sm font-medium text-[var(--gm-text)]">{title}</div>
+                {description ? <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">{description}</p> : null}
                 {action ? <div className="mt-3">{action}</div> : null}
             </div>
         </div>

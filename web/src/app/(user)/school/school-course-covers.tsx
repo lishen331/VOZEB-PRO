@@ -18,19 +18,19 @@ export function SchoolCourseCovers({ items, loading, onOpen }: { items: SchoolCo
                         aria-label={`打开课程：${item.course.title}`}
                         title={item.course.title}
                         onClick={() => onOpen(item)}
-                        className="relative block aspect-[4/3] w-full min-w-0 overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="relative block aspect-[4/3] w-full min-w-0 overflow-hidden rounded-lg bg-[var(--gm-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         {key && !failed[url] ? (
                             <img src={url} alt={item.course.title} loading="lazy" className="absolute inset-0 h-full w-full object-contain" onError={() => setFailed((current) => ({ ...current, [url]: true }))} />
                         ) : (
-                            <span className="absolute inset-0 grid place-items-center text-muted-foreground" aria-label="暂无封面">
+                            <span className="absolute inset-0 grid place-items-center text-[var(--gm-text-3)]" aria-label="暂无封面">
                                 <ImageIcon className="size-8" aria-hidden="true" />
                             </span>
                         )}
                     </button>
                 );
             })}
-            {!items.length ? <p className="col-span-full py-6 text-center text-sm text-muted-foreground">{loading ? "正在加载课程…" : "暂无已分配课程"}</p> : null}
+            {!items.length ? <p className="col-span-full py-6 text-center text-sm text-[var(--gm-text-3)]">{loading ? "正在加载课程…" : "暂无已分配课程"}</p> : null}
         </div>
     );
 }
