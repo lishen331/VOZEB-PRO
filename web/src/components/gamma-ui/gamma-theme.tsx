@@ -50,10 +50,10 @@ function writeStored(key: string, value: string) {
 
 /**
  * 主题与字体容器：输出 .gm / .gm-light 作用域类，并把选中字体写进 CSS 变量。
- * 首帧用默认值（深色 + MiSans），挂载后再读 localStorage，避免 SSR 不一致。
+ * 首帧用默认值（浅色 + MiSans，对齐线上主站形象），挂载后再读 localStorage，避免 SSR 不一致。
  */
 export function GammaThemeProvider({ children, className }: { children: ReactNode; className?: string }) {
-    const [mode, setModeState] = useState<GammaThemeMode>("dark");
+    const [mode, setModeState] = useState<GammaThemeMode>("light");
     const [fontId, setFontIdState] = useState(GAMMA_DEFAULT_FONT_ID);
     const [transitioning, setTransitioning] = useState(false);
     const timerRef = useRef<number | undefined>(undefined);

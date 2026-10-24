@@ -1,22 +1,30 @@
 import type { GammaRailItem } from "@/components/gamma-ui/gamma-shell";
 
 /*
- * 布鲁伽马导航：面向设计与艺术类院校。Agent 已下线，原工具入口改为「专业方向」。
- * 图标用自绘的 GammaNavIcon（选中时镂空 + 笔画点亮）。
- * 「设计系统」挂在社区分组下，便于验收整套组件。
+ * 布鲁伽马导航：文案与分组对照线上 workspace-navigation.ts 的真实侧栏（见 reddetail.gammablue-x.com），
+ * 这样设计稿定下来后菜单结构能直接套回真实页面，不用再重新对齐一遍。
+ * 图标用自绘的 GammaNavIcon（选中时镂空 + 笔画点亮）。预览独有的「工作台/课程/设计系统/全部」仍保留在社区组之后。
  */
 export const GAMMA_RAIL_ITEMS: readonly GammaRailItem[] = [
     { key: "home", label: "首页", icon: "home", href: "/bluegamma", group: "create" },
-    { key: "majors", label: "专业", icon: "subjects", group: "create" },
-    { key: "studio", label: "工作台", icon: "courseware", href: "/bluegamma/studio", group: "create" },
-    { key: "courses", label: "课程", icon: "lessons", href: "/bluegamma/courses", group: "create" },
-    { key: "practice", label: "无限练习", icon: "practice", href: "/bluegamma/practice", group: "create" },
-    { key: "assets", label: "素材", icon: "assets", href: "/bluegamma/assets", group: "assets" },
-    { key: "prompts", label: "提示词", icon: "prompts", href: "/bluegamma/prompts", group: "assets" },
+    { key: "majors", label: "AI 创作", icon: "subjects", group: "create" },
+    { key: "canvas", label: "无限画布", icon: "canvas", group: "create" },
+    { key: "drama-lab", label: "创作工坊", icon: "workshop", group: "create" },
+    { key: "works", label: "我的作品", icon: "works", group: "assets" },
+    { key: "assets", label: "我的素材", icon: "assets", href: "/bluegamma/assets", group: "assets" },
+    { key: "my-prompts", label: "我的提示词", icon: "library", group: "assets" },
+    { key: "prompts", label: "提示词库", icon: "prompts", href: "/bluegamma/prompts", group: "assets" },
     { key: "plaza", label: "作品广场", icon: "plaza", group: "community" },
-    { key: "studios", label: "工作室", icon: "classes", href: "/bluegamma/studios", group: "community" },
-    { key: "design", label: "设计系统", icon: "design", href: "/bluegamma/design", group: "community" },
-    { key: "all", label: "全部", icon: "all", href: "/bluegamma/all", group: "more" },
+    { key: "community", label: "创作社区", icon: "classes", group: "community" },
+    { key: "ip-library", label: "IP 库", icon: "ip", group: "community" },
+    { key: "me", label: "我的主页", icon: "profile", group: "community" },
+    // 预览独有：工作台/课程/无限练习/工作室/设计系统/全部 是这次设计稿新增或验收用的入口，线上侧栏没有
+    { key: "studio", label: "工作台", icon: "courseware", href: "/bluegamma/studio", group: "preview" },
+    { key: "courses", label: "课程", icon: "lessons", href: "/bluegamma/courses", group: "preview" },
+    { key: "practice", label: "无限练习", icon: "practice", href: "/bluegamma/practice", group: "preview" },
+    { key: "studios", label: "工作室", icon: "classes", href: "/bluegamma/studios", group: "preview" },
+    { key: "design", label: "设计系统", icon: "design", href: "/bluegamma/design", group: "preview" },
+    { key: "all", label: "全部", icon: "all", href: "/bluegamma/all", group: "preview" },
     // 侧边栏最底部：按可灵版式排布的新首页，供替换时与 /bluegamma 二选一
     { key: "kling-home", label: "新首页", icon: "home", href: "/bluegamma/home", group: "preview" },
 ];
