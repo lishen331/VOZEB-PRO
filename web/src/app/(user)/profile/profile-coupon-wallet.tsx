@@ -45,7 +45,7 @@ export function CouponWalletSection({ coupons, templates, templatesTotal, templa
     };
 
     return (
-        <section className="rounded-lg border border-border bg-card p-2 text-card-foreground sm:rounded-2xl sm:p-6">
+        <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 text-card-foreground sm:rounded-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h2 className="text-lg font-semibold text-stone-950 sm:text-xl dark:text-white">我的优惠券</h2>

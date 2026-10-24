@@ -40,7 +40,7 @@ export const profileDangerButtonClass = "profile-danger-button";
 export function ProfileSectionNav({ activeKey, onChange, mode }: { activeKey: ProfileSectionKey; onChange: (key: ProfileSectionKey) => void; mode: "mobile" | "desktop" }) {
     if (mode === "mobile") {
         return (
-            <nav className="flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-2 text-card-foreground" aria-label="个人中心分区">
+            <nav className="flex h-9 items-center gap-2 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2 text-card-foreground" aria-label="个人中心分区">
                 <span className="shrink-0 text-[11px] font-medium text-stone-500 dark:text-stone-400">当前分区</span>
                 <Select aria-label="切换个人中心分区" className="min-w-0 flex-1" variant="borderless" value={activeKey} options={profileSections.map((section) => ({ label: section.label, value: section.key }))} onChange={onChange} />
             </nav>
@@ -49,7 +49,7 @@ export function ProfileSectionNav({ activeKey, onChange, mode }: { activeKey: Pr
 
     return (
         <aside className="min-w-0 self-start xl:sticky xl:top-0">
-            <div className="rounded-xl border border-border bg-card p-1 text-card-foreground shadow-sm shadow-stone-200/60 dark:shadow-black/20">
+            <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-1 text-card-foreground shadow-sm shadow-stone-200/60 dark:shadow-black/20">
                 <div className="flex flex-col gap-1">
                     {profileSections.map((section) => {
                         const active = section.key === activeKey;
@@ -83,7 +83,7 @@ export function ProfileSectionNav({ activeKey, onChange, mode }: { activeKey: Pr
 
 export function BillingCenterSection({ products, productsLoading, onRefresh, onCheckout }: { products: BillingProduct[]; productsLoading: boolean; onRefresh: () => void; onCheckout: (product: BillingProduct) => void }) {
     return (
-        <section className="rounded-lg border border-border bg-card p-2 text-card-foreground sm:rounded-2xl sm:p-6">
+        <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 text-card-foreground sm:rounded-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h2 className="text-lg font-semibold tracking-tight text-stone-950 sm:text-xl dark:text-white">套餐中心</h2>
@@ -234,7 +234,7 @@ export function OrderList({ loading, orders, total, page, onPageChange, compact 
 
 export function AccountMetric({ label, value, icon, detail }: { label: string; value: string; icon: ReactNode; detail?: string }) {
     return (
-        <div className="rounded-lg bg-stone-50/70 px-2.5 py-2 text-card-foreground xl:rounded-2xl xl:border xl:border-border xl:bg-card xl:p-4 xl:shadow-sm xl:shadow-stone-200/60 dark:bg-stone-900/35 xl:dark:bg-card xl:dark:shadow-black/20">
+        <div className="rounded-lg bg-stone-50/70 px-2.5 py-2 text-card-foreground xl:rounded-2xl xl:border xl:border-[var(--gm-border)] xl:bg-[var(--gm-surface)] xl:p-4 xl:shadow-sm xl:shadow-stone-200/60 dark:bg-stone-900/35 xl:dark:bg-[var(--gm-surface)] xl:dark:shadow-black/20">
             <div className="flex items-center justify-between gap-3">
                 <div className="text-xs text-stone-500 xl:text-sm dark:text-stone-400">{label}</div>
                 <span className="flex size-5 items-center justify-center text-stone-400 xl:size-8 xl:rounded-xl xl:bg-stone-100 xl:text-stone-700 dark:text-stone-500 xl:dark:bg-stone-900 xl:dark:text-stone-200">{icon}</span>
@@ -247,7 +247,7 @@ export function AccountMetric({ label, value, icon, detail }: { label: string; v
 
 export function AccountPanel({ title, description, action, children }: { title: string; description: string; action?: ReactNode; children: ReactNode }) {
     return (
-        <section className="rounded-lg border border-border bg-card p-2 text-card-foreground sm:rounded-2xl sm:p-5 sm:shadow-[0_12px_40px_rgba(15,23,42,0.07)] dark:sm:shadow-black/20">
+        <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 text-card-foreground sm:rounded-2xl sm:p-5 sm:shadow-[0_12px_40px_rgba(15,23,42,0.07)] dark:sm:shadow-black/20">
             <div className="mb-1.5 flex items-start justify-between gap-3 sm:mb-4">
                 <div className="min-w-0">
                     <h2 className="text-base font-semibold text-stone-950 sm:text-lg dark:text-white">{title}</h2>

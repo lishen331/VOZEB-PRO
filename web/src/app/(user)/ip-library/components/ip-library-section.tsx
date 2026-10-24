@@ -23,11 +23,11 @@ export function IpLibrarySection<T extends { id: string }>({
     if (!items.length) return null;
     const visible = expanded ? items : items.slice(0, initialCount);
     return (
-        <section className="border-t border-border py-5 sm:py-7" data-ip-library-section={title}>
+        <section className="border-t border-[var(--gm-border)] py-5 sm:py-7" data-ip-library-section={title}>
             <div className="flex min-w-0 items-end justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-foreground sm:text-lg">{title}</h2>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">{description}</p>
+                    <h2 className="text-base font-semibold text-[var(--gm-text)] sm:text-lg">{title}</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)] sm:text-sm">{description}</p>
                 </div>
                 {items.length > initialCount ? (
                     <Button type="text" size="small" icon={expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />} onClick={() => setExpanded((value) => !value)}>
