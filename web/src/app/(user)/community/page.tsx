@@ -14,7 +14,7 @@ export default async function CommunityPage({ searchParams }: { searchParams: Co
     const filters = parseGalleryFilters(await searchParams);
     const gallery = await loadGallery(filters);
     return (
-        <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground">
+        <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <GalleryView filters={filters} gallery={gallery} basePath="/community" embedded />
         </main>
     );
