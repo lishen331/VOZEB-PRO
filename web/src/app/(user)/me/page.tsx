@@ -150,7 +150,7 @@ export default function MyCreatorPage() {
 
     if (!user) {
         return (
-            <main className="grid h-full min-h-0 place-items-center bg-background text-foreground">
+            <main className="grid h-full min-h-0 place-items-center bg-[var(--gm-bg)] text-[var(--gm-text)]">
                 <Spin size="small" />
             </main>
         );
@@ -168,7 +168,7 @@ export default function MyCreatorPage() {
     };
 
     return (
-        <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground">
+        <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-[1280px] px-3 pb-12 sm:px-6 sm:pb-16 lg:px-8">
                 <section className="flex min-w-0 flex-col items-center pb-5 pt-6 text-center sm:pb-7 sm:pt-8" aria-labelledby="my-profile-name">
                     <span className="grid size-24 place-items-center overflow-hidden rounded-full bg-foreground text-xl font-semibold text-background ring-1 ring-border sm:size-28 sm:text-2xl" aria-hidden="true">
@@ -181,7 +181,7 @@ export default function MyCreatorPage() {
                         </h1>
                         <button
                             type="button"
-                            className="grid size-6 -translate-y-1.5 shrink-0 place-items-center self-center text-muted-foreground transition hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="grid size-6 -translate-y-1.5 shrink-0 place-items-center self-center text-[var(--gm-text-3)] transition hover:text-[var(--gm-text)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label="编辑个人资料"
                             title="编辑个人资料"
                             aria-haspopup="dialog"
@@ -190,7 +190,7 @@ export default function MyCreatorPage() {
                             <UserRoundPen className="size-3.5" />
                         </button>
                     </div>
-                    {bio ? <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">{bio}</p> : null}
+                    {bio ? <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-sm leading-6 text-[var(--gm-text-3)]">{bio}</p> : null}
                     <div className="mt-4 grid w-full max-w-md grid-cols-4 divide-x divide-border" role="group" aria-label="主页统计">
                         <ProfileMetric label="作品" value={metrics.published} />
                         <ProfileMetric label="获赞" value={metrics.liked} onClick={() => setActivityView("likes")} />
@@ -198,7 +198,7 @@ export default function MyCreatorPage() {
                         <ProfileMetric label="粉丝" value={metrics.followers} onClick={() => setActivityView("followers")} />
                     </div>
                     <Button
-                        className="mt-6 !h-10 !min-w-48 !rounded-md !border-[var(--gm-blue)] !bg-[var(--gm-blue)] !px-6 !text-base !font-semibold !text-white !shadow-none hover:!border-[var(--gm-blue-hover)] hover:!bg-[var(--gm-blue-hover)] hover:!text-white disabled:!border-border disabled:!bg-muted disabled:!text-muted-foreground"
+                        className="mt-6 !h-10 !min-w-48 !rounded-md !border-[var(--gm-blue)] !bg-[var(--gm-blue)] !px-6 !text-base !font-semibold !text-white !shadow-none hover:!border-[var(--gm-blue-hover)] hover:!bg-[var(--gm-blue-hover)] hover:!text-white disabled:!border-[var(--gm-border)] disabled:!bg-[var(--gm-wash)] disabled:!text-[var(--gm-text-3)]"
                         icon={<Share2 className="size-4" />}
                         disabled={!summary?.publicProfileAvailable}
                         onClick={shareProfile}
@@ -209,7 +209,7 @@ export default function MyCreatorPage() {
                 </section>
 
                 <section className="min-w-0 pt-4 sm:pt-5" aria-label="个人主页作品">
-                    <div className="flex items-center gap-5 border-b border-border" role="tablist" aria-label="主页内容">
+                    <div className="flex items-center gap-5 border-b border-[var(--gm-border)]" role="tablist" aria-label="主页内容">
                         <ProfileTabButton active={activeTab === "published"} icon={<Grid3X3 className="size-4" />} label="已发布" count={metrics.published} onClick={() => setActiveTab("published")} />
                         <ProfileTabButton active={activeTab === "likes"} icon={<Heart className="size-4" />} label="我的喜欢" count={summary?.likedWorkCount || 0} onClick={() => setActiveTab("likes")} />
                     </div>
@@ -221,7 +221,7 @@ export default function MyCreatorPage() {
                             emptyTitle="暂未发布公开作品"
                             emptyDescription="使用资料身份发布并通过审核后，作品会显示在这里。"
                             emptyAction={
-                                <Link href="/works" className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium transition hover:bg-muted">
+                                <Link href="/works" className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 text-sm font-medium transition hover:bg-[var(--gm-wash)]">
                                     <ImageIcon className="size-4" /> 发布作品
                                 </Link>
                             }
@@ -235,7 +235,7 @@ export default function MyCreatorPage() {
                             emptyTitle="暂未喜欢作品"
                             emptyDescription="你在作品广场点赞的公开作品会显示在这里，仅自己可见。"
                             emptyAction={
-                                <Link href="/community" className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium transition hover:bg-muted">
+                                <Link href="/community" className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 text-sm font-medium transition hover:bg-[var(--gm-wash)]">
                                     <ExternalLink className="size-4" /> 浏览作品广场
                                 </Link>
                             }
@@ -273,11 +273,11 @@ export default function MyCreatorPage() {
                 <div className="pt-2">
                     <ProfileAvatarUploader onUpdated={syncVisibleProfile} />
                     <label className="mt-4 block pb-4">
-                        <span className="text-sm font-medium text-foreground">昵称</span>
+                        <span className="text-sm font-medium text-[var(--gm-text)]">昵称</span>
                         <Input className="mt-2" value={draftDisplayName} maxLength={40} showCount placeholder="输入主页显示昵称" onChange={(event) => setDraftDisplayName(event.target.value)} onPressEnter={() => void saveProfile()} />
                     </label>
                     <label className="mt-4 block">
-                        <span className="text-sm font-medium text-foreground">个人简介</span>
+                        <span className="text-sm font-medium text-[var(--gm-text)]">个人简介</span>
                         <Input.TextArea className="mt-2" value={draftBio} maxLength={160} showCount autoSize={{ minRows: 3, maxRows: 5 }} placeholder="介绍你的创作方向、擅长领域或常用风格" onChange={(event) => setDraftBio(event.target.value)} />
                     </label>
                 </div>
@@ -291,7 +291,7 @@ function ProfileMetric({ label, value, onClick }: { label: string; value: number
     const content = (
         <>
             <span className="block text-sm font-semibold tabular-nums sm:text-base">{value}</span>
-            <span className="mt-1 flex items-center justify-center gap-1 truncate text-[10px] text-muted-foreground sm:text-xs">
+            <span className="mt-1 flex items-center justify-center gap-1 truncate text-[10px] text-[var(--gm-text-3)] sm:text-xs">
                 <Icon className="size-3.5 shrink-0" aria-hidden="true" />
                 {label}
             </span>
@@ -301,7 +301,7 @@ function ProfileMetric({ label, value, onClick }: { label: string; value: number
         return (
             <button
                 type="button"
-                className="w-full min-w-0 rounded-md px-1.5 py-1 transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-3"
+                className="w-full min-w-0 rounded-md px-1.5 py-1 transition hover:bg-[var(--gm-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-3"
                 onClick={onClick}
                 aria-haspopup="dialog"
             >
@@ -318,12 +318,12 @@ function ProfileTabButton({ active, icon, label, count, onClick }: { active: boo
             type="button"
             role="tab"
             aria-selected={active}
-            className={`relative inline-flex h-11 items-center gap-1.5 px-1 text-sm font-medium transition ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            className={`relative inline-flex h-11 items-center gap-1.5 px-1 text-sm font-medium transition ${active ? "text-[var(--gm-text)]" : "text-[var(--gm-text-3)] hover:text-[var(--gm-text)]"}`}
             onClick={onClick}
         >
             {icon}
             {label}
-            <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+            <span className="text-xs tabular-nums text-[var(--gm-text-3)]">{count}</span>
             {active ? <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" /> : null}
         </button>
     );
@@ -358,7 +358,7 @@ function WorkCollection({
             <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
                 <SiteLogo logoUrl="/logo.svg" className="size-9 opacity-35" />
                 <h2 className="mt-3 text-sm font-semibold">{emptyTitle}</h2>
-                <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">{emptyDescription}</p>
+                <p className="mt-1 max-w-sm text-xs leading-5 text-[var(--gm-text-3)]">{emptyDescription}</p>
                 <div className="mt-4">{emptyAction}</div>
             </div>
         );

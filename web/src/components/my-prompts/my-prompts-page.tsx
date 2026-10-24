@@ -145,7 +145,7 @@ export function MyPromptsPage() {
     ];
 
     return (
-        <div className="flex h-full flex-col overflow-hidden bg-background text-stone-800 dark:text-stone-100">
+        <div className="flex h-full flex-col overflow-hidden bg-[var(--gm-bg)] text-stone-800 dark:text-stone-100">
             <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-6 sm:py-8">
                 <div className="mx-auto max-w-7xl space-y-3 sm:space-y-6">
                     <div className="flex flex-row items-center justify-between gap-3 sm:items-end sm:gap-4">
@@ -158,8 +158,8 @@ export function MyPromptsPage() {
                         </Button>
                     </div>
 
-                    <section className="overflow-hidden rounded-lg border border-border bg-card">
-                        <div className="border-b border-border px-3 py-2.5 sm:px-5 sm:py-4">
+                    <section className="overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]">
+                        <div className="border-b border-[var(--gm-border)] px-3 py-2.5 sm:px-5 sm:py-4">
                             <h2 className="text-base font-semibold text-stone-950 sm:text-lg dark:text-stone-100">我的记录</h2>
                         </div>
                         <Table

@@ -32,13 +32,13 @@ export function AssetCard({
     const summary = assetSummary(asset);
     const action = (label: string) => `${label} ${asset.title}`;
     return (
-        <article className="group min-w-0 overflow-hidden rounded-xl border border-border bg-card transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-foreground/30">
-            <button type="button" aria-label={`查看 ${asset.title}`} className="relative block w-full overflow-hidden bg-muted text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" onClick={onOpen}>
+        <article className="group min-w-0 overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-foreground/30">
+            <button type="button" aria-label={`查看 ${asset.title}`} className="relative block w-full overflow-hidden bg-[var(--gm-wash)] text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" onClick={onOpen}>
                 {cover ? (
                     <img src={imagePreviewUrl(cover, 800)} alt={asset.title} className="aspect-[16/10] w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]" />
                 ) : (
-                    <span className="flex aspect-[16/10] flex-col items-center justify-center gap-2 p-4 text-center text-xs leading-5 text-muted-foreground sm:p-6">
-                        <span className="grid size-9 place-items-center rounded-full border border-border bg-background/80 text-foreground">{assetKindIcon(asset.kind)}</span>
+                    <span className="flex aspect-[16/10] flex-col items-center justify-center gap-2 p-4 text-center text-xs leading-5 text-[var(--gm-text-3)] sm:p-6">
+                        <span className="grid size-9 place-items-center rounded-full border border-[var(--gm-border)] bg-[var(--gm-bg)]/80 text-[var(--gm-text)]">{assetKindIcon(asset.kind)}</span>
                         <span className="line-clamp-3">{asset.kind === "text" ? asset.data.content : "暂无封面"}</span>
                     </span>
                 )}
@@ -48,19 +48,19 @@ export function AssetCard({
             </button>
             <div className="min-w-0 p-3 sm:p-3.5">
                 <button type="button" className="block max-w-full text-left outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
-                    <h2 className="truncate text-[15px] font-semibold text-foreground">{asset.title}</h2>
+                    <h2 className="truncate text-[15px] font-semibold text-[var(--gm-text)]">{asset.title}</h2>
                 </button>
-                <p className="mt-1 truncate text-[11px] text-muted-foreground">{asset.source || assetKindLabel(asset.kind)}</p>
-                <p className="mt-2 truncate text-xs text-muted-foreground">{summary}</p>
-                <div className="mt-3 flex min-w-0 items-center justify-between gap-2 border-t border-border pt-2.5">
+                <p className="mt-1 truncate text-[11px] text-[var(--gm-text-3)]">{asset.source || assetKindLabel(asset.kind)}</p>
+                <p className="mt-2 truncate text-xs text-[var(--gm-text-3)]">{summary}</p>
+                <div className="mt-3 flex min-w-0 items-center justify-between gap-2 border-t border-[var(--gm-border)] pt-2.5">
                     <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
                         {(asset.tags || []).slice(0, 2).map((tag) => (
-                            <span key={tag} className="max-w-24 truncate rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                            <span key={tag} className="max-w-24 truncate rounded-full bg-[var(--gm-wash)] px-2 py-0.5 text-[10px] text-[var(--gm-text-3)]">
                                 {tag}
                             </span>
                         ))}
-                        {asset.tags.length > 2 ? <span className="shrink-0 text-[10px] text-muted-foreground">+{asset.tags.length - 2}</span> : null}
-                        {!asset.tags.length ? <span className="truncate text-[10px] text-muted-foreground">{asset.note || "未添加标签"}</span> : null}
+                        {asset.tags.length > 2 ? <span className="shrink-0 text-[10px] text-[var(--gm-text-3)]">+{asset.tags.length - 2}</span> : null}
+                        {!asset.tags.length ? <span className="truncate text-[10px] text-[var(--gm-text-3)]">{asset.note || "未添加标签"}</span> : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-0.5">
                         {asset.kind !== "video" ? (

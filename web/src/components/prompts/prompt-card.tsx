@@ -28,7 +28,7 @@ export function PromptCard({
 }) {
     return (
         <>
-            <article className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground sm:hidden">
+            <article className="overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] text-card-foreground sm:hidden">
                 <button type="button" className="grid w-full grid-cols-[5.5rem_minmax(0,1fr)] text-left" onClick={() => onOpen(item.coverUrl ? imagePreviewUrl(item.coverUrl, 480) : undefined)}>
                     {item.coverUrl ? (
                         <LazyMediaImage src={imagePreviewUrl(item.coverUrl, 480)} alt={item.title} containerClassName="h-24 w-full" imageClassName="h-24 w-full object-cover" />
@@ -50,7 +50,7 @@ export function PromptCard({
                         </div>
                     </div>
                 </button>
-                <div className="flex items-center gap-1.5 border-t border-border px-2 py-1">
+                <div className="flex items-center gap-1.5 border-t border-[var(--gm-border)] px-2 py-1">
                     <Button block={actionType === "primary"} type={actionType} size="small" icon={actionIcon} onClick={onCopy}>
                         {actionLabel}
                     </Button>

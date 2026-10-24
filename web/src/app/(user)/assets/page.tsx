@@ -265,14 +265,14 @@ export default function AssetsPage() {
     };
 
     return (
-        <div className="h-full min-h-0 overflow-hidden bg-background text-foreground">
+        <div className="h-full min-h-0 overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <main className="h-full min-h-0 overflow-y-auto px-3 py-3 sm:px-6 sm:py-6">
                 <div className="mx-auto max-w-[1560px]">
-                    <header className="border-b border-border pb-3 sm:pb-4">
+                    <header className="border-b border-[var(--gm-border)] pb-3 sm:pb-4">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <h1 className="text-lg font-semibold sm:text-xl">我的素材</h1>
-                                <p className="mt-0.5 text-xs text-muted-foreground">{total ? `${total} 项素材` : "集中管理创作中复用的内容"}</p>
+                                <p className="mt-0.5 text-xs text-[var(--gm-text-3)]">{total ? `${total} 项素材` : "集中管理创作中复用的内容"}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                                 <Tooltip title="导出素材">
@@ -339,7 +339,7 @@ export default function AssetsPage() {
                                 <Spin description="正在加载素材" />
                             </section>
                         ) : error ? (
-                            <section className="flex min-h-32 flex-col items-center justify-center gap-3 border-y border-border px-4 text-center sm:min-h-56">
+                            <section className="flex min-h-32 flex-col items-center justify-center gap-3 border-y border-[var(--gm-border)] px-4 text-center sm:min-h-56">
                                 <p className="text-sm text-stone-500 dark:text-stone-400">{error}</p>
                                 <Button size="small" onClick={reload}>
                                     重新加载
@@ -453,7 +453,7 @@ export default function AssetsPage() {
                     </Form>
                     <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-950">
                         <Typography.Text strong>预览</Typography.Text>
-                        <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
+                        <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-[var(--gm-bg)] dark:border-stone-800">
                             {coverUrl || (mediaDraft && "dataUrl" in mediaDraft ? mediaDraft.dataUrl : "") ? (
                                 <img src={imagePreviewUrl(coverUrl || (mediaDraft && "dataUrl" in mediaDraft ? mediaDraft.dataUrl : ""), 960)} alt="" className="aspect-[4/3] w-full object-cover" />
                             ) : formKind === "video" && mediaDraft && "url" in mediaDraft ? (
