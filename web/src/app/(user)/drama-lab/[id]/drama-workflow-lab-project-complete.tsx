@@ -2563,7 +2563,11 @@ function ScriptEditor({
                                             <span id="drama-lab-novel-import-actions" className="inline-flex" />
 
                                             {customOptionKind ? (
-                                                <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
+                                                <div
+                                                    className="order-3 flex flex-wrap items-center gap-2 rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-2"
+                                                    role="dialog"
+                                                    aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}
+                                                >
                                                     <Input
                                                         autoFocus
                                                         value={customOptionDraft}
@@ -6136,7 +6140,12 @@ function StoryboardWorkbenchCard({
         openPromptEditor();
     };
     return (
-        <article id={`storyboard-shot-${shot.id}`} aria-label="分镜卡片空白区域" className="group/storyboard @container/storyboard relative min-w-0 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]" onClick={openPromptFromCardBlank}>
+        <article
+            id={`storyboard-shot-${shot.id}`}
+            aria-label="分镜卡片空白区域"
+            className="group/storyboard @container/storyboard relative min-w-0 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]"
+            onClick={openPromptFromCardBlank}
+        >
             <header className="flex flex-row flex-wrap items-start justify-between gap-2 border-b border-[var(--gm-border)] px-4 py-3">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

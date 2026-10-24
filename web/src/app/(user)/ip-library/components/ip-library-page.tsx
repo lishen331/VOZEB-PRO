@@ -111,7 +111,11 @@ export default function IpLibraryPage() {
 
 function IpLibraryCard({ item }: { item: IpSummary }) {
     return (
-        <Link href={`/ip-library/${encodeURIComponent(item.id)}`} className="group min-w-0 overflow-hidden border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text)] transition hover:border-foreground/30 hover:shadow-sm" data-ip-library-card={item.id}>
+        <Link
+            href={`/ip-library/${encodeURIComponent(item.id)}`}
+            className="group min-w-0 overflow-hidden border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text)] transition hover:border-foreground/30 hover:shadow-sm"
+            data-ip-library-card={item.id}
+        >
             <div className="aspect-[4/3] overflow-hidden bg-[var(--gm-wash)]/50">
                 {item.coverPreviewUrl ? (
                     <img src={item.coverPreviewUrl} alt={item.title} loading="lazy" className="size-full object-cover transition duration-300 group-hover:scale-[1.02]" />

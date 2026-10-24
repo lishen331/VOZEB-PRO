@@ -351,7 +351,11 @@ function DormantReferenceActions({ detail, subIpId }: { detail: IpDetail; subIpI
 
 function UseTarget({ icon, title, onClick }: { icon: React.ReactNode; title: string; onClick: () => void }) {
     return (
-        <button type="button" className="flex min-h-24 flex-col items-center justify-center gap-2 border border-[var(--gm-border)] bg-[var(--gm-surface)] text-sm font-medium transition hover:border-foreground/30 hover:bg-[var(--gm-wash)]/30" onClick={onClick}>
+        <button
+            type="button"
+            className="flex min-h-24 flex-col items-center justify-center gap-2 border border-[var(--gm-border)] bg-[var(--gm-surface)] text-sm font-medium transition hover:border-foreground/30 hover:bg-[var(--gm-wash)]/30"
+            onClick={onClick}
+        >
             {icon}
             <span>{title}</span>
         </button>

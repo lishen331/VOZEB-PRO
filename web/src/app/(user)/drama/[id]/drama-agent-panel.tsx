@@ -141,7 +141,11 @@ export function DramaAgentPanel({
             data-drama-agent-panel-frame
             aria-hidden={!open}
         >
-            <aside className={`relative h-full min-w-0 shrink-0 border-l border-[var(--gm-border)] ${resizing ? "" : "transition-transform duration-300 ease-out"} ${open ? "translate-x-0" : "translate-x-8"}`} style={{ width: "100%" }} aria-label="项目 Agent 面板">
+            <aside
+                className={`relative h-full min-w-0 shrink-0 border-l border-[var(--gm-border)] ${resizing ? "" : "transition-transform duration-300 ease-out"} ${open ? "translate-x-0" : "translate-x-8"}`}
+                style={{ width: "100%" }}
+                aria-label="项目 Agent 面板"
+            >
                 <button type="button" className="absolute inset-y-0 left-0 z-40 w-4 -translate-x-1/2 cursor-col-resize" onMouseDown={startResize} aria-label="调整项目 Agent 面板宽度" />
                 {content}
             </aside>

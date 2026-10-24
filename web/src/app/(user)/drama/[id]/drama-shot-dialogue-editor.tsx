@@ -77,7 +77,11 @@ export function DramaShotDialogueEditor({ projectId, episodeId, shot }: { projec
                         </span>
                     </button>
                 ) : (
-                    <button type="button" className="mt-1 flex h-9 w-full items-center border-y border-[var(--gm-border)]/55 text-left text-xs text-[var(--gm-text-3)] transition hover:bg-[var(--gm-wash)]/35 hover:text-[var(--gm-text)]" onClick={openEditor}>
+                    <button
+                        type="button"
+                        className="mt-1 flex h-9 w-full items-center border-y border-[var(--gm-border)]/55 text-left text-xs text-[var(--gm-text-3)] transition hover:bg-[var(--gm-wash)]/35 hover:text-[var(--gm-text)]"
+                        onClick={openEditor}
+                    >
                         暂无对白，点击添加角色原话
                     </button>
                 )}
