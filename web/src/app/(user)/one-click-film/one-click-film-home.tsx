@@ -66,16 +66,16 @@ export default function OneClickFilmHome() {
     }
 
     return (
-        <main className="h-full overflow-y-auto bg-background text-foreground">
+        <main className="h-full overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
-                <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
+                <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--gm-border)] pb-5">
                     <div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
                             <Film className="size-4" />
                             商单生产工作区
                         </div>
                         <h1 className="mt-2 text-2xl font-semibold">一键成片</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">完整短剧一键成片生产项目。</p>
+                        <p className="mt-1 text-sm text-[var(--gm-text-3)]">完整短剧一键成片生产项目。</p>
                     </div>
                     <div className="flex gap-2">
                         <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProjects()}>
@@ -89,7 +89,7 @@ export default function OneClickFilmHome() {
                 <section className="mt-6">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-semibold">我的一键成片项目</h2>
-                        <span className="text-sm text-muted-foreground">共 {total} 个项目</span>
+                        <span className="text-sm text-[var(--gm-text-3)]">共 {total} 个项目</span>
                     </div>
                     {loading ? (
                         <div className="flex min-h-48 items-center justify-center">
@@ -106,21 +106,21 @@ export default function OneClickFilmHome() {
                     ) : projects.length ? (
                         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                             {projects.map((project) => (
-                                <article key={project.id} className="rounded-lg border border-border bg-card p-5">
+                                <article key={project.id} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
-                                            <div className="text-xs text-muted-foreground">商单项目</div>
+                                            <div className="text-xs text-[var(--gm-text-3)]">商单项目</div>
                                             <h3 className="mt-2 text-lg font-semibold">{project.title}</h3>
                                         </div>
                                         <Tag>{project.episodeCount} 集</Tag>
                                     </div>
-                                    <p className="mt-3 line-clamp-2 min-h-10 text-sm text-muted-foreground">{project.summary || "暂无项目简介"}</p>
-                                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    <p className="mt-3 line-clamp-2 min-h-10 text-sm text-[var(--gm-text-3)]">{project.summary || "暂无项目简介"}</p>
+                                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
                                         <Tag>{project.shotCount} 分镜</Tag>
                                         <Tag>{project.ratio}</Tag>
                                         <Tag>{project.style || "电影感国漫"}</Tag>
                                     </div>
-                                    <div className="mt-5 border-t border-border pt-4">
+                                    <div className="mt-5 border-t border-[var(--gm-border)] pt-4">
                                         <Link href={`/one-click-film/${encodeURIComponent(project.id)}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary">
                                             进入制作
                                             <ArrowRight className="size-4" />
@@ -130,7 +130,7 @@ export default function OneClickFilmHome() {
                             ))}
                         </div>
                     ) : (
-                        <div className="mt-4 border-y border-border py-14 text-center text-sm text-muted-foreground">还没有一键成片项目，先新建一个项目开始制作。</div>
+                        <div className="mt-4 border-y border-[var(--gm-border)] py-14 text-center text-sm text-[var(--gm-text-3)]">还没有一键成片项目，先新建一个项目开始制作。</div>
                     )}
                 </section>
             </div>

@@ -423,7 +423,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
     };
 
     return (
-        <section id="anchor-assets" className="mt-6 rounded-lg border border-border bg-card p-5">
+        <section id="anchor-assets" className="mt-6 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-semibold">资产准备</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -464,12 +464,12 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                 <ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4" data-testid="asset-card-grid">
                     {assets.map((asset) => (
                         <li key={asset.id} className="min-w-0 rounded-lg border p-3" data-testid={`one-click-asset-${asset.id}`}>
-                            <div className="mb-3 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded bg-muted/40">
+                            <div className="mb-3 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded bg-[var(--gm-wash)]/40">
                                 {dramaAssetPrimaryReference(asset)?.url ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={dramaAssetPrimaryReference(asset)!.url} alt={`${asset.name || "资产"}预览`} className="h-full w-full object-contain" />
                                 ) : (
-                                    <ImageIcon className="size-8 text-muted-foreground" />
+                                    <ImageIcon className="size-8 text-[var(--gm-text-3)]" />
                                 )}
                             </div>
                             <div className="flex items-start justify-between gap-3">
@@ -480,7 +480,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                         {asset.primaryReferenceId ? <Tag color="success">已有主参考图</Tag> : null}
                                         {asset.stages?.length ? <Tag color="processing">{asset.stages.length} 段造型</Tag> : null}
                                     </div>
-                                    <p className="mt-1 truncate text-sm text-muted-foreground">{asset.description || asset.appearance || "暂无描述"}</p>
+                                    <p className="mt-1 truncate text-sm text-[var(--gm-text-3)]">{asset.description || asset.appearance || "暂无描述"}</p>
                                 </div>
                                 <span className="flex shrink-0 items-center gap-1">
                                     <Button
@@ -639,7 +639,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                             {kind === "scenes" ? "单图提示词" : "图生提示词"}
                             <div className="min-w-0">
                                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
+                                    <span className="text-xs text-[var(--gm-text-3)]">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
                                     <Button size="small" loading={busy === `${editing.id}:prompt`} onClick={() => void runAi(editing, "prompt")}>
                                         重新生成提示词
                                     </Button>
@@ -663,7 +663,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                         {editing.profile ? (
                                             <Input.TextArea className="mt-2" rows={4} readOnly value={JSON.stringify(editing.profile, null, 2)} aria-label="角色视觉锚点" />
                                         ) : (
-                                            <p className="mt-2 text-xs text-muted-foreground">暂无锚点，点击「提炼视觉锚点」自动提炼</p>
+                                            <p className="mt-2 text-xs text-[var(--gm-text-3)]">暂无锚点，点击「提炼视觉锚点」自动提炼</p>
                                         )}
                                     </div>
                                 </label>
@@ -712,7 +712,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                         aria-label="角色朗读指令"
                                     />
                                 </label>
-                                <p className="text-xs text-muted-foreground">对白配音会按说话人匹配到角色并使用这里的音色；清空音色即回落平台默认。</p>
+                                <p className="text-xs text-[var(--gm-text-3)]">对白配音会按说话人匹配到角色并使用这里的音色；清空音色即回落平台默认。</p>
                             </div>
                         ) : null}
                         {editing.stages?.length ? (
@@ -771,10 +771,10 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                     })}
                                 </ul>
                             ) : (
-                                <p className="text-xs text-muted-foreground">还没有参考图，可上传后设为主参考图。</p>
+                                <p className="text-xs text-[var(--gm-text-3)]">还没有参考图，可上传后设为主参考图。</p>
                             )}
                         </div>
-                        <p className="text-xs text-muted-foreground">字段由上方 AI 按钮生成并写回项目。</p>
+                        <p className="text-xs text-[var(--gm-text-3)]">字段由上方 AI 按钮生成并写回项目。</p>
                     </div>
                 </Modal>
             ) : null}
@@ -789,7 +789,7 @@ export function OneClickFilmAssetPanel({ projectId, project, onProjectChange, ki
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={item.coverUrl} alt={item.title} className="h-28 w-full rounded object-contain" />
                                         ) : (
-                                            <span className="flex h-28 items-center justify-center rounded bg-muted text-xs text-muted-foreground">无预览</span>
+                                            <span className="flex h-28 items-center justify-center rounded bg-[var(--gm-wash)] text-xs text-[var(--gm-text-3)]">无预览</span>
                                         )}
                                         <span className="truncate text-xs">{item.title}</span>
                                     </button>
@@ -815,7 +815,7 @@ function AffectedShotsRow({ project, kind, asset, regenerating, progress, onRege
     const affected = findAffectedShots(project, kind, asset.id);
     if (!affected.length) return null;
     return (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--gm-text-3)]">
             <span>影响的分镜：</span>
             {affected.map((item) => (
                 <button
@@ -823,7 +823,7 @@ function AffectedShotsRow({ project, kind, asset, regenerating, progress, onRege
                     type="button"
                     title={item.shot.title || `分镜 ${item.index}`}
                     aria-label={`跳转到分镜 ${item.index}`}
-                    className="rounded border border-border bg-muted/40 px-1.5 py-0.5 hover:border-primary hover:text-primary"
+                    className="rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/40 px-1.5 py-0.5 hover:border-primary hover:text-primary"
                     onClick={() => document.getElementById(`one-click-shot-${item.shot.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
                 >
                     #{item.index}
