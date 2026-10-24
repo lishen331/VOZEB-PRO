@@ -22,7 +22,7 @@ export function WorkPromptActions({ prompt, createHref }: { prompt: string; crea
             <Button icon={<Copy className="size-4" />} onClick={() => void copyPrompt()}>
                 复制提示词
             </Button>
-            <Link href={createHref} className="inline-flex h-8 items-center justify-center gap-2 rounded-md !bg-foreground px-3 text-sm font-medium !text-background transition hover:opacity-80">
+            <Link href={createHref} className="inline-flex h-8 items-center justify-center gap-2 rounded-md !bg-[var(--gm-text)] px-3 text-sm font-medium !text-[var(--gm-bg)] transition hover:opacity-80">
                 <Sparkles className="size-4" />
                 做同款
             </Link>

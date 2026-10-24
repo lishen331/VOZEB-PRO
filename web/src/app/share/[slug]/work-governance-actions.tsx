@@ -22,7 +22,7 @@ export function WorkGovernanceActions({ slug, createHref }: { slug: string; crea
     return (
         <div className="flex flex-wrap items-center gap-1.5">
             {createHref ? (
-                <Link href={createHref} className="inline-flex h-9 items-center gap-2 rounded-md !bg-foreground px-3 text-sm font-medium !text-background transition hover:opacity-80">
+                <Link href={createHref} className="inline-flex h-9 items-center gap-2 rounded-md !bg-[var(--gm-text)] px-3 text-sm font-medium !text-[var(--gm-bg)] transition hover:opacity-80">
                     <Sparkles className="size-4" />
                     做同款
                 </Link>

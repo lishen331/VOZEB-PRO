@@ -79,7 +79,7 @@ export function PublicCreatorProfile({
                 <h1 id="creator-name" className="mt-3 max-w-full truncate text-xl font-semibold sm:text-2xl">
                     {profile.displayName || profile.username}
                 </h1>
-                {profile.bio ? <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">{profile.bio}</p> : null}
+                {profile.bio ? <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-sm leading-6 text-[var(--gm-text-3)]">{profile.bio}</p> : null}
                 <dl className="mt-4 grid w-full max-w-md grid-cols-4 divide-x divide-border">
                     <CreatorMetric icon={<ImageIcon className="size-3.5" />} label="作品" value={profile.publishedWorkCount} />
                     <CreatorMetric icon={<Heart className="size-3.5" />} label="获赞" value={profile.receivedLikeCount} />
@@ -101,10 +101,10 @@ export function PublicCreatorProfile({
             </section>
 
             <section className="min-w-0 pt-4" aria-labelledby="creator-works">
-                <div className="flex h-11 items-center gap-2 border-b border-border">
+                <div className="flex h-11 items-center gap-2 border-b border-[var(--gm-border)]">
                     <h2 id="creator-works" className="relative inline-flex h-11 items-center gap-1.5 px-1 text-sm font-semibold">
                         <ImageIcon className="size-4" /> 已发布
-                        <span className="text-xs font-normal tabular-nums text-muted-foreground">{profile.publishedWorkCount}</span>
+                        <span className="text-xs font-normal tabular-nums text-[var(--gm-text-3)]">{profile.publishedWorkCount}</span>
                         <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" />
                     </h2>
                 </div>
@@ -129,7 +129,7 @@ function CreatorMetric({ icon, label, value }: { icon: React.ReactNode; label: s
     return (
         <div className="min-w-0 px-1.5 sm:px-3">
             <dd className="text-sm font-semibold tabular-nums sm:text-base">{value}</dd>
-            <dt className="mt-1 flex items-center justify-center gap-1 truncate text-[10px] text-muted-foreground sm:text-xs">
+            <dt className="mt-1 flex items-center justify-center gap-1 truncate text-[10px] text-[var(--gm-text-3)] sm:text-xs">
                 <span className="shrink-0" aria-hidden="true">
                     {icon}
                 </span>

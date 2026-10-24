@@ -23,8 +23,8 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
     );
 
     return (
-        <article className="group w-full min-w-0 overflow-hidden text-left text-foreground">
-            <button type="button" className="relative block w-full overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen} aria-label={`查看作品：${item.title}`} aria-haspopup="dialog">
+        <article className="group w-full min-w-0 overflow-hidden text-left text-[var(--gm-text)]">
+            <button type="button" className="relative block w-full overflow-hidden rounded-lg bg-[var(--gm-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen} aria-label={`查看作品：${item.title}`} aria-haspopup="dialog">
                 {item.preview?.mediaType === "image" ? (
                     <LazyMediaImage src={imagePreviewUrl(item.preview.url, 640)} alt={item.title} containerClassName="w-full rounded-lg" imageClassName="block h-auto w-full group-hover:scale-[1.015]" />
                 ) : item.preview?.mediaType === "video" ? (
@@ -35,7 +35,7 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                         </span>
                     </>
                 ) : (
-                    <div className="grid aspect-[4/3] place-items-center text-muted-foreground">
+                    <div className="grid aspect-[4/3] place-items-center text-[var(--gm-text-3)]">
                         <div className="flex flex-col items-center gap-2 text-xs">
                             <GalleryVerticalEnd className="size-7" />
                             公开作品
@@ -63,11 +63,11 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                 <PublicWorkCardTitle title={item.title} />
             </button>
             <div className="min-w-0 px-0.5 pb-1 pt-2">
-                <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-[var(--gm-text-3)]">
                     {authorUsername && onOpenAuthor ? (
                         <button
                             type="button"
-                            className="flex min-w-0 items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="flex min-w-0 items-center gap-1.5 rounded-sm text-left hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label={`查看 ${item.authorName || authorUsername} 的主页`}
                             aria-haspopup="dialog"
                             onClick={() => onOpenAuthor(authorUsername)}
@@ -77,7 +77,7 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                     ) : authorUsername ? (
                         <Link
                             href={`/u/${encodeURIComponent(authorUsername)}`}
-                            className="flex min-w-0 items-center gap-1.5 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="flex min-w-0 items-center gap-1.5 rounded-sm hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label={`查看 ${item.authorName || authorUsername} 的主页`}
                         >
                             {author}
