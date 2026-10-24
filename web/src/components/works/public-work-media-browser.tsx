@@ -17,7 +17,7 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
 
     useEffect(() => setActiveId(ordered[0]?.id || ""), [ordered]);
 
-    if (!active) return <div className="grid min-h-56 place-items-center border-y border-dashed border-border text-sm text-muted-foreground">作品没有可展示的媒体</div>;
+    if (!active) return <div className="grid min-h-56 place-items-center border-y border-dashed border-[var(--gm-border)] text-sm text-[var(--gm-text-3)]">作品没有可展示的媒体</div>;
 
     return (
         <section className={cn("grid min-w-0 gap-3", compact ? "md:grid-cols-[64px_minmax(0,1fr)]" : "lg:grid-cols-[72px_minmax(0,1fr)]")} aria-label="作品媒体">
@@ -33,8 +33,8 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
                         type="button"
                         onClick={() => setActiveId(asset.id)}
                         className={cn(
-                            "relative size-16 shrink-0 overflow-hidden rounded-md border bg-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            asset.id === active.id ? "border-foreground ring-1 ring-foreground" : "border-border hover:border-foreground/40",
+                            "relative size-16 shrink-0 overflow-hidden rounded-md border bg-[var(--gm-wash)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            asset.id === active.id ? "border-foreground ring-1 ring-foreground" : "border-[var(--gm-border)] hover:border-foreground/40",
                         )}
                         aria-label={`查看${mediaLabel(asset.mediaType)} ${index + 1}`}
                         aria-pressed={asset.id === active.id}
@@ -44,7 +44,7 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
                         ) : asset.mediaType === "video" ? (
                             <video src={asset.url} muted playsInline preload="metadata" className="size-full object-cover" aria-hidden="true" />
                         ) : asset.mediaType === "audio" ? (
-                            <Music2 className="size-7 text-muted-foreground" aria-hidden="true" />
+                            <Music2 className="size-7 text-[var(--gm-text-3)]" aria-hidden="true" />
                         ) : null}
                         <span className="absolute bottom-1 right-1 grid size-4 place-items-center rounded bg-black/65 text-white" aria-hidden="true">
                             {asset.mediaType === "image" ? <ImageIcon className="size-2.5" /> : asset.mediaType === "audio" ? <Music2 className="size-2.5" /> : <Film className="size-2.5" />}
@@ -55,7 +55,7 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
 
             <div
                 className={cn(
-                    "order-1 flex min-h-56 min-w-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted/45",
+                    "order-1 flex min-h-56 min-w-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)]/45",
                     compact ? "h-[min(52dvh,540px)] md:order-2 md:h-[min(68dvh,680px)]" : "h-[min(58dvh,560px)] lg:order-2 lg:h-[min(76dvh,860px)]",
                 )}
             >
@@ -65,7 +65,7 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
                     <video key={active.id} src={active.url} controls playsInline preload="metadata" className="max-h-full max-w-full object-contain" aria-label={title} />
                 ) : active.mediaType === "audio" ? (
                     <div className="flex w-full max-w-xl flex-col items-center gap-6 px-6">
-                        <Music2 className="size-16 text-muted-foreground" aria-hidden="true" />
+                        <Music2 className="size-16 text-[var(--gm-text-3)]" aria-hidden="true" />
                         <audio key={active.id} src={active.url} controls preload="metadata" className="w-full" aria-label={title} />
                     </div>
                 ) : null}
