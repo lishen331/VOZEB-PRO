@@ -19,7 +19,7 @@ describe("one-click-film nav sidebar wiring", () => {
         expect(source).toContain("OneClickFilmNavSidebar");
         expect(source).toContain("<OneClickFilmNavSidebar");
         // L 是「左固定侧栏 + 右可滚动主区」，不是我之前发明的上下堆叠
-        expect(source).toContain('className="flex h-full bg-background text-foreground"');
+        expect(source).toContain('className="flex h-full bg-[var(--gm-bg)] text-[var(--gm-text)]"');
     });
 
     it("keeps L's 180px / 48px sidebar widths", async () => {
