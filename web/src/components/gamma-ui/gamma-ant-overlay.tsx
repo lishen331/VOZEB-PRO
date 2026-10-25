@@ -6,7 +6,7 @@
  * 画布及其共享组件不使用本文件。
  */
 
-import type { HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
+import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
 import { Children, cloneElement, isValidElement, useId, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Popover as PopoverPrimitive, Slot, Tooltip as TooltipPrimitive } from "radix-ui";
@@ -82,6 +82,55 @@ export function Tooltip({ title, placement = "top", open, onOpenChange, mouseEnt
                 </TooltipPrimitive.Portal>
             </TooltipPrimitive.Root>
         </TooltipPrimitive.Provider>
+    );
+}
+
+/* ===== Popover ===== */
+
+export interface PopoverProps {
+    trigger?: "click" | [];
+    placement?: Placement;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    arrow?: boolean;
+    autoAdjustOverflow?: boolean | { adjustX?: 0 | 1; adjustY?: 0 | 1 };
+    destroyOnHidden?: boolean;
+    styles?: { container?: CSSProperties };
+    content: ReactNode;
+    children: ReactNode;
+}
+
+/**
+ * 与 antd Popover 同 API 的受控/非受控浮层：trigger="click" 时点击子元素开合；trigger=[] 时完全由 open 控制，
+ * 子元素点击不触发开合（用于输入框里的 @提及 选择器等场景）。styles.container 透传到内容容器的 style。
+ * autoAdjustOverflow 的方向细节交给 radix 的 collisionPadding/avoidCollisions 处理，不单独实现 adjustX/adjustY。
+ */
+export function Popover({ trigger = "click", placement = "bottom", open, onOpenChange, arrow = true, autoAdjustOverflow = true, styles, content, children }: PopoverProps) {
+    const { side, align } = toRadix(placement);
+    const manualTrigger = Array.isArray(trigger);
+    return (
+        <PopoverPrimitive.Root open={open} onOpenChange={onOpenChange}>
+            <PopoverPrimitive.Trigger asChild onClick={manualTrigger ? (event) => event.preventDefault() : undefined}>
+                {children}
+            </PopoverPrimitive.Trigger>
+            <PopoverPrimitive.Portal>
+                <PopoverPrimitive.Content
+                    side={side}
+                    align={align}
+                    sideOffset={arrow ? 10 : 6}
+                    collisionPadding={8}
+                    avoidCollisions={autoAdjustOverflow !== false}
+                    style={styles?.container}
+                    className={cn(
+                        "gm-popover ant-popover z-[1050] rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface-2)] text-[var(--gm-text)] shadow-[var(--gm-shadow)] outline-none",
+                        "origin-[var(--radix-popover-content-transform-origin)] data-[state=closed]:hidden data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+                    )}
+                >
+                    {content}
+                    {arrow ? <PopoverPrimitive.Arrow className="fill-[var(--gm-surface-2)]" width={14} height={7} /> : null}
+                </PopoverPrimitive.Content>
+            </PopoverPrimitive.Portal>
+        </PopoverPrimitive.Root>
     );
 }
 

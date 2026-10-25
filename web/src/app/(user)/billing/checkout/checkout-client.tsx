@@ -1,6 +1,7 @@
 "use client";
 
-import { Popover, QRCode } from "antd";
+import { QRCode } from "antd";
+import { Popover } from "@/components/gamma-ui/gamma-ant-overlay";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Button, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, CreditCard, ExternalLink, FileText, Landmark, LockKeyhole, Minus, Plus, QrCode, ReceiptText, RefreshCw, ShieldCheck, TicketPercent, WalletCards } from "lucide-react";

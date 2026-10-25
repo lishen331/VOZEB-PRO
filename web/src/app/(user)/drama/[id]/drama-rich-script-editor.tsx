@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Popover } from "antd";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Divider } from "@/components/gamma-ui/gamma-ant-display";
-import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Popover, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { EditorContent, useEditor } from "@tiptap/react";

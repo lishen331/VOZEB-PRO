@@ -1,10 +1,10 @@
 "use client";
 
-import { Image, Popover } from "antd";
+import { Image } from "antd";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";
-import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Popconfirm, Popover, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Check, FolderInput, ImagePlus, Sparkles, Trash2, Upload } from "lucide-react";

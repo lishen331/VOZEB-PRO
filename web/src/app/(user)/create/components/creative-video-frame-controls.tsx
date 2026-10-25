@@ -1,7 +1,7 @@
 "use client";
 
-import { Popover } from "antd";
 import { Button } from "@/components/gamma-ui/gamma-ant";
+import { Popover } from "@/components/gamma-ui/gamma-ant-overlay";
 import { ArrowLeftRight, ImagePlus, Upload, X } from "lucide-react";
 import { useState } from "react";
 
