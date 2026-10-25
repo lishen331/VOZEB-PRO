@@ -111,7 +111,7 @@ describe("create Agent home layout", () => {
         expect(inspiration).toContain("xl:grid-cols-6");
         expect(inspiration).not.toContain("columns-2");
         expect(inspiration).not.toContain("max-h-[560px]");
-        expect(inspiration).toContain("<Dropdown");
+        expect(inspiration).toContain("<DropdownMenuPrimitive.Root");
         expect(inspiration).toContain("<PublicWorkPreviewModal");
         expect(inspiration).toContain("<LazyMediaImage");
         expect(inspiration).toContain("<PublicWorkCardTitle");

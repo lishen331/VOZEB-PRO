@@ -4,7 +4,7 @@ import { Image as AntImage } from "antd";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
-import { BookOpen, Boxes, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
+import { BookOpen, Boxes, ChevronLeft, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -91,7 +91,10 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
                 {showSubIpDetail ? (
                     <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                            <span>IP 库</span>
+                            <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} aria-label="返回 IP 详情" className="inline-flex items-center gap-1 hover:text-[var(--gm-text)]">
+                                <ChevronLeft className="size-3.5" />
+                                IP 库
+                            </Link>
                             <ChevronRight className="size-3.5" />
                             <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} className="truncate hover:text-[var(--gm-text)]">
                                 {detail.title}
@@ -201,7 +204,10 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
         <>
             <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                 <div className="flex items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                    <span>IP 库</span>
+                    <Link href="/ip-library" aria-label="返回 IP 库列表" className="inline-flex items-center gap-1 hover:text-[var(--gm-text)]">
+                        <ChevronLeft className="size-3.5" />
+                        IP 库
+                    </Link>
                     <ChevronRight className="size-3.5" />
                     <span className="truncate">{detail.title}</span>
                 </div>

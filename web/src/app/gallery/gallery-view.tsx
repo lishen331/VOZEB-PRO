@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowRight, GalleryVerticalEnd, Plus, Search, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, GalleryVerticalEnd, Plus, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
@@ -25,12 +26,25 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
     const [previewSlug, setPreviewSlug] = useState("");
     const [creatorUsername, setCreatorUsername] = useState("");
     const [sort, setSort] = useState(filters.sort);
+    const router = useRouter();
 
     useEffect(() => setSort(filters.sort), [filters.sort]);
     return (
         <div className={cn("mx-auto w-full max-w-[1600px]", embedded ? "px-2 py-2 sm:px-6 sm:py-6" : "px-3 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-6")}>
             <section className="flex min-w-0 items-center justify-between gap-3 pb-3 sm:pb-4">
-                <h1 className="min-w-0 text-xl font-semibold text-[var(--gm-text)] sm:text-2xl">灵感发现</h1>
+                <div className="flex min-w-0 items-center gap-2">
+                    {!embedded ? (
+                        <button
+                            type="button"
+                            aria-label="返回上一页"
+                            onClick={() => router.back()}
+                            className="grid size-8 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
+                        >
+                            <ChevronLeft className="size-5" aria-hidden />
+                        </button>
+                    ) : null}
+                    <h1 className="min-w-0 text-xl font-semibold text-[var(--gm-text)] sm:text-2xl">灵感发现</h1>
+                </div>
                 {embedded ? (
                     <Link href="/works" className={linkControlClass}>
                         <Plus className="size-4" aria-hidden />
