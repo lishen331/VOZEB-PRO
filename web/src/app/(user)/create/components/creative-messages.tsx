@@ -1,8 +1,7 @@
 "use client";
 
-import { Dropdown } from "antd";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
-import { Popover, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Dropdown, Popover, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Check, ChevronDown, ChevronRight, Clapperboard, Clock3, Copy, Download, ExternalLink, FileAudio2, Film, Info, Link2, MoreHorizontal, PanelsTopLeft, RotateCw } from "lucide-react";
 import Link from "next/link";

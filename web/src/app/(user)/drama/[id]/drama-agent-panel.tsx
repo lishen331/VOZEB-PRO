@@ -1,10 +1,9 @@
 "use client";
 
-import { Dropdown } from "antd";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
-import { Popover, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Dropdown, Popover, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { ArrowUp, ChevronDown, History, ImagePlus, Link2, ListChecks, LoaderCircle, MessageSquarePlus, Pause, Play, RotateCcw, Square, X } from "lucide-react";

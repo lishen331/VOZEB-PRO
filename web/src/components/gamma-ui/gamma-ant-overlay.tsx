@@ -1,15 +1,16 @@
 "use client";
 
 /*
- * gamma-ui 的 antd 浮层/导航兼容层：Tooltip、Tabs。props 与 antd 同名同义。
+ * gamma-ui 的 antd 浮层/导航兼容层：Tooltip、Popover、Popconfirm、Dropdown、Tabs。props 与 antd 同名同义。
  * Tooltip 基于 radix（Portal + 碰撞翻转），禁用态子元素外包 span 以便仍能触发提示（与 antd 一致）。
+ * Dropdown 基于 radix DropdownMenu，保留 .ant-dropdown* 类名兼容既有 e2e/CSS 选择器。
  * 画布及其共享组件不使用本文件。
  */
 
 import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
 import { Children, cloneElement, isValidElement, useId, useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import { Popover as PopoverPrimitive, Slot, Tooltip as TooltipPrimitive } from "radix-ui";
+import { DropdownMenu as DropdownMenuPrimitive, Popover as PopoverPrimitive, Slot, Tooltip as TooltipPrimitive } from "radix-ui";
 
 import { Button, type ButtonProps } from "@/components/gamma-ui/gamma-ant";
 import { cn } from "@/lib/utils";
@@ -211,6 +212,86 @@ export function Popconfirm({ title, description, onConfirm, onCancel, okText = "
                 </PopoverPrimitive.Content>
             </PopoverPrimitive.Portal>
         </PopoverPrimitive.Root>
+    );
+}
+
+/* ===== Dropdown ===== */
+
+export interface DropdownMenuItem {
+    key?: string;
+    label?: ReactNode;
+    icon?: ReactNode;
+    danger?: boolean;
+    disabled?: boolean;
+    type?: "divider";
+}
+
+export interface DropdownMenuConfig {
+    items: DropdownMenuItem[];
+    selectable?: boolean;
+    selectedKeys?: string[];
+    onClick?: (info: { key: string }) => void;
+}
+
+export interface DropdownProps {
+    menu: DropdownMenuConfig;
+    trigger?: Array<"click" | "hover">;
+    placement?: Placement;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    rootClassName?: string;
+    getPopupContainer?: (trigger: HTMLElement) => HTMLElement;
+    children: ReactNode;
+}
+
+/**
+ * 与 antd Dropdown 同 API 的子集：menu={{ items, selectable, selectedKeys, onClick }}，trigger 默认 click。
+ * items 支持 key/label/icon/danger/disabled 与 { type: "divider" }；不支持子菜单与 type: "group"（项目内未使用）。
+ * getPopupContainer 未实现（radix Portal 固定挂 body，站内调用处都不依赖自定义容器的实际效果）。
+ */
+export function Dropdown({ menu, trigger = ["click"], placement = "bottomLeft", open, onOpenChange, rootClassName, children }: DropdownProps) {
+    const { side, align } = toRadix(placement);
+    const hover = trigger.includes("hover") && !trigger.includes("click");
+    return (
+        <DropdownMenuPrimitive.Root open={open} onOpenChange={onOpenChange} modal={false}>
+            <DropdownMenuPrimitive.Trigger asChild onPointerDown={hover ? (event) => event.preventDefault() : undefined}>
+                {children}
+            </DropdownMenuPrimitive.Trigger>
+            <DropdownMenuPrimitive.Portal>
+                <DropdownMenuPrimitive.Content
+                    side={side}
+                    align={align}
+                    sideOffset={6}
+                    collisionPadding={8}
+                    className={cn(
+                        "gm-dropdown ant-dropdown ant-dropdown-menu z-[1050] min-w-36 rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface-2)] p-1 text-[var(--gm-text)] shadow-[var(--gm-shadow)] outline-none",
+                        "origin-[var(--radix-dropdown-menu-content-transform-origin)] data-[state=closed]:hidden data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+                        rootClassName,
+                    )}
+                >
+                    {menu.items.map((item, index) =>
+                        item.type === "divider" ? (
+                            <DropdownMenuPrimitive.Separator key={`divider-${index}`} className="ant-dropdown-menu-item-divider my-1 h-px bg-[var(--gm-border)]" />
+                        ) : (
+                            <DropdownMenuPrimitive.Item
+                                key={item.key ?? `item-${index}`}
+                                disabled={item.disabled}
+                                onSelect={() => item.key !== undefined && menu.onClick?.({ key: item.key })}
+                                className={cn(
+                                    "ant-dropdown-menu-item flex min-h-8 cursor-pointer items-center gap-2 rounded-[var(--gm-radius-sm)] px-2.5 text-sm outline-none transition select-none",
+                                    "data-[highlighted]:bg-[var(--gm-wash)] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45",
+                                    item.danger ? "text-[var(--gm-danger)]" : undefined,
+                                    menu.selectable && item.key !== undefined && menu.selectedKeys?.includes(item.key) ? "bg-[var(--gm-wash)]" : undefined,
+                                )}
+                            >
+                                {item.icon ? <span className="inline-flex shrink-0 [&_svg]:size-4">{item.icon}</span> : null}
+                                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                            </DropdownMenuPrimitive.Item>
+                        ),
+                    )}
+                </DropdownMenuPrimitive.Content>
+            </DropdownMenuPrimitive.Portal>
+        </DropdownMenuPrimitive.Root>
     );
 }
 

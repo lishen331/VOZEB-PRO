@@ -1,7 +1,7 @@
 "use client";
 
-import { Dropdown } from "antd";
 import { Button } from "@/components/gamma-ui/gamma-ant";
+import { Dropdown } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Check, Clock3, Ellipsis, MessageSquareText, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
 

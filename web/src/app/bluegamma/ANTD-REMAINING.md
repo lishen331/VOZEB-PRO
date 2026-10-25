@@ -14,6 +14,7 @@
 | `components/gamma-ui/gamma-ant-display.tsx` | Space · Card · Skeleton · Progress · Divider · Avatar · Steps · Timeline · Collapse · Typography · Radio · Slider · List |
 | `components/gamma-ui/gamma-ant-modal.tsx`   | Modal · Drawer（`Modal.confirm` 等静态方法仍委托 antd）                                                                  |
 | `components/gamma-ui/gamma-ant-overlay.tsx` | Popover（基于 radix Popover，复用 Popconfirm 的 toRadix() 转换；保留 `.ant-popover` 类名兼容既有 e2e 选择器；2026-10-25 迁移站内全部 9 个文件） |
+| `components/gamma-ui/gamma-ant-overlay.tsx` | Dropdown（基于 radix DropdownMenu；`menu={{ items, selectable, selectedKeys, onClick }}` 形状不变，支持 icon/danger/disabled/divider；不支持子菜单与 `type: "group"`；保留 `.ant-dropdown*` 类名；2026-10-20 迁移 6 个纯站内文件：drama-assets-panel、drama-agent-panel、drama-agent-history、creative-messages、creative-conversation-list、creative-assets-panel。画布共享的 `canvas-image-reference-roles-popover`、`user-status-actions` 暂不动，二者用了 `popupRender`/`type: "group"` 且画布也在用，换前需先跑画布回归） |
 
 页面只把这些组件的 import 从 `"antd"` 改到兼容层，调用处不动。
 
@@ -21,7 +22,7 @@
 
 | 优先级 | 组件                                                       | 引用文件数    | 为什么暂不替换                                                                                                    | 替换要点                                                                                                           |
 | ------ | ---------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 1      | Dropdown                                                   | 7             | `menu.items` 嵌套、`popupRender` 包裹、`getPopupContainer`                                                        | radix DropdownMenu；`menu={{ items, onClick }}` 形状不变；`popupRender` 里的 `.ant-dropdown-menu*` 选择器要同步改  |
+| 1      | Dropdown（剩余 2 个画布共享文件）                           | 2             | `canvas-image-reference-roles-popover`、`user-status-actions` 画布也在用，换前需先跑画布回归                      | 同上 Dropdown 组件；`canvas-image-reference-roles-popover` 用 `popupRender` 自定义整块浮层内容，需要改成直接传 children 而非 menu.items；`user-status-actions` 用到 `type: "group"` |
 | 2      | Image / Image.PreviewGroup                                 | 17            | 点击预览、组内切换、缩放                                                                                          | 复用 `GammaLightbox`；`preview={{ src }}` / `preview={false}`                                                      |
 | 3      | QRCode · Grid（`Grid.useBreakpoint`）· Tree · AutoComplete | 4 · 4 · 1 · 2 | 用量少但各自有专门逻辑                                                                                            | QRCode 换 `qrcode` 生成 SVG；useBreakpoint 换 matchMedia hook                                                      |
 | 4      | DatePicker                                                 | 8             | 日期面板、区间选择、dayjs 值类型                                                                                  | 需要一套 gamma 日历；值类型保持 dayjs                                                                              |

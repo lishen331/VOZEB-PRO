@@ -1,8 +1,8 @@
 "use client";
 
-import { Dropdown, Grid } from "antd";
+import { Grid } from "antd";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
-import { Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Dropdown, Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Spin } from "@/components/gamma-ui/gamma-ant";
 import { AtSign, ChevronDown, CornerDownLeft, FileVideo, ImageIcon, LibraryBig, ListFilter, Play, RefreshCw, Search, Sparkles, X } from "lucide-react";
@@ -323,11 +323,6 @@ export function PromptList({
                 {collection.categories.length ? (
                     <Dropdown
                         trigger={["click"]}
-                        popupRender={(menu) => (
-                            <div className="[&_.ant-dropdown-menu]:!rounded-md [&_.ant-dropdown-menu]:!border [&_.ant-dropdown-menu]:!border-[#e4e7ec] [&_.ant-dropdown-menu]:!p-1 [&_.ant-dropdown-menu]:!shadow-[0_10px_28px_rgba(31,35,41,0.12)] [&_.ant-dropdown-menu-item]:!min-h-8 [&_.ant-dropdown-menu-item]:!rounded [&_.ant-dropdown-menu-item]:!px-2.5 [&_.ant-dropdown-menu-item]:!text-xs [&_.ant-dropdown-menu-item-active]:!bg-[#f2f5fa] [&_.ant-dropdown-menu-item:hover]:!bg-[#f2f5fa] dark:[&_.ant-dropdown-menu]:!border-[#323948] dark:[&_.ant-dropdown-menu]:!bg-[#1b212f] dark:[&_.ant-dropdown-menu-item]:!text-[#c8cedc] dark:[&_.ant-dropdown-menu-item-active]:!bg-[#282f3d] dark:[&_.ant-dropdown-menu-item:hover]:!bg-[#282f3d]">
-                                {menu}
-                            </div>
-                        )}
                         menu={{
                             items: categories.map((category) => ({ key: category, label: promptCategoryLabel(category) })),
                             onClick: ({ key }) => onCategoryChange(key),
