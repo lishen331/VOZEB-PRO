@@ -87,7 +87,7 @@ export function Upload({ accept, multiple = false, maxCount, disabled = false, b
 
 Upload.LIST_IGNORE = LIST_IGNORE;
 
-export interface UploadDraggerProps extends UploadProps {}
+export type UploadDraggerProps = UploadProps;
 
 /** 与 antd Upload.Dragger 同 API：点击或拖拽文件到区域内触发 beforeUpload；showUploadList 未使用（调用处不维护队列） */
 function UploadDragger({ accept, multiple = false, maxCount, disabled = false, beforeUpload, children, className }: UploadDraggerProps) {
