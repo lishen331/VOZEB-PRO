@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { ArrowUpRight, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 

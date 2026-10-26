@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, CheckCheck, ChevronDown, Heart, Megaphone, RotateCcw, X } from "lucide-react";
-import { Modal } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 
 import { useAnnouncementReadState } from "@/hooks/use-announcement-read-state";
 import { useAnnouncements } from "@/hooks/use-announcements";
@@ -87,7 +87,7 @@ export function AnnouncementNotificationCenter({ compact, buttonClassName, butto
                 open={open}
                 onCancel={() => handleOpenChange(false)}
                 footer={null}
-                closeIcon={null}
+                closable={false}
                 destroyOnHidden
                 styles={{ container: { overflow: "hidden", borderRadius: 18, padding: 0 }, body: { padding: 0 } }}
             >
