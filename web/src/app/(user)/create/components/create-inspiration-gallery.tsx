@@ -76,10 +76,7 @@ export function CreateInspirationGallery({ onUsePrompt, onUseImage }: { onUsePro
                     <button
                         key={item.value || "all"}
                         type="button"
-                        className={cn(
-                            "h-9 shrink-0 rounded-md px-3 text-sm transition",
-                            category === item.value ? "bg-[var(--gm-wash)] font-medium text-[var(--gm-text)]" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
-                        )}
+                        className={cn("h-9 shrink-0 rounded-md px-3 text-sm transition", category === item.value ? "bg-[var(--gm-wash)] font-medium text-[var(--gm-text)]" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]")}
                         aria-pressed={category === item.value}
                         onClick={() => setCategory(item.value)}
                     >
@@ -235,11 +232,7 @@ function InspirationCard({
                                     </button>
                                 </DropdownMenuPrimitive.Trigger>
                                 <DropdownMenuPrimitive.Portal>
-                                    <DropdownMenuPrimitive.Content
-                                        align="end"
-                                        sideOffset={6}
-                                        className="z-50 min-w-36 rounded-[var(--gm-radius-sm)] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-1 text-sm text-[var(--gm-text)] shadow-lg"
-                                    >
+                                    <DropdownMenuPrimitive.Content align="end" sideOffset={6} className="z-50 min-w-36 rounded-[var(--gm-radius-sm)] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-1 text-sm text-[var(--gm-text)] shadow-lg">
                                         {menuItems.map((entry) => (
                                             <DropdownMenuPrimitive.Item
                                                 key={entry.key}

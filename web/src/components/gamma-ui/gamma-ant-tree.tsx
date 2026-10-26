@@ -32,7 +32,23 @@ export interface TreeProps {
     onCheck?: (checkedKeys: unknown, info: TreeCheckInfo) => void;
 }
 
-function TreeNode({ node, depth, expanded, checkedSet, halfCheckedSet, onToggleExpand, onCheck }: { node: TreeNodeData; depth: number; expanded: Set<string>; checkedSet: Set<string>; halfCheckedSet: Set<string>; onToggleExpand: (key: string) => void; onCheck?: TreeProps["onCheck"] }) {
+function TreeNode({
+    node,
+    depth,
+    expanded,
+    checkedSet,
+    halfCheckedSet,
+    onToggleExpand,
+    onCheck,
+}: {
+    node: TreeNodeData;
+    depth: number;
+    expanded: Set<string>;
+    checkedSet: Set<string>;
+    halfCheckedSet: Set<string>;
+    onToggleExpand: (key: string) => void;
+    onCheck?: TreeProps["onCheck"];
+}) {
     const hasChildren = Boolean(node.children?.length);
     const isExpanded = expanded.has(node.key);
     const isChecked = checkedSet.has(node.key);

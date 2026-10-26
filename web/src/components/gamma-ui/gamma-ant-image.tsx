@@ -104,7 +104,10 @@ function ImageLightbox({
     return (
         <DialogPrimitive.Root open={src !== null} onOpenChange={(next) => (next ? undefined : onClose())}>
             <DialogPrimitive.Portal container={typeof document === "undefined" ? undefined : getContainer?.()}>
-                <DialogPrimitive.Overlay style={popupStyles?.mask} className="ant-image-preview-mask fixed inset-0 z-[1100] bg-black/85 backdrop-blur-md data-[state=closed]:hidden data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+                <DialogPrimitive.Overlay
+                    style={popupStyles?.mask}
+                    className="ant-image-preview-mask fixed inset-0 z-[1100] bg-black/85 backdrop-blur-md data-[state=closed]:hidden data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
+                />
                 <DialogPrimitive.Content
                     aria-describedby={undefined}
                     style={popupStyles?.root}
@@ -119,12 +122,22 @@ function ImageLightbox({
                         ) : null}
                     </div>
                     {onPrev ? (
-                        <button type="button" aria-label="上一张" onClick={(event) => (event.stopPropagation(), onPrev())} className="absolute left-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white hover:bg-black/75">
+                        <button
+                            type="button"
+                            aria-label="上一张"
+                            onClick={(event) => (event.stopPropagation(), onPrev())}
+                            className="absolute left-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white hover:bg-black/75"
+                        >
                             <ChevronLeft className="size-5" />
                         </button>
                     ) : null}
                     {onNext ? (
-                        <button type="button" aria-label="下一张" onClick={(event) => (event.stopPropagation(), onNext())} className="absolute right-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white hover:bg-black/75">
+                        <button
+                            type="button"
+                            aria-label="下一张"
+                            onClick={(event) => (event.stopPropagation(), onNext())}
+                            className="absolute right-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white hover:bg-black/75"
+                        >
                             <ChevronRight className="size-5" />
                         </button>
                     ) : null}
@@ -190,18 +203,10 @@ function ImageBase({ src, alt, className, rootClassName, classNames, styles, sty
                 </div>
             ) : null}
             {!group ? (
-                <ImageLightbox
-                    src={isStandaloneLightboxOpen ? previewSrc ?? null : null}
-                    alt={alt}
-                    onClose={handleClose}
-                    containerClassName={classNames?.popup?.root}
-                    getContainer={previewConfig?.getContainer}
-                    popupStyles={styles?.popup}
-                />
+                <ImageLightbox src={isStandaloneLightboxOpen ? (previewSrc ?? null) : null} alt={alt} onClose={handleClose} containerClassName={classNames?.popup?.root} getContainer={previewConfig?.getContainer} popupStyles={styles?.popup} />
             ) : null}
         </div>
     );
 }
 
 export const Image = Object.assign(ImageBase, { PreviewGroup });
-

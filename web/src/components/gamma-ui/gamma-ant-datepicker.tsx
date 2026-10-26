@@ -73,11 +73,21 @@ function MonthCalendar({ month, onMonthChange, isSelected, isInRange, onPick }: 
     return (
         <div className="w-[260px] p-2">
             <div className="mb-2 flex items-center justify-between px-1">
-                <button type="button" aria-label="上一月" onClick={() => onMonthChange(month.subtract(1, "month"))} className="grid size-6 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-3)] hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)]">
+                <button
+                    type="button"
+                    aria-label="上一月"
+                    onClick={() => onMonthChange(month.subtract(1, "month"))}
+                    className="grid size-6 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-3)] hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)]"
+                >
                     <ChevronLeft className="size-4" />
                 </button>
                 <span className="text-sm font-medium text-[var(--gm-text)]">{month.format("YYYY年M月")}</span>
-                <button type="button" aria-label="下一月" onClick={() => onMonthChange(month.add(1, "month"))} className="grid size-6 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-3)] hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)]">
+                <button
+                    type="button"
+                    aria-label="下一月"
+                    onClick={() => onMonthChange(month.add(1, "month"))}
+                    className="grid size-6 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-3)] hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)]"
+                >
                     <ChevronRight className="size-4" />
                 </button>
             </div>
@@ -125,8 +135,7 @@ function useThemeRoot(open: boolean, anchorRef: React.RefObject<HTMLElement | nu
 const TRIGGER_CLASS =
     "group flex min-h-8 w-full items-center gap-2 rounded-[var(--gm-radius-sm)] bg-[var(--gm-surface)] px-2.5 py-1 text-left text-[13px] ring-1 ring-[var(--gm-border)] transition-shadow duration-200 hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-visible:ring-[var(--gm-accent)] disabled:cursor-not-allowed disabled:opacity-50";
 
-const CONTENT_CLASS =
-    "gm-glass gm-glass-strong z-[140] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95";
+const CONTENT_CLASS = "gm-glass gm-glass-strong z-[140] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95";
 
 export interface DatePickerProps {
     value?: Dayjs | null;
