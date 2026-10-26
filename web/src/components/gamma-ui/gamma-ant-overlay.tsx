@@ -4,7 +4,9 @@
  * gamma-ui 的 antd 浮层/导航兼容层：Tooltip、Popover、Popconfirm、Dropdown、Tabs。props 与 antd 同名同义。
  * Tooltip 基于 radix（Portal + 碰撞翻转），禁用态子元素外包 span 以便仍能触发提示（与 antd 一致）。
  * Dropdown 基于 radix DropdownMenu，保留 .ant-dropdown* 类名兼容既有 e2e/CSS 选择器。
- * 画布及其共享组件不使用本文件。
+ * 画布共享组件（canvas-image-reference-roles-popover、user-status-actions）用 Dropdown 的
+ * content/type:"header"/panelStyle 扩展点接入：content 对应 antd 的 popupRender 自定义整块面板；
+ * panelStyle 透传 --gm-* 变量覆盖值，因为画布路由不挂 html.gm-app，面板默认样式解析不到值。
  */
 
 import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
@@ -223,7 +225,7 @@ export interface DropdownMenuItem {
     icon?: ReactNode;
     danger?: boolean;
     disabled?: boolean;
-    type?: "divider";
+    type?: "divider" | "header";
 }
 
 export interface DropdownMenuConfig {
@@ -234,7 +236,11 @@ export interface DropdownMenuConfig {
 }
 
 export interface DropdownProps {
-    menu: DropdownMenuConfig;
+    menu?: DropdownMenuConfig;
+    /** 自定义整块面板内容，等价于 antd 的 popupRender；传入时忽略 menu */
+    content?: ReactNode;
+    /** 透传到面板容器 style，用于在不挂 html.gm-app 的路由（如画布）覆盖 --gm-* 变量 */
+    panelStyle?: CSSProperties;
     trigger?: Array<"click" | "hover">;
     placement?: Placement;
     open?: boolean;
@@ -249,7 +255,7 @@ export interface DropdownProps {
  * items 支持 key/label/icon/danger/disabled 与 { type: "divider" }；不支持子菜单与 type: "group"（项目内未使用）。
  * getPopupContainer 未实现（radix Portal 固定挂 body，站内调用处都不依赖自定义容器的实际效果）。
  */
-export function Dropdown({ menu, trigger = ["click"], placement = "bottomLeft", open, onOpenChange, rootClassName, children }: DropdownProps) {
+export function Dropdown({ menu, content, panelStyle, trigger = ["click"], placement = "bottomLeft", open, onOpenChange, rootClassName, children }: DropdownProps) {
     const { side, align } = toRadix(placement);
     const hover = trigger.includes("hover") && !trigger.includes("click");
     return (
@@ -263,32 +269,42 @@ export function Dropdown({ menu, trigger = ["click"], placement = "bottomLeft", 
                     align={align}
                     sideOffset={6}
                     collisionPadding={8}
+                    style={panelStyle}
                     className={cn(
-                        "gm-dropdown ant-dropdown ant-dropdown-menu z-[1050] min-w-36 rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface-2)] p-1 text-[var(--gm-text)] shadow-[var(--gm-shadow)] outline-none",
+                        "gm-dropdown ant-dropdown z-[1050] outline-none",
                         "origin-[var(--radix-dropdown-menu-content-transform-origin)] data-[state=closed]:hidden data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+                        content !== undefined
+                            ? "ant-dropdown-menu-content"
+                            : "ant-dropdown-menu min-w-36 rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface-2)] p-1 text-[var(--gm-text)] shadow-[var(--gm-shadow)]",
                         rootClassName,
                     )}
                 >
-                    {menu.items.map((item, index) =>
-                        item.type === "divider" ? (
-                            <DropdownMenuPrimitive.Separator key={`divider-${index}`} className="ant-dropdown-menu-item-divider my-1 h-px bg-[var(--gm-border)]" />
-                        ) : (
-                            <DropdownMenuPrimitive.Item
-                                key={item.key ?? `item-${index}`}
-                                disabled={item.disabled}
-                                onSelect={() => item.key !== undefined && menu.onClick?.({ key: item.key })}
-                                className={cn(
-                                    "ant-dropdown-menu-item flex min-h-8 cursor-pointer items-center gap-2 rounded-[var(--gm-radius-sm)] px-2.5 text-sm outline-none transition select-none",
-                                    "data-[highlighted]:bg-[var(--gm-wash)] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45",
-                                    item.danger ? "text-[var(--gm-danger)]" : undefined,
-                                    menu.selectable && item.key !== undefined && menu.selectedKeys?.includes(item.key) ? "bg-[var(--gm-wash)]" : undefined,
-                                )}
-                            >
-                                {item.icon ? <span className="inline-flex shrink-0 [&_svg]:size-4">{item.icon}</span> : null}
-                                <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                            </DropdownMenuPrimitive.Item>
-                        ),
-                    )}
+                    {content !== undefined
+                        ? content
+                        : menu?.items.map((item, index) =>
+                              item.type === "divider" ? (
+                                  <DropdownMenuPrimitive.Separator key={`divider-${index}`} className="ant-dropdown-menu-item-divider my-1 h-px bg-[var(--gm-border)]" />
+                              ) : item.type === "header" ? (
+                                  <div key={item.key ?? `header-${index}`} className="ant-dropdown-menu-item-group-title px-2.5 py-1 text-xs">
+                                      {item.label}
+                                  </div>
+                              ) : (
+                                  <DropdownMenuPrimitive.Item
+                                      key={item.key ?? `item-${index}`}
+                                      disabled={item.disabled}
+                                      onSelect={() => item.key !== undefined && menu?.onClick?.({ key: item.key })}
+                                      className={cn(
+                                          "ant-dropdown-menu-item flex min-h-8 cursor-pointer items-center gap-2 rounded-[var(--gm-radius-sm)] px-2.5 text-sm outline-none transition select-none",
+                                          "data-[highlighted]:bg-[var(--gm-wash)] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45",
+                                          item.danger ? "text-[var(--gm-danger)]" : undefined,
+                                          menu?.selectable && item.key !== undefined && menu.selectedKeys?.includes(item.key) ? "bg-[var(--gm-wash)]" : undefined,
+                                      )}
+                                  >
+                                      {item.icon ? <span className="inline-flex shrink-0 [&_svg]:size-4">{item.icon}</span> : null}
+                                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                                  </DropdownMenuPrimitive.Item>
+                              ),
+                          )}
                 </DropdownMenuPrimitive.Content>
             </DropdownMenuPrimitive.Portal>
         </DropdownMenuPrimitive.Root>
