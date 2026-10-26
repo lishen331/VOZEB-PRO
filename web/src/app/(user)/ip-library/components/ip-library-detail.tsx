@@ -1,6 +1,6 @@
 "use client";
 
-import { Image as AntImage } from "antd";
+import { Image as AntImage } from "@/components/gamma-ui/gamma-ant-image";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";

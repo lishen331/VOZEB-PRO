@@ -1,6 +1,7 @@
 "use client";
 
-import { Image, Upload } from "antd";
+import { Upload } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Collapse } from "@/components/gamma-ui/gamma-ant-display";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";

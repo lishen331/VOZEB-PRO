@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Image, Modal } from "antd";
-import type { ImageProps } from "antd";
+import { Modal } from "antd";
+import { Image, type ImageProps } from "@/components/gamma-ui/gamma-ant-image";
 import { Maximize2, PlayCircle } from "lucide-react";
 
 import { imagePreviewUrl } from "@/lib/media-image-url";

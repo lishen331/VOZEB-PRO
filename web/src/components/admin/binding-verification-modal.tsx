@@ -1,6 +1,6 @@
 "use client";
 
-import { Image } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Space } from "@/components/gamma-ui/gamma-ant-display";

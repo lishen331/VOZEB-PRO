@@ -1,6 +1,7 @@
 "use client";
 
-import { Form, Image } from "antd";
+import { Form } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";

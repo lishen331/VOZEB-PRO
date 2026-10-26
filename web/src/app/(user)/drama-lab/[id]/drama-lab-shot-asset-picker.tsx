@@ -1,5 +1,5 @@
 "use client";
-import { Image } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 export type ShotPickerAsset = { id: string; name?: string; location?: string; imageUrl?: string; referenceImageUrl?: string; primaryReferenceId?: string; references?: Array<{ id: string; url: string }> };
 export function DramaLabShotAssetPicker({ label, assets, selectedIds, single = false, onChange }: { label: string; assets: ShotPickerAsset[]; selectedIds: string[]; single?: boolean; onChange: (ids: string[]) => void }) {
