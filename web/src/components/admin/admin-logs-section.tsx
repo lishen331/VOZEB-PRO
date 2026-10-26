@@ -3,7 +3,7 @@
 import { GenerationLogMobileCard } from "@/components/admin/admin-generation-log";
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AdminUserSearchSelect } from "@/components/admin/admin-user-identity";
-import { DatePicker } from "antd";
+import { DatePicker } from "@/components/gamma-ui/gamma-ant-datepicker";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
@@ -126,7 +126,6 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                     </div>
                     <DatePicker.RangePicker
                         className="admin-log-date-range w-full min-w-0 max-w-full"
-                        classNames={{ popup: { root: "admin-date-picker-dropdown" } }}
                         allowClear
                         format="YYYY-MM-DD"
                         placeholder={["开始日期", "结束日期"]}
