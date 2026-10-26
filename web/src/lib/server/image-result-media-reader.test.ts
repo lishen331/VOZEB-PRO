@@ -4,7 +4,7 @@ import sharp from "sharp";
 const mocks = vi.hoisted(() => ({ external: vi.fn(), internal: vi.fn() }));
 vi.mock("@/lib/server/safe-outbound-fetch", () => ({ fetchSafeOutbound: mocks.external }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.internal }));
-import { readImageResultMedia } from "./image-result-media-reader";
+import { readImageResultMedia, resultMediaBodyTimeoutMs } from "./image-result-media-reader";
 
 const origin = "https://platform.example";
 const value = "https://cdn.example/private/result.png?signature=do-not-log";
@@ -15,6 +15,14 @@ const setup = async () => {
     return { bytes, emit: vi.fn(async () => {}) };
 };
 beforeEach(() => vi.resetAllMocks());
+
+describe("resultMediaBodyTimeoutMs", () => {
+    it("adds time for the declared length at 0.1MB/s and caps it at 600s", () => {
+        expect(resultMediaBodyTimeoutMs(undefined)).toBe(30_000);
+        expect(resultMediaBodyTimeoutMs(10 * 1000 * 1000)).toBe(130_000);
+        expect(resultMediaBodyTimeoutMs(500 * 1000 * 1000)).toBe(600_000);
+    });
+});
 
 describe("canvas result media delivery", () => {
     it("reads real image bytes and records headers, body, dimensions without URL secrets", async () => {

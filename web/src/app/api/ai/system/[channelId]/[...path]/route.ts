@@ -57,7 +57,8 @@ type RouteContext = {
 type PointsRequest = { model: string; amount: number; usageKind: PointUsageKind };
 type ProxyRequestBody = { body?: BodyInit; pointsPayload?: ArrayBuffer | Record<string, unknown>; bodyDigest: string };
 const MAX_PROXY_MULTIPART_BYTES = 25 * 1024 * 1024;
-const SYSTEM_MEDIA_TIMEOUT_MS = 30 * 1000;
+// 结果媒体可能几十 MB，30s 读不完（2026-10-23 生产）。外层读取器仍按 content-length 限时。
+const SYSTEM_MEDIA_TIMEOUT_MS = 600 * 1000;
 const MAX_SYSTEM_MEDIA_REDIRECTS = 4;
 
 export async function GET(request: Request, context: RouteContext) {

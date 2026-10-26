@@ -942,6 +942,7 @@ async function prepareTuziReferences(channel: NonNullable<ReturnType<typeof toSy
             baseUrl,
             apiKey,
             cacheScope: channel.channelId,
+            model: channel.model,
             fetcher: (input, init) => fetchSafeOutbound(input, init),
             sourceFetcher: (input, init) => {
                 const url = new URL(input);

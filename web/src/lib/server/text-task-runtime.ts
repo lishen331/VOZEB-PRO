@@ -31,6 +31,7 @@ import { getPublicUsersByIds } from "@/lib/auth/store-actions";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
+import { parseBase64DataUrl } from "@/lib/data-url";
 
 configureServerProxyDispatcher();
 
@@ -489,8 +490,8 @@ function toGeminiParts(content: AiTextMessage["content"]): GeminiPart[] {
 }
 
 function toGeminiImagePart(url: string): GeminiPart {
-    const match = url.match(/^data:([^;,]+);base64,(.+)$/);
-    if (match) return { inlineData: { mimeType: match[1], data: match[2] } };
+    const match = parseBase64DataUrl(url);
+    if (match) return { inlineData: { mimeType: match.mimeType, data: match.data } };
     return { fileData: { fileUri: url, mimeType: "image/png" } };
 }
 
