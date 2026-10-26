@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Form, Upload as AntUpload } from "antd";
+import { Form } from "antd";
+import { Upload as AntUpload } from "@/components/gamma-ui/gamma-ant-upload";
 import { Image as AntImage } from "@/components/gamma-ui/gamma-ant-image";
 import { message } from "@/components/gamma-ui/gamma-ant-app";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
@@ -928,11 +929,11 @@ export default function ProjectOutlinePage() {
                             showUploadList={false}
                             accept=".txt,.md,.markdown,.docx,.doc,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                         >
-                            <p className="ant-upload-drag-icon">
+                            <p>
                                 <Upload className="mx-auto size-7 text-[var(--gm-text-3)]" />
                             </p>
-                            <p className="ant-upload-text">点击或拖拽上传 TXT / MD / DOCX / DOC 文件</p>
-                            <p className="ant-upload-hint">支持小说原文或剧本文档，也可以直接在下面粘贴文本。</p>
+                            <p className="mt-2 text-sm font-medium text-[var(--gm-text)]">点击或拖拽上传 TXT / MD / DOCX / DOC 文件</p>
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">支持小说原文或剧本文档，也可以直接在下面粘贴文本。</p>
                         </AntUpload.Dragger>
                         <div className="grid gap-3">
                             <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">

@@ -2,7 +2,8 @@
 
 import type { FormInstance } from "antd";
 import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
-import { Form, Upload } from "antd";
+import { Form } from "antd";
+import { Upload } from "@/components/gamma-ui/gamma-ant-upload";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
