@@ -429,6 +429,53 @@ export function Checkbox({ checked, defaultChecked = false, indeterminate = fals
     );
 }
 
+export interface CheckboxOption {
+    label: ReactNode;
+    value: string | number;
+    disabled?: boolean;
+}
+
+export interface CheckboxGroupProps {
+    options?: readonly (CheckboxOption | string | number)[];
+    value?: readonly (string | number)[];
+    defaultValue?: readonly (string | number)[];
+    onChange?: (value: (string | number)[]) => void;
+    disabled?: boolean;
+    className?: string;
+}
+
+function normalizeCheckboxOption(option: CheckboxOption | string | number): CheckboxOption {
+    return typeof option === "object" ? option : { label: String(option), value: option };
+}
+
+/** 与 antd Checkbox.Group 同 API；options 支持字符串/数字简写，onChange 回调新的 value 数组 */
+function CheckboxGroup({ options = [], value, defaultValue, onChange, disabled, className }: CheckboxGroupProps) {
+    const [inner, setInner] = useState<readonly (string | number)[]>(defaultValue ?? []);
+    const checkedValues = value ?? inner;
+    const checkedSet = new Set(checkedValues);
+
+    const toggle = (optionValue: string | number, checked: boolean) => {
+        const next = checked ? [...checkedValues, optionValue] : checkedValues.filter((item) => item !== optionValue);
+        setInner(next);
+        onChange?.(next);
+    };
+
+    return (
+        <div className={cn("gm-checkbox-group flex flex-wrap gap-x-4 gap-y-2", className)}>
+            {options.map((rawOption) => {
+                const option = normalizeCheckboxOption(rawOption);
+                return (
+                    <Checkbox key={option.value} checked={checkedSet.has(option.value)} disabled={disabled || option.disabled} onChange={(event) => toggle(option.value, event.target.checked)}>
+                        {option.label}
+                    </Checkbox>
+                );
+            })}
+        </div>
+    );
+}
+
+Checkbox.Group = CheckboxGroup;
+
 /* ===== Spin / Empty / Alert ===== */
 
 const SPIN_SIZE = { small: "size-3.5 border-[1.5px]", default: "size-5 border-2", large: "size-8 border-[2.5px]" } as const;
