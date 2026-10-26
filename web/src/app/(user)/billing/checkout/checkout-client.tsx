@@ -1,6 +1,6 @@
 "use client";
 
-import { QRCode } from "antd";
+import { QRCode } from "@/components/gamma-ui/gamma-ant-qrcode";
 import { Popover } from "@/components/gamma-ui/gamma-ant-overlay";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Button, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";

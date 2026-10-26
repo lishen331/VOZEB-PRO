@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { QRCode } from "antd";
+import { QRCode } from "@/components/gamma-ui/gamma-ant-qrcode";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";

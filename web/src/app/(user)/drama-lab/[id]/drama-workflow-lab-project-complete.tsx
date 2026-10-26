@@ -14,8 +14,9 @@ import { normalizeDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 
-import { Form, QRCode } from "antd";
+import { Form } from "antd";
 import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { QRCode } from "@/components/gamma-ui/gamma-ant-qrcode";
 import { message } from "@/components/gamma-ui/gamma-ant-app";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
