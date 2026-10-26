@@ -273,9 +273,7 @@ export function Dropdown({ menu, content, panelStyle, trigger = ["click"], place
                     className={cn(
                         "gm-dropdown ant-dropdown z-[1050] outline-none",
                         "origin-[var(--radix-dropdown-menu-content-transform-origin)] data-[state=closed]:hidden data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-                        content !== undefined
-                            ? "ant-dropdown-menu-content"
-                            : "ant-dropdown-menu min-w-36 rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface-2)] p-1 text-[var(--gm-text)] shadow-[var(--gm-shadow)]",
+                        content !== undefined ? "ant-dropdown-menu-content" : "ant-dropdown-menu min-w-36 rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface-2)] p-1 text-[var(--gm-text)] shadow-[var(--gm-shadow)]",
                         rootClassName,
                     )}
                 >
