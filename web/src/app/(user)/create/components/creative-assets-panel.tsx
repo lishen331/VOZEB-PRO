@@ -1,6 +1,6 @@
 "use client";
 
-import { Grid } from "antd";
+import { Grid } from "@/components/gamma-ui/gamma-ant-grid";
 import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Dropdown, Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";

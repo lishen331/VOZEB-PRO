@@ -1,6 +1,6 @@
 "use client";
 
-import { Grid } from "antd";
+import { Grid } from "@/components/gamma-ui/gamma-ant-grid";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
