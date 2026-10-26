@@ -1,5 +1,6 @@
 import { resolveGlobalAiOpcPreset, resolveGlobalAiOpcPresets } from "@/lib/globalaiopc-catalog";
 import type { SystemChannelAdvancedConfig } from "@/lib/auth/store";
+import { parseBase64DataUrl } from "@/lib/data-url";
 
 type ProxyAdapter = "gemini" | "claude";
 
@@ -141,8 +142,8 @@ function contentParts(value: unknown) {
         const record = object(item) || {};
         if (record.type === "image_url" || record.type === "video_url") {
             const url = text(object(record[record.type])?.url) || text(record[record.type]);
-            const inline = /^data:([^;]+);base64,(.+)$/.exec(url);
-            return inline ? { inlineData: { mimeType: inline[1], data: inline[2] } } : { fileData: { fileUri: url, mimeType: record.type === "image_url" ? "image/png" : "video/mp4" } };
+            const inline = parseBase64DataUrl(url);
+            return inline ? { inlineData: { mimeType: inline.mimeType, data: inline.data } } : { fileData: { fileUri: url, mimeType: record.type === "image_url" ? "image/png" : "video/mp4" } };
         }
         return { text: text(record.text) || contentText(record) };
     });
@@ -155,8 +156,8 @@ function claudeContent(value: unknown) {
         if (item.type === "video_url") throw new Error("当前 Claude 原生协议不支持视频输入，不能忽略视频后继续分析");
         if (item.type !== "image_url") return { type: "text", text: text(item.text) };
         const url = text(object(item.image_url)?.url) || text(item.image_url);
-        const inline = /^data:([^;]+);base64,(.+)$/.exec(url);
-        return { type: "image", source: inline ? { type: "base64", media_type: inline[1], data: inline[2] } : { type: "url", url } };
+        const inline = parseBase64DataUrl(url);
+        return { type: "image", source: inline ? { type: "base64", media_type: inline.mimeType, data: inline.data } : { type: "url", url } };
     });
 }
 

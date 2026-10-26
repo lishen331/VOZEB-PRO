@@ -13,6 +13,7 @@ import { deleteLocalMediaRegistrations, getLocalMediaRegistration, registerLocal
 import { deleteExternalMediaObject, persistExternalMediaIfEnabled } from "@/lib/server/object-storage-service";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { isSafeOutboundUrl } from "@/lib/server/security";
+import { parseBase64DataUrl } from "@/lib/data-url";
 import type { GenerationLogAsset, GenerationLogAssetKind, GenerationLogDatabase, GenerationLogKind, GenerationLogSource, GenerationLogStatus, StoredGenerationLog } from "./generation-log-types";
 
 const LOG_DATA_FILE = "generation-logs.json";
@@ -92,11 +93,11 @@ export async function normalizeAssets(assets: Array<Partial<GenerationLogAsset> 
 }
 
 export async function writeDataUrlAsset(dataUrl: string, type: GenerationLogAssetKind, context: GenerationAssetContext): Promise<GenerationLogAsset | null> {
-    const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
+    const match = parseBase64DataUrl(dataUrl);
     if (!match) return null;
-    const mimeType = match[1] || (type === "video" ? "video/mp4" : type === "audio" ? "audio/mpeg" : "image/png");
+    const mimeType = match.mimeType || (type === "video" ? "video/mp4" : type === "audio" ? "audio/mpeg" : "image/png");
     if (!mimeType.startsWith(`${type}/`)) return null;
-    const bytes = Buffer.from(match[2], "base64");
+    const bytes = Buffer.from(match.data, "base64");
     if (bytes.length > maxServerAssetBytes(type)) return null;
     return writeAssetBytes(bytes, mimeType, type, context);
 }

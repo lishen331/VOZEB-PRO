@@ -2,7 +2,10 @@ import type { LogicalModelCapabilityProfile } from "@/lib/auth/store-types";
 import { isCreativeAutoValue, type CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
 
 export type CreativeMediaCapability = "image" | "video" | "audio";
-export type CreativeModelCapabilityProfile = Pick<LogicalModelCapabilityProfile, "aspectRatios" | "resolutions" | "durationSeconds" | "minDurationSeconds" | "maxDurationSeconds" | "maxBatchSize" | "supportsAudioGeneration">;
+export type CreativeModelCapabilityProfile = Pick<
+    LogicalModelCapabilityProfile,
+    "aspectRatios" | "resolutions" | "durationSeconds" | "minDurationSeconds" | "maxDurationSeconds" | "maxBatchSize" | "supportsAudioGeneration" | "supportsReferenceImage" | "supportsReferenceVideo" | "supportsReferenceAudio" | "maxReferenceImages"
+>;
 export type CreativeModelCapabilityOption = {
     id: string;
     name: string;
@@ -16,8 +19,12 @@ type LogicalModelLike = {
 };
 
 export function creativeModelProfileForLogicalModel(model: LogicalModelLike | undefined): CreativeModelCapabilityProfile | undefined {
-    const profiles = (model?.bindings || []).filter((binding) => binding.enabled && binding.capabilityProfile).map((binding) => binding.capabilityProfile!);
+    const bindings = (model?.bindings || []).filter((binding) => binding.enabled);
+    const profiles = bindings.filter((binding) => binding.capabilityProfile).map((binding) => binding.capabilityProfile!);
     if (!profiles.length) return undefined;
+    // 服务端会换下一个绑定，所以只有全部绑定都明确不支持才算不支持；没配置的一律当支持。
+    const referenceSupport = (key: "supportsReferenceImage" | "supportsReferenceVideo" | "supportsReferenceAudio") => (bindings.every((binding) => binding.capabilityProfile?.[key] === false) ? false : undefined);
+    const referenceLimits = bindings.map((binding) => binding.capabilityProfile?.maxReferenceImages);
     return compactProfile({
         aspectRatios: unionTextLists(profiles.map((profile) => profile.aspectRatios)),
         resolutions: unionTextLists(profiles.map((profile) => profile.resolutions)),
@@ -26,7 +33,24 @@ export function creativeModelProfileForLogicalModel(model: LogicalModelLike | un
         maxDurationSeconds: maximum(profiles.map((profile) => profile.maxDurationSeconds)),
         maxBatchSize: maximum(profiles.map((profile) => profile.maxBatchSize)),
         supportsAudioGeneration: profiles.some((profile) => profile.supportsAudioGeneration) || undefined,
+        supportsReferenceImage: referenceSupport("supportsReferenceImage"),
+        supportsReferenceVideo: referenceSupport("supportsReferenceVideo"),
+        supportsReferenceAudio: referenceSupport("supportsReferenceAudio"),
+        maxReferenceImages: referenceLimits.every((limit) => limit) ? maximum(referenceLimits) : undefined,
     });
+}
+
+export type CreativeReferenceCounts = { images: number; videos: number; audios: number };
+
+/** Reference materials the model's admin config explicitly rejects; empty when the request may be submitted. */
+export function unsupportedReferenceIssues(profile: CreativeModelCapabilityProfile | undefined, counts: CreativeReferenceCounts, modelName = "该模型") {
+    if (!profile) return [];
+    const issues: string[] = [];
+    if (counts.images && profile.supportsReferenceImage === false) issues.push(`${modelName} 不支持参考图。请断开参考图，或换一个支持参考图的模型。`);
+    else if (counts.images && profile.maxReferenceImages && counts.images > profile.maxReferenceImages) issues.push(`${modelName} 最多支持 ${profile.maxReferenceImages} 张参考图，当前连接了 ${counts.images} 张。`);
+    if (counts.videos && profile.supportsReferenceVideo === false) issues.push(`${modelName} 不支持参考视频。请断开参考视频，或换一个支持参考视频的模型。`);
+    if (counts.audios && profile.supportsReferenceAudio === false) issues.push(`${modelName} 不支持参考音频。请断开参考音频，或换一个支持参考音频的模型。`);
+    return issues;
 }
 
 export function creativeSelectedModelProfile(models: readonly CreativeModelCapabilityOption[], capability: CreativeMediaCapability): CreativeModelCapabilityProfile | undefined {

@@ -22,6 +22,7 @@ import { canvasContainerChildIds, canvasContainerGeneratableIds, canvasNodeGener
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
 import { buildPanoramaPrompt } from "../utils/canvas-panorama";
 import { canvasVideoReferenceMetadata, normalizeCanvasVideoGenerationMode, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
+import { canvasUnsupportedReferenceIssues } from "../utils/canvas-model-capabilities";
 
 import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
 import { canvasGenerationPendingOptions, failCanvasGeneration, isCanvasGenerationRetryable, markCanvasGenerationPending, toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
@@ -116,6 +117,26 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
         },
         [message, modal],
     );
+    // 后台配置明确不支持的参考素材：提交前提示，不建任务、不扣分。
+    const blockUnsupportedReferences = useCallback(
+        (model: string, counts: { images: number; videos: number; audios: number }) => {
+            const issues = canvasUnsupportedReferenceIssues(effectiveConfig, model, counts);
+            if (!issues.length) return false;
+            modal.warning({
+                title: "当前模型不支持这些参考素材",
+                content: (
+                    <div className="space-y-2 text-sm">
+                        {issues.map((issue) => (
+                            <p key={issue}>{issue}</p>
+                        ))}
+                    </div>
+                ),
+                okText: "知道了",
+            });
+            return true;
+        },
+        [effectiveConfig, modal],
+    );
     const { screenToCanvas, applyAgentOps } = interactions;
     /**
      * 生成失败时的统一出口：
@@ -200,6 +221,10 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                     const isEmptyImageNode = isImageNode && !sourceNode?.metadata?.content;
                     const sourceReference = isImageNode && sourceNode?.metadata?.content ? [canvasNodeReferenceImage(sourceNode)] : [];
                     const referenceImages = sourceReference.length ? sourceReference : generationContext.referenceImages;
+                    if (referenceImages.length && blockUnsupportedReferences(generationConfig.model, { images: referenceImages.length, videos: 0, audios: 0 })) {
+                        if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node)));
+                        return;
+                    }
                     const imageGenerationConfig = {
                         ...generationConfig,
                         size: resolveImageRequestSize({
@@ -365,6 +390,10 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                         availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(nodeId, nodesRef.current, connectionsRef.current),
                         sourceImage: !isTextToVideo && sourceNode && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                     });
+                    if (blockUnsupportedReferences(generationConfig.model, { images: videoReferences.images.length, videos: videoReferences.videos.length, audios: videoReferences.audios.length })) {
+                        if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node)));
+                        return;
+                    }
                     if (!(await confirmVideoReferenceSizes(videoReferences.images))) return;
                     const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
                     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
@@ -541,6 +570,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             }
         },
         [
+            blockUnsupportedReferences,
             completeAudioTask,
             completeTextTask,
             completeVideoTask,
@@ -672,6 +702,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 return;
             }
             const retryImages = retryReferenceImages || [];
+            if (isCanvasImageNodeType(node.type) && retryImages.length && blockUnsupportedReferences(generationConfig.model, { images: retryImages.length, videos: 0, audios: 0 })) return;
             const retryMask = savedImageMetadata ? await resolveMetadataImageEditMask(savedImageMetadata) : undefined;
             if (savedImageMetadata?.imageEditMask && !retryMask) {
                 message.error("背景补全蒙版已丢失，无法继续重试");
@@ -705,6 +736,10 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                             availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(sourceNode.id, nodesRef.current, connectionsRef.current),
                             sourceImage: !isTextToVideo && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                         });
+                    if (blockUnsupportedReferences(generationConfig.model, { images: videoReferences.images.length, videos: videoReferences.videos.length, audios: videoReferences.audios.length })) {
+                        setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR } } : item)));
+                        return;
+                    }
                     const task = await createServerVideoGenerationTask(generationConfig, prompt, videoReferences.images, videoReferences.videos, videoReferences.audios, {
                         signal: controller.signal,
                         conversationId: currentProject?.creativeConversationId,
@@ -760,6 +795,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
         },
         [
             applyAgentOps,
+            blockUnsupportedReferences,
             completeAudioTask,
             completeTextTask,
             completeVideoTask,

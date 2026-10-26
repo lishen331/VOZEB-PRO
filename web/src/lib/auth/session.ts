@@ -7,6 +7,7 @@ import { adminDutiesFromMenuPermissions } from "@/components/admin/admin-section
 import { getPlatformAdminMenuPermissions } from "@/lib/server/platform-admin-menu-service";
 import { getTrustedProxyHops } from "@/lib/server/trusted-proxy";
 import { parseSessionCookie } from "./store-normalizers";
+import { resolveExplicitReferenceCapabilities } from "@/lib/model-routing-config";
 
 const SESSION_COOKIE_NAME = "vozeb_pro_session";
 
@@ -184,7 +185,10 @@ export function serializeModelCatalogSettings(settings: AuthSettings) {
                 bindings: model.bindings
                     .filter((binding) => binding.enabled)
                     .map((binding) => {
-                        const capabilityProfile = publicCapabilityProfile(binding.capabilityProfile);
+                        const channel = settings.systemChannels.find((item) => item.id === binding.channelId);
+                        // 参考素材能力按服务端路由同一套回退解析（绑定 → 全局预设 → 渠道模型配置 → 渠道），只下发结果，不下发渠道配置。
+                        const resolved = channel ? resolveExplicitReferenceCapabilities(binding, model.capability, channel, binding.upstreamModel) : undefined;
+                        const capabilityProfile = publicCapabilityProfile(binding.capabilityProfile, resolved);
                         return {
                             id: binding.id,
                             channelId: binding.channelId,
@@ -220,15 +224,19 @@ export function serializePublicSettings(settings: AuthSettings) {
     };
 }
 
-function publicCapabilityProfile(profile: AuthSettings["logicalModels"][number]["bindings"][number]["capabilityProfile"]) {
-    if (!profile) return undefined;
+function publicCapabilityProfile(profile: AuthSettings["logicalModels"][number]["bindings"][number]["capabilityProfile"], resolved?: ReturnType<typeof resolveExplicitReferenceCapabilities>) {
+    if (!profile && !resolved) return undefined;
     const result = {
-        aspectRatios: profile.aspectRatios?.slice(),
-        resolutions: profile.resolutions?.slice(),
-        durationSeconds: profile.durationSeconds?.slice(),
-        minDurationSeconds: profile.minDurationSeconds,
-        maxDurationSeconds: profile.maxDurationSeconds,
-        maxBatchSize: profile.maxBatchSize,
+        aspectRatios: profile?.aspectRatios?.slice(),
+        resolutions: profile?.resolutions?.slice(),
+        durationSeconds: profile?.durationSeconds?.slice(),
+        minDurationSeconds: profile?.minDurationSeconds,
+        maxDurationSeconds: profile?.maxDurationSeconds,
+        maxBatchSize: profile?.maxBatchSize,
+        supportsReferenceImage: resolved?.supportsReferenceImage,
+        supportsReferenceVideo: resolved?.supportsReferenceVideo,
+        supportsReferenceAudio: resolved?.supportsReferenceAudio,
+        maxReferenceImages: resolved?.maxReferenceImages,
     };
     return Object.values(result).some((value) => value !== undefined && (!Array.isArray(value) || value.length)) ? result : undefined;
 }

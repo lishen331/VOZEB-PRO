@@ -46,7 +46,7 @@ export async function readImageResultMedia(input: Input): Promise<ImageTaskMedia
         }
     };
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), INLINE_IMAGE_TIMEOUT_MS);
+    let timeout = setTimeout(() => controller.abort(), INLINE_IMAGE_TIMEOUT_MS);
     await emit({ phase: "result_media_start", method: "GET" });
     try {
         let bytes: Buffer;
@@ -80,6 +80,9 @@ export async function readImageResultMedia(input: Input): Promise<ImageTaskMedia
                 throw new ImageResultMediaReadError(!response.ok ? "media_http_error" : !response.body ? "media_empty" : "media_too_large", stage, status);
             }
             stage = "body";
+            // 大图走慢线路时 30s 不够读完正文（2026-10-23 生产 media_timeout）。拿到长度后按 0.1MB/s 补时间，最多 600s。
+            clearTimeout(timeout);
+            timeout = setTimeout(() => controller.abort(), resultMediaBodyTimeoutMs(length));
             const reader = response.body.getReader();
             const chunks: Uint8Array[] = [];
             try {
@@ -132,6 +135,12 @@ export async function readImageResultMedia(input: Input): Promise<ImageTaskMedia
     } finally {
         clearTimeout(timeout);
     }
+}
+
+const RESULT_MEDIA_MAX_TIMEOUT_MS = 600_000;
+
+export function resultMediaBodyTimeoutMs(contentLength: number | undefined) {
+    return Math.min(RESULT_MEDIA_MAX_TIMEOUT_MS, INLINE_IMAGE_TIMEOUT_MS + (contentLength && contentLength > 0 ? contentLength / 100 : 0));
 }
 
 function mediaLocation(value: string, origin: string) {
