@@ -101,7 +101,15 @@ describe("serializePublicSettings", () => {
                 purpose: "shared",
             },
         ]);
-        expect(result.logicalModels[0]?.bindings[0]).toEqual({ id: "binding-one", channelId: "channel-one", upstreamModel: "vendor-image", enabled: true, priority: 1 });
+        // 只多下发参考素材能力的解析结果；单价、超时、渠道配置都不下发。
+        expect(result.logicalModels[0]?.bindings[0]).toEqual({
+            id: "binding-one",
+            channelId: "channel-one",
+            upstreamModel: "vendor-image",
+            enabled: true,
+            priority: 1,
+            capabilityProfile: { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: false },
+        });
         expect(serialized).not.toContain("provider-secret");
         expect(serialized).not.toContain("internal-provider.example");
         expect(serialized).not.toContain("smtp.internal");

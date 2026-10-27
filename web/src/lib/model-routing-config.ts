@@ -247,6 +247,22 @@ export function resolveLogicalModelCapabilityProfile(binding: Pick<LogicalModelB
     };
 }
 
+/**
+ * Reference-material support as explicitly configured, same fallback order as
+ * resolveLogicalModelCapabilityProfile. Unconfigured stays undefined (treated as supported) instead of false.
+ */
+export function resolveExplicitReferenceCapabilities(binding: Pick<LogicalModelBinding, "capabilityProfile">, capability: LogicalModelCapability, channel?: Pick<SystemModelChannel, "advancedConfig">, upstreamModel = "") {
+    const stored = binding.capabilityProfile || {};
+    const advanced = channel?.advancedConfig;
+    const globalPreset = resolveGlobalAiOpcPreset(advanced, upstreamModel);
+    const modelConfig = resolveChannelModelConfig(advanced, upstreamModel) || advanced?.operationConfigs?.[capability];
+    const pick = (key: "supportsReferenceImage" | "supportsReferenceVideo" | "supportsReferenceAudio") => {
+        const value = stored[key] ?? globalPreset?.[key] ?? modelConfig?.[key] ?? advanced?.[key];
+        return typeof value === "boolean" ? value : undefined;
+    };
+    return { supportsReferenceImage: pick("supportsReferenceImage"), supportsReferenceVideo: pick("supportsReferenceVideo"), supportsReferenceAudio: pick("supportsReferenceAudio"), maxReferenceImages: positiveInteger(stored.maxReferenceImages) };
+}
+
 function channelSupportsModel(channel: Pick<SystemModelChannel, "models">, model: string) {
     const target = normalizeModelName(model);
     return Boolean(target && channel.models.some((item) => normalizeModelName(item) === target));

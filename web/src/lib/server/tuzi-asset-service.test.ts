@@ -61,6 +61,31 @@ describe("ingestTuziReferences", () => {
         expect(String(onFallback.mock.calls[0][0])).toContain("人像不合规");
     });
 
+    it("re-submits compliance after a failed review and accepts a later pass", async () => {
+        const { fetcher, calls } = tuziFetcher(["failed", "active"]);
+        const result = await ingestTuziReferences([{ type: "image", url: DATA_URL }], options(fetcher));
+        expect(result[0].url).toBe("asset://asset01");
+        expect(calls.filter((call) => call.endsWith("/compliance"))).toHaveLength(2);
+    });
+
+    it("stops re-submitting compliance after 3 retries", async () => {
+        const { fetcher, calls } = tuziFetcher(["failed"]);
+        const result = await ingestTuziReferences([{ type: "image", url: DATA_URL }], options(fetcher), vi.fn());
+        expect(result[0].url).toBe(DATA_URL);
+        expect(calls.filter((call) => call.endsWith("/compliance"))).toHaveLength(4);
+    });
+
+    it("uploads with the target model and caches per model", async () => {
+        const { fetcher, calls } = tuziFetcher(["active"]);
+        await ingestTuziReferences([{ type: "image", url: DATA_URL }], { ...options(fetcher), model: "seedance-a" });
+        const body = fetcher.mock.calls[0][1]?.body as FormData;
+        expect(body.get("model")).toBe("seedance-a");
+        expect(body.get("name")).toBe("reference.png");
+        await ingestTuziReferences([{ type: "image", url: DATA_URL }], { ...options(fetcher), model: "seedance-a" });
+        await ingestTuziReferences([{ type: "image", url: DATA_URL }], { ...options(fetcher), model: "seedance-b" });
+        expect(calls.filter((call) => call === "POST /v1/seedance/assets")).toHaveLength(2);
+    });
+
     it("passes video, audio and existing asset references through untouched", async () => {
         const { fetcher } = tuziFetcher(["active"]);
         const references = [

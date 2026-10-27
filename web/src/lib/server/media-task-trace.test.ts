@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ persist: vi.fn(async () => undefined) }));
 vi.mock("./media-task-diagnostic-store", () => ({ persistMediaDiagnostic: mocks.persist }));
-import { diagnosticNodeId, currentMediaTraceHeaders, observeMediaFetch, traceMediaException, withMediaDiagnosticScope } from "./media-task-trace";
+import { diagnosticNodeId, currentMediaTraceHeaders, observeMediaFetch, recordMediaTaskEvent, traceMediaException, withMediaDiagnosticScope } from "./media-task-trace";
 const task = { id: "task-1", userId: "user-1", surface: "canvas", config: { channelId: "channel-1", model: "model-1" } };
 beforeEach(() => mocks.persist.mockClear());
 
@@ -110,4 +110,18 @@ it("captures actual proxy byte-buffer parameters and gateway request IDs", async
     expect(events).toContain("1024x1024");
     expect(events).toContain("gateway-123");
     expect(events).not.toContain("do-not-log");
+});
+
+describe("result diagnostic identity", () => {
+    it("records historical source-only Canvas results with canonical diagnostic context", async () => {
+        await recordMediaTaskEvent("image", { ...task, surface: undefined, source: "canvas" }, { phase: "result_persist_complete" });
+        expect(mocks.persist).toHaveBeenCalledWith(expect.objectContaining({ taskId: "task-1", userId: "user-1", surface: "canvas" }), expect.objectContaining({ phase: "result_persist_complete" }));
+    });
+    it.each([
+        { surface: undefined, source: "image-workbench" },
+        { surface: "drama", source: "canvas" },
+    ])("does not instrument non-Canvas result identity %j", async (identity) => {
+        await recordMediaTaskEvent("image", { ...task, ...identity }, { phase: "result_persist_complete" });
+        expect(mocks.persist).not.toHaveBeenCalled();
+    });
 });

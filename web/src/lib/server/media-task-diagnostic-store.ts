@@ -1,6 +1,9 @@
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { appendDiagnosticEvent, MEDIA_DIAGNOSTIC_RETENTION_MS, type MediaDiagnosticEvent } from "./media-task-diagnostics";
 
+// Legacy Canvas tasks predate the durable surface column; explicit non-Canvas surfaces remain authoritative.
+const CANVAS_DIAGNOSTIC_TASK_SQL = "(surface='canvas' OR (COALESCE(surface, '')='' AND payload->>'source'='canvas'))";
+
 export type MediaDiagnosticContext = { type: "image" | "video"; taskId: string; userId: string; projectId?: string; channelId?: string; model?: string; surface?: string };
 
 // Separate columns prevent task payload replacement from losing trace events.
@@ -13,7 +16,7 @@ export async function persistMediaDiagnostic(context: MediaDiagnosticContext, ev
             await client.query("SET LOCAL statement_timeout = '1000ms'");
             const row = (
                 await client.query<{ diagnostic_events: MediaDiagnosticEvent[]; status: string; updated_at?: string; diagnostic_expires_at?: string }>(
-                    "SELECT diagnostic_events, status, updated_at, diagnostic_expires_at FROM generation_tasks WHERE id=$1 AND task_type=$2 AND user_id=$3 AND surface='canvas' AND expires_at>now() FOR UPDATE",
+                    `SELECT diagnostic_events, status, updated_at, diagnostic_expires_at FROM generation_tasks WHERE id=$1 AND task_type=$2 AND user_id=$3 AND ${CANVAS_DIAGNOSTIC_TASK_SQL} AND expires_at>now() FOR UPDATE`,
                     [context.taskId, context.type, context.userId],
                 )
             ).rows[0];
@@ -41,7 +44,7 @@ export async function resolveMediaDiagnosticContext(taskId: string, userId: stri
         await ensurePostgresSchema();
         const row = (
             await postgresQuery<{ task_type: "image" | "video"; project_id: string; model: string }>(
-                "SELECT task_type, project_id, payload->'config'->>'model' AS model FROM generation_tasks WHERE id=$1 AND user_id=$2 AND surface='canvas' AND task_type IN ('image','video') AND payload->'config'->>'channelId'=$3 AND expires_at>now()",
+                `SELECT task_type, project_id, payload->'config'->>'model' AS model FROM generation_tasks WHERE id=$1 AND user_id=$2 AND ${CANVAS_DIAGNOSTIC_TASK_SQL} AND task_type IN ('image','video') AND payload->'config'->>'channelId'=$3 AND expires_at>now()`,
                 [taskId, userId, channelId],
             )
         ).rows[0];
