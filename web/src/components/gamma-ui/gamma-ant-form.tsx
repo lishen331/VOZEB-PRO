@@ -289,10 +289,14 @@ export class FormStore {
 }
 
 export interface FormInstance<Values = Record<string, unknown>> {
-    getFieldValue: (name: NamePath) => unknown;
+    // antd 原签名就是返回 any。不写 unknown 是因为页面里大量 `getFieldValue("style") || "未选择"`
+    // 这种写法：返回 unknown 时整个表达式退化成 {}，直接进不了 JSX，会逼调用方到处断言。
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getFieldValue: (name: NamePath) => any;
     getFieldsValue: (all?: boolean) => Values;
     setFieldValue: (name: NamePath, value: unknown) => void;
-    setFieldsValue: (values: Record<string, unknown>) => void;
+    /** 与 antd 一致：接受表单值的部分字段，也接受整条记录（如 PromptTemplate） */
+    setFieldsValue: (values: Partial<Values> | object) => void;
     resetFields: (names?: NamePath[]) => void;
     validateFields: (names?: NamePath[]) => Promise<Values>;
     submit: () => void;
@@ -329,17 +333,23 @@ function useFormContext(component: string): FormContextValue {
 
 /* ===== useForm ===== */
 
-export function useForm<Values extends Record<string, unknown> = Record<string, unknown>>(initialValues?: Partial<Values>): [FormInstance<Values>] {
+/**
+ * Values 只约束到 object：antd 的表单值类型常写成 interface（如 GenerationSettings），
+ * 而 Record<string, unknown> 要求索引签名，interface 不满足，会逼调用方到处加类型断言。
+ */
+export function useForm<Values extends object = Record<string, unknown>>(initialValues?: Partial<Values>): [FormInstance<Values>] {
     const storeRef = useRef<FormStore | null>(null);
     if (!storeRef.current) storeRef.current = new FormStore((initialValues ?? {}) as Record<string, unknown>);
     const store = storeRef.current;
     const instance = useMemo<FormInstance<Values>>(
         () => ({
             __store: store,
-            getFieldValue: store.getFieldValue,
+            // store 只能给出 unknown，这里补上按 keyof Values 反推的调用签名
+            getFieldValue: store.getFieldValue as FormInstance<Values>["getFieldValue"],
             getFieldsValue: () => store.getFieldsValue() as Values,
             setFieldValue: store.setFieldValue,
-            setFieldsValue: store.setFieldsValue,
+            // store 内部按 Record 存值，对外接受任意记录（interface 类型也能直接传）
+            setFieldsValue: store.setFieldsValue as FormInstance<Values>["setFieldsValue"],
             resetFields: store.resetFields,
             validateFields: (names?: NamePath[]) => store.validateFields(names) as Promise<Values>,
             submit: store.submit,
@@ -354,7 +364,16 @@ export function useForm<Values extends Record<string, unknown> = Record<string, 
 
 const NO_STORE = "__no_store__";
 
-export function useWatch(name: NamePath, form?: FormInstance): unknown {
+/**
+ * 订阅单个字段。
+ * 返回值类型从 form 实例反推（antd 的行为）：useWatch("sourceType", form) 拿到的是
+ * EditorValues["sourceType"] 而不是 unknown，否则页面里 `watch(name) || "默认值"`
+ * 这种写法会全线退化成 {}，索引和 .trim() 都会报错。
+ */
+export function useWatch<Values extends object = Record<string, unknown>, K extends keyof Values & (string | number) = keyof Values & (string | number)>(name: K, form: FormInstance<Values>): Values[K];
+export function useWatch(name: NamePath): unknown;
+export function useWatch(name: NamePath, form?: FormInstance): unknown;
+export function useWatch(name: NamePath, form?: FormInstance<Record<string, unknown>>): unknown {
     const fallback = useContext(FormContext);
     // hook 无条件调用，store 缺失时退到占位快照，最后才抛错
     const store = form?.__store ?? fallback?.store;
@@ -369,7 +388,7 @@ export function useWatch(name: NamePath, form?: FormInstance): unknown {
 /* ===== Form ===== */
 
 export interface FormProps<Values extends object = Record<string, unknown>> {
-    form?: FormInstance<Values & Record<string, unknown>>;
+    form?: FormInstance<Values>;
     layout?: FormLayout;
     onFinish?: (values: Values) => void | Promise<void>;
     onValuesChange?: (changed: Record<string, unknown>, all: Values) => void;

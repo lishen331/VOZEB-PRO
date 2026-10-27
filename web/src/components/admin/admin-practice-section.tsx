@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Form } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";

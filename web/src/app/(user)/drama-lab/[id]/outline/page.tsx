@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Form } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
 import { Upload as AntUpload } from "@/components/gamma-ui/gamma-ant-upload";
 import { Image as AntImage } from "@/components/gamma-ui/gamma-ant-image";
 import { message } from "@/components/gamma-ui/gamma-ant-app";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Form } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
