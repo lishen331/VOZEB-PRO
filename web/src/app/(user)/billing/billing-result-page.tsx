@@ -143,12 +143,12 @@ export function BillingResultPage({ mode, orderId }: { mode: "success" | "cancel
                             ) : null}
                             <div className="mt-4 grid gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-3">
                                 <Link href="/billing" className="block">
-                                    <Button block className="!h-10" icon={<ArrowLeft className="size-4" />}>
+                                    <Button block size="large" icon={<ArrowLeft className="size-4" />}>
                                         返回充值中心
                                     </Button>
                                 </Link>
                                 <Link href="/profile?section=orders" className="block">
-                                    <Button block type="primary" className="profile-primary-button !h-10" icon={<ReceiptText className="size-4" />}>
+                                    <Button block type="primary" size="large" className="profile-primary-button" icon={<ReceiptText className="size-4" />}>
                                         查看订单记录
                                     </Button>
                                 </Link>

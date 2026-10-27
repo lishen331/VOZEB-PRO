@@ -555,7 +555,8 @@ function DramaScriptGlobalBar({
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                 <Button
-                    className="!h-10 !px-3 sm:!px-5"
+                    size="large"
+                    className="!px-3 sm:!px-5"
                     loading={savingVersion}
                     onClick={() => {
                         setSavingVersion(true);
@@ -570,7 +571,8 @@ function DramaScriptGlobalBar({
                 </Button>
                 <Button
                     type="primary"
-                    className="!h-10 !px-3 enabled:!border-violet-600 enabled:!bg-violet-600 enabled:!text-white enabled:hover:!border-violet-500 enabled:hover:!bg-violet-500 dark:enabled:!border-violet-400 dark:enabled:!bg-violet-400 dark:enabled:!text-violet-950 sm:!px-6"
+                    size="large"
+                    className="!px-3 enabled:!border-violet-600 enabled:!bg-violet-600 enabled:!text-white enabled:hover:!border-violet-500 enabled:hover:!bg-violet-500 dark:enabled:!border-violet-400 dark:enabled:!bg-violet-400 dark:enabled:!text-violet-950 sm:!px-6"
                     icon={<ArrowRight className="size-4" />}
                     disabled={!episode.script.trim()}
                     loading={analyzing}
