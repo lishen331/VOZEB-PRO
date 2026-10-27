@@ -21,7 +21,7 @@
  */
 
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useMemo, useRef, useSyncExternalStore } from "react";
 import DisabledContext from "antd/es/config-provider/DisabledContext";
 import { FormItemInputContext } from "antd/es/form/context";
 
@@ -33,8 +33,14 @@ export interface FormRule {
     required?: boolean;
     /** required 时把纯空白也算作空 */
     whitespace?: boolean;
-    /** 字符串按字符长度、数字按数值大小 */
+    /** 字符串按字符长度、数字按数值大小、数组按成员个数。给 min 时同理取最小值 */
     max?: number;
+    min?: number;
+    /**
+     * 只为与 antd 调用处对齐。当前只影响 min 的判定口径（"array" 按数组成员数），
+     * 其它取值不改变校验行为——校验仍以实际值为准。
+     */
+    type?: "string" | "number" | "array" | "boolean" | "email" | "url";
     message?: string;
     validator?: (rule: unknown, value: unknown) => Promise<void> | void;
 }
@@ -230,6 +236,15 @@ export class FormStore {
                 const over = typeof value === "string" ? [...value].length > rule.max : typeof value === "number" && value > rule.max;
                 if (over) return rule.message ?? `不能超过 ${rule.max}`;
             }
+            if (rule.min !== undefined && !isEmptyValue(value)) {
+                // 按实际值判：数组数成员、字符串数字符、数字比大小
+                const under = Array.isArray(value)
+                    ? value.length < rule.min
+                    : typeof value === "string"
+                      ? [...value].length < rule.min
+                      : typeof value === "number" && value < rule.min;
+                if (under) return rule.message ?? `不能少于 ${rule.min}`;
+            }
         }
         return undefined;
     }
@@ -336,8 +351,12 @@ function useFormContext(component: string): FormContextValue {
 /**
  * Values 只约束到 object：antd 的表单值类型常写成 interface（如 GenerationSettings），
  * 而 Record<string, unknown> 要求索引签名，interface 不满足，会逼调用方到处加类型断言。
+ *
+ * 不给泛型时默认 any（与 antd 一致）：页面里 getFieldsValue().xxx 这类写法是常态，
+ * 默认 unknown 会让它们全线报错。显式写了泛型的调用点仍然享有完整类型。
  */
-export function useForm<Values extends object = Record<string, unknown>>(initialValues?: Partial<Values>): [FormInstance<Values>] {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useForm<Values extends object = any>(initialValues?: Partial<Values>): [FormInstance<Values>] {
     const storeRef = useRef<FormStore | null>(null);
     if (!storeRef.current) storeRef.current = new FormStore((initialValues ?? {}) as Record<string, unknown>);
     const store = storeRef.current;
@@ -469,12 +488,16 @@ export interface FormItemProps {
     name?: NamePath;
     label?: ReactNode;
     rules?: FormRules;
+    /** 只标必填星号、不参与校验（如自定义上传控件，值不由 Form 管） */
+    required?: boolean;
     extra?: ReactNode;
     className?: string;
     style?: CSSProperties;
     /** 子控件的值属性名：复选框/开关用 "checked" */
     valuePropName?: string;
-    shouldUpdate?: boolean | ((prev: Record<string, unknown>, next: Record<string, unknown>) => boolean);
+    /** antd 原签名就是 any：调用处会直接点取嵌套路径（prev.items?.[i]?.kind） */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    shouldUpdate?: boolean | ((prev: any, next: any) => boolean);
     noStyle?: boolean;
     hidden?: boolean;
     size?: "small" | "middle" | "large";
@@ -495,7 +518,7 @@ function extractValue(arg: unknown, valuePropName: string): unknown {
     return arg;
 }
 
-function FormItem({ name, label, rules, extra, className, style, valuePropName = "value", shouldUpdate, noStyle = false, hidden = false, children }: FormItemProps) {
+function FormItem({ name, label, rules, required, extra, className, style, valuePropName = "value", shouldUpdate, noStyle = false, hidden = false, children }: FormItemProps) {
     const { store, layout, requiredMark, disabled } = useFormContext("Form.Item");
     const preserve = useContext(PreserveContext);
     const listPrefix = useContext(ListPrefixContext);
@@ -508,13 +531,18 @@ function FormItem({ name, label, rules, extra, className, style, valuePropName =
     const fieldId = `${autoId}-field`;
 
     const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
+    // shouldUpdate 的 Item 不带 name，读占位路径只会拿到同一个 undefined，store 变化后
+    // useSyncExternalStore 会因值相同而不重渲染，渲染函数就永远看不到新值。
+    // 这类 Item 改成订阅版本号。比较函数本身忽略：重渲染多几次，结果一致。
+    const watchesAll = shouldUpdate !== undefined && shouldUpdate !== false;
     // 无 name 的 Item（纯布局）用固定占位路径，保证 hook 调用顺序一致
-    const getSnapshot = useCallback(() => store.readValue(path ?? `__item_${autoId}`), [store, path, autoId]);
+    const getSnapshot = useCallback(() => (watchesAll ? store.getVersion() : store.readValue(path ?? `__item_${autoId}`)), [store, path, autoId, watchesAll]);
     const version = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
     const error = path ? store.getError(path) : undefined;
     const visibleError = path && store.isVisibleError(path) ? error : undefined;
-    const isRequired = requiredMark && ruleList.some((rule) => rule.required);
+    // 显式 required 只为画星号（值不由 Form 管的控件），不参与校验
+    const isRequired = requiredMark && (required === true || ruleList.some((rule) => rule.required));
 
     useEffect(() => {
         if (!path) return;

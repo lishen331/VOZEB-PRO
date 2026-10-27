@@ -1,7 +1,7 @@
 "use client";
 
-import type { FormInstance } from "antd";
-import { Form } from "antd";
+import type { FormInstance } from "@/components/gamma-ui/gamma-ant-form";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
 import { Checkbox } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
