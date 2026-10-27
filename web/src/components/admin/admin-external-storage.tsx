@@ -10,7 +10,7 @@ import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
-import { Cloud, DatabaseBackup, Download, Eraser, Eye, File, FileAudio, Film, RefreshCw, Save, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Cloud, DatabaseBackup, Download, Eraser, Eye, File, FileAudio, Film, RefreshCw, Save, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminMediaTypeTabs } from "@/components/admin/admin-media-type-tabs";
@@ -479,6 +479,8 @@ export function AdminExternalStorage() {
                     </div>
                     <div className="mt-4 flex items-center justify-end gap-2">
                         <Button
+                            size="middle"
+                            icon={<ChevronLeft className="size-4" />}
                             disabled={!cursorHistory.length || loadingFiles}
                             onClick={() => {
                                 const previous = cursorHistory.at(-1) || "";
@@ -489,6 +491,7 @@ export function AdminExternalStorage() {
                             上一页
                         </Button>
                         <Button
+                            size="middle"
                             disabled={!files?.nextCursor || loadingFiles}
                             onClick={() => {
                                 const next = files?.nextCursor || "";
@@ -497,6 +500,7 @@ export function AdminExternalStorage() {
                             }}
                         >
                             下一页
+                            <ChevronRight className="size-4" />
                         </Button>
                     </div>
                 </div>

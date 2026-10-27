@@ -59,19 +59,19 @@ export default async function AnnouncementsPage({ searchParams }: { searchParams
                         {page > 1 ? (
                             <Link
                                 href={announcementPageHref(page - 1)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-stone-700 transition hover:bg-stone-50 dark:border-stone-800 dark:text-stone-200 dark:hover:bg-stone-900"
+                                className="inline-flex h-8 items-center gap-1.5 rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] px-3 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
                             >
                                 <ChevronLeft className="size-4" />
                                 上一页
                             </Link>
                         ) : null}
-                        <span className="text-xs text-stone-500 dark:text-stone-400">
+                        <span className="text-xs text-[var(--gm-text-3)] tabular-nums">
                             第 {page} / {totalPages} 页
                         </span>
                         {page < totalPages ? (
                             <Link
                                 href={announcementPageHref(page + 1)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-stone-700 transition hover:bg-stone-50 dark:border-stone-800 dark:text-stone-200 dark:hover:bg-stone-900"
+                                className="inline-flex h-8 items-center gap-1.5 rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] px-3 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
                             >
                                 下一页
                                 <ChevronRight className="size-4" />
