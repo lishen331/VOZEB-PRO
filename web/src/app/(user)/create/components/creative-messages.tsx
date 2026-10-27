@@ -650,8 +650,8 @@ function RetryAction({ onRetry, detail }: { onRetry: () => Promise<boolean | voi
             {detail ? <span className="text-xs text-red-600 dark:text-red-300">{detail}</span> : null}
             <Button
                 type="text"
-                size="small"
-                className="!h-8 !rounded-md !px-2 !text-xs !font-medium !text-red-700 hover:!bg-red-50 hover:!text-red-800 dark:!text-red-300 dark:hover:!bg-red-950/30 dark:hover:!text-red-200"
+                size="middle"
+                className="!px-2 !font-medium !text-red-700 hover:!bg-red-50 hover:!text-red-800 dark:!text-red-300 dark:hover:!bg-red-950/30 dark:hover:!text-red-200"
                 icon={<RotateCw className="size-3.5" />}
                 loading={retrying}
                 onClick={() => void runRetry(onRetry, setRetrying)}

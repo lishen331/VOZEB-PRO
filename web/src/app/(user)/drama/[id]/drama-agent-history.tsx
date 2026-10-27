@@ -114,7 +114,7 @@ export function DramaAgentHistory({
                     })}
                 </div>
                 {hasMore ? (
-                    <Button type="text" block size="small" className="!mt-1 !h-8 !text-xs !text-[var(--gm-text-3)]" loading={loadingMore} onClick={onLoadMore}>
+                    <Button type="text" block size="middle" className="!mt-1 !text-[var(--gm-text-3)]" loading={loadingMore} onClick={onLoadMore}>
                         加载更多
                     </Button>
                 ) : null}

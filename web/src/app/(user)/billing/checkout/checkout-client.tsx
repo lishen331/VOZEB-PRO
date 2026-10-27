@@ -364,7 +364,7 @@ export function BillingCheckoutPage({ productId }: { productId: string }) {
                                     </label>
 
                                     <div className="mt-4 border-t border-dashed border-stone-200 pt-4 sm:mt-7 sm:pt-6 dark:border-stone-800">
-                                        <Button block type="primary" size="large" className="profile-primary-button !h-10 sm:!h-12" loading={submitting} disabled={!provider || quoteLoading || Boolean(quoteError)} onClick={() => void submit()}>
+                                        <Button block type="primary" size="large" className="profile-primary-button sm:!h-12" loading={submitting} disabled={!provider || quoteLoading || Boolean(quoteError)} onClick={() => void submit()}>
                                             <span className="inline-flex items-center gap-2">
                                                 <LockKeyhole className="size-4" /> 确认订单并继续支付
                                             </span>

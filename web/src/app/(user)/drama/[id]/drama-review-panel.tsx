@@ -85,8 +85,8 @@ export function DramaReviewPanel({ project, episode, onDesignVisuals, designing,
                                         可编辑内容
                                     </span>
                                     <Button
-                                        size="small"
-                                        className="!h-8 !shrink-0 !rounded-md !border-[var(--gm-border)]/80 !px-2 !text-xs"
+                                        size="middle"
+                                        className="!shrink-0 !border-[var(--gm-border)]/80 !px-2"
                                         icon={<ChevronDown className={`size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />}
                                         iconPlacement="end"
                                         aria-expanded={expanded}

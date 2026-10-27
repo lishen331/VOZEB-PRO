@@ -73,7 +73,7 @@ export function DramaSourceImport({ project, onImported }: { project: DramaProje
 
     return (
         <>
-            <Button className="!h-8 !px-2.5" size="small" icon={<BookOpenText className="size-3.5" />} onClick={() => inputRef.current?.click()}>
+            <Button className="!px-2.5" size="middle" icon={<BookOpenText className="size-3.5" />} onClick={() => inputRef.current?.click()}>
                 导入剧本
             </Button>
             <input ref={inputRef} type="file" accept=".txt,.md,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={(event) => void readSource(event.target.files?.[0])} />
