@@ -4,7 +4,7 @@ import { GenerationLogDetail } from "@/components/admin/admin-generation-log";
 import { AdminOverview } from "@/components/admin/admin-overview";
 import { AdminSectionNav } from "@/components/admin/admin-section-nav";
 import type { AdminSectionKey } from "@/components/admin/admin-sections";
-import { Form } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button } from "@/components/gamma-ui/gamma-ant";
