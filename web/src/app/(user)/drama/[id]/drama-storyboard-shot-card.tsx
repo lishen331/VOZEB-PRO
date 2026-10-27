@@ -148,10 +148,10 @@ export function DramaStoryboardShotCard({ project, episodeId, shot, expanded, on
                         {shot.storyboardError ? <p className="mt-2 text-xs text-red-500">{shot.storyboardError}</p> : null}
                         {shot.storyboardEndError ? <p className="mt-2 text-xs text-red-500">{shot.storyboardEndError}</p> : null}
                         <DramaShotAudioModeEditor projectId={project.id} episodeId={episodeId} shot={shot} />
-                        <div className="mt-3.5 flex min-h-9 items-center gap-2.5 text-sm">
+                        <div className="mt-3.5 flex min-h-8 items-center gap-2.5 text-sm">
                             <span className="whitespace-nowrap">时长</span>
                             <InputNumber
-                                className="!h-9 !w-24 [&.ant-input-number-focused]:!border-foreground/35 [&.ant-input-number-focused]:!shadow-none"
+                                className="!w-24 [&.ant-input-number-focused]:!border-foreground/35 [&.ant-input-number-focused]:!shadow-none"
                                 min={1}
                                 max={20}
                                 value={shot.duration}

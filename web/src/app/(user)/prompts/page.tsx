@@ -96,7 +96,7 @@ export default function PromptsPage() {
                             <div className="col-span-2 min-w-0 sm:col-span-1">
                                 <Input
                                     allowClear
-                                    className="!h-9 w-full"
+                                    className="w-full"
                                     prefix={<Search className="size-4 text-stone-400" />}
                                     value={titleKeyword}
                                     placeholder="搜索标题或提示词"

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Progress } from "@/components/gamma-ui/gamma-ant-display";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
+import { controlBox } from "@/components/gamma-ui/gamma-control-scale";
 import { ArrowRight, Captions, CircleAlert, CircleCheck, CircleDashed, Download, Film, LoaderCircle, Pause, Play, RefreshCw, ScanSearch, Send, Volume2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -24,7 +25,8 @@ import { DramaJianyingModal, DramaSubtitleModal } from "./drama-project-modals";
 import type { DramaProjectStage } from "./drama-project-sections";
 import { estimateEpisodePoints } from "./drama-shot-generation-utils";
 
-const actionButtonClass = "!h-9 !px-3 [&>span:last-child]:whitespace-nowrap";
+/** 生产辅助工具栏：次级操作按 middle 档（32px），不再用图标按钮才有的 36px */
+const actionButtonClass = `${controlBox("middle", "!px-3")} [&>span:last-child]:whitespace-nowrap`;
 
 export function DramaGenerationPanel({ project, episode, onStageChange, onOpenAssets }: { project: DramaProject; episode: DramaEpisode; onStageChange: (stage: DramaProjectStage) => void; onOpenAssets: () => void }) {
     const { message } = App.useApp();
@@ -429,7 +431,7 @@ function VisualReview({ project, episode }: { project: DramaProject; episode: Dr
                     <p className="mt-1.5 text-sm leading-6 text-[var(--gm-text-3)]">{review.summary}</p>
                 </div>
                 {review.retryTaskIds.length ? (
-                    <Button className="!h-9 shrink-0" icon={<RefreshCw className="size-4" />} onClick={() => queueShots(project.id, episode.id, review.retryTaskIds)}>
+                    <Button size="middle" className="shrink-0" icon={<RefreshCw className="size-4" />} onClick={() => queueShots(project.id, episode.id, review.retryTaskIds)}>
                         重试 {review.retryTaskIds.length} 个问题镜头
                     </Button>
                 ) : null}
@@ -473,7 +475,7 @@ function RenderTaskCard({ task, onCancel }: { task: DramaRenderTask; onCancel: (
                     </p>
                 </div>
                 {active ? (
-                    <Button danger className="!h-9 shrink-0" onClick={onCancel}>
+                    <Button danger size="middle" className="shrink-0" onClick={onCancel}>
                         取消合成
                     </Button>
                 ) : null}
@@ -628,7 +630,8 @@ function buildPrimaryAction({
     onQueueAudio: (shotIds: string[]) => void;
     onCreateRender: () => void;
 }) {
-    const primaryClass = "!h-11 !w-full !px-4 sm:!h-9 sm:!w-auto";
+    /** 阶段主操作：按 large 档（40px），移动端撑满宽度 */
+    const primaryClass = `${controlBox("large", "!px-4")} !w-full sm:!w-auto`;
     if (!readiness.totalShots)
         return (
             <Button type="primary" className={primaryClass} icon={<ArrowRight className="size-4" />} onClick={() => onStageChange("script")}>

@@ -763,7 +763,7 @@ export default function CreatePage() {
                                 <Button
                                     type="text"
                                     icon={<ChevronsDown className="size-4" />}
-                                    className="!pointer-events-auto !absolute !-top-11 !left-1/2 !z-20 !h-9 !-translate-x-1/2 !rounded-lg !border !border-[var(--gm-border)] !bg-[var(--gm-surface)] !px-3 !text-sm !font-medium !text-[var(--gm-text-2)] !shadow-[var(--gm-shadow)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)]"
+                                    className="!pointer-events-auto !absolute !-top-11 !left-1/2 !z-20 !-translate-x-1/2 !border !border-[var(--gm-border)] !bg-[var(--gm-surface)] !px-3 !text-sm !font-medium !text-[var(--gm-text-2)] !shadow-[var(--gm-shadow)] hover:!bg-[var(--gm-wash)] hover:!text-[var(--gm-text)]"
                                     onClick={scrollToLatest}
                                 >
                                     回到底部

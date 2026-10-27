@@ -446,7 +446,8 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                                         action={
                                             <Button
                                                 type="primary"
-                                                className="!h-9 !w-full sm:!w-auto"
+                                                size="large"
+                                                className="!w-full sm:!w-auto"
                                                 icon={<ArrowRight className="size-4" />}
                                                 disabled={!episode.shots.length || episode.reviewStatus !== "visual_ready"}
                                                 onClick={() => setStage("generate")}

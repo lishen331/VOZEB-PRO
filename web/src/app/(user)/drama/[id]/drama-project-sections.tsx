@@ -278,7 +278,8 @@ export function DramaWorkspaceHeader({
             <div className="col-start-2 row-start-1 flex min-w-0 shrink-0 items-center justify-end gap-1 px-2.5 py-2 sm:px-4 min-[1366px]:col-start-3 min-[1366px]:h-full min-[1366px]:py-0">
                 <Tooltip title="项目资产">
                     <Button
-                        className={`!h-9 !px-2.5 ${assetsOpen ? "!border-[var(--gm-text)] !bg-[var(--gm-text)] !text-[var(--gm-bg)]" : "!border-[var(--gm-border)] !bg-[var(--gm-bg)] hover:!border-[var(--gm-text)]/25 hover:!bg-[var(--gm-wash)]"}`}
+                        size="middle"
+                        className={`!px-2.5 ${assetsOpen ? "!border-[var(--gm-text)] !bg-[var(--gm-text)] !text-[var(--gm-bg)]" : "!border-[var(--gm-border)] !bg-[var(--gm-bg)] hover:!border-[var(--gm-text)]/25 hover:!bg-[var(--gm-wash)]"}`}
                         icon={<Boxes className="size-4" />}
                         onClick={assetsOpen ? onCloseAssets : onOpenAssets}
                         aria-current={assetsOpen ? "page" : undefined}
@@ -288,13 +289,13 @@ export function DramaWorkspaceHeader({
                     </Button>
                 </Tooltip>
                 <Tooltip title="项目版本">
-                    <Button className="!size-9 !min-w-9 !px-0 sm:!w-auto sm:!px-3" icon={<History className="size-4" />} onClick={onOpenVersions} aria-label="打开项目版本">
+                    <Button className="!size-8 !min-w-8 !px-0 sm:!w-auto sm:!px-2.5" icon={<History className="size-4" />} onClick={onOpenVersions} aria-label="打开项目版本">
                         <span className="hidden sm:inline">版本记录</span>
                     </Button>
                 </Tooltip>
                 <Tooltip title={agentOpen ? "收起项目 Agent" : "打开项目 Agent"}>
                     <Button
-                        className={`!size-9 !min-w-9 !px-0 ${agentOpen ? "!border-violet-300 !bg-violet-50 !text-violet-700 dark:!border-violet-700 dark:!bg-violet-950/35 dark:!text-violet-300" : ""}`}
+                        className={`!size-8 !min-w-8 !px-0 ${agentOpen ? "!border-violet-300 !bg-violet-50 !text-violet-700 dark:!border-violet-700 dark:!bg-violet-950/35 dark:!text-violet-300" : ""}`}
                         icon={<Bot className="size-4" />}
                         onClick={onToggleAgent}
                         aria-label={agentOpen ? "收起项目 Agent" : "打开项目 Agent"}

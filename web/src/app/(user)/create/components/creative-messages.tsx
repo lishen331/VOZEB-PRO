@@ -624,7 +624,8 @@ function CreativeGenerationFailure({ message, onRetry }: { message: string; onRe
                 <p className="break-words text-[17px] font-medium leading-7 text-[#ef2b2d] dark:text-[#ff8b8d]">{displayMessage}</p>
                 <Button
                     type="default"
-                    className="!mt-3 !h-9 !rounded-[10px] !border-[#ffd4d5] !bg-white !px-4 !text-sm !font-medium !text-[#e22b2e] hover:!border-[#ffb7b8] hover:!bg-[#fff8f8] hover:!text-[#c51f22] dark:!border-[#6b3438] dark:!bg-transparent dark:!text-[#ff9a9c] dark:hover:!border-[#9a4a4e] dark:hover:!bg-[#321e20]"
+                    size="large"
+                    className="!mt-3 !border-[#ffd4d5] !bg-white !px-4 !font-medium !text-[#e22b2e] hover:!border-[#ffb7b8] hover:!bg-[#fff8f8] hover:!text-[#c51f22] dark:!border-[#6b3438] dark:!bg-transparent dark:!text-[#ff9a9c] dark:hover:!border-[#9a4a4e] dark:hover:!bg-[#321e20]"
                     icon={<RotateCw className="size-4" />}
                     loading={retrying}
                     onClick={() => void runRetry(onRetry, setRetrying)}
@@ -695,7 +696,7 @@ function ProjectHandoffAction({ handoff, project, error, loading, onMaterialize 
                     打开 <ExternalLink className="size-3.5" />
                 </Link>
             ) : (
-                <Button className="!h-9 !shrink-0" loading={loading} onClick={onMaterialize}>
+                <Button size="middle" className="!shrink-0" loading={loading} onClick={onMaterialize}>
                     {error ? "重试" : "创建项目"}
                 </Button>
             )}

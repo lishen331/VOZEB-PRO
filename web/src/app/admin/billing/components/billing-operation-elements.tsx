@@ -238,7 +238,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                             <div className="min-w-0 flex-1 truncate rounded-xl bg-stone-50 px-3 py-2 font-mono text-xs leading-5 text-stone-700 ring-1 ring-stone-200 dark:bg-stone-900 dark:text-stone-200 dark:ring-stone-800">
                                                 {activeProvider.webhookUrl}
                                             </div>
-                                            <Button className="!h-9 shrink-0 justify-center" size="small" icon={<Copy className="size-3.5" />} onClick={() => onCopy(activeProvider.webhookUrl)}>
+                                            <Button className="shrink-0 justify-center" size="middle" icon={<Copy className="size-3.5" />} onClick={() => onCopy(activeProvider.webhookUrl)}>
                                                 复制
                                             </Button>
                                         </div>

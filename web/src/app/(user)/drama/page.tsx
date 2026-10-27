@@ -92,7 +92,7 @@ export default function DramaPage() {
                             共 {projectTotal} 个项目 · 已加载 {projects.length} 个 / {episodeCount} 集 · {pendingCount} 个执行中任务
                         </p>
                     </div>
-                    <Button type="primary" className="!h-9 !shrink-0 !px-3 sm:!px-4" icon={<Plus className="size-4" />} disabled={!hydrated} onClick={openCreate}>
+                    <Button type="primary" size="large" className="!shrink-0 !px-3 sm:!px-4" icon={<Plus className="size-4" />} disabled={!hydrated} onClick={openCreate}>
                         新建短剧
                     </Button>
                 </header>
@@ -140,15 +140,15 @@ export default function DramaPage() {
                 onOk={() => void create()}
                 okText="创建并进入"
                 cancelText="取消"
-                okButtonProps={{ className: "!h-9" }}
-                cancelButtonProps={{ className: "!h-9" }}
+                okButtonProps={{ className: "" }}
+                cancelButtonProps={{ className: "" }}
             >
                 <div className="grid gap-3 pt-1">
                     <div className="grid gap-1.5">
                         <label htmlFor="drama-project-title" className="text-sm font-medium leading-5">
                             项目名称
                         </label>
-                        <Input id="drama-project-title" className="!h-9" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：月影长安" />
+                        <Input id="drama-project-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：月影长安" />
                     </div>
                     <div className="grid gap-1.5">
                         <label htmlFor="drama-project-summary" className="text-sm font-medium leading-5">
@@ -160,7 +160,7 @@ export default function DramaPage() {
                         <label htmlFor="drama-project-style" className="text-sm font-medium leading-5">
                             视觉风格
                         </label>
-                        <Input id="drama-project-style" className="!h-9" value={style} onChange={(event) => setStyle(event.target.value)} />
+                        <Input id="drama-project-style" value={style} onChange={(event) => setStyle(event.target.value)} />
                     </div>
                     <div className="grid min-w-0 gap-1.5">
                         <span className="text-sm font-medium leading-5">生成尺寸</span>

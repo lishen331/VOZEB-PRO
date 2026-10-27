@@ -99,7 +99,7 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                             </div>
                         </div>
                         <div className="mt-4 flex justify-end sm:mt-5">
-                            <Button className="!h-9 w-full sm:w-auto" type="primary" icon={<Gift className="size-4" />} loading={cdkGenerating} onClick={() => void generateCdkCodes()}>
+                            <Button className="w-full sm:w-auto" type="primary" size="large" icon={<Gift className="size-4" />} loading={cdkGenerating} onClick={() => void generateCdkCodes()}>
                                 随机生成 CDK
                             </Button>
                         </div>

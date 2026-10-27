@@ -122,7 +122,8 @@ function FrameSlot({
                         <Button
                             type="text"
                             block
-                            className="mt-2 !h-9 !justify-start !rounded-lg !text-xs"
+                            size="small"
+                            className="mt-2 !justify-start"
                             icon={<Upload className="size-3.5" />}
                             loading={uploading}
                             onClick={() => {

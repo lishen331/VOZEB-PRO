@@ -88,7 +88,8 @@ export function PublicCreatorProfile({
                 </dl>
                 {profile.canFollow ? (
                     <Button
-                        className="mt-4 !h-9 !min-w-36 !rounded-md !font-semibold !shadow-none"
+                        size="middle"
+                        className="mt-4 !min-w-36 !font-semibold !shadow-none"
                         type={profile.following ? "default" : "primary"}
                         icon={<UserPlus className="size-4" />}
                         loading={followingBusy}

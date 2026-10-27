@@ -201,11 +201,11 @@ export default function WorksPage() {
                         <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-3)] sm:mt-2 sm:text-sm">管理草稿、审核状态和当前公开版本</p>
                     </div>
                     <div className="flex items-center justify-end gap-2">
-                        <Button className="!size-9 !p-0 sm:!size-auto sm:!h-8 sm:!px-3" href="/community" icon={<Compass className="size-4" />} aria-label="浏览作品广场">
+                        <Button className="!size-8 !p-0 sm:!size-auto sm:!px-3" href="/community" icon={<Compass className="size-4" />} aria-label="浏览作品广场">
                             <span className="hidden sm:inline">作品广场</span>
                         </Button>
-                        <Button className="!size-9 !p-0 sm:!size-auto sm:!h-8 sm:!px-3" icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void load()} aria-label="刷新作品列表" />
-                        <Button className="!h-9 !px-3 sm:!h-8" type="primary" icon={<Plus className="size-4" />} onClick={openCreate}>
+                        <Button className="!size-8 !p-0 sm:!size-auto sm:!px-3" icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void load()} aria-label="刷新作品列表" />
+                        <Button size="middle" className="!px-3" type="primary" icon={<Plus className="size-4" />} onClick={openCreate}>
                             发布作品
                         </Button>
                     </div>
@@ -286,7 +286,7 @@ export default function WorksPage() {
                         title={keyword || status !== "all" ? "没有匹配的作品" : "还没有发布作品"}
                         description={keyword || status !== "all" ? "调整筛选条件后再试一次。" : "从素材、画布或短剧项目创建第一个可审核版本。"}
                         action={
-                            <Button className="!h-9 !px-3" type="primary" icon={<Plus className="size-4" />} onClick={openCreate}>
+                            <Button size="large" className="!px-3" type="primary" icon={<Plus className="size-4" />} onClick={openCreate}>
                                 发布第一个作品
                             </Button>
                         }

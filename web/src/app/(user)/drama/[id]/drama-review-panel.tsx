@@ -59,7 +59,8 @@ export function DramaReviewPanel({ project, episode, onDesignVisuals, designing,
                 action={
                     <Button
                         type="primary"
-                        className="!h-9 !w-full sm:!w-auto"
+                        size="large"
+                        className="!w-full sm:!w-auto"
                         icon={episode.shots.length ? <Check className="size-4" /> : <ArrowLeft className="size-4" />}
                         loading={designing}
                         onClick={episode.shots.length ? onDesignVisuals : () => onStageChange("script")}
@@ -139,7 +140,7 @@ export function DramaReviewPanel({ project, episode, onDesignVisuals, designing,
                                         </div>
                                         <div className="mt-3 grid grid-cols-[auto_72px_auto] items-center gap-2 text-sm text-[var(--gm-text-3)] sm:grid-cols-[auto_88px_auto_minmax(0,1fr)]">
                                             <span className="whitespace-nowrap">镜头时长</span>
-                                            <InputNumber className="!h-9 !w-[72px] sm:!w-[88px]" min={1} max={20} value={shot.duration} onChange={(value) => updateContentShot(shot.id, { duration: Number(value) || 5 })} />
+                                            <InputNumber className="!w-[72px] sm:!w-[88px]" min={1} max={20} value={shot.duration} onChange={(value) => updateContentShot(shot.id, { duration: Number(value) || 5 })} />
                                             <span>秒</span>
                                             <span className="hidden min-w-0 text-right text-xs sm:block">视觉提示词将在确认后生成</span>
                                         </div>

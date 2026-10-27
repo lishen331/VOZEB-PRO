@@ -153,7 +153,7 @@ export function MyPromptsPage() {
                             <h1 className="text-xl font-semibold text-stone-950 sm:text-2xl dark:text-stone-100">我的提示词</h1>
                             <p className="mt-1.5 text-xs leading-5 text-stone-500 sm:mt-2 sm:text-sm dark:text-stone-400">保存自己的提示词记录，复制使用或沉淀到我的素材。</p>
                         </div>
-                        <Button type="primary" size="small" className="shrink-0 sm:!h-9" icon={<Plus className="size-3.5 sm:size-4" />} onClick={() => setCreateOpen(true)}>
+                        <Button type="primary" size="middle" className="shrink-0" icon={<Plus className="size-3.5 sm:size-4" />} onClick={() => setCreateOpen(true)}>
                             添加提示词
                         </Button>
                     </div>
