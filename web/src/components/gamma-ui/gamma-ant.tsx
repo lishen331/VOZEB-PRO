@@ -56,6 +56,10 @@ function buttonVariant(type: ButtonType, danger: boolean) {
     }
     switch (type) {
         case "primary":
+            // 1px 透明边框是占位（让各变体尺寸一致），但 background-origin 默认 padding-box、
+            // background-repeat 默认 repeat，渐变会被平铺进那圈边框：左缘露出贴片尾色（青）、
+            // 右缘露出贴片头色（蓝），两边各多出一条异色竖线。
+            // 渲染起点改到 border-box 由 .gm-btn-primary 统一处理（见 gamma-tokens.css）。
             return "border border-transparent bg-[image:var(--gm-gradient)] text-white shadow-[var(--gm-glow-blue)] hover:shadow-[0_10px_30px_rgba(0,80,245,0.5)] hover:brightness-110";
         case "text":
             return "border border-transparent text-[var(--gm-text-2)] hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)]";

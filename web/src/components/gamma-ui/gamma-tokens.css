@@ -207,6 +207,17 @@ html.gm-app:not(.dark) {
     pointer-events: none;
 }
 
+/*
+ * 渐变主按钮必须铺到 border-box。
+ * 按钮保留 1px 透明边框（占位，使各变体尺寸一致）。background-origin 默认 padding-box，
+ * 渐变贴片按内边距区生成，而 background-clip 是 border-box、background-repeat 是 repeat，
+ * 于是那圈 1px 边框会被渐变平铺绕接：左缘多一条贴片尾色（青），右缘多一条贴片头色（蓝）。
+ * 渲染起点改到 border-box，贴片覆盖整块边框盒，没有多余区域可平铺。
+ */
+.gm-btn-primary {
+    background-origin: border-box;
+}
+
 /* 按钮扫光 */
 @keyframes gm-shine {
     0%,
