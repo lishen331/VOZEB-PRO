@@ -15,8 +15,7 @@ import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Inbox, Info, Lo
 import DisabledContext from "antd/es/config-provider/DisabledContext";
 
 import { cn } from "@/lib/utils";
-
-type ControlSize = "small" | "middle" | "large";
+import { controlBox, controlItem, controlSquare, type ControlSize } from "./gamma-control-scale";
 
 /** antd 把纯文本子节点包一层 span；保留同样的结构，现有断言与样式钩子不受影响 */
 function wrapText(children: ReactNode) {
@@ -38,10 +37,11 @@ type ButtonType = "primary" | "default" | "dashed" | "text" | "link";
 const BUTTON_BASE =
     "gm-btn relative inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap select-none outline-none transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-200 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--gm-bg)] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none disabled:active:scale-100 aria-disabled:cursor-not-allowed aria-disabled:opacity-45";
 
+/** 高度/圆角/字号取自唯一刻度表（gamma-control-scale.ts），这里只保留各档的左右内边距 */
 const BUTTON_SIZE: Record<ControlSize, { box: string; square: string }> = {
-    small: { box: "h-6 gap-1 rounded-[7px] px-2 text-xs", square: "size-6 rounded-[7px]" },
-    middle: { box: "h-8 gap-1.5 rounded-[var(--gm-radius-sm)] px-3.5 text-[13px]", square: "size-8 rounded-[var(--gm-radius-sm)]" },
-    large: { box: "h-10 gap-2 rounded-[var(--gm-radius)] px-5 text-sm", square: "size-10 rounded-[var(--gm-radius)]" },
+    small: { box: controlBox("small", "px-3"), square: controlSquare("small") },
+    middle: { box: controlBox("middle", "px-3.5"), square: controlSquare("middle") },
+    large: { box: controlBox("large", "px-5"), square: controlSquare("large") },
 };
 
 function buttonVariant(type: ButtonType, danger: boolean) {
@@ -274,7 +274,7 @@ export function Segmented<T extends SegmentedValue = SegmentedValue>({ options, 
         select(next.value);
         event.currentTarget.querySelector<HTMLElement>(`[data-value="${String(next.value)}"]`)?.focus();
     };
-    const itemHeight = size === "small" ? "h-6 px-2.5 text-xs" : size === "large" ? "h-9 px-4 text-sm" : "h-7 px-3 text-[13px]";
+    const itemHeight = controlItem(size, size === "large" ? "px-4" : size === "small" ? "px-2.5" : "px-3");
     return (
         <div
             id={id}
@@ -671,7 +671,7 @@ export function Pagination({
     const small = size === "small";
     const cell = cn(
         "grid shrink-0 place-items-center rounded-[var(--gm-radius-sm)] tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] disabled:cursor-not-allowed disabled:opacity-35",
-        small ? "h-6 min-w-6 px-1 text-xs" : "h-8 min-w-8 px-1.5 text-[13px]",
+        small ? "h-7 min-w-7 px-1 text-xs" : "h-8 min-w-8 px-1.5 text-[13px]",
     );
     const items = pageItems(page, totalPages, showLessItems ? 1 : 2);
     const rangeStart = total === 0 ? 0 : (page - 1) * perPage + 1;
@@ -733,7 +733,7 @@ export function Pagination({
                         className={cn(
                             "gm-pagination-size cursor-pointer appearance-none rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] bg-[length:14px] bg-[right_6px_center] bg-no-repeat pe-6 ps-2.5 text-[var(--gm-text)] outline-none transition-colors hover:border-[var(--gm-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
                             "bg-[image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364718f' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")]",
-                            small ? "h-6 text-xs" : "h-8 text-[13px]",
+                            small ? "h-7 text-xs" : "h-8 text-[13px]",
                         )}
                     >
                         {sizes.map((option) => (

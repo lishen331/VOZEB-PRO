@@ -13,14 +13,16 @@ import DisabledContext from "antd/es/config-provider/DisabledContext";
 import { FormItemInputContext } from "antd/es/form/context";
 
 import { cn } from "@/lib/utils";
+import { CONTROL_TIER, controlItem, controlShell, type ControlSize } from "./gamma-control-scale";
 
-type InputSize = "small" | "middle" | "large";
+type InputSize = ControlSize;
 type Variant = "outlined" | "borderless" | "filled";
 
+/** 高度/圆角/字号取自唯一刻度表（gamma-control-scale.ts），这里只保留各档的左右内边距 */
 const SHELL_SIZE: Record<InputSize, string> = {
-    small: "min-h-6 rounded-[7px] px-2 text-xs",
-    middle: "min-h-8 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px]",
-    large: "min-h-10 rounded-[var(--gm-radius)] px-3 text-sm",
+    small: controlShell("small", "px-2"),
+    middle: controlShell("middle", "px-2.5"),
+    large: controlShell("large", "px-3"),
 };
 
 /** 外框：描边 + 聚焦时品牌色描边与光圈；错误态走 --gm-danger */
@@ -261,10 +263,11 @@ export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaE
     ref?: Ref<TextAreaRef>;
 }
 
+/** 输入框类没有固定高度，只取刻度表的圆角与字号；上下留白按档位单独给 */
 const TEXTAREA_SIZE: Record<InputSize, string> = {
-    small: "rounded-[7px] px-2 py-1 text-xs",
-    middle: "rounded-[var(--gm-radius-sm)] px-2.5 py-1.5 text-[13px] leading-[1.6]",
-    large: "rounded-[var(--gm-radius)] px-3 py-2 text-sm leading-[1.6]",
+    small: `${CONTROL_TIER.small.radius} px-2 py-1 ${CONTROL_TIER.small.text}`,
+    middle: `${CONTROL_TIER.middle.radius} px-2.5 py-1.5 ${CONTROL_TIER.middle.text} leading-[1.6]`,
+    large: `${CONTROL_TIER.large.radius} px-3 py-2 ${CONTROL_TIER.large.text} leading-[1.6]`,
 };
 
 /** autoSize：按内容撑高，限制在 minRows ~ maxRows 之间（与 antd 行为一致） */
@@ -366,7 +369,7 @@ function Search({ onSearch, enterButton = false, loading = false, onPressEnter, 
     const field = useFieldContext(disabled);
     const state = useFieldValue(value, defaultValue);
     const search = (source: "input" | "clear") => onSearch?.(source === "clear" ? "" : (innerRef.current?.input?.value ?? state.current), undefined, { source });
-    const buttonHeight = size === "small" ? "h-6 px-2 text-xs" : size === "large" ? "h-10 px-4 text-sm" : "h-8 px-3 text-[13px]";
+    const buttonHeight = controlItem(size, size === "large" ? "px-4" : size === "small" ? "px-2" : "px-3");
     const button = enterButton ? (
         <button
             type="button"

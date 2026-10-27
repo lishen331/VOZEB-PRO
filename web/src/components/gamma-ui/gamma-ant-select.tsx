@@ -15,6 +15,7 @@ import DisabledContext from "antd/es/config-provider/DisabledContext";
 import { FormItemInputContext } from "antd/es/form/context";
 
 import { cn } from "@/lib/utils";
+import { controlShell, type ControlSize } from "./gamma-control-scale";
 
 export interface SelectOption<V = string> {
     value: V;
@@ -24,7 +25,7 @@ export interface SelectOption<V = string> {
     title?: string;
 }
 
-type SelectSize = "small" | "middle" | "large";
+type SelectSize = ControlSize;
 type SelectStatus = "error" | "warning";
 
 interface SelectBaseProps<V> {
@@ -78,10 +79,11 @@ type MultiSelectProps<V> = SelectBaseProps<V> & {
 
 export type SelectProps<V = string> = SingleSelectProps<V> | MultiSelectProps<V>;
 
+/** 高度/圆角/字号取自唯一刻度表（gamma-control-scale.ts），这里只保留各档的左右内边距 */
 const SIZE_CLASS: Record<SelectSize, string> = {
-    small: "min-h-7 rounded-[7px] px-2 text-xs",
-    middle: "min-h-8 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px]",
-    large: "min-h-10 rounded-[var(--gm-radius)] px-3 text-sm",
+    small: controlShell("small", "px-2"),
+    middle: controlShell("middle", "px-2.5"),
+    large: controlShell("large", "px-3"),
 };
 
 function defaultFilter<V>(input: string, option: SelectOption<V>) {
