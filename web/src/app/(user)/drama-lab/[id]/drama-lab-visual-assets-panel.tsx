@@ -7,6 +7,7 @@ import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generatio
 
 import { Image } from "@/components/gamma-ui/gamma-ant-image";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Progress } from "@/components/gamma-ui/gamma-ant-display";
 import { Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
@@ -1272,29 +1273,47 @@ function AssetEditorModal({
                                     </Button>
                                     {paramsOpen ? (
                                         <div className="absolute bottom-full left-0 z-20 mb-1 grid w-48 gap-2 rounded border bg-[var(--gm-bg)] p-2 text-xs shadow">
-                                            <label>
+                                            <label className="grid gap-1">
                                                 比例
-                                                <select className="ml-2 rounded border" value={selectedAspect} onChange={(event) => setSelectedAspect(event.target.value)}>
-                                                    <option>1:1</option>
-                                                    <option>16:9</option>
-                                                    <option>9:16</option>
-                                                    <option>4:3</option>
-                                                </select>
+                                                <Select
+                                                    size="small"
+                                                    aria-label="比例"
+                                                    value={selectedAspect}
+                                                    onChange={setSelectedAspect}
+                                                    options={[
+                                                        { value: "1:1", label: "1:1" },
+                                                        { value: "16:9", label: "16:9" },
+                                                        { value: "9:16", label: "9:16" },
+                                                        { value: "4:3", label: "4:3" },
+                                                    ]}
+                                                />
                                             </label>
-                                            <label>
+                                            <label className="grid gap-1">
                                                 分辨率
-                                                <select className="ml-2 rounded border" value={selectedResolution} onChange={(event) => setSelectedResolution(event.target.value)}>
-                                                    <option value="auto">自动</option>
-                                                    <option value="2k">2K</option>
-                                                    <option value="4k">4K</option>
-                                                </select>
+                                                <Select
+                                                    size="small"
+                                                    aria-label="分辨率"
+                                                    value={selectedResolution}
+                                                    onChange={setSelectedResolution}
+                                                    options={[
+                                                        { value: "auto", label: "自动" },
+                                                        { value: "2k", label: "2K" },
+                                                        { value: "4k", label: "4K" },
+                                                    ]}
+                                                />
                                             </label>
-                                            <label>
+                                            <label className="grid gap-1">
                                                 画质
-                                                <select className="ml-2 rounded border" value={selectedQuality} onChange={(event) => setSelectedQuality(event.target.value)}>
-                                                    <option value="standard">标准</option>
-                                                    <option value="high">高质量</option>
-                                                </select>
+                                                <Select
+                                                    size="small"
+                                                    aria-label="画质"
+                                                    value={selectedQuality}
+                                                    onChange={setSelectedQuality}
+                                                    options={[
+                                                        { value: "standard", label: "标准" },
+                                                        { value: "high", label: "高质量" },
+                                                    ]}
+                                                />
                                             </label>
                                         </div>
                                     ) : null}

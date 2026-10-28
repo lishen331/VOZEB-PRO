@@ -163,7 +163,7 @@ export function MyPromptsPage() {
                             <h2 className="text-base font-semibold text-stone-950 sm:text-lg dark:text-stone-100">我的记录</h2>
                         </div>
                         <Table
-                            className="[&_.ant-table-tbody>tr>td]:!py-2 sm:[&_.ant-table-tbody>tr>td]:!py-3 [&_.ant-table-thead>tr>th]:!py-2"
+                            className="[&_.gm-table tbody>tr>td]:!py-2 sm:[&_.gm-table tbody>tr>td]:!py-3 [&_.gm-table thead>tr>th]:!py-2"
                             rowKey="id"
                             loading={loading}
                             columns={columns}

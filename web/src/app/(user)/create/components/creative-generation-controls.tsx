@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/gamma-ui/gamma-ant";
+import { Button, Switch } from "@/components/gamma-ui/gamma-ant";
 import { Popover } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Check, Orbit } from "lucide-react";
 import { useState } from "react";
@@ -64,27 +64,10 @@ export function CreativeGenerationControls({
                                 <p className="text-sm font-semibold text-[#1b212f] dark:text-[#f2f5fa]">选择模型</p>
                                 <p className="mt-0.5 truncate text-[11px] text-[#8993a9] dark:text-[#7e889d]">{selectedModels.length ? `已选择 ${selectedModels.length} 个，最多 6 个` : smartPlanning ? "默认由智能规划自动匹配" : "请选择至少一个模型"}</p>
                             </div>
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-checked={smartPlanning}
-                                aria-label={smartPlanning ? "关闭自动智能规划" : "开启自动智能规划"}
-                                className={cn(
-                                    "flex shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 text-xs font-medium transition-colors",
-                                    smartPlanning ? "bg-[#f0f3f8] text-[#445a81] dark:bg-[#8199c3]/12 dark:text-[#86bcc3]" : "text-[#7e889d] hover:bg-[#f1f4f9] dark:text-[#8a94a9] dark:hover:bg-[#272e3c]",
-                                )}
-                                onClick={onToggleSmartPlanning}
-                            >
+                            <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-[#445a81] dark:text-[#86bcc3]">
                                 <span>{smartPlanning ? "智能" : "手动"}</span>
-                                <span
-                                    className={cn(
-                                        "relative h-5 w-9 rounded-full border transition-colors",
-                                        smartPlanning ? "border-[#6279a2] bg-[#6279a2] dark:border-[#8aa2cb] dark:bg-[#8aa2cb]" : "border-[#cbd1df] bg-[#e0e3e8] dark:border-[#4f586c] dark:bg-[#384053]",
-                                    )}
-                                >
-                                    <span className={cn("absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform dark:bg-[#1b212f]", smartPlanning && "translate-x-4")} />
-                                </span>
-                            </button>
+                                <Switch size="small" checked={smartPlanning} aria-label={smartPlanning ? "关闭自动智能规划" : "开启自动智能规划"} onChange={() => onToggleSmartPlanning()} />
+                            </span>
                         </div>
                         {modelCapabilities.length > 1 ? (
                             <div className={cn("mb-2 grid gap-1 rounded-xl bg-[#eef1f6] p-1 dark:bg-[#212836]", modelCapabilities.length === 2 ? "grid-cols-2" : "grid-cols-3")}>

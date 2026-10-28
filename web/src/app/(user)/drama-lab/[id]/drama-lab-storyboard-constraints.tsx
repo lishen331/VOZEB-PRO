@@ -3,6 +3,9 @@
 import type { DramaStoryboardFrameMode } from "@/lib/drama-project-contract";
 import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";
 import { DRAMA_LAB_UI_FEATURES, isDramaLabUiFeatureEnabled } from "@/lib/feature-modules";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Checkbox } from "@/components/gamma-ui/gamma-ant";
+import { Radio } from "@/components/gamma-ui/gamma-ant-display";
 
 export type StoryboardConstraintDraft = { shotCount: string; totalDuration: string; creationMode?: "classic" | "universal"; generateNarration?: boolean };
 
@@ -92,44 +95,43 @@ export function DramaLabStoryboardConstraints({
                 {onSequenceModeChange && (
                     <label className="flex items-center gap-2 text-sm">
                         <span>序列图模式</span>
-                        <select
+                        <Select
                             aria-label="序列图模式"
+                            className="w-28"
                             value={sequenceMode}
                             disabled={disabled || storyboardFrameMode === "first_last"}
-                            onChange={(event) => onSequenceModeChange(event.target.value as DramaLabStoryboardSequenceMode)}
-                            className="h-9 w-28 rounded border border-input bg-[var(--gm-bg)] px-2"
-                        >
-                            <option value="single">单张</option>
-                            <option value="quad_grid">四宫格</option>
-                            <option value="nine_grid">九宫格</option>
-                        </select>
+                            onChange={(next) => onSequenceModeChange(next as DramaLabStoryboardSequenceMode)}
+                            options={[
+                                { value: "single", label: "单张" },
+                                { value: "quad_grid", label: "四宫格" },
+                                { value: "nine_grid", label: "九宫格" },
+                            ]}
+                        />
                     </label>
                 )}
             </div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-[var(--gm-border)] pt-3" aria-label="分镜创作与旁白">
                 {onStoryboardFrameModeChange && visible("storyboardFirstLast") && (
-                    <label className="flex items-center gap-2 text-sm">
-                        <input aria-label="首尾帧参考图" type="checkbox" checked={storyboardFrameMode === "first_last"} disabled={disabled} onChange={(event) => onStoryboardFrameModeChange(event.target.checked ? "first_last" : "single")} />
+                    <Checkbox aria-label="首尾帧参考图" checked={storyboardFrameMode === "first_last"} disabled={disabled} onChange={(event) => onStoryboardFrameModeChange(event.target.checked ? "first_last" : "single")}>
                         首尾帧参考图
-                    </label>
+                    </Checkbox>
                 )}
-                <fieldset className="flex items-center gap-3" disabled={disabled}>
+                <fieldset className="flex items-center gap-3">
                     <legend className="sr-only" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>
                         分镜模式
                     </legend>
-                    <label className="flex items-center gap-1 text-sm">
-                        <input type="radio" name="storyboard-creation-mode" checked={(value.creationMode || "classic") === "classic"} disabled={disabled} onChange={() => onChange({ ...value, creationMode: "classic" })} />
-                        经典分镜
-                    </label>
-                    <label className="flex items-center gap-1 text-sm">
-                        <input type="radio" name="storyboard-creation-mode" checked={value.creationMode === "universal"} disabled={disabled} onChange={() => onChange({ ...value, creationMode: "universal" })} />
-                        全能分镜
-                    </label>
+                    <Radio.Group
+                        value={value.creationMode || "classic"}
+                        disabled={disabled}
+                        onChange={(event) => onChange({ ...value, creationMode: event.target.value as "classic" | "universal" })}
+                    >
+                        <Radio value="classic">经典分镜</Radio>
+                        <Radio value="universal">全能分镜</Radio>
+                    </Radio.Group>
                 </fieldset>
-                <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={value.generateNarration === true} disabled={disabled} onChange={(event) => onChange({ ...value, generateNarration: event.target.checked })} />
+                <Checkbox aria-label="生成解说旁白" checked={value.generateNarration === true} disabled={disabled} onChange={(event) => onChange({ ...value, generateNarration: event.target.checked })}>
                     生成解说旁白
-                </label>
+                </Checkbox>
                 {visible("storyboardExport") && onExportXlsx ? (
                     <button type="button" disabled={disabled} onClick={onExportXlsx} className="h-9 rounded border border-primary px-3 text-sm text-primary hover:bg-primary/5">
                         导出分镜表 Excel

@@ -151,7 +151,7 @@ export function DramaStoryboardShotCard({ project, episodeId, shot, expanded, on
                         <div className="mt-3.5 flex min-h-8 items-center gap-2.5 text-sm">
                             <span className="whitespace-nowrap">时长</span>
                             <InputNumber
-                                className="!w-24 [&.ant-input-number-focused]:!border-foreground/35 [&.ant-input-number-focused]:!shadow-none"
+                                className="!w-24 [&.gm-input-number:focus-within]:!border-foreground/35 [&.gm-input-number:focus-within]:!shadow-none"
                                 min={1}
                                 max={20}
                                 value={shot.duration}

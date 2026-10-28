@@ -311,7 +311,7 @@ export function PromptList({
                         </button>
                     }
                     placeholder="搜索提示词"
-                    className="min-w-0 flex-1 !rounded-md [&_.ant-input]:!text-xs"
+                    className="min-w-0 flex-1 !rounded-md [&_.gm-input]:!text-xs"
                     onChange={(event) => {
                         const next = event.target.value;
                         setSearchValue(next);

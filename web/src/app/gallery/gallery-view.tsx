@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Checkbox } from "@/components/gamma-ui/gamma-ant";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 
 import { PublicWorkPreviewModal } from "@/components/works/public-work-preview-modal";
@@ -86,10 +87,9 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
                     ]}
                     onChange={setSort}
                 />
-                <label className="flex h-10 min-w-0 cursor-pointer items-center gap-2 rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] px-3 text-sm text-[var(--gm-text)] transition hover:bg-[var(--gm-wash)]">
-                    <input type="checkbox" name="featured" value="1" defaultChecked={filters.featured === "1"} className="size-4 accent-[var(--gm-blue)]" />
+                <Checkbox name="featured" value="1" defaultChecked={filters.featured === "1"} className="h-10 min-h-10 rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] px-3 transition hover:bg-[var(--gm-wash)]">
                     只看精选
-                </label>
+                </Checkbox>
                 <div className="col-span-2 flex min-w-0 items-center justify-end gap-2 md:col-span-1">
                     {filtered ? (
                         <Link href={basePath} className={linkControlClass}>

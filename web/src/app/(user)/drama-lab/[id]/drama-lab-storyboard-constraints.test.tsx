@@ -100,7 +100,8 @@ describe("storyboard mode controls", () => {
         const onSequenceModeChange = vi.fn();
         const tree = DramaLabStoryboardConstraints({ value: emptyDraft, onChange, disabled: false, storyboardFrameMode: "single", onStoryboardFrameModeChange, sequenceMode: "single", onSequenceModeChange });
         (findControl(tree, "首尾帧参考图").props.onChange as (event: { target: { checked: boolean } }) => void)({ target: { checked: true } });
-        (findControl(tree, "序列图模式").props.onChange as (event: { target: { value: string } }) => void)({ target: { value: "quad_grid" } });
+        // gamma Select 的 onChange 直接给值，不再是 antd 的 event.target.value 形状
+        (findControl(tree, "序列图模式").props.onChange as (value: string) => void)("quad_grid");
         expect(onStoryboardFrameModeChange).toHaveBeenCalledWith("first_last");
         expect(onSequenceModeChange).toHaveBeenCalledWith("quad_grid");
         expect(onChange).not.toHaveBeenCalled();
@@ -109,7 +110,7 @@ describe("storyboard mode controls", () => {
         const html = renderToStaticMarkup(
             <DramaLabStoryboardConstraints value={emptyDraft} onChange={() => {}} disabled={false} storyboardFrameMode="first_last" onStoryboardFrameModeChange={() => {}} sequenceMode="nine_grid" onSequenceModeChange={() => {}} />,
         );
-        expect(html).toMatch(/<select[^>]*aria-label="序列图模式"[^>]*disabled=""/);
-        expect(html).toContain('<option value="nine_grid" selected="">');
+        expect(html).toMatch(/<button[^>]*aria-label="序列图模式"[^>]*disabled=""/);
+        expect(html).toContain("九宫格");
     });
 });
