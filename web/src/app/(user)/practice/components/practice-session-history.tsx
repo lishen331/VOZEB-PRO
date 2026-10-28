@@ -5,6 +5,7 @@ import { Button } from "@/components/gamma-ui/gamma-ant";
 import { AudioLines, FileText, Film, Image as ImageIcon, RotateCcw, Trash2 } from "lucide-react";
 
 import type { PracticeSession } from "@/services/api/practice";
+import { cn } from "@/lib/utils";
 import { practiceSessionCanRetry, practiceSessionStatusLabel } from "./practice-session-status";
 
 export default function PracticeSessionHistory({
@@ -24,11 +25,17 @@ export default function PracticeSessionHistory({
     return (
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {sessions.map((session) => (
-                <article key={session.id} className={`min-w-0 border p-3 ${currentId === session.id ? "border-foreground" : "border-[var(--gm-border)]"}`}>
-                    <button type="button" className="flex w-full min-w-0 items-start gap-3 text-left hover:bg-[var(--gm-wash)]/30" onClick={() => onOpen(session)}>
+                <article
+                    key={session.id}
+                    className={cn(
+                        "min-w-0 rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] p-3 ring-1 transition-shadow duration-200 hover:shadow-[var(--gm-shadow)]",
+                        currentId === session.id ? "ring-2 ring-[var(--gm-accent)]" : "ring-[var(--gm-border)]",
+                    )}
+                >
+                    <button type="button" className="flex w-full min-w-0 items-start gap-3 rounded-[var(--gm-radius-sm)] text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]" onClick={() => onOpen(session)}>
                         <Preview session={session} />
                         <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">{session.title}</span>
+                            <span className="block truncate text-sm font-medium text-[var(--gm-text)]">{session.title}</span>
                             <span className="mt-1 block text-xs text-[var(--gm-text-3)]">{practiceSessionStatusLabel(session)}</span>
                             <SessionPrompt session={session} />
                             <time className="mt-1 block text-xs text-[var(--gm-text-3)]">{new Date(session.createdAt).toLocaleString()}</time>
@@ -55,7 +62,7 @@ export default function PracticeSessionHistory({
 function SessionPrompt({ session }: { session: PracticeSession }) {
     const input = session.input as Record<string, unknown> | undefined;
     const prompt = typeof input?.prompt === "string" ? input.prompt : typeof input?.text === "string" ? input.text : typeof input?.content === "string" ? input.content : "";
-    if (session.errorMessage) return <span className="mt-2 block truncate text-xs text-red-500">{session.errorMessage}</span>;
+    if (session.errorMessage) return <span className="mt-2 block truncate text-xs text-[var(--gm-danger)]">{session.errorMessage}</span>;
     if (!prompt) return null;
     return (
         <span className="mt-2 block truncate text-xs text-[var(--gm-text-3)]" title={prompt}>
@@ -66,27 +73,27 @@ function SessionPrompt({ session }: { session: PracticeSession }) {
 
 function Preview({ session }: { session: PracticeSession }) {
     const media = session.result?.media;
-    if (media?.kind === "image") return <img src={media.url} alt="" className="size-14 shrink-0 object-cover" />;
+    if (media?.kind === "image") return <img src={media.url} alt="" className="size-14 shrink-0 rounded-[var(--gm-radius-sm)] object-cover" />;
     if (media?.kind === "video")
         return (
-            <span className="grid size-14 shrink-0 place-items-center bg-[var(--gm-wash)]">
+            <span className="grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]">
                 <Film className="size-5" />
             </span>
         );
     if (media?.kind === "audio")
         return (
-            <span className="grid size-14 shrink-0 place-items-center bg-[var(--gm-wash)]">
+            <span className="grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]">
                 <AudioLines className="size-5" />
             </span>
         );
     if (session.module === "script")
         return (
-            <span className="grid size-14 shrink-0 place-items-center bg-[var(--gm-wash)]">
+            <span className="grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]">
                 <FileText className="size-5" />
             </span>
         );
     return (
-        <span className="grid size-14 shrink-0 place-items-center bg-[var(--gm-wash)]">
+        <span className="grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]">
             <ImageIcon className="size-5" />
         </span>
     );

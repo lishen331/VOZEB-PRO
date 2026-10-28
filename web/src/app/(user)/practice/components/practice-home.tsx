@@ -348,7 +348,7 @@ function ModuleCard({ card, onClick }: { card: (typeof PRACTICE_MODULES)[number]
             type="button"
             onClick={onClick}
             data-practice-module={card.module}
-            className="group flex h-full flex-col rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+            className="group flex h-full w-full flex-col rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
         >
             <div className="flex items-start justify-between gap-3">
                 <span className={cn("grid size-11 shrink-0 place-items-center rounded-[var(--gm-radius-lg)]", accent.chip)}>

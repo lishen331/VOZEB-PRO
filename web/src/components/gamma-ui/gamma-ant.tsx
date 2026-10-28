@@ -754,7 +754,11 @@ export function Pagination({
                         disabled={mergedDisabled}
                         onChange={(event) => changeSize(Number(event.target.value))}
                         className={cn(
-                            "gm-pagination-size cursor-pointer appearance-none rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] bg-[length:14px] bg-[right_6px_center] bg-no-repeat pe-6 ps-2.5 text-[var(--gm-text)] outline-none transition-colors hover:border-[var(--gm-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
+                            // bg-[color:...] / bg-[position:...]（而不是裸 bg-[var(...)] / bg-[right_6px_center]）：
+                            // 这两个任意值缺类型提示时，tailwind-merge 会把它们和下面箭头图标用的
+                            // bg-[image:url(...)] 归成同一个背景冲突组，后加入的 image 类会把底色和定位
+                            // 一起顶掉，线上渲染成完全透明、只剩描边（已用 twMerge 复测确认）
+                            "gm-pagination-size cursor-pointer appearance-none rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[color:var(--gm-surface)] bg-[length:14px] bg-[position:right_6px_center] bg-no-repeat pe-6 ps-2.5 text-[var(--gm-text)] outline-none transition-colors hover:border-[var(--gm-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]",
                             "bg-[image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364718f' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")]",
                             small ? "h-7 text-xs" : "h-8 text-[13px]",
                         )}
