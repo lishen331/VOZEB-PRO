@@ -135,6 +135,11 @@ function useThemeRoot(open: boolean, anchorRef: React.RefObject<HTMLElement | nu
 const TRIGGER_CLASS =
     "group flex min-h-8 w-full items-center gap-2 rounded-[var(--gm-radius-sm)] bg-[var(--gm-surface)] px-2.5 py-1 text-left text-[13px] ring-1 ring-[var(--gm-border)] transition-shadow duration-200 hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-visible:ring-[var(--gm-accent)] disabled:cursor-not-allowed disabled:opacity-50";
 
+/*
+ * 刻意不补发 ant-picker-dropdown：global-responsive-controls.css 里那批 .ant-picker-* 规则
+ * 是按 antd 的绝对定位结构写的（移动端会 !important 把浮层拉到屏幕正中），
+ * 本面板由 radix 定位、内部 DOM 也完全不同，匹配上只会破版。
+ */
 const CONTENT_CLASS = "gm-glass gm-glass-strong z-[140] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95";
 
 export interface DatePickerProps {

@@ -30,7 +30,8 @@ export function gammaInputShellClass({ variant, status, disabled }: { variant: V
     const error = status === "error";
     const warning = status === "warning";
     return cn(
-        "gm-input transition-[border-color,box-shadow,background-color] duration-200",
+        // ant-input 是补发的 antd 旧类名：global-*.css 的存量规则按它写
+        "gm-input ant-input transition-[border-color,box-shadow,background-color] duration-200",
         variant === "borderless" ? "border border-transparent bg-transparent" : variant === "filled" ? "border border-transparent bg-[var(--gm-surface-2)]" : "border bg-[var(--gm-surface)]",
         variant !== "borderless" &&
             (error
@@ -234,7 +235,7 @@ function InputBase({
     );
     if (!grouped) return shell;
     return (
-        <span style={style} className={cn("gm-input-group inline-flex w-full items-stretch", rootClassName)}>
+        <span style={style} className={cn("gm-input-group ant-input-group-wrapper ant-input-wrapper inline-flex w-full items-stretch", rootClassName)}>
             {addonBefore ? <Addon side="before">{addonBefore}</Addon> : null}
             {shell}
             {addonAfter ? <Addon side="after">{addonAfter}</Addon> : null}
@@ -378,7 +379,7 @@ function Search({ onSearch, enterButton = false, loading = false, onPressEnter, 
             aria-label={typeof enterButton === "string" ? enterButton : "搜索"}
             onClick={() => search("input")}
             className={cn(
-                "gm-input-search-button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-e-[var(--gm-radius-sm)] bg-[image:var(--gm-gradient)] font-medium whitespace-nowrap text-white transition-[filter,opacity] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55",
+                "gm-input-search-button ant-input-search-button ant-input-search-btn inline-flex shrink-0 items-center justify-center gap-1.5 rounded-e-[var(--gm-radius-sm)] bg-[image:var(--gm-gradient)] font-medium whitespace-nowrap text-white transition-[filter,opacity] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55",
                 buttonHeight,
             )}
         >

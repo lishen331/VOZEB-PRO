@@ -117,7 +117,22 @@ export function Button({
     const iconOnly = !hasChildren && Boolean(icon || isLoading);
     const sizing = BUTTON_SIZE[size];
     const iconNode = isLoading ? <Loader2 aria-hidden className="size-[1.1em] animate-spin" /> : icon;
-    const classes = cn(BUTTON_BASE, iconOnly ? sizing.square : sizing.box, (shape === "circle" || shape === "round") && "rounded-full", buttonVariant(type, danger), block && "flex w-full", isLoading && "cursor-progress", `gm-btn-${type}`, className);
+    // 末尾补发 antd 旧类名：global-*.css 里大量存量规则按 .ant-btn / .ant-btn-primary 写，
+    // 与 Modal/Drawer/Dropdown 保留 .ant-* 是同一个约定（也是既有 e2e 选择器的依赖）。
+    const classes = cn(
+        BUTTON_BASE,
+        iconOnly ? sizing.square : sizing.box,
+        (shape === "circle" || shape === "round") && "rounded-full",
+        buttonVariant(type, danger),
+        block && "flex w-full",
+        isLoading && "cursor-progress",
+        `gm-btn-${type}`,
+        "ant-btn",
+        `ant-btn-${type}`,
+        iconOnly && "ant-btn-icon-only",
+        mergedDisabled && "ant-btn-disabled",
+        className,
+    );
     const content = (
         <>
             {iconNode && iconPlacement !== "end" ? <span className="gm-btn-icon inline-flex shrink-0 items-center">{iconNode}</span> : null}
@@ -223,7 +238,7 @@ function CheckableTag({ checked = false, onChange, className, children, onClick,
                 onClick?.(event);
             }}
             className={cn(
-                "gm-tag-checkable inline-flex h-[22px] max-w-full cursor-pointer items-center gap-1 rounded-full border px-2 align-middle text-xs leading-none whitespace-nowrap transition-colors",
+                "gm-tag-checkable ant-tag-checkable inline-flex h-[22px] max-w-full cursor-pointer items-center gap-1 rounded-full border px-2 align-middle text-xs leading-none whitespace-nowrap transition-colors",
                 checked ? "border-[var(--gm-brand)] bg-[var(--gm-brand)]/12 text-[var(--gm-brand)]" : "border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-2)] hover:border-[var(--gm-brand)]/40",
                 className,
             )}
@@ -282,7 +297,7 @@ export function Segmented<T extends SegmentedValue = SegmentedValue>({ options, 
             aria-label={ariaLabel}
             aria-disabled={mergedDisabled || undefined}
             onKeyDown={onKeyDown}
-            className={cn("gm-segmented max-w-full gap-0.5 rounded-[var(--gm-radius)] bg-[var(--gm-surface-2)] p-[3px] ring-1 ring-inset ring-[var(--gm-border)]", block ? "flex w-full" : "inline-flex", mergedDisabled && "opacity-50", className)}
+            className={cn("gm-segmented ant-segmented max-w-full gap-0.5 rounded-[var(--gm-radius)] bg-[var(--gm-surface-2)] p-[3px] ring-1 ring-inset ring-[var(--gm-border)]", block ? "flex w-full" : "inline-flex", mergedDisabled && "opacity-50", className)}
         >
             {normalized.map((option) => {
                 const active = option.value === current;
@@ -391,6 +406,9 @@ export interface CheckboxProps {
     onChange?: (event: CheckboxChangeEvent) => void;
     disabled?: boolean;
     value?: unknown;
+    /** 原生表单字段名：放在 <form> 里提交时带上它（antd 同名） */
+    name?: string;
+    required?: boolean;
     className?: string;
     id?: string;
     children?: ReactNode;
@@ -398,7 +416,7 @@ export interface CheckboxProps {
 }
 
 /** 与 antd Checkbox 同 API；onChange 回调 event.target.checked */
-export function Checkbox({ checked, defaultChecked = false, indeterminate = false, onChange, disabled, value, className, id, children, "aria-label": ariaLabel }: CheckboxProps) {
+export function Checkbox({ checked, defaultChecked = false, indeterminate = false, onChange, disabled, value, name, required, className, id, children, "aria-label": ariaLabel }: CheckboxProps) {
     const mergedDisabled = useMergedDisabled(disabled);
     const [inner, setInner] = useState(defaultChecked);
     const on = checked ?? inner;
@@ -412,7 +430,7 @@ export function Checkbox({ checked, defaultChecked = false, indeterminate = fals
     };
     return (
         <label className={cn("gm-checkbox-wrapper group/cb inline-flex items-start gap-2 align-middle text-sm text-[var(--gm-text-2)]", mergedDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:text-[var(--gm-text)]", className)}>
-            <input ref={inputRef} id={id} type="checkbox" className="peer sr-only" checked={on} disabled={mergedDisabled} aria-label={ariaLabel} aria-checked={indeterminate ? "mixed" : on} onChange={handleChange} />
+            <input ref={inputRef} id={id} type="checkbox" name={name} required={required} className="peer sr-only" checked={on} disabled={mergedDisabled} aria-label={ariaLabel} aria-checked={indeterminate ? "mixed" : on} onChange={handleChange} />
             <span
                 aria-hidden
                 className={cn(
@@ -679,7 +697,7 @@ export function Pagination({
     const sizes = [...new Set([...pageSizeOptions.map(Number), perPage])].sort((a, b) => a - b);
 
     return (
-        <nav aria-label="分页" className={cn("gm-pagination flex flex-wrap items-center gap-1", mergedDisabled && "opacity-50", className)}>
+        <nav aria-label="分页" className={cn("gm-pagination ant-pagination flex flex-wrap items-center gap-1", mergedDisabled && "opacity-50", className)}>
             {showTotal ? <span className="me-2 text-xs text-[var(--gm-text-3)]">{showTotal(total, [rangeStart, rangeEnd])}</span> : null}
             <span className="gm-pagination-prev inline-flex">
                 <button type="button" aria-label="上一页" disabled={mergedDisabled || page <= 1} onClick={() => go(page - 1)} className={cn(cell, "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash-strong)]")}>

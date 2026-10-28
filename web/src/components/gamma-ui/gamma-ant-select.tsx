@@ -264,7 +264,7 @@ function SelectImpl<V = string>(props: SelectProps<V>) {
                     }}
                     style={style}
                     className={cn(
-                        "group flex w-full items-center gap-2 px-3 py-1 text-left transition-shadow duration-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+                        "gm-select ant-select group flex w-full items-center gap-2 px-3 py-1 text-left transition-shadow duration-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
                         SIZE_CLASS[size],
                         variant === "borderless" ? "bg-transparent ring-0" : variant === "filled" ? "bg-[var(--gm-surface-2)] ring-1" : "bg-[var(--gm-surface)] ring-1",
                         variant !== "borderless" &&

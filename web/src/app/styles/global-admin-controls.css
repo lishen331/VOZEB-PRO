@@ -5,27 +5,27 @@
         box-shadow: none;
     }
 
-    .admin-prompt-form .ant-form-item {
+    .admin-prompt-form .gm-form-item {
         margin-bottom: 16px;
     }
 
-    .admin-prompt-form .ant-form-item-label {
+    .admin-prompt-form .gm-form-item-label {
         padding-bottom: 6px;
     }
 
-    .admin-prompt-form .ant-input,
-    .admin-prompt-form .ant-input-affix-wrapper,
-    .admin-prompt-form textarea.ant-input {
+    .admin-prompt-form .gm-input,
+    .admin-prompt-form .gm-input-group,
+    .admin-prompt-form textarea.gm-input {
         border-radius: 9px;
         padding-inline: 16px;
     }
 
-    .admin-prompt-form .ant-input,
-    .admin-prompt-form .ant-input-affix-wrapper {
+    .admin-prompt-form .gm-input,
+    .admin-prompt-form .gm-input-group {
         min-height: 40px;
     }
 
-    .admin-prompt-form textarea.ant-input {
+    .admin-prompt-form textarea.gm-input {
         padding-block: 12px;
     }
 
@@ -34,7 +34,7 @@
         box-shadow: none;
     }
 
-    .admin-prompt-submit.ant-btn {
+    .admin-prompt-submit.gm-btn {
         align-items: center;
         border: 0;
         border-radius: 10px;
@@ -44,12 +44,12 @@
         padding-inline: 22px;
     }
 
-    .admin-prompt-submit.ant-btn-primary {
+    .admin-prompt-submit.gm-btn-primary {
         background: #030510;
         color: #ffffff;
     }
 
-    .admin-prompt-submit.ant-btn-primary:hover {
+    .admin-prompt-submit.gm-btn-primary:hover {
         background: #000000 !important;
         color: #ffffff !important;
         box-shadow: 0 14px 30px rgba(13, 23, 42, 0.18);
@@ -90,99 +90,100 @@
         min-width: 0;
     }
 
-    .admin-mobile-safe .ant-table-wrapper,
-    .admin-mobile-safe .ant-table,
-    .admin-mobile-safe .ant-table-container {
+    .admin-mobile-safe .gm-table-wrap,
+    .admin-mobile-safe .gm-table,
+    .admin-mobile-safe .gm-table-content {
         max-width: 100%;
     }
 
-    .admin-mobile-safe .ant-table-content {
+    .admin-mobile-safe .gm-table-content {
         overflow-x: auto !important;
     }
 
-    .admin-mobile-safe .ant-input,
-    .admin-mobile-safe .ant-input-affix-wrapper,
-    .admin-mobile-safe .ant-input-number,
-    .admin-mobile-safe .ant-input-number-group-wrapper,
-    .admin-mobile-safe .ant-select,
-    .admin-mobile-safe .ant-select-selector {
+    .admin-mobile-safe .gm-input,
+    .admin-mobile-safe .gm-input-group,
+    .admin-mobile-safe .gm-input-number,
+    .admin-mobile-safe .gm-input-group,
+    .admin-mobile-safe .gm-select,
+    .admin-mobile-safe .gm-select {
         max-width: 100%;
     }
 
-    .admin-mobile-safe .ant-space {
+    .admin-mobile-safe .gm-space {
         max-width: 100%;
     }
 
-    .admin-mobile-safe .ant-pagination {
+    .admin-mobile-safe .gm-pagination {
         flex-wrap: wrap;
         row-gap: 8px;
     }
 
-    .admin-payment-compact-control.ant-input,
-    .admin-payment-compact-control.ant-input-affix-wrapper {
+    .admin-payment-compact-control.gm-input,
+    .admin-payment-compact-control.gm-input-group {
         min-height: 38px;
         border-radius: 10px;
     }
 
-    .admin-payment-compact-control.ant-input {
+    .admin-payment-compact-control.gm-input {
         padding: 7px 12px;
         line-height: 20px;
     }
 
-    .admin-payment-compact-control.ant-input-affix-wrapper {
+    .admin-payment-compact-control.gm-input-group {
         padding: 6px 12px;
     }
 
-    .admin-payment-compact-control.ant-input-affix-wrapper > input.ant-input {
+    .admin-payment-compact-control.gm-input-group > input.gm-input {
         min-height: 24px;
         padding: 0;
     }
 
-    .admin-payment-compact-control.ant-select {
+    .admin-payment-compact-control.gm-select {
         height: 38px;
     }
 
-    .admin-payment-compact-control.ant-select .ant-select-selector {
+    .admin-payment-compact-control.gm-select .gm-select {
         min-height: 38px !important;
         border-radius: 10px !important;
         align-items: center;
         padding-inline: 12px !important;
     }
 
-    .admin-payment-compact-control.ant-select .ant-select-selection-item,
-    .admin-payment-compact-control.ant-select .ant-select-selection-placeholder {
+    .admin-payment-compact-control.gm-select .gm-select-selection-item,
+    .admin-payment-compact-control.gm-select .gm-select-selection-placeholder {
         line-height: 36px !important;
     }
 
-    .admin-payment-mode-segmented.ant-segmented {
+    .admin-payment-mode-segmented.gm-segmented {
         min-height: 36px;
         padding: 3px;
         border: 1px solid var(--border);
         background: var(--muted);
     }
 
-    .admin-payment-mode-segmented .ant-segmented-group {
+    /* 分段控件的 className 直接落在根节点上，容器就是它本身，不是子元素 */
+    .admin-payment-mode-segmented.gm-segmented {
         display: flex;
         width: 100%;
     }
 
-    .admin-payment-mode-segmented .ant-segmented-item {
+    .admin-payment-mode-segmented .gm-segmented-item {
         min-width: 0;
         flex: 1 1 0;
     }
 
-    .admin-payment-mode-segmented .ant-segmented-item-label {
+    .admin-payment-mode-segmented .gm-segmented-item-label {
         min-height: 28px;
         padding-inline: 8px;
         line-height: 28px;
         text-align: center;
     }
 
-    .admin-payment-mode-segmented .ant-segmented-item-selected {
+    .admin-payment-mode-segmented .gm-segmented-item-selected {
         box-shadow: none;
     }
 
-    .admin-payment-textarea.ant-input {
+    .admin-payment-textarea.gm-input {
         border-radius: 12px;
         padding: 10px 12px;
         line-height: 20px;
@@ -387,35 +388,35 @@
         }
     }
 
-    .admin-generation-log-table .ant-table-cell {
+    .admin-generation-log-table .gm-table-cell {
         vertical-align: middle;
     }
 
-    .admin-generation-log-table .ant-table-cell-fix-right,
-    .admin-generation-log-table .ant-table-cell-fix-right-first {
+    .admin-generation-log-table .gm-table-cell-fix-right,
+    .admin-generation-log-table .gm-table-cell-fix-right {
         background: #ffffff !important;
         box-shadow: -10px 0 18px rgba(13, 23, 42, 0.08);
     }
 
-    .dark .admin-generation-log-table .ant-table-cell-fix-right,
-    .dark .admin-generation-log-table .ant-table-cell-fix-right-first {
+    .dark .admin-generation-log-table .gm-table-cell-fix-right,
+    .dark .admin-generation-log-table .gm-table-cell-fix-right {
         background: #030510 !important;
         box-shadow: -10px 0 18px rgba(0, 0, 0, 0.28);
     }
 
-    .admin-generation-log-table .ant-table-tbody > tr.ant-table-row-selected > td {
+    .admin-generation-log-table .gm-table-row-selected > td {
         background: #f2f5fa !important;
     }
 
-    .admin-generation-log-table .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-right {
+    .admin-generation-log-table .gm-table-row-selected > td.gm-table-cell-fix-right {
         background: #f7faff !important;
     }
 
-    .dark .admin-generation-log-table .ant-table-tbody > tr.ant-table-row-selected > td {
+    .dark .admin-generation-log-table .gm-table-row-selected > td {
         background: #101623 !important;
     }
 
-    .dark .admin-generation-log-table .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-right {
+    .dark .admin-generation-log-table .gm-table-row-selected > td.gm-table-cell-fix-right {
         background: #1d2432 !important;
     }
 
@@ -432,7 +433,7 @@
     }
 
     @media (max-width: 640px) {
-        .admin-mobile-safe .ant-btn {
+        .admin-mobile-safe .gm-btn {
             max-width: 100%;
             white-space: normal;
         }
@@ -544,7 +545,7 @@
             width: 38px !important;
         }
 
-        .admin-dashboard-header-actions .ant-dropdown-trigger > span:not(.ant-avatar):not(.anticon):not(.user-avatar-fallback),
+        .admin-dashboard-header-actions .ant-dropdown-trigger > span:not(.gm-avatar):not(.anticon):not(.user-avatar-fallback),
         .admin-dashboard-header-actions .ant-dropdown-trigger .truncate {
             display: none !important;
         }
@@ -581,8 +582,8 @@
             line-height: 1.65;
         }
 
-        .admin-mobile-safe .ant-popover,
-        .admin-mobile-safe .ant-popconfirm {
+        .admin-mobile-safe .gm-popover,
+        .admin-mobile-safe .gm-popconfirm {
             max-width: calc(100vw - 24px);
         }
     }
@@ -625,7 +626,7 @@
             min-width: 62px;
         }
 
-        .user-points-popover .ant-popover-inner {
+        .user-points-popover .gm-popover-inner {
             width: min(13rem, calc(100vw - 44px));
         }
 
@@ -672,7 +673,7 @@
             text-wrap: wrap;
         }
 
-        .landing-site-header .landing-login-button.ant-btn {
+        .landing-site-header .landing-login-button.gm-btn {
             height: 36px;
             padding-inline: 12px;
         }
@@ -855,11 +856,11 @@
             width: 36px;
         }
 
-        .landing-hero-copy .ant-btn-lg {
+        .landing-hero-copy .gm-btn-lg {
             min-width: 148px;
         }
 
-        .landing-hero-cta.ant-btn {
+        .landing-hero-cta.gm-btn {
             flex: 1 1 0;
             height: 52px;
             max-width: 180px;
@@ -923,7 +924,7 @@
             width: 32px;
         }
 
-        .landing-site-header .landing-login-button.ant-btn {
+        .landing-site-header .landing-login-button.gm-btn {
             height: 34px;
             max-width: 86px;
             overflow: hidden;

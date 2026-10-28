@@ -125,7 +125,7 @@ export function Popover({ trigger = "click", placement = "bottom", open, onOpenC
                     avoidCollisions={autoAdjustOverflow !== false}
                     style={styles?.container}
                     className={cn(
-                        "gm-popover ant-popover z-[1050] rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface-2)] text-[var(--gm-text)] shadow-[var(--gm-shadow)] outline-none",
+                        "gm-popover ant-popover ant-popover-content ant-popover-inner z-[1050] rounded-[var(--gm-radius)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface-2)] text-[var(--gm-text)] shadow-[var(--gm-shadow)] outline-none",
                         "origin-[var(--radix-popover-content-transform-origin)] data-[state=closed]:hidden data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
                     )}
                 >
@@ -260,7 +260,8 @@ export function Dropdown({ menu, content, panelStyle, trigger = ["click"], place
     const hover = trigger.includes("hover") && !trigger.includes("click");
     return (
         <DropdownMenuPrimitive.Root open={open} onOpenChange={onOpenChange} modal={false}>
-            <DropdownMenuPrimitive.Trigger asChild onPointerDown={hover ? (event) => event.preventDefault() : undefined}>
+            {/* ant-dropdown-trigger 是 antd 老类名：global-admin-controls.css 的顶栏布局规则和既有 e2e 选择器都靠它定位 */}
+            <DropdownMenuPrimitive.Trigger asChild className="ant-dropdown-trigger" onPointerDown={hover ? (event) => event.preventDefault() : undefined}>
                 {children}
             </DropdownMenuPrimitive.Trigger>
             <DropdownMenuPrimitive.Portal>

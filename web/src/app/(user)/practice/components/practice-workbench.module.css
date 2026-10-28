@@ -12,12 +12,12 @@
 .result {
     min-height: 260px;
 }
-.workbench :global(.ant-input),
-.workbench :global(.ant-input-number),
-.workbench :global(.ant-select) {
+.workbench :global(.gm-input),
+.workbench :global(.gm-input-number),
+.workbench :global(.gm-select) {
     max-width: 100%;
 }
-.workbench :global(.ant-btn-primary) {
+.workbench :global(.gm-btn-primary) {
     box-shadow: none;
 }
 @media (min-width: 1024px) {

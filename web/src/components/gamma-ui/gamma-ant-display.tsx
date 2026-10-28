@@ -253,6 +253,7 @@ interface RadioContextValue {
     value: unknown;
     onSelect: (value: unknown) => void;
     button: boolean;
+    disabled: boolean;
 }
 
 const RadioContext = createContext<RadioContextValue | null>(null);
@@ -260,29 +261,49 @@ const RadioContext = createContext<RadioContextValue | null>(null);
 /** antd 的 onChange 事件形状：event.target.value */
 export type RadioChangeEvent<T = string> = { target: { value: T; checked: boolean } };
 
-function RadioGroup<T>({ value, onChange, optionType, className, children }: { value?: T; onChange?: (event: RadioChangeEvent<T>) => void; optionType?: "default" | "button"; buttonStyle?: "outline" | "solid"; className?: string; children?: ReactNode }) {
+function RadioGroup<T>({
+    value,
+    onChange,
+    optionType,
+    buttonStyle,
+    disabled = false,
+    className,
+    children,
+}: {
+    value?: T;
+    onChange?: (event: RadioChangeEvent<T>) => void;
+    optionType?: "default" | "button";
+    buttonStyle?: "outline" | "solid";
+    disabled?: boolean;
+    className?: string;
+    children?: ReactNode;
+}) {
     const name = useId();
     const button = optionType === "button";
     return (
-        <RadioContext.Provider value={{ name, value, button, onSelect: (next) => onChange?.({ target: { value: next as T, checked: true } }) }}>
-            <div role="radiogroup" className={cn("gm-radio-group", button ? "inline-flex rounded-[var(--gm-radius)] bg-[var(--gm-wash)] p-0.5 ring-1 ring-[var(--gm-border)]" : "flex flex-wrap gap-x-5 gap-y-2", className)}>
+        <RadioContext.Provider value={{ name, value, button, disabled, onSelect: (next) => onChange?.({ target: { value: next as T, checked: true } }) }}>
+            <div role="radiogroup" className={cn("gm-radio-group", "ant-radio-group", button ? "inline-flex rounded-[var(--gm-radius)] bg-[var(--gm-wash)] p-0.5 ring-1 ring-[var(--gm-border)]" : "flex flex-wrap gap-x-5 gap-y-2", className)}>
                 {children}
             </div>
         </RadioContext.Provider>
     );
 }
 
-function RadioItem({ value, className, children, forceButton = false }: { value: unknown; className?: string; children?: ReactNode; forceButton?: boolean }) {
+function RadioItem({ value, className, children, disabled, forceButton = false }: { value: unknown; className?: string; children?: ReactNode; disabled?: boolean; forceButton?: boolean }) {
     const group = useContext(RadioContext);
     const checked = group?.value === value;
     const button = forceButton || group?.button;
-    const input = <input type="radio" name={group?.name} checked={checked} onChange={() => group?.onSelect(value)} className="peer sr-only" />;
+    // 单个 Radio 传入的 disabled 优先，否则继承 Group 的
+    const mergedDisabled = disabled ?? group?.disabled ?? false;
+    const input = <input type="radio" name={group?.name} checked={checked} disabled={mergedDisabled} onChange={() => group?.onSelect(value)} className="peer sr-only" />;
     if (button) {
         return (
             <label
                 className={cn(
-                    "relative inline-flex h-8 cursor-pointer items-center rounded-[var(--gm-radius-sm)] px-3 text-[13px] transition-colors",
-                    checked ? "bg-[var(--gm-surface)] font-medium text-[var(--gm-text)] shadow-sm" : "text-[var(--gm-text-2)] hover:text-[var(--gm-text)]",
+                    "relative inline-flex h-8 items-center rounded-[var(--gm-radius-sm)] px-3 text-[13px] transition-colors",
+                    mergedDisabled ? "cursor-not-allowed opacity-45" : "cursor-pointer",
+                    checked ? "bg-[var(--gm-surface)] font-medium text-[var(--gm-text)] shadow-sm" : "text-[var(--gm-text-2)]",
+                    !mergedDisabled && !checked && "hover:text-[var(--gm-text)]",
                     "peer-focus-visible:ring-2",
                     className,
                 )}
@@ -293,13 +314,21 @@ function RadioItem({ value, className, children, forceButton = false }: { value:
         );
     }
     return (
-        <label className={cn("gm-radio group/radio inline-flex cursor-pointer items-start gap-2 text-sm text-[var(--gm-text)]", checked && "gm-radio-checked", className)}>
+        <label
+            className={cn(
+                "gm-radio group/radio inline-flex items-start gap-2 text-sm text-[var(--gm-text)]",
+                mergedDisabled ? "cursor-not-allowed opacity-45" : "cursor-pointer",
+                checked && "gm-radio-checked",
+                className,
+            )}
+        >
             {input}
             <span
                 aria-hidden
                 className={cn(
                     "mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--gm-accent)]",
-                    checked ? "border-[var(--gm-accent)]" : "border-[var(--gm-border-strong)] group-hover/radio:border-[var(--gm-accent)]",
+                    checked ? "border-[var(--gm-accent)]" : "border-[var(--gm-border-strong)]",
+                    !mergedDisabled && !checked && "group-hover/radio:border-[var(--gm-accent)]",
                 )}
             >
                 {checked ? <span className="size-2 rounded-full bg-[var(--gm-accent)]" /> : null}
@@ -309,7 +338,10 @@ function RadioItem({ value, className, children, forceButton = false }: { value:
     );
 }
 
-export const Radio = Object.assign(RadioItem, { Group: RadioGroup, Button: (props: { value: unknown; className?: string; children?: ReactNode }) => <RadioItem {...props} forceButton /> });
+export const Radio = Object.assign(RadioItem, {
+    Group: RadioGroup,
+    Button: (props: { value: unknown; className?: string; children?: ReactNode; disabled?: boolean }) => <RadioItem {...props} forceButton />,
+});
 
 /* ===== Slider ===== */
 

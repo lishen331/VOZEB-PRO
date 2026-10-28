@@ -591,7 +591,7 @@ function FormItem({ name, label, rules, required, extra, className, style, value
                 className={cn("gm-form-item", layout === "vertical" ? "flex flex-col gap-1.5" : "grid grid-cols-[160px_1fr] items-start gap-3", className)}
             >
                 {label !== undefined && label !== null ? (
-                    <label htmlFor={fieldId} className="flex items-center gap-1 text-[13px] font-medium text-[var(--gm-text)]">
+                    <label htmlFor={fieldId} className="gm-form-item-label flex items-center gap-1 text-[13px] font-medium text-[var(--gm-text)]">
                         {label}
                         {isRequired ? (
                             <span aria-hidden className="text-[var(--gm-danger)]">

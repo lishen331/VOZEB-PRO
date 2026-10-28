@@ -8,9 +8,15 @@
  */
 
 import type { CSSProperties, Key, ReactNode } from "react";
+import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 import { Empty, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
+
+/** 固定列没给 width 时的估算值，仅为算出相邻固定列的偏移量 */
+const DEFAULT_FIXED_WIDTH = 120;
+/** 行选择复选框列宽，参与左固定列的偏移累加 */
+const SELECTION_WIDTH = 40;
 
 export interface TableColumnType<T> {
     title?: ReactNode;
@@ -74,11 +80,51 @@ function resolveRowKey<T>(record: T, index: number, rowKey?: keyof T | ((record:
 const ALIGN_CLASS = { left: "text-left", center: "text-center", right: "text-right" } as const;
 
 /** 与 antd Table 同 API 子集：columns + dataSource 渲染表格；loading 时盖加载层；pagination=false 时不出现分页 */
+/** 固定列的横向偏移量：左固定按前面的列宽累加，右固定从末尾往前累加 */
+function useFixedOffsets<T>(columns: TableColumnsType<T>, selectable: boolean) {
+    return useMemo(() => {
+        const offsets: { left?: number; right?: number }[] = columns.map(() => ({}));
+        const widthOf = (column: TableColumnType<T>) => (typeof column.width === "number" ? column.width : DEFAULT_FIXED_WIDTH);
+        let acc = selectable ? SELECTION_WIDTH : 0;
+        columns.forEach((column, index) => {
+            if (column.fixed === "left" || column.fixed === true) {
+                offsets[index].left = acc;
+                acc += widthOf(column);
+            }
+        });
+        acc = 0;
+        for (let index = columns.length - 1; index >= 0; index -= 1) {
+            const column = columns[index];
+            if (column.fixed === "right") {
+                offsets[index].right = acc;
+                acc += widthOf(column);
+            }
+        }
+        return offsets;
+    }, [columns, selectable]);
+}
+
+/**
+ * 固定列的定位样式。antd 要求固定列给 width，这里缺省按 DEFAULT_FIXED_WIDTH 估，
+ * 否则偏移量算不出来、几列会叠在一起。
+ */
+function fixedCellStyle(offset: { left?: number; right?: number }, isHeader: boolean): CSSProperties | undefined {
+    if (offset.left === undefined && offset.right === undefined) return undefined;
+    return { position: "sticky", left: offset.left, right: offset.right, zIndex: isHeader ? 3 : 2 };
+}
+
+/** 固定列必须有不透明底色，否则横向滚动时下面的内容会透上来 */
+function fixedCellClass(offset: { left?: number; right?: number }): string | undefined {
+    if (offset.left === undefined && offset.right === undefined) return undefined;
+    return offset.left !== undefined ? "gm-table-cell-fix-left bg-[var(--gm-surface)]" : "gm-table-cell-fix-right bg-[var(--gm-surface)]";
+}
+
 export function Table<T>({ columns, dataSource = [], rowKey, loading = false, pagination, scroll, rowSelection, size = "middle", tableLayout, locale, className, style }: TableProps<T>) {
     const small = size === "small";
     const cellPad = small ? "px-2 py-1.5" : size === "large" ? "px-4 py-3" : "px-3 py-2";
     const selectable = Boolean(rowSelection);
     const selectedKeys = new Set(rowSelection?.selectedRowKeys ?? []);
+    const fixedOffsets = useFixedOffsets(columns, selectable);
 
     const toggleRow = (key: Key, record: T) => {
         if (!rowSelection) return;
@@ -95,24 +141,28 @@ export function Table<T>({ columns, dataSource = [], rowKey, loading = false, pa
         dataSource.length === 0 ? (
             <div className="py-6">{typeof locale?.emptyText === "string" || locale?.emptyText === undefined ? <Empty description={locale?.emptyText} /> : locale.emptyText}</div>
         ) : (
-            <table className={cn("gm-table w-full border-collapse text-sm", tableLayout === "fixed" && "table-fixed")} style={{ minWidth: scroll?.x }}>
-                <thead>
+            <table className={cn("gm-table ant-table w-full border-collapse text-sm", tableLayout === "fixed" && "table-fixed")} style={{ minWidth: scroll?.x }}>
+                <thead className="ant-table-thead">
                     <tr className="border-b border-[var(--gm-border)] text-xs text-[var(--gm-text-3)]">
                         {selectable ? <th className={cn(cellPad, "w-10")} /> : null}
                         {columns.map((column, columnIndex) => (
-                            <th key={column.key ?? String(column.dataIndex ?? columnIndex)} style={{ width: column.width }} className={cn(cellPad, "font-medium whitespace-nowrap", column.align && ALIGN_CLASS[column.align])}>
+                            <th
+                                key={column.key ?? String(column.dataIndex ?? columnIndex)}
+                                style={{ width: column.width, ...fixedCellStyle(fixedOffsets[columnIndex], true) }}
+                                className={cn(cellPad, "gm-table-cell font-medium whitespace-nowrap", column.align && ALIGN_CLASS[column.align], fixedCellClass(fixedOffsets[columnIndex]))}
+                            >
                                 {column.title}
                             </th>
                         ))}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--gm-border)]">
+                <tbody className="ant-table-tbody divide-y divide-[var(--gm-border)]">
                     {dataSource.map((record, rowIndex) => {
                         const key = resolveRowKey(record, rowIndex, rowKey);
                         const checked = selectedKeys.has(key);
                         const checkboxProps = rowSelection?.getCheckboxProps?.(record);
                         return (
-                            <tr key={key} className="text-[var(--gm-text)] hover:bg-[var(--gm-wash)]">
+                            <tr key={key} className={cn("text-[var(--gm-text)] hover:bg-[var(--gm-wash)]", checked && "gm-table-row-selected")}>
                                 {selectable ? (
                                     <td className={cellPad}>
                                         <input type="checkbox" aria-label="选择此行" title={checkboxProps?.title} checked={checked} disabled={checkboxProps?.disabled} onChange={() => toggleRow(key, record)} className="gm-checkbox" />
@@ -122,7 +172,11 @@ export function Table<T>({ columns, dataSource = [], rowKey, loading = false, pa
                                     const value = column.dataIndex !== undefined ? (record as Record<string, unknown>)[column.dataIndex as string] : undefined;
                                     const content = column.render ? column.render(value, record, rowIndex) : (value as ReactNode);
                                     return (
-                                        <td key={column.key ?? String(column.dataIndex ?? columnIndex)} className={cn(cellPad, column.align && ALIGN_CLASS[column.align])}>
+                                        <td
+                                            key={column.key ?? String(column.dataIndex ?? columnIndex)}
+                                            style={fixedCellStyle(fixedOffsets[columnIndex], false)}
+                                            className={cn(cellPad, "gm-table-cell", column.align && ALIGN_CLASS[column.align], fixedCellClass(fixedOffsets[columnIndex]))}
+                                        >
                                             {column.ellipsis && !column.render ? (
                                                 <span className="block truncate" title={typeof value === "string" ? value : undefined}>
                                                     {content}
@@ -143,7 +197,7 @@ export function Table<T>({ columns, dataSource = [], rowKey, loading = false, pa
     return (
         <div className={cn("gm-table-wrap", className)} style={style}>
             <Spin spinning={loading}>
-                <div className={scroll?.x ? "overflow-x-auto" : undefined}>{body}</div>
+                <div className={cn("gm-table-content", scroll?.x && "overflow-x-auto")}>{body}</div>
             </Spin>
             {pagination !== false && pagination?.total !== undefined ? (
                 <div className="mt-3 flex justify-end">
