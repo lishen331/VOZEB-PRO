@@ -314,14 +314,7 @@ function RadioItem({ value, className, children, disabled, forceButton = false }
         );
     }
     return (
-        <label
-            className={cn(
-                "gm-radio group/radio inline-flex items-start gap-2 text-sm text-[var(--gm-text)]",
-                mergedDisabled ? "cursor-not-allowed opacity-45" : "cursor-pointer",
-                checked && "gm-radio-checked",
-                className,
-            )}
-        >
+        <label className={cn("gm-radio group/radio inline-flex items-start gap-2 text-sm text-[var(--gm-text)]", mergedDisabled ? "cursor-not-allowed opacity-45" : "cursor-pointer", checked && "gm-radio-checked", className)}>
             {input}
             <span
                 aria-hidden

@@ -75,12 +75,7 @@ function setIn(source: Record<string, unknown>, path: (string | number)[], value
     const [head, ...rest] = path;
     const current = source[head];
     if (!rest.length) return { ...source, [head]: value };
-    const base =
-        current && typeof current === "object"
-            ? Array.isArray(current)
-                ? ([...current] as unknown as Record<string, unknown>)
-                : (current as Record<string, unknown>)
-            : {};
+    const base = current && typeof current === "object" ? (Array.isArray(current) ? ([...current] as unknown as Record<string, unknown>) : (current as Record<string, unknown>)) : {};
     return { ...source, [head]: setIn(base, rest, value) };
 }
 
@@ -238,11 +233,7 @@ export class FormStore {
             }
             if (rule.min !== undefined && !isEmptyValue(value)) {
                 // 按实际值判：数组数成员、字符串数字符、数字比大小
-                const under = Array.isArray(value)
-                    ? value.length < rule.min
-                    : typeof value === "string"
-                      ? [...value].length < rule.min
-                      : typeof value === "number" && value < rule.min;
+                const under = Array.isArray(value) ? value.length < rule.min : typeof value === "string" ? [...value].length < rule.min : typeof value === "number" && value < rule.min;
                 if (under) return rule.message ?? `不能少于 ${rule.min}`;
             }
         }
@@ -444,10 +435,7 @@ function FormRoot<Values extends object = Record<string, unknown>>({
 
     // 回调随渲染更新，避免闭包拿到旧的 onFinish
     useEffect(() => {
-        store.setCallbacks(
-            onFinish as ((values: Record<string, unknown>) => void | Promise<void>) | undefined,
-            onValuesChange as ((changed: Record<string, unknown>, all: Record<string, unknown>) => void) | undefined,
-        );
+        store.setCallbacks(onFinish as ((values: Record<string, unknown>) => void | Promise<void>) | undefined, onValuesChange as ((changed: Record<string, unknown>, all: Record<string, unknown>) => void) | undefined);
     }, [store, onFinish, onValuesChange]);
 
     // initialValues 只在首次挂载灌入（与 antd 一致）
@@ -585,11 +573,7 @@ function FormItem({ name, label, rules, required, extra, className, style, value
 
     return (
         <FormItemInputContext.Provider value={{ status: visibleError ? "error" : undefined, isFormItemInput: true } as never}>
-            <div
-                style={style}
-                hidden={hidden}
-                className={cn("gm-form-item", layout === "vertical" ? "flex flex-col gap-1.5" : "grid grid-cols-[160px_1fr] items-start gap-3", className)}
-            >
+            <div style={style} hidden={hidden} className={cn("gm-form-item", layout === "vertical" ? "flex flex-col gap-1.5" : "grid grid-cols-[160px_1fr] items-start gap-3", className)}>
                 {label !== undefined && label !== null ? (
                     <label htmlFor={fieldId} className="gm-form-item-label flex items-center gap-1 text-[13px] font-medium text-[var(--gm-text)]">
                         {label}

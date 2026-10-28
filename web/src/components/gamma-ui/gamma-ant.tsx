@@ -297,7 +297,12 @@ export function Segmented<T extends SegmentedValue = SegmentedValue>({ options, 
             aria-label={ariaLabel}
             aria-disabled={mergedDisabled || undefined}
             onKeyDown={onKeyDown}
-            className={cn("gm-segmented ant-segmented max-w-full gap-0.5 rounded-[var(--gm-radius)] bg-[var(--gm-surface-2)] p-[3px] ring-1 ring-inset ring-[var(--gm-border)]", block ? "flex w-full" : "inline-flex", mergedDisabled && "opacity-50", className)}
+            className={cn(
+                "gm-segmented ant-segmented max-w-full gap-0.5 rounded-[var(--gm-radius)] bg-[var(--gm-surface-2)] p-[3px] ring-1 ring-inset ring-[var(--gm-border)]",
+                block ? "flex w-full" : "inline-flex",
+                mergedDisabled && "opacity-50",
+                className,
+            )}
         >
             {normalized.map((option) => {
                 const active = option.value === current;

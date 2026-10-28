@@ -120,11 +120,7 @@ export function DramaLabStoryboardConstraints({
                     <legend className="sr-only" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>
                         分镜模式
                     </legend>
-                    <Radio.Group
-                        value={value.creationMode || "classic"}
-                        disabled={disabled}
-                        onChange={(event) => onChange({ ...value, creationMode: event.target.value as "classic" | "universal" })}
-                    >
+                    <Radio.Group value={value.creationMode || "classic"} disabled={disabled} onChange={(event) => onChange({ ...value, creationMode: event.target.value as "classic" | "universal" })}>
                         <Radio value="classic">经典分镜</Radio>
                         <Radio value="universal">全能分镜</Radio>
                     </Radio.Group>
