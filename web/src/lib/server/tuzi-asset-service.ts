@@ -2,11 +2,13 @@ import { createHash } from "node:crypto";
 
 import { fileTypeFromBuffer } from "file-type";
 
+import { parseBase64DataUrl } from "@/lib/data-url";
 import type { VideoGenerationReference } from "@/lib/video-reference-contract";
 
 const TUZI_ASSET_MAX_BYTES = 30 * 1024 * 1024;
 const TUZI_ASSET_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/tiff"]);
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const TUZI_COMPLIANCE_MAX_RETRIES = 3;
 const assetCache = new Map<string, { reference: string; expiresAt: number }>();
 
 type TuziFetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -15,6 +17,8 @@ export type TuziAssetServiceOptions = {
     baseUrl: string;
     apiKey: string;
     cacheScope: string;
+    /** Upstream model the asset is reviewed for; assets are per-model, so it is also part of the cache key. */
+    model?: string;
     fetcher?: TuziFetch;
     /** Reads reference bytes; defaults to the API fetcher. */
     sourceFetcher?: TuziFetch;
@@ -39,12 +43,16 @@ export function isTuziAssetReference(value: string) {
 export async function ingestTuziImageAsset(bytes: Buffer, options: TuziAssetServiceOptions) {
     const mimeType = (await fileTypeFromBuffer(bytes))?.mime?.toLowerCase() || "";
     if (!TUZI_ASSET_IMAGE_MIME_TYPES.has(mimeType)) throw new TuziAssetError("兔子素材库只接受 JPG/PNG/WebP/GIF/BMP/TIFF 图片");
-    const cacheKey = `${options.cacheScope}\0${createHash("sha256").update(bytes).digest("hex")}`;
+    const cacheKey = `${options.cacheScope}\0${options.model || ""}\0${createHash("sha256").update(bytes).digest("hex")}`;
     const cached = assetCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.reference;
 
     const form = new FormData();
-    form.append("file", new Blob([new Uint8Array(bytes)], { type: mimeType }), `reference.${mimeType.split("/")[1] || "png"}`);
+    const fileName = `reference.${mimeType.split("/")[1] || "png"}`;
+    form.append("file", new Blob([new Uint8Array(bytes)], { type: mimeType }), fileName);
+    // 兔子素材按模型审核；不带 model 时上游按默认模型审，换模型生成会报 asset not found（2026-10-23 生产）。
+    if (options.model) form.append("model", options.model);
+    form.append("name", fileName);
     const created = await tuziAssetRequest(options, "/v1/seedance/assets", { method: "POST", body: form }, "兔子素材上传失败");
     const id = readString(created.id);
     if (!id) throw new TuziAssetError("兔子素材上传响应缺少素材 ID");
@@ -53,6 +61,7 @@ export async function ingestTuziImageAsset(bytes: Buffer, options: TuziAssetServ
 
     const deadline = Date.now() + (options.timeoutMs ?? 180_000);
     const interval = options.pollIntervalMs ?? 3_000;
+    let complianceRetries = 0;
     for (;;) {
         const status = readString(latest.status)?.toLowerCase();
         const reference = readString(latest.reference);
@@ -60,6 +69,13 @@ export async function ingestTuziImageAsset(bytes: Buffer, options: TuziAssetServ
             if (!reference || !isTuziAssetReference(reference)) throw new TuziAssetError("兔子素材已通过审核但响应缺少有效的 asset:// 引用");
             assetCache.set(cacheKey, { reference, expiresAt: Date.now() + CACHE_TTL_MS });
             return reference;
+        }
+        // 审核 failed 有时是上游审核服务抖动，同一张图重新发起即通过（2026-10-23 生产）。截止时间内最多重发 3 次。
+        if (status === "failed" && complianceRetries < TUZI_COMPLIANCE_MAX_RETRIES && Date.now() < deadline) {
+            complianceRetries += 1;
+            if (interval) await new Promise((resolve) => setTimeout(resolve, interval + Math.floor(Math.random() * 1_000)));
+            latest = await tuziAssetRequest(options, `${assetPath}/compliance`, { method: "POST" }, "兔子素材审核发起失败");
+            continue;
         }
         if (status === "failed" || status === "deleted") throw new TuziAssetError(`兔子素材审核未通过：${readString(latest.error_message) || status}`);
         if (Date.now() >= deadline) throw new TuziAssetError("兔子素材审核超时");
@@ -96,9 +112,9 @@ export function clearTuziAssetCacheForTests() {
 }
 
 async function readReferenceBytes(url: string, fetcher: TuziFetch) {
-    const dataUrl = url.match(/^data:image\/[\w.+-]+;base64,(.+)$/i);
-    if (dataUrl) {
-        const bytes = Buffer.from(dataUrl[1], "base64");
+    const dataUrl = parseBase64DataUrl(url);
+    if (dataUrl && /^image\/[\w.+-]+$/i.test(dataUrl.mimeType)) {
+        const bytes = Buffer.from(dataUrl.data, "base64");
         if (bytes.byteLength > TUZI_ASSET_MAX_BYTES) throw new TuziAssetError("兔子素材图片不能超过 30MB");
         return bytes;
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { creativeModelProfileForLogicalModel, creativeSelectedModelProfile, reconcileCreativeGenerationPreferences, type CreativeModelCapabilityOption } from "./creative-model-capabilities";
+import { creativeModelProfileForLogicalModel, creativeSelectedModelProfile, reconcileCreativeGenerationPreferences, unsupportedReferenceIssues, type CreativeModelCapabilityOption } from "./creative-model-capabilities";
 
 describe("creative model capabilities", () => {
     it("merges route bindings and intersects the explicitly configured options of selected models", () => {
@@ -56,5 +56,52 @@ describe("creative model capabilities", () => {
         expect(creativeSelectedModelProfile(models, "image")).toEqual({ maxBatchSize: 3 });
         expect(reconcileCreativeGenerationPreferences({ image: { count: 1 } }, models)).toEqual({ image: { count: 2 } });
         expect(reconcileCreativeGenerationPreferences({ image: { count: 9 } }, models)).toEqual({ image: { count: 3 } });
+    });
+});
+
+describe("reference material capabilities", () => {
+    it("treats a reference type as unsupported only when every enabled binding explicitly rejects it", () => {
+        const profile = creativeModelProfileForLogicalModel({
+            id: "video",
+            bindings: [
+                { enabled: true, capabilityProfile: { supportsReferenceVideo: false, supportsReferenceAudio: false, supportsReferenceImage: true } },
+                { enabled: true, capabilityProfile: { supportsReferenceVideo: false } },
+                { enabled: false, capabilityProfile: { supportsReferenceVideo: true } },
+            ],
+        });
+        expect(profile?.supportsReferenceVideo).toBe(false);
+        expect(profile?.supportsReferenceAudio).toBeUndefined();
+        expect(profile?.supportsReferenceImage).toBeUndefined();
+    });
+
+    it("keeps the largest reference image limit and drops it when any binding is unlimited", () => {
+        const limited = creativeModelProfileForLogicalModel({
+            id: "a",
+            bindings: [
+                { enabled: true, capabilityProfile: { maxReferenceImages: 4 } },
+                { enabled: true, capabilityProfile: { maxReferenceImages: 9 } },
+            ],
+        });
+        expect(limited?.maxReferenceImages).toBe(9);
+        const unlimited = creativeModelProfileForLogicalModel({
+            id: "b",
+            bindings: [
+                { enabled: true, capabilityProfile: { maxReferenceImages: 4 } },
+                { enabled: true, capabilityProfile: { aspectRatios: ["16:9"] } },
+            ],
+        });
+        expect(unlimited?.maxReferenceImages).toBeUndefined();
+    });
+
+    it("lists only explicitly unsupported references", () => {
+        const none = { images: 0, videos: 0, audios: 0 };
+        expect(unsupportedReferenceIssues(undefined, { images: 3, videos: 1, audios: 1 })).toEqual([]);
+        expect(unsupportedReferenceIssues({}, { images: 3, videos: 1, audios: 1 })).toEqual([]);
+        expect(unsupportedReferenceIssues({ supportsReferenceVideo: false }, none)).toEqual([]);
+        expect(unsupportedReferenceIssues({ supportsReferenceVideo: false }, { ...none, videos: 1 }, "seedance")).toEqual(["seedance 不支持参考视频。请断开参考视频，或换一个支持参考视频的模型。"]);
+        expect(unsupportedReferenceIssues({ supportsReferenceAudio: false }, { ...none, audios: 2 })[0]).toContain("不支持参考音频");
+        expect(unsupportedReferenceIssues({ supportsReferenceImage: false, maxReferenceImages: 2 }, { ...none, images: 3 })).toEqual(["该模型 不支持参考图。请断开参考图，或换一个支持参考图的模型。"]);
+        expect(unsupportedReferenceIssues({ maxReferenceImages: 4 }, { ...none, images: 6 })).toEqual(["该模型 最多支持 4 张参考图，当前连接了 6 张。"]);
+        expect(unsupportedReferenceIssues({ maxReferenceImages: 4 }, { ...none, images: 4 })).toEqual([]);
     });
 });

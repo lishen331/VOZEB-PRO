@@ -5,6 +5,13 @@ const DIAGNOSTIC_TEXT_SCAN_LIMIT = 16 * 1024;
 export type MediaDiagnosticEvent = { at: number; phase: string; [key: string]: string | number | boolean | undefined };
 const stringFields = [
     "transportPolicy",
+    "mediaReadId",
+    "stage",
+    "urlHost",
+    "urlPathHash",
+    "finalHost",
+    "finalPathHash",
+    "logicalModel",
     "taskId",
     "nodeId",
     "projectId",
@@ -15,6 +22,7 @@ const stringFields = [
     "state",
     "method",
     "contentType",
+    "contentEncoding",
     "errorName",
     "errorCode",
     "size",
@@ -29,7 +37,7 @@ const stringFields = [
     "stack",
 ] as const;
 const STACK_DIAGNOSTIC_MAX_CHARS = 1500;
-const numberFields = ["status", "durationMs", "referenceCount", "responseBytes", "attemptNo", "firstByteMs", "idleMs", "contentLength"] as const;
+const numberFields = ["status", "durationMs", "referenceCount", "responseBytes", "attemptNo", "firstByteMs", "idleMs", "contentLength", "width", "height", "redirectCount"] as const;
 
 export function sanitizeDiagnosticEvent(input: Record<string, unknown>, now = Date.now()): MediaDiagnosticEvent {
     const event: MediaDiagnosticEvent = { at: now, phase: typeof input.phase === "string" ? redactDiagnosticText(input.phase).slice(0, 64) : "unknown" };

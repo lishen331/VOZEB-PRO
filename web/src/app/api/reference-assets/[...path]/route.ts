@@ -1,3 +1,4 @@
+import { REFERENCE_ASSET_SIGNATURE_PURPOSE } from "@/lib/reference-asset-url";
 import { creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
 import { NextResponse } from "next/server";
 
@@ -86,6 +87,34 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
                 return withMediaConcurrency(response, permit, request.signal);
             }
             const externalUrl = await createExternalMediaReadUrl(request, mediaRegistration);
+            if (externalUrl && signed && url.searchParams.get("purpose") === REFERENCE_ASSET_SIGNATURE_PURPOSE && mediaRegistration.mimeType.startsWith("video/")) {
+                const sourceAbort = new AbortController();
+                permit.setExpiryHandler(() => sourceAbort.abort("Media concurrency lease expired"));
+                const range = request.headers.get("range");
+                const source = await fetch(externalUrl, { headers: { "Accept-Encoding": "identity", ...(range ? { Range: range } : {}) }, signal: AbortSignal.any([request.signal, sourceAbort.signal]), cache: "no-store" });
+                if ((source.status !== 200 && source.status !== 206 && source.status !== 416) || (source.status !== 416 && !source.body)) {
+                    await source.body?.cancel().catch(() => undefined);
+                    throw new Error(`Object video read failed (${source.status})`);
+                }
+                const headers = new Headers({
+                    "Content-Type": mediaRegistration.mimeType,
+                    "Content-Disposition": mediaContentDisposition("inline", mediaName, mediaMimeType),
+                    "Accept-Ranges": "bytes",
+                    "Cache-Control": "private, no-store",
+                    "Cross-Origin-Resource-Policy": "same-site",
+                    "X-Content-Type-Options": "nosniff",
+                    "X-Robots-Tag": "noindex, nofollow, noarchive",
+                });
+                for (const name of ["Content-Length", "Content-Range", "ETag", "Last-Modified"]) {
+                    const value = source.headers.get(name);
+                    if (value !== null) headers.set(name, value);
+                }
+                if (source.status === 416) {
+                    await source.body?.cancel().catch(() => undefined);
+                    headers.delete("Content-Length");
+                }
+                return withMediaConcurrency(new Response(source.status === 416 ? null : source.body, { status: source.status, headers }), permit, request.signal);
+            }
             permit.release();
             return externalUrl ? externalMediaRedirect(externalUrl) : NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
         } catch (error) {
