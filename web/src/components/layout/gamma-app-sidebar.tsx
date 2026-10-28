@@ -33,11 +33,13 @@ export interface GammaAppSidebarProps {
     onLogin?: () => void;
     /** 首页已有自己的套餐弹窗时传入；不传则用侧栏自带的 */
     onPlans?: () => void;
+    /** 页面自己的顶栏已经放了主题切换时传 false（默认）；页面没有顶栏时传 true，把明暗切换收进侧栏 */
+    showTheme?: boolean;
 }
 
 const assign = (path: string) => window.location.assign(path);
 
-export function GammaAppSidebar({ collapsed, onToggle, featureModules, menuPermissions, schoolContext = null, onLogin, onPlans }: GammaAppSidebarProps) {
+export function GammaAppSidebar({ collapsed, onToggle, featureModules, menuPermissions, schoolContext = null, onLogin, onPlans, showTheme = false }: GammaAppSidebarProps) {
     const pathname = usePathname();
     const user = useUserStore((state) => state.user);
     const sessionReady = usePublicSessionStore((state) => state.ready);
@@ -81,7 +83,7 @@ export function GammaAppSidebar({ collapsed, onToggle, featureModules, menuPermi
                         ready={ready}
                         dark={theme === "dark"}
                         showHelp={isHelpCenterVisible(modules, menuPermissions)}
-                        showTheme={false}
+                        showTheme={showTheme}
                         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
                         onLogin={onLogin || (() => assign("/login"))}
                         onPlans={onPlans || (() => setPlansOpen(true))}
