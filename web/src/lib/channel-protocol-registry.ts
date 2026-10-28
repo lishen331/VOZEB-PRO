@@ -553,6 +553,9 @@ export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | 
     if (isLegacyDoubaoSeedanceModel(model) && isLegacyVideoProtocol(configuredProtocol) && (modelConfig?.capability === "video" || !modelConfig)) {
         return protocolModelConfig("seedance", "video", model);
     }
+    // New API 的 OpenAI 图片接口只转换 imagen 模型，gemini-*-image 会报 "only imagen models are supported"
+    //（2026-10-28 staging 实测）；同一 key 走原生 /v1beta generateContent 可用。读取时纠正为 Gemini 格式。
+    if (modelConfig && configuredProtocol === "newapi" && isGeminiImageModel(model) && modelConfig.apiFormat !== "gemini") return { ...modelConfig, apiFormat: "gemini" as const };
     if (modelConfig) return modelConfig;
     const capability = protocolCatalogCapability(config.protocol) || config.modelCapabilities?.[key] || inferModelCapability(model);
     const operation = config.operationConfigs?.[capability];
@@ -592,6 +595,10 @@ function isLegacyVideoProtocol(protocol: SystemChannelProtocol | undefined) {
     // native Volcengine would incorrectly route it to `/contents/...`, which
     // is the dashboard HTML route on New API relays.
     return protocol === "auto" || protocol === "openai" || protocol === "sub2api" || protocol === "compatible";
+}
+
+function isGeminiImageModel(model: string) {
+    return /^gemini-[\w.-]*image/i.test(normalizeModelId(model));
 }
 
 export function isLegacyDoubaoSeedanceModel(model: string) {

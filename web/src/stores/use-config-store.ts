@@ -141,6 +141,7 @@ export type AiConfig = {
 
 type GenerationPointMultipliers = {
     imageQuality: Record<string, number>;
+    imageResolution?: Record<string, number>;
     videoQuality: Record<string, number>;
     videoSeconds: Record<string, number>;
 };
@@ -216,10 +217,11 @@ export const defaultConfig: AiConfig = {
     count: "1",
     canvasImageCount: "1",
     imageBackground: "auto",
-    imageResolution: "medium",
+    imageResolution: "",
     modelPointCosts: {},
     generationPointMultipliers: {
         imageQuality: { auto: 1, low: 1, medium: 1, high: 1 },
+        imageResolution: { auto: 1, "1k": 1, "2k": 1, "4k": 1 },
         videoQuality: { "480": 1, "720": 1, "1080": 1 },
         videoSeconds: { "-1": 1, "5": 1, "10": 1 },
     },

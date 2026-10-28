@@ -348,6 +348,8 @@ export type GenerationDefaultSettings = {
 
 export type GenerationPointMultipliers = {
     imageQuality: Record<string, number>;
+    /** 清晰度倍率（1k/2k/4k），与画质倍率相乘。 */
+    imageResolution?: Record<string, number>;
     videoQuality: Record<string, number>;
     videoSeconds: Record<string, number>;
 };

@@ -313,6 +313,18 @@ describe("channel protocol registry", () => {
         ).toMatchObject({ capability: "video", protocol: "custom", createPath: "/jobs" });
     });
 
+    it("repairs New API Gemini image models saved with the OpenAI images format", () => {
+        const advanced = {
+            ...applyChannelProtocol(channel, "newapi").advancedConfig!,
+            modelConfigs: {
+                "gemini-3-pro-image-preview": { capability: "image" as const, protocol: "newapi" as const, apiFormat: "openai" as const, createPath: "/images/generations" },
+                "gpt-image-2": { capability: "image" as const, protocol: "newapi" as const, apiFormat: "openai" as const, createPath: "/images/generations" },
+            },
+        };
+        expect(resolveChannelModelConfig(advanced, "gemini-3-pro-image-preview")).toMatchObject({ apiFormat: "gemini" });
+        expect(resolveChannelModelConfig(advanced, "gpt-image-2")).toMatchObject({ apiFormat: "openai" });
+    });
+
     it("routes New API Doubao Seedance models through the JSON task contract", () => {
         const configured = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
         expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0")).toMatchObject({

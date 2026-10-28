@@ -70,6 +70,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
         model: config.model,
         count: mode === "image" ? config.count : 1,
         quality: config.quality,
+        resolution: config.imageResolution,
+        size: config.size,
         videoQuality: config.vquality,
         videoSeconds: config.videoSeconds,
     });

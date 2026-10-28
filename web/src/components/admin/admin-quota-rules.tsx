@@ -14,9 +14,16 @@ import { toNumberOrOne, toNumberOrZero, uniqueList } from "@/components/admin/ad
 
 const imageQualityMultiplierOptions = [
     { key: "auto", label: "自动" },
-    { key: "low", label: "低清" },
-    { key: "medium", label: "中等" },
-    { key: "high", label: "高清" },
+    { key: "low", label: "低" },
+    { key: "medium", label: "标准" },
+    { key: "high", label: "高" },
+];
+// 按实际请求像素归档：≤1.6MP 为 1K，≤4.5MP 为 2K，更大为 4K；未指定尺寸记"自动"。
+const imageResolutionMultiplierOptions = [
+    { key: "auto", label: "自动" },
+    { key: "1k", label: "1K" },
+    { key: "2k", label: "2K" },
+    { key: "4k", label: "4K" },
 ];
 const videoQualityMultiplierOptions = [
     { key: "480", label: "480p" },
@@ -160,9 +167,10 @@ export function QuotaRuleTable({
             </section>
             <section className="pt-4 sm:pt-5">
                 <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">生成参数倍率</div>
-                <div className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">最终扣费 = 模型消耗 × 图片张数/视频任务 × 对应参数倍率。未命中的自定义参数按 1 倍计算。</div>
-                <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(220px,0.8fr)_minmax(220px,0.8fr)_minmax(360px,1.4fr)]">
-                    <MultiplierGroup title="图片清晰度" values={imageQualityMultiplierOptions} group="imageQuality" settings={settings.generationPointMultipliers.imageQuality} onChange={onGenerationPointMultiplierChange} />
+                <div className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">最终扣费 = 模型消耗 × 图片张数/视频任务 × 对应参数倍率；图片为画质倍率 × 清晰度倍率。模型没有画质参数时画质按「自动」计。未命中的自定义参数按 1 倍计算。</div>
+                <div className="mt-3 grid gap-3 xl:grid-cols-2 2xl:grid-cols-[minmax(200px,0.8fr)_minmax(200px,0.8fr)_minmax(200px,0.8fr)_minmax(320px,1.4fr)]">
+                    <MultiplierGroup title="图片画质" values={imageQualityMultiplierOptions} group="imageQuality" settings={settings.generationPointMultipliers.imageQuality} onChange={onGenerationPointMultiplierChange} />
+                    <MultiplierGroup title="图片清晰度" values={imageResolutionMultiplierOptions} group="imageResolution" settings={settings.generationPointMultipliers.imageResolution || {}} onChange={onGenerationPointMultiplierChange} />
                     <MultiplierGroup title="视频清晰度" values={videoQualityMultiplierOptions} group="videoQuality" settings={settings.generationPointMultipliers.videoQuality} onChange={onGenerationPointMultiplierChange} />
                     <VideoSecondsMultiplierGroup settings={settings.generationPointMultipliers.videoSeconds} onChange={onGenerationPointMultiplierChange} onDelete={onGenerationPointMultiplierDelete} />
                 </div>

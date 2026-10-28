@@ -2,6 +2,7 @@ import { isOfficialWorkflowQueryPath, queryRunningHubTask } from "@/lib/server/r
 import type { ImageTask } from "@/lib/server/image-task-store";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 import { buildProviderRequest, isProviderBusinessError, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
+import { imagePixelTier, requestedImageResolution } from "@/lib/image-generation-params";
 import { buildYumengImageRequest, resolveYumengImageResolution } from "@/lib/yumeng-model-center";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
@@ -57,7 +58,7 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         size,
         ratio: imageRequestAspectRatio(config.size || "auto"),
         aspect_ratio: imageRequestAspectRatio(config.size || "auto"),
-        resolution: advanced.protocol === "yumeng" ? resolveYumengImageResolution(config.model, config.quality) : config.quality || "auto",
+        resolution: advanced.protocol === "yumeng" ? resolveYumengImageResolution(config.model, requestedImageResolution(config)) : requestedImageResolution(config)?.toUpperCase() || "auto",
         width,
         height,
         quality: config.quality || "auto",
@@ -139,8 +140,8 @@ async function parseDeclarativeSubmission(task: ImageTask, response: Response, u
     });
 }
 
-export function resolveDeclarativeImageSize(config: Pick<ImageTask["config"], "quality" | "size" | "advancedConfig">) {
-    const size = resolveRequestSize(config.quality, config.size || "auto") || config.size || "";
+export function resolveDeclarativeImageSize(config: Pick<ImageTask["config"], "quality" | "size" | "advancedConfig"> & Partial<Pick<ImageTask["config"], "model" | "resolution">>) {
+    const size = resolveRequestSize(imagePixelTier(config), config.size || "auto") || config.size || "";
     return !size || size.toLowerCase() === "auto" ? "" : size;
 }
 

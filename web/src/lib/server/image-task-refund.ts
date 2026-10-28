@@ -14,7 +14,7 @@ export async function refundImageTask(task: ImageTask) {
         receiptId: billing.billingReceiptId,
         model: generationModelId(task.config),
         usageKind: "image",
-        units: imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality),
+        units: imageUnits(task.config, settings.generationPointMultipliers),
         idempotencyKey: imageTaskRefundIdempotencyKey(task),
     });
     await updateImageTask(task.id, { billing: { ...billing, refunded: true } });

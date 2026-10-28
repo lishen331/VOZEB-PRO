@@ -26,6 +26,8 @@ export type ImageTaskConfig = {
     // 溢出路线实际所属的逻辑模型，只用于代理校验绑定。
     routeLogicalModel?: string;
     quality?: string;
+    /** 清晰度 1k/2k/4k，独立于画质；未设置时由画质推导（旧行为）。 */
+    resolution?: string;
     size?: string;
     outputBackground?: "opaque" | "transparent";
     outputMode?: "layers";

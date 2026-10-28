@@ -159,6 +159,7 @@ export function serializeModelCatalogSettings(settings: AuthSettings) {
         modelPointCosts: { ...settings.modelPointCosts },
         generationPointMultipliers: {
             imageQuality: { ...settings.generationPointMultipliers.imageQuality },
+            imageResolution: { ...settings.generationPointMultipliers.imageResolution },
             videoQuality: { ...settings.generationPointMultipliers.videoQuality },
             videoSeconds: { ...settings.generationPointMultipliers.videoSeconds },
         },

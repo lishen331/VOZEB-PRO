@@ -559,6 +559,63 @@ describe("OpenAI image provider over a live compatible fixture", () => {
         }
     });
 
+    it.each([
+        ["gpt-image-2", "high", "1k", "16:9", { quality: "high", size: "1360x768" }],
+        ["gpt-image-2", "low", "4k", "1:1", { quality: "low", size: "2880x2880" }],
+        ["doubao-seedream-4-5-251128", "high", "1k", "16:9", { size: "2720x1536" }],
+    ] as const)("sends %s 画质=%s 清晰度=%s independently", async (model, quality, resolution, size, expected) => {
+        const fixture = createProtocolFixtureServer();
+        await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
+        const address = fixture.server.address();
+        if (!address || typeof address === "string") throw new Error("Protocol fixture did not bind a TCP port");
+        const origin = `http://127.0.0.1:${address.port}`;
+        const task = liveImageTask(origin, {
+            id: `image-decoupled-${model}-${quality}-${resolution}`,
+            config: { baseUrl: origin, apiKey: "fixture-key", apiFormat: "openai", model, quality, resolution, size, channelId: "fixture-newapi-image", advancedConfig: { ...emptyAdvancedConfig(), protocol: "newapi" } },
+        });
+
+        try {
+            await runOpenAiImageTask(task, "http://internal", "http://public", "", true);
+            const body = JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}");
+            expect(body).toMatchObject(expected);
+            // 上游没有画质参数的模型不发 quality。
+            if (!("quality" in expected)) expect(body.quality).toBeUndefined();
+        } finally {
+            await new Promise<void>((resolve, reject) => fixture.server.close((error?: Error) => (error ? reject(error) : resolve())));
+        }
+    });
+
+    it("sends Gemini 3 image size and aspect ratio through imageConfig without a quality field", async () => {
+        const fixture = createProtocolFixtureServer();
+        await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
+        const address = fixture.server.address();
+        if (!address || typeof address === "string") throw new Error("Protocol fixture did not bind a TCP port");
+        const origin = `http://127.0.0.1:${address.port}`;
+        const task = liveImageTask(origin, {
+            id: "image-gemini-image-config",
+            config: {
+                baseUrl: origin,
+                apiKey: "fixture-key",
+                apiFormat: "gemini",
+                model: "gemini-3-pro-image-preview",
+                quality: "high",
+                resolution: "2k",
+                size: "9:21",
+                channelId: "fixture-gemini",
+                advancedConfig: { ...emptyAdvancedConfig(), protocol: "compatible" },
+            },
+        });
+
+        try {
+            await runGeminiImageTask(task, origin, "");
+            const body = JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}");
+            // 9:21 不在 Gemini 比例列表里，取最接近的 9:16。
+            expect(body.generationConfig).toEqual({ responseModalities: ["TEXT", "IMAGE"], imageConfig: { aspectRatio: "9:16", imageSize: "2K" } });
+        } finally {
+            await new Promise<void>((resolve, reject) => fixture.server.close((error?: Error) => (error ? reject(error) : resolve())));
+        }
+    });
+
     it("sends Gemini image references and an edit mask as inlineData", async () => {
         const fixture = createProtocolFixtureServer();
         await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
@@ -630,7 +687,8 @@ describe("OpenAI image provider over a live compatible fixture", () => {
     });
 
     it.each([
-        ["custom", "high"],
+        // 自定义模板的 {{resolution}} 是清晰度档位（未选清晰度时由画质推导），不再是原样的画质值。
+        ["custom", "4K"],
         ["yumeng", "4K"],
     ] as const)("keeps image quality mapping isolated for the %s protocol", async (protocol, expectedResolution) => {
         const fixture = createProtocolFixtureServer();
@@ -692,11 +750,12 @@ describe("OpenAI image provider over a live compatible fixture", () => {
             expect(body).toMatchObject({
                 ratio: "9:16",
                 aspect_ratio: "9:16",
-                size: "1024x1824",
+                // 画质 "2K" 是旧别名，按 2K 像素档出图。
+                size: "1536x2720",
                 resolution: "2K",
                 quality: "2K",
-                width: 1024,
-                height: 1824,
+                width: 1536,
+                height: 2720,
                 n: 1,
                 count: 1,
                 num_images: 1,

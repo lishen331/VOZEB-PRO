@@ -66,6 +66,7 @@ export function updateAgentGenerationPreferences(preferences: CreativeGeneration
         const image = { ...preferences.image };
         if (patch.size !== undefined) image.size = patch.size;
         if (patch.quality !== undefined) image.quality = patch.quality;
+        if (patch.resolution !== undefined) image.resolution = patch.resolution;
         if (patch.count !== undefined) image.count = patch.count;
         return { ...preferences, mode: "image", image };
     }

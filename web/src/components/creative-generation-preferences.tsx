@@ -5,6 +5,7 @@ import { AudioLines, ChevronDown, ImageIcon, Lightbulb, Maximize2, Sparkles, Vid
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { audioFormatLabel, audioFormatOptions, audioVoiceLabel, audioVoiceOptions } from "@/lib/audio-generation";
+import { imageResolutionFromQuality as derivedImageResolution, normalizeImageResolution } from "@/lib/image-generation-params";
 import type { CreativeModelCapabilityProfile } from "@/lib/creative-model-capabilities";
 import type { CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
 import { cn } from "@/lib/utils";
@@ -81,22 +82,31 @@ const imagePaintQualityOptions = [
 ] as const;
 
 const imageResolutionOptions = [
-    { value: "low", label: "1K" },
-    { value: "medium", label: "2K" },
-    { value: "high", label: "4K" },
+    { value: "1k", label: "1K" },
+    { value: "2k", label: "2K" },
+    { value: "4k", label: "4K" },
 ] as const;
 
 /**
- * Upstream derives the requested pixel tier from image *quality*, not from the
- * separate `imageResolution` field (see image-task-openai.ts / route.ts). Mirror
- * that mapping here so the 清晰度 row can never contradict what is generated —
- * picking 标准 must read 2K, not 1K.
+ * 画质与清晰度独立：显式选过清晰度就显示所选档位；没选过时显示由画质推导的档位，
+ * 与后端未传清晰度时的出图尺寸一致。
+ */
+export function selectedImageResolution(image?: { quality?: string; resolution?: string }) {
+    return normalizeImageResolution(image?.resolution) || derivedImageResolution(image?.quality);
+}
+
+/**
+ * @deprecated 解绑前的画质→清晰度映射，只给尚未同步的 drama-canvas-runtime 副本用；新代码用 selectedImageResolution。
  */
 export function imageResolutionFromQuality(quality?: string) {
     const normalized = (quality || "").trim().toLowerCase();
     if (normalized === "high") return "high";
     if (normalized === "low") return "low";
     return "medium";
+}
+
+export function imageResolutionLabel(resolution: string) {
+    return resolution.toUpperCase();
 }
 
 const imageBackgroundOptions = [
@@ -432,14 +442,12 @@ function PreferencePanel({
 
     if (capability === "image") {
         const selectedBackground = preferences.image?.background || "auto";
-        const selectedResolution = imageResolutionFromQuality(selectedQuality);
+        const selectedResolution = selectedImageResolution(preferences.image);
         return (
             <div className={cn("grid min-w-0", compact ? "gap-2" : "gap-2.5")}>
                 <CompactOptionGroup label="画质" ariaLabel="选择图片画质" value={selectedQuality} options={imagePaintQualityOptions} columns={3} onChange={(quality) => onChange({ quality })} />
-                {/* Writes `quality`, not `resolution`: the pixel tier upstream honours
-                    is derived from quality, so routing clicks here keeps both rows in
-                    sync instead of writing a field that never leaves the browser. */}
-                <CompactOptionGroup label="清晰度" ariaLabel="选择图片清晰度" value={selectedResolution} options={imageResolutionOptions} columns={3} onChange={(resolution) => onChange({ quality: resolution, resolution })} />
+                {/* 画质与清晰度独立：两行都可点，上游没有的参数在后端不发送。 */}
+                <CompactOptionGroup label="清晰度" ariaLabel="选择图片清晰度" value={selectedResolution} options={imageResolutionOptions} columns={3} onChange={(resolution) => onChange({ resolution })} />
                 <CompactOptionGroup label="背景" ariaLabel="选择图片背景" value={selectedBackground} options={imageBackgroundOptions} columns={3} onChange={(background) => onChange({ background })} />
                 {fixedSizeLabel ? (
                     <div className="flex h-9 items-center justify-between rounded-lg bg-[#f5f6f7] px-3 text-[11px] dark:bg-[#24282e]">
@@ -856,13 +864,11 @@ export function generationPreferenceSummary(capability: MediaCapability, prefere
     const qualityLabel = capability === "image" ? imageQualityOptions.find((item) => item.value === quality)?.label || quality : videoQualityLabel(quality);
     const referenceLabel = capability === "video" ? videoReferenceModeOptions.find((item) => item.value === (preferences.video?.referenceMode || "reference"))?.label : undefined;
     if (capability === "image") {
-        const resolution = preferences.image?.resolution || "medium";
-        const resolutionLabel = ({ low: "1K", medium: "2K", high: "4K" } as Record<string, string>)[resolution] || "2K";
-        if (size === "auto" && quality === "auto" && resolution === "medium") return `智能参数${countLabel}`;
-        // Only show resolution label when it differs from the default 2K (medium);
-        // for custom-pixel sizes the size label already encodes the resolution.
-        const showResolution = resolution !== "medium" && !parseCustomDimensions(size);
-        return `${sizeLabel} · ${qualityLabel}${showResolution ? ` · ${resolutionLabel}` : ""}${countLabel}`;
+        const explicitResolution = normalizeImageResolution(preferences.image?.resolution);
+        if (size === "auto" && quality === "auto" && !explicitResolution) return `智能参数${countLabel}`;
+        // 只在显式选了清晰度时显示；自定义像素尺寸本身已经说明了清晰度。
+        const showResolution = Boolean(explicitResolution) && !parseCustomDimensions(size);
+        return `${sizeLabel} · ${qualityLabel}${showResolution && explicitResolution ? ` · ${imageResolutionLabel(explicitResolution)}` : ""}${countLabel}`;
     }
     const parameterLabel = size === "auto" && quality === "auto" ? "智能参数" : `${sizeLabel} · ${qualityLabel}`;
     const audioLabel = (preferences.video?.generateAudio ?? true) ? "有声" : "无声";

@@ -1,4 +1,5 @@
 import type { ComponentProps } from "react";
+import { imageTaskPointMultiplier } from "@/lib/image-generation-params";
 import { Sparkles } from "lucide-react";
 
 export function CreditSymbol({ className, ...props }: ComponentProps<"span">) {
@@ -16,6 +17,7 @@ type ModelCreditCost = {
 
 type GenerationPointMultipliers = {
     imageQuality: Record<string, number>;
+    imageResolution?: Record<string, number>;
     videoQuality: Record<string, number>;
     videoSeconds: Record<string, number>;
 };
@@ -56,15 +58,18 @@ type CreditCostOptions = {
     generationPointMultipliers?: GenerationPointMultipliers;
     kind?: "image" | "video" | "text" | "audio" | "api";
     quality?: string;
+    /** 图片清晰度（1k/2k/4k）与尺寸；与画质倍率相乘，口径同后端 imageTaskPointMultiplier。 */
+    resolution?: string;
+    size?: string;
     videoQuality?: string;
     videoSeconds?: string | number;
 };
 
-function generationParameterMultiplier(options: CreditCostOptions) {
+function generationParameterMultiplier(options: CreditCostOptions & { model?: string }) {
     const multipliers = options.generationPointMultipliers;
     const kind = options.kind || (options.videoQuality !== undefined || options.videoSeconds !== undefined ? "video" : options.quality !== undefined ? "image" : undefined);
     if (!multipliers) return 1;
-    if (kind === "image") return multiplierValue(multipliers.imageQuality, normalizeImageQualityKey(options.quality));
+    if (kind === "image") return imageTaskPointMultiplier({ model: options.model, quality: options.quality, resolution: options.resolution, size: options.size }, multipliers);
     if (kind === "video") {
         return multiplierValue(multipliers.videoQuality, normalizeVideoQualityKey(options.videoQuality)) * multiplierValue(multipliers.videoSeconds, normalizeVideoSecondsKey(options.videoSeconds));
     }
@@ -74,15 +79,6 @@ function generationParameterMultiplier(options: CreditCostOptions) {
 function multiplierValue(values: Record<string, number> | undefined, key: string) {
     const value = values?.[key];
     return Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 1;
-}
-
-function normalizeImageQualityKey(value: unknown) {
-    const key = String(value || "auto")
-        .trim()
-        .toLowerCase();
-    if (key === "hd") return "high";
-    if (key === "standard") return "medium";
-    return key || "auto";
 }
 
 function normalizeVideoQualityKey(value: unknown) {

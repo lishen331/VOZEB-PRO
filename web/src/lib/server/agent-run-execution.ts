@@ -1,4 +1,5 @@
 import { getAuthSettings, type LogicalModelCapability } from "@/lib/auth/store";
+import { normalizeImageResolution } from "@/lib/image-generation-params";
 import { withCreativeFoundation, type CreativeReview } from "@/lib/creative-agent-contract";
 import { isCreativeAutoValue, type CreativeAsset, type CreativeGenerationPreferences, type CreativeSurface } from "@/lib/creative-runtime-contract";
 import { creativeAssetReferenceAliases } from "@/lib/creative-asset-references";
@@ -251,6 +252,7 @@ export function normalizeTasks(
                 concretePreferredQuality ||
                 concretePlannedQuality ||
                 (!smartQuality ? textDefault(item.type === "video" ? defaults.vquality : defaults.quality) || (item.type === "video" ? globalDefaults.videoQuality : item.type === "image" ? globalDefaults.imageQuality : undefined) : "auto"),
+            ...(item.type === "image" && normalizeImageResolution(generationPreferences?.image?.resolution) ? { resolution: normalizeImageResolution(generationPreferences?.image?.resolution) } : {}),
             seconds: item.type === "video" && generationPreferences?.video?.seconds ? generationPreferences.video.seconds : resolveAgentVideoSeconds(item.type, item.seconds, defaults.videoSeconds, globalDefaults.videoSeconds),
             voice: item.type === "audio" ? generationPreferences?.audio?.voice || item.voice?.trim() || textDefault(defaults.voice) || globalDefaults.audioVoice : item.voice?.trim() || textDefault(defaults.voice),
             format: item.type === "audio" ? generationPreferences?.audio?.format || item.format?.trim() || textDefault(defaults.format) || globalDefaults.audioFormat : item.format?.trim() || textDefault(defaults.format),
@@ -781,7 +783,7 @@ export async function dispatchTask(task: AgentRunTask, origin: string, cookie: s
         apiKey: "",
         apiFormat: channel.apiFormat || "openai",
         model,
-        ...(task.type === "image" ? { ...(task.quality ? { quality: task.quality } : {}), ...(task.ratio ? { size: task.ratio } : {}) } : {}),
+        ...(task.type === "image" ? { ...(task.quality ? { quality: task.quality } : {}), ...(task.resolution ? { resolution: task.resolution } : {}), ...(task.ratio ? { size: task.ratio } : {}) } : {}),
         ...(task.type === "video"
             ? {
                   ...(task.ratio ? { size: task.ratio } : {}),

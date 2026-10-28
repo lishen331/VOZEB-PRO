@@ -1,6 +1,10 @@
-export function resolveImageTaskOptions(config: { quality?: unknown; size?: unknown; outputBackground?: unknown; outputMode?: unknown }, defaults: { imageQuality: string; imageSize: string }) {
+import { normalizeImageResolution } from "@/lib/image-generation-params";
+
+export function resolveImageTaskOptions(config: { quality?: unknown; resolution?: unknown; size?: unknown; outputBackground?: unknown; outputMode?: unknown }, defaults: { imageQuality: string; imageSize: string }) {
+    const resolution = normalizeImageResolution(config.resolution);
     return {
         quality: text(config.quality) || defaults.imageQuality,
+        ...(resolution ? { resolution } : {}),
         size: text(config.size) || defaults.imageSize,
         ...(config.outputBackground === "transparent" ? { outputBackground: "transparent" as const } : {}),
         ...(config.outputMode === "layers" ? { outputMode: "layers" as const } : {}),

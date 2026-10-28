@@ -730,6 +730,38 @@ describe("Gemini Veo native video proxy", () => {
     });
 });
 
+describe("image 画质 × 清晰度 billing", () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mocks.consumeUserPoints.mockReset().mockResolvedValue({ model: "image-one", cost: 1, units: 1, recordId: "points-image", remaining: 99, permanentRemaining: 99, dailyRemaining: 0, dailyExpiresAt: "" });
+        mocks.refundUserPoints.mockReset();
+        mocks.safeUrl.mockResolvedValue(true);
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: { imageQuality: { high: 2 }, imageResolution: { "1k": 1, "2k": 1.5, "4k": 3 } },
+            logicalModels: [logicalModel("image-one", "image", "gpt-image-2")],
+            systemChannels: [{ id: "channel-one", enabled: true, baseUrl: "https://relay.example.com", apiKey: "secret", apiFormat: "openai", models: ["gpt-image-2"], advancedConfig: { protocol: "newapi" } }],
+        });
+    });
+
+    it.each([
+        ["1024x1024", 2],
+        ["3840x2160", 6],
+    ] as const)("charges high quality at %s as quality × resolution", async (size, units) => {
+        vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ data: [{ url: "https://cdn.example.com/a.png" }] }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/v1/images/generations", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("image-one", "gpt-image-2") },
+                body: JSON.stringify({ model: "gpt-image-2", prompt: "x", n: 1, quality: "high", size }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["v1", "images", "generations"] }) },
+        );
+
+        expect(response.status).toBe(200);
+        expect(mocks.consumeUserPoints).toHaveBeenCalledWith("user-one", "image-one", units, "image", expect.any(String), expect.any(String));
+    });
+});
+
 describe("Yumeng v2 model-center proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
