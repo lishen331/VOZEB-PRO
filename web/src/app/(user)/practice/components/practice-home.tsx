@@ -165,11 +165,7 @@ export default function PracticeHome() {
                 {/* 练习项目 */}
                 {projectCards.length ? (
                     <section className="mt-10" aria-labelledby="practice-projects-heading">
-                        <SectionHeading
-                            id="practice-projects-heading"
-                            title="练习项目"
-                            hint={twoUp ? "两个练习项目都已开启：并排两列" : undefined}
-                        />
+                        <SectionHeading id="practice-projects-heading" title="练习项目" hint={twoUp ? "两个练习项目都已开启：并排两列" : undefined} />
                         <GammaStagger className={cn("mt-4 grid gap-5", twoUp && "md:grid-cols-2")}>
                             {projectCards.map((card) => {
                                 const projects = card.kind === "canvas" ? canvasProjects : dramaProjects;
@@ -304,11 +300,7 @@ function ProjectCard({
                     <ul className="mt-2 space-y-0.5">
                         {projects.slice(0, 3).map((project) => (
                             <li key={project.id}>
-                                <button
-                                    type="button"
-                                    onClick={() => onOpen(project.id)}
-                                    className="flex w-full items-center justify-between gap-3 rounded-[var(--gm-radius-sm)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--gm-wash)]"
-                                >
+                                <button type="button" onClick={() => onOpen(project.id)} className="flex w-full items-center justify-between gap-3 rounded-[var(--gm-radius-sm)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--gm-wash)]">
                                     <span className="truncate text-sm text-[var(--gm-text-2)]">{project.title}</span>
                                 </button>
                             </li>
