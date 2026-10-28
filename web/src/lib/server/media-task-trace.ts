@@ -14,6 +14,7 @@ type TaskLike = {
     id: string;
     userId: string;
     surface?: string;
+    source?: string;
     projectId?: string;
     config?: { channelId?: string; model?: string; size?: string; quality?: string; advancedConfig?: { protocol?: string } };
     references?: Array<{ id?: string; type?: string; inputKey?: string }>;
@@ -200,9 +201,9 @@ async function boundedErrorMessage(response: Response, secrets: string[]) {
 }
 
 export async function recordMediaTaskEvent(type: "image" | "video", task: TaskLike, event: Record<string, unknown>) {
-    if (task.surface !== "canvas") return;
+    if (task.surface !== "canvas" && (task.surface || task.source !== "canvas")) return;
     await persistMediaDiagnostic(
-        { type, taskId: task.id, userId: task.userId, surface: task.surface, projectId: task.projectId, channelId: task.config?.channelId, model: task.config?.model },
+        { type, taskId: task.id, userId: task.userId, surface: "canvas", projectId: task.projectId, channelId: task.config?.channelId, model: task.config?.model },
         { nodeId: diagnosticNodeId(task), clientRequestId: task.clientRequestId, ...event },
     );
 }

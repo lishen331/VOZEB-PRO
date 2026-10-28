@@ -9,6 +9,7 @@ import { SYSTEM_AI_EXECUTION_PROFILE_HEADER, SYSTEM_AI_LOGICAL_MODEL_HEADER, SYS
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { interpolateModelPath, resolveTextProtocol } from "@/lib/server/text-protocol-resolver";
 import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
+import { parseBase64DataUrl } from "@/lib/data-url";
 
 export type TextPlanningProtocol = "responses" | "chat" | "gemini" | "custom";
 export type TextPlanningCandidate = {
@@ -316,9 +317,9 @@ function attachPlanningMedia(request: ProtocolRequest, media: TextPlanningMediaI
         message.parts = [
             ...(message.parts || []),
             ...media.map((item) => {
-                const match = /^data:((?:image|video)\/[^;]+);base64,(.+)$/.exec(item.url);
-                if (!match) throw new TextPlanningRequestError("Gemini 图片输入需要已读取的图片内容", 422, false);
-                return { inlineData: { mimeType: match[1], data: match[2] } };
+                const match = parseBase64DataUrl(item.url);
+                if (!match || !/^(?:image|video)\//.test(match.mimeType)) throw new TextPlanningRequestError("Gemini 图片输入需要已读取的图片内容", 422, false);
+                return { inlineData: { mimeType: match.mimeType, data: match.data } };
             }),
         ];
     } else {

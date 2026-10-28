@@ -109,16 +109,7 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
             </AnimatePresence>
 
             <div className="flex min-h-0 flex-1">
-                <GammaAppSidebar
-                    collapsed={sidebar.collapsed}
-                    onToggle={sidebar.toggle}
-                    featureModules={featureModules}
-                    menuPermissions={menuPermissions}
-                    schoolContext={schoolContext}
-                    onLogin={() => openLogin("/")}
-                    onPlans={openBillingPlans}
-                    showTheme
-                />
+                <GammaAppSidebar collapsed={sidebar.collapsed} onToggle={sidebar.toggle} featureModules={featureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} onLogin={() => openLogin("/")} onPlans={openBillingPlans} showTheme />
                 <main className="gm-scroll relative min-w-0 flex-1 overflow-y-auto bg-transparent">
                     <div aria-hidden className="gm-aurora pointer-events-none absolute -top-40 left-1/4 h-96 w-1/2 rounded-full bg-[var(--gm-blue)] blur-[120px]" style={{ opacity: "var(--gm-aurora-opacity)" }} />
                     <h1 className="sr-only">{site.title} · 学生作品展示</h1>
@@ -173,4 +164,3 @@ function HomeFooterLine() {
         </footer>
     );
 }
-

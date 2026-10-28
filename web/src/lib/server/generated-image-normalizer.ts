@@ -2,7 +2,7 @@ import sharp, { type Metadata } from "sharp";
 
 import { parseImageDimensions } from "@/lib/image-size";
 
-const MAX_INPUT_PIXELS = 40_000_000;
+export const MAX_INPUT_PIXELS = 40_000_000;
 
 type NormalizedGeneratedImage = {
     bytes: Buffer;

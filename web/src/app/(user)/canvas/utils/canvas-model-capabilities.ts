@@ -1,4 +1,11 @@
-import { creativeModelProfileForLogicalModel, reconcileCreativeGenerationPreferences, type CreativeModelCapabilityProfile, type CreativeModelCapabilityOption } from "@/lib/creative-model-capabilities";
+import {
+    creativeModelProfileForLogicalModel,
+    reconcileCreativeGenerationPreferences,
+    unsupportedReferenceIssues,
+    type CreativeModelCapabilityProfile,
+    type CreativeModelCapabilityOption,
+    type CreativeReferenceCounts,
+} from "@/lib/creative-model-capabilities";
 import type { CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
 import type { AiConfig } from "@/stores/use-config-store";
 
@@ -8,6 +15,11 @@ type MediaMode = Extract<CanvasGenerationMode, "image" | "video">;
 
 export function canvasModelCapabilityProfile(config: AiConfig, model = config.model): CreativeModelCapabilityProfile | undefined {
     return creativeModelProfileForLogicalModel(config.logicalModels.find((item) => item.id.toLowerCase() === model.toLowerCase()));
+}
+
+export function canvasUnsupportedReferenceIssues(config: AiConfig, model: string, counts: CreativeReferenceCounts) {
+    const logical = config.logicalModels.find((item) => item.id.toLowerCase() === model.toLowerCase());
+    return unsupportedReferenceIssues(canvasModelCapabilityProfile(config, model), counts, logical?.name || model || "该模型");
 }
 
 export function canvasModelConfigPatch(config: AiConfig, model: string, mode: MediaMode): Partial<CanvasNodeMetadata> {

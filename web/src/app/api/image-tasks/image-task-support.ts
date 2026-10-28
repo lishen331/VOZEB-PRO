@@ -33,6 +33,7 @@ import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { resolveMediaMimeType } from "@/lib/server/media-content-type";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, generationSubmissionResponseError, generationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
+import { parseBase64DataUrl } from "@/lib/data-url";
 
 import {
     type CreateImageTaskBody,
@@ -513,14 +514,34 @@ export function resolveImageBase64Like(value: string) {
     if (/^data:image\//i.test(base64)) return base64;
     const rawImage = rawImageBase64DataUrl(base64);
     if (rawImage) return rawImage;
-    if (base64.length < 64 || !/^[a-z0-9+/=_-]+$/i.test(base64.replace(/\s/g, ""))) return "";
-    return `data:image/png;base64,${base64.replace(/\s/g, "")}`;
+    const compact = base64.replace(/\s/g, "");
+    if (base64.length < 64 || !isBase64Text(compact)) return "";
+    return `data:image/png;base64,${compact}`;
 }
 
 function rawImageBase64DataUrl(value: string) {
     const base64 = value.trim().replace(/\s/g, "");
     const mimeType = base64.startsWith("/9j/") ? "image/jpeg" : base64.startsWith("iVBORw0KGgo") ? "image/png" : base64.startsWith("R0lGOD") ? "image/gif" : base64.startsWith("UklGR") ? "image/webp" : "";
-    return mimeType && /^[a-z0-9+/=_-]+$/i.test(base64) ? `data:${mimeType};base64,${base64}` : "";
+    return mimeType && isBase64Text(base64) ? `data:${mimeType};base64,${base64}` : "";
+}
+
+// 上游 b64 有数 MB；用正则 /^[a-z0-9+/=_-]+$/i 扫整段会在 V8 里爆栈（2026-10-22/23 生产 RangeError）。逐字符检查，不用正则。
+function isBase64Text(value: string) {
+    if (!value) return false;
+    for (let index = 0; index < value.length; index += 1) {
+        const code = value.charCodeAt(index);
+        const valid =
+            (code >= 48 && code <= 57) || // 0-9
+            (code >= 65 && code <= 90) || // A-Z
+            (code >= 97 && code <= 122) || // a-z
+            code === 43 || // +
+            code === 47 || // /
+            code === 61 || // =
+            code === 95 || // _
+            code === 45; // -
+        if (!valid) return false;
+    }
+    return true;
 }
 
 export function isLikelyImageUrl(value: string) {
@@ -807,8 +828,8 @@ export function parseGeminiImagePayload(payload: GeminiPayload) {
 }
 
 export function toGeminiImagePart(dataUrl: string, fallbackType?: string): GeminiPart {
-    const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
-    if (match) return { inlineData: { mimeType: match[1], data: match[2] } };
+    const match = parseBase64DataUrl(dataUrl);
+    if (match) return { inlineData: { mimeType: match.mimeType, data: match.data } };
     return { fileData: { fileUri: dataUrl, mimeType: fallbackType || "image/png" } };
 }
 
@@ -876,11 +897,11 @@ export async function imageReferenceToDataUrl(reference: ImageTaskReference, nam
 }
 
 export function dataUrlToFile(dataUrl: string, name: string, fallbackType?: string) {
-    const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
+    const match = parseBase64DataUrl(dataUrl);
     if (!match) throw new Error("参考图不是有效 base64 图片");
-    const bytes = Buffer.from(match[2], "base64");
+    const bytes = Buffer.from(match.data, "base64");
     if (!bytes.length) throw new Error("参考图读取失败");
-    return new File([bytes], name, { type: fallbackType || match[1] || "image/png" });
+    return new File([bytes], name, { type: fallbackType || match.mimeType || "image/png" });
 }
 
 export async function readFetchError(response: Response, fallback: string) {

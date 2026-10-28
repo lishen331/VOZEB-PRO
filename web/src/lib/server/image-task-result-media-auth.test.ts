@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
     generationMediaProxyHeaders: vi.fn(),
     inlineRemoteImageResult: vi.fn(),
+    readImageResultMedia: vi.fn(),
     normalizeAssets: vi.fn(),
 }));
 
@@ -12,6 +13,8 @@ vi.mock("@/app/api/image-tasks/image-task-support", async (importOriginal) => ({
 }));
 vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaProxyHeaders: mocks.generationMediaProxyHeaders }));
 vi.mock("@/lib/server/generation-log-repository", () => ({ deleteLocalAsset: vi.fn(), normalizeAssets: mocks.normalizeAssets }));
+vi.mock("@/lib/server/image-result-media-reader", () => ({ readImageResultMedia: mocks.readImageResultMedia, ImageResultMediaReadError: class extends Error {} }));
+vi.mock("@/lib/server/media-task-trace", () => ({ recordMediaTaskEvent: vi.fn(async () => undefined) }));
 
 import { prepareImageTaskResults } from "@/lib/server/image-task-result-service";
 import type { ImageTask } from "@/lib/server/image-task-store";
@@ -21,6 +24,7 @@ describe("image task result media authorization", () => {
         vi.clearAllMocks();
         mocks.generationMediaProxyHeaders.mockReturnValue({ "x-vozeb-pro-media-authorization": "signed-test-claim" });
         mocks.inlineRemoteImageResult.mockResolvedValue({ dataUrl: "data:image/png;base64,AQID", remoteUrl: "https://api.modelbay.io/result.png" });
+        mocks.readImageResultMedia.mockResolvedValue({ dataUrl: "data:image/png;base64,AQID", remoteUrl: "https://api.modelbay.io/result.png", width: 1, height: 1 });
         mocks.normalizeAssets.mockResolvedValue([{ serverUrl: "/api/reference-assets/permanent/result.png", url: "/api/reference-assets/permanent/result.png", bytes: 3, width: 1, height: 1, mimeType: "image/png" }]);
     });
 
@@ -53,6 +57,6 @@ describe("image task result media authorization", () => {
                 url: remoteUrl,
             }),
         );
-        expect(mocks.inlineRemoteImageResult).toHaveBeenCalledWith(resultUrl, "https://gammatv.gammablue-x.com", "", remoteUrl, { "x-vozeb-pro-media-authorization": "signed-test-claim" });
+        expect(mocks.readImageResultMedia).toHaveBeenCalledWith(expect.objectContaining({ value: resultUrl, remoteUrl, internalHeaders: { "x-vozeb-pro-media-authorization": "signed-test-claim" } }));
     });
 });

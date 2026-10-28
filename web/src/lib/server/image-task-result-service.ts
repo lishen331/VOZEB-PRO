@@ -1,3 +1,5 @@
+import { readImageResultMedia } from "./image-result-media-reader";
+import { recordMediaTaskEvent } from "./media-task-trace";
 import type { ImageTaskMediaResult, ImageTaskResult } from "@/app/api/image-tasks/image-task-types";
 import { directRemoteImageResult, imageReferenceToDataUrl, inlineRemoteImageResult, resolveProxiedMediaSource } from "@/app/api/image-tasks/image-task-support";
 import { resultTargetSize } from "@/app/api/image-tasks/image-task-size";
@@ -15,6 +17,7 @@ export async function prepareImageTaskResults(task: ImageTask, result: ImageTask
     const normalized = settled.flatMap((item) => (item.status === "fulfilled" && item.value?.dataUrl ? [item.value] : []));
     let safeResults = preserveLayers ? normalized : dedupeImageResults(normalized);
 
+    if (isCanvasResultTask(task) && settled.some((item) => item.status === "rejected")) throw firstRejected(settled) || new Error("上游图片结果无法读取");
     if (preserveLayers) {
         const rejected = firstRejected(settled);
         if (rejected) throw new Error(`上游分层验收失败：${errorMessage(rejected, "上游分层图片无法读取")}，请为该模型配置真实分层接口`);
@@ -41,7 +44,15 @@ export async function prepareImageTaskResults(task: ImageTask, result: ImageTask
         }
     }
 
-    return persistPreparedResults(task, safeResults, preserveLayers);
+    await recordMediaTaskEvent("image", task, { phase: "result_persist_start", referenceCount: safeResults.length, attemptNo: task.attemptNo });
+    try {
+        const stored = await persistPreparedResults(task, safeResults, preserveLayers || isCanvasResultTask(task));
+        await recordMediaTaskEvent("image", task, { phase: "result_persist_complete", referenceCount: stored.length, attemptNo: task.attemptNo });
+        return stored;
+    } catch (error) {
+        await recordMediaTaskEvent("image", task, { phase: "result_persist_failed", stage: "persist", errorMessage: errorMessage(error, "图片保存失败"), attemptNo: task.attemptNo });
+        throw error;
+    }
 }
 
 export function persistedImageTaskResults(task: ImageTask): StoredImageTaskMediaResult[] {
@@ -97,6 +108,16 @@ async function normalizeSafeImageResult(task: ImageTask, result: ImageTaskMediaR
     const proxiedRemoteUrl = proxiedMedia.remoteUrl;
     const channelId = task.config.channelId || systemGenerationChannelId(task.config.baseUrl);
     const mediaHeaders = proxiedRemoteUrl && channelId ? generationMediaProxyHeaders({ userId: task.userId, taskType: "image", taskId: task.id, channelId, upstreamModel: task.config.model, url: proxiedRemoteUrl }) : undefined;
+    if (isCanvasResultTask(task)) {
+        return readImageResultMedia({
+            value: result.dataUrl || remoteUrl || "",
+            origin,
+            authContext,
+            remoteUrl: proxiedRemoteUrl || remoteUrl,
+            internalHeaders: mediaHeaders,
+            emit: (event) => recordMediaTaskEvent("image", task, { ...event, attemptNo: task.attemptNo, logicalModel: task.config.logicalModel || task.config.model }),
+        });
+    }
     const inlineResult = proxiedMedia.proxyUrl ? await inlineRemoteImageResult(result.dataUrl, origin, authContext, remoteUrl, mediaHeaders) : null;
     if (proxiedMedia.proxyUrl && !inlineResult?.dataUrl?.startsWith("data:image/")) throw new Error("上游图片无法通过授权媒体路径读取");
     if (task.config.outputMode === "layers") {
@@ -118,4 +139,8 @@ function firstRejected(results: PromiseSettledResult<unknown>[]) {
 
 function errorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
+}
+
+function isCanvasResultTask(task: ImageTask) {
+    return task.surface === "canvas" || (!task.surface && task.source === "canvas");
 }
