@@ -905,6 +905,36 @@ describe("async image task protocols", () => {
         expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.modelbay.io/image/submit");
         expect(mocks.consumeUserPoints).toHaveBeenCalledWith("user-one", "modelbay-image", 2, "image", expect.any(String), expect.any(String));
     });
+
+    it("forwards Tuzi Suno submit literally without a /v1 prefix", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("tuzi-suno", "audio", "suno_music")],
+            systemChannels: [
+                {
+                    id: "channel-one",
+                    enabled: true,
+                    baseUrl: "https://api.tu-zi.com",
+                    apiKey: "secret",
+                    apiFormat: "openai",
+                    models: ["suno_music"],
+                    advancedConfig: { protocol: "openai", modelConfigs: { suno_music: { capability: "audio", protocol: "tuzi-suno", createPath: "/suno/submit/music", queryPath: "/suno/fetch/:task_id" } } },
+                },
+            ],
+        });
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ code: "success", data: "suno-task" }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/suno/submit/music", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("tuzi-suno", "suno_music") },
+                body: JSON.stringify({ model: "suno_music", mv: "chirp-v3-5", prompt: "", gpt_description_prompt: "test", make_instrumental: true }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["suno", "submit", "music"] }) },
+        );
+
+        expect(response.status).toBe(200);
+        expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.tu-zi.com/suno/submit/music");
+    });
 });
 
 describe("ModelBay newapi image output compression", () => {

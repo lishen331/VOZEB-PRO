@@ -30,7 +30,7 @@ describe("audio model params", () => {
     });
 
     it("maps Suno describe and lyrics modes", () => {
-        expect(audioUpstreamFields("suno/v6", "一首夏日电子乐", { instrumental: true, tags: "电子" })).toEqual({ gpt_description_prompt: "一首夏日电子乐", tags: "电子", make_instrumental: true });
+        expect(audioUpstreamFields("suno/v6", "一首夏日电子乐", { instrumental: true, tags: "电子" })).toEqual({ prompt: "", gpt_description_prompt: "一首夏日电子乐", tags: "电子", make_instrumental: true });
         expect(audioUpstreamFields("suno_music", "[Verse] 歌词", { mode: "lyrics", title: "夏天" })).toEqual({ prompt: "[Verse] 歌词", title: "夏天", tags: undefined, make_instrumental: false });
         expect(audioParamsSummary("suno/v6", { mode: "lyrics", instrumental: true })).toBe("歌词生音乐 · 纯音乐");
     });

@@ -41,6 +41,7 @@ describe("channel protocol registry", () => {
             "mohui-seedance",
             "modelbay-image-task",
             "tuzi-image-task",
+            "tuzi-suno",
             "stable-diffusion",
             "volcengine-video",
             "sub2api",

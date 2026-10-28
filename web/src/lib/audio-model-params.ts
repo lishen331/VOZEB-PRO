@@ -153,7 +153,7 @@ export function audioUpstreamFields(model: string | undefined, prompt: string, i
     if (family === "suno") {
         const instrumental = Boolean(params.instrumental);
         if (params.mode === "lyrics") return { prompt, title: params.title || undefined, tags: params.tags || undefined, make_instrumental: instrumental };
-        return { gpt_description_prompt: prompt, tags: params.tags || undefined, make_instrumental: instrumental };
+        return { prompt: "", gpt_description_prompt: prompt, tags: params.tags || undefined, make_instrumental: instrumental };
     }
     const speed = Number(params.speed);
     const format = String(params.format);

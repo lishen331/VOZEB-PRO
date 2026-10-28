@@ -121,7 +121,7 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
                 });
                 return { state: "result_ready", status: "completed", resultUrl: directUrl, ...billing };
             }
-            const id = readProviderString(data, undefined, ID_KEYS);
+            const id = readProviderString(data, config.advancedConfig?.taskIdField, ID_KEYS);
             if (!id) throw new GenerationSubmissionUncertainError("音频接口没有返回音频或任务 ID，创建结果待确认");
             await updateAudioTask(task.id, { upstream: { id, createPath: path } });
             const submittedAt = Date.now();
@@ -180,10 +180,18 @@ export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string
             lastError = "音频任务查询返回了无效 JSON";
             continue;
         }
-        const result = readProviderString(data, task.config.advancedConfig?.resultField, AUDIO_KEYS);
         const status = readProviderString(data, task.config.advancedConfig?.statusField, STATUS_KEYS).toLowerCase();
+        if (task.config.advancedConfig?.protocol === "tuzi-suno") {
+            // Suno exposes a partial stream URL while still generating; only SUCCESS carries the final file.
+            if (FAILED.has(status)) return { state: "failed", status, error: readProviderError(data) || "Suno 音乐生成失败" };
+            if (!SUCCEEDED.has(status)) return { state: "pending", status: status || "processing", upstreamTaskId: task.upstream.id, createPath: task.upstream.createPath };
+            const finalUrl = readProviderString(data, task.config.advancedConfig.resultField, AUDIO_KEYS);
+            if (finalUrl) return { state: "result_ready", status, resultUrl: finalUrl };
+            return { state: "failed", status, error: "Suno 已完成，但没有返回音频地址" };
+        }
+        const result = readProviderString(data, task.config.advancedConfig?.resultField, AUDIO_KEYS);
         if (result) return { state: "result_ready", status: status || "completed", resultUrl: result };
-        if (FAILED.has(status)) return { state: "failed", status, error: readProviderString(data, undefined, ERROR_KEYS) || "音频生成失败" };
+        if (FAILED.has(status)) return { state: "failed", status, error: readProviderError(data) || "音频生成失败" };
         return { state: "pending", status: status || "processing", upstreamTaskId: task.upstream.id, createPath: task.upstream.createPath };
     }
     throw new Error(lastError || "音频任务查询失败");
@@ -391,8 +399,8 @@ function readAudioError(value: string, status: number) {
 const ID_KEYS = ["task_id", "taskId", "id", "job_id", "jobId", "generation_id", "generationId"];
 const STATUS_KEYS = ["status", "state", "task_status", "taskStatus"];
 const AUDIO_KEYS = ["audio_url", "audioUrl", "media_url", "mediaUrl", "output_url", "outputUrl", "result_url", "resultUrl", "url", "uri"];
-const ERROR_KEYS = ["error_message", "errorMessage", "message", "msg", "error"];
 const FAILED = new Set(["failed", "failure", "error", "cancelled", "canceled", "expired"]);
+const SUCCEEDED = new Set(["success", "succeeded", "completed", "complete"]);
 
 function withoutUndefined(value: Record<string, unknown>) {
     return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));

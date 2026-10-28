@@ -174,6 +174,23 @@ describe("active protocols through persisted admin settings and the system proxy
         });
 
         expect(response.ok).toBe(true);
+        if (definition.id === "tuzi-suno") {
+            const submitted = (await response.json()) as { data?: string };
+            const taskId = submitted.data || "";
+            expect(taskId).toBeTruthy();
+            const queryPath = (operation.queryPath || "").replace(":task_id", encodeURIComponent(taskId));
+            const queried = await dispatchInternalRequest(`${INTERNAL_ORIGIN}${channel.config.baseUrl}${queryPath}`, { headers: { "x-vozeb-pro-logical-model": channel.logicalModelId, "x-vozeb-pro-upstream-model": model } });
+            expect(queried.ok).toBe(true);
+            const payload = (await queried.json()) as { data?: { status?: string; data?: Array<{ audio_url?: string }> } };
+            expect(payload.data?.status).toBe("SUCCESS");
+            const mediaUrl = payload.data?.data?.[0]?.audio_url || "";
+            expect(mediaUrl).toContain("/media/fixture.wav");
+            const media = await dispatchInternalRequest(`${INTERNAL_ORIGIN}${channel.config.baseUrl}/_media?url=${encodeURIComponent(mediaUrl)}`, {});
+            expect(media.headers.get("content-type")).toBe("audio/wav");
+            expect((await media.arrayBuffer()).byteLength).toBeGreaterThan(44);
+            expectProxyRequests(channel, operation.createPath, model, false, operation.queryPath, taskId);
+            return;
+        }
         if (response.headers.get("content-type")?.includes("application/json")) {
             const payload = (await response.json()) as { data?: { audio_url?: string } };
             const mediaUrl = payload.data?.audio_url || "";

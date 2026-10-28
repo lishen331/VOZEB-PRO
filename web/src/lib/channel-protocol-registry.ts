@@ -197,6 +197,18 @@ const tuziImageTaskOperation: ProtocolOperation = {
     supportsReferenceImage: true,
 };
 
+// 兔子 Suno v1：提交返回的 data 就是任务 ID 字符串；streaming 阶段 audio_url 可能是半成品流地址，必须等 SUCCESS。
+const tuziSunoOperation: ProtocolOperation = {
+    capability: "audio",
+    createPath: "/suno/submit/music",
+    queryPath: "/suno/fetch/:task_id",
+    taskIdField: "data",
+    statusField: "data.status",
+    resultField: "data.data[0].audio_url",
+    requestTemplate: '{"model":"{{model}}","mv":"chirp-v3-5"}',
+    referenceRule: "描述模式写 gpt_description_prompt 且 prompt 为空；歌词模式写 prompt。状态 NOT_START → SUBMITTED → IN_PROGRESS → SUCCESS / FAILURE。",
+};
+
 const stableDiffusionOperation: ProtocolOperation = {
     capability: "image",
     createPath: "/sdapi/v1/txt2img",
@@ -313,6 +325,18 @@ export const registeredChannelProtocolDefinitions: ChannelProtocolDefinition[] =
         modelCatalogPaths: ["/v1/models"],
         capabilities: ["image"],
         operations: { image: tuziImageTaskOperation },
+        strict: true,
+    },
+    {
+        id: "tuzi-suno",
+        label: "兔子 Suno 音乐",
+        description: "兔子 Suno v1：/suno/submit/music 提交，/suno/fetch/:task_id 轮询，SUCCESS 后取 audio_url。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://api.tu-zi.com",
+        modelCatalogPaths: [],
+        capabilities: ["audio"],
+        operations: { audio: tuziSunoOperation },
         strict: true,
     },
     {
