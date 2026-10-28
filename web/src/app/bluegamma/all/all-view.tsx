@@ -1,10 +1,14 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Download, Loader2 } from "lucide-react";
 
+import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { GammaNavIcon, type GammaNavIconName } from "@/components/gamma-ui/gamma-nav-icon";
 import { GammaThemeProvider } from "@/components/gamma-ui/gamma-theme";
+import { GammaToastStack } from "@/components/gamma-ui/gamma-overlays";
+import { useGammaDemo } from "@/app/bluegamma/use-gamma-demo";
 
 interface AllEntry {
     icon: GammaNavIconName;
@@ -53,14 +57,54 @@ const GROUPS: readonly { title: string; entries: readonly AllEntry[] }[] = [
 
 /** 全部入口：汇总侧栏收不下的所有模块，网格密一点（高频查找场景，不需要留白） */
 export function AllView() {
+    const demo = useGammaDemo();
+    const { toast } = demo;
+    const captureRef = useRef<HTMLDivElement>(null);
+    const [exporting, setExporting] = useState(false);
+
+    const handleExport = async () => {
+        if (!captureRef.current || exporting) return;
+        setExporting(true);
+        try {
+            const { toPng } = await import("html-to-image");
+            const node = captureRef.current;
+            // html-to-image 在 pixelRatio>1 时偶发右/下边缘裁切几像素（foreignObject 子像素舍入），
+            // 显式传整数宽高 + 1px 缓冲规避，不能只靠默认的 offsetWidth/offsetHeight
+            const width = Math.ceil(node.scrollWidth) + 1;
+            const height = Math.ceil(node.scrollHeight) + 1;
+            const dataUrl = await toPng(node, {
+                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--gm-bg") || "#ffffff",
+                pixelRatio: 2,
+                width,
+                height,
+                canvasWidth: width * 2,
+                canvasHeight: height * 2,
+            });
+            const link = document.createElement("a");
+            link.download = `布鲁伽马-全部入口-${new Date().toISOString().slice(0, 10)}.png`;
+            link.href = dataUrl;
+            link.click();
+            toast("success", "已导出为图片");
+        } catch {
+            toast("error", "导出失败，请重试");
+        } finally {
+            setExporting(false);
+        }
+    };
+
     return (
         <GammaThemeProvider>
             <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]">
-                <div className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-8">
-                    <Link href="/bluegamma/home" className="gm-glass mb-8 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]">
-                        <ChevronLeft className="size-4" />
-                        返回首页
-                    </Link>
+                <div ref={captureRef} className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-8">
+                    <div className="mb-8 flex items-center justify-between gap-3">
+                        <Link href="/bluegamma/home" className="gm-glass inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]">
+                            <ChevronLeft className="size-4" />
+                            返回首页
+                        </Link>
+                        <GammaButton size="sm" variant="soft" icon={exporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />} disabled={exporting} onClick={() => void handleExport()}>
+                            {exporting ? "导出中" : "导出为图片"}
+                        </GammaButton>
+                    </div>
 
                     <header className="mb-8">
                         <h1 className="text-[28px] font-semibold tracking-tight">全部</h1>
@@ -95,6 +139,7 @@ export function AllView() {
                     </div>
                 </div>
             </main>
+            <GammaToastStack toasts={demo.toasts} onDismiss={demo.dismissToast} />
         </GammaThemeProvider>
     );
 }

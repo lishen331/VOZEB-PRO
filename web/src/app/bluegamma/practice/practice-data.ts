@@ -1,5 +1,8 @@
 import { Box, Clapperboard, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, ScrollText, UserRound, type LucideIcon } from "lucide-react";
 
+/** 与线上 PracticeProjectKind 对齐：练习项目由后台开关决定显示哪些，可能是 0 / 1 / 2 个 */
+export type PracticeProjectKind = "canvas" | "drama";
+
 import type { GammaTaskStatus } from "@/components/gamma-ui/gamma-cards";
 import type { SubjectAccent } from "@/components/gamma-ui/gamma-subjects";
 
@@ -10,7 +13,7 @@ import type { SubjectAccent } from "@/components/gamma-ui/gamma-subjects";
  */
 
 export interface PracticeProjectCardSpec {
-    kind: "canvas" | "drama";
+    kind: PracticeProjectKind;
     title: string;
     description: string;
     icon: LucideIcon;
@@ -56,26 +59,28 @@ export interface PracticeModuleSpec {
 }
 
 /**
- * 练习模块：按 doneCount 降序排列，用量最高的两个在 practice-view.tsx 里做跨列宽卡（bento 排版）。
- * 「剧本」原来是单独区块，这里并入同一张网格，不再孤立成区。
- */
-/**
- * 顺序即渲染顺序：3 列网格里两张宽卡（分镜图、角色）不能相邻，各自搭一张小卡凑满一行，
- * 否则 CSS Grid 的默认 auto-flow 会在每张宽卡右侧各留一个回填不到的空位。
- * 行 1：分镜图(宽) + 剧本；行 2：角色(宽) + 场景；行 3：音频 + 道具 + 分镜视频。
+ * 练习模块：与线上一致，固定 6 个、等大排布（3 列 × 2 行）。
+ * 之前把「剧本」混进网格并给两张卡做跨列宽卡，导致每张卡宽高都不同——视觉上就是「每个大小都不一样」。
+ * 现在剧本回到线上那样独立成整条入口（见 PRACTICE_SCRIPT_ENTRY），网格只剩 6 张同规格卡。
  */
 export const PRACTICE_MODULES: readonly PracticeModuleSpec[] = [
-    { module: "storyboard-image", title: "分镜图", description: "组合场景、角色和道具完成镜头画面。", icon: ImageIcon, accent: "cyan", doneCount: 20 },
-    { module: "script", title: "剧本", description: "从创意到剧本文本的单人练习。", icon: ScrollText, accent: "teal", doneCount: 4, tag: "单人 · 文本" },
     { module: "character", title: "角色", description: "生成角色主体图，并继续扩展多视角设定。", icon: UserRound, accent: "violet", doneCount: 12 },
     { module: "scene", title: "场景", description: "建立空间、光线和环境氛围。", icon: PanelsTopLeft, accent: "sky", doneCount: 8 },
-    { module: "dubbing", title: "音频", description: "为台词和旁白生成情绪化配音。", icon: Mic2, accent: "indigo", doneCount: 7 },
     { module: "prop", title: "道具", description: "把关键物件设定成可用素材。", icon: Box, accent: "teal", doneCount: 5 },
+    { module: "storyboard-image", title: "分镜图", description: "组合场景、角色和道具完成镜头画面。", icon: ImageIcon, accent: "cyan", doneCount: 20 },
     { module: "storyboard-video", title: "分镜视频", description: "让静态分镜进入动态镜头。", icon: Film, accent: "blue", doneCount: 3 },
+    { module: "dubbing", title: "音频", description: "为台词和旁白生成情绪化配音。", icon: Mic2, accent: "indigo", doneCount: 7 },
 ];
 
-/** 占 2 列宽卡的模块（用量最高的两个）；其余按小卡渲染 */
-export const PRACTICE_WIDE_MODULES: readonly string[] = ["storyboard-image", "character"];
+/** 剧本练习是独立整条入口（线上同样单独一块，受 configuration.script.enabled 控制） */
+export const PRACTICE_SCRIPT_ENTRY = {
+    title: "剧本",
+    description: "从创意到剧本文本的单人练习，不需要排队等待生成。",
+    icon: ScrollText,
+    accent: "teal" as SubjectAccent,
+    tag: "单人 · 文本",
+    doneCount: 4,
+} as const;
 
 export interface PracticeSessionSpec {
     id: string;

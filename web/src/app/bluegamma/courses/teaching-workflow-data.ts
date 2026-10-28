@@ -19,13 +19,19 @@ export interface TeachingAssignmentItem {
     className: string;
     submittedCount: number;
     totalStudents: number;
+    /** 挂在哪门课（课程 slug），用于从作业跳回对应课时的备课页 */
+    courseSlug?: string;
+    /** 挂在哪一课时（lesson.key）；缺省表示只挂到课程层 */
+    lessonKey?: string;
+    /** 截止日期（YYYY-MM-DD）；缺省表示不限 */
+    dueDate?: string;
 }
 
 export const TEACHING_ASSIGNMENTS: readonly TeachingAssignmentItem[] = [
-    { id: "a1", title: "第 4 课随堂练习：客厅软装搭配", instructions: "按课件要求完成一套客厅软装方案，上传效果图与说明。", kind: "lesson", status: "published", courseTitle: "室内设计基础", className: "室内 2301", submittedCount: 9, totalStudents: 14 },
-    { id: "a2", title: "单元实训：新中式服装系列", instructions: "结合宋锦面料做一组 3 件以上的系列设计。", kind: "practice", status: "published", courseTitle: "服装设计导论", className: "服装 2301", submittedCount: 4, totalStudents: 13 },
-    { id: "a3", title: "期末作业：毕业展板初稿", instructions: "提交展板初稿，包含作品集封面与 3 个版式。", kind: "lesson", status: "draft", courseTitle: "室内设计基础", className: "室内 2302", submittedCount: 0, totalStudents: 12 },
-    { id: "a4", title: "第 2 课课后作业：动线草图", instructions: "画出至少两种动线方案并标注尺寸。", kind: "lesson", status: "closed", courseTitle: "室内设计基础", className: "室内 2301", submittedCount: 14, totalStudents: 14 },
+    { id: "a1", title: "第 4 课随堂练习：客厅软装搭配", instructions: "按课件要求完成一套客厅软装方案，上传效果图与说明。", kind: "lesson", status: "published", courseTitle: "AIGC + 室内设计全流程实训", className: "室内 2301", submittedCount: 9, totalStudents: 14, courseSlug: "interior", lessonKey: "plan", dueDate: "2026-10-30" },
+    { id: "a2", title: "单元实训：新中式服装系列", instructions: "结合宋锦面料做一组 3 件以上的系列设计。", kind: "practice", status: "published", courseTitle: "AIGC + 服装设计全流程实训", className: "服装 2301", submittedCount: 4, totalStudents: 13, courseSlug: "fashion", dueDate: "2026-11-06" },
+    { id: "a3", title: "期末作业：毕业展板初稿", instructions: "提交展板初稿，包含作品集封面与 3 个版式。", kind: "lesson", status: "draft", courseTitle: "AIGC + 室内设计全流程实训", className: "室内 2302", submittedCount: 0, totalStudents: 12, courseSlug: "interior" },
+    { id: "a4", title: "第 2 课课后作业：动线草图", instructions: "画出至少两种动线方案并标注尺寸。", kind: "lesson", status: "closed", courseTitle: "AIGC + 室内设计全流程实训", className: "室内 2301", submittedCount: 14, totalStudents: 14, courseSlug: "interior", lessonKey: "plan", dueDate: "2026-10-16" },
 ];
 
 export interface TeachingSubmissionItem {

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RotateCcw } from "lucide-react";
 
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { GammaBadge } from "@/components/gamma-ui/gamma-controls";
 import { GammaModal } from "@/components/gamma-ui/gamma-overlays";
-import { TEACHING_ASSIGNMENTS, TEACHING_SUBMISSIONS, type SubmissionStatus, type TeachingSubmissionItem } from "@/app/bluegamma/courses/teaching-workflow-data";
+import { useTeachingStore } from "@/app/bluegamma/courses/teaching-store";
+import { TEACHING_SUBMISSIONS, type SubmissionStatus, type TeachingSubmissionItem } from "@/app/bluegamma/courses/teaching-workflow-data";
 
 const STATUS_TONE: Record<SubmissionStatus, { label: string; tone: "blue" | "success" | "warning" }> = {
     submitted: { label: "待批改", tone: "blue" },
@@ -18,13 +19,15 @@ const STATUS_TONE: Record<SubmissionStatus, { label: string; tone: "blue" | "suc
  * 学生提交：对照线上 /teaching?tab=submissions —— 选作业 → 看提交列表 → 批改（通过/退回）。
  * 退回修改要求必填反馈，和线上 Form rules 一致。
  */
-export function TeachingSubmissionsTab({ presetAssignmentId }: { presetAssignmentId?: string }) {
-    const [assignmentId, setAssignmentId] = useState(presetAssignmentId ?? TEACHING_ASSIGNMENTS[0]?.id ?? "");
+export function TeachingSubmissionsTab({ presetAssignmentId, onBackToAssignments }: { presetAssignmentId?: string; onBackToAssignments: () => void }) {
+    const state = useTeachingStore();
+    const assignments = state.assignments;
+    const [assignmentId, setAssignmentId] = useState(presetAssignmentId ?? assignments[0]?.id ?? "");
     const [submissions, setSubmissions] = useState<TeachingSubmissionItem[]>([...TEACHING_SUBMISSIONS]);
     const [reviewing, setReviewing] = useState<{ submission: TeachingSubmissionItem; status: "reviewed" | "revision_required" } | null>(null);
     const [feedback, setFeedback] = useState("");
 
-    const assignment = TEACHING_ASSIGNMENTS.find((item) => item.id === assignmentId);
+    const assignment = assignments.find((item) => item.id === assignmentId);
     const visible = submissions.filter((item) => item.assignmentId === assignmentId);
     const canReview = assignment?.status === "published";
 
@@ -42,17 +45,27 @@ export function TeachingSubmissionsTab({ presetAssignmentId }: { presetAssignmen
 
     return (
         <div className="flex flex-col gap-3">
-            <select
-                value={assignmentId}
-                onChange={(event) => setAssignmentId(event.target.value)}
-                className="h-9 w-full max-w-md rounded-[var(--gm-radius)] bg-[var(--gm-surface-2)] px-3 text-sm ring-1 ring-[var(--gm-border)] sm:w-auto"
-            >
-                {TEACHING_ASSIGNMENTS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                        {item.title}
-                    </option>
-                ))}
-            </select>
+            <div className="flex flex-wrap items-center gap-2">
+                <GammaButton size="sm" variant="ghost" icon={<ArrowLeft className="size-3.5" />} onClick={onBackToAssignments}>
+                    返回作业列表
+                </GammaButton>
+                <select
+                    value={assignmentId}
+                    onChange={(event) => setAssignmentId(event.target.value)}
+                    className="h-9 w-full max-w-md rounded-[var(--gm-radius)] bg-[var(--gm-surface-2)] px-3 text-sm text-[var(--gm-text)] ring-1 ring-[var(--gm-border)] sm:w-auto"
+                >
+                    {assignments.map((item) => (
+                        <option key={item.id} value={item.id}>
+                            {item.title}
+                        </option>
+                    ))}
+                </select>
+                {assignment ? (
+                    <span className="text-xs text-[var(--gm-text-3)]">
+                        {assignment.className} · 已交 {assignment.submittedCount}/{assignment.totalStudents} · {assignment.status === "published" ? "进行中" : assignment.status === "draft" ? "草稿（未发布不能批改）" : "已关闭"}
+                    </span>
+                ) : null}
+            </div>
 
             <div className="flex flex-col divide-y divide-[var(--gm-border)]">
                 {visible.map((submission) => {

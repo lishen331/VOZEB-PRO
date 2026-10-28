@@ -52,6 +52,7 @@
         "fflate": "^0.8.3",
         "file-saver": "^2.0.5",
         "file-type": "^22.0.1",
+        "html-to-image": "1.11.13",
         "jsjianyingdraft": "1.0.0",
         "lucide-react": "^1.28.0",
         "motion": "^12.43.0",
