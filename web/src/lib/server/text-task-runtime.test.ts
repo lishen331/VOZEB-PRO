@@ -22,7 +22,7 @@ vi.mock("@/lib/server/text-task-store", () => ({
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-server.mjs";
 import { maintenanceWorkerContext } from "./maintenance-auth";
-import { markTextTaskFailed, runTextTaskStep, taskHeaders } from "./text-task-runtime";
+import { markTextTaskFailed, prepareTextTaskAutomaticRetry, runTextTaskStep, taskHeaders } from "./text-task-runtime";
 import type { TextTask, TextTaskConfig } from "./text-task-store";
 
 describe("text task runtime recovery", () => {
@@ -194,7 +194,9 @@ describe("text task runtime recovery", () => {
         expect(mocks.refund).toHaveBeenCalledWith(expect.objectContaining({ receiptId: "points:text-points-unknown", usageKind: "text" }));
     });
 
-    it("refunds a zero-point billing receipt when the upstream task fails", async () => {
+    it("reports an upstream query failure as retryable without finalizing the task", async () => {
+        // 查询阶段上游失败不在这一层终态退款：worker 恢复路径（generation-task-recovery-service）先尝试换渠道重试一次，
+        // 重试耗尽才调用 markTextTaskFailed 终态退款，与 image 的 prepareImageTaskAutomaticRetry 模式对齐。
         const headers = { "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-billing-receipt-id": "school:batch-a" };
         const fetchMock = vi
             .fn()
@@ -204,9 +206,26 @@ describe("text task runtime recovery", () => {
 
         await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "pending" });
         expect(state.billing).toMatchObject({ pointsCost: 0, billingReceiptId: "school:batch-a", refunded: false });
-        await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "failed" });
+        await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "failed", error: "upstream failed", retryReason: "upstream_failed" });
 
-        expect(mocks.refund).toHaveBeenCalledWith({ userId: "user-one", receiptId: "school:batch-a", model: "text-model", usageKind: "text", units: 1, idempotencyKey: "text-task:text-one:attempt:1:refund" });
+        expect(mocks.refund).not.toHaveBeenCalled();
+        expect(state.status).toBe("running");
+    });
+
+    it("prepares exactly one retry on an upstream query failure, then stops", async () => {
+        state = { ...textTask(customConfig("channel-one", "https://one.example"), [customConfig("channel-two", "https://two.example")]), status: "running", attemptNo: 1, upstream: { id: "upstream-one", createPath: "/jobs" }, billing: { pointsCost: 1, billingReceiptId: "text-retry", refunded: false } };
+
+        await expect(prepareTextTaskAutomaticRetry(state, "上游查询失败")).resolves.toMatchObject({ config: { channelId: "channel-two" }, candidateConfigs: [], attemptNo: 1, upstream: undefined, billing: undefined });
+        expect(mocks.refund).toHaveBeenCalledWith(expect.objectContaining({ receiptId: "text-retry", usageKind: "text" }));
+
+        state = { ...state, attemptNo: 2 };
+        await expect(prepareTextTaskAutomaticRetry(state, "再次失败")).resolves.toBeNull();
+    });
+
+    it("does not retry a text task that is no longer pending or running", async () => {
+        state = { ...textTask(customConfig("channel-one", "https://one.example")), status: "error" };
+        await expect(prepareTextTaskAutomaticRetry(state, "已终态")).resolves.toBeNull();
+        expect(mocks.refund).not.toHaveBeenCalled();
     });
 });
 

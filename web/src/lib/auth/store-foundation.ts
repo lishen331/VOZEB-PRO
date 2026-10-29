@@ -127,6 +127,7 @@ export const DEFAULT_GENERATION_COST_CONTROL: GenerationCostControlSettings = {
     maxPointsPerTask: 0,
     dailyUserPointSpend: 0,
     dailyTotalPointSpend: 0,
+    needsReviewAutoRefundEnabled: false,
 };
 export const DEFAULT_DATA_LIFECYCLE: DataLifecycleSettings = {
     cleanupExpiredSessions: true,

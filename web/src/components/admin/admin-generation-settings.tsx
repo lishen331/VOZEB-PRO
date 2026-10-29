@@ -7,7 +7,7 @@ import { CircleGauge, SlidersHorizontal, Sparkles } from "lucide-react";
 
 import type { AuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelConfig } from "@/lib/model-routing-config";
-import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
+import { LabeledControl, SectionTitle, SettingInlineToggle } from "@/components/admin/admin-settings-controls";
 
 const settingsPanelSurfaceClass = "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4";
 
@@ -46,7 +46,7 @@ export function GenerationConcurrencyPanel({ settings, onChange }: { settings: A
     );
 }
 
-export function GenerationCostControlPanel({ settings, onChange }: { settings: AuthSettings; onChange: (key: keyof AuthSettings["generationCostControl"], value: number | null) => void }) {
+export function GenerationCostControlPanel({ settings, onChange }: { settings: AuthSettings; onChange: (key: keyof AuthSettings["generationCostControl"], value: number | boolean | null) => void }) {
     return (
         <div className={settingsPanelSurfaceClass}>
             <SectionTitle icon={<CircleGauge className="size-4" />} title="生成成本保护" />
@@ -60,6 +60,16 @@ export function GenerationCostControlPanel({ settings, onChange }: { settings: A
                 <LabeledControl label="全站每日积分上限">
                     <InputNumber className="w-full" min={0} precision={2} value={settings.generationCostControl.dailyTotalPointSpend} onChange={(value) => onChange("dailyTotalPointSpend", value)} />
                 </LabeledControl>
+            </div>
+            <div className="mt-3">
+                <SettingInlineToggle
+                    title="needs_review 超过 2 小时自动结案退款"
+                    checked={settings.generationCostControl.needsReviewAutoRefundEnabled}
+                    checkedChildren="开启"
+                    unCheckedChildren="关闭"
+                    onChange={(checked) => onChange("needsReviewAutoRefundEnabled", checked)}
+                />
+                <div className="mt-1.5 text-xs leading-5 text-[var(--gm-text-3)]">仅影响已超时且无人工处理的任务，不影响正常的人工审核流程。</div>
             </div>
         </div>
     );

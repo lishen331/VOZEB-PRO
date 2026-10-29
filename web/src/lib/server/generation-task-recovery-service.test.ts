@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     createAudioTaskUpstreamStep: vi.fn(),
     markAudioTaskFailed: vi.fn(),
     queryAudioTaskUpstreamStep: vi.fn(),
+    prepareAudioTaskAutomaticRetry: vi.fn(),
     queryCancelledImageTaskUpstreamStep: vi.fn(),
     queryImageTaskUpstreamStep: vi.fn(),
     prepareImageTaskAutomaticRetry: vi.fn(),
@@ -31,6 +32,8 @@ const mocks = vi.hoisted(() => ({
     updateTextTask: vi.fn(),
     transitionTextTask: vi.fn(),
     runTextTaskStep: vi.fn(),
+    markTextTaskFailed: vi.fn(),
+    prepareTextTaskAutomaticRetry: vi.fn(),
     requestCancellation: vi.fn(),
     refundImageTask: vi.fn(),
     refundVideoTask: vi.fn(),
@@ -70,6 +73,7 @@ vi.mock("@/lib/server/audio-task-runtime", () => ({
     markAudioTaskFailed: mocks.markAudioTaskFailed,
     persistAudioTaskResult: vi.fn(),
     queryAudioTaskUpstreamStep: mocks.queryAudioTaskUpstreamStep,
+    prepareAudioTaskAutomaticRetry: mocks.prepareAudioTaskAutomaticRetry,
 }));
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask, updateAudioTask: mocks.updateAudioTask }));
 vi.mock("@/lib/server/image-task-runtime", () => ({
@@ -81,7 +85,12 @@ vi.mock("@/lib/server/image-task-runtime", () => ({
     prepareImageTaskAutomaticRetry: mocks.prepareImageTaskAutomaticRetry,
 }));
 vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTask, updateImageTask: mocks.updateImageTask }));
-vi.mock("@/lib/server/text-task-runtime", () => ({ queryCancelledTextTaskUpstreamStep: mocks.queryCancelledTextTaskUpstreamStep, runTextTaskStep: mocks.runTextTaskStep }));
+vi.mock("@/lib/server/text-task-runtime", () => ({
+    queryCancelledTextTaskUpstreamStep: mocks.queryCancelledTextTaskUpstreamStep,
+    runTextTaskStep: mocks.runTextTaskStep,
+    markTextTaskFailed: mocks.markTextTaskFailed,
+    prepareTextTaskAutomaticRetry: mocks.prepareTextTaskAutomaticRetry,
+}));
 vi.mock("@/lib/server/text-task-store", () => ({ getTextTask: mocks.getTextTask, transitionTextTask: mocks.transitionTextTask, updateTextTask: mocks.updateTextTask }));
 vi.mock("@/lib/server/model-request-policy", () => ({ resolveModelRequestTimeoutMs: vi.fn(() => 180_000) }));
 vi.mock("@/lib/server/image-task-refund", () => ({ refundImageTask: mocks.refundImageTask }));
@@ -771,6 +780,42 @@ describe("generation task recovery service", () => {
         expect(result).toMatchObject({ claimed: 1, pending: 0, needsReview: 1 });
     });
 
+    it("releases one explicit upstream audio failure as a clean second submission", async () => {
+        const task = { id: "audio-retry", userId: "user-one", status: "running", attemptNo: 1, upstream: { id: "upstream-failed" }, config: { channelId: "channel-one", apiFormat: "openai", advancedConfig: { protocol: "custom" } } };
+        const retry = { ...task, upstream: undefined, config: { channelId: "channel-two", apiFormat: "openai", advancedConfig: { protocol: "custom" } } };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, userId: task.userId, type: "audio", status: "running", executionPhase: "polling", upstreamTaskId: task.upstream.id }]);
+        mocks.getAudioTask.mockResolvedValue(task);
+        mocks.queryAudioTaskUpstreamStep.mockResolvedValue({ state: "failed", status: "failed", error: "上游生成失败", retryReason: "upstream_failed" });
+        mocks.prepareAudioTaskAutomaticRetry.mockResolvedValue(retry);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.prepareAudioTaskAutomaticRetry).toHaveBeenCalledWith(task, "上游生成失败");
+        expect(mocks.release).toHaveBeenCalledWith(
+            "audio",
+            task.id,
+            "worker-one",
+            expect.objectContaining({ executionPhase: "created", channelId: "channel-two", nextPollAt: expect.any(Number), lastUpstreamStatus: "automatic_retry_after_upstream_failure" }),
+            { resetUpstreamIdentity: true },
+        );
+        expect(mocks.markAudioTaskFailed).not.toHaveBeenCalled();
+        expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0 });
+    });
+
+    it("stops after the second explicit upstream audio failure", async () => {
+        const task = { id: "audio-retry-exhausted", userId: "user-one", status: "running", attemptNo: 2, upstream: { id: "upstream-failed-again" }, config: { channelId: "channel-one", apiFormat: "openai", advancedConfig: { protocol: "custom" } } };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, userId: task.userId, type: "audio", status: "running", executionPhase: "polling", upstreamTaskId: task.upstream.id }]);
+        mocks.getAudioTask.mockResolvedValue(task);
+        mocks.queryAudioTaskUpstreamStep.mockResolvedValue({ state: "failed", status: "failed", error: "再次失败", retryReason: "upstream_failed" });
+        mocks.prepareAudioTaskAutomaticRetry.mockResolvedValue(null);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.markAudioTaskFailed).toHaveBeenCalledWith(task, "再次失败");
+        expect(mocks.release).toHaveBeenCalledWith("audio", task.id, "worker-one", expect.objectContaining({ executionPhase: "completed", nextPollAt: undefined }));
+        expect(result).toMatchObject({ claimed: 1, pending: 0, failed: 1 });
+    });
+
     it("persists the selected text channel before the next upstream query", async () => {
         const task = {
             id: "text-one",
@@ -787,6 +832,42 @@ describe("generation task recovery service", () => {
 
         expect(mocks.release).toHaveBeenCalledWith("text", task.id, "worker-one", expect.objectContaining({ upstreamTaskId: "upstream-one", channelId: "channel-two", provider: "custom", queryPath: "/jobs/:task_id" }));
         expect(result).toMatchObject({ claimed: 1, pending: 1 });
+    });
+
+    it("releases one explicit upstream text failure as a clean second submission", async () => {
+        const task = { id: "text-retry", userId: "user-one", status: "running", attemptNo: 1, upstream: { id: "upstream-failed" }, config: { channelId: "channel-one", apiFormat: "openai", advancedConfig: { protocol: "custom" } } };
+        const retry = { ...task, upstream: undefined, config: { channelId: "channel-two", apiFormat: "openai", advancedConfig: { protocol: "custom" } } };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, userId: task.userId, type: "text", status: "running", executionPhase: "polling" }]);
+        mocks.getTextTask.mockResolvedValue(task);
+        mocks.runTextTaskStep.mockResolvedValue({ state: "failed", error: "上游生成失败", retryReason: "upstream_failed" });
+        mocks.prepareTextTaskAutomaticRetry.mockResolvedValue(retry);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.prepareTextTaskAutomaticRetry).toHaveBeenCalledWith(task, "上游生成失败");
+        expect(mocks.release).toHaveBeenCalledWith(
+            "text",
+            task.id,
+            "worker-one",
+            expect.objectContaining({ executionPhase: "created", channelId: "channel-two", nextPollAt: expect.any(Number), lastUpstreamStatus: "automatic_retry_after_upstream_failure" }),
+            { resetUpstreamIdentity: true },
+        );
+        expect(mocks.markTextTaskFailed).not.toHaveBeenCalled();
+        expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0 });
+    });
+
+    it("stops after the second explicit upstream text failure", async () => {
+        const task = { id: "text-retry-exhausted", userId: "user-one", status: "running", attemptNo: 2, upstream: { id: "upstream-failed-again" }, config: { channelId: "channel-one", apiFormat: "openai", advancedConfig: { protocol: "custom" } } };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, userId: task.userId, type: "text", status: "running", executionPhase: "polling" }]);
+        mocks.getTextTask.mockResolvedValue(task);
+        mocks.runTextTaskStep.mockResolvedValue({ state: "failed", error: "再次失败", retryReason: "upstream_failed" });
+        mocks.prepareTextTaskAutomaticRetry.mockResolvedValue(null);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.markTextTaskFailed).toHaveBeenCalledWith(task, "再次失败");
+        expect(mocks.release).toHaveBeenCalledWith("text", task.id, "worker-one", expect.objectContaining({ executionPhase: "completed", nextPollAt: undefined }));
+        expect(result).toMatchObject({ claimed: 1, pending: 0, failed: 1 });
     });
 
     it("keeps polling a cancelled task after the upstream only accepts the cancellation request", async () => {

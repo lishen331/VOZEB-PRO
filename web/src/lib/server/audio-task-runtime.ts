@@ -29,7 +29,7 @@ export type AudioUpstreamStep =
     | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
     | { state: "result_ready"; status: string; resultUrl: string; pointsCost?: number; billingReceiptId?: string }
     | { state: "completed" }
-    | { state: "failed"; status: string; error: string };
+    | { state: "failed"; status: string; error: string; retryReason?: "upstream_failed" };
 
 export async function createAudioTaskUpstreamStep(task: AudioTask, origin: string, cookie = "", workerUserId = ""): Promise<AudioUpstreamStep> {
     const current = await getAudioTask(task.id);
@@ -159,9 +159,9 @@ export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string
             config: { ...task.config.advancedConfig, outputMappings: workflow?.outputMappings, timeoutSeconds: workflow?.timeoutSeconds },
             fetchImpl: (_url, init = {}) => providerFetch(task, origin, cookie, workerUserId, task.config.advancedConfig!.queryPath!, init),
         });
-        if (FAILED.has(result.status.toLowerCase())) return { state: "failed", status: result.status, error: result.querySummary?.upstreamError || readProviderError(result.raw) || "RunningHub 音频生成失败" };
+        if (FAILED.has(result.status.toLowerCase())) return { state: "failed", status: result.status, error: result.querySummary?.upstreamError || readProviderError(result.raw) || "RunningHub 音频生成失败", retryReason: "upstream_failed" };
         if (result.resultUrl) return { state: "result_ready", status: result.status, resultUrl: result.resultUrl };
-        if (["success", "succeeded", "completed"].includes(result.status.toLowerCase())) return { state: "failed", status: result.status, error: "RunningHub 已完成，但输出节点未返回音频" };
+        if (["success", "succeeded", "completed"].includes(result.status.toLowerCase())) return { state: "failed", status: result.status, error: "RunningHub 已完成，但输出节点未返回音频", retryReason: "upstream_failed" };
         return { state: "pending", status: result.status, upstreamTaskId: task.upstream.id, createPath: task.upstream.createPath };
     }
     let lastError = "";
@@ -183,15 +183,15 @@ export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string
         const status = readProviderString(data, task.config.advancedConfig?.statusField, STATUS_KEYS).toLowerCase();
         if (task.config.advancedConfig?.protocol === "tuzi-suno") {
             // Suno exposes a partial stream URL while still generating; only SUCCESS carries the final file.
-            if (FAILED.has(status)) return { state: "failed", status, error: readProviderError(data) || "Suno 音乐生成失败" };
+            if (FAILED.has(status)) return { state: "failed", status, error: readProviderError(data) || "Suno 音乐生成失败", retryReason: "upstream_failed" };
             if (!SUCCEEDED.has(status)) return { state: "pending", status: status || "processing", upstreamTaskId: task.upstream.id, createPath: task.upstream.createPath };
             const finalUrl = readProviderString(data, task.config.advancedConfig.resultField, AUDIO_KEYS);
             if (finalUrl) return { state: "result_ready", status, resultUrl: finalUrl };
-            return { state: "failed", status, error: "Suno 已完成，但没有返回音频地址" };
+            return { state: "failed", status, error: "Suno 已完成，但没有返回音频地址", retryReason: "upstream_failed" };
         }
         const result = readProviderString(data, task.config.advancedConfig?.resultField, AUDIO_KEYS);
         if (result) return { state: "result_ready", status: status || "completed", resultUrl: result };
-        if (FAILED.has(status)) return { state: "failed", status, error: readProviderError(data) || "音频生成失败" };
+        if (FAILED.has(status)) return { state: "failed", status, error: readProviderError(data) || "音频生成失败", retryReason: "upstream_failed" };
         return { state: "pending", status: status || "processing", upstreamTaskId: task.upstream.id, createPath: task.upstream.createPath };
     }
     throw new Error(lastError || "音频任务查询失败");
@@ -223,6 +223,29 @@ export async function markAudioTaskFailed(task: AudioTask, error: string) {
     const latest = (await getAudioTask(current.id)) || failed;
     await ensurePracticeAudioGenerationLog(latest, "failed", error);
     return refundAudioTask(latest);
+}
+
+export async function prepareAudioTaskAutomaticRetry(task: AudioTask, error: string) {
+    const current = (await getAudioTask(task.id)) || task;
+    if (current.status !== "pending" && current.status !== "running") return null;
+    const attemptNo = current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1;
+    if (attemptNo >= 2) return null;
+    const attempts = finishGenerationAttempt(current.attempts || [], attemptNo, {
+        status: "failed",
+        error,
+        pointsCost: current.billing?.pointsCost,
+        billingReceiptId: current.billing?.billingReceiptId,
+    });
+    await refundAudioCandidate(current);
+    const nextConfig = current.candidateConfigs?.[0] || current.config;
+    return updateAudioTask(current.id, {
+        config: nextConfig,
+        candidateConfigs: [],
+        attempts,
+        attemptNo,
+        upstream: undefined,
+        billing: undefined,
+    });
 }
 
 async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>, workflow?: ReturnType<typeof workflowConfigForTask>) {

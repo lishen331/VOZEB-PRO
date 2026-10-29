@@ -358,6 +358,8 @@ export type GenerationCostControlSettings = {
     maxPointsPerTask: number;
     dailyUserPointSpend: number;
     dailyTotalPointSpend: number;
+    /** needs_review 任务超过 2 小时无人工处理时，是否自动判定失败并退款。默认关闭。 */
+    needsReviewAutoRefundEnabled: boolean;
 };
 
 export type DataLifecycleSettings = {

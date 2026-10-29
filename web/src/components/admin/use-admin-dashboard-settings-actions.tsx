@@ -114,12 +114,12 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
         }));
     };
 
-    const updateGenerationCostControl = (key: keyof AuthSettings["generationCostControl"], value: number | null) => {
+    const updateGenerationCostControl = (key: keyof AuthSettings["generationCostControl"], value: number | boolean | null) => {
         setSettings((current) => ({
             ...current,
             generationCostControl: {
                 ...current.generationCostControl,
-                [key]: toNumberOrZero(value),
+                [key]: key === "needsReviewAutoRefundEnabled" ? Boolean(value) : toNumberOrZero(value as number | null),
             },
         }));
     };

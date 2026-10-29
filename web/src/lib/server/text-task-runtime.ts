@@ -42,7 +42,7 @@ const FAILED_TASK_STATUSES = new Set(["failed", "failure", "error", "cancelled",
 const PENDING_TASK_STATUSES = new Set(["", "pending", "queued", "running", "processing", "in_progress", "created", "submitted"]);
 const TEXT_STREAM_PARTIAL_FLUSH_MS = 500;
 
-export type TextTaskStep = { state: "pending"; status: string; upstreamTaskId: string; createPath: string } | { state: "completed" } | { state: "failed"; error: string } | { state: "needs_review"; error: string };
+export type TextTaskStep = { state: "pending"; status: string; upstreamTaskId: string; createPath: string } | { state: "completed" } | { state: "failed"; error: string; retryReason?: "upstream_failed" } | { state: "needs_review"; error: string };
 
 type ResponseInputContent = { type: "input_text"; text: string } | { type: "input_image"; image_url: string };
 type ResponseInputItem = { role: "system" | "user" | "assistant"; content: string | ResponseInputContent[] };
@@ -242,13 +242,14 @@ async function queryCustomTextTaskStep(task: TextTask, origin: string, cookie: s
             continue;
         }
         const data = (await response.json().catch(() => null)) as unknown;
-        if (!data || isProviderBusinessError(data)) return failTextTask(task, readProviderError(data) || "自定义文本任务查询失败", task.attempts || []);
+        // 查询阶段的上游失败先不落终态：留给 worker 恢复路径先尝试换渠道重试一次，重试耗尽才调用 markTextTaskFailed 终态退款。
+        if (!data || isProviderBusinessError(data)) return { state: "failed", error: readProviderError(data) || "自定义文本任务查询失败", retryReason: "upstream_failed" };
         const content = readProviderString(data, config.advancedConfig?.resultField, TEXT_RESULT_KEYS);
         if (content) return completeTextTask(task, content, task.billing || {}, task.attempts || []);
         const status = readProviderString(data, config.advancedConfig?.statusField, TASK_STATUS_KEYS).toLowerCase();
-        if (FAILED_TASK_STATUSES.has(status)) return failTextTask(task, readProviderError(data) || "自定义文本任务执行失败", task.attempts || []);
+        if (FAILED_TASK_STATUSES.has(status)) return { state: "failed", error: readProviderError(data) || "自定义文本任务执行失败", retryReason: "upstream_failed" };
         if (PENDING_TASK_STATUSES.has(status)) return { state: "pending", status: status || "processing", upstreamTaskId: upstream.id, createPath: upstream.createPath };
-        return failTextTask(task, "自定义文本任务已结束但没有返回内容", task.attempts || []);
+        return { state: "failed", error: "自定义文本任务已结束但没有返回内容", retryReason: "upstream_failed" };
     }
     throw new Error(lastError || "自定义文本任务查询失败");
 }
@@ -451,6 +452,32 @@ async function failTextTask(task: TextTask, error: string, attempts: NonNullable
 
 export function markTextTaskFailed(task: TextTask, error: string, upstreamError?: string) {
     return failTextTask(task, error, task.attempts || [], upstreamError || upstreamErrorDetail(error));
+}
+
+export async function prepareTextTaskAutomaticRetry(task: TextTask, error: string) {
+    const current = (await getTextTask(task.id)) || task;
+    if (current.status !== "pending" && current.status !== "running") return null;
+    const attemptNo = current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1;
+    if (attemptNo >= 2) return null;
+    const attempts = finishGenerationAttempt(current.attempts || [], attemptNo, {
+        status: "failed",
+        error,
+        upstreamError: upstreamErrorDetail(error),
+        pointsCost: current.billing?.pointsCost,
+        billingReceiptId: current.billing?.billingReceiptId,
+    });
+    if (generationTaskShouldConsumePoints(current.executionProfile) && current.billing?.billingReceiptId && !current.billing.refunded) {
+        await refundGenerationCharge({ userId: current.userId, receiptId: current.billing.billingReceiptId, model: generationModelId(current.config), usageKind: "text", units: 1, idempotencyKey: textTaskRefundIdempotencyKey(current) });
+    }
+    const nextConfig = current.candidateConfigs?.[0] || current.config;
+    return updateTextTask(current.id, {
+        config: nextConfig,
+        candidateConfigs: [],
+        attempts,
+        attemptNo,
+        upstream: undefined,
+        billing: undefined,
+    });
 }
 
 function clearSecret(config: TextTaskConfig): TextTaskConfig {

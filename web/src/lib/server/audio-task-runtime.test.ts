@@ -33,7 +33,7 @@ vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchIn
 
 import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-server.mjs";
 import { GenerationSubmissionUncertainError } from "./generation-submission-error";
-import { createAudioTaskUpstreamStep, markAudioTaskFailed, queryAudioTaskUpstreamStep } from "./audio-task-runtime";
+import { createAudioTaskUpstreamStep, markAudioTaskFailed, prepareAudioTaskAutomaticRetry, queryAudioTaskUpstreamStep } from "./audio-task-runtime";
 import type { AudioTask } from "./audio-task-store";
 import { emptyAdvancedConfig, protocolModelConfig, registeredChannelProtocolDefinitions } from "@/lib/channel-protocol-registry";
 import { readVerifiedSystemAiBusinessRequestId } from "./system-ai-billing";
@@ -98,7 +98,7 @@ describe("audio task runtime submission safety", () => {
                 .mockResolvedValueOnce(Response.json({ code: "success", data: { status: "FAILURE", fail_reason: "歌词包含违规内容", data: [] } })),
         );
         await expect(queryAudioTaskUpstreamStep(task, "http://internal")).resolves.toEqual({ state: "pending", status: "in_progress", upstreamTaskId: "suno-1", createPath: "/suno/submit/music" });
-        await expect(queryAudioTaskUpstreamStep(task, "http://internal")).resolves.toEqual({ state: "failed", status: "failure", error: "歌词包含违规内容" });
+        await expect(queryAudioTaskUpstreamStep(task, "http://internal")).resolves.toEqual({ state: "failed", status: "failure", error: "歌词包含违规内容", retryReason: "upstream_failed" });
     });
 
     it("reads the first Suno song only after SUCCESS", async () => {
@@ -377,6 +377,31 @@ describe("audio task runtime submission safety", () => {
 
         await expect(markAudioTaskFailed(state, "provider failed")).resolves.toMatchObject({ status: "error", billing: { refunded: true } });
         expect(mocks.refund).toHaveBeenCalledOnce();
+    });
+
+    it("prepares exactly one retry on an upstream query failure, then stops", async () => {
+        mocks.refund.mockReset();
+        state = {
+            ...audioTask(),
+            status: "running",
+            attemptNo: 1,
+            upstream: { id: "upstream-one", createPath: "/audio/speech" },
+            billing: { pointsCost: 1, billingReceiptId: "audio-retry", refunded: false },
+            attempts: [{ attemptNo: 1, model: "audio-one", status: "running", startedAt: 1 }],
+        };
+
+        await expect(prepareAudioTaskAutomaticRetry(state, "上游查询失败")).resolves.toMatchObject({ config: { channelId: "channel-two" }, candidateConfigs: [], attemptNo: 1, upstream: undefined, billing: undefined });
+        expect(mocks.refund).toHaveBeenCalledWith(expect.objectContaining({ receiptId: "audio-retry", usageKind: "audio" }));
+        expect(state.attempts).toEqual([expect.objectContaining({ attemptNo: 1, status: "failed", error: "上游查询失败" })]);
+
+        state = { ...state, attemptNo: 2 };
+        await expect(prepareAudioTaskAutomaticRetry(state, "再次失败")).resolves.toBeNull();
+    });
+
+    it("does not retry an audio task that is no longer pending or running", async () => {
+        state = { ...audioTask(), status: "error" };
+        await expect(prepareAudioTaskAutomaticRetry(state, "已终态")).resolves.toBeNull();
+        expect(mocks.refund).not.toHaveBeenCalled();
     });
 });
 
