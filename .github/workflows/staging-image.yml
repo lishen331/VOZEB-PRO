@@ -15,7 +15,7 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/lishen331/vozeb-pro
-  STAGING_IMAGE_PROXY: ghcr.nju.edu.cn
+  STAGING_IMAGE_PROXY: ghcr-proxy.invalid
 
 jobs:
   build:
