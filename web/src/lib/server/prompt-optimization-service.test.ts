@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { requestStructuredText } from "@/lib/server/text-planning-runtime";
-import { optimizeCreativePrompt } from "./prompt-optimization-service";
+import { optimizeCreativePrompt, writeSongLyrics } from "./prompt-optimization-service";
 
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: vi.fn() }));
 const refundGenerationCharge = vi.hoisted(() => vi.fn());
@@ -57,6 +57,32 @@ describe("prompt optimization service", () => {
 
         await expect(optimizeCreativePrompt({ origin: "http://localhost:3000", cookie: "session=1", userId: "user-one", requestId: "request-one", prompt: "优化这句话", mode: "agent" })).rejects.toThrow("默认文本模型没有返回有效提示词");
         expect(refundGenerationCharge).toHaveBeenCalledWith({ userId: "user-one", receiptId: "school:one", model: "planner", usageKind: "text", units: 1, idempotencyKey: "prompt-optimize-refund:school:one" });
+    });
+
+    it("writes sectioned lyrics with the default text model", async () => {
+        const lyrics = "[Verse]\n夏天的风吹过街角\n[Chorus]\n我们一起奔跑";
+        vi.mocked(requestStructuredText).mockResolvedValue({ arguments: JSON.stringify({ lyrics }), headers: new Headers(), protocol: "chat", elapsedMs: 10 });
+
+        await expect(writeSongLyrics({ origin: "http://localhost:3000", cookie: "session=1", userId: "user-one", requestId: "lyrics-one", prompt: "夏天的恋爱" })).resolves.toBe(lyrics);
+
+        const call = vi.mocked(requestStructuredText).mock.calls[0]![0];
+        expect(call.tool.name).toBe("write_song_lyrics");
+        expect(call.messages).toEqual(expect.arrayContaining([expect.objectContaining({ role: "system", content: expect.stringContaining("[Verse]") }), expect.objectContaining({ role: "user", content: "夏天的恋爱" })]));
+        const headers = new Headers(call.headers);
+        expect(headers.get("x-vozeb-pro-logical-model")).toBe("planner");
+        expect(headers.get("Idempotency-Key")).toContain("lyrics-write");
+    });
+
+    it("refunds when the lyrics response is empty", async () => {
+        vi.mocked(requestStructuredText).mockResolvedValue({
+            arguments: JSON.stringify({ lyrics: "  " }),
+            headers: new Headers({ "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-billing-receipt-id": "school:lyrics" }),
+            protocol: "chat",
+            elapsedMs: 10,
+        });
+
+        await expect(writeSongLyrics({ origin: "http://localhost:3000", cookie: "session=1", userId: "user-one", requestId: "lyrics-two", prompt: "离别" })).rejects.toThrow("默认文本模型没有返回有效歌词");
+        expect(refundGenerationCharge).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", receiptId: "school:lyrics", model: "planner", usageKind: "text" }));
     });
 
     it("uses the practice text model with a free execution profile", async () => {

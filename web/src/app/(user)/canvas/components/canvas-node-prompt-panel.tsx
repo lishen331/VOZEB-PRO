@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { FileText, Image as ImageIcon, Maximize2, Minimize2, Music2, Square, Video, X } from "lucide-react";
-import { Button, Dropdown, Modal, Tooltip } from "antd";
+import { FileText, Image as ImageIcon, Maximize2, Minimize2, Music2, Sparkles, Square, Video, X } from "lucide-react";
+import { App, Button, Dropdown, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
-import { audioModelFamily, audioModelPlaceholder, minimaxInterjections, minimaxPauseToken } from "@/lib/audio-model-params";
+import { audioModelFamily, audioModelPlaceholder, isAudioLyricsMode, minimaxInterjections, minimaxPauseToken } from "@/lib/audio-model-params";
+import { generateClientUUID } from "@/lib/client-uuid";
+import { writeLyrics } from "@/services/api/lyrics-writing";
 import { CreditSymbol, formatCreditAmount, requestCreditCost } from "@/constant/credits";
 import { defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -61,6 +63,9 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const textReferences = mentionReferences.filter((reference) => reference.active && reference.nodeId !== node.id);
     const [prompt, setPrompt] = useState(canvasNodePrompt(node));
     const [expanded, setExpanded] = useState(false);
+    const { message } = App.useApp();
+    const [writingLyrics, setWritingLyrics] = useState(false);
+    const lyricsMode = mode === "audio" && isAudioLyricsMode(config.model, config.audioParams);
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
     const credits = requestCreditCost({
         apiSource: config.apiSource,
@@ -89,6 +94,22 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const updatePrompt = (value: string) => {
         setPrompt(value);
         if (shouldPersistCanvasNodePrompt(node)) onPromptChange(node.id, value);
+    };
+
+    const writeLyricsFromPrompt = async () => {
+        const topic = prompt.trim();
+        if (!topic) {
+            message.warning("先在输入框写下歌曲主题，再点 AI 写歌词");
+            return;
+        }
+        setWritingLyrics(true);
+        try {
+            updatePrompt(await writeLyrics({ requestId: `lyrics-${generateClientUUID()}`, prompt: topic }));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "歌词生成失败");
+        } finally {
+            setWritingLyrics(false);
+        }
     };
 
     const submit = () => {
@@ -170,6 +191,22 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </Dropdown>
                     </div>
                 ) : null}
+                {lyricsMode ? (
+                    <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2" aria-label="歌词工具">
+                        <Tooltip title="按输入框里的主题写一首带分段的歌词，会替换输入框内容">
+                            <button
+                                type="button"
+                                disabled={writingLyrics || isRunning}
+                                className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium hover:opacity-75 disabled:cursor-not-allowed disabled:opacity-50"
+                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}
+                                onClick={() => void writeLyricsFromPrompt()}
+                            >
+                                <Sparkles className="size-3" />
+                                {writingLyrics ? "正在写歌词…" : "AI 写歌词"}
+                            </button>
+                        </Tooltip>
+                    </div>
+                ) : null}
                 <CanvasResourceMentionTextarea
                     autoFocus
                     value={prompt}
@@ -180,7 +217,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     data-canvas-prompt-scroll="node"
                     className="thin-scrollbar h-36 max-h-full min-h-16 w-full flex-1 resize-none overflow-y-auto overscroll-contain bg-transparent px-3 py-2 pr-11 text-sm leading-5 outline-none"
                     style={{ color: theme.node.text }}
-                    placeholder={mode === "audio" ? audioModelPlaceholder(config.model) : promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
+                    placeholder={mode === "audio" ? audioModelPlaceholder(config.model, config.audioParams) : promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
                 />
                 <Tooltip title="放大提示词输入" placement="top">
                     <button
@@ -367,7 +404,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                             data-canvas-prompt-scroll="expanded"
                             className="thin-scrollbar h-[min(52vh,26rem)] min-h-64 w-full resize-none overflow-y-auto overscroll-contain border-0 bg-transparent px-4 py-3 text-sm leading-6 outline-none"
                             style={{ color: theme.node.text }}
-                            placeholder={mode === "audio" ? audioModelPlaceholder(config.model) : promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
+                            placeholder={mode === "audio" ? audioModelPlaceholder(config.model, config.audioParams) : promptPlaceholder(mode, hasImageContent, hasTextContent, isPanorama)}
                         />
                     </div>
                     <div className="mt-3 flex items-center justify-end gap-2">

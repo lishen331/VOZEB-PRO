@@ -120,6 +120,43 @@ describe("work governance service", () => {
         expect(secondInput.after).toMatchObject({ sort: "random", randomSeed: firstInput.randomSeed, id: "work-one" });
     });
 
+    it("carries the featured rank through the random gallery cursor", async () => {
+        const item = {
+            workId: "work-featured",
+            versionId: "version-featured",
+            authorUserId: "user-one",
+            slug: "featuredwork1",
+            sourceType: "media",
+            viewCount: 0,
+            likeCount: 0,
+            isFeatured: true,
+            featuredAt: "2026-10-29T09:00:00.000Z",
+            publishedAt: "2026-07-27T00:00:00.000Z",
+            title: "精选作品",
+            description: "",
+            publicPrompt: "",
+            category: "插画",
+            tags: [],
+            authorDisplay: "custom",
+            authorName: "作者",
+        };
+        mocks.workGovernance.listGallery.mockResolvedValueOnce({ items: [item], hasMore: true }).mockResolvedValueOnce({ items: [], hasMore: false });
+
+        const first = await listPublicGallery();
+        await listPublicGallery({ cursor: first.nextCursor });
+
+        expect(mocks.workGovernance.listGallery.mock.calls[1]?.[0].after).toMatchObject({ sort: "random", featureRank: 1, featuredAt: "2026-10-29T09:00:00.000Z", id: "work-featured" });
+    });
+
+    it("ignores a random gallery cursor without a featured rank", async () => {
+        mocks.workGovernance.listGallery.mockResolvedValue({ items: [], hasMore: false });
+        const legacy = Buffer.from(JSON.stringify({ sort: "random", randomSeed: "seed", randomRank: "0".repeat(32), id: "work-one" })).toString("base64url");
+
+        await listPublicGallery({ cursor: legacy });
+
+        expect(mocks.workGovernance.listGallery.mock.calls[0]?.[0].after).toBeUndefined();
+    });
+
     it("does not allow an owner to report their own work", async () => {
         mocks.workPublications.getWorkBySlug.mockResolvedValue({ id: "work-one", ownerUserId: "user-one", publishedVersionId: "version-one", lifecycleStatus: "active" });
 

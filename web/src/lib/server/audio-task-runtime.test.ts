@@ -241,13 +241,20 @@ describe("audio task runtime submission safety", () => {
                 expect(JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}")).toEqual({ model: "tuzi-suno-audio", mv: "chirp-v3-5", prompt: "", gpt_description_prompt: "test", make_instrumental: false });
                 await expect(queryAudioTaskUpstreamStep(state, "http://internal")).resolves.toMatchObject({ state: "result_ready", status: "success", resultUrl: expect.stringContaining("/media/fixture.wav") });
                 expect(fixture.requests[1]).toMatchObject({ method: "GET", path: "/suno/fetch/suno-fixture-1" });
+            } else if (definition.id === "qwen-tts") {
+                expect(result).toMatchObject({ state: "result_ready", status: "completed", resultUrl: expect.stringContaining("/media/fixture.wav") });
+                expect(JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}")).toEqual({
+                    model: "qwen-tts-audio",
+                    input: { text: "test", voice: "longanhuan_v3.1", format: "mp3", rate: 1, pitch: 1, volume: 50 },
+                });
             } else {
                 expect(result).toEqual({ state: "completed" });
                 expect(state).toMatchObject({ status: "success", result: { url: "/api/reference-assets/fixture-audio.wav", mimeType: "audio/wav" } });
                 expect(mocks.writeMedia).toHaveBeenCalledWith(expect.stringMatching(/^data:audio\/wav;base64,UklGR/), "audio", expect.objectContaining({ ownerUserId: "user-one", taskId: "audio-one" }));
                 expect(mocks.register).toHaveBeenCalledOnce();
             }
-            expect(fixture.requests[0]).toMatchObject({ method: "POST", path: custom ? "/custom/audio" : definition.id === "tuzi-suno" ? "/suno/submit/music" : "/audio/speech" });
+            const expectedCreatePath = custom ? "/custom/audio" : definition.id === "tuzi-suno" ? "/suno/submit/music" : definition.id === "qwen-tts" ? "/api/v1/services/audio/tts/SpeechSynthesizer" : "/audio/speech";
+            expect(fixture.requests[0]).toMatchObject({ method: "POST", path: expectedCreatePath });
             expect(fixture.requests[0]?.headers.authorization).toBe("Bearer fixture-key");
             expect(fixture.requests[0]?.headers["idempotency-key"]).toBe("audio-task:audio-one:attempt:1");
             expect(fixture.requests[0]?.headers["x-client-request-id"]).toBe("audio-task:audio-one:attempt:1");

@@ -64,6 +64,8 @@ describe("WorkGovernanceRepository", () => {
 
         expect(sql).toContain("md5(work.id || gallery_cursor.random_seed)");
         expect(sql).toContain("gallery_cursor.random_rank");
+        expect(sql).toMatch(/ORDER BY work\.is_featured DESC, coalesce\(work\.featured_at, to_timestamp\(0\)\) DESC, md5\(work\.id \|\| gallery_cursor\.random_seed\) ASC, work\.id ASC/);
+        expect(sql).toContain("gallery_cursor.feature_rank");
         expect(values[10]).toBe("seed-one");
         expect(values[11]).toBe("0123456789abcdef0123456789abcdef");
     });

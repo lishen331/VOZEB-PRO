@@ -21,7 +21,40 @@ export class PromptOptimizationError extends Error {
     }
 }
 
-export async function optimizeCreativePrompt(input: { origin: string; cookie: string; userId: string; requestId: string; prompt: string; mode: PromptOptimizationMode; executionProfile?: PracticeExecutionProfile }) {
+type SystemTextInput = { origin: string; cookie: string; userId: string; requestId: string; prompt: string; executionProfile?: PracticeExecutionProfile };
+
+export async function optimizeCreativePrompt(input: SystemTextInput & { mode: PromptOptimizationMode }) {
+    return runSystemTextTool(input, {
+        idempotencyScope: "prompt-optimize",
+        instruction: (siteTitle) => promptOptimizationInstruction(input.mode, siteTitle),
+        tool: promptOptimizationTool,
+        parse: parseOptimizedPrompt,
+        invalidMessage: "默认文本模型没有返回有效提示词",
+        fallbackMessage: "提示词优化失败，请稍后重试",
+    });
+}
+
+export async function writeSongLyrics(input: SystemTextInput) {
+    return runSystemTextTool(input, {
+        idempotencyScope: "lyrics-write",
+        instruction: songLyricsInstruction,
+        tool: songLyricsTool,
+        parse: parseSongLyrics,
+        invalidMessage: "默认文本模型没有返回有效歌词",
+        fallbackMessage: "歌词生成失败，请稍后重试",
+    });
+}
+
+type SystemTextTask = {
+    idempotencyScope: string;
+    instruction: (siteTitle: string) => string;
+    tool: { name: string; description: string; parameters: Record<string, unknown> };
+    parse: (value: string) => string;
+    invalidMessage: string;
+    fallbackMessage: string;
+};
+
+async function runSystemTextTool(input: SystemTextInput, task: SystemTextTask) {
     const settings = await getAuthSettings();
     const resolved = (input.executionProfile === "open-source-practice" ? [{ model: settings.practiceDefaultModels?.textModel, profile: "open-source-practice" as const }] : [{ model: settings.defaultModels.textModel, profile: "production" as const }])
         .filter((item) => Boolean(item.model))
@@ -35,17 +68,17 @@ export async function optimizeCreativePrompt(input: { origin: string; cookie: st
 
     let latestError: unknown;
     for (const candidate of rankedCandidates) {
-        const idempotencyKey = systemAiIdempotencyKey("prompt-optimize", input.userId, input.requestId, candidate.channelId, candidate.upstreamModel);
+        const idempotencyKey = systemAiIdempotencyKey(task.idempotencyScope, input.userId, input.requestId, candidate.channelId, candidate.upstreamModel);
         try {
             const call = await requestStructuredText({
                 origin: input.origin,
                 cookie: input.cookie,
                 candidate,
                 messages: [
-                    { role: "system", content: promptOptimizationInstruction(input.mode, settings.site.title) },
+                    { role: "system", content: task.instruction(settings.site.title) },
                     { role: "user", content: input.prompt },
                 ],
-                tool: promptOptimizationTool,
+                tool: task.tool,
                 headers: {
                     "Content-Type": "application/json",
                     "Idempotency-Key": idempotencyKey,
@@ -54,18 +87,45 @@ export async function optimizeCreativePrompt(input: { origin: string; cookie: st
                 },
                 onInvalidResponse: (headers) => refundInvalidResponse(input.userId, model, headers, profile),
             });
-            const optimizedPrompt = parseOptimizedPrompt(call.arguments);
-            if (!optimizedPrompt) {
+            const output = task.parse(call.arguments);
+            if (!output) {
                 await refundInvalidResponse(input.userId, model, call.headers, profile);
-                throw new PromptOptimizationError("默认文本模型没有返回有效提示词");
+                throw new PromptOptimizationError(task.invalidMessage);
             }
-            return optimizedPrompt;
+            return output;
         } catch (error) {
             latestError = error;
         }
     }
-    throw new PromptOptimizationError(toSafeGenerationErrorMessage(latestError, "提示词优化失败，请稍后重试"));
+    throw new PromptOptimizationError(toSafeGenerationErrorMessage(latestError, task.fallbackMessage));
 }
+
+function songLyricsInstruction(siteTitle: string) {
+    return `你是 ${resolveSiteTitle(siteTitle)} 的歌词作者。根据用户给出的主题、情绪或故事写一首可直接演唱的歌词。用 [Verse]、[Pre-Chorus]、[Chorus]、[Bridge]、[Outro] 等英文方括号标记分段，每个标记独占一行；副歌要押韵、易记。歌词语言跟随用户输入的语言。保留用户指定的人名、意象和必须出现的句子，不添加用户没有要求的复杂设定。只返回歌词正文，不加标题、解释、和弦或演唱说明。`;
+}
+
+function parseSongLyrics(value: string) {
+    try {
+        const payload = JSON.parse(value) as { lyrics?: unknown };
+        const lyrics = typeof payload.lyrics === "string" ? payload.lyrics.trim() : "";
+        return lyrics && lyrics.length <= CREATE_AGENT_PROMPT_MAX_LENGTH ? lyrics : "";
+    } catch {
+        return "";
+    }
+}
+
+const songLyricsTool = {
+    name: "write_song_lyrics",
+    description: "根据主题写一首带 [Verse]/[Chorus] 分段标记的歌词",
+    parameters: {
+        type: "object",
+        properties: {
+            lyrics: { type: "string", minLength: 1, maxLength: CREATE_AGENT_PROMPT_MAX_LENGTH },
+        },
+        required: ["lyrics"],
+        additionalProperties: false,
+    },
+};
 
 function promptOptimizationInstruction(mode: PromptOptimizationMode, siteTitle: string) {
     const target = mode === "image" ? "图片" : mode === "video" ? "视频" : mode === "audio" ? "音频" : "创作";

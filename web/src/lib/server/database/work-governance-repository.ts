@@ -188,15 +188,26 @@ export class WorkGovernanceRepository {
     }
 }
 
+const FEATURED_AT = "coalesce(work.featured_at, to_timestamp(0))";
+
 function galleryOrder(sort: GallerySort) {
-    if (sort === "random") return "md5(work.id || gallery_cursor.random_seed) ASC, work.id ASC";
+    // 推荐：精选作品固定在最前（最近设为精选的排第一），其余按随机种子打乱
+    if (sort === "random") return `work.is_featured DESC, ${FEATURED_AT} DESC, md5(work.id || gallery_cursor.random_seed) ASC, work.id ASC`;
     if (sort === "popular") return "work.view_count DESC, coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
     if (sort === "latest") return "coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
     return "work.is_featured DESC, coalesce(work.featured_at, to_timestamp(0)) DESC, coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
 }
 
 function galleryCursorClause(sort: GallerySort) {
-    if (sort === "random") return "(gallery_cursor.work_id IS NULL OR (md5(work.id || gallery_cursor.random_seed), work.id) > (gallery_cursor.random_rank, gallery_cursor.work_id))";
+    if (sort === "random") {
+        // 前两列降序、后两列升序，行比较表达不了混合方向，只能展开写
+        const rank = "(CASE WHEN work.is_featured THEN 1 ELSE 0 END)";
+        return `(gallery_cursor.work_id IS NULL
+                 OR ${rank} < gallery_cursor.feature_rank
+                 OR (${rank} = gallery_cursor.feature_rank AND ${FEATURED_AT} < gallery_cursor.featured_at)
+                 OR (${rank} = gallery_cursor.feature_rank AND ${FEATURED_AT} = gallery_cursor.featured_at
+                     AND (md5(work.id || gallery_cursor.random_seed), work.id) > (gallery_cursor.random_rank, gallery_cursor.work_id)))`;
+    }
     if (sort === "popular") return "(gallery_cursor.work_id IS NULL OR (work.view_count, coalesce(version.reviewed_at, version.updated_at), work.id) < (gallery_cursor.view_count, gallery_cursor.published_at, gallery_cursor.work_id))";
     if (sort === "latest") return "(gallery_cursor.work_id IS NULL OR (coalesce(version.reviewed_at, version.updated_at), work.id) < (gallery_cursor.published_at, gallery_cursor.work_id))";
     return "(gallery_cursor.work_id IS NULL OR ((CASE WHEN work.is_featured THEN 1 ELSE 0 END), coalesce(work.featured_at, to_timestamp(0)), coalesce(version.reviewed_at, version.updated_at), work.id) < (gallery_cursor.feature_rank, gallery_cursor.featured_at, gallery_cursor.published_at, gallery_cursor.work_id))";
