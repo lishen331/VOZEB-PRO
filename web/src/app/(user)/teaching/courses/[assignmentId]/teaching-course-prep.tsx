@@ -10,19 +10,23 @@ import { BookOpen } from "lucide-react";
 import { GammaEmptyState } from "@/components/gamma-ui/gamma-overlays";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import type { PlatformCourseDetail, SchoolCourseOffering, TeachingAssignment } from "@/lib/school-domain";
+import { AnimatePresence } from "motion/react";
 import { coursesApi } from "@/services/api/courses";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
-import { useUserStore } from "@/stores/use-user-store";
 import { AssignmentCreateModal } from "@/app/(user)/teaching/teaching-assignment-modal";
 import { flattenLessons, parseTeachingTab, prepBackHref, resolvePrepLesson, teachingCourseHref, teachingHref, TEACHING_TAB_LABELS } from "@/app/(user)/teaching/teaching-routes";
 import { usePreparedLessons } from "@/app/(user)/teaching/use-prepared-lessons";
 import { PrepBackLink, PrepLayout, PrepSkeleton } from "./prep-layout";
+import { PlanEditor } from "./prep-plan-editor";
+import { PrepRehearsal } from "./prep-rehearsal";
+import { useLessonPlan } from "./use-lesson-plan";
 
 /*
  * L2 课程备课页（上一级：教学中心 /teaching 的「备课」或其他来源标签）。
- * 三栏布局复用 /bluegamma/courses 的备课页：左大纲 · 中资料预览 · 右课时说明 / 资料 / 作业。
+ * 三栏布局复用 /bluegamma/courses 的备课页：左大纲 · 中资料预览 · 右教案 / 课程说明 / 资料 / 作业。
+ * 备课闭环：看资料 → 写教案（自动保存到后端）→ 标记已备（检查完整度）→ 试讲（按环节计时，不绑定班级）→ 写反思。
  *   返回：左上角按钮 → from 对应的教学中心标签；浏览器后退效果相同（切课时用 replace，不堆历史）
- *   放映、布置作业、重命名 / 删除资料：都是本页浮层
+ *   放映、试讲、布置作业、重命名 / 删除资料：都是本页浮层
  */
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; tree: PlatformCourseDetail };
@@ -42,14 +46,15 @@ export function TeachingCoursePrep() {
     const fromTab = parseTeachingTab(search.get("from"));
     const backHref = prepBackHref(search.get("from"));
     const backLabel = TEACHING_TAB_LABELS[fromTab];
-    const user = useUserStore((state) => state.user);
     const context = useSchoolContextStore((state) => state.context);
-    const { prepared, toggle } = usePreparedLessons(user?.id);
+    const isTeacher = context?.membership.role === "teacher";
+    const { prepared, drafted, refresh: refreshProgress } = usePreparedLessons(isTeacher, assignmentId);
     const [state, setState] = useState<LoadState>({ status: "loading" });
     const [offerings, setOfferings] = useState<SchoolCourseOffering[]>([]);
     const [assignments, setAssignments] = useState<TeachingAssignment[]>([]);
     const [busy, setBusy] = useState(false);
     const [assignmentOpen, setAssignmentOpen] = useState(false);
+    const [rehearsing, setRehearsing] = useState(false);
 
     const loadTree = useCallback(async () => {
         try {
@@ -77,10 +82,59 @@ export function TeachingCoursePrep() {
     const tree = state.status === "ready" ? state.tree : null;
     const lessons = useMemo(() => (tree ? flattenLessons(tree) : []), [tree]);
     const coursePrepared = prepared[assignmentId] ?? [];
+    const courseDrafted = drafted[assignmentId] ?? [];
     const lesson = resolvePrepLesson(lessons, search.get("lesson"), coursePrepared);
+    const plan = useLessonPlan(assignmentId, isTeacher ? lesson : null, refreshProgress);
+    const planReady = plan.load.phase === "ready" && plan.doc?.lessonId === lesson?.id && plan.saveState !== "conflict";
+
+    // 标记已备：先存再检查完整度；缺项时把要补的内容列出来
+    const togglePrepared = async (done: boolean) => {
+        try {
+            const missing = await plan.setReady(done);
+            if (missing.length) {
+                modal.warning({
+                    title: "教案还差几项才能标记已备",
+                    content: (
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-[13px]">
+                            {missing.map((item) => (
+                                <li key={item}>{item}</li>
+                            ))}
+                        </ul>
+                    ),
+                    okText: "去补充",
+                });
+                return;
+            }
+            message.success(done ? "已标记为备好，可以试讲一遍" : "已改回草稿");
+        } catch (error) {
+            message.error(errorMessage(error, "标记失败"));
+        }
+    };
+
+    const startRehearsal = async () => {
+        if (!plan.doc?.content.phases.length) {
+            message.warning("先在教案里安排至少 1 个教学环节");
+            return;
+        }
+        try {
+            // 试讲记录挂在已保存的教案上：起步模板或有未保存修改时先存一次
+            if (plan.dirty || plan.doc.isStarter) await plan.save();
+            setRehearsing(true);
+        } catch (error) {
+            message.error(errorMessage(error, "教案保存失败，暂时不能试讲"));
+        }
+    };
 
     // 切课时：只换地址参数，不新增历史记录，后退仍回到上一级
     const pickLesson = useCallback((lessonId: string) => router.replace(teachingCourseHref(assignmentId, { lessonId, from: fromTab }), { scroll: false }), [assignmentId, fromTab, router]);
+
+    // 地址里没指定课时时，自动打开的是「第一节没备的」；把它写进地址固定下来，
+    // 否则老师刚标记已备，这条规则就会把页面跳到下一节课
+    const requestedLessonId = search.get("lesson");
+    const resolvedLessonId = lesson?.id;
+    useEffect(() => {
+        if (!requestedLessonId && resolvedLessonId) pickLesson(resolvedLessonId);
+    }, [pickLesson, requestedLessonId, resolvedLessonId]);
 
     const upload = async (file: File) => {
         if (!lesson) return;
@@ -109,12 +163,35 @@ export function TeachingCoursePrep() {
                 lessons={lessons}
                 lesson={lesson}
                 prepared={coursePrepared}
+                drafted={courseDrafted}
                 offerings={offerings}
                 assignments={assignments}
                 backHref={backHref}
                 backLabel={backLabel}
+                canMarkPrepared={planReady}
+                canRehearse={planReady}
+                planEditor={
+                    isTeacher ? (
+                        <PlanEditor
+                            doc={plan.doc?.lessonId === lesson?.id ? plan.doc : null}
+                            load={plan.load}
+                            materials={lesson?.materials ?? []}
+                            saveState={plan.saveState}
+                            saveError={plan.saveError}
+                            savedAt={plan.savedAt}
+                            dirty={plan.dirty}
+                            onUpdate={plan.update}
+                            onRetrySave={() => void plan.save().catch(() => undefined)}
+                            onReload={plan.reload}
+                            onOverwrite={() => void plan.overwrite().catch((error: unknown) => message.error(errorMessage(error, "保存失败")))}
+                        />
+                    ) : (
+                        <p className="text-[13px] text-[var(--gm-text-3)]">教案只对任课老师开放。</p>
+                    )
+                }
                 onPickLesson={pickLesson}
-                onTogglePrepared={(lessonId, done) => toggle(assignmentId, lessonId, done)}
+                onTogglePrepared={(_lessonId, done) => void togglePrepared(done)}
+                onRehearse={() => void startRehearsal()}
                 onCreateAssignment={() => setAssignmentOpen(true)}
                 onOpenAssignments={() => router.push(teachingHref("assignments"))}
                 materialActions={{
@@ -162,6 +239,25 @@ export function TeachingCoursePrep() {
                 onClose={() => setAssignmentOpen(false)}
                 onCreated={loadTeaching}
             />
+            <AnimatePresence>
+                {rehearsing && lesson && plan.doc ? (
+                    <PrepRehearsal
+                        caption={`第 ${lesson.number} 课 ${lesson.title}`}
+                        content={plan.doc.content}
+                        materials={lesson.materials}
+                        onFinish={async (input) => {
+                            try {
+                                await plan.recordRehearsal(input);
+                                message.success("试讲记录已保存，可以在教案里看到各环节用时");
+                            } catch (error) {
+                                message.error(errorMessage(error, "试讲记录保存失败"));
+                                throw error;
+                            }
+                        }}
+                        onClose={() => setRehearsing(false)}
+                    />
+                ) : null}
+            </AnimatePresence>
         </>
     );
 }

@@ -6,8 +6,8 @@ import { Check } from "lucide-react";
 import type { PrepLesson } from "@/app/(user)/teaching/teaching-routes";
 import { cn } from "@/lib/utils";
 
-/** 左栏课程大纲：按章分组，每课一行；已备打勾，当前课时高亮（样式同 /bluegamma/courses 的 CourseOutline） */
-export function PrepOutline({ lessons, lessonId, prepared, onPick }: { lessons: readonly PrepLesson[]; lessonId: string; prepared: readonly string[]; onPick: (lessonId: string) => void }) {
+/** 左栏课程大纲：按章分组，每课一行；已备打勾、写过教案标「教案草稿」，当前课时高亮（样式同 /bluegamma/courses 的 CourseOutline） */
+export function PrepOutline({ lessons, lessonId, prepared, drafted, onPick }: { lessons: readonly PrepLesson[]; lessonId: string; prepared: readonly string[]; drafted: readonly string[]; onPick: (lessonId: string) => void }) {
     const reduce = useReducedMotion();
     const chapters = lessons.reduce<{ id: string; title: string; lessons: PrepLesson[] }[]>((groups, lesson) => {
         const last = groups.at(-1);
@@ -50,7 +50,10 @@ export function PrepOutline({ lessons, lessonId, prepared, onPick }: { lessons: 
                                 </span>
                                 <span className="relative flex min-w-0 flex-1 flex-col leading-tight">
                                     <span className="truncate text-[13px] font-medium">{lesson.title}</span>
-                                    <span className="truncate text-[11px] text-[var(--gm-text-3)]">{lesson.materials.length ? `${lesson.materials.length} 份资料` : "暂无资料"}</span>
+                                    <span className="truncate text-[11px] text-[var(--gm-text-3)]">
+                                        {done ? "已备课" : drafted.includes(lesson.id) ? <span className="text-[var(--gm-warning)]">教案草稿</span> : "未开始"}
+                                        {` · ${lesson.materials.length ? `${lesson.materials.length} 份资料` : "暂无资料"}`}
+                                    </span>
                                 </span>
                             </button>
                         );
