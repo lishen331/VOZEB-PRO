@@ -42,20 +42,20 @@ export default function OneClickFilmFeaturesClient() {
     }
 
     return (
-        <main className="min-h-screen overflow-y-auto bg-stone-50 p-6 text-stone-950">
+        <main className="min-h-screen overflow-y-auto bg-[var(--gm-bg)] p-6 text-[var(--gm-text)]">
             <div className="mx-auto max-w-4xl pb-12">
                 <Button type="link" onClick={() => router.push("/admin?section=plugins")} className="!px-0">
                     ← 返回插件市场
                 </Button>
                 <div className="mb-5 mt-3">
-                    <div className="mb-2 text-sm text-stone-500">插件市场 / 一键成片 / 独立配置</div>
+                    <div className="mb-2 text-sm text-[var(--gm-text-3)]">插件市场 / 一键成片 / 独立配置</div>
                     <h1 className="text-2xl font-semibold">一键成片配置</h1>
-                    <p className="mt-1 text-sm text-stone-500">本配置当前只控制前台入口是否显示，不改变业务逻辑、任务或历史数据。</p>
+                    <p className="mt-1 text-sm text-[var(--gm-text-3)]">本配置当前只控制前台入口是否显示，不改变业务逻辑、任务或历史数据。</p>
                 </div>
-                <section className="flex items-center justify-between rounded-xl border bg-white p-6">
+                <section className="flex items-center justify-between rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-6">
                     <div>
                         <h2 className="text-lg font-semibold">一键成片入口</h2>
-                        <p className="mt-1 text-sm text-stone-500">开启后，前台导航会在创作工坊下方显示“一键成片”。</p>
+                        <p className="mt-1 text-sm text-[var(--gm-text-3)]">开启后，前台导航会在创作工坊下方显示“一键成片”。</p>
                     </div>
                     <Switch checked={enabled} loading={loading || saving} onChange={save} />
                 </section>

@@ -29,7 +29,7 @@ export function MobileNavDrawer({ open, featureModules, menuPermissions, onClose
 
     return (
         <Drawer aria-label="导航菜单" placement="left" size={208} open={open} onClose={onClose} closable={false} rootClassName="lg:hidden" styles={{ header: { display: "none" }, body: { padding: 0, background: "var(--gm-bg-elevated)" } }}>
-            <GammaAppSidebar collapsed={false} onToggle={onClose} featureModules={featureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} />
+            <GammaAppSidebar collapsed={false} onToggle={onClose} featureModules={featureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} showTheme />
         </Drawer>
     );
 }

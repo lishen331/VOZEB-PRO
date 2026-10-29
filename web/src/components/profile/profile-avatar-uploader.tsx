@@ -38,7 +38,7 @@ export function ProfileAvatarUploader({ onUpdated }: { onUpdated?: (user: LocalU
 
     return (
         <div className="flex min-w-0 items-center gap-3 border-b border-[var(--gm-border)] pb-4 sm:gap-4">
-            <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-sm font-semibold text-background ring-1 ring-border">
+            <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-sm font-semibold text-white ring-1 ring-[var(--gm-border)]">
                 {user?.avatarUrl ? <img src={user.avatarUrl} alt="当前头像" className="size-full object-cover" /> : fallback}
             </span>
             <div className="min-w-0 flex-1">

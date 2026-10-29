@@ -81,8 +81,7 @@ export function DramaAssetsPanel({ project, episode }: { project: DramaProject; 
                             <button
                                 key={kind}
                                 type="button"
-                                className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition ${active ? "bg-foreground" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"}`}
-                                style={active ? { color: "var(--background)" } : undefined}
+                                className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition ${active ? "bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-inset ring-[var(--gm-accent-ring)]" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"}`}
                                 onClick={() => {
                                     setActiveKind(kind);
                                     setQuery("");

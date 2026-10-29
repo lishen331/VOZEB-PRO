@@ -441,7 +441,7 @@ function CouponPickerItem({ selected, disabled = false, title, detail, onClick }
         <button
             type="button"
             disabled={disabled}
-            className={`flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition ${selected ? "!bg-[var(--gm-text)] !text-[var(--gm-bg)]" : "!bg-transparent !text-[var(--gm-text)] hover:!bg-[var(--gm-wash)]"} disabled:cursor-not-allowed disabled:!text-[var(--gm-text-3)] disabled:opacity-60`}
+            className={`flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition ${selected ? "!bg-[var(--gm-accent-soft)] !text-[var(--gm-accent)] ring-1 ring-inset ring-[var(--gm-accent-ring)]" : "!bg-transparent !text-[var(--gm-text)] hover:!bg-[var(--gm-wash)]"} disabled:cursor-not-allowed disabled:!text-[var(--gm-text-3)] disabled:opacity-60`}
             onClick={onClick}
         >
             <span className="min-w-0 flex-1">

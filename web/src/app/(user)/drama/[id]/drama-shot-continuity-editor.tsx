@@ -33,7 +33,7 @@ export function DramaShotContinuityEditor({ projectId, episodeId, shot }: { proj
                     </span>
                 </span>
                 <span
-                    className={`flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${open ? "border-foreground bg-foreground text-background" : "border-[var(--gm-border)] bg-[var(--gm-bg)] text-[var(--gm-text)] group-hover:border-foreground/30 group-hover:bg-[var(--gm-wash)]/70"}`}
+                    className={`flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${open ? "border-[var(--gm-accent-ring)] bg-[var(--gm-accent-soft)] text-[var(--gm-accent)]" : "border-[var(--gm-border)] bg-[var(--gm-bg)] text-[var(--gm-text)] group-hover:border-[var(--gm-border-strong)] group-hover:bg-[var(--gm-wash)]"}`}
                 >
                     <span>{open ? "收起" : "设置连续性"}</span>
                     <ChevronDown className={`size-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />

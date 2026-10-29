@@ -86,7 +86,7 @@ export default function DramaLabFeaturesClient() {
         setSettings((s) => ({ ...s, featureModules: { ...s.featureModules, ...DEFAULT_DRAMA_LAB_UI_FEATURES } }));
     }
     return (
-        <main className="h-screen overflow-y-auto bg-stone-50 p-6 text-stone-950">
+        <main className="h-screen overflow-y-auto bg-[var(--gm-bg)] p-6 text-[var(--gm-text)]">
             <div className="mx-auto max-w-6xl pb-12">
                 <div className="mb-3">
                     <Button type="link" onClick={() => router.push("/admin?section=plugins")} className="!px-0">
@@ -95,9 +95,9 @@ export default function DramaLabFeaturesClient() {
                 </div>
                 <div className="mb-5 flex items-center justify-between">
                     <div>
-                        <div className="mb-2 text-sm text-stone-500">插件市场 / 创作工坊 / 独立配置</div>
+                        <div className="mb-2 text-sm text-[var(--gm-text-3)]">插件市场 / 创作工坊 / 独立配置</div>
                         <h1 className="text-2xl font-semibold">创作工坊配置</h1>
-                        <p className="mt-1 text-sm text-stone-500">仅控制创作工坊前端入口、按钮和选择框的显示。</p>
+                        <p className="mt-1 text-sm text-[var(--gm-text-3)]">仅控制创作工坊前端入口、按钮和选择框的显示。</p>
                     </div>
                     <div className="flex gap-2">
                         <Button onClick={reset}>恢复默认</Button>
@@ -106,29 +106,29 @@ export default function DramaLabFeaturesClient() {
                         </Button>
                     </div>
                 </div>
-                <section className="mb-4 flex items-center justify-between rounded-xl border bg-white p-5">
+                <section className="mb-4 flex items-center justify-between rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
                     <div>
                         <h2 className="text-lg font-semibold">创作工坊总开关</h2>
-                        <p className="text-sm text-stone-500">关闭后隐藏创作工坊前台入口。</p>
+                        <p className="text-sm text-[var(--gm-text-3)]">关闭后隐藏创作工坊前台入口。</p>
                     </div>
                     <Switch checked={settings.featureModules?.["drama-lab"] !== false} onChange={(v) => set("drama-lab" as DramaLabUiFeatureId, v)} />
                 </section>
                 {groups.map(([name, items]) => (
-                    <section key={name} className="mb-4 rounded-xl border bg-white">
-                        <header className="border-b px-5 py-4">
+                    <section key={name} className="mb-4 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)]">
+                        <header className="border-b border-[var(--gm-border)] px-5 py-4">
                             <h2 className="font-semibold">{name}</h2>
                         </header>
                         <div className="grid gap-3 p-5 sm:grid-cols-2">
                             {items.map(([key, label, desc]) => (
-                                <div key={key} className="rounded-lg border p-4">
+                                <div key={key} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface-2)] p-4">
                                     <div className="flex justify-between gap-3">
                                         <div>
                                             <div className="font-medium">{label}</div>
-                                            <div className="mt-1 text-xs text-stone-500">{desc}</div>
+                                            <div className="mt-1 text-xs text-[var(--gm-text-3)]">{desc}</div>
                                         </div>
                                         <Switch loading={loading} checked={get(DRAMA_LAB_UI_FEATURES[key as keyof typeof DRAMA_LAB_UI_FEATURES])} onChange={(v) => set(DRAMA_LAB_UI_FEATURES[key as keyof typeof DRAMA_LAB_UI_FEATURES], v)} />
                                     </div>
-                                    <div className="mt-3 border-t pt-3 text-xs text-stone-400">前端显示入口</div>
+                                    <div className="mt-3 border-t border-[var(--gm-border)] pt-3 text-xs text-[var(--gm-text-3)]">前端显示入口</div>
                                 </div>
                             ))}
                         </div>

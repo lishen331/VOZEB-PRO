@@ -73,7 +73,7 @@ export function PublicCreatorProfile({
     return (
         <div className={compact ? "min-w-0 px-3 pb-5 sm:px-6" : "mx-auto w-full max-w-[1440px] px-3 pb-12 sm:px-6 sm:pb-16 lg:px-8"}>
             <section className={`flex min-w-0 flex-col items-center text-center ${compact ? "pb-5 pt-5 sm:pb-6 sm:pt-6" : "pb-5 pt-6 sm:pb-7 sm:pt-8"}`} aria-labelledby="creator-name">
-                <span className="grid size-18 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-lg font-semibold text-background ring-1 ring-border sm:size-20 sm:text-xl" aria-hidden="true">
+                <span className="grid size-18 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-lg font-semibold text-white ring-1 ring-[var(--gm-border)] sm:size-20 sm:text-xl" aria-hidden="true">
                     {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" className="size-full object-cover" /> : userAvatarFallback(profile.displayName || profile.username)}
                 </span>
                 <h1 id="creator-name" className="mt-3 max-w-full truncate text-xl font-semibold sm:text-2xl">
@@ -106,7 +106,7 @@ export function PublicCreatorProfile({
                     <h2 id="creator-works" className="relative inline-flex h-11 items-center gap-1.5 px-1 text-sm font-semibold">
                         <ImageIcon className="size-4" /> 已发布
                         <span className="text-xs font-normal tabular-nums text-[var(--gm-text-3)]">{profile.publishedWorkCount}</span>
-                        <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" />
+                        <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[var(--gm-accent)] shadow-[0_0_10px_var(--gm-accent-ring)]" />
                     </h2>
                 </div>
                 <ResponsiveMasonryGrid className={`mt-4 grid-cols-2 sm:grid-cols-3 ${compact ? "md:grid-cols-4 xl:grid-cols-5" : "md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"}`} ariaLabel="创作者作品列表">

@@ -97,7 +97,7 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
                         <GammaAnnouncement
                             onClose={() => setShowAnnouncement(false)}
                             action={
-                                <button type="button" onClick={openBillingPlans} className="relative shrink-0 rounded-full bg-black/80 px-3 py-1 text-xs font-semibold text-white transition-transform hover:scale-105">
+                                <button type="button" onClick={openBillingPlans} className="relative shrink-0 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[var(--gm-blue)] transition-transform hover:scale-105">
                                     立即升级 →
                                 </button>
                             }

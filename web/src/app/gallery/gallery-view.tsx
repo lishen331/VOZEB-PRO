@@ -87,12 +87,17 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
                     ]}
                     onChange={setSort}
                 />
-                <Checkbox name="featured" value="1" defaultChecked={filters.featured === "1"} className="h-10 min-h-10 rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] px-3 transition hover:bg-[var(--gm-wash)]">
+                <Checkbox
+                    name="featured"
+                    value="1"
+                    defaultChecked={filters.featured === "1"}
+                    className="h-12 min-h-12 !items-center rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] px-3 transition hover:border-[var(--gm-accent)]"
+                >
                     只看精选
                 </Checkbox>
                 <div className="col-span-2 flex min-w-0 items-center justify-end gap-2 md:col-span-1">
                     {filtered ? (
-                        <Link href={basePath} className={linkControlClass}>
+                        <Link href={basePath} className={cn(linkControlClass, "h-12")}>
                             清除
                         </Link>
                     ) : null}
@@ -172,7 +177,7 @@ function hasFilters(filters: GalleryFilters) {
 function categoryClass(active: boolean) {
     return cn(
         "inline-flex h-9 shrink-0 items-center rounded-[var(--gm-radius-sm)] px-3 text-sm transition",
-        active ? "bg-[var(--gm-wash)] font-medium text-[var(--gm-text)]" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
+        active ? "bg-[var(--gm-accent-soft)] font-medium text-[var(--gm-accent)] ring-1 ring-inset ring-[var(--gm-accent-ring)]" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
     );
 }
 

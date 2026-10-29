@@ -43,7 +43,7 @@ export function PublicWorkLikeButton({ slug, initialCount = 0, compact = false, 
         return (
             <button
                 type="button"
-                className={`inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] transition hover:bg-[#eef1f6] disabled:cursor-wait disabled:opacity-60 dark:hover:bg-[#212836] ${summary?.liked ? "text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300" : "text-[#8993a9] hover:text-[#1b212f] dark:text-[#7e889d] dark:hover:text-white"}`}
+                className={`inline-flex h-7 items-center gap-1 rounded-full px-2 text-[11px] transition-[color,background-color,transform] duration-150 hover:bg-[var(--gm-wash-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] active:scale-110 disabled:cursor-wait disabled:opacity-60 ${summary?.liked ? "text-[var(--gm-like)]" : "text-[var(--gm-text-3)] hover:text-[var(--gm-text)]"}`}
                 disabled={!summary || loading}
                 onClick={() => void toggleLike()}
                 aria-label={summary?.liked ? "取消点赞" : "点赞作品"}
@@ -56,7 +56,15 @@ export function PublicWorkLikeButton({ slug, initialCount = 0, compact = false, 
     }
 
     return (
-        <Button icon={<Heart className={summary?.liked ? "size-4 fill-current" : "size-4"} />} loading={loading} disabled={!summary} onClick={() => void toggleLike()} aria-pressed={summary?.liked || false}>
+        <Button
+            className={summary?.liked ? "!text-[var(--gm-like)]" : undefined}
+            icon={<Heart className={summary?.liked ? "size-4 fill-current" : "size-4"} />}
+            loading={loading}
+            disabled={!summary}
+            onClick={() => void toggleLike()}
+            aria-label={summary?.liked ? "取消点赞" : "点赞作品"}
+            aria-pressed={summary?.liked || false}
+        >
             {count}
         </Button>
     );

@@ -171,7 +171,7 @@ export default function MyCreatorPage() {
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-[1280px] px-3 pb-12 sm:px-6 sm:pb-16 lg:px-8">
                 <section className="flex min-w-0 flex-col items-center pb-5 pt-6 text-center sm:pb-7 sm:pt-8" aria-labelledby="my-profile-name">
-                    <span className="grid size-24 place-items-center overflow-hidden rounded-full bg-foreground text-xl font-semibold text-background ring-1 ring-border sm:size-28 sm:text-2xl" aria-hidden="true">
+                    <span className="grid size-24 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-xl font-semibold text-white ring-1 ring-[var(--gm-border)] sm:size-28 sm:text-2xl" aria-hidden="true">
                         {avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : userAvatarFallback(profileDisplayName)}
                     </span>
                     <div className="mt-3 grid w-fit max-w-full grid-cols-[1.5rem_minmax(0,1fr)_1.5rem] items-center gap-1.5">
@@ -324,7 +324,7 @@ function ProfileTabButton({ active, icon, label, count, onClick }: { active: boo
             {icon}
             {label}
             <span className="text-xs tabular-nums text-[var(--gm-text-3)]">{count}</span>
-            {active ? <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" /> : null}
+            {active ? <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[var(--gm-accent)] shadow-[0_0_10px_var(--gm-accent-ring)]" /> : null}
         </button>
     );
 }

@@ -777,7 +777,7 @@ export function DramaLabVisualAssetsPanel({
                                                                             <img src={imagePreviewUrl(reference.url, 128)} alt={reference.label} className="size-full object-contain" />
                                                                         </button>
                                                                         {isPrimary ? (
-                                                                            <span className="absolute left-0 top-0 grid size-4 place-items-center bg-foreground text-background">
+                                                                            <span className="absolute left-0 top-0 grid size-4 place-items-center bg-[var(--gm-blue)] text-white">
                                                                                 <Check className="size-2.5" />
                                                                             </span>
                                                                         ) : null}

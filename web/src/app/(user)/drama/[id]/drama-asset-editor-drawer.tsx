@@ -318,8 +318,7 @@ export function DramaAssetEditorDrawer({ project, kind, assetId, open, onClose }
                                             <div className="flex min-h-10 items-stretch border-t border-[var(--gm-border)]">
                                                 <button
                                                     type="button"
-                                                    className={`flex min-w-0 flex-1 items-center justify-center gap-1 px-2 text-xs font-medium transition ${isPrimary ? "bg-foreground" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"}`}
-                                                    style={isPrimary ? { color: "var(--background)" } : undefined}
+                                                    className={`flex min-w-0 flex-1 items-center justify-center gap-1 px-2 text-xs font-medium transition ${isPrimary ? "bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-inset ring-[var(--gm-accent-ring)]" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"}`}
                                                     onClick={() => setPrimaryReference(reference)}
                                                     aria-pressed={isPrimary}
                                                 >

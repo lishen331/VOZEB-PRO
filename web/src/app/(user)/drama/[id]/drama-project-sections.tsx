@@ -279,7 +279,7 @@ export function DramaWorkspaceHeader({
                 <Tooltip title="项目资产">
                     <Button
                         size="middle"
-                        className={`!px-2.5 ${assetsOpen ? "!border-[var(--gm-text)] !bg-[var(--gm-text)] !text-[var(--gm-bg)]" : "!border-[var(--gm-border)] !bg-[var(--gm-bg)] hover:!border-[var(--gm-text)]/25 hover:!bg-[var(--gm-wash)]"}`}
+                        className={`!px-2.5 ${assetsOpen ? "!border-[var(--gm-accent-ring)] !bg-[var(--gm-accent-soft)] !text-[var(--gm-accent)]" : "!border-[var(--gm-border)] !bg-[var(--gm-bg)] hover:!border-[var(--gm-border-strong)] hover:!bg-[var(--gm-wash)]"}`}
                         icon={<Boxes className="size-4" />}
                         onClick={assetsOpen ? onCloseAssets : onOpenAssets}
                         aria-current={assetsOpen ? "page" : undefined}

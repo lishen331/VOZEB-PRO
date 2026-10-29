@@ -160,7 +160,7 @@ function CommunityUserList({
             {items.map((item) => {
                 const identity = (
                     <>
-                        <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-xs font-semibold text-background">
+                        <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-xs font-semibold text-white">
                             {item.avatarUrl ? <img src={item.avatarUrl} alt="" className="size-full object-cover" loading="lazy" /> : userAvatarFallback(item.displayName || item.username)}
                         </span>
                         <span className="min-w-0 flex-1">

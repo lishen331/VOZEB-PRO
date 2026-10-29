@@ -88,7 +88,10 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
                         创作者主页暂不可用
                     </h1>
                     <p className="mt-2 text-sm leading-6 text-[var(--gm-text-3)]">当前部署未启用 PostgreSQL，作品发布与社区数据暂时无法读取。</p>
-                    <Link href="/" className="mt-5 inline-flex h-10 items-center rounded-md bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-85">
+                    <Link
+                        href="/"
+                        className="mt-5 inline-flex h-10 items-center gm-btn-primary rounded-[var(--gm-radius)] border border-transparent bg-[image:var(--gm-gradient)] px-4 text-sm font-semibold text-white shadow-[var(--gm-glow-blue)] transition hover:brightness-110"
+                    >
                         返回首页
                     </Link>
                 </section>

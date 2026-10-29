@@ -118,7 +118,7 @@ export function PublicWorkPreviewModal({
     const authorUsername = official ? undefined : work?.authorUsername;
     const authorIdentity = work ? (
         <>
-            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-[11px] font-semibold text-background" aria-hidden="true">
+            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-[11px] font-semibold text-white" aria-hidden="true">
                 {work.authorAvatarUrl ? <img src={work.authorAvatarUrl} alt="" className="size-full object-cover" /> : userAvatarFallback(work.authorName || "匿名作者")}
             </span>
             <span className="flex h-8 min-w-0 flex-1 items-center truncate text-sm font-semibold leading-none">{official ? work.authorName || "平台官方" : work.authorName || "匿名作者"}</span>
@@ -144,7 +144,7 @@ export function PublicWorkPreviewModal({
                     </div>
                 ) : (
                     <div className="grid min-w-0 lg:h-full lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
-                        <div className="flex min-w-0 flex-col overflow-hidden border-b border-[var(--gm-border)] bg-[var(--gm-wash)]/20 p-2.5 sm:p-3 lg:h-full lg:min-h-0 lg:border-b-0 lg:border-r">
+                        <div className="flex min-w-0 flex-col overflow-hidden border-b border-[var(--gm-border)] bg-[var(--gm-wash)] p-2.5 sm:p-3 lg:h-full lg:min-h-0 lg:border-b-0 lg:border-r">
                             {hasProcess ? (
                                 <div className="mb-2.5 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--gm-border)] pb-2.5">
                                     <Segmented
@@ -159,7 +159,7 @@ export function PublicWorkPreviewModal({
                                     <Button type="primary" size="small" icon={<CopyPlus className="size-3.5" />} loading={copying} disabled={copying} onClick={() => void copyToPractice()}>
                                         复制到练习
                                     </Button>
-                                    {copyError ? <p className="w-full break-words text-xs text-red-600 dark:text-red-300">{copyError}</p> : null}
+                                    {copyError ? <p className="w-full break-words text-xs text-[var(--gm-danger)]">{copyError}</p> : null}
                                 </div>
                             ) : null}
                             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
@@ -285,7 +285,10 @@ export function PublicWorkPreviewModal({
                                             ) : null}
                                         </div>
                                         {!onUsePrompt ? (
-                                            <Link href={remixHref} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md !bg-[var(--gm-text)] px-4 text-sm font-semibold !text-[var(--gm-bg)] transition hover:opacity-80">
+                                            <Link
+                                                href={remixHref}
+                                                className="gm-btn-primary mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[var(--gm-radius)] border border-transparent bg-[image:var(--gm-gradient)] px-4 text-sm font-semibold !text-white shadow-[var(--gm-glow-blue)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                                            >
                                                 <Sparkles className="size-4" /> 做同款
                                             </Link>
                                         ) : null}
@@ -296,7 +299,7 @@ export function PublicWorkPreviewModal({
                             {work.tags.length ? (
                                 <div className="mt-4 flex min-w-0 flex-wrap gap-1">
                                     {work.tags.map((tag) => (
-                                        <span key={tag} className="max-w-36 truncate rounded bg-[var(--gm-wash)] px-1.5 py-0.5 text-[11px] text-[var(--gm-text-3)]">
+                                        <span key={tag} className="max-w-36 truncate rounded-full bg-[var(--gm-wash-strong)] px-2 py-0.5 text-[11px] text-[var(--gm-text-2)]">
                                             #{tag}
                                         </span>
                                     ))}

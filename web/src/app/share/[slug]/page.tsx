@@ -111,7 +111,7 @@ export default async function SharePage({ params }: SharePageProps) {
     });
     const authorIdentity = (
         <>
-            <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-[10px] font-semibold text-background">
+            <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-[10px] font-semibold text-white">
                 {work.authorAvatarUrl ? <img src={work.authorAvatarUrl} alt="" className="size-full object-cover" /> : userAvatarFallback(work.authorName || "匿名作者")}
             </span>
             <div className="min-w-0">

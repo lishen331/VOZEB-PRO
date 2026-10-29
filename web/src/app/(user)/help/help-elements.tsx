@@ -9,7 +9,7 @@ export function HelpFlow({ steps }: { steps: HelpArticle["flow"] }) {
                 <li key={step.title} className="contents">
                     <div className="min-w-0 flex-1 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 text-card-foreground sm:p-4">
                         <div className="flex items-center gap-2">
-                            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">{index + 1}</span>
+                            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[image:var(--gm-gradient)] text-[11px] font-semibold text-white">{index + 1}</span>
                             <h3 className="min-w-0 text-sm font-semibold">{step.title}</h3>
                         </div>
                         <p className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">{step.detail}</p>

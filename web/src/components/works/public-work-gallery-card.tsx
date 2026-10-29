@@ -15,7 +15,7 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
     const authorUsername = official ? undefined : item.authorUsername;
     const author = (
         <>
-            <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-[8px] font-semibold text-background">
+            <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-[8px] font-semibold text-white">
                 {item.authorAvatarUrl ? <img src={item.authorAvatarUrl} alt="" className="size-full object-cover" loading="lazy" /> : userAvatarFallback(item.authorName || "匿名作者")}
             </span>
             <span className="truncate">{official ? item.authorName || "平台官方" : item.authorName || "匿名作者"}</span>
@@ -36,7 +36,7 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                 ) : item.preview?.mediaType === "video" ? (
                     <>
                         <video src={item.preview.url} muted playsInline preload="metadata" className="aspect-video w-full object-cover transition duration-300 group-hover:scale-[1.015]" />
-                        <span className="absolute right-2 top-2 grid size-7 place-items-center rounded bg-black/65 text-white" title="视频作品">
+                        <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm" title="视频作品">
                             <Video className="size-3.5" />
                         </span>
                     </>
@@ -48,9 +48,9 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                         </div>
                     </div>
                 )}
-                {official ? <span className="absolute right-2 top-2 rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white">官方</span> : null}
+                {official ? <span className="absolute right-2 top-2 rounded-full bg-[var(--gm-blue)] px-2 py-0.5 text-[11px] font-medium text-white shadow-[var(--gm-glow-blue)]">官方</span> : null}
                 {item.isFeatured ? (
-                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-foreground px-2 py-1 text-[11px] font-medium text-background">
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-[var(--gm-warning)] backdrop-blur-sm">
                         <Star className="size-3 fill-current" />
                         精选
                     </span>
@@ -59,8 +59,8 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                     <span
                         className={
                             item.isFeatured
-                                ? "absolute left-2 top-10 inline-flex items-center gap-1 rounded bg-cyan-50 px-2 py-1 text-[11px] font-medium text-cyan-800 shadow-sm dark:bg-cyan-950/85 dark:text-cyan-200"
-                                : "absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-cyan-50 px-2 py-1 text-[11px] font-medium text-cyan-800 shadow-sm dark:bg-cyan-950/85 dark:text-cyan-200"
+                                ? "absolute left-2 top-9 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm"
+                                : "absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm"
                         }
                     >
                         <Film className="size-3" /> 制作流程

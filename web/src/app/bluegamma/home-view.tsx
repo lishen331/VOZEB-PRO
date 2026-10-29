@@ -127,7 +127,7 @@ export function GammaHomeView() {
                         <GammaAnnouncement
                             onClose={() => setShowAnnouncement(false)}
                             action={
-                                <button type="button" onClick={() => setUpgradeOpen(true)} className="relative shrink-0 rounded-full bg-[rgba(4,6,12,0.8)] px-3 py-1 text-xs font-semibold text-white transition-transform hover:scale-105">
+                                <button type="button" onClick={() => setUpgradeOpen(true)} className="relative shrink-0 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[var(--gm-blue)] transition-transform hover:scale-105">
                                     立即升级 →
                                 </button>
                             }

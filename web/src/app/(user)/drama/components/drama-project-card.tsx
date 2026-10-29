@@ -17,12 +17,12 @@ export function DramaProjectCard({ project }: { project: DramaProjectSummary }) 
     const pendingCount = project.pendingTaskCount;
     const failedCount = project.failedTaskCount;
     return (
-        <article className="group relative rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 text-card-foreground transition hover:-translate-y-px hover:border-foreground/25 hover:shadow-sm focus-within:border-foreground/35 focus-within:ring-2 focus-within:ring-ring/20 sm:p-3.5">
+        <article className="group relative rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 text-card-foreground transition hover:-translate-y-px hover:border-[var(--gm-border-strong)] hover:shadow-[var(--gm-shadow)] focus-within:border-[var(--gm-accent)] focus-within:ring-2 focus-within:ring-[var(--gm-accent-ring)] sm:p-3.5">
             <Link href={`/drama/${project.id}`} className="absolute inset-0 z-0 rounded-lg outline-none" aria-label={`进入短剧项目：${project.title}`}>
                 <span className="sr-only">进入短剧项目：{project.title}</span>
             </Link>
             <div className="pointer-events-none relative z-[1] flex min-w-0 items-start gap-2.5">
-                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-foreground text-background">
+                <span className="grid size-8 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] bg-[image:var(--gm-gradient)] text-white shadow-[var(--gm-glow-blue)]">
                     <Clapperboard className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">

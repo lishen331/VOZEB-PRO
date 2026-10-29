@@ -81,7 +81,7 @@ export function DramaReviewPanel({ project, episode, onDesignVisuals, designing,
                                     <span className="grid size-8 place-items-center rounded-md bg-[var(--gm-wash)] text-xs font-semibold">{String(shot.order).padStart(2, "0")}</span>
                                     <Input variant="borderless" className="!min-w-0 !flex-1 !p-0 !font-semibold" value={shot.title} onChange={(event) => updateContentShot(shot.id, { title: event.target.value })} />
                                     <span className="hidden shrink-0 items-center gap-1.5 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]/45 px-2 py-1 text-[11px] text-[var(--gm-text-3)] sm:inline-flex">
-                                        <span className="size-1.5 rounded-full bg-foreground/60" />
+                                        <span className="size-1.5 rounded-full bg-[var(--gm-accent)]" />
                                         可编辑内容
                                     </span>
                                     <Button
