@@ -788,6 +788,7 @@ export function normalizeGenerationPointMultipliers(value: unknown): GenerationP
     const source = value && typeof value === "object" && !Array.isArray(value) ? (value as Partial<GenerationPointMultipliers>) : {};
     return {
         imageQuality: normalizeMultiplierMap(source.imageQuality, DEFAULT_GENERATION_POINT_MULTIPLIERS.imageQuality),
+        imageResolution: normalizeMultiplierMap(source.imageResolution, DEFAULT_GENERATION_POINT_MULTIPLIERS.imageResolution || {}),
         videoQuality: normalizeMultiplierMap(source.videoQuality, DEFAULT_GENERATION_POINT_MULTIPLIERS.videoQuality),
         videoSeconds: normalizeMultiplierMap(source.videoSeconds, DEFAULT_GENERATION_POINT_MULTIPLIERS.videoSeconds),
     };

@@ -140,30 +140,31 @@
 
 .profile-page-scroll .profile-primary-button.ant-btn,
 .profile-page-scroll .profile-primary-button.ant-btn-primary {
-    background: #0c0a09 !important;
-    border-color: #0c0a09 !important;
+    background: var(--gm-gradient) !important;
+    border-color: transparent !important;
     color: #ffffff !important;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14) !important;
+    box-shadow: var(--gm-glow-blue) !important;
 }
 
 .profile-page-scroll .profile-primary-button.ant-btn:hover,
 .profile-page-scroll .profile-primary-button.ant-btn-primary:hover {
-    background: #000000 !important;
-    border-color: #000000 !important;
+    background: var(--gm-gradient) !important;
+    border-color: transparent !important;
     color: #ffffff !important;
+    box-shadow: 0 10px 34px rgba(0, 80, 245, 0.6) !important;
 }
 
 .profile-page-scroll .profile-secondary-button.ant-btn {
     background: rgba(255, 255, 255, 0.92) !important;
-    border-color: #e7e5e4 !important;
-    color: #1c1917 !important;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08) !important;
+    border-color: #e3e6eb !important;
+    color: #101623 !important;
+    box-shadow: 0 8px 20px rgba(13, 23, 42, 0.08) !important;
 }
 
 .profile-page-scroll .profile-secondary-button.ant-btn:hover {
     background: #ffffff !important;
-    border-color: #d6d3d1 !important;
-    color: #0c0a09 !important;
+    border-color: #cdd4e1 !important;
+    color: #030510 !important;
 }
 
 .profile-page-scroll .profile-danger-button.ant-btn {
@@ -181,15 +182,15 @@
 
 .profile-page-scroll .profile-email-code-search .ant-input-search-button,
 .profile-page-scroll .profile-email-code-search .ant-input-search-btn {
-    background: #0c0a09 !important;
-    border-color: #0c0a09 !important;
+    background: var(--gm-blue) !important;
+    border-color: var(--gm-blue) !important;
     color: #ffffff !important;
 }
 
 .profile-page-scroll .profile-email-code-search .ant-input-search-button:hover,
 .profile-page-scroll .profile-email-code-search .ant-input-search-btn:hover {
-    background: #000000 !important;
-    border-color: #000000 !important;
+    background: var(--gm-blue-hover) !important;
+    border-color: var(--gm-blue-hover) !important;
     color: #ffffff !important;
 }
 
@@ -211,29 +212,30 @@
 
 .dark .profile-page-scroll .profile-primary-button.ant-btn,
 .dark .profile-page-scroll .profile-primary-button.ant-btn-primary {
-    background: #fafaf9 !important;
-    border-color: #fafaf9 !important;
-    color: #0c0a09 !important;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28) !important;
+    background: var(--gm-gradient) !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+    box-shadow: var(--gm-glow-blue) !important;
 }
 
 .dark .profile-page-scroll .profile-primary-button.ant-btn:hover,
 .dark .profile-page-scroll .profile-primary-button.ant-btn-primary:hover {
-    background: #ffffff !important;
-    border-color: #ffffff !important;
-    color: #0c0a09 !important;
+    background: var(--gm-gradient) !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 34px rgba(0, 80, 245, 0.6) !important;
 }
 
 .dark .profile-page-scroll .profile-secondary-button.ant-btn {
-    background: rgba(28, 25, 23, 0.88) !important;
-    border-color: #44403c !important;
-    color: #f5f5f4 !important;
+    background: rgba(16, 22, 35, 0.88) !important;
+    border-color: #384153 !important;
+    color: #f2f5fb !important;
     box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22) !important;
 }
 
 .dark .profile-page-scroll .profile-secondary-button.ant-btn:hover {
-    background: #292524 !important;
-    border-color: #57534e !important;
+    background: #1d2432 !important;
+    border-color: #4b5467 !important;
     color: #ffffff !important;
 }
 
@@ -252,14 +254,14 @@
 
 .dark .profile-page-scroll .profile-email-code-search .ant-input-search-button,
 .dark .profile-page-scroll .profile-email-code-search .ant-input-search-btn {
-    background: #fafaf9 !important;
-    border-color: #fafaf9 !important;
-    color: #0c0a09 !important;
+    background: var(--gm-blue) !important;
+    border-color: var(--gm-blue) !important;
+    color: #ffffff !important;
 }
 
 .dark .profile-page-scroll .profile-email-code-search .ant-input-search-button:hover,
 .dark .profile-page-scroll .profile-email-code-search .ant-input-search-btn:hover {
-    background: #ffffff !important;
-    border-color: #ffffff !important;
-    color: #0c0a09 !important;
+    background: var(--gm-blue-hover) !important;
+    border-color: var(--gm-blue-hover) !important;
+    color: #ffffff !important;
 }

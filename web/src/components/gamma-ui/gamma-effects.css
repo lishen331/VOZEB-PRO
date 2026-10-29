@@ -1,0 +1,269 @@
+/*
+ * 布鲁伽马 · 特效层：醒目按钮、苹果风玻璃材质、点击特效。
+ * 与 gamma-tokens.css 分开，只在 .gm 作用域内生效；系统开启「减少动态效果」时全部静止。
+ */
+
+@property --gm-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+
+/* ───────── 醒目按钮 ───────── */
+
+/* 流光边框：一圈锥形渐变绕边旋转（用于「立即生成」「开通会员」这类主行动） */
+@keyframes gm-spin-angle {
+    to {
+        --gm-angle: 360deg;
+    }
+}
+.gm-beam {
+    position: relative;
+    isolation: isolate;
+}
+.gm-beam::before {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(from var(--gm-angle), transparent 0deg, #28ebfa 60deg, #0050f5 120deg, transparent 180deg, transparent 360deg);
+    animation: gm-spin-angle 3.2s linear infinite;
+}
+.gm-beam::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--gm-beam-fill, var(--gm-bg-elevated));
+}
+
+/* 极光按钮：底下几团彩色光缓慢流动 */
+@keyframes gm-aurora-shift {
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+.gm-aurora-btn {
+    background-image: linear-gradient(115deg, #0050f5, #1a9dff 30%, #28ebfa 50%, #7c5cff 70%, #0050f5);
+    background-size: 260% 100%;
+    animation: gm-aurora-shift 6s ease-in-out infinite;
+}
+
+/* 呼吸光环：放在需要引导点击的位置（新手引导、首次使用） */
+@keyframes gm-ping-ring {
+    0% {
+        transform: scale(1);
+        opacity: 0.55;
+    }
+    80%,
+    100% {
+        transform: scale(1.7);
+        opacity: 0;
+    }
+}
+.gm-ping::before,
+.gm-ping::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 0 2px var(--gm-accent);
+    animation: gm-ping-ring 2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    pointer-events: none;
+}
+.gm-ping::after {
+    animation-delay: 1s;
+}
+
+/* 扫描线：卡片 hover 时一道光从左到右扫过 */
+.gm-sweep {
+    position: relative;
+    overflow: hidden;
+}
+.gm-sweep::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.28) 50%, transparent 65%);
+    transform: translateX(-120%);
+    transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+}
+.gm-sweep:hover::after {
+    transform: translateX(120%);
+}
+
+/* ───────── 苹果风材质（visionOS / iOS 26 Liquid Glass 的手感） ─────────
+ * 要点：大圆角 + 连续曲率（squircle 用 corner-shape，支持不了时退回普通圆角）、
+ * 极细的高光描边、底部一点暗边、背景强模糊高饱和，按下时整体轻微压扁。 */
+
+.gm-material {
+    --gm-mat-bg: rgba(40, 44, 58, 0.42);
+    --gm-mat-hi: rgba(255, 255, 255, 0.34);
+    --gm-mat-lo: rgba(0, 0, 0, 0.35);
+    position: relative;
+    isolation: isolate;
+    background: var(--gm-mat-bg);
+    backdrop-filter: blur(30px) saturate(1.9) brightness(1.05);
+    -webkit-backdrop-filter: blur(30px) saturate(1.9) brightness(1.05);
+    box-shadow:
+        inset 0 0.5px 0 var(--gm-mat-hi),
+        inset 0 -0.5px 0 var(--gm-mat-lo),
+        0 0.5px 0 rgba(255, 255, 255, 0.06),
+        0 12px 32px -8px rgba(0, 0, 0, 0.45);
+}
+.gm.gm-light .gm-material {
+    --gm-mat-bg: rgba(255, 255, 255, 0.62);
+    --gm-mat-hi: rgba(255, 255, 255, 1);
+    --gm-mat-lo: rgba(16, 38, 84, 0.1);
+}
+/* 渐变描边：上亮下暗，模拟玻璃边缘的折射 */
+.gm-material::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(180deg, var(--gm-mat-hi), transparent 40%, transparent 70%, var(--gm-mat-lo));
+    mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+    pointer-events: none;
+}
+/* 连续曲率圆角（Chrome 139+ 支持 corner-shape，其他浏览器保持普通圆角） */
+@supports (corner-shape: squircle) {
+    .gm-squircle {
+        corner-shape: squircle;
+    }
+}
+
+/* 深色厚玻璃：做 Dock / 浮动工具条 */
+.gm-material-thick {
+    --gm-mat-bg: rgba(22, 26, 38, 0.66);
+}
+.gm.gm-light .gm-material-thick {
+    --gm-mat-bg: rgba(250, 251, 255, 0.78);
+}
+
+/* 系统开关的绿 / 品牌蓝开关 */
+.gm-ios-switch {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* ───────── 点击特效 ───────── */
+
+/* 粒子：由 JS 生成 span.gm-particle，设置 --dx/--dy/--rot 后自动飞散 */
+@keyframes gm-particle-fly {
+    0% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.3) rotate(var(--rot));
+        opacity: 0;
+    }
+}
+.gm-particle {
+    position: absolute;
+    pointer-events: none;
+    animation: gm-particle-fly var(--life, 700ms) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 冲击环：点击处扩散一圈 */
+@keyframes gm-shock {
+    from {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0.7;
+    }
+    to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0;
+    }
+}
+.gm-shock {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 999px;
+    border: 2px solid var(--gm-accent);
+    animation: gm-shock 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* 长按进度：按住填满一圈才触发（危险或付费操作） */
+.gm-hold-ring {
+    transition: stroke-dashoffset 80ms linear;
+}
+
+/* ───────── 状态插画（随主题变色） ───────── */
+.gm-state-art .gm-art-line,
+.gm-state-art .gm-art-accent-line {
+    fill: none;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.gm-state-art .gm-art-line {
+    stroke: var(--gm-text-3);
+}
+.gm-state-art .gm-art-thick {
+    stroke-width: 4;
+}
+.gm-state-art .gm-art-accent-line {
+    stroke: var(--gm-accent);
+}
+.gm-state-art .gm-art-accent {
+    fill: var(--gm-accent);
+}
+.gm-state-art .gm-art-fill {
+    fill: var(--gm-accent-soft);
+    stroke: var(--gm-accent);
+    stroke-width: 1.6;
+}
+.gm-state-art .gm-art-shadow {
+    fill: var(--gm-wash-strong);
+}
+
+/* 骨架屏：按内容形状占位，光带从左扫到右 */
+@keyframes gm-skel-sweep {
+    from {
+        background-position: 150% 0;
+    }
+    to {
+        background-position: -50% 0;
+    }
+}
+.gm-skel {
+    background-color: var(--gm-wash-strong);
+    background-image: linear-gradient(100deg, transparent 30%, var(--gm-wash-heavy) 50%, transparent 70%);
+    background-size: 200% 100%;
+    animation: gm-skel-sweep 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gm-skel {
+        animation: none;
+    }
+    .gm-beam::before,
+    .gm-aurora-btn,
+    .gm-ping::before,
+    .gm-ping::after,
+    .gm-particle,
+    .gm-shock {
+        animation: none;
+    }
+    .gm-particle,
+    .gm-shock {
+        display: none;
+    }
+    .gm-sweep::after {
+        transition: none;
+    }
+}

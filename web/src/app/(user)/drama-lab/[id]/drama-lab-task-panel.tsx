@@ -1,7 +1,9 @@
 "use client";
 
 import { generationUserMessage } from "@/lib/generation-feedback-message";
-import { Alert, Button, Progress, Tag, message } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Progress } from "@/components/gamma-ui/gamma-ant-display";
+import { Alert, Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CheckCircle2, ChevronUp, CircleAlert, LoaderCircle, PauseCircle, RefreshCw, Square, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -143,13 +145,13 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     const retryTasks = tasks.filter((task) => !isTaskActive(task) && !isTaskNeedsReview(task) && task.canRetry);
 
     return (
-        <section className={cn("border-b border-border bg-card", !compact && "flex min-h-0 flex-col", className)} data-testid="drama-lab-task-panel">
+        <section className={cn("border-b border-[var(--gm-border)] bg-[var(--gm-surface)]", !compact && "flex min-h-0 flex-col", className)} data-testid="drama-lab-task-panel">
             {contextHolder}
             {collapsed ? (
                 <div className="flex items-center justify-center px-1 py-2">
                     <button
                         type="button"
-                        className="relative grid size-8 place-items-center rounded hover:bg-muted"
+                        className="relative grid size-8 place-items-center rounded hover:bg-[var(--gm-wash)]"
                         onClick={() => (compact ? undefined : setCollapsed(false))}
                         aria-label="展开任务状态"
                         aria-expanded={false}
@@ -188,12 +190,12 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
                         />
                     ) : null}
                     {loading && !tasks.length ? (
-                        <div className="flex items-center gap-2 px-1 py-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 px-1 py-2 text-xs text-[var(--gm-text-3)]">
                             <LoaderCircle className="size-3.5 animate-spin" />
                             正在加载任务
                         </div>
                     ) : null}
-                    {!loading && !error && !tasks.length ? <p className="px-1 py-2 text-xs text-muted-foreground">暂无任务</p> : null}
+                    {!loading && !error && !tasks.length ? <p className="px-1 py-2 text-xs text-[var(--gm-text-3)]">暂无任务</p> : null}
                     <TaskSection title="运行中" tasks={activeTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
                     <TaskSection title="待检查" tasks={reviewTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
                     <TaskSection title="需要处理" tasks={retryTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
@@ -227,7 +229,7 @@ function TaskSection({
     if (!tasks.length) return null;
     return (
         <div className="space-y-1.5" data-testid={`drama-task-section-${title}`}>
-            <div className="px-1 text-[11px] font-semibold text-muted-foreground">{title}</div>
+            <div className="px-1 text-[11px] font-semibold text-[var(--gm-text-3)]">{title}</div>
             <div className="space-y-1.5">
                 {tasks.map((task) => (
                     <TaskRow
@@ -272,7 +274,7 @@ function TaskRow({
     const cancelled = task.status === "cancelled";
     const statusLabel = failed ? "失败" : cancelled ? "已取消" : task.status === "success" ? "完成" : task.status === "paused" ? "已暂停" : active ? "进行中" : task.status;
     return (
-        <article className="border border-border/80 px-2 py-2" data-testid={`drama-task-${task.id}`}>
+        <article className="border border-[var(--gm-border)]/80 px-2 py-2" data-testid={`drama-task-${task.id}`}>
             <div className="flex items-start gap-2">
                 <StatusIcon status={task.status} executionPhase={task.executionPhase} />
                 <div className="min-w-0 flex-1">
@@ -284,11 +286,11 @@ function TaskRow({
                             {needsReview ? "待检查" : statusLabel}
                         </Tag>
                     </div>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{[episodeLabel(task.episodeId, episodes), task.shotId ? `分镜 ${task.shotId}` : "", task.currentStep || ""].filter(Boolean).join(" · ") || "创作工坊"}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-[var(--gm-text-3)]">{[episodeLabel(task.episodeId, episodes), task.shotId ? `分镜 ${task.shotId}` : "", task.currentStep || ""].filter(Boolean).join(" · ") || "创作工坊"}</p>
                     {needsReview ? (
                         <div className="mt-1.5 text-[11px] text-amber-700">待检查，不会继续轮询</div>
                     ) : task.progress === null ? (
-                        <div className="mt-1.5 h-1 overflow-hidden bg-muted" data-progress-indeterminate="true">
+                        <div className="mt-1.5 h-1 overflow-hidden bg-[var(--gm-wash)]" data-progress-indeterminate="true">
                             <div className="h-full w-2/5 animate-pulse bg-primary/70" />
                         </div>
                     ) : (
@@ -334,7 +336,7 @@ function isTaskVisible(task: DramaLabTaskView) {
 function StatusIcon({ status, executionPhase }: { status: DramaLabTaskView["status"]; executionPhase?: DramaLabTaskView["executionPhase"] }) {
     if (status === "success") return <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />;
     if (status === "error") return <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />;
-    if (status === "cancelled") return <Square className="mt-0.5 size-4 shrink-0 text-muted-foreground" />;
+    if (status === "cancelled") return <Square className="mt-0.5 size-4 shrink-0 text-[var(--gm-text-3)]" />;
     if (status === "paused") return <PauseCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />;
     if (isTaskNeedsReview({ executionPhase })) return <PauseCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />;
     return <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />;

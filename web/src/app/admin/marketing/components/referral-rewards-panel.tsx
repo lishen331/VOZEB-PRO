@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Button, Form, Input, InputNumber, Modal, Pagination, Segmented, Select, Switch, Tag } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RefreshCw, Save, Settings2, ShieldCheck, Sparkles, UserPlus } from "lucide-react";
 
 import { AdminAccountId } from "@/components/admin/admin-user-identity";
@@ -204,15 +209,15 @@ export function ReferralRewardsPanel() {
     const program = overview?.program;
     return (
         <section className="space-y-4">
-            <header className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground sm:flex-row sm:items-start sm:justify-between sm:p-5">
+            <header className="flex flex-col gap-3 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 text-card-foreground sm:flex-row sm:items-start sm:justify-between sm:p-5">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                        <span className="flex size-9 items-center justify-center rounded-lg bg-[var(--gm-wash)] text-[var(--gm-text)]">
                             <UserPlus className="size-4" />
                         </span>
                         <div>
                             <h2 className="text-lg font-semibold">邀请奖励</h2>
-                            <p className="mt-1 text-sm text-muted-foreground">单层邀请、首单触发、冷静期结算、退款可撤销。</p>
+                            <p className="mt-1 text-sm text-[var(--gm-text-3)]">单层邀请、首单触发、冷静期结算、退款可撤销。</p>
                         </div>
                     </div>
                 </div>
@@ -238,17 +243,17 @@ export function ReferralRewardsPanel() {
                 <Metric label="风险复核" value={stats?.risky || 0} />
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-4 text-card-foreground sm:p-5">
+            <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 text-card-foreground sm:p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <div className="flex items-center gap-2">
-                            <ShieldCheck className="size-4 text-muted-foreground" />
+                            <ShieldCheck className="size-4 text-[var(--gm-text-3)]" />
                             <h3 className="font-semibold">当前规则</h3>
                             <Tag color={program?.enabled ? "green" : "default"}>{program?.enabled ? "已启用" : "未启用"}</Tag>
                         </div>
-                        <p className="mt-1 text-sm text-muted-foreground">启用前必须配置有效奖励；单一网络信号只会进入复核或冻结。</p>
+                        <p className="mt-1 text-sm text-[var(--gm-text-3)]">启用前必须配置有效奖励；单一网络信号只会进入复核或冻结。</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs text-muted-foreground sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs text-[var(--gm-text-3)] sm:grid-cols-4">
                         <RuleFact label="邀请人" value={`${program?.inviterPoints || 0} 积分`} />
                         <RuleFact label="新用户" value={program?.inviteeRewardType === "coupon" ? "优惠券" : `${program?.inviteePoints || 0} 积分`} />
                         <RuleFact label="最低实付" value={formatMoney(program?.minimumPaidCents || 0)} />
@@ -257,8 +262,8 @@ export function ReferralRewardsPanel() {
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
-                <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <div className="overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] text-card-foreground">
+                <div className="flex flex-col gap-3 border-b border-[var(--gm-border)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
                     <Segmented
                         value={view}
                         options={[
@@ -311,7 +316,7 @@ export function ReferralRewardsPanel() {
 
                 <div className="divide-y divide-border">
                     {listLoading ? (
-                        <div className="p-8 text-center text-sm text-muted-foreground">正在加载...</div>
+                        <div className="p-8 text-center text-sm text-[var(--gm-text-3)]">正在加载...</div>
                     ) : view === "relationships" ? (
                         relationships.length ? (
                             relationships.map((item) => <RelationshipRow key={item.id} item={item} onRiskChange={changeRisk} />)
@@ -414,8 +419,8 @@ export function ReferralRewardsPanel() {
 
 function Metric({ label, value }: { label: string; value: number }) {
     return (
-        <div className="rounded-xl border border-border bg-card p-3 text-card-foreground">
-            <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 text-card-foreground">
+            <div className="text-xs text-[var(--gm-text-3)]">{label}</div>
             <div className="mt-2 text-xl font-semibold tabular-nums">{value}</div>
         </div>
     );
@@ -425,7 +430,7 @@ function RuleFact({ label, value }: { label: string; value: string }) {
     return (
         <div>
             <span>{label}</span>
-            <div className="mt-0.5 font-semibold text-foreground">{value}</div>
+            <div className="mt-0.5 font-semibold text-[var(--gm-text)]">{value}</div>
         </div>
     );
 }
@@ -439,14 +444,14 @@ function RelationshipRow({ item, onRiskChange }: { item: ReferralRelationship; o
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold">{inviter}</span>
                     <AdminAccountId accountId={item.inviterAccountId} />
-                    <span className="text-muted-foreground">邀请</span>
+                    <span className="text-[var(--gm-text-3)]">邀请</span>
                     <span className="font-semibold">{invitee}</span>
                     <AdminAccountId accountId={item.inviteeAccountId} />
                     <Tag className="m-0" color={riskColor(item.riskStatus)}>
                         {riskLabel(item.riskStatus)}
                     </Tag>
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
+                <div className="mt-1 text-xs text-[var(--gm-text-3)]">
                     邀请码 {item.code || "-"} · {formatTime(item.registeredAt)} · 来源 {item.attributionSource || "-"}
                 </div>
             </div>
@@ -483,7 +488,7 @@ function RewardRow({ item }: { item: ReferralReward }) {
                     </Tag>
                     <Tag className="m-0">{item.beneficiaryRole === "inviter" ? "邀请人" : "新用户"}</Tag>
                 </div>
-                <div className="mt-1 truncate text-xs text-muted-foreground">
+                <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">
                     订单 {item.triggerOrderId} · {formatTime(item.createdAt)}
                     {item.reason ? ` · ${item.reason}` : ""}
                 </div>
@@ -494,7 +499,7 @@ function RewardRow({ item }: { item: ReferralReward }) {
 }
 
 function Empty({ label }: { label: string }) {
-    return <div className="p-8 text-center text-sm text-muted-foreground">{label}</div>;
+    return <div className="p-8 text-center text-sm text-[var(--gm-text-3)]">{label}</div>;
 }
 
 function riskLabel(status: ReferralRiskStatus) {

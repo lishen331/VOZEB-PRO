@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Sparkles } from "lucide-react";
 import Link from "next/link";
 
@@ -21,7 +22,10 @@ export function WorkPromptActions({ prompt, createHref }: { prompt: string; crea
             <Button icon={<Copy className="size-4" />} onClick={() => void copyPrompt()}>
                 复制提示词
             </Button>
-            <Link href={createHref} className="inline-flex h-8 items-center justify-center gap-2 rounded-md !bg-foreground px-3 text-sm font-medium !text-background transition hover:opacity-80">
+            <Link
+                href={createHref}
+                className="inline-flex h-8 items-center justify-center gap-2 gm-btn-primary rounded-[var(--gm-radius-sm)] border border-transparent bg-[image:var(--gm-gradient)] px-3 text-sm font-medium !text-white shadow-[var(--gm-glow-blue)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+            >
                 <Sparkles className="size-4" />
                 做同款
             </Link>

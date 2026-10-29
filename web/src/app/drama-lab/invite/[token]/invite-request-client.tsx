@@ -1,6 +1,9 @@
 "use client";
 
-import { Alert, Button, Card, QRCode, Spin, message } from "antd";
+import { QRCode } from "@/components/gamma-ui/gamma-ant-qrcode";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Card } from "@/components/gamma-ui/gamma-ant-display";
+import { Alert, Button, Spin } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, CheckCircle2, LogIn, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -63,9 +66,9 @@ export default function InviteRequestClient({ token }: { token: string }) {
     };
 
     return (
-        <main className="min-h-screen bg-background px-4 py-10">
+        <main className="min-h-screen bg-[var(--gm-bg)] px-4 py-10">
             <div className="mx-auto max-w-lg">
-                <Link href="/drama-lab" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/drama-lab" className="inline-flex items-center gap-2 text-sm text-[var(--gm-text-3)] hover:text-[var(--gm-text)]">
                     <ArrowLeft className="size-4" /> 返回短剧项目
                 </Link>
                 <Card className="mt-6" bordered>
@@ -83,12 +86,12 @@ export default function InviteRequestClient({ token }: { token: string }) {
                                 </span>
                                 <div className="min-w-0">
                                     <h1 className="text-lg font-semibold">加入短剧项目</h1>
-                                    <p className="mt-1 truncate text-sm text-muted-foreground">{preview.projectTitle || preview.projectId}</p>
+                                    <p className="mt-1 truncate text-sm text-[var(--gm-text-3)]">{preview.projectTitle || preview.projectId}</p>
                                 </div>
                             </div>
-                            <p className="text-sm leading-6 text-muted-foreground">确认后，项目管理员会审核你的加入申请。申请通过后，你可以在项目组内协作。</p>
+                            <p className="text-sm leading-6 text-[var(--gm-text-3)]">确认后，项目管理员会审核你的加入申请。申请通过后，你可以在项目组内协作。</p>
                             {inviteUrl ? <QRCode value={inviteUrl} size={132} className="mx-auto" /> : null}
-                            <p className="text-center text-xs text-muted-foreground">邀请有效期至 {new Date(preview.expiresAt).toLocaleString("zh-CN")}</p>
+                            <p className="text-center text-xs text-[var(--gm-text-3)]">邀请有效期至 {new Date(preview.expiresAt).toLocaleString("zh-CN")}</p>
                             {submitted ? (
                                 <Alert type="success" showIcon icon={<CheckCircle2 className="size-4" />} message="申请已提交" description="等待项目管理员确认后即可进入项目。" />
                             ) : (

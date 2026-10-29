@@ -1,8 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Button, Empty, Form, Input, Modal, Popconfirm, Space, Table, Tag } from "antd";
-import type { TableColumnsType } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { Copy, FolderPlus, Plus, Trash2 } from "lucide-react";
 
 import { useAssetStore } from "@/stores/use-asset-store";
@@ -138,7 +145,7 @@ export function MyPromptsPage() {
     ];
 
     return (
-        <div className="flex h-full flex-col overflow-hidden bg-background text-stone-800 dark:text-stone-100">
+        <div className="flex h-full flex-col overflow-hidden bg-[var(--gm-bg)] text-stone-800 dark:text-stone-100">
             <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-6 sm:py-8">
                 <div className="mx-auto max-w-7xl space-y-3 sm:space-y-6">
                     <div className="flex flex-row items-center justify-between gap-3 sm:items-end sm:gap-4">
@@ -146,17 +153,17 @@ export function MyPromptsPage() {
                             <h1 className="text-xl font-semibold text-stone-950 sm:text-2xl dark:text-stone-100">我的提示词</h1>
                             <p className="mt-1.5 text-xs leading-5 text-stone-500 sm:mt-2 sm:text-sm dark:text-stone-400">保存自己的提示词记录，复制使用或沉淀到我的素材。</p>
                         </div>
-                        <Button type="primary" size="small" className="shrink-0 sm:!h-9" icon={<Plus className="size-3.5 sm:size-4" />} onClick={() => setCreateOpen(true)}>
+                        <Button type="primary" size="middle" className="shrink-0" icon={<Plus className="size-3.5 sm:size-4" />} onClick={() => setCreateOpen(true)}>
                             添加提示词
                         </Button>
                     </div>
 
-                    <section className="overflow-hidden rounded-lg border border-border bg-card">
-                        <div className="border-b border-border px-3 py-2.5 sm:px-5 sm:py-4">
+                    <section className="overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]">
+                        <div className="border-b border-[var(--gm-border)] px-3 py-2.5 sm:px-5 sm:py-4">
                             <h2 className="text-base font-semibold text-stone-950 sm:text-lg dark:text-stone-100">我的记录</h2>
                         </div>
                         <Table
-                            className="[&_.ant-table-tbody>tr>td]:!py-2 sm:[&_.ant-table-tbody>tr>td]:!py-3 [&_.ant-table-thead>tr>th]:!py-2"
+                            className="[&_.gm-table tbody>tr>td]:!py-2 sm:[&_.gm-table tbody>tr>td]:!py-3 [&_.gm-table thead>tr>th]:!py-2"
                             rowKey="id"
                             loading={loading}
                             columns={columns}

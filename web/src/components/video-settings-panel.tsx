@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { Switch } from "antd";
+import { Switch } from "@/components/gamma-ui/gamma-ant";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { boolConfig, isSeedanceFastModel, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedancePixelLabel, seedanceRatioOptions, seedanceResolutionOptions } from "@/lib/seedance-video";

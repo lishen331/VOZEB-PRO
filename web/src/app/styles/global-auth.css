@@ -3,35 +3,35 @@
     .landing-stat-pill,
     .landing-auth-shell,
     .auth-panel {
-        border: 1px solid rgba(15, 23, 42, 0.08);
+        border: 1px solid rgba(13, 23, 42, 0.08);
         background: rgba(255, 255, 255, 0.82);
-        box-shadow: 0 20px 80px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 20px 80px rgba(13, 23, 42, 0.08);
         backdrop-filter: blur(18px);
     }
 
     .dark .landing-auth-shell,
     .dark .auth-panel {
         border-color: rgba(255, 255, 255, 0.1);
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(2, 6, 23, 0.66));
-        box-shadow: 0 20px 80px rgba(2, 132, 199, 0.12);
+        background: linear-gradient(180deg, rgba(13, 23, 42, 0.74), rgba(1, 6, 23, 0.66));
+        box-shadow: 0 20px 80px rgba(77, 122, 206, 0.12);
     }
 
     .landing-feature-panel,
     .landing-stat-pill {
-        color: #0f172a;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.72));
-        border-color: rgba(14, 165, 233, 0.12);
+        color: #0d172a;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 250, 255, 0.72));
+        border-color: rgba(102, 151, 244, 0.12);
         box-shadow:
-            0 18px 44px rgba(15, 23, 42, 0.055),
+            0 18px 44px rgba(13, 23, 42, 0.055),
             inset 0 1px 0 rgba(255, 255, 255, 0.88);
     }
 
     .dark .landing-feature-panel,
     .dark .landing-stat-pill {
         color: #ffffff;
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(2, 6, 23, 0.66));
+        background: linear-gradient(180deg, rgba(13, 23, 42, 0.74), rgba(1, 6, 23, 0.66));
         border-color: rgba(255, 255, 255, 0.1);
-        box-shadow: 0 20px 80px rgba(2, 132, 199, 0.12);
+        box-shadow: 0 20px 80px rgba(77, 122, 206, 0.12);
     }
 
     .landing-hero-copy {
@@ -40,18 +40,18 @@
     }
 
     .landing-capability-stage {
-        background: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.1), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(248, 250, 252, 0.38));
-        border: 1px solid rgba(226, 232, 240, 0.72);
+        background: radial-gradient(circle at 50% 0%, rgba(102, 151, 244, 0.1), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(247, 250, 255, 0.38));
+        border: 1px solid rgba(229, 231, 237, 0.72);
         border-radius: 18px;
         box-shadow:
-            0 30px 80px rgba(15, 23, 42, 0.07),
+            0 30px 80px rgba(13, 23, 42, 0.07),
             inset 0 1px 0 rgba(255, 255, 255, 0.82);
         padding: 18px;
         position: relative;
     }
 
     .landing-capability-stage::before {
-        background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.28), rgba(168, 85, 247, 0.16), transparent);
+        background: linear-gradient(90deg, transparent, rgba(102, 151, 244, 0.28), rgba(48, 124, 255, 0.16), transparent);
         content: "";
         height: 1px;
         left: 24px;
@@ -61,7 +61,7 @@
     }
 
     .dark .landing-capability-stage {
-        background: radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.13), transparent 42%), linear-gradient(180deg, rgba(15, 23, 42, 0.62), rgba(2, 6, 23, 0.34));
+        background: radial-gradient(circle at 50% 0%, rgba(21, 213, 230, 0.13), transparent 42%), linear-gradient(180deg, rgba(13, 23, 42, 0.62), rgba(1, 6, 23, 0.34));
         border-color: rgba(255, 255, 255, 0.08);
         box-shadow:
             0 30px 100px rgba(0, 0, 0, 0.26),
@@ -76,97 +76,97 @@
     .auth-page-card {
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.94) !important;
-        border-color: rgba(72, 67, 99, 0.13) !important;
-        box-shadow: 0 26px 80px rgba(31, 29, 43, 0.14) !important;
+        border-color: rgba(56, 72, 101, 0.13) !important;
+        box-shadow: 0 26px 80px rgba(22, 28, 41, 0.14) !important;
         backdrop-filter: blur(22px);
     }
 
     .auth-page-brand-panel {
-        background: linear-gradient(145deg, rgba(251, 249, 255, 0.98) 0%, rgba(245, 244, 253, 0.97) 42%, rgba(243, 247, 255, 0.98) 72%, rgba(255, 249, 252, 0.98) 100%);
-        border-color: rgba(72, 67, 99, 0.1);
+        background: linear-gradient(145deg, rgba(248, 250, 255, 0.98) 0%, rgba(243, 245, 251, 0.97) 42%, rgba(244, 247, 253, 0.98) 72%, rgba(248, 251, 255, 0.98) 100%);
+        border-color: rgba(56, 72, 101, 0.1);
     }
 
     .dark .auth-page-card {
-        background: rgba(18, 19, 24, 0.94) !important;
+        background: rgba(9, 14, 27, 0.94) !important;
         border-color: rgba(255, 255, 255, 0.09) !important;
         box-shadow: 0 26px 90px rgba(0, 0, 0, 0.4) !important;
     }
 
     .dark .auth-page-brand-panel {
-        background: linear-gradient(145deg, rgba(29, 26, 35, 0.98) 0%, rgba(25, 25, 33, 0.98) 46%, rgba(23, 29, 36, 0.98) 76%, rgba(29, 25, 30, 0.98) 100%);
+        background: linear-gradient(145deg, rgba(18, 24, 37, 0.98) 0%, rgba(16, 22, 35, 0.98) 46%, rgba(19, 25, 38, 0.98) 76%, rgba(17, 23, 36, 0.98) 100%);
         border-color: rgba(255, 255, 255, 0.08);
     }
 
     .auth-reset-card {
         background: rgba(255, 255, 255, 0.94);
-        border-color: rgba(72, 67, 99, 0.13);
+        border-color: rgba(56, 72, 101, 0.13);
         border-radius: 8px;
-        box-shadow: 0 26px 80px rgba(31, 29, 43, 0.14);
+        box-shadow: 0 26px 80px rgba(22, 28, 41, 0.14);
     }
 
     .dark .auth-reset-card {
-        background: rgba(18, 19, 24, 0.94);
+        background: rgba(9, 14, 27, 0.94);
         border-color: rgba(255, 255, 255, 0.09);
         box-shadow: 0 26px 90px rgba(0, 0, 0, 0.4);
     }
 
     .auth-form-kicker {
-        color: #71669f;
+        color: #5370a3;
     }
 
     .dark .auth-form-kicker {
-        color: #b3aad3;
+        color: #9db2d7;
     }
 
     .auth-feature-dot {
-        background: #9b91c2;
+        background: #819ac6;
     }
 
     .dark .auth-feature-dot {
-        background: #9288b5;
+        background: #7990b9;
     }
 
     .auth-submit-button.ant-btn {
         height: 46px;
         margin-top: 8px;
-        border-color: #0f172a !important;
-        background: #0f172a !important;
+        border-color: #0d172a !important;
+        background: #0d172a !important;
         color: #ffffff !important;
     }
 
     .auth-submit-button.ant-btn:hover,
     .auth-submit-button.ant-btn:focus-visible {
-        border-color: #1e293b !important;
-        background: #1e293b !important;
+        border-color: #1f293b !important;
+        background: #1f293b !important;
         color: #ffffff !important;
     }
 
     .dark .auth-submit-button.ant-btn {
-        border-color: #f8fafc !important;
-        background: #f8fafc !important;
-        color: #0f172a !important;
+        border-color: #f7faff !important;
+        background: #f7faff !important;
+        color: #0d172a !important;
     }
 
     .dark .auth-submit-button.ant-btn:hover,
     .dark .auth-submit-button.ant-btn:focus-visible {
-        border-color: #e2e8f0 !important;
-        background: #e2e8f0 !important;
-        color: #0f172a !important;
+        border-color: #e5e7ed !important;
+        background: #e5e7ed !important;
+        color: #0d172a !important;
     }
 
     .auth-panel:not(.auth-education-form-panel) .auth-submit-button.ant-btn:disabled,
     .auth-panel:not(.auth-education-form-panel) .auth-submit-button.ant-btn:disabled:hover {
         cursor: not-allowed;
-        border-color: #d6d3d1 !important;
-        background: #e7e5e4 !important;
-        color: #57534e !important;
+        border-color: #cdd4e1 !important;
+        background: #e3e6eb !important;
+        color: #4b5467 !important;
     }
 
     .dark .auth-panel:not(.auth-education-form-panel) .auth-submit-button.ant-btn:disabled,
     .dark .auth-panel:not(.auth-education-form-panel) .auth-submit-button.ant-btn:disabled:hover {
-        border-color: #44403c !important;
-        background: #292524 !important;
-        color: #d6d3d1 !important;
+        border-color: #384153 !important;
+        background: #1d2432 !important;
+        color: #cdd4e1 !important;
     }
 
     .auth-form-header {
@@ -181,57 +181,478 @@
         margin-top: 4px;
     }
 }
+
 @layer utilities {
+    /* ============================================================
+       登录页 · 全屏影像 + 毛玻璃
+       一套变量驱动明暗两种主题：浅色下背景雾化成浅蓝灰玻璃，
+       深色下压暗成夜窗。所有控件都坐在同一层玻璃材质上。
+       ============================================================ */
     .auth-education-shell {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        min-height: 100dvh;
-        overflow: hidden;
-        background: #f2f5fb;
-        color: #111827;
-    }
+        --ae-text: #0d172a;
+        --ae-text-2: rgba(23, 38, 66, 0.66);
+        --ae-text-3: rgba(23, 38, 66, 0.44);
+        --ae-headline-a: #0d172a;
+        --ae-headline-b: #1a3d7c;
+        --ae-headline-c: #0050f5;
+        --ae-media-opacity: 0.62;
+        --ae-media-filter: saturate(0.94) brightness(1);
+        --ae-scrim-1: linear-gradient(180deg, rgba(244, 248, 255, 0.82) 0%, rgba(244, 248, 255, 0.2) 34%, rgba(242, 246, 253, 0.54) 78%, rgba(238, 243, 251, 0.94) 100%);
+        --ae-scrim-2: linear-gradient(104deg, rgba(246, 250, 255, 0.86) 0%, rgba(244, 248, 255, 0.36) 46%, rgba(240, 245, 253, 0.06) 72%);
+        --ae-aurora-1: rgba(0, 80, 245, 0.16);
+        --ae-aurora-2: rgba(40, 235, 250, 0.16);
+        --ae-aurora-blend: normal;
+        --ae-glass-border: rgba(255, 255, 255, 0.72);
+        --ae-glass-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.44) 46%, rgba(255, 255, 255, 0.3) 100%);
+        --ae-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 26px 60px -18px rgba(20, 40, 80, 0.32);
+        --ae-chip-bg: rgba(255, 255, 255, 0.62);
+        --ae-chip-border: rgba(13, 23, 42, 0.1);
+        --ae-field-bg: rgba(255, 255, 255, 0.78);
+        --ae-field-bg-hover: rgba(255, 255, 255, 0.92);
+        --ae-field-border: rgba(13, 23, 42, 0.12);
+        --ae-field-border-hover: rgba(0, 80, 245, 0.42);
+        --ae-field-text: #0d172a;
+        --ae-field-placeholder: rgba(23, 38, 66, 0.42);
+        --ae-icon: rgba(23, 38, 66, 0.52);
+        --ae-rule: linear-gradient(90deg, #0050f5, rgba(0, 80, 245, 0));
+        --ae-feature-dot-bg: rgba(0, 80, 245, 0.08);
+        --ae-feature-dot-border: rgba(0, 80, 245, 0.22);
+        --ae-feature-dot-core: rgba(0, 80, 245, 0.72);
+        --ae-feature-dot-halo: rgba(0, 80, 245, 0.05);
+        --ae-feature-hover-bg: rgba(255, 255, 255, 0.55);
+        --ae-feature-hover-border: rgba(40, 235, 250, 0.85);
+        --ae-feature-hover-glow: rgba(40, 235, 250, 0.55);
 
-    .auth-education-hero {
         position: relative;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
         min-height: 100dvh;
         overflow: hidden;
+        background: #eef3fb;
+        color: var(--ae-text);
+        isolation: isolate;
+        color-scheme: light;
+    }
+    .dark .auth-education-shell {
+        --ae-text: #f1f5ff;
+        --ae-text-2: rgba(214, 227, 250, 0.7);
+        --ae-text-3: rgba(214, 227, 250, 0.46);
+        --ae-headline-a: #ffffff;
+        --ae-headline-b: #d3e3ff;
+        --ae-headline-c: #93e0ff;
+        --ae-media-opacity: 0.66;
+        --ae-media-filter: saturate(1.08) brightness(0.9);
+        --ae-scrim-1: linear-gradient(180deg, rgba(4, 7, 15, 0.72) 0%, rgba(4, 7, 15, 0.18) 34%, rgba(4, 7, 15, 0.6) 78%, rgba(4, 7, 15, 0.92) 100%);
+        --ae-scrim-2: linear-gradient(104deg, rgba(4, 7, 15, 0.82) 0%, rgba(4, 7, 15, 0.34) 46%, rgba(4, 7, 15, 0.08) 72%);
+        --ae-aurora-1: rgba(0, 80, 245, 0.46);
+        --ae-aurora-2: rgba(40, 235, 250, 0.2);
+        --ae-aurora-blend: screen;
+        --ae-glass-border: rgba(255, 255, 255, 0.16);
+        --ae-glass-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.07) 46%, rgba(255, 255, 255, 0.03) 100%);
+        --ae-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 30px 70px rgba(2, 6, 18, 0.52);
+        --ae-chip-bg: rgba(10, 22, 44, 0.46);
+        --ae-chip-border: rgba(120, 170, 255, 0.32);
+        --ae-field-bg: rgba(255, 255, 255, 0.068);
+        --ae-field-bg-hover: rgba(255, 255, 255, 0.1);
+        --ae-field-border: rgba(255, 255, 255, 0.14);
+        --ae-field-border-hover: rgba(140, 190, 255, 0.38);
+        --ae-field-text: #ffffff;
+        --ae-field-placeholder: rgba(196, 214, 245, 0.44);
+        --ae-icon: rgba(196, 214, 245, 0.62);
+        --ae-rule: linear-gradient(90deg, #28ebfa, rgba(0, 80, 245, 0));
+        --ae-feature-dot-bg: rgba(40, 235, 250, 0.1);
+        --ae-feature-dot-border: rgba(120, 170, 255, 0.34);
+        --ae-feature-dot-core: rgba(40, 235, 250, 0.82);
+        --ae-feature-dot-halo: rgba(40, 235, 250, 0.06);
+        --ae-feature-hover-bg: rgba(255, 255, 255, 0.07);
+        --ae-feature-hover-border: rgba(40, 235, 250, 0.9);
+        --ae-feature-hover-glow: rgba(40, 235, 250, 0.5);
+
+        background: #04070f;
+        color-scheme: dark;
     }
 
-    .auth-education-hero > img,
-    .auth-education-hero > video {
+    /* ---------- 背景影像层 ---------- */
+    .auth-education-media {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+        background: radial-gradient(120% 90% at 18% 8%, #10213f 0%, #060b16 46%, #03060c 100%);
+    }
+    .auth-education-media > img,
+    .auth-education-media > video {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
     }
-
-    .auth-education-hero > video {
+    .auth-education-media > img {
+        opacity: var(--ae-media-opacity);
+        filter: var(--ae-media-filter);
+    }
+    .auth-education-media > video {
         opacity: 0;
-        transition: opacity 360ms ease;
+        filter: var(--ae-media-filter);
+        transition: opacity 900ms ease;
     }
-    .auth-education-hero > video.is-ready {
-        opacity: 1;
+    .auth-education-media > video.is-ready {
+        /* 半透明：底层的底色与雾光仍然透出来 */
+        opacity: calc(var(--ae-media-opacity) + 0.04);
+    }
+    .auth-education-scrim {
+        position: absolute;
+        inset: 0;
+        background: var(--ae-scrim-1), var(--ae-scrim-2);
+    }
+    .auth-education-aurora {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(48% 44% at 10% 70%, var(--ae-aurora-1) 0%, transparent 70%), radial-gradient(38% 34% at 84% 10%, var(--ae-aurora-2) 0%, transparent 72%);
+        mix-blend-mode: var(--ae-aurora-blend);
     }
 
-    .auth-education-login {
+    /* ---------- 顶栏 ---------- */
+    .auth-education-topbar {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: clamp(20px, 2.2vw, 32px) clamp(24px, 4.2vw, 60px);
+    }
+    .auth-education-wordmark {
         display: flex;
         min-width: 0;
-        min-height: 100dvh;
-        flex-direction: column;
-        background: #f2f5fb;
-    }
-
-    .auth-education-content {
-        display: flex;
-        flex: 1;
         align-items: center;
-        justify-content: center;
-        padding: 42px clamp(32px, 5.2vw, 98px) 22px;
+        gap: 13px;
+        color: inherit;
+        text-decoration: none;
+    }
+    /* 品牌色竖条：logo 抠图是纯色，用渐变竖条做视觉锚点 */
+    .auth-education-wordmark::before {
+        content: "";
+        flex: none;
+        width: 9px;
+        height: 44px;
+        border-radius: 4px;
+        background: linear-gradient(180deg, #28ebfa 0%, #0050f5 100%);
+        box-shadow: 0 8px 22px rgba(0, 80, 245, 0.42);
+    }
+    .auth-education-wordmark-text {
+        display: grid;
+        min-width: 0;
+        gap: 8px;
+        line-height: 1.15;
+    }
+    .auth-education-wordmark-name {
+        color: var(--ae-text);
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+    }
+    /* 抠出来的两个品牌标：浅色底用原色，深色底反白 */
+    .auth-education-partner-logos {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 12px;
+    }
+    .auth-education-partner-logos img {
+        display: block;
+        width: auto;
+        height: 20px;
+    }
+    .auth-education-partner-bluegamma {
+        height: 22px !important;
+    }
+    .auth-education-partner-cacg {
+        opacity: 0.9;
+    }
+    /* 明暗两套共用同一张原图，不再维护暗色专用文件：
+       反相把深色文字变白，色相转回 180° 让红标恢复红色 */
+    .dark .auth-education-partner-cacg {
+        opacity: 0.94;
+        filter: invert(1) hue-rotate(180deg);
+    }
+    .dark .auth-education-partner-bluegamma {
+        filter: brightness(1.35) saturate(1.1);
+    }
+    .auth-education-partner-divider {
+        flex: none;
+        width: 1px;
+        height: 16px;
+        background: var(--ae-chip-border);
+    }
+    /* 联合品牌条右侧说明：用真实文本而不是裁图，深色主题下仍然清晰 */
+    .auth-education-partner-desc {
+        display: grid;
+        gap: 2px;
+        color: var(--ae-text-2);
+        font-size: 9.5px;
+        line-height: 1.35;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
+    .auth-education-partner-desc span:last-child {
+        color: var(--ae-text-3);
     }
 
+    /* ---------- 主体 ---------- */
+    .auth-education-stage {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: minmax(0, 1.08fr) minmax(340px, 448px);
+        align-items: center;
+        gap: clamp(30px, 4.6vw, 90px);
+        width: min(100%, 1320px);
+        margin: 0 auto;
+        padding: clamp(12px, 2vw, 34px) clamp(24px, 4.2vw, 60px) clamp(26px, 3vw, 46px);
+    }
+
+    .auth-education-copy {
+        max-width: 620px;
+    }
+    .auth-education-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0 0 22px;
+        padding: 7px 16px 7px 12px;
+        border: 1px solid var(--ae-chip-border);
+        border-radius: 999px;
+        background: var(--ae-chip-bg);
+        color: var(--ae-text-2);
+        font-size: 11.5px;
+        letter-spacing: 0.16em;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+    .auth-education-eyebrow::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #28ebfa;
+        box-shadow: 0 0 12px 2px rgba(40, 235, 250, 0.7);
+    }
+    .auth-education-slogan {
+        margin: 0;
+        font-size: clamp(38px, 3.9vw, 60px);
+        font-weight: 800;
+        letter-spacing: -0.005em;
+        line-height: 1.1;
+        text-wrap: balance;
+        background: linear-gradient(96deg, var(--ae-headline-a) 18%, var(--ae-headline-b) 62%, var(--ae-headline-c) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .auth-education-slogan-sub {
+        margin: 18px 0 0;
+        color: var(--ae-text-2);
+        font-size: clamp(20px, 1.8vw, 27px);
+        font-weight: 600;
+        letter-spacing: 0.06em;
+    }
+    .auth-education-platform {
+        margin: 14px 0 0;
+        color: var(--ae-text-3);
+        font-size: clamp(15px, 1.2vw, 18px);
+        font-weight: 500;
+        letter-spacing: 0.2em;
+    }
+    .auth-education-rule {
+        width: 60px;
+        height: 2px;
+        margin: 26px 0 22px;
+        border-radius: 2px;
+        background: var(--ae-rule);
+    }
+    .auth-education-features {
+        display: grid;
+        gap: 11px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    /* 特征点：不再是勾选框的方块，改成缓慢变形、缓慢自转的形状，悬停时整行聚焦 */
+    .auth-education-features li {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-inline: -10px;
+        padding: 6px 12px 6px 10px;
+        border-radius: 10px;
+        color: var(--ae-text-2);
+        font-size: 13px;
+        letter-spacing: 0.02em;
+        transition:
+            background 220ms ease,
+            color 220ms ease,
+            transform 220ms ease;
+    }
+    /* 鼠标移入：底色浮起、形块放大并染成品牌青、文字转高亮 */
+    .auth-education-features li:hover {
+        background: var(--ae-feature-hover-bg);
+        color: var(--ae-text);
+        transform: translateX(2px);
+    }
+    .auth-education-features li:hover::before {
+        border-color: var(--ae-feature-hover-border);
+        animation-play-state: paused;
+        transform: rotate(18deg) scale(1.22);
+        box-shadow: 0 0 12px 1px var(--ae-feature-hover-glow);
+    }
+
+    /* 特征点：圆角持续游走的有机形状，悬停时整行聚焦 */
+    .auth-education-features li::before {
+        content: "";
+        flex: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 62% 38% 46% 54% / 55% 48% 52% 45%;
+        border: 1px solid var(--ae-feature-dot-border);
+        background: radial-gradient(circle at 50% 50%, var(--ae-feature-dot-core) 0%, var(--ae-feature-dot-core) 38%, transparent 62%), var(--ae-feature-dot-bg);
+        box-shadow: 0 0 0 4px var(--ae-feature-dot-halo);
+        animation: ae-blob-morph 8.4s ease-in-out infinite;
+        transition:
+            transform 220ms ease,
+            box-shadow 220ms ease,
+            border-color 220ms ease;
+    }
+    .auth-education-features li:nth-child(2)::before {
+        animation-delay: -0.64s;
+    }
+    .auth-education-features li:nth-child(3)::before {
+        animation-delay: -1.28s;
+    }
+    .auth-education-features li:nth-child(4)::before {
+        animation-delay: -1.92s;
+    }
+    .auth-education-features li:nth-child(5)::before {
+        animation-delay: -2.56s;
+    }
+    .auth-education-features li:hover::before {
+        border-color: var(--ae-feature-hover-border);
+        transform: scale(1.28);
+        box-shadow:
+            0 0 0 5px var(--ae-feature-dot-halo),
+            0 0 12px 1px var(--ae-feature-hover-glow);
+        animation-play-state: paused;
+    }
+    /* 只动 border-radius，不碰 transform，悬停放大才不会被动画覆盖 */
+    @keyframes ae-blob-morph {
+        0%,
+        100% {
+            border-radius: 62% 38% 46% 54% / 55% 48% 52% 45%;
+        }
+        25% {
+            border-radius: 42% 58% 63% 37% / 40% 62% 38% 60%;
+        }
+        50% {
+            border-radius: 55% 45% 35% 65% / 62% 38% 55% 45%;
+        }
+        75% {
+            border-radius: 38% 62% 52% 48% / 48% 56% 44% 52%;
+        }
+    }
+
+    /* ---------- 可拖动的明暗切换 ---------- */
+    .auth-education-theme-toggle {
+        position: fixed;
+        z-index: 6;
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 1px solid var(--ae-glass-border);
+        border-radius: 14px;
+        background: var(--ae-glass-bg);
+        color: var(--ae-text);
+        box-shadow: var(--ae-glass-shadow);
+        backdrop-filter: blur(18px) saturate(160%);
+        -webkit-backdrop-filter: blur(18px) saturate(160%);
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        transition:
+            opacity 200ms ease,
+            box-shadow 200ms ease,
+            transform 200ms ease;
+    }
+    .auth-education-theme-toggle:hover {
+        box-shadow:
+            var(--ae-glass-shadow),
+            0 0 0 1px rgba(40, 235, 250, 0.32);
+    }
+    .auth-education-theme-toggle:active {
+        cursor: grabbing;
+        transform: scale(0.94);
+    }
+    .auth-education-theme-toggle:focus-visible {
+        outline: 2px solid #28ebfa;
+        outline-offset: 3px;
+    }
+    .auth-education-theme-icon {
+        position: absolute;
+        width: 19px;
+        height: 19px;
+        transition:
+            opacity 220ms ease,
+            transform 320ms ease;
+    }
+    /* 亮色时显示月亮（点一下变暗），暗色时显示太阳 */
+    .auth-education-theme-icon-sun {
+        opacity: 0;
+        transform: rotate(-70deg) scale(0.6);
+    }
+    .auth-education-theme-icon-moon {
+        opacity: 1;
+        transform: rotate(0deg) scale(1);
+    }
+    .dark .auth-education-theme-icon-sun {
+        opacity: 1;
+        transform: rotate(0deg) scale(1);
+    }
+    .dark .auth-education-theme-icon-moon {
+        opacity: 0;
+        transform: rotate(70deg) scale(0.6);
+    }
+
+    /* ---------- 玻璃登录卡 ---------- */
+    .auth-education-card {
+        position: relative;
+        width: 100%;
+        padding: clamp(26px, 2.4vw, 38px);
+        border: 1px solid var(--ae-glass-border);
+        border-radius: 28px;
+        background: var(--ae-glass-bg);
+        box-shadow: var(--ae-glass-shadow);
+        backdrop-filter: blur(30px) saturate(170%);
+        -webkit-backdrop-filter: blur(30px) saturate(170%);
+    }
+    /* 卡片顶部一条品牌高光 */
+    .auth-education-card::before {
+        content: "";
+        position: absolute;
+        inset: -1px -1px auto -1px;
+        height: 1px;
+        border-radius: inherit;
+        background: linear-gradient(90deg, transparent, rgba(40, 235, 250, 0.7), rgba(0, 80, 245, 0.5), transparent);
+    }
+    .auth-education-content {
+        display: block;
+        padding: 0;
+    }
     html .auth-education-form-panel {
-        width: min(100%, 475px);
+        width: 100%;
         min-height: 0;
         padding: 0 !important;
         border: 0 !important;
@@ -239,169 +660,276 @@
         box-shadow: none !important;
         backdrop-filter: none !important;
     }
-
     .auth-education-form-body {
         display: grid;
-        gap: 20px;
+        gap: 15px;
     }
-    .auth-education-joint-brand {
-        display: block;
-        width: min(602px, 32.3vw);
-        max-width: none;
-        height: auto;
-        position: relative;
-        left: 50%;
-        margin: 0 0 72px;
-        transform: translateX(-50%);
+    .auth-education-card-head {
+        margin-bottom: 6px;
     }
-    .auth-education-heading {
-        margin: 0 0 28px;
-        text-align: center;
+    .auth-education-card-kicker {
+        margin: 0 0 9px;
+        color: #0e8fd8;
+        font-size: 10.5px;
+        letter-spacing: 0.24em;
     }
-    .auth-education-heading p {
-        margin: 0 0 16px;
-        color: #111827;
-        font-size: clamp(28px, 2.25vw, 42px);
-        font-weight: 760;
-        letter-spacing: 0.02em;
-        line-height: 1.2;
+    .dark .auth-education-card-kicker {
+        color: rgba(40, 235, 250, 0.84);
     }
-    .auth-education-heading h1 {
+    .auth-education-card-title {
         margin: 0;
-        color: #111827;
-        font-size: clamp(22px, 1.5vw, 28px);
+        color: var(--ae-text);
+        font-size: 25px;
         font-weight: 700;
-        letter-spacing: 0;
-        line-height: 1.4;
+        letter-spacing: 0.01em;
     }
+
+    /* ---------- 输入框 ---------- */
     .auth-education-form-body > label {
         display: block;
         margin: 0;
     }
-    .auth-education-form-panel .ant-input-affix-wrapper {
+    .auth-education-form-panel .gm-input {
         width: 100%;
-        min-height: 50px;
-        padding-inline: 20px;
-        border: 1px solid #d9dee8;
-        border-radius: 40px;
-        background: #fff;
-        box-shadow: none;
+        min-height: 52px;
+        padding-inline: 17px;
+        border: 1px solid var(--ae-field-border);
+        border-radius: 15px;
+        background: var(--ae-field-bg);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition:
+            border-color 170ms ease,
+            background 170ms ease,
+            box-shadow 170ms ease;
     }
-    .auth-education-form-panel .ant-input-affix-wrapper:hover,
-    .auth-education-form-panel .ant-input-affix-wrapper:focus-within {
-        border-color: #3154e8;
-        box-shadow: 0 0 0 2px rgb(49 84 232 / 10%);
+    .auth-education-form-panel .gm-input:hover {
+        border-color: var(--ae-field-border-hover);
+        background: var(--ae-field-bg-hover);
     }
-    .auth-education-form-panel .ant-input-prefix {
-        margin-inline-end: 12px;
+    .auth-education-form-panel .gm-input:focus-within {
+        border-color: rgba(0, 80, 245, 0.62);
+        background: var(--ae-field-bg-hover);
+        box-shadow:
+            0 0 0 3px rgba(0, 80, 245, 0.14),
+            inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
-    .auth-education-form-panel .ant-input-prefix svg {
+    .dark .auth-education-form-panel .gm-input {
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    }
+    .dark .auth-education-form-panel .gm-input:focus-within {
+        border-color: rgba(40, 235, 250, 0.66);
+        box-shadow:
+            0 0 0 3px rgba(40, 235, 250, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+    .auth-education-form-panel .gm-input-prefix {
+        margin-inline-end: 10px;
+    }
+    .auth-education-form-panel .gm-input-prefix svg {
         width: 18px;
         height: 18px;
-        color: #9299a8;
+        color: var(--ae-icon);
     }
-    .auth-education-form-panel .ant-input {
-        color: #252b3a;
+    .auth-education-form-panel .gm-input input {
+        color: var(--ae-field-text);
         font-size: 15px;
+        background: transparent;
     }
-    .auth-education-form-panel .ant-input::placeholder {
-        color: #aeb5c2;
+    .auth-education-form-panel .gm-input input::placeholder {
+        color: var(--ae-field-placeholder);
     }
-    html .auth-education-form-panel .auth-submit-button.ant-btn {
-        min-height: 50px;
-        margin-top: 0;
-        border-radius: 40px;
-        border-color: #3154e8 !important;
-        background: #3154e8 !important;
-        box-shadow: none;
-        font-size: 16px;
+    .auth-education-form-panel .gm-input-suffix svg {
+        color: var(--ae-icon);
     }
-    html .auth-education-form-panel .auth-submit-button.ant-btn:hover,
-    html .auth-education-form-panel .auth-submit-button.ant-btn:focus-visible {
-        border-color: #2444cf !important;
-        background: #2444cf !important;
+
+    /* ---------- 主按钮 ----------
+       阴影用负扩散收窄，避免辉光从圆角边缘溢出来 */
+    html .auth-education-form-panel .auth-submit-button.gm-btn,
+    html .auth-education-form-panel .auth-submit-button.gm-btn:hover,
+    html .auth-education-form-panel .auth-submit-button.gm-btn:focus-visible,
+    html .auth-education-form-panel .auth-submit-button.gm-btn:active,
+    html .auth-education-form-panel .auth-submit-button.gm-btn:disabled,
+    html .auth-education-form-panel .auth-submit-button.gm-btn:disabled:hover {
+        min-height: 52px;
+        margin-top: 4px;
+        border: 0 !important;
+        border-radius: 15px;
+        font-size: 15.5px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
     }
-    html .auth-education-form-panel .auth-submit-button.ant-btn:disabled,
-    html .auth-education-form-panel .auth-submit-button.ant-btn:disabled:hover {
-        border-color: #3154e8 !important;
-        background: #3154e8 !important;
-        color: #fff !important;
+    html .auth-education-form-panel .auth-submit-button.gm-btn {
+        background-image: linear-gradient(102deg, #0050f5 0%, #1a7dff 54%, #28ebfa 100%) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.3),
+            0 10px 22px -10px rgba(0, 80, 245, 0.85) !important;
+        color: #ffffff !important;
+        transition:
+            filter 170ms ease,
+            box-shadow 170ms ease,
+            transform 170ms ease;
+    }
+    html .auth-education-form-panel .auth-submit-button.gm-btn:hover,
+    html .auth-education-form-panel .auth-submit-button.gm-btn:focus-visible {
+        background-image: linear-gradient(102deg, #1663ff 0%, #2a8bff 54%, #3df0ff 100%) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.34),
+            0 12px 26px -10px rgba(0, 80, 245, 0.95) !important;
+        filter: brightness(1.04);
+    }
+    html .auth-education-form-panel .auth-submit-button.gm-btn:active {
+        transform: scale(0.988);
+    }
+    html .auth-education-form-panel .auth-submit-button.gm-btn:disabled,
+    html .auth-education-form-panel .auth-submit-button.gm-btn:disabled:hover {
+        background-image: linear-gradient(102deg, rgba(0, 80, 245, 0.5), rgba(40, 235, 250, 0.42)) !important;
+        box-shadow: none !important;
+        color: rgba(255, 255, 255, 0.72) !important;
         opacity: 1;
     }
+
+    /* ---------- 条款 ---------- */
     .auth-education-form-panel .auth-education-policy {
         align-items: flex-start;
-        justify-content: center;
-        color: #8b93a2 !important;
-        font-size: 13px;
-    }
-    .auth-education-form-panel .auth-education-policy .ant-checkbox {
-        margin-top: 3px;
+        justify-content: flex-start;
+        margin-top: 2px;
+        color: var(--ae-text-2) !important;
+        font-size: 12.5px;
     }
     .auth-education-form-panel .auth-education-policy span {
-        font-size: 13px;
+        color: var(--ae-text-2) !important;
+        font-size: 12.5px;
         line-height: 1.7;
     }
-    .auth-education-form-panel a {
-        color: #3154e8 !important;
+    .auth-education-form-panel .auth-education-policy .gm-checkbox {
+        margin-top: 3px;
+        border-color: var(--ae-field-border) !important;
+        background-color: var(--ae-field-bg) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
     }
+    .auth-education-form-panel .auth-education-policy .gm-checkbox-checked {
+        border-color: transparent !important;
+        background-color: transparent !important;
+        background-image: linear-gradient(102deg, #0050f5 0%, #28ebfa 100%);
+        box-shadow:
+            0 0 0 1px rgba(40, 235, 250, 0.35),
+            0 0 10px rgba(0, 80, 245, 0.45);
+    }
+    .auth-education-form-panel a {
+        color: #0050f5 !important;
+    }
+    .auth-education-form-panel a:hover {
+        color: #1a7dff !important;
+    }
+    .dark .auth-education-form-panel a {
+        color: #7fdfff !important;
+    }
+    .dark .auth-education-form-panel a:hover {
+        color: #a8ecff !important;
+    }
+
+    /* ---------- 页脚 ---------- */
     .auth-education-footer {
-        padding: 0 clamp(32px, 5.2vw, 98px) 28px;
-        color: #9299a8;
-        font-size: 12px;
-        line-height: 1.65;
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px 18px;
+        padding: 0 clamp(24px, 4.2vw, 60px) clamp(18px, 2vw, 28px);
+        color: var(--ae-text-3);
+        font-size: 11.5px;
+        line-height: 1.6;
         text-align: center;
     }
     .auth-education-footer p {
         margin: 0;
     }
+
     .auth-brand-light {
         color-scheme: light !important;
     }
 
-    @media (max-width: 767px) {
-        .auth-education-shell {
-            display: block;
-            min-height: 100dvh;
-            overflow: visible;
+    /* ---------- 响应式 ---------- */
+    @media (max-width: 1180px) {
+        .auth-education-stage {
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 408px);
+            gap: 34px;
         }
-        .auth-education-hero {
+        .auth-education-platform {
+            letter-spacing: 0.14em;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .auth-education-stage {
+            grid-template-columns: minmax(0, 1fr);
+            justify-items: stretch;
+            gap: 26px;
+            padding-top: 4px;
+        }
+        .auth-education-copy {
+            max-width: none;
+            text-align: center;
+        }
+        .auth-education-eyebrow,
+        .auth-education-rule {
+            margin-inline: auto;
+        }
+        .auth-education-rule {
+            margin-top: 20px;
+            margin-bottom: 0;
+        }
+        .auth-education-features {
             display: none;
         }
-        .auth-education-login {
-            min-height: 100dvh;
+        .auth-education-slogan {
+            font-size: clamp(36px, 7vw, 52px);
         }
-        .auth-education-content {
+    }
+
+    @media (max-width: 640px) {
+        .auth-education-topbar {
+            flex-direction: column;
             align-items: flex-start;
-            padding: max(32px, env(safe-area-inset-top)) 24px 18px;
+            gap: 14px;
         }
-        html .auth-education-form-panel {
-            width: 100%;
+        .auth-education-partners {
+            padding: 6px 14px;
         }
-        .auth-education-form-body {
-            gap: 16px;
+        .auth-education-partners img {
+            width: min(100%, 320px);
         }
-        .auth-education-joint-brand {
-            width: min(602px, calc(100vw - 48px));
-            margin-bottom: 38px;
+        .auth-education-card {
+            border-radius: 22px;
+            padding: 22px;
         }
-        .auth-education-heading {
-            margin-bottom: 24px;
+        .auth-education-card-title {
+            font-size: 22px;
         }
-        .auth-education-heading p {
-            margin-bottom: 12px;
-            font-size: 28px;
-        }
-        .auth-education-heading h1 {
-            font-size: 21px;
+        .auth-education-platform {
+            font-size: 15px;
+            letter-spacing: 0.1em;
         }
         .auth-education-footer {
-            padding: 0 24px max(18px, env(safe-area-inset-bottom));
+            gap: 2px 14px;
         }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .auth-education-hero > video {
+        .auth-education-media > video {
             display: none;
+        }
+        .auth-education-media > img {
+            opacity: 0.58;
+        }
+        /* 减少动效：停止呼吸脉冲，悬停反馈保留 */
+        .auth-education-features li::before {
+            animation: none;
         }
     }
 }

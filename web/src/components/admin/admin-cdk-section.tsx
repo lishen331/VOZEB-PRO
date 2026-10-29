@@ -5,7 +5,12 @@ import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import { toNumberOrZero } from "@/components/admin/admin-values";
 import { formatCreditAmount } from "@/constant/credits";
-import { Button, Checkbox, Input, InputNumber, Pagination, Popconfirm, Select, Space, Table, Tag } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Database, Download, Eye, Gift, KeyRound, RefreshCw, Search, ShieldCheck, Trash2 } from "lucide-react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
@@ -94,7 +99,7 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                             </div>
                         </div>
                         <div className="mt-4 flex justify-end sm:mt-5">
-                            <Button className="!h-9 w-full sm:w-auto" type="primary" icon={<Gift className="size-4" />} loading={cdkGenerating} onClick={() => void generateCdkCodes()}>
+                            <Button className="w-full sm:w-auto" type="primary" size="large" icon={<Gift className="size-4" />} loading={cdkGenerating} onClick={() => void generateCdkCodes()}>
                                 随机生成 CDK
                             </Button>
                         </div>

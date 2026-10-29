@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Button, Tag } from "antd";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { BadgePercent, CircleDollarSign, RefreshCw, TicketPercent, UserPlus } from "lucide-react";
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";

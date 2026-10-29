@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 
 import { listBillingCoupons, listBillingOrders, listBillingProducts, type BillingOrder, type BillingProduct, type CouponTemplate, type UserCoupon } from "@/services/api/billing";
 import { listPointRecords, type PointRecord } from "@/services/api/points";

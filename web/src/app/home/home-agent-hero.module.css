@@ -1,16 +1,16 @@
 .hero {
     --hero-card-radius: 30px;
     --hero-card-width: 1110px;
-    --hero-text-primary: #0b1020;
-    --hero-text-secondary: #66718a;
-    --hero-border: rgba(94, 99, 255, 0.15);
-    --hero-blue: #356fff;
-    --hero-purple: #7238f5;
+    --hero-text-primary: #070c18;
+    --hero-text-secondary: #64728a;
+    --hero-border: rgba(38, 112, 255, 0.15);
+    --hero-blue: #2971ff;
+    --hero-purple: #0058ff;
     align-items: flex-start;
     background:
-        linear-gradient(118deg, rgba(218, 234, 255, 0.46) 0%, rgba(237, 243, 255, 0.16) 27%, transparent 48%), linear-gradient(242deg, rgba(239, 226, 255, 0.38) 0%, rgba(247, 240, 255, 0.14) 30%, transparent 51%),
-        linear-gradient(180deg, #fdfdff 0%, #f9faff 44%, #fbfaff 72%, #fdfdff 100%);
-    border-bottom: 1px solid rgba(106, 119, 164, 0.08);
+        linear-gradient(118deg, rgba(230, 232, 238, 0.46) 0%, rgba(240, 243, 248, 0.16) 27%, transparent 48%), linear-gradient(242deg, rgba(218, 233, 255, 0.38) 0%, rgba(241, 243, 249, 0.14) 30%, transparent 51%),
+        linear-gradient(180deg, #fbfdff 0%, #f8faff 44%, #f8fbff 72%, #fbfdff 100%);
+    border-bottom: 1px solid rgba(98, 122, 164, 0.08);
     display: flex;
     min-height: calc(100svh - 80px);
     overflow: hidden;
@@ -27,31 +27,31 @@
 }
 
 .hero::before {
-    background: radial-gradient(ellipse 62% 28% at 50% 70%, rgba(147, 153, 246, 0.1), transparent 72%), linear-gradient(90deg, rgba(224, 237, 255, 0.15), rgba(255, 255, 255, 0.68) 48%, rgba(239, 229, 255, 0.16));
+    background: radial-gradient(ellipse 62% 28% at 50% 70%, rgba(116, 162, 248, 0.1), transparent 72%), linear-gradient(90deg, rgba(233, 236, 241, 0.15), rgba(255, 255, 255, 0.68) 48%, rgba(221, 235, 255, 0.16));
     opacity: 0.84;
     z-index: 0;
 }
 
 .hero::after {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 30%, rgba(231, 230, 255, 0.12) 78%, rgba(255, 255, 255, 0.3));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 30%, rgba(230, 233, 238, 0.12) 78%, rgba(255, 255, 255, 0.3));
     z-index: 0;
 }
 
 :global(.dark) .hero {
-    --hero-text-primary: #f5f6ff;
-    --hero-text-secondary: #a8b0c5;
-    --hero-border: rgba(139, 145, 255, 0.22);
-    background: linear-gradient(118deg, rgba(26, 52, 103, 0.17), transparent 43%), linear-gradient(242deg, rgba(78, 35, 91, 0.13), transparent 46%), linear-gradient(180deg, #0a0d16 0%, #0c101b 46%, #100f1b 76%, #090b12 100%);
+    --hero-text-primary: #f4f7fc;
+    --hero-text-secondary: #aab0be;
+    --hero-border: rgba(102, 156, 255, 0.22);
+    background: linear-gradient(118deg, rgba(26, 52, 103, 0.17), transparent 43%), linear-gradient(242deg, rgba(78, 35, 91, 0.13), transparent 46%), linear-gradient(180deg, #040814 0%, #060b17 46%, #060b18 76%, #030611 100%);
     border-bottom-color: rgba(255, 255, 255, 0.07);
 }
 
 :global(.dark) .hero::before {
-    background: radial-gradient(ellipse 66% 30% at 50% 72%, rgba(90, 82, 220, 0.12), transparent 72%), linear-gradient(90deg, rgba(31, 58, 111, 0.055), rgba(13, 16, 27, 0.12) 48%, rgba(73, 37, 91, 0.055));
+    background: radial-gradient(ellipse 66% 30% at 50% 72%, rgba(32, 96, 222, 0.12), transparent 72%), linear-gradient(90deg, rgba(31, 58, 111, 0.055), rgba(6, 11, 24, 0.12) 48%, rgba(73, 37, 91, 0.055));
     opacity: 0.72;
 }
 
 :global(.dark) .hero::after {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 30%, rgba(70, 61, 132, 0.035) 78%, rgba(0, 0, 0, 0.08));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 30%, rgba(37, 70, 135, 0.035) 78%, rgba(0, 0, 0, 0.08));
 }
 
 .heroContent {
@@ -73,13 +73,13 @@
 }
 
 .heroTitle span {
-    background: linear-gradient(135deg, #3b6fff 0%, #5b57ff 48%, #7b32ff 100%);
+    background: linear-gradient(135deg, #2a72ff 0%, #1666ff 48%, #005bff 100%);
     background-clip: text;
     color: transparent;
 }
 
 :global(.dark) .heroTitle span {
-    background: linear-gradient(135deg, #6f95ff 0%, #827dff 48%, #a270ff 100%);
+    background: linear-gradient(135deg, #6298ff 0%, #4e8bff 48%, #488bff 100%);
     background-clip: text;
 }
 
@@ -101,11 +101,11 @@
 }
 
 .agentCard {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(252, 252, 255, 0.955));
-    border: 1px solid rgba(112, 117, 205, 0.13);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(250, 252, 255, 0.955));
+    border: 1px solid rgba(83, 126, 206, 0.13);
     border-radius: var(--hero-card-radius);
     box-shadow:
-        0 24px 70px rgba(67, 71, 180, 0.08),
+        0 24px 70px rgba(29, 80, 181, 0.08),
         inset 0 1px 0 rgba(255, 255, 255, 0.95);
     display: flex;
     flex-direction: column;
@@ -125,18 +125,18 @@
 }
 
 .agentCard:focus-within {
-    border-color: rgba(92, 84, 230, 0.3);
+    border-color: rgba(31, 99, 232, 0.3);
     box-shadow:
-        0 0 0 3px rgba(95, 85, 235, 0.06),
-        0 26px 74px rgba(67, 71, 180, 0.1),
+        0 0 0 3px rgba(31, 101, 237, 0.06),
+        0 26px 74px rgba(29, 80, 181, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.98);
 }
 
 :global(.dark) .agentCard {
-    background: rgba(15, 20, 39, 0.94);
+    background: rgba(11, 21, 39, 0.94);
     box-shadow:
         0 30px 86px rgba(0, 0, 0, 0.34),
-        0 10px 34px rgba(74, 62, 186, 0.12),
+        0 10px 34px rgba(18, 76, 188, 0.12),
         inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
@@ -176,12 +176,12 @@
 }
 
 .agentTextarea::placeholder {
-    color: #66718a;
+    color: #64728a;
     opacity: 1;
 }
 
 :global(.dark) .agentTextarea::placeholder {
-    color: #929bb2;
+    color: #909cb2;
 }
 
 .promptExamples {
@@ -199,10 +199,10 @@
 }
 
 .promptExamples button {
-    background: rgba(247, 248, 253, 0.62);
-    border: 1px solid rgba(139, 145, 179, 0.14);
+    background: rgba(246, 248, 254, 0.62);
+    border: 1px solid rgba(130, 148, 179, 0.14);
     border-radius: 999px;
-    color: #3b4357;
+    color: #394457;
     cursor: pointer;
     font-size: 13px;
     height: 44px;
@@ -219,21 +219,21 @@
 
 .promptExamples button:hover,
 .promptExamples button:focus-visible {
-    background: rgba(245, 243, 255, 0.86);
-    border-color: rgba(103, 91, 220, 0.28);
-    color: #4d47a6;
+    background: rgba(242, 245, 250, 0.86);
+    border-color: rgba(46, 106, 223, 0.28);
+    color: #2552a8;
 }
 
 :global(.dark) .promptExamples button {
     background: rgba(255, 255, 255, 0.045);
-    border-color: rgba(157, 168, 218, 0.18);
-    color: #c1c7d8;
+    border-color: rgba(146, 172, 218, 0.18);
+    color: #c1c7d5;
 }
 
 :global(.dark) .promptExamples button:hover,
 :global(.dark) .promptExamples button:focus-visible {
-    background: rgba(111, 92, 226, 0.12);
-    border-color: rgba(141, 126, 245, 0.36);
+    background: rgba(48, 109, 231, 0.12);
+    border-color: rgba(86, 142, 250, 0.36);
     color: #ffffff;
 }
 
@@ -258,8 +258,8 @@
 .agentTools button {
     align-items: center;
     background: rgba(255, 255, 255, 0.62);
-    border: 1px solid #e3e6f0;
-    color: #20263a;
+    border: 1px solid #e4e6ec;
+    color: #1d273a;
     cursor: pointer;
     display: inline-flex;
     height: 46px;
@@ -296,8 +296,8 @@
 }
 
 .creationModes button:nth-child(1) .modeIcon {
-    background: #eee9ff;
-    color: #6847e6;
+    background: #eaedf2;
+    color: #135dec;
 }
 
 .creationModes button:nth-child(2) .modeIcon {
@@ -311,34 +311,34 @@
 }
 
 .creationModes button:nth-child(4) .modeIcon {
-    background: #ecebff;
-    color: #5b55ee;
+    background: #ebedf3;
+    color: #1c64f0;
 }
 
 .creationModes button:hover {
     background: #ffffff;
-    border-color: rgba(100, 104, 180, 0.28);
-    color: #1b2140;
+    border-color: rgba(74, 112, 181, 0.28);
+    color: #142340;
 }
 
 .creationModes .modeActive {
-    background: rgba(244, 243, 255, 0.82);
-    border-color: rgba(89, 82, 214, 0.24);
+    background: rgba(242, 245, 250, 0.82);
+    border-color: rgba(34, 96, 216, 0.24);
     box-shadow: none;
-    color: #151a31;
+    color: #101b31;
 }
 
 :global(.dark) .creationModes button,
 :global(.dark) .agentTools button {
     background: rgba(255, 255, 255, 0.045);
-    border-color: rgba(157, 168, 218, 0.18);
-    color: #d5daea;
+    border-color: rgba(146, 172, 218, 0.18);
+    color: #d4dbe8;
 }
 
 :global(.dark) .creationModes button:hover,
 :global(.dark) .creationModes .modeActive {
-    background: rgba(119, 99, 235, 0.12);
-    border-color: rgba(141, 126, 245, 0.36);
+    background: rgba(54, 117, 240, 0.12);
+    border-color: rgba(86, 142, 250, 0.36);
     color: #ffffff;
 }
 
@@ -354,15 +354,15 @@
 }
 
 .agentTools button:not(.sendButton) {
-    background: rgba(246, 247, 252, 0.82);
-    border-color: rgba(132, 141, 174, 0.18);
-    color: #3d4964;
+    background: rgba(245, 247, 253, 0.82);
+    border-color: rgba(126, 143, 174, 0.18);
+    color: #3b4a64;
 }
 
 .agentTools button:hover {
-    background: rgba(240, 240, 252, 0.92);
-    border-color: rgba(104, 100, 190, 0.26);
-    color: #5550bd;
+    background: rgba(239, 241, 247, 0.92);
+    border-color: rgba(67, 111, 193, 0.26);
+    color: #295cbf;
     transform: none;
 }
 
@@ -372,8 +372,8 @@
 }
 
 .agentTools .sendButton {
-    background: linear-gradient(135deg, #5d8cff 0%, #696cf6 50%, #8b63ee 100%);
-    border: 1px solid rgba(91, 91, 210, 0.14);
+    background: linear-gradient(135deg, #548eff 0%, #3878f8 50%, #3a7bf9 100%);
+    border: 1px solid rgba(47, 102, 212, 0.14);
     border-radius: 50%;
     box-shadow: none;
     color: #ffffff;
@@ -383,43 +383,43 @@
 
 .agentTools .sendButton:hover,
 .agentTools .sendButton:focus-visible {
-    background: linear-gradient(135deg, #4f82fb 0%, #625ff0 50%, #8157e8 100%);
-    border-color: rgba(86, 82, 196, 0.22);
+    background: linear-gradient(135deg, #4784fb 0%, #296df2 50%, #2d6ff3 100%);
+    border-color: rgba(41, 94, 198, 0.22);
     box-shadow: none;
     color: #ffffff;
 }
 
 .agentTools button:not(.sendButton):focus-visible {
     background: #ffffff;
-    border-color: rgba(91, 82, 214, 0.38);
-    box-shadow: 0 0 0 3px rgba(95, 85, 235, 0.08);
-    color: #473fc5;
+    border-color: rgba(35, 96, 217, 0.38);
+    box-shadow: 0 0 0 3px rgba(31, 101, 237, 0.08);
+    color: #0c4cc7;
 }
 
 :global(.dark) .agentTools button:not(.sendButton) {
     background: rgba(255, 255, 255, 0.055);
-    border-color: rgba(173, 183, 225, 0.17);
-    color: #cbd2e5;
+    border-color: rgba(164, 186, 225, 0.17);
+    color: #ccd2e0;
 }
 
 :global(.dark) .agentTools button:not(.sendButton):hover,
 :global(.dark) .agentTools button:not(.sendButton):focus-visible {
-    background: rgba(116, 105, 221, 0.13);
-    border-color: rgba(151, 139, 244, 0.34);
-    color: #f2f0ff;
+    background: rgba(65, 119, 225, 0.13);
+    border-color: rgba(103, 154, 249, 0.34);
+    color: #eff2f8;
 }
 
 :global(.dark) .agentTools .sendButton {
-    background: linear-gradient(135deg, #7196ff 0%, #7f72f6 52%, #a06df0 100%);
-    border-color: rgba(204, 207, 255, 0.18);
+    background: linear-gradient(135deg, #6499ff 0%, #4582fa 52%, #4a88ff 100%);
+    border-color: rgba(188, 213, 255, 0.18);
     box-shadow: none;
     color: #ffffff;
 }
 
 :global(.dark) .agentTools .sendButton:hover,
 :global(.dark) .agentTools .sendButton:focus-visible {
-    background: linear-gradient(135deg, #80a1ff 0%, #8a7cf8 52%, #ac7af2 100%);
-    border-color: rgba(225, 226, 255, 0.24);
+    background: linear-gradient(135deg, #74a4ff 0%, #528cfd 52%, #5a94ff 100%);
+    border-color: rgba(215, 230, 255, 0.24);
     box-shadow: none;
     color: #ffffff;
 }
@@ -450,7 +450,7 @@
 }
 
 .ringGround {
-    background: radial-gradient(ellipse at center, rgba(119, 112, 239, 0.13) 0%, rgba(113, 141, 238, 0.075) 38%, rgba(174, 136, 231, 0.035) 58%, transparent 76%);
+    background: radial-gradient(ellipse at center, rgba(67, 126, 242, 0.13) 0%, rgba(97, 146, 238, 0.075) 38%, rgba(109, 157, 245, 0.035) 58%, transparent 76%);
     filter: blur(22px);
     height: 132px;
     opacity: 0.72;
@@ -460,8 +460,8 @@
 
 .ringOuter {
     background:
-        radial-gradient(ellipse at 50% 16%, rgba(255, 255, 255, 0.84), rgba(228, 232, 255, 0.2) 44%, transparent 70%),
-        linear-gradient(180deg, rgba(239, 242, 255, 0.48), rgba(181, 189, 246, 0.18) 46%, rgba(133, 144, 226, 0.09) 70%, rgba(160, 128, 218, 0.035));
+        radial-gradient(ellipse at 50% 16%, rgba(255, 255, 255, 0.84), rgba(231, 233, 239, 0.2) 44%, transparent 70%),
+        linear-gradient(180deg, rgba(240, 243, 248, 0.48), rgba(165, 194, 247, 0.18) 46%, rgba(110, 151, 227, 0.09) 70%, rgba(102, 147, 230, 0.035));
     height: 202px;
     top: 8px;
     width: 100%;
@@ -471,8 +471,8 @@
 
 .ringMiddle {
     background:
-        radial-gradient(ellipse at 46% 12%, rgba(255, 255, 255, 0.82), rgba(222, 231, 255, 0.17) 48%, transparent 72%),
-        linear-gradient(180deg, rgba(237, 242, 255, 0.42), rgba(172, 190, 242, 0.16) 50%, rgba(148, 134, 220, 0.075) 74%, rgba(177, 134, 215, 0.025));
+        radial-gradient(ellipse at 46% 12%, rgba(255, 255, 255, 0.82), rgba(229, 231, 237, 0.17) 48%, transparent 72%),
+        linear-gradient(180deg, rgba(239, 242, 248, 0.42), rgba(165, 192, 242, 0.16) 50%, rgba(105, 147, 225, 0.075) 74%, rgba(113, 155, 233, 0.025));
     height: 160px;
     top: 30px;
     width: 91%;
@@ -482,8 +482,8 @@
 
 .ringInner {
     background:
-        radial-gradient(ellipse at 54% 8%, rgba(255, 255, 255, 0.88), rgba(232, 226, 255, 0.2) 50%, transparent 72%),
-        linear-gradient(180deg, rgba(246, 243, 255, 0.5), rgba(201, 185, 239, 0.17) 52%, rgba(153, 155, 221, 0.07) 76%, rgba(149, 130, 196, 0.02));
+        radial-gradient(ellipse at 54% 8%, rgba(255, 255, 255, 0.88), rgba(217, 231, 255, 0.2) 50%, transparent 72%),
+        linear-gradient(180deg, rgba(242, 245, 251, 0.5), rgba(168, 196, 246, 0.17) 52%, rgba(130, 163, 223, 0.07) 76%, rgba(110, 143, 203, 0.02));
     height: 122px;
     top: 50px;
     width: 80%;
@@ -492,35 +492,34 @@
 }
 
 :global(.dark) .ringGround {
-    background: radial-gradient(ellipse at center, rgba(105, 86, 255, 0.28) 0%, rgba(76, 121, 245, 0.16) 38%, rgba(163, 91, 238, 0.08) 58%, transparent 76%);
+    background: radial-gradient(ellipse at center, rgba(26, 105, 255, 0.28) 0%, rgba(62, 124, 245, 0.16) 38%, rgba(56, 125, 255, 0.08) 58%, transparent 76%);
 }
 
 :global(.dark) .ringOuter {
     background:
-        radial-gradient(ellipse at 50% 16%, rgba(168, 190, 255, 0.28), rgba(113, 130, 247, 0.12) 44%, transparent 70%),
-        linear-gradient(180deg, rgba(137, 157, 255, 0.28), rgba(102, 111, 235, 0.22) 48%, rgba(101, 73, 204, 0.16) 72%, rgba(139, 73, 197, 0.07));
+        radial-gradient(ellipse at 50% 16%, rgba(159, 193, 255, 0.28), rgba(81, 138, 247, 0.12) 44%, transparent 70%), linear-gradient(180deg, rgba(114, 164, 255, 0.28), rgba(62, 121, 236, 0.22) 48%, rgba(32, 92, 210, 0.16) 72%, rgba(45, 103, 219, 0.07));
 }
 
 :global(.dark) .ringMiddle {
     background:
-        radial-gradient(ellipse at 46% 12%, rgba(153, 190, 255, 0.25), rgba(102, 140, 239, 0.1) 48%, transparent 72%), linear-gradient(180deg, rgba(123, 154, 251, 0.24), rgba(89, 120, 225, 0.2) 50%, rgba(106, 72, 200, 0.14) 74%, rgba(157, 72, 191, 0.06));
+        radial-gradient(ellipse at 46% 12%, rgba(154, 190, 255, 0.25), rgba(92, 143, 239, 0.1) 48%, transparent 72%), linear-gradient(180deg, rgba(109, 158, 251, 0.24), rgba(72, 124, 225, 0.2) 50%, rgba(34, 93, 208, 0.14) 74%, rgba(157, 72, 191, 0.06));
 }
 
 :global(.dark) .ringInner {
     background:
-        radial-gradient(ellipse at 54% 8%, rgba(189, 182, 255, 0.28), rgba(139, 112, 232, 0.12) 50%, transparent 72%), linear-gradient(180deg, rgba(157, 145, 250, 0.24), rgba(130, 93, 220, 0.2) 52%, rgba(94, 95, 196, 0.13) 76%, rgba(93, 68, 156, 0.05));
+        radial-gradient(ellipse at 54% 8%, rgba(156, 193, 255, 0.28), rgba(75, 131, 240, 0.12) 50%, transparent 72%), linear-gradient(180deg, rgba(109, 160, 255, 0.24), rgba(56, 115, 230, 0.2) 52%, rgba(57, 105, 198, 0.13) 76%, rgba(42, 83, 163, 0.05));
 }
 
 .floatingArtifact {
     --artifact-delay: 100ms;
-    --artifact-border: rgba(126, 117, 225, 0.2);
-    --artifact-edge: linear-gradient(145deg, rgba(171, 163, 236, 0.42), rgba(111, 99, 201, 0.36));
+    --artifact-border: rgba(79, 131, 229, 0.2);
+    --artifact-edge: linear-gradient(145deg, rgba(138, 174, 240, 0.42), rgba(64, 113, 205, 0.36));
     --artifact-origin-x: 180px;
     --artifact-origin-y: 116px;
     --artifact-rotate: -8deg;
     --artifact-shift-x: 0px;
     --artifact-shift-y: -10px;
-    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.96) 0 16%, transparent 46%), linear-gradient(145deg, rgba(250, 249, 255, 0.92), rgba(226, 224, 255, 0.72));
+    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.96) 0 16%, transparent 46%), linear-gradient(145deg, rgba(247, 250, 255, 0.92), rgba(213, 229, 255, 0.72));
     --artifact-x-end: 6deg;
     --artifact-x-start: -5deg;
     --artifact-y-end: 10deg;
@@ -532,7 +531,7 @@
     border: 0;
     border-radius: 20px;
     box-shadow: none;
-    color: #6c58e9;
+    color: #286aee;
     pointer-events: none;
     position: absolute;
     transform-style: preserve-3d;
@@ -582,7 +581,7 @@
 }
 
 .artifactFace::before {
-    background: linear-gradient(132deg, rgba(255, 255, 255, 0.72), transparent 38% 72%, rgba(111, 98, 205, 0.07));
+    background: linear-gradient(132deg, rgba(255, 255, 255, 0.72), transparent 38% 72%, rgba(62, 112, 209, 0.07));
     inset: 0;
 }
 
@@ -627,7 +626,7 @@
     --artifact-origin-y: -14px;
     --artifact-border: rgba(59, 161, 127, 0.18);
     --artifact-edge: linear-gradient(145deg, rgba(113, 205, 176, 0.42), rgba(49, 144, 116, 0.34));
-    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.96) 0 16%, transparent 46%), linear-gradient(145deg, rgba(249, 255, 253, 0.92), rgba(213, 244, 234, 0.72));
+    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.96) 0 16%, transparent 46%), linear-gradient(145deg, rgba(251, 253, 255, 0.92), rgba(233, 236, 241, 0.72));
     --artifact-y-end: -13deg;
     --artifact-y-start: 17deg;
     border-radius: 17px;
@@ -648,7 +647,7 @@
     --artifact-origin-y: 74px;
     --artifact-border: rgba(222, 94, 53, 0.18);
     --artifact-edge: linear-gradient(145deg, rgba(244, 156, 123, 0.44), rgba(195, 89, 61, 0.34));
-    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.96) 0 16%, transparent 46%), linear-gradient(145deg, rgba(255, 252, 250, 0.92), rgba(253, 223, 211, 0.74));
+    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.96) 0 16%, transparent 46%), linear-gradient(145deg, rgba(250, 253, 255, 0.92), rgba(253, 223, 211, 0.74));
     border-radius: 22px;
     color: #ee6a3b;
     height: 68px;
@@ -665,13 +664,13 @@
     --artifact-shift-y: -10px;
     --artifact-origin-x: -240px;
     --artifact-origin-y: -18px;
-    --artifact-border: rgba(98, 87, 210, 0.18);
-    --artifact-edge: linear-gradient(145deg, rgba(155, 144, 231, 0.42), rgba(92, 82, 181, 0.34));
-    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.96) 0 16%, transparent 46%), linear-gradient(145deg, rgba(252, 251, 255, 0.92), rgba(225, 221, 252, 0.72));
+    --artifact-border: rgba(44, 101, 213, 0.18);
+    --artifact-edge: linear-gradient(145deg, rgba(114, 157, 236, 0.42), rgba(48, 94, 184, 0.34));
+    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.96) 0 16%, transparent 46%), linear-gradient(145deg, rgba(249, 252, 255, 0.92), rgba(210, 226, 254, 0.72));
     --artifact-y-end: -12deg;
     --artifact-y-start: 16deg;
     border-radius: 18px;
-    color: #6659dc;
+    color: #2c68e0;
     height: 50px;
     right: 2.7%;
     top: 456px;
@@ -679,27 +678,27 @@
 }
 
 :global(.dark) .floatingArtifact {
-    --artifact-border: rgba(155, 162, 225, 0.18);
-    --artifact-edge: linear-gradient(145deg, rgba(103, 98, 167, 0.56), rgba(46, 43, 101, 0.52));
-    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.16) 0 14%, transparent 44%), linear-gradient(145deg, rgba(57, 61, 84, 0.9), rgba(29, 31, 54, 0.86));
+    --artifact-border: rgba(136, 168, 226, 0.18);
+    --artifact-edge: linear-gradient(145deg, rgba(73, 107, 170, 0.56), rgba(22, 49, 102, 0.52));
+    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.16) 0 14%, transparent 44%), linear-gradient(145deg, rgba(51, 63, 84, 0.9), rgba(22, 33, 54, 0.86));
 }
 
 :global(.dark) .artifactImage {
     --artifact-border: rgba(76, 154, 131, 0.2);
     --artifact-edge: linear-gradient(145deg, rgba(58, 132, 112, 0.58), rgba(26, 72, 64, 0.52));
-    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.13) 0 14%, transparent 44%), linear-gradient(145deg, rgba(39, 76, 68, 0.9), rgba(20, 43, 42, 0.86));
+    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.13) 0 14%, transparent 44%), linear-gradient(145deg, rgba(39, 76, 68, 0.9), rgba(30, 36, 50, 0.86));
 }
 
 :global(.dark) .artifactVideo {
     --artifact-border: rgba(188, 94, 65, 0.2);
     --artifact-edge: linear-gradient(145deg, rgba(156, 78, 58, 0.58), rgba(87, 43, 40, 0.52));
-    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.14) 0 14%, transparent 44%), linear-gradient(145deg, rgba(89, 51, 46, 0.9), rgba(47, 31, 36, 0.86));
+    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.14) 0 14%, transparent 44%), linear-gradient(145deg, rgba(89, 51, 46, 0.9), rgba(27, 34, 48, 0.86));
 }
 
 :global(.dark) .artifactAudio {
-    --artifact-border: rgba(117, 106, 201, 0.2);
-    --artifact-edge: linear-gradient(145deg, rgba(105, 94, 182, 0.58), rgba(53, 48, 111, 0.52));
-    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.14) 0 14%, transparent 44%), linear-gradient(145deg, rgba(61, 57, 99, 0.9), rgba(32, 32, 61, 0.86));
+    --artifact-border: rgba(73, 119, 205, 0.2);
+    --artifact-edge: linear-gradient(145deg, rgba(64, 106, 186, 0.58), rgba(26, 56, 113, 0.52));
+    --artifact-surface: radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.14) 0 14%, transparent 44%), linear-gradient(145deg, rgba(42, 63, 101, 0.9), rgba(21, 35, 62, 0.86));
 }
 
 :global(.dark) .artifactFace {

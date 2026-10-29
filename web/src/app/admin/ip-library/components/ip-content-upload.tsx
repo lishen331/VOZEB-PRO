@@ -1,6 +1,11 @@
 "use client";
 
-import { App, Button, Input, Select, Tooltip, Upload } from "antd";
+import { Upload } from "@/components/gamma-ui/gamma-ant-upload";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { FileText, Trash2, Upload as UploadIcon, X } from "lucide-react";
 import { useState } from "react";
 

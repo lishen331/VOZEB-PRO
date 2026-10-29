@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button, Pagination, Tag } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { FolderTree, RefreshCw, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 

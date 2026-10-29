@@ -1,56 +1,56 @@
 .root {
-    --home-bg: #f9fbff;
+    --home-bg: #f8fbff;
     --home-section-bg: rgba(255, 255, 255, 0.9);
     --home-surface: rgba(255, 255, 255, 0.78);
     --home-surface-strong: #ffffff;
-    --home-text: #10182f;
-    --home-muted: #65708a;
-    --home-border: rgba(112, 132, 189, 0.22);
-    --home-card-border: rgba(94, 120, 205, 0.25);
-    --home-control-border: rgba(101, 123, 181, 0.2);
-    --home-divider: rgba(105, 129, 190, 0.08);
+    --home-text: #0d192f;
+    --home-muted: #63718a;
+    --home-border: rgba(105, 134, 189, 0.22);
+    --home-card-border: rgba(81, 124, 205, 0.25);
+    --home-control-border: rgba(95, 125, 181, 0.2);
+    --home-divider: rgba(99, 131, 190, 0.08);
     --home-card-highlight: rgba(255, 255, 255, 0.96);
     --home-ring-core: rgba(255, 255, 255, 0.9);
-    --home-ring-blue: rgba(79, 108, 255, 0.38);
-    --home-ring-violet: rgba(151, 87, 255, 0.22);
+    --home-ring-blue: rgba(44, 115, 255, 0.38);
+    --home-ring-violet: rgba(43, 120, 255, 0.22);
     --home-nav-glass: rgba(255, 255, 255, 0.6);
-    --home-nav-glass-border: rgba(111, 133, 196, 0.2);
-    --home-primary-start: #1768ff;
-    --home-primary-end: #8047ef;
-    --home-glow: rgba(82, 100, 255, 0.3);
-    --home-shadow: 0 24px 70px rgba(50, 72, 138, 0.14);
-    --home-header: rgba(251, 252, 255, 0.9);
-    background: radial-gradient(ellipse 74% 42% at 50% 14%, rgba(117, 151, 255, 0.13), transparent 70%), linear-gradient(180deg, #fbfdff 0%, #f7f9ff 38%, #ffffff 100%);
+    --home-nav-glass-border: rgba(103, 136, 196, 0.2);
+    --home-primary-start: #0050f5;
+    --home-primary-end: #1a9dff;
+    --home-glow: rgba(36, 110, 255, 0.3);
+    --home-shadow: 0 24px 70px rgba(41, 74, 138, 0.14);
+    --home-header: rgba(249, 252, 255, 0.9);
+    background: radial-gradient(ellipse 74% 42% at 50% 14%, rgba(102, 155, 255, 0.13), transparent 70%), linear-gradient(180deg, #fafdff 0%, #f6f9ff 38%, #ffffff 100%);
     color: var(--home-text);
     letter-spacing: 0;
     scroll-behavior: smooth;
 }
 
 :global(.dark) .root {
-    --home-bg: #031027;
-    --home-section-bg: rgba(3, 15, 34, 0.93);
-    --home-surface: rgba(8, 26, 56, 0.7);
-    --home-surface-strong: #071a36;
-    --home-text: #f4f7ff;
-    --home-muted: #9aa8c4;
-    --home-border: rgba(123, 154, 255, 0.24);
-    --home-card-border: rgba(113, 144, 255, 0.38);
-    --home-control-border: rgba(132, 154, 221, 0.3);
-    --home-divider: rgba(126, 151, 220, 0.11);
-    --home-card-highlight: rgba(174, 200, 255, 0.18);
-    --home-ring-core: rgba(137, 184, 255, 0.9);
-    --home-ring-blue: rgba(32, 103, 255, 0.86);
-    --home-ring-violet: rgba(145, 57, 255, 0.66);
-    --home-nav-glass: rgba(17, 38, 73, 0.62);
-    --home-nav-glass-border: rgba(125, 153, 244, 0.22);
-    --home-primary-start: #126eff;
-    --home-primary-end: #8b42ef;
-    --home-glow: rgba(70, 91, 255, 0.5);
+    --home-bg: #050f27;
+    --home-section-bg: rgba(5, 14, 34, 0.93);
+    --home-surface: rgba(10, 26, 56, 0.7);
+    --home-surface-strong: #0a1936;
+    --home-text: #f4f7fd;
+    --home-muted: #99a8c4;
+    --home-border: rgba(107, 158, 255, 0.24);
+    --home-card-border: rgba(94, 149, 255, 0.38);
+    --home-control-border: rgba(122, 157, 221, 0.3);
+    --home-divider: rgba(118, 154, 220, 0.11);
+    --home-card-highlight: rgba(171, 201, 255, 0.18);
+    --home-ring-core: rgba(142, 182, 255, 0.9);
+    --home-ring-blue: rgba(26, 104, 255, 0.86);
+    --home-ring-violet: rgba(9, 102, 255, 0.66);
+    --home-nav-glass: rgba(19, 38, 73, 0.62);
+    --home-nav-glass-border: rgba(111, 157, 244, 0.22);
+    --home-primary-start: #0050f5;
+    --home-primary-end: #22c6f5;
+    --home-glow: rgba(19, 100, 255, 0.5);
     --home-shadow: 0 28px 82px rgba(0, 0, 0, 0.38);
-    --home-header: rgba(3, 14, 32, 0.82);
+    --home-header: rgba(5, 13, 32, 0.82);
     background:
-        radial-gradient(ellipse 72% 42% at 50% 16%, rgba(32, 76, 167, 0.22), transparent 72%), radial-gradient(circle at 13% 18%, rgba(62, 86, 211, 0.12) 1px, transparent 1.5px),
-        radial-gradient(circle at 78% 10%, rgba(162, 180, 255, 0.15) 1px, transparent 1.5px), linear-gradient(180deg, #020b1d 0%, #031127 52%, #04142d 100%);
+        radial-gradient(ellipse 72% 42% at 50% 16%, rgba(30, 76, 167, 0.22), transparent 72%), radial-gradient(circle at 13% 18%, rgba(32, 92, 211, 0.12) 1px, transparent 1.5px),
+        radial-gradient(circle at 78% 10%, rgba(146, 185, 255, 0.15) 1px, transparent 1.5px), linear-gradient(180deg, #030b1d 0%, #051027 52%, #06132d 100%);
     background-size:
         auto,
         42px 42px,
@@ -75,7 +75,7 @@
 .root a:focus-visible,
 .root textarea:focus-visible,
 .root select:focus-visible {
-    outline: 2px solid #5271ff;
+    outline: 2px solid #3378ff;
     outline-offset: 3px;
 }
 
@@ -154,13 +154,13 @@
 }
 
 .navGlassIndicator {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(248, 249, 255, 0.58)), linear-gradient(135deg, rgba(102, 140, 255, 0.1), rgba(139, 93, 246, 0.1));
-    border: 1px solid rgba(84, 98, 151, 0.1);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(247, 249, 255, 0.58)), linear-gradient(135deg, rgba(86, 144, 255, 0.1), rgba(49, 119, 255, 0.1));
+    border: 1px solid rgba(74, 101, 151, 0.1);
     border-radius: 12px;
     bottom: 4px;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.9),
-        0 8px 22px rgba(48, 59, 112, 0.09);
+        0 8px 22px rgba(36, 62, 112, 0.09);
     pointer-events: none;
     position: absolute;
     top: 4px;
@@ -173,7 +173,7 @@
 }
 
 :global(.dark) .navGlassIndicator {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.065)), linear-gradient(135deg, rgba(87, 126, 255, 0.12), rgba(145, 83, 246, 0.12));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.065)), linear-gradient(135deg, rgba(67, 131, 255, 0.12), rgba(40, 115, 255, 0.12));
     border-color: rgba(255, 255, 255, 0.1);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.14),
@@ -199,7 +199,7 @@
 }
 
 .navLink:hover {
-    color: #5268ff;
+    color: #2971ff;
 }
 
 .headerActions {
@@ -254,7 +254,7 @@
 }
 
 .primarySmallButton {
-    background: linear-gradient(135deg, #356fff 0%, #5d4cff 56%, #7934f5 100%);
+    background: linear-gradient(135deg, #2971ff 0%, #045fff 56%, #0058ff 100%);
     border: 0;
     box-shadow: 0 9px 24px color-mix(in srgb, var(--home-glow) 65%, transparent);
     color: #ffffff;
@@ -278,9 +278,9 @@
 }
 
 .ctaCrystal {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(92, 111, 255, 0.78) 48%, rgba(150, 83, 239, 0.72));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(52, 120, 255, 0.78) 48%, rgba(44, 116, 255, 0.72));
     clip-path: polygon(50% 0, 95% 26%, 80% 82%, 36% 100%, 0 58%, 13% 16%);
-    filter: drop-shadow(0 14px 18px rgba(78, 93, 205, 0.22));
+    filter: drop-shadow(0 14px 18px rgba(47, 100, 205, 0.22));
     opacity: 0.55;
     position: absolute;
 }
@@ -351,7 +351,7 @@
 }
 
 .stepCard:not(:last-child)::after {
-    border-top: 2px dashed color-mix(in srgb, #5f6fff 62%, transparent);
+    border-top: 2px dashed color-mix(in srgb, #3579ff 62%, transparent);
     content: "";
     left: calc(100% + 8px);
     position: absolute;
@@ -360,7 +360,7 @@
 }
 
 .stepNumber {
-    background: linear-gradient(120deg, #336dff, #8b49ee);
+    background: linear-gradient(120deg, #266fff, #1e6aff);
     background-clip: text;
     color: transparent;
     font-size: 30px;
@@ -387,7 +387,7 @@
 }
 
 .stepCard > svg {
-    color: #536cff;
+    color: #2e74ff;
     height: 30px;
     width: 30px;
 }
@@ -482,7 +482,7 @@
     background: var(--home-surface);
     border: 1px solid var(--home-border);
     border-radius: 10px;
-    box-shadow: 0 8px 22px rgba(28, 42, 85, 0.08);
+    box-shadow: 0 8px 22px rgba(22, 43, 85, 0.08);
     min-width: 0;
     overflow: hidden;
     position: relative;
@@ -493,14 +493,14 @@
 }
 
 .workCard:hover {
-    border-color: color-mix(in srgb, #5470ff 55%, var(--home-border));
+    border-color: color-mix(in srgb, #3277ff 55%, var(--home-border));
     box-shadow: 0 16px 36px color-mix(in srgb, var(--home-glow) 25%, transparent);
     transform: translateY(-3px);
 }
 
 .workMedia {
     aspect-ratio: 4 / 3;
-    background: color-mix(in srgb, var(--home-surface-strong) 72%, #637cff 6%);
+    background: color-mix(in srgb, var(--home-surface-strong) 72%, #4483ff 6%);
     border: 0;
     color: inherit;
     cursor: pointer;
@@ -531,7 +531,7 @@
 }
 
 .duration {
-    background: rgba(6, 13, 34, 0.72);
+    background: rgba(4, 14, 34, 0.72);
     border-radius: 6px;
     color: #ffffff;
     bottom: 8px;
@@ -607,14 +607,14 @@
     font-size: 14px;
     font-weight: 680;
     overflow: hidden;
-    text-shadow: 0 1px 4px rgba(6, 13, 34, 0.72);
+    text-shadow: 0 1px 4px rgba(4, 14, 34, 0.72);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .gallerySkeleton {
     animation: home-skeleton 1.35s ease-in-out infinite;
     aspect-ratio: 4 / 3;
-    background: color-mix(in srgb, var(--home-surface-strong) 75%, #657cff 6%);
+    background: color-mix(in srgb, var(--home-surface-strong) 75%, #4584ff 6%);
     border: 1px solid var(--home-border);
     border-radius: 10px;
     height: auto;
@@ -655,7 +655,7 @@
     align-items: center;
     background: color-mix(in srgb, var(--home-text) 6%, transparent);
     border-radius: 12px;
-    color: #5f6fff;
+    color: #3579ff;
     display: flex;
     height: 46px;
     justify-content: center;
@@ -715,9 +715,9 @@
 }
 .advantages article > span {
     align-items: center;
-    background: color-mix(in srgb, #586eff 13%, transparent);
+    background: color-mix(in srgb, #3177ff 13%, transparent);
     border-radius: 50%;
-    color: #586eff;
+    color: #3177ff;
     display: flex;
     flex: 0 0 auto;
     height: 50px;
@@ -742,8 +742,8 @@
 
 .cta {
     align-items: center;
-    background: linear-gradient(100deg, rgba(42, 105, 255, 0.13), rgba(130, 72, 238, 0.2)), var(--home-surface);
-    border: 1px solid color-mix(in srgb, #5a70ff 44%, var(--home-border));
+    background: linear-gradient(100deg, rgba(31, 106, 255, 0.13), rgba(26, 102, 251, 0.2)), var(--home-surface);
+    border: 1px solid color-mix(in srgb, #3478ff 44%, var(--home-border));
     border-radius: 18px;
     display: flex;
     gap: 34px;

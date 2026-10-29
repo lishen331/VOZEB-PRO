@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Button, Pagination, Skeleton, Tag } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Skeleton } from "@/components/gamma-ui/gamma-ant-display";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { History, MonitorSmartphone, RefreshCw, Wifi } from "lucide-react";
 
 import type { UserLoginEvent } from "@/lib/login-security";

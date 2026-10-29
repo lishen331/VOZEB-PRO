@@ -1,6 +1,11 @@
 "use client";
 
-import { App, Button, Drawer, Form, Input, InputNumber, Select, Tag } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CircleDollarSign, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Input, Pagination, Tag } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Clock3, Gift, RefreshCw, TicketPercent } from "lucide-react";
 
 import { claimBillingCoupon, type CouponTemplate, type UserCoupon } from "@/services/api/billing";
@@ -43,7 +45,7 @@ export function CouponWalletSection({ coupons, templates, templatesTotal, templa
     };
 
     return (
-        <section className="rounded-lg border border-border bg-card p-2 text-card-foreground sm:rounded-2xl sm:p-6">
+        <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 text-card-foreground sm:rounded-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h2 className="text-lg font-semibold text-stone-950 sm:text-xl dark:text-white">我的优惠券</h2>

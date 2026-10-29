@@ -38,6 +38,7 @@ import { resolveGenerationExecutionPolicy } from "@/lib/server/generation-execut
 import { isAgnesApiBaseUrl } from "@/lib/agnes-model-catalog";
 import { channelConnectionReady, protocolAuthHeaders, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
 import { normalizeYumengModelCenterBaseUrl } from "@/lib/yumeng-model-center";
+import { imageResolutionFromRequestValue } from "@/lib/image-generation-params";
 import { authorizedWorkerUserId } from "@/lib/server/maintenance-auth";
 import { authorizeGenerationMediaProxyRequest } from "@/lib/server/generation-media-access";
 import { SYSTEM_PROXY_JSON_BODY_MAX_BYTES } from "@/lib/server/system-proxy-request-limits";
@@ -617,7 +618,7 @@ async function readProxyRequestBody(request: Request, isMultipart: boolean): Pro
 
 function formDataFields(formData: FormData): Record<string, string> {
     const fields: Record<string, string> = {};
-    for (const key of ["model", "n", "quality", "resolution_name", "resolution", "vquality", "seconds", "duration"]) {
+    for (const key of ["model", "n", "quality", "size", "resolution_name", "resolution", "vquality", "seconds", "duration"]) {
         const value = formData.get(key);
         if (typeof value === "string" && value.trim()) fields[key] = value.trim();
     }
@@ -683,7 +684,10 @@ function classifyPointsRequest(method: string, apiFormat: ApiCallFormat, path: s
     }
     if (routePath === "/chat/completions") return { model, amount: 1, usageKind: "text" };
     if (apiFormat === "gemini" && routePath.includes(":streamgeneratecontent")) return { model, amount: 1, usageKind: "text" };
-    if (apiFormat === "gemini" && routePath.includes(":generatecontent")) return { model, amount: 1, usageKind: hasGeminiImageResponseModality(payload) ? "image" : "text" };
+    if (apiFormat === "gemini" && routePath.includes(":generatecontent")) {
+        const isImage = hasGeminiImageResponseModality(payload);
+        return { model, amount: isImage ? imageQualityMultiplier(payload, multipliers) : 1, usageKind: isImage ? "image" : "text" };
+    }
 
     return null;
 }
@@ -766,8 +770,22 @@ function readRequestCount(payload: Record<string, unknown>) {
     return Math.max(1, Math.min(1000, count));
 }
 
+// 画质倍率 × 清晰度倍率。清晰度按实际发给上游的像素/档位计：size（WxH 或 1K/2K/4K）、
+// resolution、Gemini imageConfig.imageSize；都没有时记 auto。
 function imageQualityMultiplier(payload: Record<string, unknown>, multipliers?: GenerationPointMultipliers) {
-    return multiplierValue(multipliers?.imageQuality, normalizeImageQualityKey(payload.quality ?? nestedInput(payload).quality));
+    const quality = multiplierValue(multipliers?.imageQuality, normalizeImageQualityKey(payload.quality ?? nestedInput(payload).quality));
+    return quality * multiplierValue(multipliers?.imageResolution, readImageResolutionKey(payload));
+}
+
+function readImageResolutionKey(payload: Record<string, unknown>) {
+    const generationConfig = payload.generationConfig && typeof payload.generationConfig === "object" && !Array.isArray(payload.generationConfig) ? (payload.generationConfig as Record<string, unknown>) : {};
+    const imageConfig = generationConfig.imageConfig && typeof generationConfig.imageConfig === "object" && !Array.isArray(generationConfig.imageConfig) ? (generationConfig.imageConfig as Record<string, unknown>) : {};
+    const input = nestedInput(payload);
+    for (const value of [payload.size, payload.resolution, input.size, input.resolution, imageConfig.imageSize]) {
+        const resolution = imageResolutionFromRequestValue(value);
+        if (resolution) return resolution;
+    }
+    return "auto";
 }
 
 function videoParameterMultiplier(payload: Record<string, unknown>, multipliers?: GenerationPointMultipliers) {
@@ -832,7 +850,7 @@ function readRequestBody(contentType: string | null, body?: ArrayBuffer | Record
 
 function readMultipartFields(text: string): Record<string, string> {
     const fields: Record<string, string> = {};
-    for (const key of ["model", "n", "quality", "resolution_name", "resolution", "vquality", "seconds", "duration"]) {
+    for (const key of ["model", "n", "quality", "size", "resolution_name", "resolution", "vquality", "seconds", "duration"]) {
         const match = text.match(new RegExp(`name="${key}"\\r?\\n\\r?\\n([^\\r\\n]+)`));
         if (match?.[1]) fields[key] = match[1].trim();
     }
@@ -850,6 +868,7 @@ function targetUrl(baseUrl: string, apiFormat: "openai" | "gemini", path: string
         protocol === "mohui-seedance" ||
         protocol === "modelbay-image-task" ||
         protocol === "tuzi-image-task" ||
+        protocol === "tuzi-suno" ||
         protocol === "volcengine-video" ||
         protocol === "seedance-special" ||
         protocol === "stable-diffusion" ||

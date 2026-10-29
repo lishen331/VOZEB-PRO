@@ -2,7 +2,8 @@
 
 import { generationUserMessage } from "@/lib/generation-feedback-message";
 import { useEffect, useRef, useState } from "react";
-import { App, Button, Empty } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button, Empty } from "@/components/gamma-ui/gamma-ant";
 import { ArrowRight, History } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useParams, useRouter } from "next/navigation";
@@ -47,10 +48,10 @@ export default function DramaProjectPage() {
             active = false;
         };
     }, [loadProject, projectId, userId]);
-    if (loading && !project) return <main className="grid h-full place-items-center bg-background text-sm text-muted-foreground">正在加载短剧项目…</main>;
+    if (loading && !project) return <main className="grid h-full place-items-center bg-[var(--gm-bg)] text-sm text-[var(--gm-text-3)]">正在加载短剧项目…</main>;
     if (!project)
         return (
-            <main className="grid h-full place-items-center bg-background">
+            <main className="grid h-full place-items-center bg-[var(--gm-bg)]">
                 <Empty description={loadError || "短剧项目不存在"}>
                     <Button onClick={() => router.push("/drama")}>返回项目列表</Button>
                 </Empty>
@@ -383,7 +384,7 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
     }, [config, episode.id, episode.shots, isCapacityWaiting, project, scheduleCapacityRetry, updateShot]);
 
     return (
-        <main className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-drama-workspace aria-label="短剧制作工作区">
+        <main className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]" data-drama-workspace aria-label="短剧制作工作区">
             <DramaWorkspaceHeader
                 project={project}
                 episode={episode}
@@ -402,7 +403,7 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                 onToggleAgent={() => setAgentOpen((open) => !open)}
                 onOpenVersions={() => void openVersions()}
             />
-            <div className="flex shrink-0 items-center border-b border-border bg-card/80 px-3 py-1.5 sm:px-4">
+            <div className="flex shrink-0 items-center border-b border-[var(--gm-border)] bg-[var(--gm-surface)]/80 px-3 py-1.5 sm:px-4">
                 <SchoolProjectBillingBadge surface="drama" projectId={project.id} executionProfile={project.executionProfile} />
             </div>
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden" data-drama-workspace-body>
@@ -445,7 +446,8 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                                         action={
                                             <Button
                                                 type="primary"
-                                                className="!h-9 !w-full sm:!w-auto"
+                                                size="large"
+                                                className="!w-full sm:!w-auto"
                                                 icon={<ArrowRight className="size-4" />}
                                                 disabled={!episode.shots.length || episode.reviewStatus !== "visual_ready"}
                                                 onClick={() => setStage("generate")}
@@ -468,10 +470,10 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="mt-2.5 flex min-h-14 items-center rounded-lg border border-dashed border-border bg-card/25 px-3 py-2.5">
+                                        <div className="mt-2.5 flex min-h-14 items-center rounded-lg border border-dashed border-[var(--gm-border)] bg-[var(--gm-surface)]/25 px-3 py-2.5">
                                             <div className="min-w-0">
                                                 <h3 className="text-sm font-medium">还没有可编辑的分镜</h3>
-                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">先从剧本提取内容结构，并在内容审核阶段确认镜头事实与视觉方案。</p>
+                                                <p className="mt-0.5 truncate text-xs text-[var(--gm-text-3)]">先从剧本提取内容结构，并在内容审核阶段确认镜头事实与视觉方案。</p>
                                             </div>
                                         </div>
                                     )}
@@ -545,8 +547,8 @@ function DramaScriptGlobalBar({
                 ? `最近保存 ${new Date(saveState.savedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
                 : `最近保存 ${new Date(project.updatedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
     return (
-        <footer className={`flex h-[60px] shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-3 sm:gap-3 sm:px-5 ${episodeNavigatorOpen ? "min-[1366px]:!pl-[210px]" : ""}`} data-drama-script-global-bar>
-            <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+        <footer className={`flex h-[60px] shrink-0 items-center justify-between gap-2 border-t border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 sm:gap-3 sm:px-5 ${episodeNavigatorOpen ? "min-[1366px]:!pl-[210px]" : ""}`} data-drama-script-global-bar>
+            <div className="flex min-w-0 items-center gap-2 text-xs text-[var(--gm-text-3)]">
                 <span className={`size-2 shrink-0 rounded-full ${saveState?.status === "error" ? "bg-rose-500" : saveState?.status === "saving" ? "bg-amber-500" : "bg-emerald-500"}`} />
                 <span className="hidden sm:inline" title={savedLabel}>
                     {saveState?.status === "saving" ? "正在自动保存" : saveState?.status === "error" ? "自动保存失败" : "自动保存已开启"}
@@ -554,7 +556,8 @@ function DramaScriptGlobalBar({
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                 <Button
-                    className="!h-10 !px-3 sm:!px-5"
+                    size="large"
+                    className="!px-3 sm:!px-5"
                     loading={savingVersion}
                     onClick={() => {
                         setSavingVersion(true);
@@ -569,7 +572,8 @@ function DramaScriptGlobalBar({
                 </Button>
                 <Button
                     type="primary"
-                    className="!h-10 !px-3 enabled:!border-violet-600 enabled:!bg-violet-600 enabled:!text-white enabled:hover:!border-violet-500 enabled:hover:!bg-violet-500 dark:enabled:!border-violet-400 dark:enabled:!bg-violet-400 dark:enabled:!text-violet-950 sm:!px-6"
+                    size="large"
+                    className="!px-3 enabled:!border-violet-600 enabled:!bg-violet-600 enabled:!text-white enabled:hover:!border-violet-500 enabled:hover:!bg-violet-500 dark:enabled:!border-violet-400 dark:enabled:!bg-violet-400 dark:enabled:!text-violet-950 sm:!px-6"
                     icon={<ArrowRight className="size-4" />}
                     disabled={!episode.script.trim()}
                     loading={analyzing}

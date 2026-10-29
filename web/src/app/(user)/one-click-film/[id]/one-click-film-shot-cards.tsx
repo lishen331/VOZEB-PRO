@@ -1,6 +1,11 @@
 "use client";
 
-import { Button, Checkbox, Empty, Image, Input, Popconfirm, Select, Switch, Tag, Tooltip, message } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Empty, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Aperture, ArrowUpToLine, Clapperboard, FileText, Film, ImageIcon, Link2, LoaderCircle, Maximize2, Mic, Pencil, Plus, RefreshCcw, Scissors, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";
@@ -444,15 +449,15 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
 
             {/* L §4 批量进度与错误清单，对应 L 的 .batch-status */}
             {batchKind || batchErrors.length ? (
-                <div className="mt-3 rounded-md border border-border bg-muted/30 p-3 text-sm" data-testid="one-click-batch-status">
+                <div className="mt-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm" data-testid="one-click-batch-status">
                     {batchKind && batchProgress ? (
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-muted-foreground">{batchKind === "image" ? "分镜图" : "分镜视频"}批量生成</span>
+                            <span className="text-[var(--gm-text-3)]">{batchKind === "image" ? "分镜图" : "分镜视频"}批量生成</span>
                             <span>
                                 {batchProgress.current}/{batchProgress.total}
                             </span>
                             {batchProgress.failed ? <span className="text-red-500">失败 {batchProgress.failed}</span> : null}
-                            {stopping ? <span className="text-muted-foreground">（正在停止...）</span> : null}
+                            {stopping ? <span className="text-[var(--gm-text-3)]">（正在停止...）</span> : null}
                         </div>
                     ) : null}
                     {batchErrors.length ? (
@@ -467,16 +472,16 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
             ) : null}
 
             {/* L §4 配置行：分镜数量 / 视频总时长 / 全能分镜 / 解说旁白 */}
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm">
                 <label className="flex items-center gap-1.5">
-                    <span className="text-muted-foreground">分镜数量</span>
+                    <span className="text-[var(--gm-text-3)]">分镜数量</span>
                     <Input size="small" style={{ width: 96 }} value={shotCount} placeholder="自动" aria-label="分镜数量" onChange={(event) => setShotCount(event.target.value)} />
-                    <span className="text-xs text-muted-foreground">留空由 AI 决定</span>
+                    <span className="text-xs text-[var(--gm-text-3)]">留空由 AI 决定</span>
                 </label>
                 <label className="flex items-center gap-1.5">
-                    <span className="text-muted-foreground">视频总时长</span>
+                    <span className="text-[var(--gm-text-3)]">视频总时长</span>
                     <Input size="small" style={{ width: 96 }} value={totalDuration} placeholder="秒" aria-label="视频总时长" onChange={(event) => setTotalDuration(event.target.value)} />
-                    <span className="text-xs text-muted-foreground">秒，留空不约束</span>
+                    <span className="text-xs text-[var(--gm-text-3)]">秒，留空不约束</span>
                 </label>
                 <Tooltip title="每镜输出多子分镜段落式 universal_segment，与「生成/润色全能提示词」同版式">
                     <label className="flex items-center gap-1.5">
@@ -490,7 +495,7 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                         <span>生成解说旁白</span>
                     </label>
                 </Tooltip>
-                <span className="text-xs text-muted-foreground">以上参数在「重新拆解分镜」时生效</span>
+                <span className="text-xs text-[var(--gm-text-3)]">以上参数在「重新拆解分镜」时生效</span>
             </div>
 
             <ul className="mt-3 grid gap-3">
@@ -506,7 +511,7 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                     {shot.storyboardStatus ? <Tag color={statusColor(shot.storyboardStatus)}>图 {shot.storyboardStatus}</Tag> : null}
                                     {shot.generationStatus ? <Tag color={statusColor(shot.generationStatus)}>视频 {shot.generationStatus}</Tag> : null}
                                 </div>
-                                <p className="mt-1 truncate text-sm text-muted-foreground">{shot.description || shot.sourceText || "暂无描述"}</p>
+                                <p className="mt-1 truncate text-sm text-[var(--gm-text-3)]">{shot.description || shot.sourceText || "暂无描述"}</p>
                                 {requiresDramaLabVideoTaskCheck(shot) ? (
                                     <p className="mt-1 text-sm text-amber-600" aria-label={`分镜 ${index + 1} 视频结果待检查`}>
                                         {dramaLabVideoTaskReviewDescription(shot)}
@@ -526,10 +531,10 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                             .filter(([, state]) => Boolean(state))
                                             .map(([label, state]) => (
                                                 <div key={label} className="flex flex-wrap items-center gap-2 text-xs">
-                                                    <span className="text-muted-foreground">{label}配音</span>
+                                                    <span className="text-[var(--gm-text-3)]">{label}配音</span>
                                                     <Tag color={statusColor(state?.status || "idle")}>{state?.status}</Tag>
-                                                    {state?.speaker ? <span className="text-muted-foreground">{state.speaker}</span> : null}
-                                                    {state?.voice ? <span className="text-muted-foreground">音色 {state.voice}</span> : null}
+                                                    {state?.speaker ? <span className="text-[var(--gm-text-3)]">{state.speaker}</span> : null}
+                                                    {state?.voice ? <span className="text-[var(--gm-text-3)]">音色 {state.voice}</span> : null}
                                                     {state?.url ? (
                                                         // 结果由服务端回写，这里只播放，不在前端合成
                                                         <audio controls preload="none" src={state.url} className="h-6" aria-label={`播放分镜 ${index + 1} ${label}配音`} />
@@ -552,8 +557,8 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                     <section aria-label="分镜参考图" className="min-w-0">
                                         <h3 className="mb-2 text-sm font-medium">{shot.creationMode === "universal" ? "全能参考" : "分镜图"}</h3>
                                         {shot.creationMode === "universal" ? (
-                                            <div className="flex h-64 flex-col overflow-y-auto rounded-md border border-border bg-muted/30 p-2">
-                                                <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                            <div className="flex h-64 flex-col overflow-y-auto rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-2">
+                                                <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-[var(--gm-text-3)]">
                                                     <span>片段描述</span>
                                                     <span title="全能生视频链路：由片段描述与 @ 引用的资产共同驱动">（@ 可引用本集角色 / 场景 / 道具）</span>
                                                 </div>
@@ -582,7 +587,7 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                                     >
                                                         润色全能提示词
                                                     </Button>
-                                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                    <label className="flex items-center gap-1.5 text-xs text-[var(--gm-text-3)]">
                                                         <Switch size="small" checked={forceNoRef} onChange={setForceNoRef} aria-label="不查图片强制生成/润色" />
                                                         不查图片强制生成/润色
                                                     </label>
@@ -590,7 +595,7 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                             </div>
                                         ) : shot.storyboardFrameMode === "first_last" ? (
                                             <div className="grid h-64 grid-cols-2 gap-2">
-                                                <div className="flex min-w-0 flex-col items-center justify-center overflow-hidden rounded border bg-muted/30">
+                                                <div className="flex min-w-0 flex-col items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)]/30">
                                                     <span className="text-xs">首帧</span>
                                                     <OneClickShotMediaUpload projectId={projectId} episodeId={episode.id} shotId={shot.id} target="first" onProjectChange={onProjectChange} />
                                                     {shot.frames?.first?.url ? <Image src={shot.frames.first.url} alt="首帧" height={210} className="object-contain" /> : <Empty image={null} description="暂无首帧" />}
@@ -598,7 +603,7 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                                         查看提示词
                                                     </Button>
                                                 </div>
-                                                <div className="flex min-w-0 flex-col items-center justify-center overflow-hidden rounded border bg-muted/30">
+                                                <div className="flex min-w-0 flex-col items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)]/30">
                                                     <span className="text-xs">尾帧</span>
                                                     <OneClickShotMediaUpload projectId={projectId} episodeId={episode.id} shotId={shot.id} target="last" onProjectChange={onProjectChange} />
                                                     {shot.frames?.last?.url ? <Image src={shot.frames.last.url} alt="尾帧" height={210} className="object-contain" /> : <Empty image={null} description="暂无尾帧" />}
@@ -608,14 +613,14 @@ export function OneClickFilmShotCards({ projectId, project, episode, onProjectCh
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="flex h-64 min-w-0 items-center justify-center overflow-hidden rounded border bg-muted/30">
+                                            <div className="flex h-64 min-w-0 items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)]/30">
                                                 {shot.storyboardImageUrl ? <Image src={shot.storyboardImageUrl} alt="分镜参考图" height={240} className="object-contain" /> : <Empty image={null} description="暂无分镜图" />}
                                             </div>
                                         )}
                                     </section>
                                     <section aria-label="分镜视频" className="min-w-0">
                                         <h3 className="mb-2 text-sm font-medium">分镜视频</h3>
-                                        <div className="flex h-64 min-w-0 items-center justify-center overflow-hidden rounded border bg-muted/30">
+                                        <div className="flex h-64 min-w-0 items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)]/30">
                                             {shot.videoUrl ? <video src={shot.videoUrl} controls preload="metadata" className="h-full w-full object-contain" /> : <Empty image={null} description="暂无分镜视频" />}
                                         </div>
                                     </section>

@@ -1,7 +1,14 @@
 "use client";
 
-import { App, Button, Checkbox, Image, Input, Modal, Pagination, Popconfirm, Select, Table, Tag, Tooltip } from "antd";
-import type { TableColumnsType } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { Clock3, Download, Eye, File, FileAudio, Film, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 

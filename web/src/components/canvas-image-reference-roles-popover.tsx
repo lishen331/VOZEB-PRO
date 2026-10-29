@@ -1,7 +1,9 @@
 ﻿"use client";
 
+import type { CSSProperties } from "react";
 import { Tag } from "lucide-react";
-import { Button, Dropdown, Tooltip } from "antd";
+import { Button } from "antd";
+import { Dropdown, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
@@ -29,11 +31,18 @@ export function CanvasImageReferenceRolesPopover({ references, roles, onChange, 
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const current = normalizeImageReferenceRoles(roles);
     const roleEntries = Object.entries(IMAGE_REFERENCE_ROLE_LABELS) as Array<[ImageReferenceRole, string]>;
+    const panelStyle: CSSProperties = {
+        "--gm-surface-2": theme.toolbar.panel,
+        "--gm-border-strong": theme.toolbar.border,
+        "--gm-text": theme.node.text,
+        "--gm-wash": theme.toolbar.itemHover,
+    } as CSSProperties;
     return (
         <Dropdown
             trigger={["click"]}
             placement="top"
-            popupRender={() => (
+            panelStyle={panelStyle}
+            content={
                 <div className="w-80 rounded-xl border p-2 shadow-xl" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                     <div className="px-2 pb-1 text-[11px] font-semibold">参考图用途（可多选）</div>
                     <div className="mb-2 px-2 text-[10px] leading-4 opacity-60">默认是原始参考，不添加任何语义约束</div>
@@ -63,7 +72,7 @@ export function CanvasImageReferenceRolesPopover({ references, roles, onChange, 
                         <div className="px-2 py-2 text-[11px] opacity-60">暂无已连接图片</div>
                     )}
                 </div>
-            )}
+            }
         >
             {iconOnly ? (
                 <Tooltip title="参考图用途">

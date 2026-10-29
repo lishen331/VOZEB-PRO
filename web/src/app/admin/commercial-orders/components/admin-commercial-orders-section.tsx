@@ -1,7 +1,13 @@
 "use client";
 
-import type { TableColumnsType } from "antd";
-import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Table, Tag } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";

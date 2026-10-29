@@ -1,6 +1,11 @@
 "use client";
 
-import { Button, Checkbox, Empty, Input, Modal, Popconfirm, Segmented, Select, Tag, message } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Empty, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { useEffect, useState } from "react";
 import { shotPromptPatch } from "@/lib/one-click/shot-prompt-patch";
 import { buildShotBindingPatch } from "@/lib/one-click/shot-binding-patch";
@@ -443,7 +448,7 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
                             AI 重算空间布局
                         </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">保存会整条覆盖该帧的提示词、描述与布局（与 L 一致）；已生成的帧图不受影响。</p>
+                    <p className="text-xs text-[var(--gm-text-3)]">保存会整条覆盖该帧的提示词、描述与布局（与 L 一致）；已生成的帧图不受影响。</p>
                     <div className="flex justify-end gap-2">
                         <Button loading={frameGenerating} onClick={() => void generateFrame()} aria-label="AI 生成帧提示词">
                             AI 生成该帧
@@ -498,37 +503,37 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
 
                     <div className="grid gap-3 sm:grid-cols-3">
                         <div>
-                            <div className="mb-1 text-sm text-muted-foreground">景别（angle_s）</div>
+                            <div className="mb-1 text-sm text-[var(--gm-text-3)]">景别（angle_s）</div>
                             <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜景别" value={angleS || undefined} onChange={(value) => setAngleS(value || "")} options={SHOT_ANGLE_S_OPTIONS} />
                         </div>
                         <div>
-                            <div className="mb-1 text-sm text-muted-foreground">俯仰（angle_v）</div>
+                            <div className="mb-1 text-sm text-[var(--gm-text-3)]">俯仰（angle_v）</div>
                             <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜俯仰" value={angleV || undefined} onChange={(value) => setAngleV(value || "")} options={SHOT_ANGLE_V_OPTIONS} />
                         </div>
                         <div>
-                            <div className="mb-1 text-sm text-muted-foreground">方向（angle_h）</div>
+                            <div className="mb-1 text-sm text-[var(--gm-text-3)]">方向（angle_h）</div>
                             <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜方向" value={angleH || undefined} onChange={(value) => setAngleH(value || "")} options={SHOT_ANGLE_H_OPTIONS} />
                         </div>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-3">
                         <div>
-                            <div className="mb-1 text-sm text-muted-foreground">运镜</div>
+                            <div className="mb-1 text-sm text-[var(--gm-text-3)]">运镜</div>
                             <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜运镜" value={cameraMotion || undefined} onChange={(value) => setCameraMotion(value || "")} options={SHOT_MOVEMENT_OPTIONS} />
                         </div>
                         <div>
-                            <div className="mb-1 text-sm text-muted-foreground">灯光风格</div>
+                            <div className="mb-1 text-sm text-[var(--gm-text-3)]">灯光风格</div>
                             <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜灯光风格" value={lightingStyle || undefined} onChange={(value) => setLightingStyle(value || "")} options={SHOT_LIGHTING_OPTIONS} />
                         </div>
                         <div>
-                            <div className="mb-1 text-sm text-muted-foreground">景深</div>
+                            <div className="mb-1 text-sm text-[var(--gm-text-3)]">景深</div>
                             <Select allowClear style={{ width: "100%" }} placeholder="未设置" aria-label="分镜景深" value={depthOfField || undefined} onChange={(value) => setDepthOfField(value || "")} options={SHOT_DEPTH_OF_FIELD_OPTIONS} />
                         </div>
                     </div>
                     <div className="sm:max-w-[200px]">
-                        <div className="mb-1 text-sm text-muted-foreground">时长（秒）</div>
+                        <div className="mb-1 text-sm text-[var(--gm-text-3)]">时长（秒）</div>
                         <Input value={duration} placeholder="留空不修改" aria-label="分镜时长" onChange={(event) => setDuration(event.target.value)} />
                     </div>
-                    <p className="m-0 text-xs text-muted-foreground">这些参数会进入视频提示词的镜头角度段；留空表示不设置。可用分镜列表上的「补全摄影参数」按规则批量推断。</p>
+                    <p className="m-0 text-xs text-[var(--gm-text-3)]">这些参数会进入视频提示词的镜头角度段；留空表示不设置。可用分镜列表上的「补全摄影参数」按规则批量推断。</p>
                     <div>
                         <Button type="primary" loading={configSaving} onClick={() => void saveConfig()} aria-label="保存分镜配置">
                             保存分镜配置
@@ -577,7 +582,7 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
                             aria-label="分镜所属场景"
                         />
                     </label>
-                    <p className="text-xs text-muted-foreground">保存为整组覆盖（与 L 的道具关联一致），未选中的资产会被解除绑定。</p>
+                    <p className="text-xs text-[var(--gm-text-3)]">保存为整组覆盖（与 L 的道具关联一致），未选中的资产会被解除绑定。</p>
                     <div className="flex justify-end">
                         <Button type="primary" loading={bindingSaving} onClick={() => void saveBindings()} aria-label="保存资产绑定">
                             保存资产绑定
@@ -609,19 +614,19 @@ export function OneClickFilmShotEditor({ projectId, project, episodeId, shot, on
                                                 {kind === "images" && record.url ? (
                                                     // 缩略图：挑机位靠眼睛看，纯文字列表挑不出来。
                                                     // eslint-disable-next-line @next/next/no-img-element
-                                                    <img src={record.url} alt={record.prompt || "分镜图候选"} className="size-16 shrink-0 rounded border border-border object-cover" />
+                                                    <img src={record.url} alt={record.prompt || "分镜图候选"} className="size-16 shrink-0 rounded border border-[var(--gm-border)] object-cover" />
                                                 ) : null}
                                                 <div className="min-w-0">
                                                     <div className="flex flex-wrap items-center gap-2 text-xs">
                                                         <Tag>{new Date(record.createdAt).toLocaleString()}</Tag>
                                                         {sequencePanelLabel(record) ? <Tag color="blue">{sequencePanelLabel(record)}</Tag> : null}
                                                         {record.width && record.height ? (
-                                                            <span className="text-muted-foreground">
+                                                            <span className="text-[var(--gm-text-3)]">
                                                                 {record.width}x{record.height}
                                                             </span>
                                                         ) : null}
                                                     </div>
-                                                    <p className="mt-1 truncate text-xs text-muted-foreground">{record.prompt || "无提示词"}</p>
+                                                    <p className="mt-1 truncate text-xs text-[var(--gm-text-3)]">{record.prompt || "无提示词"}</p>
                                                 </div>
                                             </div>
                                             <div className="flex shrink-0 items-center gap-2">

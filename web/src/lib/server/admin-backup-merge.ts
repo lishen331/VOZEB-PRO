@@ -61,6 +61,7 @@ function mergeSettings(current: AuthSettings, imported: AuthSettings): AuthSetti
         modelPointCosts: { ...current.modelPointCosts, ...imported.modelPointCosts },
         generationPointMultipliers: {
             imageQuality: { ...current.generationPointMultipliers.imageQuality, ...imported.generationPointMultipliers.imageQuality },
+            imageResolution: { ...current.generationPointMultipliers.imageResolution, ...imported.generationPointMultipliers.imageResolution },
             videoQuality: { ...current.generationPointMultipliers.videoQuality, ...imported.generationPointMultipliers.videoQuality },
             videoSeconds: { ...current.generationPointMultipliers.videoSeconds, ...imported.generationPointMultipliers.videoSeconds },
         },

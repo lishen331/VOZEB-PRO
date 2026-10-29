@@ -1,5 +1,8 @@
 "use client";
-import { App, Button, Input, Slider } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Slider } from "@/components/gamma-ui/gamma-ant-display";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Mic2 } from "lucide-react";
 import { useState } from "react";
 import { practiceApi } from "@/services/api/practice";
@@ -67,10 +70,10 @@ export default function PracticeDubbingPanel({ capability, onCreated }: Practice
                 配音文本
                 <Input.TextArea value={text} onChange={(event) => setText(event.target.value)} autoSize={{ minRows: 7, maxRows: 14 }} className="!mt-2" />
             </label>
-            <div className="space-y-2 border border-border p-3">
+            <div className="space-y-2 border border-[var(--gm-border)] p-3">
                 <div className="text-sm font-medium">有效台词与音色</div>
                 {lines.map((line, index) => (
-                    <div key={index} className="space-y-3 rounded-lg bg-muted/25 p-3">
+                    <div key={index} className="space-y-3 rounded-lg bg-[var(--gm-wash)]/25 p-3">
                         <div className="flex items-center justify-between text-xs font-medium">
                             <span>台词 {index + 1}</span>
                             <Button size="small" type="text" disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((_, i) => i !== index))}>
@@ -99,14 +102,14 @@ export default function PracticeDubbingPanel({ capability, onCreated }: Practice
                             onChoose={(file) => void chooseVoice(index, file)}
                             onRemove={() => setLines((current) => current.map((item, i) => (i === index ? { ...item, audio: undefined } : item)))}
                         />
-                        <div className="rounded-lg border border-border p-3">
+                        <div className="rounded-lg border border-[var(--gm-border)] p-3">
                             <div className="mb-3 flex justify-between text-sm font-medium">
                                 <span>六维情绪</span>
-                                <span className="text-xs text-muted-foreground">0.00 — 1.40</span>
+                                <span className="text-xs text-[var(--gm-text-3)]">0.00 — 1.40</span>
                             </div>
                             <div className="grid grid-cols-2 gap-x-5 gap-y-3">
                                 {EMOTION_KEYS.map((key) => (
-                                    <label key={key} className="text-xs text-muted-foreground">
+                                    <label key={key} className="text-xs text-[var(--gm-text-3)]">
                                         <span className="flex justify-between gap-2">
                                             <span>{EMOTION_LABELS[key]}</span>
                                             <span>{(line.emotion?.[key] || 0).toFixed(2)}</span>

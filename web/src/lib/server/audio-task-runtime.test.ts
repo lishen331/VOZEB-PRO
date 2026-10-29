@@ -88,6 +88,57 @@ describe("audio task runtime submission safety", () => {
         expect(JSON.parse(init.body).taskId).toBe("existing-audio");
     });
 
+    it("keeps polling Suno while a streaming URL is present, then fails with fail_reason", async () => {
+        const task = sunoTask();
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce(Response.json({ code: "success", data: { status: "IN_PROGRESS", data: [{ audio_url: "https://cdn1.suno.ai/partial.mp3" }] } }))
+                .mockResolvedValueOnce(Response.json({ code: "success", data: { status: "FAILURE", fail_reason: "歌词包含违规内容", data: [] } })),
+        );
+        await expect(queryAudioTaskUpstreamStep(task, "http://internal")).resolves.toEqual({ state: "pending", status: "in_progress", upstreamTaskId: "suno-1", createPath: "/suno/submit/music" });
+        await expect(queryAudioTaskUpstreamStep(task, "http://internal")).resolves.toEqual({ state: "failed", status: "failure", error: "歌词包含违规内容" });
+    });
+
+    it("reads the first Suno song only after SUCCESS", async () => {
+        const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ code: "success", data: { status: "SUCCESS", data: [{ audio_url: "https://cdn1.suno.ai/one.mp3" }, { audio_url: "https://cdn1.suno.ai/two.mp3" }] } }));
+        vi.stubGlobal("fetch", fetchMock);
+        await expect(queryAudioTaskUpstreamStep(sunoTask(), "http://internal")).resolves.toEqual({ state: "result_ready", status: "success", resultUrl: "https://cdn1.suno.ai/one.mp3" });
+        expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.tu-zi.example/suno/fetch/suno-1");
+    });
+
+    it("still completes legacy audio queries as soon as a URL appears", async () => {
+        const task = { ...audioTask(), upstream: { id: "legacy-1", createPath: "/audio/tasks" } };
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ status: "processing", audio_url: "https://cdn.example/legacy.mp3" })));
+        await expect(queryAudioTaskUpstreamStep(task, "http://internal")).resolves.toMatchObject({ state: "result_ready", resultUrl: "https://cdn.example/legacy.mp3" });
+    });
+
+    it("merges per-model audio params over the rendered request body", async () => {
+        const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ audio_url: "https://cdn.example/result.mp3" }));
+        vi.stubGlobal("fetch", fetchMock);
+        state = {
+            ...audioTask(),
+            config: {
+                ...audioTask().config,
+                model: "speech-2.8-hd",
+                advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai", createPath: "/audio/speech", requestTemplate: '{"model":"{{model}}","input":"{{input}}","voice":"{{voice}}","response_format":"mp3"}' },
+                params: { voiceId: "male-qn-jingying", speed: 1.25, emotion: "happy" },
+            },
+            candidateConfigs: [],
+        };
+
+        await expect(createAudioTaskUpstreamStep(state, "http://internal")).resolves.toMatchObject({ state: "result_ready" });
+        const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+        expect(body).toMatchObject({
+            model: "speech-2.8-hd",
+            input: "test",
+            voice: "male-qn-jingying",
+            speed: 1.25,
+            voice_setting: { voice_id: "male-qn-jingying", speed: 1.25, vol: 1, pitch: 0, emotion: "happy" },
+        });
+    });
+
     it("switches to the next channel after a deterministic 422 rejection", async () => {
         const fetchMock = vi
             .fn()
@@ -185,13 +236,18 @@ describe("audio task runtime submission safety", () => {
             if (custom) {
                 expect(result).toMatchObject({ state: "result_ready", resultUrl: expect.stringContaining("/media/fixture.wav") });
                 expect(JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}")).toEqual({ deployment: "custom-audio", content: "test", speaker: "nova", rate: 1.25 });
+            } else if (definition.id === "tuzi-suno") {
+                expect(result).toEqual({ state: "pending", status: "submitted", upstreamTaskId: "suno-fixture-1", createPath: "/suno/submit/music" });
+                expect(JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}")).toEqual({ model: "tuzi-suno-audio", mv: "chirp-v3-5", prompt: "", gpt_description_prompt: "test", make_instrumental: false });
+                await expect(queryAudioTaskUpstreamStep(state, "http://internal")).resolves.toMatchObject({ state: "result_ready", status: "success", resultUrl: expect.stringContaining("/media/fixture.wav") });
+                expect(fixture.requests[1]).toMatchObject({ method: "GET", path: "/suno/fetch/suno-fixture-1" });
             } else {
                 expect(result).toEqual({ state: "completed" });
                 expect(state).toMatchObject({ status: "success", result: { url: "/api/reference-assets/fixture-audio.wav", mimeType: "audio/wav" } });
                 expect(mocks.writeMedia).toHaveBeenCalledWith(expect.stringMatching(/^data:audio\/wav;base64,UklGR/), "audio", expect.objectContaining({ ownerUserId: "user-one", taskId: "audio-one" }));
                 expect(mocks.register).toHaveBeenCalledOnce();
             }
-            expect(fixture.requests[0]).toMatchObject({ method: "POST", path: custom ? "/custom/audio" : "/audio/speech" });
+            expect(fixture.requests[0]).toMatchObject({ method: "POST", path: custom ? "/custom/audio" : definition.id === "tuzi-suno" ? "/suno/submit/music" : "/audio/speech" });
             expect(fixture.requests[0]?.headers.authorization).toBe("Bearer fixture-key");
             expect(fixture.requests[0]?.headers["idempotency-key"]).toBe("audio-task:audio-one:attempt:1");
             expect(fixture.requests[0]?.headers["x-client-request-id"]).toBe("audio-task:audio-one:attempt:1");
@@ -323,6 +379,17 @@ describe("audio task runtime submission safety", () => {
         expect(mocks.refund).toHaveBeenCalledOnce();
     });
 });
+
+function sunoTask(): AudioTask {
+    const task = audioTask();
+    return {
+        ...task,
+        status: "running",
+        config: { ...task.config, baseUrl: "https://api.tu-zi.example", model: "suno_music", advancedConfig: { ...emptyAdvancedConfig(), ...protocolModelConfig("tuzi-suno", "audio") } },
+        candidateConfigs: [],
+        upstream: { id: "suno-1", createPath: "/suno/submit/music" },
+    };
+}
 
 function audioTask(): AudioTask {
     const second = { baseUrl: "https://two.example", apiKey: "two", apiFormat: "openai" as const, model: "audio-two", channelId: "channel-two", voice: "alloy", format: "mp3", speed: "1" };

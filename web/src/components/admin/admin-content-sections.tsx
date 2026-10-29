@@ -2,7 +2,13 @@
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
-import { Button, Checkbox, DatePicker, Input, Modal, Pagination, Popconfirm, Space, Switch, Table, Tag } from "antd";
+import { DatePicker } from "@/components/gamma-ui/gamma-ant-datepicker";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Pagination, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import dayjs from "dayjs";
 import { Database, ExternalLink, Plus, RefreshCw, Save, Search, Trash2 } from "lucide-react";
 
@@ -131,7 +137,6 @@ export function AdminAnnouncementsSection({ controller }: { controller: AdminDas
                     <LabeledControl label="开始时间">
                         <DatePicker
                             className="w-full"
-                            classNames={{ popup: { root: "admin-date-picker-dropdown" } }}
                             showTime
                             allowClear
                             value={announcementDraft.startsAt ? dayjs(announcementDraft.startsAt) : null}
@@ -141,7 +146,6 @@ export function AdminAnnouncementsSection({ controller }: { controller: AdminDas
                     <LabeledControl label="结束时间">
                         <DatePicker
                             className="w-full"
-                            classNames={{ popup: { root: "admin-date-picker-dropdown" } }}
                             showTime
                             allowClear
                             value={announcementDraft.endsAt ? dayjs(announcementDraft.endsAt) : null}

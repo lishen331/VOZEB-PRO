@@ -1,5 +1,6 @@
 "use client";
-import { Button, message } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import type { DramaProject } from "@/lib/drama-project-contract";

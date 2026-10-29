@@ -1,8 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Button, Input, Modal, Select, Table, Tag } from "antd";
-import type { TableColumnsType } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { AlertTriangle, FileUp, RefreshCw, Search } from "lucide-react";
 
 import type { BillingReconciliationResult, BillingReconciliationRow, BillingReconciliationRun } from "@/lib/admin-billing-types";

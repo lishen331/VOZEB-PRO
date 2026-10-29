@@ -28,6 +28,7 @@ type SystemChannelProtocol =
     | "mohui-seedance"
     | "modelbay-image-task"
     | "tuzi-image-task"
+    | "tuzi-suno"
     | "stable-diffusion"
     | "volcengine-video"
     | "seedance-special"
@@ -115,6 +116,7 @@ export type AiConfig = {
     audioFormat: string;
     audioSpeed: string;
     audioInstructions: string;
+    audioParams: Record<string, string | number | boolean>;
     videoSeconds: string;
     vquality: string;
     videoGenerateAudio: string;
@@ -139,6 +141,7 @@ export type AiConfig = {
 
 type GenerationPointMultipliers = {
     imageQuality: Record<string, number>;
+    imageResolution?: Record<string, number>;
     videoQuality: Record<string, number>;
     videoSeconds: Record<string, number>;
 };
@@ -198,6 +201,7 @@ export const defaultConfig: AiConfig = {
     audioFormat: "mp3",
     audioSpeed: "1",
     audioInstructions: "",
+    audioParams: {},
     videoSeconds: "5",
     vquality: "720",
     videoGenerateAudio: "true",
@@ -213,10 +217,11 @@ export const defaultConfig: AiConfig = {
     count: "1",
     canvasImageCount: "1",
     imageBackground: "auto",
-    imageResolution: "medium",
+    imageResolution: "",
     modelPointCosts: {},
     generationPointMultipliers: {
         imageQuality: { auto: 1, low: 1, medium: 1, high: 1 },
+        imageResolution: { auto: 1, "1k": 1, "2k": 1, "4k": 1 },
         videoQuality: { "480": 1, "720": 1, "1080": 1 },
         videoSeconds: { "-1": 1, "5": 1, "10": 1 },
     },
@@ -310,6 +315,7 @@ export function applyPublicSystemSettings(config: AiConfig, settings?: PublicSys
         model: imageModel || textModel || videoModel || audioModel || "",
         systemPrompt: "",
         audioInstructions: "",
+        audioParams: {},
         modelPointCosts: materializeLogicalModelPointCosts(settings?.modelPointCosts, logicalModels),
         generationPointMultipliers: normalizeGenerationPointMultipliers(settings?.generationPointMultipliers),
         generationConcurrency: normalizeGenerationConcurrency(settings?.generationConcurrency),

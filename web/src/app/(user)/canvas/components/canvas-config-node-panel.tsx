@@ -46,6 +46,8 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
         model: config.model,
         count: mode === "image" ? count : 1,
         quality: config.quality,
+        resolution: config.imageResolution,
+        size: config.size,
         videoQuality: config.vquality,
         videoSeconds: config.videoSeconds,
     });
@@ -168,6 +170,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
                         placement="topRight"
                         buttonClassName="canvas-compact-control !h-9 !w-full !justify-start !rounded-none !border-0 !bg-transparent !px-2.5 !shadow-none"
                         onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))}
+                        onParamsChange={(audioParams) => onConfigChange(node.id, { audioParams })}
                     />
                 ) : null}
             </div>

@@ -1,7 +1,13 @@
 "use client";
 
-import { App, Button, Empty, Input, Popconfirm, Select, Space, Table, Tag } from "antd";
-import type { TableColumnsType } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Tag } from "@/components/gamma-ui/gamma-ant";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
 import { Plus, RefreshCw, Settings2, TestTube, ToggleLeft, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -62,9 +68,6 @@ export function getRunningHubWorkflowActionColumn(render: WorkflowActionColumnRe
         key: "actions",
         fixed: "right",
         width: 320,
-        className: "runninghub-workflow-actions",
-        onHeaderCell: () => ({ className: "runninghub-workflow-actions" }),
-        onCell: () => ({ className: "runninghub-workflow-actions" }),
         render,
     };
 }
@@ -234,9 +237,9 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
     return (
         <section className="mt-4 space-y-3 border-t border-stone-200 pt-4 dark:border-stone-800">
             {!channel.enabled ? (
-                <div role="alert" className="rounded-md border border-border bg-muted/50 p-3 text-sm">
+                <div role="alert" className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]/50 p-3 text-sm">
                     <strong>所属渠道已停用</strong>
-                    <p className="mt-1 text-muted-foreground">工作流测试成功或已启用，不代表前端可用。请在“渠道配置”打开渠道总开关，再回到渠道列表点击“保存更改”；无需重复测试或重新启用工作流。</p>
+                    <p className="mt-1 text-[var(--gm-text-3)]">工作流测试成功或已启用，不代表前端可用。请在“渠道配置”打开渠道总开关，再回到渠道列表点击“保存更改”；无需重复测试或重新启用工作流。</p>
                 </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Pagination, Select, Switch, Tag } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { DatePicker } from "@/components/gamma-ui/gamma-ant-datepicker";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { Gift, Pencil, Plus, RefreshCw, Save, Send, TicketPercent, Trash2 } from "lucide-react";

@@ -1,6 +1,11 @@
 "use client";
 
-import { App, Button, Drawer, Dropdown, Input, Modal, Popover, Segmented, Select, Tooltip } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Dropdown, Popover, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { ArrowUp, ChevronDown, History, ImagePlus, Link2, ListChecks, LoaderCircle, MessageSquarePlus, Pause, Play, RotateCcw, Square, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -130,12 +135,16 @@ export function DramaAgentPanel({
 
     return (
         <div
-            className={`flex h-full min-h-0 shrink-0 overflow-hidden bg-card ${resizing ? "" : "transition-opacity duration-300 ease-out"} ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
+            className={`flex h-full min-h-0 shrink-0 overflow-hidden bg-[var(--gm-surface)] ${resizing ? "" : "transition-opacity duration-300 ease-out"} ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
             style={{ width: open ? width : 0 }}
             data-drama-agent-panel-frame
             aria-hidden={!open}
         >
-            <aside className={`relative h-full min-w-0 shrink-0 border-l border-border ${resizing ? "" : "transition-transform duration-300 ease-out"} ${open ? "translate-x-0" : "translate-x-8"}`} style={{ width: "100%" }} aria-label="项目 Agent 面板">
+            <aside
+                className={`relative h-full min-w-0 shrink-0 border-l border-[var(--gm-border)] ${resizing ? "" : "transition-transform duration-300 ease-out"} ${open ? "translate-x-0" : "translate-x-8"}`}
+                style={{ width: "100%" }}
+                aria-label="项目 Agent 面板"
+            >
                 <button type="button" className="absolute inset-y-0 left-0 z-40 w-4 -translate-x-1/2 cursor-col-resize" onMouseDown={startResize} aria-label="调整项目 Agent 面板宽度" />
                 {content}
             </aside>
@@ -653,7 +662,7 @@ function DramaAgentContent({
 
     return (
         <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-            <div className="flex h-12 shrink-0 items-center border-b border-border px-3.5">
+            <div className="flex h-12 shrink-0 items-center border-b border-[var(--gm-border)] px-3.5">
                 <div className="flex w-full min-w-0 items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2 font-medium">
                         <SiteLogo logoUrl={site.logoUrl} className="size-5" />
@@ -713,9 +722,9 @@ function DramaAgentContent({
             </div>
             <div className="hide-scrollbar min-h-0 min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-3.5 py-3" data-drama-agent-message-scroll>
                 {loading ? (
-                    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground" data-drama-agent-loading>
+                    <div className="flex items-center gap-2 py-2 text-sm text-[var(--gm-text-3)]" data-drama-agent-loading>
                         <div className="flex items-center gap-2 text-sm font-medium">
-                            <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+                            <LoaderCircle className="size-4 animate-spin text-[var(--gm-text-3)]" />
                             正在恢复对话
                         </div>
                     </div>
@@ -735,7 +744,7 @@ function DramaAgentContent({
                         >
                             <Button
                                 block
-                                className="!flex !h-8 !items-center !justify-start !gap-1.5 !px-2.5 !text-xs !text-muted-foreground hover:!border-foreground/20 hover:!text-foreground"
+                                className="!flex !h-8 !items-center !justify-start !gap-1.5 !px-2.5 !text-xs !text-[var(--gm-text-3)] hover:!border-foreground/20 hover:!text-[var(--gm-text)]"
                                 icon={<ListChecks className="size-3.5" aria-hidden />}
                                 disabled={sending}
                                 aria-label="打开本阶段 Agent 建议"
@@ -754,7 +763,7 @@ function DramaAgentContent({
                     return (
                         <div key={message.id} className={`group/message min-w-0 ${message.role === "user" ? "pl-8 text-right" : "pr-2"}`}>
                             {referencedAssets.length ? <DramaMessageReferences assets={referencedAssets} /> : null}
-                            <div className={`min-w-0 break-words text-sm leading-6 [overflow-wrap:anywhere] ${message.status === "failed" ? "text-red-500" : "text-foreground"}`}>
+                            <div className={`min-w-0 break-words text-sm leading-6 [overflow-wrap:anywhere] ${message.status === "failed" ? "text-red-500" : "text-[var(--gm-text)]"}`}>
                                 {message.status === "running" ? <LoaderCircle className="mr-1 inline size-3.5 animate-spin" /> : null}
                                 {message.role === "assistant" && message.status === "completed" ? <AgentMarkdown>{displayContent}</AgentMarkdown> : <span className="whitespace-pre-wrap">{displayContent}</span>}
                             </div>
@@ -792,7 +801,7 @@ function DramaAgentContent({
                 })}
                 <div ref={endRef} />
             </div>
-            <div className="mx-3 mb-3 mt-2 min-w-0 shrink-0 rounded-2xl border border-border bg-background px-3.5 pb-3.5 pt-3.5 shadow-sm" data-drama-agent-composer onWheelCapture={(event) => event.stopPropagation()}>
+            <div className="mx-3 mb-3 mt-2 min-w-0 shrink-0 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-bg)] px-3.5 pb-3.5 pt-3.5 shadow-sm" data-drama-agent-composer onWheelCapture={(event) => event.stopPropagation()}>
                 {selectedSkill ? <CreativeAgentSkillCard skill={selectedSkill} onRemove={() => setSelectedSkillId(undefined)} className="pb-1" /> : null}
                 <div className="flex min-w-0 items-start gap-2" data-drama-agent-input-row>
                     {selectedAssets.length || !sending ? (
@@ -800,17 +809,17 @@ function DramaAgentContent({
                             {selectedAssets.map((asset) => {
                                 const url = asset.serverUrl || asset.remoteUrl || "";
                                 return (
-                                    <div key={asset.id} className="group relative size-10 shrink-0 overflow-visible rounded-md border border-border bg-muted">
+                                    <div key={asset.id} className="group relative size-10 shrink-0 overflow-visible rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]">
                                         <div className="size-full overflow-hidden rounded-[5px]">
-                                            {url ? <AgentMediaPreview type="image" url={url} title={asset.title || "参考图"} className="size-full" /> : <ImagePlus className="m-auto size-4 text-muted-foreground" />}
+                                            {url ? <AgentMediaPreview type="image" url={url} title={asset.title || "参考图"} className="size-full" /> : <ImagePlus className="m-auto size-4 text-[var(--gm-text-3)]" />}
                                         </div>
                                         <button
                                             type="button"
-                                            className="absolute right-0 top-0 z-10 flex size-7 items-start justify-end rounded-full bg-transparent p-0.5 text-muted-foreground transition hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                                            className="absolute right-0 top-0 z-10 flex size-7 items-start justify-end rounded-full bg-transparent p-0.5 text-[var(--gm-text-3)] transition hover:text-[var(--gm-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
                                             onClick={() => setSelectedAssetIds((current) => current.filter((id) => id !== asset.id))}
                                             aria-label={`移除参考图：${asset.title}`}
                                         >
-                                            <span className="grid size-4 place-items-center rounded-full border border-border bg-background/95 shadow-sm">
+                                            <span className="grid size-4 place-items-center rounded-full border border-[var(--gm-border)] bg-[var(--gm-bg)]/95 shadow-sm">
                                                 <X className="size-2" />
                                             </span>
                                         </button>
@@ -819,7 +828,7 @@ function DramaAgentContent({
                             })}
                             <Button
                                 type="text"
-                                className="!size-10 !min-w-10 !shrink-0 !rounded-lg !border !border-border !p-0"
+                                className="!size-10 !min-w-10 !shrink-0 !rounded-lg !border !border-[var(--gm-border)] !p-0"
                                 icon={uploading ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
                                 disabled={sending || loading}
                                 loading={uploading}
@@ -846,7 +855,7 @@ function DramaAgentContent({
                             rows={3}
                             placeholder="告诉 Agent 下一步要做什么"
                             disabled={sending || loading}
-                            className="hide-scrollbar min-h-20 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-0 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="hide-scrollbar min-h-20 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm leading-5 text-[var(--gm-text)] outline-none placeholder:text-[var(--gm-text-3)]/60 focus:border-0 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
                             onChange={(event) => {
                                 caretRef.current = event.target.selectionStart;
                                 setPrompt(event.target.value);
@@ -876,7 +885,7 @@ function DramaAgentContent({
                         />
                     </Popover>
                 </div>
-                <div className="mt-2 flex min-w-0 items-center gap-2.5 border-t border-border pt-2" data-drama-agent-toolbar>
+                <div className="mt-2 flex min-w-0 items-center gap-2.5 border-t border-[var(--gm-border)] pt-2" data-drama-agent-toolbar>
                     <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden py-0.5">
                         <input
                             ref={fileInputRef}
@@ -929,7 +938,7 @@ function DramaMessageReferences({ assets }: { assets: CreativeAsset[] }) {
                 const url = asset.serverUrl || asset.remoteUrl || "";
                 if (asset.type !== "image" || !url) return [];
                 return (
-                    <div key={asset.id} className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-border bg-muted" title={asset.title || "参考图"}>
+                    <div key={asset.id} className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)]" title={asset.title || "参考图"}>
                         <AgentMediaPreview type="image" url={url} title={asset.title || "参考图"} className="size-full" />
                         <span className="absolute left-1 top-1 rounded bg-black/65 px-1 py-0.5 text-[9px] font-medium leading-none text-white">{imageReferenceLabel(imageIndex++)}</span>
                     </div>
@@ -1047,10 +1056,10 @@ function DramaAgentAssets({ assets, project, episode }: { assets: CreativeAsset[
                             <div key={asset.id} className="min-w-0">
                                 <AgentMediaPreview type={asset.type} url={url} title={asset.title || "Agent 生成媒体"} className={asset.type === "image" ? "max-h-64 rounded-md" : asset.type === "video" ? "aspect-video rounded-md" : undefined} />
                                 {asset.type === "image" ? (
-                                    <div className="mt-2 flex min-w-0 items-center rounded-lg border border-border/70 bg-muted/30 p-1">
+                                    <div className="mt-2 flex min-w-0 items-center rounded-lg border border-[var(--gm-border)]/70 bg-[var(--gm-wash)]/30 p-1">
                                         <Button
                                             type="text"
-                                            className="!h-7 !min-w-0 !flex-1 !justify-center !px-2 !text-xs !text-foreground hover:!bg-background/80"
+                                            className="!h-7 !min-w-0 !flex-1 !justify-center !px-2 !text-xs !text-[var(--gm-text)] hover:!bg-[var(--gm-bg)]/80"
                                             size="small"
                                             icon={<Link2 className="size-3.5" />}
                                             disabled={!episode.shots.length}
@@ -1061,7 +1070,7 @@ function DramaAgentAssets({ assets, project, episode }: { assets: CreativeAsset[
                                         <span className="h-4 w-px shrink-0 bg-border" />
                                         <Button
                                             type="text"
-                                            className="!h-7 !min-w-0 !flex-1 !justify-center !px-2 !text-xs !text-foreground hover:!bg-background/80"
+                                            className="!h-7 !min-w-0 !flex-1 !justify-center !px-2 !text-xs !text-[var(--gm-text)] hover:!bg-[var(--gm-bg)]/80"
                                             size="small"
                                             icon={<ImagePlus className="size-3.5" />}
                                             onClick={() => setVisualAsset(asset)}
@@ -1098,7 +1107,7 @@ function DramaAgentAssets({ assets, project, episode }: { assets: CreativeAsset[
                             onChange={(value) => setFrameKind(value as "start" | "end")}
                         />
                     </label>
-                    <p className="text-xs leading-5 text-muted-foreground">引用后会替换该位置现有图片；如镜头已有视频，需要重新生成以应用新画面。</p>
+                    <p className="text-xs leading-5 text-[var(--gm-text-3)]">引用后会替换该位置现有图片；如镜头已有视频，需要重新生成以应用新画面。</p>
                 </div>
             </Modal>
             <Modal
@@ -1118,7 +1127,7 @@ function DramaAgentAssets({ assets, project, episode }: { assets: CreativeAsset[
                 onOk={applyVisualAsset}
             >
                 <div className="grid gap-4 pt-2">
-                    <p className="text-sm leading-6 text-muted-foreground">这张 Agent 图片会直接保存为角色、场景、道具或线索的参考图，不需要下载后重新上传。</p>
+                    <p className="text-sm leading-6 text-[var(--gm-text-3)]">这张 Agent 图片会直接保存为角色、场景、道具或线索的参考图，不需要下载后重新上传。</p>
                     <label className="grid gap-1.5 text-sm">
                         <span className="font-medium">资产类型</span>
                         <Segmented

@@ -82,10 +82,15 @@ export default async function RootLayout({
                 <link rel="icon" href={iconHref} />
                 <link rel="shortcut icon" href={iconHref} />
                 <link rel="apple-touch-icon" href={iconHref} />
+                {/* 布鲁伽马默认字体（自托管、按 unicode-range 切片，只下载页面用到的分片） */}
+                <link rel="stylesheet" href="/fonts/misans/MiSansVF.min.css" />
+                <link rel="stylesheet" href="/fonts/inter/wght.css" />
+                <link rel="stylesheet" href="/fonts/geist-mono/wght.css" />
             </head>
             <body
-                className="bg-background text-foreground antialiased"
+                className="bg-[var(--gm-bg)] text-[var(--gm-text)] antialiased"
                 style={{
+                    // 画布编辑器沿用这套字体；非画布页由 global-gamma-skin.css 的 html.gm-app body 覆盖为 MiSans
                     fontFamily: '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif',
                 }}
             >

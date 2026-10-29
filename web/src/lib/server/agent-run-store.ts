@@ -50,6 +50,8 @@ export type AgentRunTask = {
     count: number;
     ratio?: string;
     quality?: string;
+    /** 图片清晰度 1k/2k/4k，独立于画质；只来自用户在面板上的显式选择。 */
+    resolution?: string;
     seconds?: number;
     voice?: string;
     format?: string;

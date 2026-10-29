@@ -1,6 +1,11 @@
 "use client";
 
-import { App, Button, Empty, Image, Input, Modal, Pagination, Select, Spin, Tag } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ImagePlus, Pencil, Sparkles, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -202,7 +207,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
                         }}
                     />
                 </div>
-                <div className="min-h-64 max-h-[58vh] overflow-y-auto rounded-md border border-border p-2">
+                <div className="min-h-64 max-h-[58vh] overflow-y-auto rounded-md border border-[var(--gm-border)] p-2">
                     {loading ? (
                         <div className="grid min-h-60 place-items-center">
                             <Spin />
@@ -214,13 +219,13 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
                                 const url = imageAsset?.data.serverUrl || imageAsset?.data.remoteUrl || imageAsset?.data.dataUrl || asset.coverUrl;
                                 const category = typeof asset.metadata?.category === "string" ? asset.metadata.category : "";
                                 return (
-                                    <article key={asset.id} className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
-                                        <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded border border-border bg-muted/40">
-                                            {url ? <Image src={imagePreviewUrl(url, 320)} preview={{ src: imagePreviewUrl(url, 1600) }} alt={asset.title} className="!size-20 !object-cover" /> : <ImagePlus className="size-6 text-muted-foreground" />}
+                                    <article key={asset.id} className="flex items-center gap-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
+                                        <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/40">
+                                            {url ? <Image src={imagePreviewUrl(url, 320)} preview={{ src: imagePreviewUrl(url, 1600) }} alt={asset.title} className="!size-20 !object-cover" /> : <ImagePlus className="size-6 text-[var(--gm-text-3)]" />}
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <div className="truncate font-medium">{asset.title || "未命名"}</div>
-                                            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{asset.note || "暂无描述"}</p>
+                                            <p className="mt-1 line-clamp-2 text-sm text-[var(--gm-text-3)]">{asset.note || "暂无描述"}</p>
                                             <div className="mt-2 flex flex-wrap gap-1">
                                                 {category ? <Tag>{category}</Tag> : null}
                                                 {asset.tags
@@ -269,7 +274,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
                 {editor ? (
                     <div className="grid gap-3">
                         <div className="flex items-center gap-3">
-                            <div className="grid size-24 place-items-center overflow-hidden rounded border border-border bg-muted/40">
+                            <div className="grid size-24 place-items-center overflow-hidden rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/40">
                                 <img src={imagePreviewUrl(editor.replacement?.url || editor.asset.data.serverUrl || editor.asset.data.dataUrl, 320)} alt="" className="size-full object-cover" />
                             </div>
                             <div className="flex flex-wrap gap-2">

@@ -1,6 +1,8 @@
 "use client";
 
-import { AutoComplete, Input, InputNumber, Select } from "antd";
+import { AutoComplete } from "@/components/gamma-ui/gamma-ant-autocomplete";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { CircleGauge, SlidersHorizontal, Sparkles } from "lucide-react";
 
 import type { AuthSettings } from "@/lib/auth/store";

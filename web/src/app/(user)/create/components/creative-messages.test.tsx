@@ -821,7 +821,7 @@ describe("CreativeMessages", () => {
         expect(markup).toContain("size-11");
         expect(markup).toContain("!size-8");
         expect(markup).toContain("rounded-[14px]");
-        expect(markup).toContain("bg-[linear-gradient(135deg,#f3f1ff_0%,#ebeaff_100%)]");
+        expect(markup).toContain("bg-[linear-gradient(135deg,#f0f3f9_0%,#eaecf2_100%)]");
         expect(markup).toContain("1970");
         expect(markup).toContain('aria-label="复制输入内容"');
         expect(markup).toContain('aria-label="复制消息"');

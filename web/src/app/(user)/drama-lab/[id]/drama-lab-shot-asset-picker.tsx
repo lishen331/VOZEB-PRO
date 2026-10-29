@@ -1,5 +1,6 @@
 "use client";
-import { Image, Select } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
 export type ShotPickerAsset = { id: string; name?: string; location?: string; imageUrl?: string; referenceImageUrl?: string; primaryReferenceId?: string; references?: Array<{ id: string; url: string }> };
 export function DramaLabShotAssetPicker({ label, assets, selectedIds, single = false, onChange }: { label: string; assets: ShotPickerAsset[]; selectedIds: string[]; single?: boolean; onChange: (ids: string[]) => void }) {
     const selected = selectedIds.map((id) => assets.find((asset) => asset.id === id)).filter((asset): asset is ShotPickerAsset => Boolean(asset));
@@ -9,14 +10,15 @@ export function DramaLabShotAssetPicker({ label, assets, selectedIds, single = f
                 aria-label={"选择" + label}
                 placeholder={"选择" + label}
                 className="w-full"
-                mode={single ? undefined : "multiple"}
+                mode="multiple"
                 allowClear
                 showSearch
                 optionFilterProp="label"
                 maxTagCount="responsive"
-                value={single ? selectedIds[0] : selectedIds}
+                maxCount={single ? 1 : undefined}
+                value={selectedIds}
                 options={assets.map((asset) => ({ value: asset.id, label: asset.location || asset.name || asset.id }))}
-                onChange={(value) => onChange(Array.isArray(value) ? value : value ? [value] : [])}
+                onChange={(value) => onChange(single ? value.slice(-1) : value)}
                 notFoundContent={"请先在资产准备中添加" + label}
             />
             {selected.length > 0 && (
@@ -25,8 +27,8 @@ export function DramaLabShotAssetPicker({ label, assets, selectedIds, single = f
                         const url = asset.references?.find((ref) => ref.id === asset.primaryReferenceId)?.url || asset.references?.[0]?.url || asset.referenceImageUrl || asset.imageUrl;
                         const name = asset.location || asset.name || asset.id;
                         return (
-                            <div key={asset.id} className="flex max-w-full items-center gap-1.5 rounded border border-border p-1" title={name}>
-                                {url ? <Image src={url} alt={name} width={36} height={36} style={{ objectFit: "cover" }} /> : <span className="grid size-9 place-items-center bg-muted text-[10px]">缺图</span>}
+                            <div key={asset.id} className="flex max-w-full items-center gap-1.5 rounded border border-[var(--gm-border)] p-1" title={name}>
+                                {url ? <Image src={url} alt={name} width={36} height={36} style={{ objectFit: "cover" }} /> : <span className="grid size-9 place-items-center bg-[var(--gm-wash)] text-[10px]">缺图</span>}
                                 <span className="max-w-24 truncate text-xs">{name}</span>
                             </div>
                         );

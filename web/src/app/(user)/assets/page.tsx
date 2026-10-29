@@ -2,7 +2,14 @@
 
 import { FileAudio, FileDown, FileUp, Film, Plus, Search, Upload } from "lucide-react";
 import { useRef, useState, type DragEvent as ReactDragEvent } from "react";
-import { App, Button, Form, Input, Modal, Pagination, Segmented, Select, Space, Spin, Tag, Tooltip, Typography } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space, Typography } from "@/components/gamma-ui/gamma-ant-display";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Segmented, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { saveAs } from "file-saver";
 import { useRouter } from "next/navigation";
 
@@ -258,14 +265,14 @@ export default function AssetsPage() {
     };
 
     return (
-        <div className="h-full min-h-0 overflow-hidden bg-background text-foreground">
+        <div className="h-full min-h-0 overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <main className="h-full min-h-0 overflow-y-auto px-3 py-3 sm:px-6 sm:py-6">
                 <div className="mx-auto max-w-[1560px]">
-                    <header className="border-b border-border pb-3 sm:pb-4">
+                    <header className="border-b border-[var(--gm-border)] pb-3 sm:pb-4">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <h1 className="text-lg font-semibold sm:text-xl">我的素材</h1>
-                                <p className="mt-0.5 text-xs text-muted-foreground">{total ? `${total} 项素材` : "集中管理创作中复用的内容"}</p>
+                                <p className="mt-0.5 text-xs text-[var(--gm-text-3)]">{total ? `${total} 项素材` : "集中管理创作中复用的内容"}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                                 <Tooltip title="导出素材">
@@ -332,7 +339,7 @@ export default function AssetsPage() {
                                 <Spin description="正在加载素材" />
                             </section>
                         ) : error ? (
-                            <section className="flex min-h-32 flex-col items-center justify-center gap-3 border-y border-border px-4 text-center sm:min-h-56">
+                            <section className="flex min-h-32 flex-col items-center justify-center gap-3 border-y border-[var(--gm-border)] px-4 text-center sm:min-h-56">
                                 <p className="text-sm text-stone-500 dark:text-stone-400">{error}</p>
                                 <Button size="small" onClick={reload}>
                                     重新加载
@@ -370,7 +377,7 @@ export default function AssetsPage() {
                                     { label: "视频", value: "video" },
                                     { label: "音频", value: "audio" },
                                 ]}
-                                onChange={(value) => {
+                                onChange={(value: AssetKind) => {
                                     setFormKind(value);
                                     setMediaDraft(null);
                                 }}
@@ -387,14 +394,17 @@ export default function AssetsPage() {
                                 onDragLeave={handleCoverDragLeave}
                                 onDrop={handleCoverDrop}
                             >
-                                <Space.Compact className="w-full">
-                                    <Form.Item name="coverUrl" noStyle>
-                                        <Input placeholder="可粘贴图片 URL，也可以上传本地封面" />
-                                    </Form.Item>
-                                    <Button icon={<Upload className="size-3.5" />} onClick={() => coverInputRef.current?.click()}>
-                                        上传
-                                    </Button>
-                                </Space.Compact>
+                                <Form.Item name="coverUrl" noStyle>
+                                    <Input
+                                        placeholder="可粘贴图片 URL，也可以上传本地封面"
+                                        addonAfter={
+                                            <button type="button" className="-mx-2.5 inline-flex h-full items-center gap-1.5 px-2.5 transition-colors hover:text-[var(--gm-accent)]" onClick={() => coverInputRef.current?.click()}>
+                                                <Upload className="size-3.5" />
+                                                上传
+                                            </button>
+                                        }
+                                    />
+                                </Form.Item>
                             </div>
                         </Form.Item>
                         <Form.Item name="tags" label="标签">
@@ -443,7 +453,7 @@ export default function AssetsPage() {
                     </Form>
                     <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-950">
                         <Typography.Text strong>预览</Typography.Text>
-                        <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
+                        <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-[var(--gm-bg)] dark:border-stone-800">
                             {coverUrl || (mediaDraft && "dataUrl" in mediaDraft ? mediaDraft.dataUrl : "") ? (
                                 <img src={imagePreviewUrl(coverUrl || (mediaDraft && "dataUrl" in mediaDraft ? mediaDraft.dataUrl : ""), 960)} alt="" className="aspect-[4/3] w-full object-cover" />
                             ) : formKind === "video" && mediaDraft && "url" in mediaDraft ? (

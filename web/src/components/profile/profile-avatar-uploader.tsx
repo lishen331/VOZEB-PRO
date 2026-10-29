@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Button } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Camera } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -36,13 +37,13 @@ export function ProfileAvatarUploader({ onUpdated }: { onUpdated?: (user: LocalU
     };
 
     return (
-        <div className="flex min-w-0 items-center gap-3 border-b border-border pb-4 sm:gap-4">
-            <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-sm font-semibold text-background ring-1 ring-border">
+        <div className="flex min-w-0 items-center gap-3 border-b border-[var(--gm-border)] pb-4 sm:gap-4">
+            <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-sm font-semibold text-white ring-1 ring-[var(--gm-border)]">
                 {user?.avatarUrl ? <img src={user.avatarUrl} alt="当前头像" className="size-full object-cover" /> : fallback}
             </span>
             <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-foreground">个人头像</div>
-                <div className="mt-1 text-xs text-muted-foreground">PNG、JPG 或 WebP，最大 5MB</div>
+                <div className="text-sm font-semibold text-[var(--gm-text)]">个人头像</div>
+                <div className="mt-1 text-xs text-[var(--gm-text-3)]">PNG、JPG 或 WebP，最大 5MB</div>
             </div>
             <input
                 ref={inputRef}

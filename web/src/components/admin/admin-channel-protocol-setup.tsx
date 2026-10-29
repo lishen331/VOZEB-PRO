@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, App, Button, Checkbox, Input, Select, Tag } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Checkbox, Tag } from "@/components/gamma-ui/gamma-ant";
 import { FileSearch, WandSparkles } from "lucide-react";
 
 import { LabeledControl } from "@/components/admin/admin-settings-controls";
@@ -111,7 +114,6 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, tar
                         <Select
                             className="w-full"
                             value={protocol}
-                            optionLabelProp="label"
                             options={channelProtocolOptions().map((item) => ({
                                 value: item.value,
                                 label: item.label,
@@ -119,8 +121,8 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, tar
                             }))}
                             optionRender={(option) => (
                                 <div className="py-1">
-                                    <div className="font-medium text-stone-900 dark:text-stone-100">{option.data.label}</div>
-                                    <div className="mt-0.5 whitespace-normal text-xs leading-5 text-stone-500 dark:text-stone-400">{option.data.title}</div>
+                                    <div className="font-medium text-stone-900 dark:text-stone-100">{option.label}</div>
+                                    <div className="mt-0.5 whitespace-normal text-xs leading-5 text-stone-500 dark:text-stone-400">{option.title}</div>
                                 </div>
                             )}
                             onChange={selectProtocol}

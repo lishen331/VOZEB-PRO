@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Avatar, Select } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Avatar } from "@/components/gamma-ui/gamma-ant-display";
 import { UserRound } from "lucide-react";
 
 import type { PublicUser } from "@/lib/auth/store";

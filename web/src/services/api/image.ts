@@ -102,6 +102,7 @@ export async function createImageGenerationTask(config: AiConfig, prompt: string
             config: {
                 model: requestConfig.model,
                 quality: requestConfig.quality,
+                ...(requestConfig.imageResolution ? { resolution: requestConfig.imageResolution } : {}),
                 size: requestConfig.size,
                 ...(options?.outputBackground ? { outputBackground: options.outputBackground } : {}),
                 ...(options?.outputMode ? { outputMode: options.outputMode } : {}),

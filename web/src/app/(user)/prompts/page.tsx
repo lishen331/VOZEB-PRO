@@ -2,7 +2,10 @@
 
 import { FolderPlus, RotateCcw, Search } from "lucide-react";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { App, Button, Input, Pagination, Select, Spin } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 
 import { PromptCard } from "@/components/prompts/prompt-card";
 import { CompactEmptyState } from "@/components/compact-empty-state";
@@ -80,20 +83,20 @@ export default function PromptsPage() {
     };
 
     return (
-        <div className="flex h-full flex-col overflow-hidden bg-background text-stone-800 dark:text-stone-100">
-            <main ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto bg-background px-3 py-3 sm:px-6 sm:py-8">
+        <div className="flex h-full flex-col overflow-hidden bg-[var(--gm-bg)] text-stone-800 dark:text-stone-100">
+            <main ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto bg-[var(--gm-bg)] px-3 py-3 sm:px-6 sm:py-8">
                 <div className="mx-auto max-w-7xl">
                     <div>
                         <h1 className="text-xl font-semibold text-stone-950 sm:text-2xl dark:text-stone-100">提示词库</h1>
                         <p className="mt-1.5 text-xs leading-5 text-stone-500 sm:mt-2 sm:text-sm dark:text-stone-400">浏览公共提示词，复制使用或保存到我的素材。</p>
                     </div>
 
-                    <section className="mt-2.5 rounded-xl border border-border bg-card p-2 sm:mt-6 sm:p-3.5">
+                    <section className="mt-2.5 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 sm:mt-6 sm:p-3.5">
                         <div className="grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-[minmax(240px,1fr)_160px_180px_auto] sm:items-center sm:gap-2">
                             <div className="col-span-2 min-w-0 sm:col-span-1">
                                 <Input
                                     allowClear
-                                    className="!h-9 w-full"
+                                    className="w-full"
                                     prefix={<Search className="size-4 text-stone-400" />}
                                     value={titleKeyword}
                                     placeholder="搜索标题或提示词"
@@ -110,7 +113,7 @@ export default function PromptsPage() {
                                 <Select showSearch aria-label="提示词标签" className="w-full" optionFilterProp="label" value={selectedTag} options={promptTags.map((tag) => ({ label: tag, value: tag }))} onChange={updateTag} />
                             </div>
                             <div className="col-span-2 flex min-h-8 items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
-                                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">共 {totalPrompts} 条</span>
+                                <span className="shrink-0 text-xs tabular-nums text-[var(--gm-text-3)]">共 {totalPrompts} 条</span>
                                 <Button aria-label="清除提示词筛选" icon={<RotateCcw className="size-3.5" />} disabled={!hasFilters} onClick={clearFilters}>
                                     清除
                                 </Button>

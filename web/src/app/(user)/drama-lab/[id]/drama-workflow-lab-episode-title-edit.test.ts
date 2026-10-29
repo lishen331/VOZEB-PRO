@@ -18,10 +18,7 @@ describe("drama lab script episode title editing", () => {
         expect(source).toContain('aria-label="当前剧集标题"');
         expect(source).toContain("saveScriptEpisodeTitle");
         expect(source).toContain('aria-label="选择剧集"');
-        expect(source).toContain('suffixIcon={<ChevronDown className="size-4" />}');
-        expect(source).toContain('placement="bottomLeft"');
         expect(source).toContain("popupMatchSelectWidth={280}");
-        expect(source).toContain("getPopupContainer={(trigger) => trigger.parentElement || trigger}");
     });
 
     it("autosaves title edits through the existing save queue without adding another status display", async () => {

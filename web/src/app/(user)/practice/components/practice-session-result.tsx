@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Image, Spin } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Film, AudioLines, Download, Image as ImageIcon } from "lucide-react";
 
 import type { PracticeModuleKind } from "@/lib/practice-domain";
@@ -94,18 +96,18 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
         const Icon = module === "storyboard-video" ? Film : module === "dubbing" ? AudioLines : ImageIcon;
         return (
             <div className="flex min-h-52 flex-col items-center justify-center gap-3 text-center lg:min-h-80">
-                <div className="rounded-2xl bg-muted/60 p-5">
-                    <Icon className="size-8 text-muted-foreground" />
+                <div className="rounded-2xl bg-[var(--gm-wash)]/60 p-5">
+                    <Icon className="size-8 text-[var(--gm-text-3)]" />
                 </div>
                 <p className="text-sm font-medium">{WAITING[module]}</p>
-                <p className="max-w-64 text-xs leading-5 text-muted-foreground">完成输入后开始生成，结果会在这里呈现。</p>
+                <p className="max-w-64 text-xs leading-5 text-[var(--gm-text-3)]">完成输入后开始生成，结果会在这里呈现。</p>
             </div>
         );
     }
-    if (session.status === "draft") return <p className="mt-4 text-sm text-muted-foreground">剧本草稿已保存，可继续编辑。</p>;
+    if (session.status === "draft") return <p className="mt-4 text-sm text-[var(--gm-text-3)]">剧本草稿已保存，可继续编辑。</p>;
     if (session.status === "queued" || session.status === "running" || session.result?.status === "pending" || session.result?.status === "running")
         return (
-            <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <p className="mt-4 flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
                 <Spin size="small" />
                 {session.status === "queued" ? "已排队，等待生成" : "正在生成中，结果将自动显示..."}
             </p>
@@ -121,14 +123,14 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
         );
     if (session.status === "cancelled" || session.result?.status === "cancelled")
         return (
-            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+            <div className="mt-4 space-y-2 text-sm text-[var(--gm-text-3)]">
                 <p>练习已取消</p>
                 <Button size="small" onClick={() => onRetry(session)}>
                     载入重试
                 </Button>
             </div>
         );
-    if (session.result?.text !== undefined) return <pre className="mt-4 whitespace-pre-wrap rounded border border-border bg-muted/20 p-3 text-sm leading-6">{session.result.text}</pre>;
+    if (session.result?.text !== undefined) return <pre className="mt-4 whitespace-pre-wrap rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/20 p-3 text-sm leading-6">{session.result.text}</pre>;
     if (session.result?.media?.kind === "image") {
         const imageUrl = session.result.media.url;
         // Demo 只对场景工作流（scene_main_view，2:1 等距柱状全景）提供 360° 查看器；角色多视图是 2x2 拼接图，不是全景.
@@ -137,7 +139,7 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
             <div className="mt-4 space-y-3">
                 {isPanorama ? (
                     <PracticePanoramaViewer url={imageUrl} title="场景 360° 全景">
-                        <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg bg-muted/20">
+                        <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg bg-[var(--gm-wash)]/20">
                             <img src={imageUrl} alt="练习结果，点击查看 360° 全景" className="absolute inset-0 h-full w-full object-contain" />
                         </div>
                     </PracticePanoramaViewer>
@@ -145,7 +147,7 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
                     <Image src={imageUrl} alt="练习结果" className="!max-h-[60vh] !w-full !object-contain" preview={{ src: imageUrl }} />
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                    {isPanorama ? <span className="text-xs text-muted-foreground">点击图片查看 360° 全景</span> : null}
+                    {isPanorama ? <span className="text-xs text-[var(--gm-text-3)]">点击图片查看 360° 全景</span> : null}
                     <Button size="small" icon={<Download className="size-3.5" />} loading={saving} onClick={() => void saveToLibrary(session)}>
                         存入资产库
                     </Button>
@@ -184,5 +186,5 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
                 </div>
             </div>
         );
-    return <p className="mt-4 text-sm text-muted-foreground">练习已完成，暂无可展示的结果。</p>;
+    return <p className="mt-4 text-sm text-[var(--gm-text-3)]">练习已完成，暂无可展示的结果。</p>;
 }

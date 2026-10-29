@@ -1,6 +1,8 @@
 "use client";
 
-import { Alert, Button, Card, Space, Tag, message } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Card, Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Alert, Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { RefreshCw, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -69,7 +71,7 @@ export function DramaLabFinalVideoPanel({ projectId, episodeId, disabled, totalS
             <Space direction="vertical" className="w-full">
                 {previewUrl ? <video src={previewUrl} controls preload="metadata" className="mx-auto aspect-video w-full max-w-2xl rounded object-contain" aria-label="合成成片视频预览" /> : null}
                 <div className="flex w-full items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1 text-sm text-muted-foreground">将当前剧集全部分镜合成为 MP4 成片，不是项目归档 ZIP 或剪映草稿。</div>
+                    <div className="min-w-0 flex-1 text-sm text-[var(--gm-text-3)]">将当前剧集全部分镜合成为 MP4 成片，不是项目归档 ZIP 或剪映草稿。</div>
                     <div className="flex shrink-0 flex-wrap justify-end gap-2">
                         <Button type="primary" icon={<RefreshCw className="size-4" />} loading={loading} disabled={disabled || videoShots < totalShots || (status ? ["pending", "running"].includes(status) : false)} onClick={() => void create()}>
                             {status === "success" ? "重新合成成片视频" : "合成成片视频"}

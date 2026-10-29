@@ -190,11 +190,12 @@ export function normalizeYumengModelCenterBaseUrl(value: string) {
     }
 }
 
-export function resolveYumengImageResolution(model: string, quality: string | undefined) {
+/** resolution 取清晰度 1k/2k/4k；旧调用方传的 low/medium/high 画质值仍按原映射兼容。 */
+export function resolveYumengImageResolution(model: string, resolution: string | undefined) {
     const normalized = normalizeModel(model);
-    const value = quality?.trim().toLowerCase();
+    const value = resolution?.trim().toLowerCase();
     if (!value || value === "auto") return undefined;
-    if (normalized === "seedream_5.0pro") return value === "high" || value === "2k" ? "2K" : "1K";
+    if (normalized === "seedream_5.0pro") return value === "high" || value === "2k" || value === "4k" ? "2K" : "1K";
     if (value === "high" || value === "4k") return "4K";
     if (value === "medium" || value === "3k") return "3K";
     return "2K";

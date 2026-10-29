@@ -11,7 +11,6 @@ describe("RunningHub workflow action column", () => {
 
         expect(column.fixed).toBe("right");
         expect(column.width).toBeGreaterThanOrEqual(280);
-        expect(column.className).toContain("runninghub-workflow-actions");
     });
 
     it("builds the channel-scoped Demo bootstrap endpoint", () => {

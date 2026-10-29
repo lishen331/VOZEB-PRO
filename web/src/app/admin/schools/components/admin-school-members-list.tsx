@@ -1,7 +1,12 @@
 "use client";
 
-import type { TableColumnsType } from "antd";
-import { App, Button, Input, InputNumber, Modal, Pagination, Segmented, Select, Table, Tag } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, RefreshCw, WalletCards } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { Alert, Button, Checkbox, Form, Input, Select, Switch, Tag } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { AuthSettings } from "@/lib/auth/store";
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
 import { SCRIPT_AGENT_TOOL_NAMES } from "@/lib/server/script-practice-agent-tools";

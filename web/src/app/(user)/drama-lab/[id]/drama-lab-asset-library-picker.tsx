@@ -1,6 +1,9 @@
 "use client";
 
-import { Button, Empty, Image, Input, Modal, Pagination, Spin } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 import { useEffect, useRef, useState } from "react";
 
 import type { Asset } from "@/lib/library-asset-contract";
@@ -98,7 +101,7 @@ function AssetLibraryPickerSession({ label, busyKey, importedNames = [], onClose
                             if (!composing.current) setPage(1);
                         }}
                     />
-                    <span className="shrink-0 text-sm text-muted-foreground">点击“导入”将素材复制到本剧资源库</span>
+                    <span className="shrink-0 text-sm text-[var(--gm-text-3)]">点击“导入”将素材复制到本剧资源库</span>
                 </div>
                 <div className="max-h-[58dvh] min-h-36 overflow-y-auto overscroll-contain pr-1" aria-label="素材库导入列表" aria-busy={loading}>
                     {loading ? (
@@ -115,8 +118,8 @@ function AssetLibraryPickerSession({ label, busyKey, importedNames = [], onClose
                                 const url = asset.kind === "image" ? asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl || asset.coverUrl : asset.coverUrl;
                                 const imported = importedIds.has(asset.id) || importedNameSet.has(asset.title.trim());
                                 return (
-                                    <div key={asset.id} className="flex min-h-20 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2">
-                                        <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded border border-border bg-muted/40">
+                                    <div key={asset.id} className="flex min-h-20 items-center gap-3 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2">
+                                        <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/40">
                                             {url ? <Image preview={{ src: imagePreviewUrl(url, 1920) }} src={imagePreviewUrl(url, 160)} alt="" className="!size-full !object-cover" /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={false} />}
                                         </div>
                                         <span className="min-w-0 flex-1 truncate text-sm font-medium" title={asset.title}>
@@ -151,8 +154,8 @@ function AssetLibraryPickerSession({ label, busyKey, importedNames = [], onClose
                         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={keyword.trim() ? "没有匹配的图片素材" : "素材库暂无图片素材"} />
                     )}
                 </div>
-                <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-                    <span className="text-sm text-muted-foreground">共 {total} 条</span>
+                <div className="flex items-center justify-between gap-3 border-t border-[var(--gm-border)] pt-3">
+                    <span className="text-sm text-[var(--gm-text-3)]">共 {total} 条</span>
                     <Pagination
                         current={page}
                         pageSize={pageSize}

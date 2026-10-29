@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight, CreditCard, Crown, Gift, Keyboard, LogOut, ShieldCheck, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { MenuProps } from "antd";
-import { App, Button, Dropdown, Input, Popover } from "antd";
+import { App, Button, Input, Popover } from "antd";
+import { Dropdown, type DropdownMenuItem } from "@/components/gamma-ui/gamma-ant-overlay";
 
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { BillingPlansModal } from "@/components/billing/billing-plans-modal";
@@ -57,14 +57,23 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
             : undefined;
     const naturalIconClass = variant === "canvas" ? canvasIconClass : cn(defaultControlClass, "w-8 px-0 [&_svg]:size-4");
     const iconStyle: CSSProperties | undefined = variant === "canvas" ? canvasControlStyle : undefined;
+    const accountMenuPanelStyle: CSSProperties | undefined =
+        variant === "canvas"
+            ? ({
+                  "--gm-surface-2": canvasTheme.toolbar.panel,
+                  "--gm-border-strong": canvasTheme.toolbar.border,
+                  "--gm-text": canvasTheme.node.text,
+                  "--gm-wash": canvasTheme.toolbar.itemHover,
+              } as CSSProperties)
+            : undefined;
     const avatarUrl = user?.avatarUrl?.trim();
     const avatarFallback = userAvatarFallback(user?.displayName || user?.username || "用户");
     const accountName = user?.displayName || user?.username || "用户";
     const accountSecondary = user ? `ID：${user.accountId}` : "";
     const planActionLabel = user?.hasActivePlan ? "续费套餐" : "升级套餐";
-    const accountItems: MenuProps["items"] = [
+    const accountItems: DropdownMenuItem[] = [
         {
-            type: "group",
+            type: "header",
             label: (
                 <div className="w-full py-0.5">
                     <div className="flex items-center gap-2.5">
@@ -113,7 +122,6 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
                     </div>
                 </div>
             ),
-            children: [],
         },
         { type: "divider" },
         {
@@ -173,7 +181,7 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
         return () => mediaQuery.removeEventListener("change", syncViewport);
     }, []);
 
-    const handleMenuClick: MenuProps["onClick"] = async ({ key }) => {
+    const handleMenuClick = async ({ key }: { key: string }) => {
         if (key !== "logout") return;
         try {
             await fetch("/api/auth/logout", { method: "POST" });
@@ -185,7 +193,7 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
         }
     };
 
-    const handleAccountMenuClick: MenuProps["onClick"] = (info) => {
+    const handleAccountMenuClick = (info: { key: string }) => {
         setAccountOpen(false);
         void handleMenuClick(info);
     };
@@ -268,7 +276,15 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
             />
             {user ? (
                 <>
-                    <Dropdown rootClassName="account-menu-dropdown" open={accountOpen} onOpenChange={handleAccountOpenChange} menu={{ items: accountItems, onClick: handleAccountMenuClick }} trigger={["click"]} placement="bottomRight">
+                    <Dropdown
+                        rootClassName="account-menu-dropdown"
+                        open={accountOpen}
+                        onOpenChange={handleAccountOpenChange}
+                        menu={{ items: accountItems, onClick: handleAccountMenuClick }}
+                        panelStyle={accountMenuPanelStyle}
+                        trigger={["click"]}
+                        placement="bottomRight"
+                    >
                         <button
                             type="button"
                             className={cn(

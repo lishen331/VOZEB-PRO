@@ -1,6 +1,12 @@
 "use client";
 
-import { Alert, App, Button, Checkbox, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Collapse, Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { RunningHubWorkflowAdapterType, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
@@ -274,7 +280,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                                     <Select
                                         className="w-full"
                                         value={draft.adapterType || "generic"}
-                                        options={["generic", "character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video"].map((value) => ({
+                                        options={(["generic", "character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video"] as const).map((value) => ({
                                             value,
                                             label: value,
                                         }))}

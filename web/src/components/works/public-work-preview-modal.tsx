@@ -1,7 +1,10 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { App, Button, Modal, Segmented, Tooltip } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { CalendarDays, Copy, CopyPlus, Eye, ImagePlus, LoaderCircle, Share2, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -115,7 +118,7 @@ export function PublicWorkPreviewModal({
     const authorUsername = official ? undefined : work?.authorUsername;
     const authorIdentity = work ? (
         <>
-            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-[11px] font-semibold text-background" aria-hidden="true">
+            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-[11px] font-semibold text-white" aria-hidden="true">
                 {work.authorAvatarUrl ? <img src={work.authorAvatarUrl} alt="" className="size-full object-cover" /> : userAvatarFallback(work.authorName || "匿名作者")}
             </span>
             <span className="flex h-8 min-w-0 flex-1 items-center truncate text-sm font-semibold leading-none">{official ? work.authorName || "平台官方" : work.authorName || "匿名作者"}</span>
@@ -124,16 +127,16 @@ export function PublicWorkPreviewModal({
 
     return (
         <Modal centered open={Boolean(slug)} width="min(1280px, calc(100vw - 16px))" footer={null} closable={false} destroyOnHidden title={null} onCancel={onClose} styles={{ container: { padding: 0, overflow: "hidden" }, body: { padding: 0 } }}>
-            <div className="max-h-[92dvh] min-w-0 overflow-y-auto bg-background text-foreground lg:h-[min(82dvh,780px)] lg:overflow-hidden">
+            <div className="max-h-[92dvh] min-w-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)] lg:h-[min(82dvh,780px)] lg:overflow-hidden">
                 {query.isLoading ? (
-                    <div className="flex min-h-[420px] items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex min-h-[420px] items-center justify-center gap-2 text-sm text-[var(--gm-text-3)]">
                         <LoaderCircle className="size-4 animate-spin" /> 正在加载作品
                     </div>
                 ) : query.error || !work ? (
                     <div className="grid min-h-[360px] place-items-center px-5 text-center">
                         <div>
                             <p className="text-sm font-semibold">作品暂时无法打开</p>
-                            <p className="mt-2 text-xs text-muted-foreground">{query.error instanceof Error ? query.error.message : "作品不存在或已停止公开"}</p>
+                            <p className="mt-2 text-xs text-[var(--gm-text-3)]">{query.error instanceof Error ? query.error.message : "作品不存在或已停止公开"}</p>
                             <Button className="mt-4" onClick={() => void query.refetch()}>
                                 重新加载
                             </Button>
@@ -141,9 +144,9 @@ export function PublicWorkPreviewModal({
                     </div>
                 ) : (
                     <div className="grid min-w-0 lg:h-full lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
-                        <div className="flex min-w-0 flex-col overflow-hidden border-b border-border bg-muted/20 p-2.5 sm:p-3 lg:h-full lg:min-h-0 lg:border-b-0 lg:border-r">
+                        <div className="flex min-w-0 flex-col overflow-hidden border-b border-[var(--gm-border)] bg-[var(--gm-wash)] p-2.5 sm:p-3 lg:h-full lg:min-h-0 lg:border-b-0 lg:border-r">
                             {hasProcess ? (
-                                <div className="mb-2.5 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border pb-2.5">
+                                <div className="mb-2.5 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--gm-border)] pb-2.5">
                                     <Segmented
                                         size="small"
                                         value={viewMode}
@@ -156,21 +159,21 @@ export function PublicWorkPreviewModal({
                                     <Button type="primary" size="small" icon={<CopyPlus className="size-3.5" />} loading={copying} disabled={copying} onClick={() => void copyToPractice()}>
                                         复制到练习
                                     </Button>
-                                    {copyError ? <p className="w-full break-words text-xs text-red-600 dark:text-red-300">{copyError}</p> : null}
+                                    {copyError ? <p className="w-full break-words text-xs text-[var(--gm-danger)]">{copyError}</p> : null}
                                 </div>
                             ) : null}
                             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                                 {viewMode === "media" || !hasProcess ? (
                                     <PublicWorkMediaBrowser assets={contentAssets} title={work.title} compact />
                                 ) : processQuery.isLoading ? (
-                                    <div className="flex min-h-64 items-center justify-center gap-2 text-sm text-muted-foreground">
+                                    <div className="flex min-h-64 items-center justify-center gap-2 text-sm text-[var(--gm-text-3)]">
                                         <LoaderCircle className="size-4 animate-spin" /> 正在读取制作流程
                                     </div>
                                 ) : processQuery.error || !processQuery.data ? (
                                     <div className="grid min-h-64 place-items-center px-4 text-center">
                                         <div>
                                             <p className="text-sm font-medium">制作流程暂时无法读取</p>
-                                            <p className="mt-1 text-xs text-muted-foreground">{processQuery.error instanceof Error ? processQuery.error.message : "请稍后重试"}</p>
+                                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">{processQuery.error instanceof Error ? processQuery.error.message : "请稍后重试"}</p>
                                             <Button className="mt-3" size="small" onClick={() => void processQuery.refetch()}>
                                                 重新读取
                                             </Button>
@@ -182,12 +185,12 @@ export function PublicWorkPreviewModal({
                             </div>
                         </div>
                         <aside className="min-w-0 p-3.5 sm:p-4 lg:h-full lg:overflow-y-auto" aria-label="作品详情">
-                            <header className="border-b border-border pb-3">
+                            <header className="border-b border-[var(--gm-border)] pb-3">
                                 <div className="flex min-w-0 items-center gap-2">
                                     {authorUsername && onOpenCreator ? (
                                         <button
                                             type="button"
-                                            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-left hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                             aria-label={`查看 ${work.authorName || authorUsername} 的主页`}
                                             aria-haspopup="dialog"
                                             onClick={() => {
@@ -200,7 +203,7 @@ export function PublicWorkPreviewModal({
                                     ) : authorUsername ? (
                                         <Link
                                             href={`/u/${encodeURIComponent(authorUsername)}`}
-                                            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                             onClick={onClose}
                                         >
                                             {authorIdentity}
@@ -209,7 +212,7 @@ export function PublicWorkPreviewModal({
                                         <div className="flex min-w-0 flex-1 items-center gap-2.5">{authorIdentity}</div>
                                     )}
                                     <div className="ml-auto flex shrink-0 items-center gap-0.5">
-                                        <span className="inline-flex h-7 items-center gap-1 px-1 text-[11px] text-muted-foreground" aria-label="作品浏览量" title="浏览量">
+                                        <span className="inline-flex h-7 items-center gap-1 px-1 text-[11px] text-[var(--gm-text-3)]" aria-label="作品浏览量" title="浏览量">
                                             <Eye className="size-3.5" /> <span className="tabular-nums">{work.viewCount}</span>
                                         </span>
                                         <PublicWorkCommunityActions slug={work.slug} compact compactFollowIcon className="flex-nowrap !gap-0.5" />
@@ -221,7 +224,7 @@ export function PublicWorkPreviewModal({
                                 </div>
 
                                 <h2 className="mt-3.5 break-words text-lg font-semibold leading-7">{work.title}</h2>
-                                <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+                                <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-[var(--gm-text-3)]">
                                     <span className="inline-flex shrink-0 items-center gap-1" title="发布时间">
                                         <CalendarDays className="size-3" /> {formatDate(work.publishedAt)}
                                     </span>
@@ -238,13 +241,13 @@ export function PublicWorkPreviewModal({
                             {work.description ? (
                                 <section className="mt-3.5">
                                     <h3 className="text-xs font-semibold">作品说明</h3>
-                                    <p className="mt-1.5 whitespace-pre-wrap break-words text-[13px] leading-5 text-muted-foreground">{work.description}</p>
+                                    <p className="mt-1.5 whitespace-pre-wrap break-words text-[13px] leading-5 text-[var(--gm-text-3)]">{work.description}</p>
                                 </section>
                             ) : null}
 
                             <section className="mt-3.5">
                                 <h3 className="text-xs font-semibold">作品提示词</h3>
-                                <pre className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2.5 font-sans text-[13px] leading-5 text-foreground">
+                                <pre className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-[var(--gm-wash)] p-2.5 font-sans text-[13px] leading-5 text-[var(--gm-text)]">
                                     {hasPublicPrompt ? work.publicPrompt : "该作品暂无可公开提示词"}
                                 </pre>
                                 {hasPublicPrompt ? (
@@ -282,7 +285,10 @@ export function PublicWorkPreviewModal({
                                             ) : null}
                                         </div>
                                         {!onUsePrompt ? (
-                                            <Link href={remixHref} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md !bg-foreground px-4 text-sm font-semibold !text-background transition hover:opacity-80">
+                                            <Link
+                                                href={remixHref}
+                                                className="gm-btn-primary mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[var(--gm-radius)] border border-transparent bg-[image:var(--gm-gradient)] px-4 text-sm font-semibold !text-white shadow-[var(--gm-glow-blue)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                                            >
                                                 <Sparkles className="size-4" /> 做同款
                                             </Link>
                                         ) : null}
@@ -293,7 +299,7 @@ export function PublicWorkPreviewModal({
                             {work.tags.length ? (
                                 <div className="mt-4 flex min-w-0 flex-wrap gap-1">
                                     {work.tags.map((tag) => (
-                                        <span key={tag} className="max-w-36 truncate rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                        <span key={tag} className="max-w-36 truncate rounded-full bg-[var(--gm-wash-strong)] px-2 py-0.5 text-[11px] text-[var(--gm-text-2)]">
                                             #{tag}
                                         </span>
                                     ))}

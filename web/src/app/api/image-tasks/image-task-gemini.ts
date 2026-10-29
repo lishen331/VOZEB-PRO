@@ -3,6 +3,7 @@ import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
 import { buildImageTaskPrompt } from "@/lib/image-reference-prompt";
+import { imageResolutionFromPixels, requestedImageResolution } from "@/lib/image-generation-params";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveGeneratedMediaUrl } from "@/lib/media-url";
@@ -137,7 +138,7 @@ export async function runGeminiImageTask(task: ImageTask, origin: string, cookie
         headers: geminiHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext),
         body: JSON.stringify({
             contents: [{ role: "user", parts }],
-            generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+            generationConfig: { responseModalities: ["TEXT", "IMAGE"], ...geminiImageConfig(config) },
         }),
         cache: "no-store",
     });
@@ -152,4 +153,37 @@ export async function runGeminiImageTask(task: ImageTask, origin: string, cookie
             throw new GenerationSubmissionUncertainError(error instanceof Error ? error.message : "Gemini 没有返回图片，创建结果待确认");
         }
     });
+}
+
+// Gemini 图片模型没有画质参数，只有 imageConfig.aspectRatio / imageSize（K 必须大写）。
+// imageSize 只有 Gemini 3 系图片模型支持；比例取官方列表里最接近的一档。
+const GEMINI_ASPECT_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
+const GEMINI_FLASH_EXTRA_ASPECT_RATIOS = ["1:4", "4:1", "1:8", "8:1"];
+
+export function geminiImageConfig(config: Pick<ImageTaskConfig, "model" | "quality" | "resolution" | "size">) {
+    const model = config.model.trim().toLowerCase();
+    const value = (config.size || "").trim();
+    const dimensions = parseImageDimensions(value);
+    const ratio = dimensions ? { width: dimensions.width, height: dimensions.height } : parseRatio(value);
+    const candidates = model.includes("flash") && model.includes("gemini-3") ? [...GEMINI_ASPECT_RATIOS, ...GEMINI_FLASH_EXTRA_ASPECT_RATIOS] : GEMINI_ASPECT_RATIOS;
+    const aspectRatio = ratio ? closestRatio(ratio.width / ratio.height, candidates) : undefined;
+    const resolution = dimensions ? imageResolutionFromPixels(dimensions.width, dimensions.height) : requestedImageResolution(config);
+    const imageSize = model.includes("gemini-3") && resolution ? resolution.toUpperCase() : undefined;
+    return aspectRatio || imageSize ? { imageConfig: { ...(aspectRatio ? { aspectRatio } : {}), ...(imageSize ? { imageSize } : {}) } } : {};
+}
+
+function parseRatio(value: string) {
+    const match = value.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+    if (!match) return undefined;
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    return width > 0 && height > 0 ? { width, height } : undefined;
+}
+
+function closestRatio(target: number, candidates: string[]) {
+    const distance = (candidate: string) => {
+        const [width, height] = candidate.split(":").map(Number);
+        return Math.abs(Math.log(target / (width / height)));
+    };
+    return candidates.reduce((best, candidate) => (distance(candidate) < distance(best) ? candidate : best));
 }

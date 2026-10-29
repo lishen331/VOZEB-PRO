@@ -1,6 +1,7 @@
 "use client";
 
-import { Input, Select } from "antd";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Activity, ArrowRight, BookOpenCheck, Check, CircleAlert, Coins, DatabaseBackup, ExternalLink, Megaphone, PlugZap, Search, Settings2, ShieldCheck, ShoppingBag, Sparkles, Wrench, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";

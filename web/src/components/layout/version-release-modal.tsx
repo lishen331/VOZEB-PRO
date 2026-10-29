@@ -1,7 +1,9 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { Modal, Tag, Timeline } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Timeline } from "@/components/gamma-ui/gamma-ant-display";
+import { Tag } from "@/components/gamma-ui/gamma-ant";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { APP_VERSION } from "@/constant/env";
 

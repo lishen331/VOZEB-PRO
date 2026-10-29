@@ -1,6 +1,6 @@
 "use client";
 
-import { Segmented } from "antd";
+import { Segmented } from "@/components/gamma-ui/gamma-ant";
 
 import { useDramaStore } from "../stores/use-drama-store";
 import type { DramaShot, DramaShotAudioMode } from "../types";
@@ -31,12 +31,12 @@ export function DramaShotAudioModeEditor({ projectId, episodeId, shot }: { proje
         <div className="mt-3.5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
                 <span className="text-sm font-medium">成片声音</span>
-                <span className="text-xs text-muted-foreground">按镜头选择，不会重复配音</span>
+                <span className="text-xs text-[var(--gm-text-3)]">按镜头选择，不会重复配音</span>
             </div>
             <Segmented
                 block
                 disabled={audioActive}
-                className="!mt-2 !min-w-0 !w-full [&_.ant-segmented-item]:!min-w-0 [&_.ant-segmented-item-label]:!truncate [&_.ant-segmented-item-label]:!px-1.5 sm:[&_.ant-segmented-item-label]:!px-3"
+                className="!mt-2 !min-w-0 !w-full [&_.gm-segmented-item]:!min-w-0 [&_.gm-segmented-item-label]:!truncate [&_.gm-segmented-item-label]:!px-1.5 sm:[&_.gm-segmented-item-label]:!px-3"
                 value={audioMode}
                 options={[
                     { label: "视频原声", value: "source" },
@@ -45,7 +45,7 @@ export function DramaShotAudioModeEditor({ projectId, episodeId, shot }: { proje
                 ]}
                 onChange={changeMode}
             />
-            <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{descriptions[audioMode]}</p>
+            <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-3)]">{descriptions[audioMode]}</p>
         </div>
     );
 }

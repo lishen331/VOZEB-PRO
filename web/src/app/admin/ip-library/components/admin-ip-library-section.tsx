@@ -1,7 +1,17 @@
 "use client";
 
-import type { FormInstance, TableColumnsType } from "antd";
-import { App, Button, Checkbox, Empty, Form, Input, Modal, Pagination, Popconfirm, Select, Space, Table, Tabs, Tag, Tooltip } from "antd";
+import type { FormInstance } from "@/components/gamma-ui/gamma-ant-form";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { Checkbox } from "@/components/gamma-ui/gamma-ant";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm, Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Ban, Building2, Eye, FilePlus2, FolderPlus, Pause, Pencil, Plus, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 

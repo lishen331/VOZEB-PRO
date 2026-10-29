@@ -1,6 +1,10 @@
 "use client";
 
-import { Alert, App, Button, Input, Modal, Select, Spin, Tag } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowRight, Clapperboard, Download, FlaskConical, Pencil, Plus, RefreshCcw, Trash2, Upload, UserRound, Image as ImageIcon, Box } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -184,16 +188,16 @@ export function DramaWorkflowLabHome() {
     };
 
     return (
-        <main className="h-full overflow-y-auto bg-background text-foreground">
+        <main className="h-full overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
-                <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
+                <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--gm-border)] pb-5">
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
                             <FlaskConical className="size-4" />
                             独立创作工作区
                         </div>
                         <h1 className="mt-2 text-2xl font-semibold tracking-tight">短剧项目</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">先创建短剧项目，再进入剧本、分集、资产和镜头制作。</p>
+                        <p className="mt-1 text-sm text-[var(--gm-text-3)]">先创建短剧项目，再进入剧本、分集、资产和镜头制作。</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <input
@@ -226,13 +230,13 @@ export function DramaWorkflowLabHome() {
 
                 <section aria-label="短剧制作阶段" className="mt-6 grid gap-2 md:grid-cols-6">
                     {DRAMA_WORKFLOW_LAB_STAGES.map((stage, index) => (
-                        <div key={stage.id} className="relative border border-border bg-card px-3 py-3">
+                        <div key={stage.id} className="relative rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-3">
                             <div className="flex items-center gap-2">
-                                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{index + 1}</span>
+                                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--gm-wash)] text-xs font-semibold">{index + 1}</span>
                                 <span className="min-w-0 truncate text-sm font-medium">{stage.label}</span>
                             </div>
-                            <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{stage.description}</p>
-                            {index < DRAMA_WORKFLOW_LAB_STAGES.length - 1 ? <ArrowRight className="absolute -right-2.5 top-6 z-10 hidden size-4 bg-background text-muted-foreground md:block" /> : null}
+                            <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{stage.description}</p>
+                            {index < DRAMA_WORKFLOW_LAB_STAGES.length - 1 ? <ArrowRight className="absolute -right-2.5 top-6 z-10 hidden size-4 bg-[var(--gm-bg)] text-[var(--gm-text-3)] md:block" /> : null}
                         </div>
                     ))}
                 </section>
@@ -243,7 +247,7 @@ export function DramaWorkflowLabHome() {
                             <h2 id="drama-lab-projects-heading" className="text-lg font-semibold">
                                 我的短剧项目
                             </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">共 {total} 个项目</p>
+                            <p className="mt-1 text-sm text-[var(--gm-text-3)]">共 {total} 个项目</p>
                         </div>
                         <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProjects()} loading={loading}>
                             刷新项目
@@ -270,15 +274,15 @@ export function DramaWorkflowLabHome() {
                     ) : projects.length ? (
                         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                             {projects.map((project) => (
-                                <article key={project.id} className="group border border-border bg-card p-5 transition hover:border-primary/60 hover:shadow-sm">
+                                <article key={project.id} className="group rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5 transition hover:border-[var(--gm-border-strong)] hover:shadow-[var(--gm-shadow)]">
                                     <div className="flex items-start justify-between gap-3">
                                         <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <div className="flex items-center gap-2 text-xs text-[var(--gm-text-3)]">
                                                 <Clapperboard className="size-4" />
                                                 短剧项目
                                             </div>
                                             <h3 className="mt-3 truncate text-lg font-semibold">{project.title}</h3>
-                                            <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">{project.summary || "暂无项目简介"}</p>
+                                            <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-[var(--gm-text-3)]">{project.summary || "暂无项目简介"}</p>
                                         </Link>
                                         <div className="flex items-center gap-1">
                                             <Button type="text" size="small" icon={<Download className="size-4" />} aria-label="导出项目" title="导出项目" loading={exportingId === project.id} onClick={() => void exportProject(project)} />
@@ -286,14 +290,14 @@ export function DramaWorkflowLabHome() {
                                             <Button type="text" danger size="small" icon={<Trash2 className="size-4" />} aria-label="删除项目" title="删除项目" loading={deletingId === project.id} onClick={() => deleteProject(project)} />
                                         </div>
                                     </div>
-                                    <div className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    <div className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
                                         <Tag>{project.episodeCount} 集</Tag>
                                         <Tag>{project.shotCount} 分镜</Tag>
                                         <Tag>{project.ratio}</Tag>
                                         <Tag>{project.style || DEFAULT_STYLE}</Tag>
                                     </div>
-                                    <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-                                        <span className="text-xs text-muted-foreground">更新于 {new Date(project.updatedAt).toLocaleDateString("zh-CN")}</span>
+                                    <div className="mt-5 flex items-center justify-between border-t border-[var(--gm-border)] pt-4">
+                                        <span className="text-xs text-[var(--gm-text-3)]">更新于 {new Date(project.updatedAt).toLocaleDateString("zh-CN")}</span>
                                         <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary">
                                             进入制作 <ArrowRight className="size-4" />
                                         </Link>
@@ -302,9 +306,9 @@ export function DramaWorkflowLabHome() {
                             ))}
                         </div>
                     ) : (
-                        <div className="mt-4 border-y border-border py-14 text-center">
-                            <Clapperboard className="mx-auto size-8 text-muted-foreground" />
-                            <p className="mt-3 text-sm text-muted-foreground">还没有短剧项目，先创建一个项目开始制作。</p>
+                        <div className="mt-4 border-y border-[var(--gm-border)] py-14 text-center">
+                            <Clapperboard className="mx-auto size-8 text-[var(--gm-text-3)]" />
+                            <p className="mt-3 text-sm text-[var(--gm-text-3)]">还没有短剧项目，先创建一个项目开始制作。</p>
                             <Button className="mt-4" type="primary" icon={<Plus className="size-4" />} onClick={() => setCreateOpen(true)}>
                                 新建第一个短剧
                             </Button>
@@ -353,7 +357,7 @@ export function DramaWorkflowLabHome() {
                             ]}
                             onChange={setRatio}
                         />
-                        <p className="text-xs font-normal text-muted-foreground">影响分镜图和视频的生成比例，短视频选 9:16</p>
+                        <p className="text-xs font-normal text-[var(--gm-text-3)]">影响分镜图和视频的生成比例，短视频选 9:16</p>
                     </div>
                 </div>
             </Modal>

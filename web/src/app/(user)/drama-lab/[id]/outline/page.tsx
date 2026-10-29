@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table, Image as AntImage } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { Upload as AntUpload } from "@/components/gamma-ui/gamma-ant-upload";
+import { Image as AntImage } from "@/components/gamma-ui/gamma-ant-image";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Card, Steps } from "@/components/gamma-ui/gamma-ant-display";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X, CheckSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
@@ -15,10 +25,9 @@ import { useEffectiveConfig } from "@/stores/use-config-store";
 import { loadPublicSession, usePublicSessionStore } from "@/stores/use-public-session-store";
 import { buildResourceImageRequest, createGeneratedPrimaryImage, highlightResourceMentions, insertResourceMention, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
 import type { ReferenceImage } from "@/types/image";
-import type { TextAreaRef } from "antd/es/input/TextArea";
+import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";
 
 const { TextArea } = Input;
-const { Option } = Select;
 
 interface Episode {
     id: string;
@@ -700,16 +709,16 @@ export default function ProjectOutlinePage() {
     }
 
     return (
-        <div className="h-full min-h-0 overflow-x-hidden overflow-y-auto bg-background">
+        <div className="h-full min-h-0 overflow-x-hidden overflow-y-auto bg-[var(--gm-bg)]">
             {/* 顶部导航 */}
-            <header className="sticky top-0 z-10 border-b border-border bg-card">
+            <header className="sticky top-0 z-10 border-b border-[var(--gm-border)] bg-[var(--gm-surface)]">
                 <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
                     <div className="flex items-center gap-4">
-                        <Link href="/drama-lab" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                        <Link href="/drama-lab" className="flex items-center gap-2 text-sm text-[var(--gm-text-3)] hover:text-[var(--gm-text)]">
                             <ArrowLeft className="size-4" />
                             返回列表
                         </Link>
-                        <span className="text-muted-foreground">›</span>
+                        <span className="text-[var(--gm-text-3)]">›</span>
                         <h1 className="text-lg font-semibold">{project.title}</h1>
                     </div>
                     <Button type="primary" icon={<Play className="size-4" />} onClick={() => project.episodes[0] && goToCreate(project.episodes[0].id)} disabled={!project.episodes.length}>
@@ -731,31 +740,33 @@ export default function ProjectOutlinePage() {
                                 <button
                                     type="button"
                                     aria-label="选择图片或视频风格"
-                                    className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-2 text-left text-sm shadow-xs transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-[var(--gm-bg)] px-2 text-left text-sm shadow-xs transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                                     onClick={() => setStylePickerOpen(true)}
                                 >
-                                    <span className="grid size-6 shrink-0 overflow-hidden rounded-sm bg-muted">
+                                    <span className="grid size-6 shrink-0 overflow-hidden rounded-sm bg-[var(--gm-wash)]">
                                         {selectedStyleOption?.thumb ? <img src={selectedStyleOption.thumb} alt="" className="size-full object-cover" /> : <span className="size-full bg-gradient-to-br from-violet-300 via-primary/60 to-slate-700" />}
                                     </span>
-                                    <span className={selectedStyle ? "min-w-0 flex-1 truncate text-foreground" : "min-w-0 flex-1 truncate text-muted-foreground"}>{selectedStyleOption?.label || selectedStyle || "选择生成风格"}</span>
-                                    <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" aria-hidden />
+                                    <span className={selectedStyle ? "min-w-0 flex-1 truncate text-[var(--gm-text)]" : "min-w-0 flex-1 truncate text-[var(--gm-text-3)]"}>{selectedStyleOption?.label || selectedStyle || "选择生成风格"}</span>
+                                    <ChevronDown className="ml-auto size-4 shrink-0 text-[var(--gm-text-3)]" aria-hidden />
                                 </button>
                             </Form.Item>
                             <Form.Item label="画面比例" name="aspectRatio">
-                                <Select>
-                                    <Option value="16:9">16:9 横屏（默认）</Option>
-                                    <Option value="9:16">9:16 竖屏（短视频）</Option>
-                                    <Option value="3:4">3:4 竖版</Option>
-                                    <Option value="1:1">1:1 方形</Option>
-                                    <Option value="4:3">4:3 传统横屏</Option>
-                                    <Option value="21:9">21:9 宽银幕</Option>
-                                </Select>
+                                <Select
+                                    options={[
+                                        { value: "16:9", label: "16:9 横屏（默认）" },
+                                        { value: "9:16", label: "9:16 竖屏（短视频）" },
+                                        { value: "3:4", label: "3:4 竖版" },
+                                        { value: "1:1", label: "1:1 方形" },
+                                        { value: "4:3", label: "4:3 传统横屏" },
+                                        { value: "21:9", label: "21:9 宽银幕" },
+                                    ]}
+                                />
                             </Form.Item>
                         </div>
                         <Form.Item label="故事梗概" name="description">
                             <TextArea rows={3} placeholder="一句话描述故事梗概" />
                         </Form.Item>
-                        <p className="-mt-2 text-xs text-muted-foreground">设置会在停止输入后自动保存。</p>
+                        <p className="-mt-2 text-xs text-[var(--gm-text-3)]">设置会在停止输入后自动保存。</p>
                     </Form>
                 </Card>
 
@@ -764,7 +775,7 @@ export default function ProjectOutlinePage() {
                     title={
                         <div className="flex items-center justify-between">
                             <span>
-                                分集列表 <span className="text-sm text-muted-foreground">共 {project.episodes.length} 集</span>
+                                分集列表 <span className="text-sm text-[var(--gm-text-3)]">共 {project.episodes.length} 集</span>
                             </span>
                             <div className="flex items-center gap-2">
                                 <Button icon={<Upload className="size-4" />} onClick={() => setBatchImportOpen(true)}>
@@ -785,7 +796,7 @@ export default function ProjectOutlinePage() {
                     ) : (
                         <div className="grid grid-cols-3 gap-4">
                             {project.episodes.map((ep) => (
-                                <div key={ep.id} className="group cursor-pointer rounded-lg border border-border p-4 transition-all hover:border-primary hover:shadow-md" onClick={() => goToCreate(ep.id)}>
+                                <div key={ep.id} className="group cursor-pointer rounded-lg border border-[var(--gm-border)] p-4 transition-all hover:border-primary hover:shadow-md" onClick={() => goToCreate(ep.id)}>
                                     <div className="mb-2 flex items-center justify-between">
                                         <button
                                             type="button"
@@ -795,9 +806,9 @@ export default function ProjectOutlinePage() {
                                                 toggleEpisodeSelection(ep.id);
                                             }}
                                         >
-                                            <CheckSquare className={selectedEpisodeIds.has(ep.id) ? "size-4 text-primary" : "size-4 text-muted-foreground"} />
+                                            <CheckSquare className={selectedEpisodeIds.has(ep.id) ? "size-4 text-primary" : "size-4 text-[var(--gm-text-3)]"} />
                                         </button>
-                                        <span className="text-sm text-muted-foreground">第 {ep.episodeNumber || ep.number || 0} 集</span>
+                                        <span className="text-sm text-[var(--gm-text-3)]">第 {ep.episodeNumber || ep.number || 0} 集</span>
                                         <Button
                                             type="text"
                                             size="small"
@@ -810,10 +821,10 @@ export default function ProjectOutlinePage() {
                                         />
                                     </div>
                                     <h3 className="mb-2 text-base font-semibold">{ep.title}</h3>
-                                    <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">{ep.script ? ep.script.slice(0, 50) + "..." : "暂无剧本"}</p>
-                                    <div className="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
+                                    <p className="mb-3 line-clamp-2 text-sm text-[var(--gm-text-3)]">{ep.script ? ep.script.slice(0, 50) + "..." : "暂无剧本"}</p>
+                                    <div className="mb-3 flex items-center gap-4 text-xs text-[var(--gm-text-3)]">
                                         <span>{ep.storyboardCount ?? ep.shots?.length ?? 0} 分镜</span>
-                                        <span className="rounded bg-muted px-2 py-0.5">{ep.status === "draft" ? "草稿" : "进行中"}</span>
+                                        <span className="rounded bg-[var(--gm-wash)] px-2 py-0.5">{ep.status === "draft" ? "草稿" : "进行中"}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-primary opacity-0 transition-opacity group-hover:opacity-100">
                                         <Play className="size-4" />
@@ -832,7 +843,7 @@ export default function ProjectOutlinePage() {
                         <div className="flex items-center gap-2">
                             <Input
                                 allowClear
-                                prefix={<Search className="size-4 text-muted-foreground" />}
+                                prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                                 placeholder="搜索本剧资源"
                                 className="w-52"
                                 value={libraryKeyword}
@@ -855,26 +866,26 @@ export default function ProjectOutlinePage() {
                                     {project[kind]
                                         .filter((asset) => !libraryKeyword.trim() || (asset.name || ("location" in asset ? asset.location : "")).includes(libraryKeyword.trim()))
                                         .map((asset) => (
-                                            <div key={asset.id} className="group relative h-72 overflow-hidden rounded-lg border border-border" data-outline-resource-card={asset.id}>
+                                            <div key={asset.id} className="group relative h-72 overflow-hidden rounded-lg border border-[var(--gm-border)]" data-outline-resource-card={asset.id}>
                                                 <button type="button" className="flex h-full w-full flex-col text-left" onClick={() => resourceEditorEnabled && setResourceEditor({ kind, asset: { ...asset } })}>
-                                                    <div className="h-40 w-full shrink-0 bg-muted">
+                                                    <div className="h-40 w-full shrink-0 bg-[var(--gm-wash)]">
                                                         {assetImageUrl(asset) ? (
                                                             <div className="size-full" onClick={(event) => event.stopPropagation()} data-outline-resource-preview>
                                                                 <AntImage src={assetImageUrl(asset)} alt={asset.name || "参考图"} width="100%" height="100%" className="!size-full !object-contain" preview={{ src: assetImageUrl(asset) }} />
                                                             </div>
                                                         ) : (
-                                                            <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
+                                                            <div className="grid size-full place-items-center text-xs text-[var(--gm-text-3)]">暂无参考图</div>
                                                         )}
                                                     </div>
                                                     <div className="overflow-hidden p-3">
                                                         <div className="mb-2 truncate font-semibold">{asset.name || ("location" in asset ? asset.location : "")}</div>
-                                                        <div className="line-clamp-3 text-xs text-muted-foreground">{asset.description || "暂无描述"}</div>
+                                                        <div className="line-clamp-3 text-xs text-[var(--gm-text-3)]">{asset.description || "暂无描述"}</div>
                                                     </div>
                                                 </button>
                                                 <button
                                                     type="button"
                                                     aria-label="删除本剧资源"
-                                                    className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-background opacity-0 group-hover:opacity-100 focus:opacity-100 max-sm:opacity-100"
+                                                    className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-[var(--gm-bg)] opacity-0 group-hover:opacity-100 focus:opacity-100 max-sm:opacity-100"
                                                     onClick={(event) => {
                                                         event.stopPropagation();
                                                         Modal.confirm({
@@ -918,11 +929,11 @@ export default function ProjectOutlinePage() {
                             showUploadList={false}
                             accept=".txt,.md,.markdown,.docx,.doc,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                         >
-                            <p className="ant-upload-drag-icon">
-                                <Upload className="mx-auto size-7 text-muted-foreground" />
+                            <p>
+                                <Upload className="mx-auto size-7 text-[var(--gm-text-3)]" />
                             </p>
-                            <p className="ant-upload-text">点击或拖拽上传 TXT / MD / DOCX / DOC 文件</p>
-                            <p className="ant-upload-hint">支持小说原文或剧本文档，也可以直接在下面粘贴文本。</p>
+                            <p className="mt-2 text-sm font-medium text-[var(--gm-text)]">点击或拖拽上传 TXT / MD / DOCX / DOC 文件</p>
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">支持小说原文或剧本文档，也可以直接在下面粘贴文本。</p>
                         </AntUpload.Dragger>
                         <div className="grid gap-3">
                             <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
@@ -947,7 +958,7 @@ export default function ProjectOutlinePage() {
                                     <Button size="small" onClick={() => setChaptersPerEpisode((value) => Math.max(1, value - 1))}>
                                         −
                                     </Button>
-                                    <span className="grid h-8 w-14 place-items-center border-y border-border text-sm">{chaptersPerEpisode}</span>
+                                    <span className="grid h-8 w-14 place-items-center border-y border-[var(--gm-border)] text-sm">{chaptersPerEpisode}</span>
                                     <Button size="small" onClick={() => setChaptersPerEpisode((value) => Math.min(100, value + 1))}>
                                         ＋
                                     </Button>
@@ -955,7 +966,7 @@ export default function ProjectOutlinePage() {
                             </div>
                         </div>
                         <div
-                            className="rounded-md border border-dashed border-border p-2"
+                            className="rounded-md border border-dashed border-[var(--gm-border)] p-2"
                             onDragOver={(event) => event.preventDefault()}
                             onDrop={(event) => {
                                 event.preventDefault();
@@ -980,7 +991,7 @@ export default function ProjectOutlinePage() {
                                 placeholder={"第1章 雨夜里，主角收到一封神秘来信。\n\n第2章 他沿着线索来到旧车站。"}
                             />
                         </div>
-                        <div className="rounded-md bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
+                        <div className="rounded-md bg-[var(--gm-wash)]/40 p-3 text-xs leading-6 text-[var(--gm-text-3)]">
                             <div>支持 TXT、MD、DOCX、DOC 小说原文或剧本文档，服务器会自动解析编码与 Word 内容。</div>
                             <div>也可以直接粘贴文本，或将文件拖到弹窗、文件区、正文输入框。</div>
                             <div>请输入可匹配章节标题的正则表达式；默认支持“第1章 / 第1集 / 第 一 章”等标题。</div>
@@ -997,7 +1008,7 @@ export default function ProjectOutlinePage() {
                     </div>
                 ) : (
                     <div className="grid gap-4">
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-[var(--gm-text-3)]">
                             共识别 {previewChapters.length} 个章节，预计导入 {previewEpisodes.length} 集
                         </div>
                         <Table
@@ -1025,7 +1036,7 @@ export default function ProjectOutlinePage() {
             <Modal open={stylePickerOpen} title="选择生成风格" width={900} footer={<Button onClick={() => setStylePickerOpen(false)}>完成</Button>} onCancel={() => setStylePickerOpen(false)}>
                 <div className="mb-4 flex items-center gap-3">
                     <Input.Search allowClear placeholder="搜索风格名称" value={styleSearch} onChange={(event: ChangeEvent<HTMLInputElement>) => setStyleSearch(event.target.value)} />
-                    <span className="shrink-0 text-sm text-muted-foreground">已选：{form.getFieldValue("style") || "未选择"}</span>
+                    <span className="shrink-0 text-sm text-[var(--gm-text-3)]">已选：{form.getFieldValue("style") || "未选择"}</span>
                 </div>
                 <div className="max-h-[60vh] space-y-5 overflow-y-auto pr-1">
                     {STYLE_GROUPS.map((group) => {
@@ -1041,14 +1052,14 @@ export default function ProjectOutlinePage() {
                                             <button
                                                 type="button"
                                                 key={option.value}
-                                                className={`overflow-hidden rounded-lg border text-left transition ${selected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/60"}`}
+                                                className={`overflow-hidden rounded-lg border text-left transition ${selected ? "border-primary ring-2 ring-primary/30" : "border-[var(--gm-border)] hover:border-primary/60"}`}
                                                 onClick={() => selectStyle(option.value)}
                                             >
-                                                <div className="aspect-[4/3] bg-muted">
+                                                <div className="aspect-[4/3] bg-[var(--gm-wash)]">
                                                     {option.thumb ? (
                                                         <img src={option.thumb} alt={option.label} className="size-full object-cover" />
                                                     ) : (
-                                                        <div className="grid size-full place-items-center text-xs text-muted-foreground">{option.label.slice(0, 2)}</div>
+                                                        <div className="grid size-full place-items-center text-xs text-[var(--gm-text-3)]">{option.label.slice(0, 2)}</div>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center justify-between p-2 text-sm">
@@ -1107,7 +1118,7 @@ export default function ProjectOutlinePage() {
                             <span className="pt-2">主图</span>
                             <div className="flex min-w-0 gap-2">
                                 <div
-                                    className="group relative flex h-44 min-w-0 flex-1 items-center justify-center overflow-hidden rounded border bg-muted transition-colors hover:border-primary"
+                                    className="group relative flex h-44 min-w-0 flex-1 items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)] transition-colors hover:border-primary"
                                     onDragOver={(event) => {
                                         event.preventDefault();
                                         event.dataTransfer.dropEffect = "copy";
@@ -1178,13 +1189,13 @@ export default function ProjectOutlinePage() {
                                     void uploadResourceReferences(Array.from(event.dataTransfer.files));
                                 }}
                             >
-                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                <div className="mb-2 flex items-center justify-between text-xs text-[var(--gm-text-3)]">
                                     <span>生成图片的参考图</span>
                                     <span>{normalizeResourceGenerationReferences(resourceEditor.asset.references || []).length} / 9</span>
                                 </div>
                                 <div className="flex min-h-24 gap-2 overflow-x-auto pb-1">
                                     {normalizeResourceGenerationReferences(resourceEditor.asset.references || []).map((reference, index) => (
-                                        <div key={reference.id} className="group relative h-24 w-20 shrink-0 overflow-hidden rounded border bg-muted">
+                                        <div key={reference.id} className="group relative h-24 w-20 shrink-0 overflow-hidden rounded border bg-[var(--gm-wash)]">
                                             <button type="button" className="size-full" aria-label={`预览${reference.label}`} onClick={() => setResourcePreview({ url: reference.url || "", title: reference.label })}>
                                                 <img src={reference.url} alt={reference.label} className="size-full object-cover" />
                                                 <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">{reference.label}</span>
@@ -1200,7 +1211,7 @@ export default function ProjectOutlinePage() {
                                         </div>
                                     ))}
                                     {normalizeResourceGenerationReferences(resourceEditor.asset.references || []).length < 9 ? (
-                                        <button type="button" className="grid h-24 w-20 shrink-0 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={() => resourceFileInput.current?.click()}>
+                                        <button type="button" className="grid h-24 w-20 shrink-0 place-items-center rounded border border-dashed text-xs text-[var(--gm-text-3)]" onClick={() => resourceFileInput.current?.click()}>
                                             <span>
                                                 <b className="block text-xl font-normal">＋</b>拖入或添加
                                             </span>
@@ -1227,7 +1238,7 @@ export default function ProjectOutlinePage() {
                                             <div
                                                 ref={resourceMentionMirrorRef}
                                                 aria-hidden
-                                                className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-foreground [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
+                                                className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-[var(--gm-text)] [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
                                                 dangerouslySetInnerHTML={{ __html: highlightResourceMentions(resourceEditor.asset.description || "") }}
                                             />
                                         ) : null}
@@ -1261,7 +1272,7 @@ export default function ProjectOutlinePage() {
                                                     <button
                                                         key={reference.id}
                                                         type="button"
-                                                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                                                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-[var(--gm-wash)]"
                                                         onClick={() => {
                                                             const current = resourceEditor.asset.description || "";
                                                             const inserted = insertResourceMention(current, resourceMentionRangeRef.current.start, resourceMentionRangeRef.current.end, reference.label);
@@ -1297,7 +1308,7 @@ export default function ProjectOutlinePage() {
             <Modal open={Boolean(resourcePreview)} title={resourcePreview?.title || "图片预览"} footer={null} width={760} onCancel={() => setResourcePreview(undefined)}>
                 {resourcePreview ? (
                     <div>
-                        <div className="flex max-h-[65vh] items-center justify-center overflow-hidden rounded border bg-muted">
+                        <div className="flex max-h-[65vh] items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)]">
                             <img src={resourcePreview.url} alt={resourcePreview.title} className="max-h-[65vh] max-w-full object-contain" />
                         </div>
                         {resourcePreview.title.startsWith("历史图") ? (

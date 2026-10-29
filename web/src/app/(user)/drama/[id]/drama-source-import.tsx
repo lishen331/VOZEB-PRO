@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { App, Button, Input, Modal, Pagination } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import { BookOpenText, FileText, Search } from "lucide-react";
 
 import { splitDramaSource, type DramaSourceEpisodeDraft } from "@/lib/drama-source-splitter";
@@ -70,7 +73,7 @@ export function DramaSourceImport({ project, onImported }: { project: DramaProje
 
     return (
         <>
-            <Button className="!h-8 !px-2.5" size="small" icon={<BookOpenText className="size-3.5" />} onClick={() => inputRef.current?.click()}>
+            <Button className="!px-2.5" size="middle" icon={<BookOpenText className="size-3.5" />} onClick={() => inputRef.current?.click()}>
                 导入剧本
             </Button>
             <input ref={inputRef} type="file" accept=".txt,.md,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={(event) => void readSource(event.target.files?.[0])} />
@@ -91,11 +94,11 @@ export function DramaSourceImport({ project, onImported }: { project: DramaProje
                 styles={{ container: { maxWidth: "calc(100vw - 24px)" }, body: { padding: 0 } }}
             >
                 <div className="flex max-h-[min(68vh,640px)] min-h-0 flex-col overflow-hidden">
-                    <div className="shrink-0 border-b border-border px-5 py-3">
-                        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                    <div className="shrink-0 border-b border-[var(--gm-border)] px-5 py-3">
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--gm-text-3)]">
                             <span className="flex min-w-0 items-center gap-1.5" title={fileName}>
                                 <FileText className="size-3.5 shrink-0" />
-                                <span className="max-w-60 truncate text-foreground">{fileName}</span>
+                                <span className="max-w-60 truncate text-[var(--gm-text)]">{fileName}</span>
                             </span>
                             <span>{drafts.length.toLocaleString("zh-CN")} 集</span>
                             <span>{totalCharacters.toLocaleString("zh-CN")} 字</span>
@@ -104,7 +107,7 @@ export function DramaSourceImport({ project, onImported }: { project: DramaProje
                         <Input
                             className="!mt-3 !h-8"
                             allowClear
-                            prefix={<Search className="size-3.5 text-muted-foreground" />}
+                            prefix={<Search className="size-3.5 text-[var(--gm-text-3)]" />}
                             value={query}
                             onChange={(event) => {
                                 setQuery(event.target.value);
@@ -119,21 +122,21 @@ export function DramaSourceImport({ project, onImported }: { project: DramaProje
                             <div className="divide-y divide-border">
                                 {visible.map(({ draft, index }) => (
                                     <div key={`${index}-${draft.title}`} className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2 px-2 py-2.5">
-                                        <span className="text-xs font-medium tabular-nums text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>
+                                        <span className="text-xs font-medium tabular-nums text-[var(--gm-text-3)]">{String(index + 1).padStart(2, "0")}</span>
                                         <span className="min-w-0">
                                             <span className="block truncate text-sm font-medium">{draft.title || `第 ${index + 1} 集`}</span>
-                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{draft.sourceRange || "按正文长度自动划分"}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-[var(--gm-text-3)]">{draft.sourceRange || "按正文长度自动划分"}</span>
                                         </span>
-                                        <span className="text-xs tabular-nums text-muted-foreground">{draft.script.length.toLocaleString("zh-CN")} 字</span>
+                                        <span className="text-xs tabular-nums text-[var(--gm-text-3)]">{draft.script.length.toLocaleString("zh-CN")} 字</span>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="grid min-h-40 place-items-center text-sm text-muted-foreground">没有匹配的分集</div>
+                            <div className="grid min-h-40 place-items-center text-sm text-[var(--gm-text-3)]">没有匹配的分集</div>
                         )}
                     </div>
                     {filtered.length > IMPORT_PAGE_SIZE ? (
-                        <div className="flex shrink-0 justify-end border-t border-border px-4 py-2.5">
+                        <div className="flex shrink-0 justify-end border-t border-[var(--gm-border)] px-4 py-2.5">
                             <Pagination size="small" current={page} pageSize={IMPORT_PAGE_SIZE} total={filtered.length} showSizeChanger={false} showLessItems onChange={setPage} />
                         </div>
                     ) : null}

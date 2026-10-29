@@ -1,6 +1,9 @@
 "use client";
 
-import { Button, Checkbox, Dropdown, Input, Modal } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Dropdown } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 import { Check, CheckSquare2, Clock3, MessagesSquare, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -69,28 +72,28 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-white dark:bg-[#181b20]">
-            <div className="shrink-0 border-b border-[#e6eaee] px-3 py-3 dark:border-[#2b3037]">
+        <div className="flex h-full min-h-0 flex-col bg-white dark:bg-[#111724]">
+            <div className="shrink-0 border-b border-[#e7eaef] px-3 py-3 dark:border-[#282f3e]">
                 <button
                     type="button"
-                    className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#20242a] !bg-[#20242a] px-3 text-sm font-medium !text-white transition hover:border-[#343a42] hover:!bg-[#343a42] dark:border-[#f3f5f7] dark:!bg-[#f3f5f7] dark:!text-[#20242a] dark:hover:border-white dark:hover:!bg-white"
+                    className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#1b212f] !bg-[#1b212f] px-3 text-sm font-medium !text-white transition hover:border-[#323948] hover:!bg-[#323948] dark:border-[#f2f5fa] dark:!bg-[#f2f5fa] dark:!text-[#1b212f] dark:hover:border-white dark:hover:!bg-white"
                     onClick={onNew}
                 >
                     <Plus className="size-4 text-current" /> 新建对话
                 </button>
             </div>
 
-            <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-[#edf0f2] px-3 dark:border-[#252a30]">
+            <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-[#edf0f5] px-3 dark:border-[#212836]">
                 {managing ? (
                     <Checkbox checked={allSelected} indeterminate={selectedIds.length > 0 && !allSelected} onChange={(event) => setSelectedIds(event.target.checked ? items.map((item) => item.id) : [])}>
                         全选
                     </Checkbox>
                 ) : (
-                    <span className="text-xs text-[#8b949f] dark:text-[#7f8996]">{items.length} 条对话</span>
+                    <span className="text-xs text-[#8993a9] dark:text-[#7e889d]">{items.length} 条对话</span>
                 )}
                 <button
                     type="button"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-[#697381] transition hover:bg-[#f1f3f5] hover:text-[#20242a] dark:text-[#a7afb9] dark:hover:bg-[#252a31] dark:hover:text-white"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-[#687287] transition hover:bg-[#f0f3f8] hover:text-[#1b212f] dark:text-[#a8aebb] dark:hover:bg-[#212836] dark:hover:text-white"
                     onClick={() => (managing ? leaveManage() : setManaging(true))}
                 >
                     {managing ? <X className="size-3.5" /> : <CheckSquare2 className="size-3.5" />}
@@ -109,12 +112,12 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                 key={item.id}
                                 className={cn(
                                     "group flex min-h-13 items-center gap-1 rounded-lg border px-1 transition",
-                                    activeId === item.id ? "border-[#d5dbe1] bg-[#f0f2f4] dark:border-[#3b424c] dark:bg-[#252a31]" : "border-transparent hover:border-[#e4e8ec] hover:bg-[#f7f8fa] dark:hover:border-[#30363e] dark:hover:bg-[#20242a]",
+                                    activeId === item.id ? "border-[#d4dae8] bg-[#eff2f7] dark:border-[#394154] dark:bg-[#212836]" : "border-transparent hover:border-[#e5e8ed] hover:bg-[#f5f8fe] dark:hover:border-[#2e3544] dark:hover:bg-[#1b212f]",
                                 )}
                             >
                                 {renaming?.id === item.id ? (
                                     <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2">
-                                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#eef1f4] text-[#68717c] dark:bg-[#2a3037] dark:text-[#b1b8c2]">
+                                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#eef1f6] text-[#667085] dark:bg-[#282f3d] dark:text-[#b1b8c5]">
                                             <MessagesSquare className="size-4" />
                                         </span>
                                         <Input
@@ -131,7 +134,7 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                         />
                                         <button
                                             type="button"
-                                            className="grid size-8 shrink-0 place-items-center rounded-md text-[#56616d] transition hover:bg-[#e8ecef] hover:text-[#20242a] dark:text-[#b8c0ca] dark:hover:bg-[#303740] dark:hover:text-white"
+                                            className="grid size-8 shrink-0 place-items-center rounded-md text-[#566074] transition hover:bg-[#e9ebf1] hover:text-[#1b212f] dark:text-[#b9bfcd] dark:hover:bg-[#2f3645] dark:hover:text-white"
                                             aria-label="保存标题"
                                             title="保存标题"
                                             onClick={() => void saveTitle()}
@@ -140,7 +143,7 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                         </button>
                                         <button
                                             type="button"
-                                            className="grid size-8 shrink-0 place-items-center rounded-md text-[#8b949f] transition hover:bg-[#e8ecef] hover:text-[#20242a] dark:text-[#8f99a6] dark:hover:bg-[#303740] dark:hover:text-white"
+                                            className="grid size-8 shrink-0 place-items-center rounded-md text-[#8993a9] transition hover:bg-[#e9ebf1] hover:text-[#1b212f] dark:text-[#8e98ae] dark:hover:bg-[#2f3645] dark:hover:text-white"
                                             aria-label="取消修改"
                                             title="取消修改"
                                             onClick={() => setRenaming(undefined)}
@@ -158,7 +161,7 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                             className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2 text-left"
                                             onClick={() => (managing ? setSelectedIds((current) => (checked ? current.filter((id) => id !== item.id) : [...current, item.id])) : onOpen(item.id))}
                                         >
-                                            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#eef1f4] text-[#68717c] dark:bg-[#2a3037] dark:text-[#b1b8c2]">
+                                            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#eef1f6] text-[#667085] dark:bg-[#282f3d] dark:text-[#b1b8c5]">
                                                 <MessagesSquare className="size-4" />
                                             </span>
                                             <span className="min-w-0 flex-1">
@@ -207,8 +210,8 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
             </div>
 
             {managing ? (
-                <div className="flex shrink-0 items-center gap-3 border-t border-[#e6eaee] bg-white px-4 py-3 dark:border-[#2b3037] dark:bg-[#181b20]">
-                    <span className="min-w-0 flex-1 text-xs text-[#8b949f] dark:text-[#7f8996]">已选择 {selectedIds.length} 条</span>
+                <div className="flex shrink-0 items-center gap-3 border-t border-[#e7eaef] bg-white px-4 py-3 dark:border-[#282f3e] dark:bg-[#111724]">
+                    <span className="min-w-0 flex-1 text-xs text-[#8993a9] dark:text-[#7e889d]">已选择 {selectedIds.length} 条</span>
                     <Button danger icon={<Trash2 className="size-3.5" />} disabled={!selectedIds.length} loading={submitting} onClick={() => setDeleteIds(selectedIds)}>
                         批量删除
                     </Button>
@@ -229,7 +232,7 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                 }
                 onCancel={() => setDeleteIds([])}
             >
-                <p className="text-sm text-[#697381] dark:text-[#a7afb9]">将永久删除消息、生成记录和仅由这些对话使用的媒体；仍被素材库、画布、短剧或作品引用的媒体会保留。</p>
+                <p className="text-sm text-[#687287] dark:text-[#a8aebb]">将永久删除消息、生成记录和仅由这些对话使用的媒体；仍被素材库、画布、短剧或作品引用的媒体会保留。</p>
             </Modal>
         </div>
     );

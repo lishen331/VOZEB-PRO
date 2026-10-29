@@ -1,6 +1,12 @@
 "use client";
 
-import { Alert, Button, Modal, Popconfirm, Select, Spin, Switch, Tag, Tooltip, Progress, message, Input } from "antd";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Progress } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Spin, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -470,7 +476,7 @@ export default function OneClickFilmProject() {
     const canvasHref = episodeId ? `/one-click-film/${encodeURIComponent(projectId)}/canvas?episode=${encodeURIComponent(episodeId)}` : undefined;
     return (
         // L 布局：左侧固定侧栏（.quick-nav 180px）+ 右侧可滚动主区（.main）
-        <div className="flex h-full bg-background text-foreground">
+        <div className="flex h-full bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <OneClickFilmNavSidebar
                 project={project}
                 episode={selectedEpisode}
@@ -483,13 +489,13 @@ export default function OneClickFilmProject() {
             />
             <main className="h-full min-w-0 flex-1 overflow-y-auto">
                 <div className="mx-auto w-full px-4 py-5 sm:px-6 sm:py-8">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gm-border)] pb-5">
                         <div>
-                            <Link href="/one-click-film" className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                            <Link href="/one-click-film" className="inline-flex items-center gap-1 text-sm text-[var(--gm-text-3)]">
                                 <ArrowLeft className="size-4" />
                                 返回项目列表
                             </Link>
-                            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="mt-3 flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
                                 <Film className="size-4" />
                                 一键成片 · 独立工作区
                             </div>
@@ -524,21 +530,18 @@ export default function OneClickFilmProject() {
                     </div>
                     <Modal open={libraryOpen} title="从剧本库导入" onCancel={() => setLibraryOpen(false)} onOk={applyLibraryScript} okText="填入本集" cancelText="取消" destroyOnHidden>
                         <Spin spinning={libraryLoading}>
-                            <p className="mb-2 text-sm text-muted-foreground">选择本人其他一键成片项目的分集剧本；填入后仍需点「保存本集剧本」才会写库。</p>
+                            <p className="mb-2 text-sm text-[var(--gm-text-3)]">选择本人其他一键成片项目的分集剧本；填入后仍需点「保存本集剧本」才会写库。</p>
                             <Select
                                 style={{ width: "100%" }}
                                 placeholder={libraryProjects.length ? "选择项目与集数" : "暂无可导入的剧本"}
                                 value={librarySelection}
                                 onChange={setLibrarySelection}
                                 aria-label="选择剧本库剧本"
-                                options={libraryProjects.map((item) => ({
-                                    label: item.title,
-                                    options: item.episodes.map((episode) => ({ value: `${item.id}::${episode.id}`, label: `${episode.title}（${episode.script.length} 字）` })),
-                                }))}
+                                options={libraryProjects.flatMap((item) => item.episodes.map((episode) => ({ value: `${item.id}::${episode.id}`, label: `${item.title} · ${episode.title}（${episode.script.length} 字）` })))}
                             />
                         </Spin>
                     </Modal>
-                    <section id="anchor-script" className="mt-6 rounded-lg border border-border bg-card p-5">
+                    <section id="anchor-script" className="mt-6 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
                         <div className="flex items-center justify-between">
                             <h2 className="font-semibold">本集剧本</h2>
                             <div className="flex items-center gap-2">
@@ -561,9 +564,9 @@ export default function OneClickFilmProject() {
                                 </label>
                             </div>
                         </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm">
                             <label className="flex items-center gap-1.5">
-                                <span className="text-muted-foreground">故事风格</span>
+                                <span className="text-[var(--gm-text-3)]">故事风格</span>
                                 <Select
                                     size="small"
                                     style={{ minWidth: 120 }}
@@ -576,7 +579,7 @@ export default function OneClickFilmProject() {
                                 />
                             </label>
                             <label className="flex items-center gap-1.5">
-                                <span className="text-muted-foreground">剧本类型</span>
+                                <span className="text-[var(--gm-text-3)]">剧本类型</span>
                                 <Select
                                     size="small"
                                     style={{ minWidth: 120 }}
@@ -588,7 +591,7 @@ export default function OneClickFilmProject() {
                                     options={DRAMA_LAB_SCRIPT_TYPE_PRESETS.map((item) => ({ value: item.value, label: item.label }))}
                                 />
                             </label>
-                            <span className="text-xs text-muted-foreground">风格与类型会写进生成剧本的模型上下文；留空则不约束</span>
+                            <span className="text-xs text-[var(--gm-text-3)]">风格与类型会写进生成剧本的模型上下文；留空则不约束</span>
                         </div>
                         <div className="mt-3 grid gap-3">
                             <label className="grid gap-1 text-sm">
@@ -630,7 +633,7 @@ export default function OneClickFilmProject() {
                         </div>
                     </section>
                     {/* L §2: 一键全流程 —— L 里是独立 section，不塞在别的卡内 */}
-                    <section className="mt-6 rounded-lg border border-border bg-card p-5">
+                    <section className="mt-6 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
                         <div className="flex flex-wrap items-center gap-2.5">
                             <b>一键全流程</b>
                             <Tag>{project.ratio}</Tag>
@@ -667,10 +670,10 @@ export default function OneClickFilmProject() {
                             ) : null}
                         </div>
                         {task ? (
-                            <div className="mt-4 rounded-lg border border-border bg-muted/30 p-4">
+                            <div className="mt-4 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-4">
                                 <div className="flex items-center justify-between gap-2">
                                     <b>生产任务：{task.status}</b>
-                                    <span className="text-sm text-muted-foreground">{task.currentStep || "等待启动"}</span>
+                                    <span className="text-sm text-[var(--gm-text-3)]">{task.currentStep || "等待启动"}</span>
                                 </div>
                                 <Progress percent={task.progress} status={task.status === "error" ? "exception" : task.status === "success" ? "success" : "active"} />
                                 <ol className="mt-3 grid gap-2 text-sm">
@@ -701,11 +704,11 @@ export default function OneClickFilmProject() {
                     <OneClickFilmAssetPanel projectId={projectId} project={project} onProjectChange={setProject} kind={assetKind} onKindChange={setAssetKind} />
 
                     {/* L §4: 分镜生成 */}
-                    <section id="anchor-storyboard" className="mt-6 rounded-lg border border-border bg-card p-5">
+                    <section id="anchor-storyboard" className="mt-6 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <h2 className="m-0 flex flex-wrap items-center gap-2.5 text-base font-semibold">
                                 <span>分镜生成</span>
-                                <span className="text-xs font-normal text-muted-foreground">根据剧本、角色、场景自动生成分镜头脚本</span>
+                                <span className="text-xs font-normal text-[var(--gm-text-3)]">根据剧本、角色、场景自动生成分镜头脚本</span>
                             </h2>
                             {/* 对应 L 的「导出分镜表excel」与「导出解说 SRT」，L 也是放在本 section 顶部 */}
                             {selectedEpisode?.shots.length ? (
@@ -722,16 +725,16 @@ export default function OneClickFilmProject() {
                         {selectedEpisode ? (
                             <OneClickFilmShotCards key={episodeId} projectId={projectId} project={project} episode={selectedEpisode} onProjectChange={setProject} />
                         ) : (
-                            <p className="mt-3 text-sm text-muted-foreground">当前项目还没有分集，请先添加分集。</p>
+                            <p className="mt-3 text-sm text-[var(--gm-text-3)]">当前项目还没有分集，请先添加分集。</p>
                         )}
                     </section>
 
                     {/* L §6: 合成视频 */}
-                    <section id="anchor-video" className="mt-6 rounded-lg border border-border bg-card p-5">
+                    <section id="anchor-video" className="mt-6 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
                         <h2 className="m-0 text-base font-semibold">合成视频</h2>
-                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm">
                             <label className="flex items-center gap-1.5">
-                                <span className="text-muted-foreground">输出分辨率</span>
+                                <span className="text-[var(--gm-text-3)]">输出分辨率</span>
                                 <Select
                                     size="small"
                                     style={{ minWidth: 118 }}
@@ -754,10 +757,10 @@ export default function OneClickFilmProject() {
                                 </label>
                             </Tooltip>
                             <label className="flex items-center gap-1.5">
-                                <span className="text-muted-foreground">水印文字</span>
+                                <span className="text-[var(--gm-text-3)]">水印文字</span>
                                 <Input size="small" style={{ width: 160 }} maxLength={60} value={renderWatermark} placeholder="留空不打水印" aria-label="水印文字" onChange={(event) => setRenderWatermark(event.target.value)} />
                             </label>
-                            <span className="text-xs text-muted-foreground">保持源尺寸且不烧字幕、无水印时直接拼流不转码，速度最快、无画质损失</span>
+                            <span className="text-xs text-[var(--gm-text-3)]">保持源尺寸且不烧字幕、无水印时直接拼流不转码，速度最快、无画质损失</span>
                         </div>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                             {episodeId ? (
@@ -788,7 +791,7 @@ export default function OneClickFilmProject() {
                                     </Button>
                                 </Popconfirm>
                             ) : null}
-                            {!episodeId ? <p className="m-0 text-sm text-muted-foreground">当前项目还没有分集，请先添加分集。</p> : null}
+                            {!episodeId ? <p className="m-0 text-sm text-[var(--gm-text-3)]">当前项目还没有分集，请先添加分集。</p> : null}
                         </div>
                         {renderTask ? (
                             <div className="mt-4 grid gap-3">
@@ -797,9 +800,9 @@ export default function OneClickFilmProject() {
                                 {renderTask.status === "error" ? <Alert type="error" showIcon message={renderTask.error || "成片合成失败"} /> : null}
                                 {renderTask.result?.url ? (
                                     <div>
-                                        <p className="mb-1 text-sm text-muted-foreground">本集合成视频预览</p>
+                                        <p className="mb-1 text-sm text-[var(--gm-text-3)]">本集合成视频预览</p>
                                         {/* 结果由服务端持久化，这里只播放，不在前端合成 */}
-                                        <video controls preload="metadata" src={renderTask.result.url} className="max-w-[520px] rounded-lg border border-border" aria-label="本集合成视频预览" />
+                                        <video controls preload="metadata" src={renderTask.result.url} className="max-w-[520px] rounded-lg border border-[var(--gm-border)]" aria-label="本集合成视频预览" />
                                     </div>
                                 ) : null}
                             </div>

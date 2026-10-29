@@ -1,6 +1,8 @@
 "use client";
 
-import { App, Empty, Input, Pagination, Segmented, Spin } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Empty, Pagination, Segmented, Spin } from "@/components/gamma-ui/gamma-ant";
 import { BookOpen, Search } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useState } from "react";
@@ -55,12 +57,12 @@ export default function IpLibraryPage() {
     }, [deferredKeyword, message, page, scope]);
 
     return (
-        <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground" data-ip-library-page>
+        <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]" data-ip-library-page>
             <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
-                <header className="flex min-w-0 flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
+                <header className="flex min-w-0 flex-col gap-4 border-b border-[var(--gm-border)] pb-4 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
                     <div className="min-w-0">
                         <h1 className="mt-1.5 text-2xl font-semibold tracking-normal sm:text-3xl">IP库</h1>
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">查看可用的 IP 内容，用于教学、练习和创作。</p>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--gm-text-3)]">查看可用的 IP 内容，用于教学、练习和创作。</p>
                     </div>
                     <Segmented<IpLibraryScope>
                         value={scope}
@@ -73,11 +75,11 @@ export default function IpLibraryPage() {
                 </header>
 
                 <div className="mt-4 flex min-w-0 items-center justify-end gap-3 sm:mt-6">
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">共 {total} 项</span>
+                    <span className="shrink-0 text-xs tabular-nums text-[var(--gm-text-3)]">共 {total} 项</span>
                     <Input
                         allowClear
                         value={keyword}
-                        prefix={<Search className="size-4 text-muted-foreground" />}
+                        prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                         placeholder="搜索 IP 名称或简介"
                         className="w-full sm:max-w-md"
                         onChange={(event) => {
@@ -109,18 +111,22 @@ export default function IpLibraryPage() {
 
 function IpLibraryCard({ item }: { item: IpSummary }) {
     return (
-        <Link href={`/ip-library/${encodeURIComponent(item.id)}`} className="group min-w-0 overflow-hidden border border-border bg-card text-foreground transition hover:border-foreground/30 hover:shadow-sm" data-ip-library-card={item.id}>
-            <div className="aspect-[4/3] overflow-hidden bg-muted/50">
+        <Link
+            href={`/ip-library/${encodeURIComponent(item.id)}`}
+            className="group min-w-0 overflow-hidden border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text)] transition hover:border-foreground/30 hover:shadow-sm"
+            data-ip-library-card={item.id}
+        >
+            <div className="aspect-[4/3] overflow-hidden bg-[var(--gm-wash)]/50">
                 {item.coverPreviewUrl ? (
                     <img src={item.coverPreviewUrl} alt={item.title} loading="lazy" className="size-full object-cover transition duration-300 group-hover:scale-[1.02]" />
                 ) : (
-                    <BookOpen className="m-auto size-8 h-full text-muted-foreground/50" />
+                    <BookOpen className="m-auto size-8 h-full text-[var(--gm-text-3)]/50" />
                 )}
             </div>
             <div className="min-w-0 p-3">
                 <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5">{item.title}</h2>
-                <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.summary || "暂无简介"}</p>
-                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{item.summary || "暂无简介"}</p>
+                <div className="mt-3 flex items-center justify-between text-xs text-[var(--gm-text-3)]">
                     <span>{item.subIpCount > 1 ? `${item.subIpCount} 个子 IP` : "IP 内容"}</span>
                     <span>{item.accessibleSubIpCount && item.accessibleSubIpCount !== item.subIpCount ? `已授权 ${item.accessibleSubIpCount} 个` : "查看详情"}</span>
                 </div>

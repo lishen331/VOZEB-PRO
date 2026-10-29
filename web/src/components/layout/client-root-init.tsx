@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { App } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { usePathname } from "next/navigation";
 
 import { SiteAnnouncementPopup } from "@/components/layout/site-announcement-popup";

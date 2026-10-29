@@ -1,0 +1,492 @@
+/*
+ * 布鲁伽马 BlueGamma 视觉 Token。
+ * 品牌色取自 Logo：Gamma Blue #0050F5（圆底）+ Gamma Cyan #28EBFA（γ 笔画）。
+ * 挂在 .gm（预览页容器）和 html.gm-app（全站换肤，画布编辑器不挂）两个作用域；
+ * 全站的深浅由 html.dark 决定：没有 .dark 时取浅色 token。
+ */
+.gm,
+html.gm-app {
+    --gm-bg: #04060c;
+    --gm-bg-elevated: #080c16;
+    --gm-surface: #0d121e;
+    --gm-surface-2: #131a29;
+    --gm-surface-3: #1b2335;
+    --gm-surface-light: #eef4ff;
+
+    --gm-border: rgba(140, 175, 255, 0.08);
+    --gm-border-strong: rgba(140, 175, 255, 0.16);
+
+    --gm-text: #f1f5ff;
+    --gm-text-2: #9ba8c4;
+    /* 次要文字：在 bg / elevated / surface / 卡片上都 ≥ 4.5:1（WCAG AA 正文），原 #64718f 只有 3.5 */
+    --gm-text-3: #7985a1;
+    --gm-text-on-cyan: #021627;
+
+    --gm-blue: #0050f5;
+    --gm-blue-hover: #1663ff;
+    --gm-blue-text: #6a9dff;
+    --gm-cyan: #28ebfa;
+    --gm-cyan-hover: #5ef1fc;
+    --gm-blue-soft: rgba(0, 80, 245, 0.18);
+    --gm-cyan-soft: rgba(40, 235, 250, 0.12);
+    --gm-gradient: linear-gradient(110deg, #0050f5 0%, #1a7dff 52%, #28ebfa 100%);
+    --gm-gradient-soft: linear-gradient(135deg, rgba(0, 80, 245, 0.32), rgba(40, 235, 250, 0.08));
+
+    --gm-success: #23d18b;
+    --gm-warning: #ffb547;
+    --gm-danger: #ff4d6d;
+    /* 点赞（已赞）专用色，不与 danger 混用 */
+    --gm-like: #ff6b8a;
+
+    --gm-radius-sm: 8px;
+    --gm-radius: 12px;
+    --gm-radius-lg: 16px;
+    --gm-radius-xl: 22px;
+
+    --gm-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    --gm-glow-blue: 0 8px 26px rgba(0, 80, 245, 0.45);
+    --gm-glow-cyan: 0 0 24px rgba(40, 235, 250, 0.45);
+    --gm-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+    /* 主题无关写法：叠加层（hover 底、分隔）在深色下是白、浅色下是蓝灰 */
+    --gm-wash: rgba(255, 255, 255, 0.04);
+    --gm-wash-strong: rgba(255, 255, 255, 0.08);
+    --gm-wash-heavy: rgba(255, 255, 255, 0.12);
+    /* 强调前景：选中图标、进度文字、链接。深色用青，浅色用蓝（青在白底对比度不足） */
+    --gm-accent: var(--gm-cyan);
+    --gm-accent-soft: var(--gm-cyan-soft);
+    --gm-accent-ring: rgba(40, 235, 250, 0.3);
+    --gm-scrim: rgba(2, 4, 10, 0.72);
+    --gm-aurora-opacity: 0.16;
+    --gm-banner-glow: rgba(0, 80, 245, 0.55);
+    /* 反色卡片（深色主题里的白卡 / 浅色主题里的墨蓝卡） */
+    --gm-inverse-text: #0b1530;
+    --gm-inverse-text-2: #4a5675;
+    /* 图标镂空填充默认取导航栏底色，展示格里可覆盖 */
+    --gm-icon-bg: var(--gm-bg-elevated);
+
+    --gm-font-sans: "MiSans VF", "Inter Variable", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --gm-font-display: var(--gm-font-sans);
+    --gm-font-mono: "Geist Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* 预览页容器自带底色与字体；全站换肤（html.gm-app）只取变量，不改 html 的底色和字体 */
+.gm {
+    background: var(--gm-bg);
+    color: var(--gm-text);
+    color-scheme: dark;
+    font-family: var(--gm-font-sans);
+}
+
+/*
+ * 浅色主题：云白底 + 墨蓝字。品牌蓝不变；青色只用于实色块（徽标、进度条），
+ * 文字/图标类强调改用品牌蓝，保证 4.5:1 对比度。
+ */
+.gm.gm-light,
+html.gm-app:not(.dark) {
+    --gm-bg: #f3f6fb;
+    --gm-bg-elevated: #ffffff;
+    /* 卡片面比页面底更亮一级且带描边，避免大块卡片在浅色下边界发虚 */
+    --gm-surface: #ffffff;
+    --gm-surface-2: #eef2f9;
+    --gm-surface-3: #e3eaf5;
+    --gm-surface-light: #0b1530;
+
+    --gm-border: rgba(16, 38, 84, 0.12);
+    --gm-border-strong: rgba(16, 38, 84, 0.22);
+
+    --gm-text: #0b1530;
+    --gm-text-2: #46526e;
+    /* 浅色下的次要文字与状态色：在白底 / 页面底 / 洗色块上都 ≥ 4.5:1 */
+    --gm-text-3: #606b82;
+
+    --gm-blue-text: #0047d9;
+    --gm-blue-soft: rgba(0, 80, 245, 0.08);
+    --gm-cyan-soft: rgba(0, 166, 194, 0.12);
+
+    --gm-success: #0c7a4c;
+    --gm-warning: #925700;
+    --gm-danger: #d1193b;
+    --gm-like: #c2194f;
+
+    --gm-shadow: 0 12px 32px rgba(16, 38, 84, 0.12);
+    --gm-glow-blue: 0 8px 22px rgba(0, 80, 245, 0.28);
+    --gm-glow-cyan: 0 0 18px rgba(40, 235, 250, 0.4);
+
+    --gm-wash: rgba(16, 38, 84, 0.04);
+    --gm-wash-strong: rgba(16, 38, 84, 0.07);
+    --gm-wash-heavy: rgba(16, 38, 84, 0.1);
+    --gm-accent: #0050f5;
+    --gm-accent-soft: rgba(0, 80, 245, 0.08);
+    --gm-accent-ring: rgba(0, 80, 245, 0.28);
+    --gm-scrim: rgba(11, 21, 48, 0.42);
+    --gm-aurora-opacity: 0.1;
+    --gm-banner-glow: rgba(0, 80, 245, 0.12);
+    --gm-inverse-text: #f1f5ff;
+    --gm-inverse-text-2: #9ba8c4;
+
+    color-scheme: light;
+}
+
+.gm.gm-light .gm-gradient-text {
+    background-image: linear-gradient(100deg, #0050f5 0%, #0096c7 100%);
+}
+
+/* 字体：标题走展示字体，等宽走 Geist Mono；未分层，压过 Tailwind 的 font-mono */
+.gm :is(h1, h2, h3) {
+    font-family: var(--gm-font-display);
+}
+.gm .font-mono {
+    font-family: var(--gm-font-mono);
+}
+
+/*
+ * 永远压在深色图片上的区域（轮播、作品封面）：不论主题，内部控件都按深色 token 渲染，
+ * 否则浅色主题下玻璃按钮会变成"白底深字压在深图上"，几乎看不见。
+ */
+.gm .gm-on-dark {
+    --gm-text: #f1f5ff;
+    --gm-text-2: #c3cde3;
+    --gm-wash: rgba(255, 255, 255, 0.08);
+    --gm-wash-strong: rgba(255, 255, 255, 0.14);
+    --gm-wash-heavy: rgba(255, 255, 255, 0.2);
+    --gm-border-strong: rgba(255, 255, 255, 0.24);
+    --gm-accent: #28ebfa;
+    --gm-accent-soft: rgba(40, 235, 250, 0.16);
+}
+
+/* 主题切换时颜色平滑过渡（只作用于颜色类属性，不影响动效） */
+.gm.gm-theme-transition,
+.gm.gm-theme-transition * {
+    transition:
+        background-color 0.35s var(--gm-ease),
+        border-color 0.35s var(--gm-ease),
+        color 0.35s var(--gm-ease),
+        fill 0.35s var(--gm-ease),
+        box-shadow 0.35s var(--gm-ease) !important;
+}
+
+/*
+ * antd/dist/reset.css 未分层，会压过 @layer utilities 里的 Tailwind 类（按钮文字色、overflow 失效）。
+ * 用 revert-layer 把这些属性交还给分层样式；本规则必须保持未分层。
+ */
+.gm :is(a, button, input, textarea, select) {
+    color: revert-layer;
+    overflow: revert-layer;
+    margin: revert-layer;
+    font-size: revert-layer;
+    line-height: revert-layer;
+}
+
+.gm ::selection {
+    background: rgba(40, 235, 250, 0.3);
+}
+
+.gm-gradient-text {
+    background: linear-gradient(100deg, #4d8bff 0%, #28ebfa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* 渐变描边（选中卡片、聚焦输入框） */
+.gm-gradient-ring {
+    position: relative;
+    isolation: isolate;
+}
+.gm-gradient-ring::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: var(--gm-gradient);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+/*
+ * 渐变主按钮必须铺到 border-box。
+ * 按钮保留 1px 透明边框（占位，使各变体尺寸一致）。background-origin 默认 padding-box，
+ * 渐变贴片按内边距区生成，而 background-clip 是 border-box、background-repeat 是 repeat，
+ * 于是那圈 1px 边框会被渐变平铺绕接：左缘多一条贴片尾色（青），右缘多一条贴片头色（蓝）。
+ * 渲染起点改到 border-box，贴片覆盖整块边框盒，没有多余区域可平铺。
+ */
+.gm-btn-primary {
+    background-origin: border-box;
+}
+
+/* 按钮扫光 */
+@keyframes gm-shine {
+    0%,
+    55% {
+        transform: translateX(-120%) skewX(-20deg);
+    }
+    100% {
+        transform: translateX(260%) skewX(-20deg);
+    }
+}
+.gm-shine {
+    position: relative;
+    overflow: hidden;
+}
+.gm-shine::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    animation: gm-shine 2.8s var(--gm-ease) infinite;
+    pointer-events: none;
+}
+
+/* 加载骨架流光 */
+@keyframes gm-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
+}
+.gm-shimmer {
+    background-image: linear-gradient(100deg, transparent 25%, var(--gm-wash-heavy) 50%, transparent 75%);
+    background-size: 200% 100%;
+    animation: gm-shimmer 1.6s linear infinite;
+}
+
+/* 进度条流动 */
+@keyframes gm-flow {
+    to {
+        background-position: 200% 50%;
+    }
+}
+.gm-flow {
+    background: linear-gradient(90deg, #0050f5, #28ebfa, #0050f5);
+    background-size: 200% 100%;
+    animation: gm-flow 2.4s linear infinite;
+}
+
+/* 背景极光缓动 */
+@keyframes gm-aurora {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+        transform: translate3d(4%, -6%, 0) scale(1.12);
+    }
+}
+.gm-aurora {
+    animation: gm-aurora 12s ease-in-out infinite;
+}
+
+/* 公告条跑马灯 */
+@keyframes gm-marquee {
+    to {
+        transform: translateX(-50%);
+    }
+}
+.gm-marquee {
+    animation: gm-marquee 30s linear infinite;
+}
+
+/* 轮播指示条填充 */
+@keyframes gm-fill {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+.gm-fill {
+    transform-origin: left;
+    animation: gm-fill var(--gm-fill-duration, 5s) linear forwards;
+}
+
+/* 滑块 */
+.gm-range {
+    appearance: none;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--gm-accent) 0 var(--gm-range-fill, 50%), var(--gm-surface-3) var(--gm-range-fill, 50%) 100%);
+    outline: none;
+    cursor: pointer;
+}
+.gm-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow:
+        0 0 0 4px var(--gm-accent-ring),
+        0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: box-shadow 0.2s;
+}
+.gm-range:hover::-webkit-slider-thumb,
+.gm-range:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+        0 0 0 7px var(--gm-accent-ring),
+        0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.gm-range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 4px var(--gm-accent-ring);
+}
+
+/* ===== 液态玻璃 =====
+ * 四层叠出"厚玻璃"：模糊+饱和的底、顶部高光、边缘折射描边、底部暗边。
+ * 不支持 backdrop-filter 时自动降级为半透明底色（少了背后内容的模糊，布局不受影响）。
+ */
+.gm,
+html.gm-app {
+    --gm-glass-bg: rgba(255, 255, 255, 0.06);
+    --gm-glass-bg-strong: rgba(255, 255, 255, 0.1);
+    --gm-glass-edge: rgba(255, 255, 255, 0.18);
+    --gm-glass-sheen: rgba(255, 255, 255, 0.5);
+    --gm-glass-inner: rgba(255, 255, 255, 0.12);
+    --gm-glass-shade: rgba(2, 6, 20, 0.45);
+    --gm-glass-blur: 22px;
+}
+.gm.gm-light,
+html.gm-app:not(.dark) {
+    --gm-glass-bg: rgba(255, 255, 255, 0.55);
+    --gm-glass-bg-strong: rgba(255, 255, 255, 0.72);
+    --gm-glass-edge: rgba(255, 255, 255, 0.9);
+    --gm-glass-sheen: rgba(255, 255, 255, 0.95);
+    --gm-glass-inner: rgba(255, 255, 255, 0.7);
+    --gm-glass-shade: rgba(16, 38, 84, 0.12);
+}
+
+/*
+ * 定位放进 components 层：未分层的 position 会压过 Tailwind 的 absolute/fixed（utilities 层），
+ * 让绝对定位的玻璃按钮掉回文档流。放进 components 层后，元素上写 absolute 即可覆盖。
+ */
+@layer components {
+    .gm-glass {
+        position: relative;
+    }
+}
+.gm-glass {
+    isolation: isolate;
+    background: var(--gm-glass-bg);
+    backdrop-filter: blur(var(--gm-glass-blur)) saturate(1.8);
+    -webkit-backdrop-filter: blur(var(--gm-glass-blur)) saturate(1.8);
+    box-shadow:
+        inset 0 1px 0 var(--gm-glass-inner),
+        inset 0 -1px 0 var(--gm-glass-shade),
+        0 18px 40px rgba(2, 6, 20, 0.3);
+}
+.gm-glass-strong {
+    --gm-glass-blur: 32px;
+    background: var(--gm-glass-bg-strong);
+}
+
+/* 顶部弧形高光：光打在玻璃上沿 */
+.gm-glass-sheen::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 45%;
+    border-radius: inherit;
+    background: linear-gradient(180deg, var(--gm-glass-sheen), transparent 70%);
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+/* 边缘折射：四周一圈极细的亮转暗描边 */
+.gm-glass-refract::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(160deg, var(--gm-glass-edge) 0%, transparent 35%, transparent 65%, var(--gm-glass-shade) 100%);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+/* 跟随鼠标的高光（元素上需设置 --gm-gx / --gm-gy） */
+.gm-glass-spec::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(220px circle at var(--gm-gx, 50%) var(--gm-gy, 0%), var(--gm-glass-sheen), transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s var(--gm-ease);
+    pointer-events: none;
+}
+.gm-glass-spec:hover::before {
+    opacity: 0.16;
+}
+
+/* 液态流动：玻璃背后缓慢漂移的色块 */
+@keyframes gm-liquid {
+    0%,
+    100% {
+        transform: translate3d(-6%, -4%, 0) scale(1.1) rotate(0deg);
+    }
+    50% {
+        transform: translate3d(6%, 5%, 0) scale(1.25) rotate(8deg);
+    }
+}
+.gm-liquid {
+    animation: gm-liquid 16s ease-in-out infinite;
+}
+
+.gm-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.gm-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--gm-border-strong);
+}
+.gm-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* 引导式画布：点阵底 + 生成中连线流动 */
+.gm-flow-dots {
+    background-color: var(--gm-bg);
+    background-image: radial-gradient(circle, var(--gm-border-strong) 1px, transparent 1.2px);
+}
+@keyframes gm-edge-flow {
+    to {
+        stroke-dashoffset: -24;
+    }
+}
+.gm-edge-flow {
+    animation: gm-edge-flow 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gm-shine::after,
+    .gm-shimmer,
+    .gm-flow,
+    .gm-edge-flow,
+    .gm-aurora,
+    .gm-marquee,
+    .gm-liquid {
+        animation: none;
+    }
+    .gm-fill {
+        animation-duration: 0s;
+    }
+}

@@ -15,7 +15,7 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
     const authorUsername = official ? undefined : item.authorUsername;
     const author = (
         <>
-            <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-[8px] font-semibold text-background">
+            <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-[image:var(--gm-gradient)] text-[8px] font-semibold text-white">
                 {item.authorAvatarUrl ? <img src={item.authorAvatarUrl} alt="" className="size-full object-cover" loading="lazy" /> : userAvatarFallback(item.authorName || "匿名作者")}
             </span>
             <span className="truncate">{official ? item.authorName || "平台官方" : item.authorName || "匿名作者"}</span>
@@ -23,28 +23,34 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
     );
 
     return (
-        <article className="group w-full min-w-0 overflow-hidden text-left text-foreground">
-            <button type="button" className="relative block w-full overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen} aria-label={`查看作品：${item.title}`} aria-haspopup="dialog">
+        <article className="group w-full min-w-0 overflow-hidden text-left text-[var(--gm-text)]">
+            <button
+                type="button"
+                className="relative block w-full overflow-hidden rounded-lg bg-[var(--gm-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={onOpen}
+                aria-label={`查看作品：${item.title}`}
+                aria-haspopup="dialog"
+            >
                 {item.preview?.mediaType === "image" ? (
                     <LazyMediaImage src={imagePreviewUrl(item.preview.url, 640)} alt={item.title} containerClassName="w-full rounded-lg" imageClassName="block h-auto w-full group-hover:scale-[1.015]" />
                 ) : item.preview?.mediaType === "video" ? (
                     <>
                         <video src={item.preview.url} muted playsInline preload="metadata" className="aspect-video w-full object-cover transition duration-300 group-hover:scale-[1.015]" />
-                        <span className="absolute right-2 top-2 grid size-7 place-items-center rounded bg-black/65 text-white" title="视频作品">
+                        <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm" title="视频作品">
                             <Video className="size-3.5" />
                         </span>
                     </>
                 ) : (
-                    <div className="grid aspect-[4/3] place-items-center text-muted-foreground">
+                    <div className="grid aspect-[4/3] place-items-center text-[var(--gm-text-3)]">
                         <div className="flex flex-col items-center gap-2 text-xs">
                             <GalleryVerticalEnd className="size-7" />
                             公开作品
                         </div>
                     </div>
                 )}
-                {official ? <span className="absolute right-2 top-2 rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white">官方</span> : null}
+                {official ? <span className="absolute right-2 top-2 rounded-full bg-[var(--gm-blue)] px-2 py-0.5 text-[11px] font-medium text-white shadow-[var(--gm-glow-blue)]">官方</span> : null}
                 {item.isFeatured ? (
-                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-foreground px-2 py-1 text-[11px] font-medium text-background">
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-[var(--gm-warning)] backdrop-blur-sm">
                         <Star className="size-3 fill-current" />
                         精选
                     </span>
@@ -53,8 +59,8 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                     <span
                         className={
                             item.isFeatured
-                                ? "absolute left-2 top-10 inline-flex items-center gap-1 rounded bg-cyan-50 px-2 py-1 text-[11px] font-medium text-cyan-800 shadow-sm dark:bg-cyan-950/85 dark:text-cyan-200"
-                                : "absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-cyan-50 px-2 py-1 text-[11px] font-medium text-cyan-800 shadow-sm dark:bg-cyan-950/85 dark:text-cyan-200"
+                                ? "absolute left-2 top-9 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm"
+                                : "absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm"
                         }
                     >
                         <Film className="size-3" /> 制作流程
@@ -63,11 +69,11 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                 <PublicWorkCardTitle title={item.title} />
             </button>
             <div className="min-w-0 px-0.5 pb-1 pt-2">
-                <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-[var(--gm-text-3)]">
                     {authorUsername && onOpenAuthor ? (
                         <button
                             type="button"
-                            className="flex min-w-0 items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="flex min-w-0 items-center gap-1.5 rounded-sm text-left hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label={`查看 ${item.authorName || authorUsername} 的主页`}
                             aria-haspopup="dialog"
                             onClick={() => onOpenAuthor(authorUsername)}
@@ -77,7 +83,7 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                     ) : authorUsername ? (
                         <Link
                             href={`/u/${encodeURIComponent(authorUsername)}`}
-                            className="flex min-w-0 items-center gap-1.5 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="flex min-w-0 items-center gap-1.5 rounded-sm hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label={`查看 ${item.authorName || authorUsername} 的主页`}
                         >
                             {author}

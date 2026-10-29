@@ -4,9 +4,12 @@ import type { FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Gift, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
-import { App, Button, Checkbox, Input } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 
 import { SiteLogo } from "@/components/layout/site-logo";
+import { LoginThemeToggle } from "@/components/auth/login-theme-toggle";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import type { PublicSiteSettings } from "@/stores/use-public-session-store";
 import { resolveLoginDestination } from "@/lib/login-navigation";
@@ -95,19 +98,7 @@ export function AuthForm({
         return () => media.removeEventListener("change", syncMotion);
     }, [educationLogin]);
 
-    useEffect(() => {
-        if (!educationLogin) return;
-        const root = document.documentElement;
-        const restoreDarkTheme = root.classList.contains("dark");
-        root.classList.add("auth-brand-light");
-        root.classList.remove("dark");
-        root.style.colorScheme = "light";
-        return () => {
-            root.classList.remove("auth-brand-light");
-            root.classList.toggle("dark", restoreDarkTheme);
-            root.style.colorScheme = restoreDarkTheme ? "dark" : "light";
-        };
-    }, [educationLogin]);
+    // 登录页明暗两套配色都支持，跟随用户主题，不再强制浅色
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -178,13 +169,10 @@ export function AuthForm({
             <form onSubmit={submit} className={cn("auth-form-body w-full", educationLogin ? "auth-education-form-body" : variant === "embedded" ? "space-y-4" : "space-y-6")}>
                 {headerSlot}
                 {educationLogin ? (
-                    <>
-                        <img className="auth-education-joint-brand" src={loginPage.jointBrandUrl} alt="中国动漫集团与 BLUEGAMMA 广东 AIGC 培训产教融合基地联合品牌" />
-                        <div className="auth-education-heading">
-                            <p>{loginPage.slogan}</p>
-                            <h1>{loginPage.platformName}</h1>
-                        </div>
-                    </>
+                    <div className="auth-education-card-head">
+                        <p className="auth-education-card-kicker">ACCOUNT SIGN IN</p>
+                        <h2 className="auth-education-card-title">登录账号</h2>
+                    </div>
                 ) : (
                     <div className="auth-form-header">
                         <p className="auth-form-kicker text-sm font-medium">{firstUser ? "首次初始化" : isRegister ? "创建创作账号" : "欢迎回来"}</p>
@@ -375,28 +363,71 @@ export function AuthForm({
     if (educationLogin) {
         return (
             <main className="auth-education-shell">
-                <section className="auth-education-hero">
-                    <img src={loginPage.heroPosterUrl} alt="" aria-hidden="true" />
+                {/* 背景：压暗并半透明播放的宣传片，静态海报作为兜底 */}
+                <div className="auth-education-media" aria-hidden="true">
+                    <img src={loginPage.heroPosterUrl} alt="" />
                     {heroMotionEnabled ? (
                         <video className={heroVideoReady ? "is-ready" : ""} muted autoPlay loop playsInline poster={loginPage.heroPosterUrl} onCanPlay={() => setHeroVideoReady(true)} onError={() => setHeroVideoReady(false)}>
                             <source src={loginPage.heroVideoUrl} type="video/mp4" />
                         </video>
                     ) : null}
-                </section>
-                <section className="auth-education-login">
-                    <div className="auth-education-content">{form}</div>
-                    <footer className="auth-education-footer">
-                        <p>{site.footerCopyright || "© 2026 VOZEB PRO. All rights reserved."}</p>
-                        {loginPage.footerOrganization ? <p>运营单位：{loginPage.footerOrganization}</p> : null}
-                        {loginPage.servicePhone || loginPage.serviceHours ? <p>{[loginPage.servicePhone ? `客服电话 ${loginPage.servicePhone}` : "", loginPage.serviceHours].filter(Boolean).join(" · ")}</p> : null}
-                    </footer>
-                </section>
+                    <div className="auth-education-scrim" />
+                    <div className="auth-education-aurora" />
+                </div>
+
+                <LoginThemeToggle />
+
+                <header className="auth-education-topbar">
+                    <Link href="/" className="auth-education-wordmark">
+                        <span className="auth-education-wordmark-text">
+                            <span className="auth-education-wordmark-name">BLUEGAMMA</span>
+                            {/* 联合品牌抠图后置于字标下方，随主题换色 */}
+                            <span className="auth-education-partner-logos">
+                                {/* 同一张原图服务明暗两套：暗色下由 CSS 提亮，不再维护专用变体 */}
+                                <img className="auth-education-partner-cacg" src="/login/brand-cacg.png" alt="中国动漫集团" />
+                                <span className="auth-education-partner-divider" aria-hidden="true" />
+                                <img className="auth-education-partner-bluegamma" src="/login/brand-bluegamma.png" alt="蓝色伽马 BLUEGAMMA" />
+                                <span className="auth-education-partner-divider" aria-hidden="true" />
+                                <span className="auth-education-partner-desc">
+                                    <span>广东AIGC培训产教融合基地</span>
+                                    <span>以智能开创影像创作新生态</span>
+                                </span>
+                            </span>
+                        </span>
+                    </Link>
+                </header>
+
+                <div className="auth-education-stage">
+                    <div className="auth-education-copy">
+                        <p className="auth-education-eyebrow">AIGC 智能影像 · 教学与创作平台</p>
+                        <h1 className="auth-education-slogan">无限生成，无限畅通</h1>
+                        <p className="auth-education-slogan-sub">{loginPage.slogan}</p>
+                        <p className="auth-education-platform">{loginPage.platformName}</p>
+                        <div className="auth-education-rule" />
+                        <ul className="auth-education-features">
+                            <li>开源模型不限算力，练习不再限量</li>
+                            <li>闭源模型对齐商单标准，接单交付更有把握</li>
+                            <li>影像、短剧与画布，一套账号贯通</li>
+                            <li>课程作业与练习项目，随时续做</li>
+                            <li>IP 资产与提示词，沉淀团队知识</li>
+                        </ul>
+                    </div>
+                    <div className="auth-education-card">
+                        <div className="auth-education-content">{form}</div>
+                    </div>
+                </div>
+
+                <footer className="auth-education-footer">
+                    <p>{site.footerCopyright || "© 2026 VOZEB PRO. All rights reserved."}</p>
+                    {loginPage.footerOrganization ? <p>运营单位：{loginPage.footerOrganization}</p> : null}
+                    {loginPage.servicePhone || loginPage.serviceHours ? <p>{[loginPage.servicePhone ? `客服电话 ${loginPage.servicePhone}` : "", loginPage.serviceHours].filter(Boolean).join(" · ")}</p> : null}
+                </footer>
             </main>
         );
     }
 
     return (
-        <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-foreground sm:px-6 sm:py-10">
+        <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-[var(--gm-text)] sm:px-6 sm:py-10">
             <div className="auth-page-card grid w-full max-w-5xl overflow-hidden border backdrop-blur md:grid-cols-[0.9fr_1fr]">
                 <section className="auth-page-brand-panel flex min-h-[220px] flex-col justify-between gap-5 border-b p-5 text-stone-950 sm:min-h-[360px] sm:gap-8 sm:p-8 md:border-b-0 md:border-r dark:text-white">
                     <div className="flex items-start justify-between gap-4">

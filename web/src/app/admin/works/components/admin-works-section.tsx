@@ -1,7 +1,13 @@
 "use client";
 
-import type { TableColumnsType } from "antd";
-import { App, Button, Input, Modal, Pagination, Segmented, Select, Table, Tag, Tooltip } from "antd";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Ban, Check, Eye, Film, GalleryVerticalEnd, Pencil, Plus, RefreshCw, RotateCcw, Search, Star, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";

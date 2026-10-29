@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { imageResolutionFromQuality } from "@/components/creative-generation-preferences";
+import { selectedImageResolution } from "@/components/creative-generation-preferences";
 import type { CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
 import { canvasImagePreferenceSummary } from "./canvas-image-settings-popover";
 
@@ -8,49 +8,41 @@ function preferences(image: NonNullable<CreativeGenerationPreferences["image"]>)
     return { mode: "image", image };
 }
 
-describe("imageResolutionFromQuality", () => {
-    it("maps 标准 quality to the 2K tier upstream actually honours", () => {
-        expect(imageResolutionFromQuality("medium")).toBe("medium");
+describe("selectedImageResolution", () => {
+    it("shows the explicitly picked 清晰度 independently of 画质", () => {
+        expect(selectedImageResolution({ quality: "high", resolution: "1k" })).toBe("1k");
+        expect(selectedImageResolution({ quality: "low", resolution: "4k" })).toBe("4k");
     });
 
-    it("maps high and low quality to their own tiers", () => {
-        expect(imageResolutionFromQuality("high")).toBe("high");
-        expect(imageResolutionFromQuality("low")).toBe("low");
+    it("falls back to the quality-derived tier when 清晰度 was never picked", () => {
+        expect(selectedImageResolution({ quality: "medium" })).toBe("2k");
+        expect(selectedImageResolution({ quality: "high" })).toBe("4k");
+        expect(selectedImageResolution({ quality: "low" })).toBe("1k");
+        expect(selectedImageResolution({ quality: "auto" })).toBe("2k");
     });
 
-    it("treats auto as the 2K default rather than falling to 1K", () => {
-        expect(imageResolutionFromQuality("auto")).toBe("medium");
-    });
-
-    it("falls back to 2K for unknown, empty and legacy label values", () => {
-        expect(imageResolutionFromQuality("")).toBe("medium");
-        expect(imageResolutionFromQuality(undefined)).toBe("medium");
-        expect(imageResolutionFromQuality("2K")).toBe("medium");
-        expect(imageResolutionFromQuality("1024x1024")).toBe("medium");
-    });
-
-    it("ignores casing and surrounding whitespace", () => {
-        expect(imageResolutionFromQuality("  HIGH  ")).toBe("high");
+    it("treats legacy low/medium/high resolution values as never picked", () => {
+        expect(selectedImageResolution({ quality: "high", resolution: "low" })).toBe("4k");
     });
 });
 
 describe("canvasImagePreferenceSummary", () => {
-    it("shows 2K when quality is 标准 so the summary never contradicts the panel", () => {
-        const summary = canvasImagePreferenceSummary(preferences({ size: "1024x1024", quality: "medium", resolution: "low", background: "auto", count: 1 }));
+    it("shows the explicitly picked 清晰度 next to a different 画质", () => {
+        const summary = canvasImagePreferenceSummary(preferences({ size: "1024x1024", quality: "high", resolution: "1k", background: "auto", count: 1 }));
 
-        expect(summary).toContain("标准");
-        expect(summary).toContain("2K");
-        expect(summary).not.toContain("1K");
+        expect(summary).toContain("高");
+        expect(summary).toContain("1K");
+        expect(summary).not.toContain("4K");
     });
 
-    it("ignores a stale resolution field entirely", () => {
+    it("derives the tier from 画质 when 清晰度 was never picked", () => {
         const summary = canvasImagePreferenceSummary(preferences({ size: "auto", quality: "high", resolution: "low", background: "auto", count: 1 }));
 
         expect(summary).toContain("4K");
     });
 
     it("keeps quality, resolution and count after a custom pixel size", () => {
-        const summary = canvasImagePreferenceSummary(preferences({ size: "1536x1024", quality: "high", resolution: "high", background: "auto", count: 2 }));
+        const summary = canvasImagePreferenceSummary(preferences({ size: "1536x1024", quality: "high", resolution: "4k", background: "auto", count: 2 }));
 
         // compactSizeLabel renders the dimension separator as a multiplication sign.
         expect(summary).toContain("1536×1024");

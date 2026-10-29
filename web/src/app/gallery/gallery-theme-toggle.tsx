@@ -10,7 +10,7 @@ export function GalleryThemeToggle() {
         <AnimatedThemeToggler
             theme={theme}
             onThemeChange={setTheme}
-            className={`!inline-flex !size-9 shrink-0 !items-center !justify-center !rounded-md !border-0 !bg-transparent !p-0 !text-muted-foreground transition hover:!bg-transparent hover:!text-foreground focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-ring [&>svg]:!size-5 ${theme === "dark" ? "" : "[&>svg]:translate-x-px"}`}
+            className={`!inline-flex !size-9 shrink-0 !items-center !justify-center !rounded-md !border-0 !bg-transparent !p-0 !text-[var(--gm-text-3)] transition hover:!bg-transparent hover:!text-[var(--gm-text)] focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-ring [&>svg]:!size-5 ${theme === "dark" ? "" : "[&>svg]:translate-x-px"}`}
             aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
             title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
         />

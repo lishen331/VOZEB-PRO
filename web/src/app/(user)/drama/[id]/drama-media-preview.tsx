@@ -1,6 +1,6 @@
 "use client";
 
-import { Modal } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Film, ImageIcon, ScanSearch } from "lucide-react";
 
 import { imagePreviewUrl } from "@/lib/media-image-url";
@@ -11,7 +11,7 @@ export function DramaMediaThumbnail({ media, onOpen }: { media: DramaPreviewMedi
     return (
         <button
             type="button"
-            className="group relative aspect-video w-44 shrink-0 overflow-hidden rounded-md border border-border bg-muted text-left"
+            className="group relative aspect-video w-44 shrink-0 overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] text-left"
             onClick={() => onOpen(media)}
             aria-label={`查看${media.type === "image" ? "图片" : "视频"}：${media.title}`}
         >

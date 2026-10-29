@@ -1,6 +1,8 @@
 "use client";
 
-import { App, Button, Input, Segmented } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { ImagePlus } from "lucide-react";
 import { useState } from "react";
 import { practiceApi } from "@/services/api/practice";

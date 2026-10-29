@@ -5,12 +5,18 @@ import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 
-import { Button, Checkbox, Image, Input, Modal, Progress, Tabs, Tooltip } from "antd";
-import type { MessageInstance } from "antd/es/message/interface";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Progress } from "@/components/gamma-ui/gamma-ant-display";
+import { Tabs, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
+import type { MessageInstance } from "@/components/gamma-ui/gamma-ant-app";
 import { Check, CheckCircle2, CircleAlert, Download, ImagePlus, LibraryBig, LoaderCircle, MapPin, Package, PanelsTopLeft, Plus, Search, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import type { TextAreaRef } from "antd/es/input/TextArea";
+import type { TextAreaRef } from "@/components/gamma-ui/gamma-ant-input";
 import { highlightResourceMentions } from "./outline/resource-image-generation";
 import type { ReferenceImage } from "@/types/image";
 
@@ -561,13 +567,13 @@ export function DramaLabVisualAssetsPanel({
                         <div className="min-w-0 flex-1 p-4 pb-3">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h2 className="text-sm font-semibold">{assetWorkflowGuidance.title}</h2>
-                                <span className="text-xs text-muted-foreground">{assetWorkflowGuidance.status}</span>
+                                <span className="text-xs text-[var(--gm-text-3)]">{assetWorkflowGuidance.status}</span>
                             </div>
-                            <p className="mt-1 text-sm text-muted-foreground">{assetWorkflowGuidance.detail}</p>
+                            <p className="mt-1 text-sm text-[var(--gm-text-3)]">{assetWorkflowGuidance.detail}</p>
                             {assetWorkflowGuidance.progress !== undefined ? (
                                 <Progress className="mt-3" percent={assetWorkflowGuidance.progress ?? 0} showInfo={false} size="small" status={assetWorkflowGuidance.failed ? "exception" : assetWorkflowGuidance.done ? "success" : "active"} />
                             ) : null}
-                            <p className="mt-2 text-xs text-muted-foreground">{assetWorkflowGuidance.hint}</p>
+                            <p className="mt-2 text-xs text-[var(--gm-text-3)]">{assetWorkflowGuidance.hint}</p>
                         </div>
                     </div>
                     {!assetWorkflowGuidance.done && !assetWorkflowGuidance.failed ? (
@@ -579,21 +585,21 @@ export function DramaLabVisualAssetsPanel({
                                         <button
                                             key={update.kind}
                                             type="button"
-                                            className={`flex min-h-16 items-center gap-3 rounded-md border bg-background/70 px-3 text-left transition-colors hover:border-primary/60 ${update.status === "running" ? "border-primary/50 animate-pulse" : "border-border"}`}
+                                            className={`flex min-h-16 items-center gap-3 rounded-md border bg-[var(--gm-bg)]/70 px-3 text-left transition-colors hover:border-primary/60 ${update.status === "running" ? "border-primary/50 animate-pulse" : "border-[var(--gm-border)]"}`}
                                             onClick={() => setKind(update.kind)}
                                             aria-label={`查看${ASSET_META[update.kind].label}提取结果`}
                                         >
                                             <Icon className="size-4 shrink-0 text-primary" />
                                             <span className="min-w-0 flex-1">
                                                 <span className="block text-sm font-medium">{ASSET_META[update.kind].label}</span>
-                                                <span className="block truncate text-xs text-muted-foreground">{update.detail}</span>
+                                                <span className="block truncate text-xs text-[var(--gm-text-3)]">{update.detail}</span>
                                             </span>
                                             {update.status === "running" ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" /> : update.status === "success" ? <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" /> : null}
                                         </button>
                                     );
                                 })}
                             </div>
-                            <div className="mt-3 flex min-h-8 items-center gap-2 rounded-md bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                            <div className="mt-3 flex min-h-8 items-center gap-2 rounded-md bg-[var(--gm-bg)]/60 px-3 py-2 text-xs text-[var(--gm-text-3)]">
                                 <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" />
                                 <span>{assetWorkflowUpdates.find((update) => update.status === "success")?.detail || "Agent 正在读取剧本，识别结果会逐项显示在这里"}</span>
                             </div>
@@ -656,7 +662,7 @@ export function DramaLabVisualAssetsPanel({
                                         return (
                                             <article
                                                 key={asset.id}
-                                                className="group relative flex h-[430px] cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-card transition-colors hover:border-primary/50"
+                                                className="group relative flex h-[430px] cursor-pointer flex-col overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] transition-colors hover:border-primary/50"
                                                 data-drama-lab-asset-card={asset.id}
                                                 onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}
                                             >
@@ -665,7 +671,7 @@ export function DramaLabVisualAssetsPanel({
                                                     danger
                                                     size="small"
                                                     shape="circle"
-                                                    className="!absolute !right-2 !top-2 z-10 invisible bg-background/90 shadow-sm group-hover:visible"
+                                                    className="!absolute !right-2 !top-2 z-10 invisible bg-[var(--gm-bg)]/90 shadow-sm group-hover:visible"
                                                     icon={<X className="size-4" />}
                                                     aria-label={`删除${meta.label}`}
                                                     title={`删除${meta.label}`}
@@ -674,7 +680,7 @@ export function DramaLabVisualAssetsPanel({
                                                         deleteAsset(assetKind, asset);
                                                     }}
                                                 />
-                                                <div className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-muted/50">
+                                                <div className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-[var(--gm-wash)]/50">
                                                     {primary?.url ? (
                                                         <button
                                                             type="button"
@@ -688,18 +694,18 @@ export function DramaLabVisualAssetsPanel({
                                                             <img src={imagePreviewUrl(primary.url, 640)} alt={`${asset.name}主参考图`} className="block max-h-full max-w-full object-contain" />
                                                         </button>
                                                     ) : (
-                                                        <ImagePlus className="size-7 text-muted-foreground" />
+                                                        <ImagePlus className="size-7 text-[var(--gm-text-3)]" />
                                                     )}
-                                                    {!primary ? <span className="absolute bottom-2 rounded bg-background/90 px-2 py-1 text-xs text-muted-foreground">待补主参考图</span> : null}
+                                                    {!primary ? <span className="absolute bottom-2 rounded bg-[var(--gm-bg)]/90 px-2 py-1 text-xs text-[var(--gm-text-3)]">待补主参考图</span> : null}
                                                 </div>
                                                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
                                                     <div className="flex min-w-0 items-center gap-2">
-                                                        <Icon className="size-4 shrink-0 text-muted-foreground" />
+                                                        <Icon className="size-4 shrink-0 text-[var(--gm-text-3)]" />
                                                         <h3 className="min-w-0 flex-1 truncate font-medium" title={asset.name}>
                                                             {asset.name}
                                                         </h3>
                                                     </div>
-                                                    <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">{asset.description || "未填写文字设定"}</p>
+                                                    <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-[var(--gm-text-3)]">{asset.description || "未填写文字设定"}</p>
                                                     <div className="mt-2 flex flex-nowrap items-center gap-1" aria-label="资产操作">
                                                         <DramaLabUiFeature feature="assetGeneration">
                                                             <Button
@@ -757,7 +763,7 @@ export function DramaLabVisualAssetsPanel({
                                                                 return (
                                                                     <div
                                                                         key={reference.id}
-                                                                        className={`group/reference relative size-11 shrink-0 overflow-hidden rounded border ${isPrimary ? "border-foreground ring-1 ring-foreground/20" : "border-border"}`}
+                                                                        className={`group/reference relative size-11 shrink-0 overflow-hidden rounded border ${isPrimary ? "border-foreground ring-1 ring-foreground/20" : "border-[var(--gm-border)]"}`}
                                                                     >
                                                                         <button
                                                                             type="button"
@@ -771,13 +777,13 @@ export function DramaLabVisualAssetsPanel({
                                                                             <img src={imagePreviewUrl(reference.url, 128)} alt={reference.label} className="size-full object-contain" />
                                                                         </button>
                                                                         {isPrimary ? (
-                                                                            <span className="absolute left-0 top-0 grid size-4 place-items-center bg-foreground text-background">
+                                                                            <span className="absolute left-0 top-0 grid size-4 place-items-center bg-[var(--gm-blue)] text-white">
                                                                                 <Check className="size-2.5" />
                                                                             </span>
                                                                         ) : null}
                                                                         <button
                                                                             type="button"
-                                                                            className="absolute bottom-0 right-0 grid size-4 place-items-center bg-background/90 text-muted-foreground opacity-0 transition group-hover/reference:opacity-100 hover:text-rose-600"
+                                                                            className="absolute bottom-0 right-0 grid size-4 place-items-center bg-[var(--gm-bg)]/90 text-[var(--gm-text-3)] opacity-0 transition group-hover/reference:opacity-100 hover:text-rose-600"
                                                                             onClick={(event) => {
                                                                                 event.stopPropagation();
                                                                                 void removeReference(asset, reference.id);
@@ -805,8 +811,8 @@ export function DramaLabVisualAssetsPanel({
                                                             ) : null}
                                                         </div>
                                                     ) : null}
-                                                    <div className="mt-auto border-t border-border pt-2.5">
-                                                        <div className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                    <div className="mt-auto border-t border-[var(--gm-border)] pt-2.5">
+                                                        <div className="mb-1.5 flex items-center gap-1.5 text-xs text-[var(--gm-text-3)]">
                                                             <Video className="size-3.5" /> 影响分镜 {affected.length}
                                                         </div>
                                                         {affected.length ? (
@@ -816,7 +822,7 @@ export function DramaLabVisualAssetsPanel({
                                                                         <button
                                                                             key={shot.id}
                                                                             type="button"
-                                                                            className="shrink-0 rounded border border-border bg-muted/35 px-2 py-1 text-xs hover:bg-muted"
+                                                                            className="shrink-0 rounded border border-[var(--gm-border)] bg-[var(--gm-wash)]/35 px-2 py-1 text-xs hover:bg-[var(--gm-wash)]"
                                                                             onClick={(event) => {
                                                                                 event.stopPropagation();
                                                                                 onLocateShot(shot.episodeId, shot.id);
@@ -840,7 +846,7 @@ export function DramaLabVisualAssetsPanel({
                                                                 </div>
                                                             </Tooltip>
                                                         ) : (
-                                                            <span className="text-xs text-muted-foreground">尚未关联分镜</span>
+                                                            <span className="text-xs text-[var(--gm-text-3)]">尚未关联分镜</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -849,7 +855,7 @@ export function DramaLabVisualAssetsPanel({
                                     })}
                                 </div>
                             ) : (
-                                <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+                                <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed border-[var(--gm-border)] bg-[var(--gm-wash)]/20 text-sm text-[var(--gm-text-3)]">
                                     {assetWorkflowGuidance && !assetWorkflowGuidance.done && !assetWorkflowGuidance.failed ? "Agent 正在处理，识别到的资产会实时出现在这里" : `暂未提取${ASSET_META[assetKind].label}，可先从剧本提取或手动新增`}
                                 </div>
                             )}
@@ -906,10 +912,10 @@ export function DramaLabVisualAssetsPanel({
                 <Modal open title={`历史参考图 · ${historyAsset.name}`} footer={null} width={720} onCancel={() => setHistoryAssetId(undefined)}>
                     <div className="grid max-h-[65vh] grid-cols-2 gap-3 overflow-y-auto p-1 sm:grid-cols-3" aria-label="全部历史参考图">
                         {dramaAssetReferences(historyAsset).map((reference) => (
-                            <div key={reference.id} className="min-w-0 rounded border border-border p-2">
+                            <div key={reference.id} className="min-w-0 rounded border border-[var(--gm-border)] p-2">
                                 <button
                                     type="button"
-                                    className="flex h-36 w-full items-center justify-center bg-muted/40"
+                                    className="flex h-36 w-full items-center justify-center bg-[var(--gm-wash)]/40"
                                     aria-label={`查看历史参考图 ${reference.label || reference.id}`}
                                     onClick={() => setPreviewImage({ url: reference.url, alt: assetName(historyAsset) })}
                                 >
@@ -938,7 +944,7 @@ export function DramaLabVisualAssetsPanel({
             {impactModalAsset ? (
                 <Modal open title={`${impactModalAsset.name} · 关联分镜（${(assetShots.get(impactModalAsset.id) || []).length}）`} footer={null} onCancel={() => setImpactModalAsset(undefined)} width={760}>
                     <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">显示该资产关联分镜的全部信息。点击任意一项后关闭弹窗，并定位到分镜工作台对应镜头。</p>
+                        <p className="text-sm text-[var(--gm-text-3)]">显示该资产关联分镜的全部信息。点击任意一项后关闭弹窗，并定位到分镜工作台对应镜头。</p>
                         <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
                             {(assetShots.get(impactModalAsset.id) || []).map((shot) => {
                                 const imageUrl = shot.storyboardImageUrl || shot.imageUrl || shot.frames?.key?.url;
@@ -946,20 +952,20 @@ export function DramaLabVisualAssetsPanel({
                                     <button
                                         key={shot.id}
                                         type="button"
-                                        className="flex w-full items-center gap-3 rounded-md border border-border p-2 text-left transition-colors hover:bg-muted/50"
+                                        className="flex w-full items-center gap-3 rounded-md border border-[var(--gm-border)] p-2 text-left transition-colors hover:bg-[var(--gm-wash)]/50"
                                         onClick={() => {
                                             setImpactModalAsset(undefined);
                                             onLocateShot(shot.episodeId, shot.id);
                                         }}
                                     >
-                                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded bg-muted/50 text-xs text-muted-foreground">
+                                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded bg-[var(--gm-wash)]/50 text-xs text-[var(--gm-text-3)]">
                                             {imageUrl ? <img src={imagePreviewUrl(imageUrl, 160)} alt={`分镜 ${shot.shotNumber}`} className="size-full object-cover" /> : `分镜图 #${shot.shotNumber}`}
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <div className="truncate text-sm font-medium">
                                                 #{shot.shotNumber} · {shot.title || shot.location || "未命名分镜"}
                                             </div>
-                                            <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{shot.script || shot.description || "暂无分镜摘要"}</div>
+                                            <div className="mt-1 line-clamp-2 text-xs text-[var(--gm-text-3)]">{shot.script || shot.description || "暂无分镜摘要"}</div>
                                         </div>
                                     </button>
                                 );
@@ -1103,14 +1109,14 @@ function AssetEditorModal({
                     </div>
                 }
             >
-                <p className="mb-5 text-center text-sm text-muted-foreground">先生成或上传一张主参考图，确认后再配置参考图和图生提示词。</p>
+                <p className="mb-5 text-center text-sm text-[var(--gm-text-3)]">先生成或上传一张主参考图，确认后再配置参考图和图生提示词。</p>
                 <div className="grid gap-4">
                     <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                         <span className="pt-2 text-sm">主图</span>
                         <div className="grid grid-cols-[minmax(0,1fr)_13rem] gap-3">
                             <div
                                 data-asset-primary-dropzone
-                                className="group relative flex min-h-64 cursor-pointer items-center justify-center overflow-hidden rounded border border-dashed bg-muted"
+                                className="group relative flex min-h-64 cursor-pointer items-center justify-center overflow-hidden rounded border border-dashed bg-[var(--gm-wash)]"
                                 onClick={() => primaryUploadRef.current?.click()}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={(event) => {
@@ -1122,7 +1128,7 @@ function AssetEditorModal({
                                 {primary?.url ? (
                                     <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt={`${label}主图`} className="!max-h-72 !object-contain" />
                                 ) : (
-                                    <span className="text-sm text-muted-foreground">
+                                    <span className="text-sm text-[var(--gm-text-3)]">
                                         ＋<br />
                                         拖入或点击上传主图
                                     </span>
@@ -1150,7 +1156,7 @@ function AssetEditorModal({
                                 <div className="grid max-h-60 grid-cols-2 gap-2 overflow-y-auto">
                                     {historyReferences.length ? (
                                         historyReferences.map((reference) => (
-                                            <div key={reference.id} className="group relative overflow-hidden rounded border bg-muted/20">
+                                            <div key={reference.id} className="group relative overflow-hidden rounded border bg-[var(--gm-wash)]/20">
                                                 <button type="button" className="block h-24 w-full" onClick={() => onSelectHistory(reference)} aria-label={`设为主图 ${reference.label || reference.id}`}>
                                                     <Image preview={false} src={imagePreviewUrl(reference.url, 200)} alt="历史主图" className="!block !h-24 !w-full !object-contain" />
                                                 </button>
@@ -1168,7 +1174,7 @@ function AssetEditorModal({
                                             </div>
                                         ))
                                     ) : (
-                                        <span className="col-span-2 py-10 text-center text-xs text-muted-foreground">暂无历史图</span>
+                                        <span className="col-span-2 py-10 text-center text-xs text-[var(--gm-text-3)]">暂无历史图</span>
                                     )}
                                 </div>
                             </div>
@@ -1186,7 +1192,7 @@ function AssetEditorModal({
                                 if (files.length) onUploadFile(files);
                             }}
                         >
-                            <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+                            <div className="mb-2 flex justify-between text-xs text-[var(--gm-text-3)]">
                                 <span>参考图与提示词（图片可直接拖入此框）</span>
                                 <span>{promptReferences.length} / 9，最多 9 张</span>
                             </div>
@@ -1206,7 +1212,7 @@ function AssetEditorModal({
                                         </button>
                                     </div>
                                 ))}
-                                <button data-asset-reference-upload type="button" className="grid size-16 place-items-center rounded border text-xl text-muted-foreground" onClick={onUpload} aria-label="添加参考图">
+                                <button data-asset-reference-upload type="button" className="grid size-16 place-items-center rounded border text-xl text-[var(--gm-text-3)]" onClick={onUpload} aria-label="添加参考图">
                                     ＋
                                 </button>
                             </div>
@@ -1218,12 +1224,12 @@ function AssetEditorModal({
                                     onChange={(event) => handlePromptChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
                                 />
                                 {mentionOpen && promptReferences.length ? (
-                                    <div className="absolute left-2 top-2 z-30 w-56 rounded-lg border bg-background p-1 shadow-xl">
+                                    <div className="absolute left-2 top-2 z-30 w-56 rounded-lg border bg-[var(--gm-bg)] p-1 shadow-xl">
                                         {promptReferences.map((reference, index) => (
                                             <button
                                                 key={reference.id}
                                                 type="button"
-                                                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted ${index === mentionIndex ? "bg-muted font-medium" : ""}`}
+                                                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-[var(--gm-wash)] ${index === mentionIndex ? "bg-[var(--gm-wash)] font-medium" : ""}`}
                                                 onMouseDown={(event) => event.preventDefault()}
                                                 onClick={() => insertMention(`图${index + 1}`)}
                                             >
@@ -1240,14 +1246,14 @@ function AssetEditorModal({
                                         模型选择⌄
                                     </Button>
                                     {modelOpen ? (
-                                        <div className="absolute bottom-full left-0 z-20 mb-1 w-72 rounded-xl border bg-background p-3 shadow-xl">
+                                        <div className="absolute bottom-full left-0 z-20 mb-1 w-72 rounded-xl border bg-[var(--gm-bg)] p-3 shadow-xl">
                                             <div className="mb-2 text-sm font-semibold">选择图片模型</div>
                                             <div className="max-h-56 space-y-1 overflow-y-auto">
                                                 {(availableModels.length ? availableModels : [defaultModel]).map((model) => (
                                                     <button
                                                         key={model}
                                                         type="button"
-                                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs hover:bg-muted ${selectedModel === model ? "bg-muted font-medium" : ""}`}
+                                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs hover:bg-[var(--gm-wash)] ${selectedModel === model ? "bg-[var(--gm-wash)] font-medium" : ""}`}
                                                         onClick={() => {
                                                             setSelectedModel(model);
                                                             setModelOpen(false);
@@ -1266,30 +1272,48 @@ function AssetEditorModal({
                                         生成参数⌄
                                     </Button>
                                     {paramsOpen ? (
-                                        <div className="absolute bottom-full left-0 z-20 mb-1 grid w-48 gap-2 rounded border bg-background p-2 text-xs shadow">
-                                            <label>
+                                        <div className="absolute bottom-full left-0 z-20 mb-1 grid w-48 gap-2 rounded border bg-[var(--gm-bg)] p-2 text-xs shadow">
+                                            <label className="grid gap-1">
                                                 比例
-                                                <select className="ml-2 rounded border" value={selectedAspect} onChange={(event) => setSelectedAspect(event.target.value)}>
-                                                    <option>1:1</option>
-                                                    <option>16:9</option>
-                                                    <option>9:16</option>
-                                                    <option>4:3</option>
-                                                </select>
+                                                <Select
+                                                    size="small"
+                                                    aria-label="比例"
+                                                    value={selectedAspect}
+                                                    onChange={setSelectedAspect}
+                                                    options={[
+                                                        { value: "1:1", label: "1:1" },
+                                                        { value: "16:9", label: "16:9" },
+                                                        { value: "9:16", label: "9:16" },
+                                                        { value: "4:3", label: "4:3" },
+                                                    ]}
+                                                />
                                             </label>
-                                            <label>
+                                            <label className="grid gap-1">
                                                 分辨率
-                                                <select className="ml-2 rounded border" value={selectedResolution} onChange={(event) => setSelectedResolution(event.target.value)}>
-                                                    <option value="auto">自动</option>
-                                                    <option value="2k">2K</option>
-                                                    <option value="4k">4K</option>
-                                                </select>
+                                                <Select
+                                                    size="small"
+                                                    aria-label="分辨率"
+                                                    value={selectedResolution}
+                                                    onChange={setSelectedResolution}
+                                                    options={[
+                                                        { value: "auto", label: "自动" },
+                                                        { value: "2k", label: "2K" },
+                                                        { value: "4k", label: "4K" },
+                                                    ]}
+                                                />
                                             </label>
-                                            <label>
+                                            <label className="grid gap-1">
                                                 画质
-                                                <select className="ml-2 rounded border" value={selectedQuality} onChange={(event) => setSelectedQuality(event.target.value)}>
-                                                    <option value="standard">标准</option>
-                                                    <option value="high">高质量</option>
-                                                </select>
+                                                <Select
+                                                    size="small"
+                                                    aria-label="画质"
+                                                    value={selectedQuality}
+                                                    onChange={setSelectedQuality}
+                                                    options={[
+                                                        { value: "standard", label: "标准" },
+                                                        { value: "high", label: "高质量" },
+                                                    ]}
+                                                />
                                             </label>
                                         </div>
                                     ) : null}
@@ -1341,15 +1365,15 @@ function AssetEditorModal({
                 destroyOnHidden
             >
                 <div className="grid gap-3">
-                    <div className="grid gap-3 border-b border-border pb-4" data-asset-primary-image>
+                    <div className="grid gap-3 border-b border-[var(--gm-border)] pb-4" data-asset-primary-image>
                         <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                             <span className="pt-2 text-sm">主图</span>
                             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
-                                <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                                <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)]">
                                     {primary?.url ? (
                                         <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="场景主图" className="!max-h-64 !object-contain" />
                                     ) : (
-                                        <span className="text-xs text-muted-foreground">暂无主图</span>
+                                        <span className="text-xs text-[var(--gm-text-3)]">暂无主图</span>
                                     )}
                                     <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                                         <Button size="small" onClick={onUpload}>
@@ -1371,7 +1395,7 @@ function AssetEditorModal({
                                     {references
                                         .filter((reference) => reference.role === "history")
                                         .map((reference, index) => (
-                                            <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                            <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-[var(--gm-wash)]">
                                                 <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
                                                 <button
                                                     type="button"
@@ -1388,14 +1412,14 @@ function AssetEditorModal({
                         </div>
                         <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                             <span className="pt-2 text-sm">参考</span>
-                            <div className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
-                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                            <div className="rounded-lg border border-dashed border-[var(--gm-border)] p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                                <div className="mb-2 flex items-center justify-between text-xs text-[var(--gm-text-3)]">
                                     <span>生成图片的参考图（图生提示词可使用 @图N）</span>
                                     <span>{references.length} / 9，最多 9 张</span>
                                 </div>
                                 <div className="flex min-h-24 flex-wrap gap-2">
                                     {references.map((reference, index) => (
-                                        <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                        <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-[var(--gm-wash)]">
                                             <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-16 !object-contain" />
                                             <button
                                                 type="button"
@@ -1408,7 +1432,7 @@ function AssetEditorModal({
                                         </div>
                                     ))}
                                     {references.length < 9 ? (
-                                        <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
+                                        <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-[var(--gm-text-3)]" onClick={onUpload}>
                                             <span>
                                                 <b className="block text-xl font-normal">＋</b>拖入或添加
                                             </span>
@@ -1433,7 +1457,7 @@ function AssetEditorModal({
                     <label className="grid gap-1.5 text-sm">
                         <span className="flex items-center justify-between">
                             <span>
-                                单图提示词 <span className="text-xs font-normal text-muted-foreground">单图场景的完整图片提示词（不含四宫格布局），生图时直接使用；可手动修改</span>
+                                单图提示词 <span className="text-xs font-normal text-[var(--gm-text-3)]">单图场景的完整图片提示词（不含四宫格布局），生图时直接使用；可手动修改</span>
                             </span>
                             <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
                                 重新生成提示词
@@ -1449,7 +1473,7 @@ function AssetEditorModal({
                     <label className="grid gap-1.5 text-sm">
                         <span className="flex items-center justify-between">
                             <span>
-                                四视图提示词 <span className="text-xs font-normal text-muted-foreground">AI 生成的完整四视图图片提示词，生图时直接使用；可手动修改</span>
+                                四视图提示词 <span className="text-xs font-normal text-[var(--gm-text-3)]">AI 生成的完整四视图图片提示词，生图时直接使用；可手动修改</span>
                             </span>
                             <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
                                 重新生成提示词
@@ -1481,15 +1505,15 @@ function AssetEditorModal({
                 destroyOnHidden
             >
                 <div className="grid gap-3">
-                    <div className="grid gap-3 border-b border-border pb-4" data-asset-primary-image>
+                    <div className="grid gap-3 border-b border-[var(--gm-border)] pb-4" data-asset-primary-image>
                         <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                             <span className="pt-2 text-sm">主图</span>
                             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
-                                <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                                <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)]">
                                     {primary?.url ? (
                                         <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="道具主图" className="!max-h-64 !object-contain" />
                                     ) : (
-                                        <span className="text-xs text-muted-foreground">暂无主图</span>
+                                        <span className="text-xs text-[var(--gm-text-3)]">暂无主图</span>
                                     )}
                                     <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                                         <Button size="small" onClick={onUpload}>
@@ -1511,7 +1535,7 @@ function AssetEditorModal({
                                     {references
                                         .filter((reference) => reference.role === "history")
                                         .map((reference, index) => (
-                                            <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                            <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-[var(--gm-wash)]">
                                                 <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
                                                 <button
                                                     type="button"
@@ -1528,14 +1552,14 @@ function AssetEditorModal({
                         </div>
                         <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                             <span className="pt-2 text-sm">参考</span>
-                            <div className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
-                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                            <div className="rounded-lg border border-dashed border-[var(--gm-border)] p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                                <div className="mb-2 flex items-center justify-between text-xs text-[var(--gm-text-3)]">
                                     <span>生成图片的参考图（图生提示词可使用 @图N）</span>
                                     <span>{references.length} / 9，最多 9 张</span>
                                 </div>
                                 <div className="flex min-h-24 flex-wrap gap-2">
                                     {references.map((reference, index) => (
-                                        <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                        <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-[var(--gm-wash)]">
                                             <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-full !object-contain" />
                                             <button
                                                 type="button"
@@ -1548,7 +1572,7 @@ function AssetEditorModal({
                                         </div>
                                     ))}
                                     {references.length < 9 ? (
-                                        <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
+                                        <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-[var(--gm-text-3)]" onClick={onUpload}>
                                             <span>
                                                 <b className="block text-xl font-normal">＋</b>拖入或添加
                                             </span>
@@ -1573,7 +1597,7 @@ function AssetEditorModal({
                     <label className="grid gap-1.5 text-sm">
                         <span className="flex min-w-0 items-center gap-2 whitespace-nowrap">
                             <span className="shrink-0">图生提示词</span>
-                            <span className="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
+                            <span className="min-w-0 flex-1 truncate text-xs font-normal text-[var(--gm-text-3)]">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
                             <Button size="small" className="shrink-0" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
                                 重新生成提示词
                             </Button>
@@ -1608,15 +1632,15 @@ function AssetEditorModal({
             destroyOnHidden
         >
             <div className="grid gap-3">
-                <div className="grid gap-3 border-b border-border pb-4" data-character-primary-image>
+                <div className="grid gap-3 border-b border-[var(--gm-border)] pb-4" data-character-primary-image>
                     <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                         <span className="pt-2 text-sm">主图</span>
                         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
-                            <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                            <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-[var(--gm-wash)]">
                                 {primary?.url ? (
                                     <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="角色主图" className="!max-h-64 !object-contain" />
                                 ) : (
-                                    <span className="text-xs text-muted-foreground">暂无主图</span>
+                                    <span className="text-xs text-[var(--gm-text-3)]">暂无主图</span>
                                 )}
                                 <div
                                     data-asset-primary-actions
@@ -1641,7 +1665,7 @@ function AssetEditorModal({
                                 {references
                                     .filter((reference) => reference.role === "history")
                                     .map((reference, index) => (
-                                        <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                        <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-[var(--gm-wash)]">
                                             <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
                                             <button
                                                 type="button"
@@ -1658,14 +1682,14 @@ function AssetEditorModal({
                     </div>
                     <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                         <span className="pt-2 text-sm">参考</span>
-                        <div data-character-generation-references className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
-                            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                        <div data-character-generation-references className="rounded-lg border border-dashed border-[var(--gm-border)] p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                            <div className="mb-2 flex items-center justify-between text-xs text-[var(--gm-text-3)]">
                                 <span>生成图片的参考图（图生提示词可使用 @图N）</span>
                                 <span>{characterReferences.length} / 9，最多 9 张</span>
                             </div>
                             <div className="flex min-h-24 flex-wrap gap-2">
                                 {characterReferences.map((reference, index) => (
-                                    <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                    <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-[var(--gm-wash)]">
                                         <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-full !object-contain" />
                                         <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100">图{index + 1}</span>
                                         <button
@@ -1679,7 +1703,7 @@ function AssetEditorModal({
                                     </div>
                                 ))}
                                 {characterReferences.length < 9 ? (
-                                    <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
+                                    <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-[var(--gm-text-3)]" onClick={onUpload}>
                                         <span>
                                             <b className="block text-xl font-normal">＋</b>拖入或添加
                                         </span>
@@ -1713,7 +1737,7 @@ function AssetEditorModal({
                 <label className="grid gap-1.5 text-sm">
                     <span className="flex items-center justify-between">
                         <span>
-                            图生提示词 <span className="text-xs font-normal text-muted-foreground">AI 润色后的最终提示词，生成四视图图片时直接使用；可手动修改</span>
+                            图生提示词 <span className="text-xs font-normal text-[var(--gm-text-3)]">AI 润色后的最终提示词，生成四视图图片时直接使用；可手动修改</span>
                         </span>
                         <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
                             重新生成提示词
@@ -1724,7 +1748,7 @@ function AssetEditorModal({
                             <div
                                 ref={promptMirrorRef}
                                 aria-hidden
-                                className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-foreground [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
+                                className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-[var(--gm-text)] [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
                                 dangerouslySetInnerHTML={{ __html: highlightResourceMentions(asset.polishedPrompt || "") }}
                             />
                         ) : null}
@@ -1764,7 +1788,7 @@ function AssetEditorModal({
                                     <button
                                         key={reference.id}
                                         type="button"
-                                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${index === mentionIndex ? "bg-muted" : ""}`}
+                                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-[var(--gm-wash)] ${index === mentionIndex ? "bg-[var(--gm-wash)]" : ""}`}
                                         onClick={() => insertMention(`图${index + 1}`)}
                                     >
                                         <img src={imagePreviewUrl(reference.url, 80)} alt="" className="block size-8 rounded object-contain" />
@@ -1778,7 +1802,7 @@ function AssetEditorModal({
                 <label className="grid gap-1.5 text-sm">
                     <span className="flex items-center justify-between">
                         <span>
-                            视觉锚点 <span className="text-xs font-normal text-muted-foreground">AI 从外貌描述/参考图提炼的视觉特征，用于保持生成图片角色一致性</span>
+                            视觉锚点 <span className="text-xs font-normal text-[var(--gm-text-3)]">AI 从外貌描述/参考图提炼的视觉特征，用于保持生成图片角色一致性</span>
                         </span>
                         <Button size="small" onClick={() => onAiAction("anchor")} loading={busyAction === "anchor"}>
                             提炼视觉锚点
@@ -1795,7 +1819,7 @@ function AssetEditorModal({
                     <label className="grid gap-1.5 text-sm">
                         <span className="flex items-center justify-between">
                             <span>
-                                多阶段造型 <span className="text-xs font-normal text-muted-foreground">不同集次的角色造型变化，格式：JSON 数组</span>
+                                多阶段造型 <span className="text-xs font-normal text-[var(--gm-text-3)]">不同集次的角色造型变化，格式：JSON 数组</span>
                             </span>
                             <Button size="small" onClick={() => onAiAction("stages")} loading={busyAction === "stages"}>
                                 AI 生成造型

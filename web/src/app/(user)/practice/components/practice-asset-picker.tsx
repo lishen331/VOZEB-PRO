@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Empty, Modal, Spin } from "antd";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Button, Empty, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Library } from "lucide-react";
 import { useState } from "react";
 
@@ -71,7 +72,7 @@ export function PracticeAssetPicker({ dramaAssetType, disabled, onSelect, label 
                                 <button
                                     key={asset.id}
                                     type="button"
-                                    className="group relative aspect-square overflow-hidden rounded border border-border hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                                    className="group relative aspect-square overflow-hidden rounded border border-[var(--gm-border)] hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
                                     onClick={() => {
                                         onSelect(libraryAssetToUploadedImage(asset));
                                         setOpen(false);
@@ -86,7 +87,7 @@ export function PracticeAssetPicker({ dramaAssetType, disabled, onSelect, label 
                 ) : (
                     <Empty description={categoryLabel ? `暂无${categoryLabel}素材，请先去资产库上传` : "暂无图片素材，请先去资产库上传"} className="!my-8" />
                 )}
-                <div className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+                <div className="mt-3 border-t border-[var(--gm-border)] pt-3 text-xs text-[var(--gm-text-3)]">
                     <a href="/assets" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                         前往资产库管理素材 →
                     </a>

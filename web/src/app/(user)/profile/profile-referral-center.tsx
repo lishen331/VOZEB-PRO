@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { App, Button, Pagination, Tag } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Copy, Gift, Link2, RefreshCw, ShieldCheck, UserPlus } from "lucide-react";
 
 import { useCopyText } from "@/hooks/use-copy-text";
@@ -61,18 +62,18 @@ export function ProfileReferralCenter() {
                     </Button>
                 }
             >
-                <div className="rounded-xl border border-border bg-muted/25 p-3 sm:p-5">
+                <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)]/25 p-3 sm:p-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm font-medium text-[var(--gm-text-3)]">
                                 <Gift className="size-4" />
                                 我的邀请码
                                 <Tag className="m-0" color={enabled ? "green" : "default"}>
                                     {enabled ? "活动进行中" : "活动未开启"}
                                 </Tag>
                             </div>
-                            <div className="mt-2 break-all text-2xl font-semibold text-foreground sm:text-3xl">{data.code}</div>
-                            <p className="mt-2 text-xs leading-5 text-muted-foreground">禁止自邀、循环邀请和事后改绑；异常关系会暂停结算并进入人工复核。</p>
+                            <div className="mt-2 break-all text-2xl font-semibold text-[var(--gm-text)] sm:text-3xl">{data.code}</div>
+                            <p className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">禁止自邀、循环邀请和事后改绑；异常关系会暂停结算并进入人工复核。</p>
                         </div>
                         <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
                             <Button disabled={!enabled} className={profileSecondaryButtonClass} icon={<Copy className="size-4" />} onClick={() => copyText(data.code, "邀请码已复制")}>
@@ -106,8 +107,8 @@ export function ProfileReferralCenter() {
                             {data.referrals.map((item) => (
                                 <div key={item.id} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0 sm:py-3">
                                     <div className="min-w-0">
-                                        <div className="truncate text-sm font-semibold text-foreground">{item.inviteeName}</div>
-                                        <div className="mt-1 text-xs text-muted-foreground">{formatTime(item.registeredAt)}</div>
+                                        <div className="truncate text-sm font-semibold text-[var(--gm-text)]">{item.inviteeName}</div>
+                                        <div className="mt-1 text-xs text-[var(--gm-text-3)]">{formatTime(item.registeredAt)}</div>
                                     </div>
                                     <Tag className="m-0" color={riskColor(item.riskStatus)}>
                                         {riskLabel(item.riskStatus)}
@@ -140,8 +141,8 @@ export function ProfileReferralCenter() {
                             {data.rewards.map((reward) => (
                                 <div key={reward.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2 first:pt-0 last:pb-0 sm:py-3">
                                     <div className="min-w-0">
-                                        <div className="truncate text-sm font-semibold text-foreground">{reward.beneficiaryRole === "inviter" ? "邀请人奖励" : "新用户奖励"}</div>
-                                        <div className="mt-1 truncate text-xs text-muted-foreground">
+                                        <div className="truncate text-sm font-semibold text-[var(--gm-text)]">{reward.beneficiaryRole === "inviter" ? "邀请人奖励" : "新用户奖励"}</div>
+                                        <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">
                                             {formatTime(reward.createdAt)}
                                             {reward.reason ? ` · ${reward.reason}` : ""}
                                         </div>
@@ -150,7 +151,7 @@ export function ProfileReferralCenter() {
                                         <Tag className="m-0" color={rewardColor(reward.status)}>
                                             {rewardLabel(reward.status)}
                                         </Tag>
-                                        <div className="mt-1 text-xs font-semibold text-foreground">{reward.rewardType === "coupon" ? "优惠券" : `${reward.pointsAmount} 积分`}</div>
+                                        <div className="mt-1 text-xs font-semibold text-[var(--gm-text)]">{reward.rewardType === "coupon" ? "优惠券" : `${reward.pointsAmount} 积分`}</div>
                                     </div>
                                 </div>
                             ))}
@@ -171,27 +172,27 @@ export function ProfileReferralCenter() {
 
 function Metric({ label, value }: { label: string; value: number }) {
     return (
-        <div className="rounded-lg border border-border bg-card px-3 py-2.5">
-            <div className="text-[11px] text-muted-foreground sm:text-xs">{label}</div>
-            <div className="mt-1 text-lg font-semibold tabular-nums text-foreground sm:text-xl">{value}</div>
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2.5">
+            <div className="text-[11px] text-[var(--gm-text-3)] sm:text-xs">{label}</div>
+            <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--gm-text)] sm:text-xl">{value}</div>
         </div>
     );
 }
 
 function Rule({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
     return (
-        <div className="flex items-start gap-2 rounded-lg border border-border bg-card p-3">
-            <span className="mt-0.5 text-muted-foreground">{icon}</span>
+        <div className="flex items-start gap-2 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
+            <span className="mt-0.5 text-[var(--gm-text-3)]">{icon}</span>
             <div className="min-w-0">
-                <div className="text-muted-foreground">{label}</div>
-                <div className="mt-1 font-semibold text-foreground">{value}</div>
+                <div className="text-[var(--gm-text-3)]">{label}</div>
+                <div className="mt-1 font-semibold text-[var(--gm-text)]">{value}</div>
             </div>
         </div>
     );
 }
 
 function Empty({ label }: { label: string }) {
-    return <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">{label}</div>;
+    return <div className="rounded-lg border border-dashed border-[var(--gm-border)] px-3 py-6 text-center text-sm text-[var(--gm-text-3)]">{label}</div>;
 }
 
 function riskLabel(status: ReferralRiskStatus) {

@@ -1,0 +1,23 @@
+/*
+ * 首页视觉：只影响 html.gm-app 下的 .gm-home-* 类，不改 gamma-ui 组件库本身，
+ * 不影响 /bluegamma 预览页、画布、/create。首页背景保持纯色 --gm-bg，影像动画只属于登录页。
+ */
+
+html.gm-app {
+    --gm-home-hero-a: #ffffff;
+    --gm-home-hero-b: #d3e3ff;
+    --gm-home-hero-c: #93e0ff;
+}
+html.gm-app:not(.dark) {
+    --gm-home-hero-a: #0b1530;
+    --gm-home-hero-b: #0050f5;
+    --gm-home-hero-c: #0a7fae;
+}
+
+/* 问候语标题：渐变大字，呼应登录页 slogan */
+.gm-home-greeting {
+    background: linear-gradient(96deg, var(--gm-home-hero-a) 10%, var(--gm-home-hero-b) 55%, var(--gm-home-hero-c) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}

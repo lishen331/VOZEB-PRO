@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { App, Button, Drawer, Empty, Input, Select, Space, Switch, Tag } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, Check, CircleDollarSign, Info, Link2, PlugZap, RefreshCw, Save, WandSparkles } from "lucide-react";
 
 import { AdminChannelProtocolSetup } from "@/components/admin/admin-channel-protocol-setup";
@@ -187,7 +192,7 @@ function OnboardingProgress({ current }: { current: number }) {
                                         completed
                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
                                             : active
-                                              ? "border-stone-950 bg-stone-950 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-950"
+                                              ? "border-[var(--gm-blue)] bg-[var(--gm-blue)] text-white"
                                               : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400"
                                     }`}
                                     aria-label={completed ? `${item.title}已完成` : active ? `${item.title}进行中` : `${item.title}未开始`}

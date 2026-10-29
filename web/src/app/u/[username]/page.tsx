@@ -62,15 +62,15 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
     if (data === null) notFound();
 
     return (
-        <main className="app-scroll-page bg-background text-foreground">
-            <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-xl">
+        <main className="app-scroll-page bg-[var(--gm-bg)] text-[var(--gm-text)]">
+            <header className="sticky top-0 z-20 border-b border-[var(--gm-border)] bg-[var(--gm-bg)]/95 backdrop-blur-xl">
                 <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center justify-between gap-3 px-3 sm:h-16 sm:px-6">
-                    <Link href="/" className="flex min-w-0 items-center gap-2.5 text-foreground" aria-label={site.title}>
+                    <Link href="/" className="flex min-w-0 items-center gap-2.5 text-[var(--gm-text)]" aria-label={site.title}>
                         <SiteLogo logoUrl={site.logoUrl || "/logo.svg"} className="size-7 sm:size-8" />
                         <span className="truncate text-sm font-semibold sm:text-base">{site.title}</span>
                     </Link>
                     <div className="flex shrink-0 items-center gap-2">
-                        <Link href="/gallery" className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground transition hover:bg-muted">
+                        <Link href="/gallery" className="inline-flex h-9 items-center rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 text-sm font-medium text-[var(--gm-text)] transition hover:bg-[var(--gm-wash)]">
                             作品广场
                         </Link>
                         <GalleryThemeToggle />
@@ -81,14 +81,17 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
                 <PublicCreatorView initialData={data} />
             ) : (
                 <section className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-xl flex-col items-center justify-center px-6 py-16 text-center" aria-labelledby="creator-unavailable-title">
-                    <span className="grid size-12 place-items-center rounded-full border border-border bg-muted text-muted-foreground" aria-hidden="true">
+                    <span className="grid size-12 place-items-center rounded-full border border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]" aria-hidden="true">
                         <DatabaseZap className="size-5" />
                     </span>
                     <h1 id="creator-unavailable-title" className="mt-4 text-xl font-semibold sm:text-2xl">
                         创作者主页暂不可用
                     </h1>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">当前部署未启用 PostgreSQL，作品发布与社区数据暂时无法读取。</p>
-                    <Link href="/" className="mt-5 inline-flex h-10 items-center rounded-md bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-85">
+                    <p className="mt-2 text-sm leading-6 text-[var(--gm-text-3)]">当前部署未启用 PostgreSQL，作品发布与社区数据暂时无法读取。</p>
+                    <Link
+                        href="/"
+                        className="mt-5 inline-flex h-10 items-center gm-btn-primary rounded-[var(--gm-radius)] border border-transparent bg-[image:var(--gm-gradient)] px-4 text-sm font-semibold text-white shadow-[var(--gm-glow-blue)] transition hover:brightness-110"
+                    >
                         返回首页
                     </Link>
                 </section>

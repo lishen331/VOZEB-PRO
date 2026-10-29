@@ -3,7 +3,8 @@ import { rawReferenceRequestUrlCandidates } from "./image-task-reference-urls";
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings } from "@/lib/auth/store";
+import { getAuthSettings, type GenerationPointMultipliers } from "@/lib/auth/store";
+import { imageTaskPointMultiplier } from "@/lib/image-generation-params";
 import { buildImageTaskPrompt } from "@/lib/image-reference-prompt";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
@@ -973,14 +974,13 @@ export async function refundChargedImageResponse(task: ImageTask, headers: Heade
         receiptId: billingReceiptId,
         model: generationModelId(task.config),
         usageKind: "image",
-        units: imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality),
+        units: imageUnits(task.config, settings.generationPointMultipliers),
         idempotencyKey: `${imagePointsIdempotencyKey(task)}:response-refund`,
     });
 }
 
-export function imageUnits(quality: string | undefined, multipliers: Record<string, number>) {
-    const key = QUALITY_ALIASES[String(quality || "").toLowerCase()] || String(quality || "auto").toLowerCase();
-    return multipliers[key] || 1;
+export function imageUnits(config: Pick<ImageTaskConfig, "model" | "quality" | "resolution" | "size">, multipliers: GenerationPointMultipliers) {
+    return imageTaskPointMultiplier(config, multipliers) || 1;
 }
 
 export function isRemoteMediaUrl(value: string) {

@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { ImageIcon } from "lucide-react";
 import { useRef } from "react";
 import type { DramaAssetReference } from "@/lib/drama-project-contract";
@@ -11,7 +11,7 @@ export function OneClickAssetReferenceUpload({ reference, busy, onUpload, onExtr
         <div className="flex flex-wrap items-start gap-3" data-testid="asset-reference-upload">
             <button
                 type="button"
-                className="flex h-36 w-40 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-border bg-muted/40 hover:border-primary disabled:opacity-50"
+                className="flex h-36 w-40 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-[var(--gm-border)] bg-[var(--gm-wash)]/40 hover:border-primary disabled:opacity-50"
                 aria-label="上传参考图"
                 disabled={busy}
                 onClick={() => input.current?.click()}
@@ -25,7 +25,7 @@ export function OneClickAssetReferenceUpload({ reference, busy, onUpload, onExtr
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={reference.url} alt="参考图预览" className="h-full w-full object-contain" />
                 ) : (
-                    <span className="flex flex-col items-center gap-2 text-xs text-muted-foreground">
+                    <span className="flex flex-col items-center gap-2 text-xs text-[var(--gm-text-3)]">
                         <ImageIcon className="size-6" />
                         点击或拖入参考图
                     </span>

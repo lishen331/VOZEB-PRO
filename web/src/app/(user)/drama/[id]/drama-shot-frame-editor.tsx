@@ -1,6 +1,8 @@
 "use client";
 
-import { App, Button, Image, Segmented } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -62,11 +64,11 @@ export function DramaShotFrameEditor({ projectId, episodeId, shot }: { projectId
     };
 
     return (
-        <div className="mt-3.5 border-t border-border/70 pt-3.5">
+        <div className="mt-3.5 border-t border-[var(--gm-border)]/70 pt-3.5">
             <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-baseline gap-2">
                     <div className="shrink-0 text-sm font-semibold">分镜帧</div>
-                    <p className="min-w-0 truncate text-xs leading-5 text-muted-foreground">生成镜头时自动补齐缺失帧，可上传覆盖</p>
+                    <p className="min-w-0 truncate text-xs leading-5 text-[var(--gm-text-3)]">生成镜头时自动补齐缺失帧，可上传覆盖</p>
                 </div>
                 <Segmented
                     className="!w-fit !shrink-0"
@@ -90,15 +92,15 @@ export function DramaShotFrameEditor({ projectId, episodeId, shot }: { projectId
 
 function FrameSlot({ title, url, loading, disabled, onUpload, onRemove }: { title: string; url?: string; loading: boolean; disabled: boolean; onUpload: () => void; onRemove: () => void }) {
     return (
-        <div className="flex min-w-0 items-center gap-2.5 rounded-md border border-border/80 bg-muted/15 p-2">
-            <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded border border-border/70 bg-background">
+        <div className="flex min-w-0 items-center gap-2.5 rounded-md border border-[var(--gm-border)]/80 bg-[var(--gm-wash)]/15 p-2">
+            <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded border border-[var(--gm-border)]/70 bg-[var(--gm-bg)]">
                 {url ? (
                     <Image className="!size-full !object-cover" src={imagePreviewUrl(url, 640)} alt={title} preview={{ mask: "查看", src: imagePreviewUrl(url, 1920) }} />
                 ) : (
                     <button
                         type="button"
                         disabled={disabled}
-                        className="grid size-full place-items-center text-muted-foreground transition-colors hover:bg-muted/45 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        className="grid size-full place-items-center text-[var(--gm-text-3)] transition-colors hover:bg-[var(--gm-wash)]/45 hover:text-[var(--gm-text)] disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={onUpload}
                         aria-label={`上传${title}`}
                     >

@@ -1,4 +1,5 @@
 import { withMediaDiagnosticScope } from "@/lib/server/media-task-trace";
+import { imagePixelTier, requestedImageResolution, upstreamImageQuality } from "@/lib/image-generation-params";
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -134,8 +135,8 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
 
 async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false): Promise<ImageTaskRunResult> {
     const config = task.config;
-    const quality = normalizeQuality(config.quality || "");
-    const requestSize = resolveRequestSize(quality, config.size || "auto");
+    const quality = upstreamImageQuality(config);
+    const requestSize = resolveRequestSize(imagePixelTier(config), config.size || "auto");
     const globalPreset = globalAiOpcImagePreset(config);
     if (globalPreset) return runGlobalAiOpcImageTask(task, origin, publicOrigin, cookie, quality, requestSize, singleStep);
     const path = await openAiImageTaskPath(config, task.kind);
@@ -220,7 +221,7 @@ async function runGlobalAiOpcImageTask(task: ImageTask, origin: string, publicOr
                 quality,
                 size: requestSize,
                 ratio,
-                resolution: quality === "high" ? "4k" : quality === "medium" ? "2k" : quality === "low" ? "1k" : undefined,
+                resolution: requestedImageResolution(task.config),
                 imageUrls,
             }),
             ...(config.outputBackground === "transparent" ? { background: "transparent", output_format: IMAGE_OUTPUT_FORMAT } : {}),
@@ -291,8 +292,8 @@ export async function runOpenAiJsonImageEditTask(
 
 export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false, billingVariant = "base64"): Promise<ImageTaskRunResult> {
     const config = task.config;
-    const quality = normalizeQuality(config.quality || "");
-    const requestSize = resolveRequestSize(quality, config.size || "auto");
+    const quality = upstreamImageQuality(config);
+    const requestSize = resolveRequestSize(imagePixelTier(config), config.size || "auto");
     const path = await openAiImageTaskPath(config, task.kind);
     const url = taskUrl(config, path, origin);
     const allowProtocolFallback = allowsImageProtocolFallback(config);

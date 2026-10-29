@@ -1,6 +1,10 @@
 "use client";
 
-import { Button, Grid, Input, Popconfirm, Table } from "antd";
+import { Grid } from "@/components/gamma-ui/gamma-ant-grid";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { Plus, Search, Trash2 } from "lucide-react";
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";

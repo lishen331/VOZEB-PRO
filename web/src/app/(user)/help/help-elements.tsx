@@ -7,15 +7,15 @@ export function HelpFlow({ steps }: { steps: HelpArticle["flow"] }) {
         <ol className="flex flex-col gap-2 lg:flex-row lg:items-stretch" aria-label="操作流程">
             {steps.map((step, index) => (
                 <li key={step.title} className="contents">
-                    <div className="min-w-0 flex-1 rounded-lg border border-border bg-card p-3 text-card-foreground sm:p-4">
+                    <div className="min-w-0 flex-1 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 text-card-foreground sm:p-4">
                         <div className="flex items-center gap-2">
-                            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">{index + 1}</span>
+                            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[image:var(--gm-gradient)] text-[11px] font-semibold text-white">{index + 1}</span>
                             <h3 className="min-w-0 text-sm font-semibold">{step.title}</h3>
                         </div>
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground">{step.detail}</p>
+                        <p className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">{step.detail}</p>
                     </div>
                     {index < steps.length - 1 ? (
-                        <span className="grid h-5 shrink-0 place-items-center text-muted-foreground lg:h-auto lg:w-5" aria-hidden="true">
+                        <span className="grid h-5 shrink-0 place-items-center text-[var(--gm-text-3)] lg:h-auto lg:w-5" aria-hidden="true">
                             <ArrowDown className="size-4 lg:hidden" />
                             <ArrowRight className="hidden size-4 lg:block" />
                         </span>
@@ -28,16 +28,16 @@ export function HelpFlow({ steps }: { steps: HelpArticle["flow"] }) {
 
 export function HelpGuideSteps({ steps }: { steps: HelpArticle["steps"] }) {
     return (
-        <ol className="divide-y divide-border border-y border-border">
+        <ol className="divide-y divide-border border-y border-[var(--gm-border)]">
             {steps.map((step, index) => (
                 <li key={step.title} className="grid gap-3 py-5 sm:grid-cols-[36px_minmax(0,1fr)] sm:gap-4 sm:py-6">
-                    <span className="grid size-8 place-items-center rounded-lg border border-border bg-muted text-xs font-semibold text-foreground">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="grid size-8 place-items-center rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] text-xs font-semibold text-[var(--gm-text)]">{String(index + 1).padStart(2, "0")}</span>
                     <div className="min-w-0">
-                        <h3 className="text-base font-semibold text-foreground">{step.title}</h3>
-                        <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{step.description}</p>
+                        <h3 className="text-base font-semibold text-[var(--gm-text)]">{step.title}</h3>
+                        <p className="mt-1.5 text-sm leading-6 text-[var(--gm-text-3)]">{step.description}</p>
                         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                             {step.checklist.map((item) => (
-                                <li key={item} className="flex min-w-0 items-start gap-2 text-sm leading-5 text-foreground/85">
+                                <li key={item} className="flex min-w-0 items-start gap-2 text-sm leading-5 text-[var(--gm-text)]/85">
                                     <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                     <span>{item}</span>
                                 </li>
@@ -58,14 +58,14 @@ export function HelpGuideSteps({ steps }: { steps: HelpArticle["steps"] }) {
 
 export function HelpFaqList({ faqs }: { faqs: HelpArticle["faqs"] }) {
     return (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="divide-y divide-border border-y border-[var(--gm-border)]">
             {faqs.map((faq) => (
                 <details key={faq.question} className="group py-4">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground marker:content-none">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-[var(--gm-text)] marker:content-none">
                         <span>{faq.question}</span>
-                        <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-base font-normal text-muted-foreground transition group-open:rotate-45">+</span>
+                        <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[var(--gm-wash)] text-base font-normal text-[var(--gm-text-3)] transition group-open:rotate-45">+</span>
                     </summary>
-                    <p className="max-w-4xl pt-3 text-sm leading-6 text-muted-foreground">{faq.answer}</p>
+                    <p className="max-w-4xl pt-3 text-sm leading-6 text-[var(--gm-text-3)]">{faq.answer}</p>
                 </details>
             ))}
         </div>

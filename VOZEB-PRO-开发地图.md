@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-10-21，`codex/release-media-delivery-prod-20261021` 分支。当前源码包含 59 个 `page.tsx` 页面入口、426 个 API Route 文件和 144 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-10-22，`codex/fix-image-media-auth-staging-20261022` 分支。当前源码包含 67 个 `page.tsx` 页面入口、426 个 API Route 文件和 144 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 

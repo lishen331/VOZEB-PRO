@@ -2,7 +2,10 @@
 
 import { Check, Search } from "lucide-react";
 import { type UIEvent, useEffect, useState } from "react";
-import { App, Empty, Input, Modal, Spin, Tag } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 
 import { ALL_PROMPTS_OPTION } from "@/services/api/prompts";
 import { cn } from "@/lib/utils";

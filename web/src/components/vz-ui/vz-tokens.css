@@ -1,0 +1,152 @@
+/*
+ * VOZEB 新版视觉 Token（预览版）。
+ * 全部变量挂在 .vz 作用域下，不影响现有页面；验收通过后再迁移到 global-foundation.css。
+ */
+.vz {
+    /* 背景层级：带一点蓝紫倾向的近黑，避免纯黑的"死板" */
+    --vz-bg: #07070c;
+    --vz-bg-elevated: #0e0e16;
+    --vz-surface: #13131d;
+    --vz-surface-2: #1a1a27;
+    --vz-surface-3: #232334;
+    --vz-overlay: rgba(7, 7, 12, 0.72);
+
+    --vz-border: rgba(255, 255, 255, 0.07);
+    --vz-border-strong: rgba(255, 255, 255, 0.13);
+
+    --vz-text: #f4f4f8;
+    --vz-text-2: #a9a9bd;
+    --vz-text-3: #6e6e86;
+
+    /* 品牌色：极光紫 → 电光蓝 → 青 */
+    --vz-brand: #8b5cf6;
+    --vz-brand-2: #4f7cff;
+    --vz-brand-3: #22d3ee;
+    --vz-brand-soft: rgba(139, 92, 246, 0.14);
+    --vz-gradient: linear-gradient(100deg, #a855f7 0%, #6366f1 45%, #22d3ee 100%);
+    --vz-gradient-hot: linear-gradient(100deg, #f472b6 0%, #a855f7 55%, #6366f1 100%);
+
+    --vz-success: #34d399;
+    --vz-warning: #fbbf24;
+    --vz-danger: #fb7185;
+    --vz-gold: #fcd34d;
+
+    --vz-radius-sm: 8px;
+    --vz-radius: 12px;
+    --vz-radius-lg: 18px;
+    --vz-radius-xl: 24px;
+
+    --vz-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --vz-glow: 0 8px 28px rgba(124, 92, 255, 0.38);
+
+    background: var(--vz-bg);
+    color: var(--vz-text);
+    color-scheme: dark;
+}
+
+/*
+ * antd/dist/reset.css 是未分层样式，它的 button/input { color: inherit; overflow: visible } 会压过
+ * 所有 @layer utilities 里的 Tailwind 类。这里用 revert-layer 把这些属性交还给分层样式。
+ * 本规则必须保持未分层。
+ */
+.vz :is(button, input, textarea, select) {
+    color: revert-layer;
+    overflow: revert-layer;
+    margin: revert-layer;
+    font-size: revert-layer;
+    line-height: revert-layer;
+}
+
+/* 页面氛围光：顶部两团品牌色光晕 */
+.vz-ambient {
+    background: radial-gradient(800px 420px at 12% -8%, rgba(139, 92, 246, 0.22), transparent 70%), radial-gradient(700px 380px at 92% -4%, rgba(34, 211, 238, 0.14), transparent 70%), var(--vz-bg);
+}
+
+.vz-gradient-text {
+    background: var(--vz-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* 渐变描边：用于选中卡片、主输入框 */
+.vz-gradient-border {
+    position: relative;
+    isolation: isolate;
+}
+.vz-gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: var(--vz-gradient);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+/* 生成中的流光 */
+@keyframes vz-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
+}
+.vz-shimmer {
+    background-image: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.08) 50%, transparent 80%);
+    background-size: 200% 100%;
+    animation: vz-shimmer 1.8s linear infinite;
+}
+
+@keyframes vz-flow {
+    to {
+        background-position: 200% 50%;
+    }
+}
+.vz-flow {
+    background-size: 200% 100%;
+    animation: vz-flow 3s linear infinite;
+}
+
+/* 滑块 */
+.vz-range {
+    appearance: none;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--vz-brand) 0 var(--vz-range-fill, 50%), var(--vz-surface-3) var(--vz-range-fill, 50%) 100%);
+    outline: none;
+    cursor: pointer;
+}
+.vz-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.35);
+}
+.vz-range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.35);
+}
+.vz-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vz-shimmer,
+    .vz-flow {
+        animation: none;
+    }
+}

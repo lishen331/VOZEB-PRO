@@ -1,5 +1,6 @@
 "use client";
-import { App, Button, Checkbox } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button, Checkbox } from "@/components/gamma-ui/gamma-ant";
 
 export function BindingHttp1Control({ enabled, channelName, modelName, onChange }: { enabled: boolean; channelName: string; modelName: string; onChange: (enabled: boolean) => void }) {
     const { modal } = App.useApp();

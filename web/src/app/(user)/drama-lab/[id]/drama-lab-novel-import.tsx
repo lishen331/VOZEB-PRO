@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Button, Input, Modal, Pagination } from "antd";
-import type { MessageInstance } from "antd/es/message/interface";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
+import type { MessageInstance } from "@/components/gamma-ui/gamma-ant-app";
 import { BookOpenText, FileText, Search } from "lucide-react";
 
 const IMPORT_PAGE_SIZE = 20;
@@ -178,7 +180,7 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
         <>
             {triggerContainer ? createPortal(importTrigger, triggerContainer) : null}
             <div
-                className={`${children ? "flex w-full flex-col gap-2 rounded-lg border border-dashed p-3" : "inline-flex items-center gap-2 rounded-lg border border-dashed px-1 py-1"} transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border"}`}
+                className={`${children ? "flex w-full flex-col gap-2 rounded-lg border border-dashed p-3" : "inline-flex items-center gap-2 rounded-lg border border-dashed px-1 py-1"} transition-colors ${dragging ? "border-primary bg-primary/5" : "border-[var(--gm-border)]"}`}
                 onDragEnter={handleDragEnter}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -191,7 +193,7 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
             >
                 {!triggerContainerId ? importTrigger : null}
                 {children}
-                <span className="hidden pr-2 text-xs text-muted-foreground sm:inline">或拖拽 TXT/MD/DOCX/DOC 文件到这里</span>
+                <span className="hidden pr-2 text-xs text-[var(--gm-text-3)] sm:inline">或拖拽 TXT/MD/DOCX/DOC 文件到这里</span>
             </div>
             <input
                 ref={inputRef}
@@ -218,11 +220,11 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
                 styles={{ container: { maxWidth: "calc(100vw - 24px)" }, body: { padding: 0 } }}
             >
                 <div className="flex max-h-[min(68vh,640px)] min-h-0 flex-col overflow-hidden">
-                    <div className="shrink-0 border-b border-border px-5 py-3">
-                        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                    <div className="shrink-0 border-b border-[var(--gm-border)] px-5 py-3">
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--gm-text-3)]">
                             <span className="flex min-w-0 items-center gap-1.5" title={fileName}>
                                 <FileText className="size-3.5 shrink-0" />
-                                <span className="max-w-60 truncate text-foreground">{fileName}</span>
+                                <span className="max-w-60 truncate text-[var(--gm-text)]">{fileName}</span>
                             </span>
                             <span>{preview?.drafts.length.toLocaleString("zh-CN")} 集</span>
                             <span>{preview?.sourceCharacters.toLocaleString("zh-CN")} 字</span>
@@ -232,7 +234,7 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
                         <Input
                             className="!mt-3 !h-8"
                             allowClear
-                            prefix={<Search className="size-3.5 text-muted-foreground" />}
+                            prefix={<Search className="size-3.5 text-[var(--gm-text-3)]" />}
                             value={query}
                             onChange={(event) => {
                                 setQuery(event.target.value);
@@ -247,21 +249,21 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
                             <div className="divide-y divide-border">
                                 {visible.map(({ draft, index }) => (
                                     <div key={`${index}-${draft.title}`} className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2 px-2 py-2.5">
-                                        <span className="text-xs font-medium tabular-nums text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>
+                                        <span className="text-xs font-medium tabular-nums text-[var(--gm-text-3)]">{String(index + 1).padStart(2, "0")}</span>
                                         <span className="min-w-0">
                                             <span className="block truncate text-sm font-medium">{draft.title || `第 ${index + 1} 集`}</span>
-                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{draft.sourceRange || "按正文长度自动划分"}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-[var(--gm-text-3)]">{draft.sourceRange || "按正文长度自动划分"}</span>
                                         </span>
-                                        <span className="text-xs tabular-nums text-muted-foreground">{draft.script.length.toLocaleString("zh-CN")} 字</span>
+                                        <span className="text-xs tabular-nums text-[var(--gm-text-3)]">{draft.script.length.toLocaleString("zh-CN")} 字</span>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="grid min-h-40 place-items-center text-sm text-muted-foreground">没有匹配的分集</div>
+                            <div className="grid min-h-40 place-items-center text-sm text-[var(--gm-text-3)]">没有匹配的分集</div>
                         )}
                     </div>
                     {filtered.length > IMPORT_PAGE_SIZE ? (
-                        <div className="flex shrink-0 justify-end border-t border-border px-4 py-2.5">
+                        <div className="flex shrink-0 justify-end border-t border-[var(--gm-border)] px-4 py-2.5">
                             <Pagination size="small" current={page} pageSize={IMPORT_PAGE_SIZE} total={filtered.length} showSizeChanger={false} showLessItems onChange={setPage} />
                         </div>
                     ) : null}

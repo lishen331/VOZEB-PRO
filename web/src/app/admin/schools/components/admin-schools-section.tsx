@@ -1,7 +1,14 @@
 "use client";
 
-import type { FormInstance, TableColumnsType } from "antd";
-import { App, Button, Drawer, Form, Input, Modal, Pagination, Select, Table, Tag } from "antd";
+import type { FormInstance } from "@/components/gamma-ui/gamma-ant-form";
+import type { TableColumnsType } from "@/components/gamma-ui/gamma-ant-table";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Eye, Pencil, Plus, RefreshCw, School, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -365,10 +372,13 @@ function SchoolEditorForm({ form, editing, onFinish }: { form: FormInstance<Scho
                             <Input.Password autoComplete="new-password" />
                         </Form.Item>
                         <Form.Item label="学校状态" name="status" className="sm:col-span-2">
-                            <Select disabled>
-                                <Select.Option value="active">可用</Select.Option>
-                                <Select.Option value="disabled">停用</Select.Option>
-                            </Select>
+                            <Select
+                                disabled
+                                options={[
+                                    { value: "active", label: "可用" },
+                                    { value: "disabled", label: "停用" },
+                                ]}
+                            />
                         </Form.Item>
                     </>
                 )}

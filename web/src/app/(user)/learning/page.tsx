@@ -1,6 +1,11 @@
 "use client";
 
-import { App, Button, Checkbox, Drawer, Form, Input, Pagination, Spin, Tabs, Tag } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Checkbox, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { CheckCircle2, ClipboardList, Clock, Eye, RefreshCw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";

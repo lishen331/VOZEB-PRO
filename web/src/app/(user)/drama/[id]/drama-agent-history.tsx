@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Dropdown } from "antd";
+import { Button } from "@/components/gamma-ui/gamma-ant";
+import { Dropdown } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Check, Clock3, Ellipsis, MessageSquareText, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
@@ -42,19 +43,19 @@ export function DramaAgentHistory({
     return (
         <div className="w-[min(18rem,calc(100vw-1.5rem))] overflow-hidden p-1" data-drama-agent-history>
             <div className="flex h-8 items-center justify-between px-2">
-                <span className="text-xs font-medium text-foreground">历史对话</span>
-                <span className="text-[11px] tabular-nums text-muted-foreground">{items.length} 条</span>
+                <span className="text-xs font-medium text-[var(--gm-text)]">历史对话</span>
+                <span className="text-[11px] tabular-nums text-[var(--gm-text-3)]">{items.length} 条</span>
             </div>
             <div className="hide-scrollbar max-h-[min(18rem,calc(100dvh-8rem))] overflow-y-auto overscroll-contain">
-                {loading ? <div className="px-3 py-8 text-center text-xs text-muted-foreground">正在读取...</div> : null}
-                {!loading && !items.length ? <div className="px-3 py-8 text-center text-xs text-muted-foreground">暂无历史对话</div> : null}
+                {loading ? <div className="px-3 py-8 text-center text-xs text-[var(--gm-text-3)]">正在读取...</div> : null}
+                {!loading && !items.length ? <div className="px-3 py-8 text-center text-xs text-[var(--gm-text-3)]">暂无历史对话</div> : null}
                 <div className="grid gap-0.5">
                     {items.map((item) => {
                         const active = item.id === activeId;
                         return (
                             <div
                                 key={item.id}
-                                className={`group flex min-h-12 w-full min-w-0 items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors ${active ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/70"}`}
+                                className={`group flex min-h-12 w-full min-w-0 items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors ${active ? "bg-primary/10 text-primary" : "text-[var(--gm-text)] hover:bg-[var(--gm-wash)]/70"}`}
                                 aria-current={active ? "true" : undefined}
                             >
                                 {editingId === item.id ? (
@@ -63,7 +64,7 @@ export function DramaAgentHistory({
                                             autoFocus
                                             value={titleDraft}
                                             maxLength={120}
-                                            className="h-8 min-w-0 flex-1 rounded-md border border-primary/40 bg-background px-2 text-xs text-foreground outline-none focus:border-primary"
+                                            className="h-8 min-w-0 flex-1 rounded-md border border-primary/40 bg-[var(--gm-bg)] px-2 text-xs text-[var(--gm-text)] outline-none focus:border-primary"
                                             aria-label={`修改对话标题：${item.title || "新对话"}`}
                                             onChange={(event) => setTitleDraft(event.target.value)}
                                             onKeyDown={(event) => {
@@ -80,7 +81,7 @@ export function DramaAgentHistory({
                                             <MessageSquareText className="size-3.5 shrink-0 opacity-70" aria-hidden="true" />
                                             <span className="min-w-0 flex-1">
                                                 <span className="block truncate text-xs font-medium">{item.title || "新对话"}</span>
-                                                <span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                <span className="mt-0.5 flex items-center gap-1 text-[10px] text-[var(--gm-text-3)]">
                                                     <Clock3 className="size-2.5" aria-hidden="true" /> {formatTime(item.lastMessageAt)}
                                                 </span>
                                             </span>
@@ -101,7 +102,7 @@ export function DramaAgentHistory({
                                             <Button
                                                 type="text"
                                                 size="small"
-                                                className="!size-7 !min-w-7 !shrink-0 !text-muted-foreground opacity-70 hover:!text-foreground group-hover:opacity-100"
+                                                className="!size-7 !min-w-7 !shrink-0 !text-[var(--gm-text-3)] opacity-70 hover:!text-[var(--gm-text)] group-hover:opacity-100"
                                                 icon={<Ellipsis className="size-3.5" />}
                                                 aria-label={`管理对话：${item.title || "新对话"}`}
                                             />
@@ -113,7 +114,7 @@ export function DramaAgentHistory({
                     })}
                 </div>
                 {hasMore ? (
-                    <Button type="text" block size="small" className="!mt-1 !h-8 !text-xs !text-muted-foreground" loading={loadingMore} onClick={onLoadMore}>
+                    <Button type="text" block size="middle" className="!mt-1 !text-[var(--gm-text-3)]" loading={loadingMore} onClick={onLoadMore}>
                         加载更多
                     </Button>
                 ) : null}

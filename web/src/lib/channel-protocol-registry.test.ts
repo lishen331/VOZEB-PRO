@@ -41,6 +41,7 @@ describe("channel protocol registry", () => {
             "mohui-seedance",
             "modelbay-image-task",
             "tuzi-image-task",
+            "tuzi-suno",
             "stable-diffusion",
             "volcengine-video",
             "sub2api",
@@ -310,6 +311,18 @@ describe("channel protocol registry", () => {
                 "opaque",
             ),
         ).toMatchObject({ capability: "video", protocol: "custom", createPath: "/jobs" });
+    });
+
+    it("repairs New API Gemini image models saved with the OpenAI images format", () => {
+        const advanced = {
+            ...applyChannelProtocol(channel, "newapi").advancedConfig!,
+            modelConfigs: {
+                "gemini-3-pro-image-preview": { capability: "image" as const, protocol: "newapi" as const, apiFormat: "openai" as const, createPath: "/images/generations" },
+                "gpt-image-2": { capability: "image" as const, protocol: "newapi" as const, apiFormat: "openai" as const, createPath: "/images/generations" },
+            },
+        };
+        expect(resolveChannelModelConfig(advanced, "gemini-3-pro-image-preview")).toMatchObject({ apiFormat: "gemini" });
+        expect(resolveChannelModelConfig(advanced, "gpt-image-2")).toMatchObject({ apiFormat: "openai" });
     });
 
     it("routes New API Doubao Seedance models through the JSON task contract", () => {

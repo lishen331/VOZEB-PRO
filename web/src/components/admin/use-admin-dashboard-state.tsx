@@ -3,7 +3,8 @@
 import type { AgentReadiness } from "@/components/admin/admin-generation-settings";
 import { adminSectionHref, type AdminSectionKey } from "@/components/admin/admin-sections";
 import { uniqueList } from "@/components/admin/admin-values";
-import { App, Form } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 

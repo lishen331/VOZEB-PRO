@@ -24,7 +24,7 @@ describe("drama create workspace navigation", () => {
     it("keeps the project outline scrollable inside the fullscreen workspace", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/outline/page.tsx"), "utf8");
 
-        expect(source).toContain('<div className="h-full min-h-0 overflow-x-hidden overflow-y-auto bg-background">');
+        expect(source).toContain('<div className="h-full min-h-0 overflow-x-hidden overflow-y-auto bg-[var(--gm-bg)]">');
     });
 
     it("replaces the script save action with a right-aligned next-step action", async () => {

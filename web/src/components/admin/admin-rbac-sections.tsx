@@ -1,6 +1,15 @@
 "use client";
 
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, Tree, message } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { Tree } from "@/components/gamma-ui/gamma-ant-tree";
+import { message } from "@/components/gamma-ui/gamma-ant-app";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Popconfirm, Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { Edit3, Plus, Power, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

@@ -1,6 +1,11 @@
 "use client";
 
-import { App, Button, Empty, Form, Input, Modal, Spin, Tag, Upload } from "antd";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { Upload } from "@/components/gamma-ui/gamma-ant-upload";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { BookOpen, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 

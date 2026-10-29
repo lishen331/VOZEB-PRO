@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { App, Button, Input, Pagination } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import { saveAs } from "file-saver";
 import { CreditCard, Download, History, ReceiptText, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
 
@@ -174,9 +176,9 @@ export default function ProfilePage() {
     };
 
     return (
-        <main className="profile-page-scroll h-full min-h-0 overflow-x-hidden overflow-y-auto px-2 py-2 text-foreground sm:px-6 sm:py-6" style={{ backgroundColor: "var(--background)" }}>
+        <main className="profile-page-scroll h-full min-h-0 overflow-x-hidden overflow-y-auto px-2 py-2 text-[var(--gm-text)] sm:px-6 sm:py-6" style={{ backgroundColor: "var(--background)" }}>
             <div className="mx-auto w-full max-w-[1280px] pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-[calc(2rem+env(safe-area-inset-bottom))]">
-                <div className="mb-1 flex items-center justify-end gap-1.5 sm:mb-5 sm:justify-between sm:gap-3 sm:rounded-xl sm:border sm:border-border sm:bg-card sm:p-6 sm:text-card-foreground">
+                <div className="mb-1 flex items-center justify-end gap-1.5 sm:mb-5 sm:justify-between sm:gap-3 sm:rounded-xl sm:border sm:border-[var(--gm-border)] sm:bg-[var(--gm-surface)] sm:p-6 sm:text-card-foreground">
                     <div className="hidden min-w-0 sm:block">
                         <h1 className="text-lg font-semibold text-stone-950 sm:text-2xl dark:text-white">个人中心</h1>
                         <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-stone-500 sm:block dark:text-stone-400">个人资料、套餐优惠、订单记录、消费记录和积分流水统一放在一个用户后台里。</p>
@@ -198,7 +200,7 @@ export default function ProfilePage() {
                 </div>
 
                 {activeSection === "overview" ? (
-                    <section className="mb-2 grid grid-cols-2 gap-1 overflow-hidden rounded-lg border border-border bg-card p-1 sm:mb-5 xl:grid-cols-4 xl:gap-3 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0">
+                    <section className="mb-2 grid grid-cols-2 gap-1 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-1 sm:mb-5 xl:grid-cols-4 xl:gap-3 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0">
                         <AccountMetric label="当前套餐" value={user?.planName || user?.planId || "未加载"} icon={<WalletCards className="size-4" />} />
                         <AccountMetric
                             label="积分余额"

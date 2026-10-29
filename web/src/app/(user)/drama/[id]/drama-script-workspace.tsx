@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Drawer } from "antd";
+import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Button } from "@/components/gamma-ui/gamma-ant";
 import { ListTree, X } from "lucide-react";
 
 import type { DramaEpisode, DramaProject, DramaShot } from "../types";
@@ -43,7 +44,7 @@ export function DramaScriptWorkspace({
 
     return (
         <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 overflow-hidden min-[1120px]:grid-cols-[200px_minmax(700px,1fr)]" data-drama-script-workspace>
-            <div className="hidden min-h-0 min-w-0 overflow-hidden rounded-lg border border-border min-[1180px]:block">
+            <div className="hidden min-h-0 min-w-0 overflow-hidden rounded-lg border border-[var(--gm-border)] min-[1180px]:block">
                 <DramaSceneStructure project={project} episode={episode} selectedShotId={selectedShotId} onSelect={selectShot} analyzing={analyzing} onAnalyze={onAnalyze} />
             </div>
             <div className="relative flex min-h-0 min-w-0 flex-col">
@@ -54,7 +55,7 @@ export function DramaScriptWorkspace({
             </div>
             <Drawer title="场景结构" placement="left" size={300} open={mobilePanel === "scenes"} closable={false} onClose={() => setMobilePanel(undefined)} styles={{ wrapper: { maxWidth: "100vw" }, body: { padding: 0 } }}>
                 <div className="flex h-full min-h-0 flex-col">
-                    <div className="flex justify-end border-b border-border px-3 py-2">
+                    <div className="flex justify-end border-b border-[var(--gm-border)] px-3 py-2">
                         <Button type="text" size="small" icon={<X className="size-3.5" />} onClick={() => setMobilePanel(undefined)}>
                             关闭场景结构
                         </Button>

@@ -97,7 +97,7 @@ describe("CreativeAssetsPanel", () => {
         expect(markup).toContain("图片");
         expect(markup).toContain("视频");
         expect(markup).toContain("grid-cols-4");
-        expect(markup).toContain("border-[#6268d8]");
+        expect(markup).toContain("border-[#3d72d9]");
         expect(markup).toContain('data-testid="creative-asset-reference-action"');
         expect(markup).toContain('aria-label="取消引用参考图"');
         expect(markup).toContain("已引用</button>");

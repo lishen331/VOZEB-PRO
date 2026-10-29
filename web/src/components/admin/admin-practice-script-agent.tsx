@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Alert, Button, Select, Spin, Switch, Table, Tag } from "antd";
+import { Table } from "@/components/gamma-ui/gamma-ant-table";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Alert, Button, Spin, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
 import type { AuthSettings } from "@/lib/auth/store";
 type Profile = { agentKey: string; name: string; enabled: boolean; primaryLogicalModelId: string; fallbackLogicalModelId: string; toolAllowlist: string[]; skillBindings: string[]; version: number };
 export function AdminPracticeScriptAgent({ settings }: { settings: AuthSettings }) {

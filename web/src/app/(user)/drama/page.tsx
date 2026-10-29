@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { App, Button, Input, InputNumber, Modal, Segmented } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
+import { Button, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { Clapperboard, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/stores/use-user-store";
@@ -76,26 +79,26 @@ export default function DramaPage() {
         }
     };
     return (
-        <main className="h-full overflow-y-auto bg-background text-foreground">
+        <main className="h-full overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-7xl px-2 py-2 sm:px-6 sm:py-8">
-                <header className="flex items-end justify-between gap-3 border-b border-border pb-3 sm:gap-5 sm:pb-6">
+                <header className="flex items-end justify-between gap-3 border-b border-[var(--gm-border)] pb-3 sm:gap-5 sm:pb-6">
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
                             <Clapperboard className="size-4" />
                             短剧生产线
                         </div>
                         <h1 className="mt-1.5 text-xl font-semibold sm:mt-2 sm:text-2xl">短剧项目</h1>
-                        <p className="mt-1.5 text-xs leading-5 text-muted-foreground sm:mt-2 sm:text-sm">
+                        <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-3)] sm:mt-2 sm:text-sm">
                             共 {projectTotal} 个项目 · 已加载 {projects.length} 个 / {episodeCount} 集 · {pendingCount} 个执行中任务
                         </p>
                     </div>
-                    <Button type="primary" className="!h-9 !shrink-0 !px-3 sm:!px-4" icon={<Plus className="size-4" />} disabled={!hydrated} onClick={openCreate}>
+                    <Button type="primary" size="large" className="!shrink-0 !px-3 sm:!px-4" icon={<Plus className="size-4" />} disabled={!hydrated} onClick={openCreate}>
                         新建短剧
                     </Button>
                 </header>
                 {syncError ? <div className="mt-4 border-l-2 border-amber-400 pl-3 text-sm text-amber-700 dark:text-amber-200">项目服务暂不可用：{syncError}</div> : null}
                 {!hydrated ? (
-                    <div className="grid min-h-16 place-items-center text-sm text-muted-foreground sm:min-h-32">正在加载短剧项目…</div>
+                    <div className="grid min-h-16 place-items-center text-sm text-[var(--gm-text-3)] sm:min-h-32">正在加载短剧项目…</div>
                 ) : projects.length ? (
                     <>
                         <section className="grid gap-1.5 py-1 sm:grid-cols-2 sm:gap-4 sm:py-6 xl:grid-cols-3">
@@ -137,15 +140,15 @@ export default function DramaPage() {
                 onOk={() => void create()}
                 okText="创建并进入"
                 cancelText="取消"
-                okButtonProps={{ className: "!h-9" }}
-                cancelButtonProps={{ className: "!h-9" }}
+                okButtonProps={{ className: "" }}
+                cancelButtonProps={{ className: "" }}
             >
                 <div className="grid gap-3 pt-1">
                     <div className="grid gap-1.5">
                         <label htmlFor="drama-project-title" className="text-sm font-medium leading-5">
                             项目名称
                         </label>
-                        <Input id="drama-project-title" className="!h-9" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：月影长安" />
+                        <Input id="drama-project-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：月影长安" />
                     </div>
                     <div className="grid gap-1.5">
                         <label htmlFor="drama-project-summary" className="text-sm font-medium leading-5">
@@ -157,7 +160,7 @@ export default function DramaPage() {
                         <label htmlFor="drama-project-style" className="text-sm font-medium leading-5">
                             视觉风格
                         </label>
-                        <Input id="drama-project-style" className="!h-9" value={style} onChange={(event) => setStyle(event.target.value)} />
+                        <Input id="drama-project-style" value={style} onChange={(event) => setStyle(event.target.value)} />
                     </div>
                     <div className="grid min-w-0 gap-1.5">
                         <span className="text-sm font-medium leading-5">生成尺寸</span>
@@ -187,7 +190,7 @@ export default function DramaPage() {
                                         setRatio(`${width}x${customHeight}`);
                                     }}
                                 />
-                                <span className="text-muted-foreground">×</span>
+                                <span className="text-[var(--gm-text-3)]">×</span>
                                 <InputNumber
                                     className="!w-full"
                                     min={256}

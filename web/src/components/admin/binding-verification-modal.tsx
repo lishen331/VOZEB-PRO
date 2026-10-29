@@ -1,6 +1,12 @@
 "use client";
 
-import { Alert, Button, Checkbox, Empty, Image, Input, Modal, Space, Spin, Tabs, Tag, Select } from "antd";
+import { Image } from "@/components/gamma-ui/gamma-ant-image";
+import { Select } from "@/components/gamma-ui/gamma-ant-select";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Space } from "@/components/gamma-ui/gamma-ant-display";
+import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { Alert, Button, Checkbox, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
 import { uploadBindingVerificationReference } from "@/services/api/binding-verification-reference-upload";
 import { Upload } from "lucide-react";
 import { saveAs } from "file-saver";
@@ -327,7 +333,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, onEnableWithou
                                         <Select
                                             value={reference.type}
                                             disabled={busy}
-                                            options={[{ value: "image", label: "图片" }, ...(capability === "video" ? [{ value: "video", label: "视频" }] : [])]}
+                                            options={[{ value: "image" as const, label: "图片" }, ...(capability === "video" ? [{ value: "video" as const, label: "视频" }] : [])]}
                                             onChange={(type) => changeReferences((items) => items.map((item, i) => (i === index ? { ...item, type } : item)))}
                                         />
                                         <Input value={reference.url} disabled={busy} placeholder="参考素材公开 URL" onChange={(event) => changeReferences((items) => items.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)))} />
