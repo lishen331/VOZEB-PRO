@@ -3,7 +3,7 @@ export type AudioParams = Record<string, AudioParamValue>;
 export type AudioModelFamily = "minimax" | "suno" | "openai";
 
 type Option = { value: string; label: string };
-type FieldBase = { key: string; label: string; group: string; hint?: string };
+type FieldBase = { key: string; label: string; group: string; hint?: string; visibleWhen?: { key: string; value: AudioParamValue } };
 export type AudioParamField =
     | (FieldBase & { type: "slider"; min: number; max: number; step: number; defaultValue: number })
     | (FieldBase & { type: "segmented" | "select"; options: Option[]; defaultValue: string })
@@ -100,14 +100,23 @@ const SUNO_FIELDS: AudioParamField[] = [
             { value: "lyrics", label: "歌词生音乐" },
         ],
     },
-    { key: "instrumental", label: "纯音乐", group: "高级设置", type: "switch", defaultValue: false },
-    { key: "title", label: "歌曲标题", group: "高级设置", type: "text", placeholder: "可选", defaultValue: "" },
+    { key: "instrumental", label: "纯音乐", group: "高级设置", type: "switch", defaultValue: false, visibleWhen: { key: "mode", value: "describe" } },
+    { key: "title", label: "歌曲标题", group: "高级设置", type: "text", placeholder: "可选", defaultValue: "", visibleWhen: { key: "mode", value: "lyrics" } },
     { key: "tags", label: "音乐风格", group: "高级设置", type: "text", placeholder: "如：流行, 电子, 女声", defaultValue: "" },
 ];
 
 export function audioModelFields(model: string | undefined) {
     const family = audioModelFamily(model);
     return family === "minimax" ? MINIMAX_FIELDS : family === "suno" ? SUNO_FIELDS : [];
+}
+
+export function audioVisibleFields(model: string | undefined, input: unknown) {
+    const params = normalizeAudioParams(model, input);
+    return audioModelFields(model).filter((field) => !field.visibleWhen || params[field.visibleWhen.key] === field.visibleWhen.value);
+}
+
+export function isAudioLyricsMode(model: string | undefined, input: unknown) {
+    return audioModelFamily(model) === "suno" && normalizeAudioParams(model, input).mode === "lyrics";
 }
 
 /** Fill in defaults and clamp every value to its field contract; unknown keys are dropped. */
@@ -130,10 +139,10 @@ export function normalizeAudioParams(model: string | undefined, input: unknown):
     return result;
 }
 
-export function audioModelPlaceholder(model: string | undefined) {
+export function audioModelPlaceholder(model: string | undefined, params?: unknown) {
     const family = audioModelFamily(model);
     if (family === "minimax") return "输入要合成的文本";
-    if (family === "suno") return "描述您想要的音乐，或在歌词模式下输入歌词";
+    if (family === "suno") return isAudioLyricsMode(model, params) ? "输入歌词，可用 [Verse] [Chorus] 分段，或点 AI 写歌词" : "描述你想要的音乐，如：一首甜甜的恋爱歌曲";
     return "描述要生成的音频内容";
 }
 
@@ -141,7 +150,7 @@ export function audioParamsSummary(model: string | undefined, input: unknown) {
     const family = audioModelFamily(model);
     const params = normalizeAudioParams(model, input);
     if (family === "minimax") return `${minimaxVoiceOptions.find((option) => option.value === params.voiceId)?.label || params.voiceId} · ${Number(params.speed).toFixed(2)}x`;
-    if (family === "suno") return `${params.mode === "lyrics" ? "歌词生音乐" : "描述生音乐"}${params.instrumental ? " · 纯音乐" : ""}`;
+    if (family === "suno") return params.mode === "lyrics" ? "歌词生音乐" : `描述生音乐${params.instrumental ? " · 纯音乐" : ""}`;
     return "";
 }
 
@@ -151,9 +160,8 @@ export function audioUpstreamFields(model: string | undefined, prompt: string, i
     if (family === "openai") return {};
     const params = normalizeAudioParams(model, input);
     if (family === "suno") {
-        const instrumental = Boolean(params.instrumental);
-        if (params.mode === "lyrics") return { prompt, title: params.title || undefined, tags: params.tags || undefined, make_instrumental: instrumental };
-        return { prompt: "", gpt_description_prompt: prompt, tags: params.tags || undefined, make_instrumental: instrumental };
+        if (params.mode === "lyrics") return { prompt, title: params.title || undefined, tags: params.tags || undefined, make_instrumental: false };
+        return { prompt: "", gpt_description_prompt: prompt, tags: params.tags || undefined, make_instrumental: Boolean(params.instrumental) };
     }
     const speed = Number(params.speed);
     const format = String(params.format);
