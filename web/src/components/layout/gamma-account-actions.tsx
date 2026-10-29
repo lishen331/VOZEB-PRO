@@ -91,12 +91,6 @@ function GuestCard({ collapsed, dark, showHelp, showTheme = true, onToggleTheme,
     }
     return (
         <div className="flex flex-col gap-2">
-            {showHelp || showTheme ? (
-                <div className="flex justify-end gap-0.5 px-0.5">
-                    {showHelp ? <HelpButton onOpen={onOpen} /> : null}
-                    {showTheme ? <ThemeButton dark={dark} onToggle={onToggleTheme} /> : null}
-                </div>
-            ) : null}
             <div className="rounded-[12px] bg-[var(--gm-wash)] p-3 ring-1 ring-[var(--gm-border)]">
                 <p className="text-[13px] font-medium">登录后开始创作</p>
                 <p className="mt-0.5 text-[11px] text-[var(--gm-text-3)]">作品、素材与积分跨设备同步</p>
@@ -109,6 +103,12 @@ function GuestCard({ collapsed, dark, showHelp, showTheme = true, onToggleTheme,
                     登录 / 注册
                 </button>
             </div>
+            {showHelp || showTheme ? (
+                <div className="flex items-center justify-between px-0.5">
+                    {showHelp ? <HelpButton onOpen={onOpen} /> : null}
+                    {showTheme ? <ThemeButton dark={dark} onToggle={onToggleTheme} /> : null}
+                </div>
+            ) : null}
         </div>
     );
 }
@@ -162,9 +162,9 @@ export function GammaAccountActions(props: GammaAccountActionsProps) {
         );
     }
 
+    // 版式对齐 /bluegamma/home：积分卡在上，小图标均分一行，账户行在底
     return (
         <div className="flex flex-col gap-2">
-            <div className="flex justify-end gap-0.5 px-0.5">{tools}</div>
             <div className="rounded-[12px] bg-[var(--gm-wash)] p-2.5 ring-1 ring-[var(--gm-border)]">
                 <div className="flex items-center gap-1.5">
                     <Zap className="size-3.5 fill-[var(--gm-cyan)] text-[var(--gm-accent)]" />
@@ -177,6 +177,7 @@ export function GammaAccountActions(props: GammaAccountActionsProps) {
                 </div>
                 <p className="mt-1 truncate text-[11px] text-[var(--gm-text-3)]">{user.planName}</p>
             </div>
+            <div className="flex items-center justify-between px-0.5">{tools}</div>
             <div className="border-t border-[var(--gm-border)] pt-2">
                 <GammaMenu
                     label="账户菜单"
