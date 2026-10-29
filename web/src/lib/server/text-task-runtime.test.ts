@@ -213,7 +213,13 @@ describe("text task runtime recovery", () => {
     });
 
     it("prepares exactly one retry on an upstream query failure, then stops", async () => {
-        state = { ...textTask(customConfig("channel-one", "https://one.example"), [customConfig("channel-two", "https://two.example")]), status: "running", attemptNo: 1, upstream: { id: "upstream-one", createPath: "/jobs" }, billing: { pointsCost: 1, billingReceiptId: "text-retry", refunded: false } };
+        state = {
+            ...textTask(customConfig("channel-one", "https://one.example"), [customConfig("channel-two", "https://two.example")]),
+            status: "running",
+            attemptNo: 1,
+            upstream: { id: "upstream-one", createPath: "/jobs" },
+            billing: { pointsCost: 1, billingReceiptId: "text-retry", refunded: false },
+        };
 
         await expect(prepareTextTaskAutomaticRetry(state, "上游查询失败")).resolves.toMatchObject({ config: { channelId: "channel-two" }, candidateConfigs: [], attemptNo: 1, upstream: undefined, billing: undefined });
         expect(mocks.refund).toHaveBeenCalledWith(expect.objectContaining({ receiptId: "text-retry", usageKind: "text" }));
