@@ -71,7 +71,7 @@ export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: (
                     </label>
                 )}
                 <div className="ml-auto flex items-center gap-2">
-                    <GammaButton variant="outline" size="sm" onClick={onCreate}>
+                    <GammaButton variant="primary" size="sm" onClick={onCreate}>
                         做同款创作
                     </GammaButton>
                     <Link href="/gallery" className="inline-flex h-8 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">

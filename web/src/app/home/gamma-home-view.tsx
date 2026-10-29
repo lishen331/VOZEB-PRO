@@ -126,7 +126,6 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
                                     </>
                                 }
                                 description="查看全部套餐与积分包"
-                                cover="/style-thumbs/3d-render.jpg"
                                 onClick={openBillingPlans}
                             />
                         </div>

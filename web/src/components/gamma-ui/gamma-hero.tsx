@@ -82,15 +82,28 @@ export function GammaBannerCarousel({ slides }: { slides: readonly GammaBannerSl
 }
 
 /** 轮播旁的浅色推广卡（对标可灵右侧白底卡） */
-export function GammaPromoCard({ title, description, cover, onClick }: { title: ReactNode; description: string; cover: string; onClick?: () => void }) {
+export function GammaPromoCard({ title, description, cover, onClick }: { title: ReactNode; description: string; cover?: string; onClick?: () => void }) {
     return (
         <button
             type="button"
             onClick={onClick}
             className="group gm-glass gm-glass-sheen gm-glass-refract relative isolate flex h-[176px] w-full overflow-hidden rounded-[var(--gm-radius-xl)] text-left text-[var(--gm-text)] transition-shadow hover:shadow-[0_24px_60px_-28px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
         >
-            {/* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材；裁切区更宽、锚点偏右上，避免色块缩在左下角导致右上角露出大片底色 */}
-            <img src={cover} alt="" aria-hidden className="absolute inset-y-0 right-0 -z-[1] h-full w-[62%] object-cover object-[75%_20%] transition-transform duration-700 [mask-image:linear-gradient(90deg,transparent,#000_32%)] group-hover:scale-105" />
+            {cover ? (
+                /* eslint-disable-next-line @next/next/no-img-element -- 静态示意素材；裁切区更宽、锚点偏右上，避免色块缩在左下角导致右上角露出大片底色 */
+                <img
+                    src={cover}
+                    alt=""
+                    aria-hidden
+                    className="absolute inset-y-0 right-0 -z-[1] h-full w-[62%] object-cover object-[75%_20%] transition-transform duration-700 [mask-image:linear-gradient(90deg,transparent,#000_32%)] group-hover:scale-105"
+                />
+            ) : (
+                /* 无封面时用品牌蓝青光斑，避免示意图的紫粉色跑调 */
+                <span
+                    aria-hidden
+                    className="absolute inset-y-0 right-0 -z-[1] w-[62%] bg-[radial-gradient(70%_90%_at_85%_15%,rgba(40,235,250,0.55),transparent_65%),radial-gradient(80%_100%_at_60%_100%,rgba(0,80,245,0.7),transparent_70%)] transition-transform duration-700 [mask-image:linear-gradient(90deg,transparent,#000_32%)] group-hover:scale-105"
+                />
+            )}
             <div className="flex flex-col justify-center gap-2 px-7">
                 <h3 className="text-xl leading-snug font-semibold">{title}</h3>
                 <p className="text-[13px] text-[var(--gm-text-2)]">{description}</p>

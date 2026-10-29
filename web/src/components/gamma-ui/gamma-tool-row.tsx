@@ -41,7 +41,14 @@ export function GammaToolRow({ featured, subjects, onPick }: { featured: GammaSu
 
     return (
         <div className="relative">
-            <div ref={scrollerRef} className="hide-scrollbar flex gap-3 overflow-x-auto pb-1" role="list" aria-label="专业方向">
+            {/* 可滚动的一侧渐隐，避免末张卡被箭头按钮压住、看起来像被硬裁 */}
+            <div
+                ref={scrollerRef}
+                className="hide-scrollbar flex gap-3 overflow-x-auto pb-1"
+                role="list"
+                aria-label="专业方向"
+                style={{ maskImage: `linear-gradient(90deg, ${edges.start ? "transparent, #000 48px" : "#000"}, ${edges.end ? "#000 calc(100% - 72px), transparent" : "#000"})` }}
+            >
                 {/* 主卡：对应可灵 Omni 多模态创作工具。整卡可点，「立即体验」只是视觉按钮，避免按钮嵌套 */}
                 <div role="listitem" className="shrink-0">
                     <button
