@@ -46,7 +46,8 @@ const BUTTON_SIZE: Record<ControlSize, { box: string; square: string }> = {
 
 function buttonVariant(type: ButtonType, danger: boolean) {
     if (danger) {
-        if (type === "primary") return "border border-transparent bg-[var(--gm-danger)] text-white hover:brightness-110";
+        // 实心危险按钮单独用更深的红：--gm-danger 是给文字用的（深色下偏亮），白字压在上面不到 4.5:1（见 GammaButton danger 变体）
+        if (type === "primary") return "border border-transparent bg-[#dc2847] text-white hover:bg-[#c81e3c]";
         if (type === "text") return "border border-transparent text-[var(--gm-danger)] hover:bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)]";
         if (type === "link") return "border border-transparent text-[var(--gm-danger)] hover:opacity-80";
         return cn(
