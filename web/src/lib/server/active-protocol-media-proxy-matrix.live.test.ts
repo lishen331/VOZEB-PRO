@@ -192,8 +192,8 @@ describe("active protocols through persisted admin settings and the system proxy
             return;
         }
         if (response.headers.get("content-type")?.includes("application/json")) {
-            const payload = (await response.json()) as { data?: { audio_url?: string } };
-            const mediaUrl = payload.data?.audio_url || "";
+            const payload = (await response.json()) as { data?: { audio_url?: string }; output?: { audio?: { url?: string } } };
+            const mediaUrl = payload.data?.audio_url || payload.output?.audio?.url || "";
             expect(mediaUrl).toContain("/media/fixture.wav");
             const media = await dispatchInternalRequest(`${INTERNAL_ORIGIN}${channel.config.baseUrl}/_media?url=${encodeURIComponent(mediaUrl)}`, {});
             expect(media.headers.get("content-type")).toBe("audio/wav");

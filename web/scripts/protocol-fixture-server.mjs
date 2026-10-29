@@ -285,6 +285,9 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
     if (request.method === "GET" && sunoId) {
         return sendJson(response, 200, { code: "success", data: { task_id: decodeURIComponent(sunoId), status: "SUCCESS", progress: "100%", fail_reason: "", data: [{ audio_url: `${url.origin}/media/fixture.wav` }] } });
     }
+    if (request.method === "POST" && path === "/api/v1/services/audio/tts/SpeechSynthesizer") {
+        return sendJson(response, 200, { request_id: "qwen-fixture-1", output: { finish_reason: "stop", audio: { url: `${url.origin}/media/fixture.wav`, data: "", id: "audio-fixture-1", expires_at: Math.floor(Date.now() / 1000) + 86_400 } }, usage: { characters: 8 } });
+    }
     if (request.method === "GET" && path === "/media/fixture.wav") return sendBytes(response, 200, "audio/wav", createWave());
     if ((request.method === "POST" || request.method === "DELETE") && /\/(?:cancel|videos\/[^/]+)$/.test(path)) {
         const id = videoTaskId(path.replace(/\/cancel$/, ""));

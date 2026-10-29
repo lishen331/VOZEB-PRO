@@ -9,6 +9,17 @@ describe("audio model params", () => {
         expect(audioModelFamily("suno/v6")).toBe("suno");
         expect(audioModelFamily("suno_music")).toBe("suno");
         expect(audioModelFamily("tts-1")).toBe("openai");
+        expect(audioModelFamily("qwen-audio-3.1-tts-flash")).toBe("qwen");
+    });
+
+    it("limits Qwen voices to the selected model and maps params under input", () => {
+        expect(normalizeAudioParams("qwen-audio-3.1-tts-plus", { voiceId: "yuxiaoyun_v3.1" }).voiceId).toBe("longanhuan_v3.1");
+        expect(normalizeAudioParams("qwen-audio-3.1-tts-flash", { voiceId: "yuxiaoyun_v3.1" }).voiceId).toBe("yuxiaoyun_v3.1");
+        expect(normalizeAudioParams("qwen-audio-3.0-tts-flash", {}).voiceId).toBe("longanhuan_v3.6");
+        expect(audioUpstreamFields("qwen-audio-3.1-tts-flash", "你好", { voiceId: "anmingyuan_v3.1", rate: 1.5, pitch: 3, volume: 80, instruction: "请讲上海话", format: "wav" })).toEqual({
+            input: { text: "你好", voice: "anmingyuan_v3.1", format: "wav", rate: 1.5, pitch: 2, volume: 80, instruction: "请讲上海话" },
+        });
+        expect(audioParamsSummary("qwen-audio-3.1-tts-flash", {})).toBe("龙安欢（女） · 1.00x");
     });
 
     it("fills defaults, clamps ranges and drops unknown keys", () => {

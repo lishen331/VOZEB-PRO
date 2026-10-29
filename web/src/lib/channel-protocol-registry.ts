@@ -209,6 +209,15 @@ const tuziSunoOperation: ProtocolOperation = {
     referenceRule: "描述模式写 gpt_description_prompt 且 prompt 为空；歌词模式写 prompt。状态 NOT_START → SUBMITTED → IN_PROGRESS → SUCCESS / FAILURE。",
 };
 
+// 千问非实时合成：同步返回 output.audio.url（24 小时过期，运行时立即转存）；音色必须属于所选模型。
+const qwenTtsOperation: ProtocolOperation = {
+    capability: "audio",
+    createPath: "/api/v1/services/audio/tts/SpeechSynthesizer",
+    resultField: "output.audio.url",
+    requestTemplate: '{"model":"{{model}}","input":{"text":"{{prompt}}"}}',
+    referenceRule: "请求体 { model, input: { text, voice, format, sample_rate, rate, volume, pitch, instruction } }；系统音色、复刻音色、设计音色都写 input.voice。",
+};
+
 const stableDiffusionOperation: ProtocolOperation = {
     capability: "image",
     createPath: "/sdapi/v1/txt2img",
@@ -337,6 +346,18 @@ export const registeredChannelProtocolDefinitions: ChannelProtocolDefinition[] =
         modelCatalogPaths: [],
         capabilities: ["audio"],
         operations: { audio: tuziSunoOperation },
+        strict: true,
+    },
+    {
+        id: "qwen-tts",
+        label: "千问语音合成",
+        description: "阿里云百炼 Qwen-Audio-TTS 非实时合成：/api/v1/services/audio/tts/SpeechSynthesizer，同步返回 output.audio.url。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://dashscope.aliyuncs.com",
+        modelCatalogPaths: [],
+        capabilities: ["audio"],
+        operations: { audio: qwenTtsOperation },
         strict: true,
     },
     {
