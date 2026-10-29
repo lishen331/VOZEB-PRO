@@ -115,7 +115,8 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
                     <h1 className="sr-only">{site.title} · 学生作品展示</h1>
 
                     <div className="relative flex flex-col gap-3 px-4 pt-4 pb-12 lg:px-5">
-                        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.45fr_1fr]">
+                        {/* 轮播与推广卡始终同排，窗口变窄时按比例一起收缩；只有手机宽度才上下排 */}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
                             <GammaBannerCarousel slides={slides} />
                             <GammaPromoCard
                                 title={

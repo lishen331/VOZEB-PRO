@@ -56,8 +56,11 @@ export function GammaToolRow({ featured, subjects, onPick }: { featured: GammaSu
                         onClick={() => onPick(featured.slug)}
                         className="group gm-on-dark relative isolate flex h-[88px] w-[360px] items-center gap-4 overflow-hidden rounded-[var(--gm-radius-lg)] bg-[#061226] px-5 text-left ring-1 ring-[var(--gm-accent-ring)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
                     >
-                        <span aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(120%_140%_at_0%_100%,rgba(0,80,245,0.55),transparent_60%),radial-gradient(80%_120%_at_100%_0%,rgba(40,235,250,0.25),transparent_60%)]" />
-                        <span aria-hidden className="gm-aurora absolute -top-10 -left-6 -z-10 size-32 rounded-full bg-[var(--gm-cyan)] opacity-20 blur-3xl" />
+                        {/* 背景层单独用 clip-path 裁圆角：带 blur / 动画的子层会被提升为合成层，Chromium 下会逃出 overflow-hidden 的圆角，四角漏出方块 */}
+                        <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 [clip-path:inset(0_round_var(--gm-radius-lg))]">
+                            <span className="absolute inset-0 bg-[radial-gradient(120%_140%_at_0%_100%,rgba(0,80,245,0.55),transparent_60%),radial-gradient(80%_120%_at_100%_0%,rgba(40,235,250,0.25),transparent_60%)]" />
+                            <span className="gm-aurora absolute -top-10 -left-6 size-32 rounded-full bg-[var(--gm-cyan)] opacity-20 blur-3xl" />
+                        </span>
                         <GammaCardCorners />
                         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[image:var(--gm-gradient)] text-white shadow-[var(--gm-glow-blue)] transition-transform duration-500 group-hover:rotate-[20deg]">
                             <FeaturedIcon className="size-5" />
@@ -83,7 +86,10 @@ export function GammaToolRow({ featured, subjects, onPick }: { featured: GammaSu
                                 whileTap={reduce ? undefined : { scale: 0.97 }}
                                 className="group relative flex h-[88px] w-full min-w-[164px] flex-col justify-between overflow-hidden rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] p-4 text-left ring-1 ring-[var(--gm-border)] transition-[box-shadow,background-color] duration-300 hover:bg-[var(--gm-surface-2)] hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
                             >
-                                <span aria-hidden className="pointer-events-none absolute -right-8 -bottom-10 size-28 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" style={{ background: accent.glow }} />
+                                {/* hover 光斑带 blur，同样要用 clip-path 裁圆角，否则右下角漏方块 */}
+                                <span aria-hidden className="pointer-events-none absolute inset-0 [clip-path:inset(0_round_var(--gm-radius-lg))]">
+                                    <span className="absolute -right-8 -bottom-10 size-28 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" style={{ background: accent.glow }} />
+                                </span>
                                 <GammaCardCorners />
                                 {subject.badge ? (
                                     <span
