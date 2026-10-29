@@ -78,7 +78,10 @@ export function CouponWalletSection({ coupons, templates, templatesTotal, templa
                     </div>
                     <div className="grid gap-2 lg:grid-cols-2">
                         {templates.map((template) => (
-                            <article key={template.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] p-3">
+                            <article
+                                key={template.id}
+                                className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] p-3"
+                            >
                                 <div className="min-w-0">
                                     <div className="flex min-w-0 items-center gap-2">
                                         <span className="shrink-0 text-base font-semibold text-[var(--gm-danger)]">{discountLabel(template)}</span>

@@ -91,7 +91,9 @@ export function GenerationLogDetail({ log }: { log: StoredGenerationLog }) {
             {log.error ? (
                 <div>
                     <div className="mb-1 text-sm font-semibold text-[var(--gm-danger)]">错误信息</div>
-                    <div className="whitespace-pre-wrap rounded-lg border border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] p-3 text-sm leading-6 text-[var(--gm-danger)]">{log.error}</div>
+                    <div className="whitespace-pre-wrap rounded-lg border border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] p-3 text-sm leading-6 text-[var(--gm-danger)]">
+                        {log.error}
+                    </div>
                 </div>
             ) : null}
         </div>

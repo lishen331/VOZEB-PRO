@@ -130,8 +130,7 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
                     </div>
                     <div className="mt-2 space-y-1 text-xs text-[var(--gm-text-3)] sm:hidden">
                         <div>
-                            总计 <span className="font-semibold text-[var(--gm-text)]">{formatCreditAmount(record.pointsBalance)}</span> · 今日 {formatCreditAmount(record.dailyPointsBalance)} · 永久{" "}
-                            {formatCreditAmount(record.permanentPointsBalance)}
+                            总计 <span className="font-semibold text-[var(--gm-text)]">{formatCreditAmount(record.pointsBalance)}</span> · 今日 {formatCreditAmount(record.dailyPointsBalance)} · 永久 {formatCreditAmount(record.permanentPointsBalance)}
                         </div>
                         <div>注册 {formatAdminLogTime(record.createdAt)}</div>
                         <div>活跃 {record.lastLoginAt ? formatAdminLogTime(record.lastLoginAt) : "从未登录"}</div>

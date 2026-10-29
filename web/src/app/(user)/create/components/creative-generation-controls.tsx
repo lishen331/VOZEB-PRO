@@ -77,10 +77,7 @@ export function CreativeGenerationControls({
                                         <button
                                             key={capability}
                                             type="button"
-                                            className={cn(
-                                                "h-8 rounded-lg text-xs font-medium transition",
-                                                activeCapability === capability ? "bg-[var(--gm-surface)] text-[var(--gm-text)] shadow-sm" : "text-[var(--gm-text-3)] hover:text-[var(--gm-text)]",
-                                            )}
+                                            className={cn("h-8 rounded-lg text-xs font-medium transition", activeCapability === capability ? "bg-[var(--gm-surface)] text-[var(--gm-text)] shadow-sm" : "text-[var(--gm-text-3)] hover:text-[var(--gm-text)]")}
                                             onClick={() => setPreferredCapability(capability)}
                                             aria-pressed={activeCapability === capability}
                                         >
@@ -100,10 +97,7 @@ export function CreativeGenerationControls({
                                         <button
                                             key={model.id}
                                             type="button"
-                                            className={cn(
-                                                "flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition",
-                                                selected ? "bg-[var(--gm-wash-strong)] text-[var(--gm-text)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)]",
-                                            )}
+                                            className={cn("flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition", selected ? "bg-[var(--gm-wash-strong)] text-[var(--gm-text)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)]")}
                                             onClick={() => onToggleModel(model)}
                                         >
                                             <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-[var(--gm-surface)] text-[var(--gm-text-2)] shadow-sm">
@@ -126,11 +120,7 @@ export function CreativeGenerationControls({
                                 })}
                         </div>
                         {!smartPlanning && selectedModels.length ? (
-                            <button
-                                type="button"
-                                className="mt-2 w-full rounded-lg px-2 py-2 text-xs font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
-                                onClick={onClearModels}
-                            >
+                            <button type="button" className="mt-2 w-full rounded-lg px-2 py-2 text-xs font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]" onClick={onClearModels}>
                                 清除选择并恢复智能规划
                             </button>
                         ) : null}

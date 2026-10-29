@@ -208,15 +208,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
     const jsonField = (key: keyof typeof jsonText, label: string, expected: "array" | "object") => (
         <div>
             <div className="mb-1 text-xs font-medium text-[var(--gm-text-2)]">{label}</div>
-            <Input.TextArea
-                value={jsonText[key]}
-                autoSize={{ minRows: 8, maxRows: 18 }}
-                spellCheck={false}
-                readOnly
-                placeholder="根据上方识别结果自动生成，通过勾选候选项控制"
-                status={errors[key] ? "error" : undefined}
-                className="bg-[var(--gm-wash)]"
-            />
+            <Input.TextArea value={jsonText[key]} autoSize={{ minRows: 8, maxRows: 18 }} spellCheck={false} readOnly placeholder="根据上方识别结果自动生成，通过勾选候选项控制" status={errors[key] ? "error" : undefined} className="bg-[var(--gm-wash)]" />
             {errors[key] ? <div className="mt-1 text-xs text-[var(--gm-danger)]">{`${key}: ${errors[key]}`}</div> : null}
         </div>
     );

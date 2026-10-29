@@ -425,10 +425,7 @@ export default function AssetsPage() {
                         ) : (
                             <Form.Item label={`${formKind === "image" ? "图片" : formKind === "video" ? "视频" : "音频"}内容`} required>
                                 <div
-                                    className={cn(
-                                        "rounded-lg border border-dashed border-[var(--gm-border-strong)] p-4 transition",
-                                        isImageDragActive && "border-[var(--gm-accent)] bg-[var(--gm-accent-soft)] ring-1 ring-[var(--gm-accent-ring)]",
-                                    )}
+                                    className={cn("rounded-lg border border-dashed border-[var(--gm-border-strong)] p-4 transition", isImageDragActive && "border-[var(--gm-accent)] bg-[var(--gm-accent-soft)] ring-1 ring-[var(--gm-accent-ring)]")}
                                     onDragEnter={handleImageDragOver}
                                     onDragOver={handleImageDragOver}
                                     onDragLeave={handleImageDragLeave}

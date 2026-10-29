@@ -51,13 +51,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
 
     return (
         <>
-            <button
-                type="button"
-                className={className || "shrink-0 cursor-pointer text-xs font-medium text-[var(--gm-text-3)] transition hover:text-[var(--gm-text)]"}
-                style={style}
-                onClick={openReleaseModal}
-                title="查看版本更新"
-            >
+            <button type="button" className={className || "shrink-0 cursor-pointer text-xs font-medium text-[var(--gm-text-3)] transition hover:text-[var(--gm-text)]"} style={style} onClick={openReleaseModal} title="查看版本更新">
                 {label || (
                     <span className="relative inline-flex">
                         {APP_VERSION}

@@ -114,11 +114,7 @@ export function CreativeResultSwitcher({
         >
             <div className={cn("mb-2 flex h-8 items-center justify-between gap-3 sm:shrink-0 sm:gap-1", scrollState.overflow ? "sm:grid sm:h-10 sm:grid-cols-[minmax(0,1fr)_20px] sm:grid-rows-2 sm:gap-x-1 sm:gap-y-0" : "sm:h-6")}>
                 <span className="whitespace-nowrap text-xs font-medium leading-5 text-[var(--gm-text-3)] sm:col-start-1 sm:row-start-1">更多</span>
-                <span
-                    data-testid="creative-result-position"
-                    className="mr-auto whitespace-nowrap text-[10px] tabular-nums leading-4 text-[var(--gm-text-3)] sm:col-start-1 sm:row-start-2"
-                    aria-label={`第 ${selectedIndex + 1} 项，共 ${results.length} 项`}
-                >
+                <span data-testid="creative-result-position" className="mr-auto whitespace-nowrap text-[10px] tabular-nums leading-4 text-[var(--gm-text-3)] sm:col-start-1 sm:row-start-2" aria-label={`第 ${selectedIndex + 1} 项，共 ${results.length} 项`}>
                     {selectedIndex + 1} / {results.length}
                 </span>
                 {scrollState.overflow ? (

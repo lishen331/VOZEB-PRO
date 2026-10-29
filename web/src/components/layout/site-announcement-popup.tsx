@@ -58,9 +58,7 @@ export function SiteAnnouncementPopup() {
                             <div className="mt-1 text-xs text-[var(--gm-text-3)]">{new Date(active.createdAt).toLocaleString("zh-CN")}</div>
                         </div>
                     </div>
-                    <div className="max-h-[50dvh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4 text-sm leading-7 text-[var(--gm-text-2)]">
-                        {active.content}
-                    </div>
+                    <div className="max-h-[50dvh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4 text-sm leading-7 text-[var(--gm-text-2)]">{active.content}</div>
                     <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
                         <Button onClick={close}>我知道了</Button>
                         <Button type="primary" href="/announcements" onClick={close}>

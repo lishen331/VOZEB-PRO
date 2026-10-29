@@ -125,9 +125,7 @@ export function AdminAnnouncementsSection({ controller }: { controller: AdminDas
                     </Button>,
                 ]}
             >
-                <div className="mb-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-wash)] px-4 py-3 text-sm leading-6 text-[var(--gm-text-2)]">
-                    公告发布后会进入公告记录；勾选首页弹窗或登录后弹窗后，用户会在对应场景看到提醒。
-                </div>
+                <div className="mb-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-wash)] px-4 py-3 text-sm leading-6 text-[var(--gm-text-2)]">公告发布后会进入公告记录；勾选首页弹窗或登录后弹窗后，用户会在对应场景看到提醒。</div>
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                         <LabeledControl label="标题">
@@ -251,13 +249,7 @@ export function AdminPromptsSection({ controller }: { controller: AdminDashboard
                                     <div className="min-w-0">
                                         <div className="flex min-w-0 gap-3">
                                             {prompt.coverUrl ? (
-                                                <img
-                                                    src={imagePreviewUrl(prompt.coverUrl, 480)}
-                                                    alt={prompt.title}
-                                                    className="h-16 w-24 shrink-0 rounded-md border border-[var(--gm-border)] object-cover"
-                                                    loading="lazy"
-                                                    referrerPolicy="no-referrer"
-                                                />
+                                                <img src={imagePreviewUrl(prompt.coverUrl, 480)} alt={prompt.title} className="h-16 w-24 shrink-0 rounded-md border border-[var(--gm-border)] object-cover" loading="lazy" referrerPolicy="no-referrer" />
                                             ) : (
                                                 <div className="h-16 w-24 shrink-0 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash-strong)]" />
                                             )}

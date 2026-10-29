@@ -27,9 +27,7 @@ export function UpdateCenterPanel() {
                             <div className="min-w-0">
                                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55">{siteTitle} Update</div>
                                 <h3 className="mt-2 text-2xl font-semibold tracking-normal sm:mt-4 sm:text-3xl">可升级，也可回滚。</h3>
-                                <div className="mt-2 max-w-2xl text-xs leading-5 text-white/68 sm:mt-3 sm:text-sm sm:leading-6">
-                                    商业化部署升级前先确认数据库备份、环境变量和变更日志；服务器安装用户可以在这里集中完成版本检查与资料跳转。
-                                </div>
+                                <div className="mt-2 max-w-2xl text-xs leading-5 text-white/68 sm:mt-3 sm:text-sm sm:leading-6">商业化部署升级前先确认数据库备份、环境变量和变更日志；服务器安装用户可以在这里集中完成版本检查与资料跳转。</div>
                                 <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:flex sm:flex-wrap">
                                     <VersionReleaseModal className="admin-update-primary-button inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-semibold transition sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm" label="查看更新日志" />
                                     <a
@@ -81,13 +79,7 @@ export function UpdateCenterPanel() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-3">
                     {releaseLinks.map((item) => (
-                        <a
-                            key={item.label}
-                            href={item.href}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="group rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 transition hover:-translate-y-0.5 hover:shadow-sm sm:rounded-3xl sm:p-5"
-                        >
+                        <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className="group rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 transition hover:-translate-y-0.5 hover:shadow-sm sm:rounded-3xl sm:p-5">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="text-base font-semibold text-[var(--gm-text)]">{item.label}</div>
                                 <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--gm-wash)] text-[var(--gm-text-2)] ring-1 ring-[var(--gm-border)] transition group-hover:bg-[var(--gm-blue)] group-hover:text-white sm:size-9 sm:rounded-2xl">

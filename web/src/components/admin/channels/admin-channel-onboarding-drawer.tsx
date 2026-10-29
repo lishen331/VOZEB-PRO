@@ -205,13 +205,7 @@ function OnboardingProgress({ current }: { current: number }) {
                                         index + 1
                                     )}
                                 </span>
-                                <span
-                                    className={`whitespace-nowrap text-sm ${
-                                        completed ? "font-semibold text-[var(--gm-success)]" : active ? "font-semibold text-[var(--gm-text)]" : "font-medium text-[var(--gm-text-3)]"
-                                    }`}
-                                >
-                                    {item.title}
-                                </span>
+                                <span className={`whitespace-nowrap text-sm ${completed ? "font-semibold text-[var(--gm-success)]" : active ? "font-semibold text-[var(--gm-text)]" : "font-medium text-[var(--gm-text-3)]"}`}>{item.title}</span>
                             </span>
                             {index < steps.length - 1 ? <span className={`mx-2 h-px min-w-2 flex-1 ${completed ? "bg-[color-mix(in_srgb,var(--gm-success)_40%,transparent)]" : "bg-[var(--gm-border-strong)]"}`} aria-hidden /> : null}
                         </li>

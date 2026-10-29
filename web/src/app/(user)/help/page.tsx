@@ -183,10 +183,7 @@ function ArticleHeader({ article }: { article: (typeof helpArticles)[number] }) 
                     </div>
                 </div>
                 {article.route ? (
-                    <Link
-                        href={article.route.href}
-                        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg !bg-[var(--gm-surface-light)] px-3.5 text-sm font-medium !text-[var(--gm-inverse-text)] transition hover:opacity-85"
-                    >
+                    <Link href={article.route.href} className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg !bg-[var(--gm-surface-light)] px-3.5 text-sm font-medium !text-[var(--gm-inverse-text)] transition hover:opacity-85">
                         {article.route.label}
                         <ArrowUpRight className="size-3.5" />
                     </Link>

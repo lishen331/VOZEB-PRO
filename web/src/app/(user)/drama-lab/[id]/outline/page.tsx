@@ -1161,7 +1161,12 @@ export default function ProjectOutlinePage() {
                                                     <img src={reference.url} alt={`历史图 ${index + 1}`} className="size-full object-cover" />
                                                 </button>
                                                 <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/45 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
-                                                    <button type="button" aria-label="放大历史图" className="rounded bg-[var(--gm-surface)] px-1.5 text-xs text-[var(--gm-text)]" onClick={() => setResourcePreview({ url: reference.url || "", title: `历史图 ${index + 1}` })}>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="放大历史图"
+                                                        className="rounded bg-[var(--gm-surface)] px-1.5 text-xs text-[var(--gm-text)]"
+                                                        onClick={() => setResourcePreview({ url: reference.url || "", title: `历史图 ${index + 1}` })}
+                                                    >
                                                         ⌕
                                                     </button>
                                                     <button

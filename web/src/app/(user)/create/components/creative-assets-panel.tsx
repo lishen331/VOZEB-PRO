@@ -261,9 +261,7 @@ function ConversationAssetTypeTab({ label, count, active, disabled, onClick }: {
             aria-selected={active}
             disabled={disabled}
             className={`flex h-8 items-center justify-center gap-1 rounded-md text-xs font-medium transition ${
-                active
-                    ? "bg-[var(--gm-surface)] text-[var(--gm-accent)] shadow-[0_1px_3px_rgba(32,36,42,0.08)]"
-                    : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] disabled:cursor-default disabled:opacity-35"
+                active ? "bg-[var(--gm-surface)] text-[var(--gm-accent)] shadow-[0_1px_3px_rgba(32,36,42,0.08)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] disabled:cursor-default disabled:opacity-35"
             }`}
             onClick={onClick}
         >

@@ -74,10 +74,7 @@ export default async function AdminBillingPage({ searchParams }: AdminBillingPag
                                 <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--gm-text-2)]">管理套餐商品、限时促销、优惠券、支付配置、订单收款和退款对账。</p>
                             </div>
                         </div>
-                        <Link
-                            href="/admin"
-                            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[var(--gm-border)] px-3 text-sm font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)]"
-                        >
+                        <Link href="/admin" className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[var(--gm-border)] px-3 text-sm font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)]">
                             <ArrowLeft className="size-4" />
                             返回后台
                         </Link>

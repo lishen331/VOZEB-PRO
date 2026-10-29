@@ -91,7 +91,10 @@ export default async function TermsPage() {
     return (
         <main className="app-scroll-page bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-8 sm:py-8">
-                <Link href="/" className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3.5 text-sm font-medium text-[var(--gm-text-2)] transition hover:border-[var(--gm-accent)] hover:text-[var(--gm-accent)]">
+                <Link
+                    href="/"
+                    className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3.5 text-sm font-medium text-[var(--gm-text-2)] transition hover:border-[var(--gm-accent)] hover:text-[var(--gm-accent)]"
+                >
                     <ArrowLeft className="size-4" />
                     返回首页
                 </Link>

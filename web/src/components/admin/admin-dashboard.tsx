@@ -391,9 +391,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                                     复制明文
                                 </Button>
                             </div>
-                            <div className="break-all rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2 font-mono text-sm font-semibold text-[var(--gm-text)]">
-                                {viewingCdkCode.code || "CDK 明文不可用"}
-                            </div>
+                            <div className="break-all rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2 font-mono text-sm font-semibold text-[var(--gm-text)]">{viewingCdkCode.code || "CDK 明文不可用"}</div>
                             {!viewingCdkCode.code ? <div className="mt-2 text-xs text-[var(--gm-text-3)]">这个 CDK 没有可复制的明文。</div> : null}
                         </div>
                         <CdkRedemptionDetail code={viewingCdkCode} />

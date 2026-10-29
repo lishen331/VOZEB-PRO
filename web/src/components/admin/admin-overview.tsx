@@ -97,10 +97,7 @@ function ModelDistributionPanel({ items, emptyText }: { items: DistributionItem[
                         <span className="text-right">占比</span>
                     </div>
                     {displayItems.map((item, index) => (
-                        <div
-                            key={item.label}
-                            className="grid grid-cols-[minmax(0,1.2fr)_58px_58px] items-center border-b border-[var(--gm-border)] px-3 py-2.5 text-xs last:border-b-0 sm:grid-cols-[minmax(0,1.2fr)_72px_72px] sm:px-4 sm:py-3 sm:text-sm"
-                        >
+                        <div key={item.label} className="grid grid-cols-[minmax(0,1.2fr)_58px_58px] items-center border-b border-[var(--gm-border)] px-3 py-2.5 text-xs last:border-b-0 sm:grid-cols-[minmax(0,1.2fr)_72px_72px] sm:px-4 sm:py-3 sm:text-sm">
                             <div className="flex min-w-0 items-center gap-2">
                                 <span className={`size-2.5 shrink-0 rounded-full ${items.length ? "" : "bg-[var(--gm-wash-heavy)]"}`} style={items.length ? { background: chartColor(index) } : undefined} />
                                 <span className={`min-w-0 truncate font-medium ${items.length ? "text-[var(--gm-text)]" : "text-[var(--gm-text-2)]"}`}>{item.label}</span>

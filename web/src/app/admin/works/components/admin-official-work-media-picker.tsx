@@ -52,13 +52,7 @@ export function AdminOfficialWorkMediaPicker({ open, selected, onClose, onSelect
                 </div>
                 <div className="grid max-h-[55vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3">
                     {items.map((item) => (
-                        <button
-                            type="button"
-                            key={item.storageKey}
-                            disabled={selected.includes(item.storageKey)}
-                            className="min-w-0 rounded-md border border-[var(--gm-border)] p-2 text-left disabled:opacity-45"
-                            onClick={() => onSelect(item)}
-                        >
+                        <button type="button" key={item.storageKey} disabled={selected.includes(item.storageKey)} className="min-w-0 rounded-md border border-[var(--gm-border)] p-2 text-left disabled:opacity-45" onClick={() => onSelect(item)}>
                             {item.mediaType === "image" ? (
                                 <img src={item.previewUrl} alt={item.originalName} className="aspect-video w-full rounded object-cover" />
                             ) : item.mediaType === "video" ? (

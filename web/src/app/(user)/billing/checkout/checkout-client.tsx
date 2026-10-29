@@ -268,9 +268,7 @@ export function BillingCheckoutPage({ productId }: { productId: string }) {
                                                 className={`flex w-full items-center gap-2.5 rounded-lg border p-2.5 text-left transition sm:rounded-2xl sm:p-4 ${selected ? "border-[var(--gm-accent)] bg-[var(--gm-accent-soft)] ring-1 ring-[var(--gm-accent)]" : "border-[var(--gm-border)] bg-[var(--gm-surface)] hover:border-[var(--gm-border-strong)] hover:bg-[var(--gm-wash)]"}`}
                                                 onClick={() => setProvider(item.value)}
                                             >
-                                                <span
-                                                    className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-11 sm:rounded-xl ${selected ? "bg-[var(--gm-blue)] text-white" : "bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]"}`}
-                                                >
+                                                <span className={`grid size-9 shrink-0 place-items-center rounded-lg sm:size-11 sm:rounded-xl ${selected ? "bg-[var(--gm-blue)] text-white" : "bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]"}`}>
                                                     <Icon className="size-5" />
                                                 </span>
                                                 <span className="min-w-0 flex-1">

@@ -478,13 +478,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                         <Metric title="对账异常" value={reconciliationIssues} icon={<AlertTriangle className="size-4" />} tone={reconciliationIssues ? "rose" : "slate"} />
                     </section>
 
-                    <section
-                        className={
-                            embedded
-                                ? "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:p-4"
-                                : "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 shadow-sm sm:p-4"
-                        }
-                    >
+                    <section className={embedded ? "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:p-4" : "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 shadow-sm sm:p-4"}>
                         <div>
                             <div>
                                 <h2 className="text-base font-semibold text-[var(--gm-text)]">运营筛选</h2>
@@ -563,9 +557,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
             {commercialOperationsAvailable && allowedTabs.includes(activeTab) && activeTab === "products" ? (
                 <>
                     <section className="grid min-w-0 items-start gap-4">
-                        <div
-                            className={`min-w-0 overflow-hidden ${embedded ? "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]" : "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm"}`}
-                        >
+                        <div className={`min-w-0 overflow-hidden ${embedded ? "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]" : "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm"}`}>
                             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 border-b border-[var(--gm-border)] p-3 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4">
                                 <div className="contents sm:block">
                                     <h2 className="text-base font-semibold text-[var(--gm-text)]">套餐商品</h2>

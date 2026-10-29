@@ -178,8 +178,7 @@ export function CreativeMessages({
                                 <div
                                     className={cn(
                                         "break-words text-[15px] leading-7",
-                                        item.role === "user" &&
-                                            "rounded-[14px] bg-[linear-gradient(135deg,#f0f3f9_0%,#eaecf2_100%)] px-[18px] py-3 text-left leading-6 text-[var(--gm-text)] dark:bg-[linear-gradient(135deg,#202e47_0%,#1c273b_100%)]",
+                                        item.role === "user" && "rounded-[14px] bg-[linear-gradient(135deg,#f0f3f9_0%,#eaecf2_100%)] px-[18px] py-3 text-left leading-6 text-[var(--gm-text)] dark:bg-[linear-gradient(135deg,#202e47_0%,#1c273b_100%)]",
                                         item.status === "failed" && "text-[var(--gm-danger)]",
                                         item.status === "cancelled" && "text-[var(--gm-text-3)]",
                                     )}
@@ -364,11 +363,7 @@ function CreativeRoundReferenceStrip({ assets }: { assets: CreativeAsset[] }) {
                 if (!url || asset.type === "text") return null;
                 const label = asset.type === "image" ? imageReferenceLabel(imageIndex++) : asset.type === "video" ? "视频" : "音频";
                 return (
-                    <div
-                        key={asset.id}
-                        className="relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]"
-                        title={asset.title}
-                    >
+                    <div key={asset.id} className="relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]" title={asset.title}>
                         {asset.type === "image" ? <img src={imagePreviewUrl(url, 192)} alt={asset.title || "参考图"} loading="lazy" className="size-full object-cover" /> : null}
                         {asset.type === "video" ? <Film className="size-5" aria-hidden /> : null}
                         {asset.type === "audio" ? <FileAudio2 className="size-5" aria-hidden /> : null}
@@ -440,11 +435,7 @@ function CreativeRunSummary({ run, modelNames }: { run?: CreativeAgentRun; model
         <div className="w-fit max-w-full text-[var(--gm-text-2)]" aria-label="本轮创作参数">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 {summaryItems.map((item) => (
-                    <span
-                        key={item.key}
-                        title={`${item.label}：${item.value}`}
-                        className="inline-flex h-6 max-w-[180px] items-center truncate rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2 text-[11px] leading-none"
-                    >
+                    <span key={item.key} title={`${item.label}：${item.value}`} className="inline-flex h-6 max-w-[180px] items-center truncate rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2 text-[11px] leading-none">
                         {item.value}
                     </span>
                 ))}

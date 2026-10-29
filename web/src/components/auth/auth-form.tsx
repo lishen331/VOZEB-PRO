@@ -183,7 +183,9 @@ export function AuthForm({
 
                 {authError ? <div className="rounded-md border border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] px-4 py-3 text-sm text-[var(--gm-danger)]">{authError}</div> : null}
 
-                {isRegister && inviteError ? <div className="rounded-md border border-[color-mix(in_srgb,var(--gm-warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] px-4 py-3 text-sm text-[var(--gm-warning)]">{inviteError}</div> : null}
+                {isRegister && inviteError ? (
+                    <div className="rounded-md border border-[color-mix(in_srgb,var(--gm-warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] px-4 py-3 text-sm text-[var(--gm-warning)]">{inviteError}</div>
+                ) : null}
 
                 {disabled ? <div className="rounded-md border border-[color-mix(in_srgb,var(--gm-accent)_40%,transparent)] bg-[var(--gm-accent-soft)] px-4 py-3 text-sm text-[var(--gm-accent)]">当前站点已关闭注册，请联系管理员开通账号。</div> : null}
 

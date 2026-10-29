@@ -168,7 +168,9 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                                         <div key={item.key} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                                             <div className="mb-3 flex items-center justify-between gap-3">
                                                 <div className="flex items-center gap-2 text-sm font-semibold text-[var(--gm-text)]">
-                                                    <span className="flex size-7 items-center justify-center rounded-md bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[color-mix(in_srgb,var(--gm-accent)_40%,transparent)]">{item.icon}</span>
+                                                    <span className="flex size-7 items-center justify-center rounded-md bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[color-mix(in_srgb,var(--gm-accent)_40%,transparent)]">
+                                                        {item.icon}
+                                                    </span>
                                                     {item.label}
                                                 </div>
                                                 <Switch checked={social.enabled} checkedChildren="显示" unCheckedChildren="隐藏" onChange={(enabled) => updateSiteSocialSetting(item.key, { enabled })} />
@@ -317,9 +319,7 @@ export function AdminSettingsSection({ controller }: { controller: AdminDashboar
                                     <div className="min-w-0 space-y-4">
                                         <SectionTitle icon={<UserCog className="size-4" />} title="账号策略" />
                                         <div className="grid gap-3">
-                                            <div className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 text-sm leading-6 text-[var(--gm-text-2)]">
-                                                公开注册已关闭。新账号请由管理员在“用户运营”中创建。
-                                            </div>
+                                            <div className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 text-sm leading-6 text-[var(--gm-text-2)]">公开注册已关闭。新账号请由管理员在“用户运营”中创建。</div>
                                         </div>
                                     </div>
 

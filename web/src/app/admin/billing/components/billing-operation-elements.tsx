@@ -159,13 +159,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
 
     return (
         <>
-            <section
-                className={
-                    embedded
-                        ? "overflow-hidden rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-surface)]"
-                        : "overflow-hidden rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm"
-                }
-            >
+            <section className={embedded ? "overflow-hidden rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-surface)]" : "overflow-hidden rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm"}>
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 border-b border-[var(--gm-border)] px-3 py-3 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-5">
                     <div className="contents sm:block sm:min-w-0">
                         <h2 className="min-w-0 truncate text-base font-semibold tracking-normal text-[var(--gm-text)] sm:text-xl">支付渠道配置</h2>
@@ -215,9 +209,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                                     必填 {requiredReady}/{requiredFields.length}
                                                 </span>
                                                 <span className="rounded-full bg-[var(--gm-wash-strong)] px-2.5 py-1 ring-1 ring-[var(--gm-border)]">下单：{activeProvider.checkoutReady ? "已配置" : "待配置"}</span>
-                                                <span className="rounded-full bg-[var(--gm-wash-strong)] px-2.5 py-1 ring-1 ring-[var(--gm-border)]">
-                                                    回调：{activeProvider.webhookOptional ? "可选" : activeProvider.webhookReady ? "已配置" : "待配置"}
-                                                </span>
+                                                <span className="rounded-full bg-[var(--gm-wash-strong)] px-2.5 py-1 ring-1 ring-[var(--gm-border)]">回调：{activeProvider.webhookOptional ? "可选" : activeProvider.webhookReady ? "已配置" : "待配置"}</span>
                                             </div>
                                         </div>
                                         <div className="flex shrink-0 flex-wrap items-center gap-3">
@@ -235,9 +227,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                                 <Copy className="size-4 text-[var(--gm-text-2)]" />
                                                 系统回调地址
                                             </div>
-                                            <div className="min-w-0 flex-1 truncate rounded-xl bg-[var(--gm-wash)] px-3 py-2 font-mono text-xs leading-5 text-[var(--gm-text-2)] ring-1 ring-[var(--gm-border)]">
-                                                {activeProvider.webhookUrl}
-                                            </div>
+                                            <div className="min-w-0 flex-1 truncate rounded-xl bg-[var(--gm-wash)] px-3 py-2 font-mono text-xs leading-5 text-[var(--gm-text-2)] ring-1 ring-[var(--gm-border)]">{activeProvider.webhookUrl}</div>
                                             <Button className="shrink-0 justify-center" size="middle" icon={<Copy className="size-3.5" />} onClick={() => onCopy(activeProvider.webhookUrl)}>
                                                 复制
                                             </Button>
@@ -269,11 +259,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                     ) : null}
                                     {advancedFields.length ? (
                                         <div className="rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
-                                            <button
-                                                type="button"
-                                                className="flex w-full items-center justify-between gap-3 rounded-2xl px-1 py-1 text-left transition hover:text-[var(--gm-text)]"
-                                                onClick={() => setAdvancedOpen((value) => !value)}
-                                            >
+                                            <button type="button" className="flex w-full items-center justify-between gap-3 rounded-2xl px-1 py-1 text-left transition hover:text-[var(--gm-text)]" onClick={() => setAdvancedOpen((value) => !value)}>
                                                 <span>
                                                     <span className="block text-base font-semibold text-[var(--gm-text)]">高级字段映射</span>
                                                     <span className="mt-1 block text-xs leading-5 text-[var(--gm-text-3)]">支付商字段映射、额外请求头、请求体模板和高级回调设置，不确定时可以先保持为空。</span>

@@ -211,10 +211,7 @@ export function CreativeComposer({
                     maxLength={4000}
                     autoSize={compactMode ? { minRows: 1, maxRows: 1 } : { minRows: centered ? 4 : 2, maxRows: 8 }}
                     variant="borderless"
-                    className={cn(
-                        "creative-composer-input relative z-[1] min-w-0 !border-0 !bg-transparent !px-1 !py-1 !text-[15px] !leading-7 !shadow-none !outline-none sm:!px-2",
-                        hasMentionReferences && "!text-transparent caret-[var(--gm-text)]",
-                    )}
+                    className={cn("creative-composer-input relative z-[1] min-w-0 !border-0 !bg-transparent !px-1 !py-1 !text-[15px] !leading-7 !shadow-none !outline-none sm:!px-2", hasMentionReferences && "!text-transparent caret-[var(--gm-text)]")}
                     placeholder={compactMode ? "输入你的创作想法" : "输入你的创作想法、脚本或画面要求"}
                     onFocus={() => {
                         if (compactMode) onExpand?.();
@@ -435,12 +432,7 @@ export function CreativeComposer({
                                                         setModePickerOpen(false);
                                                     }}
                                                 >
-                                                    <span
-                                                        className={cn(
-                                                            "grid size-8 shrink-0 place-items-center rounded-lg",
-                                                            selected ? "bg-[var(--gm-surface)] text-[var(--gm-accent)] shadow-sm" : "bg-[var(--gm-wash-strong)] text-[var(--gm-text-3)]",
-                                                        )}
-                                                    >
+                                                    <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", selected ? "bg-[var(--gm-surface)] text-[var(--gm-accent)] shadow-sm" : "bg-[var(--gm-wash-strong)] text-[var(--gm-text-3)]")}>
                                                         <CreativeModeIcon mode={option.value} />
                                                     </span>
                                                     <span className="min-w-0 flex-1">
