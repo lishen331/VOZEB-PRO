@@ -175,10 +175,11 @@ function decodeCursor(value: unknown, sort: GallerySort): GalleryCursor | undefi
         if (parsed.sort !== sort || typeof parsed.id !== "string" || !parsed.id) return undefined;
         if (sort === "random") {
             if (typeof parsed.randomSeed !== "string" || !parsed.randomSeed || parsed.randomSeed.length > 100 || typeof parsed.randomRank !== "string" || !/^[a-f0-9]{32}$/.test(parsed.randomRank)) return undefined;
+            if ((parsed.featureRank !== 0 && parsed.featureRank !== 1) || !validIso(parsed.featuredAt)) return undefined;
             return {
                 sort,
-                featureRank: 0,
-                featuredAt: new Date(0).toISOString(),
+                featureRank: parsed.featureRank,
+                featuredAt: parsed.featuredAt as string,
                 viewCount: 0,
                 publishedAt: new Date(0).toISOString(),
                 randomSeed: parsed.randomSeed,
