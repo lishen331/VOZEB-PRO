@@ -16,7 +16,7 @@ export const siteSocialItems: Array<{ key: SiteSocialKey; label: string; placeho
 
 export function SiteLogoPreview({ logoUrl }: { logoUrl: string }) {
     return (
-        <span className="grid size-12 place-items-center rounded-md bg-stone-100 p-1 text-stone-950 dark:bg-white/10 dark:text-white">
+        <span className="grid size-12 place-items-center rounded-md bg-[var(--gm-wash-strong)] p-1 text-[var(--gm-text)]">
             <SiteLogo logoUrl={logoUrl || "/logo.svg"} className="size-10" />
         </span>
     );
@@ -28,7 +28,7 @@ export function SiteSettingStatus({ site }: { site: AuthSettings["site"] }) {
     const seoReady = Boolean((site.seoTitle || site.title).trim() && site.seoDescription.trim());
 
     return (
-        <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm shadow-stone-200/40 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 shadow-sm">
             <SectionTitle icon={<RefreshCw className="size-4" />} title="同步状态" />
             <div className="mt-4 grid grid-cols-2 gap-2">
                 <SiteStatusChip label="Logo" value={site.logoUrl.trim() ? "已设置" : "默认"} active={Boolean(site.logoUrl.trim())} />
@@ -43,9 +43,9 @@ export function SiteSettingStatus({ site }: { site: AuthSettings["site"] }) {
 
 function SiteStatusChip({ label, value, active }: { label: string; value: string; active: boolean }) {
     return (
-        <div className="min-w-0 rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/50">
-            <div className="text-xs text-stone-500 dark:text-stone-400">{label}</div>
-            <div className={`mt-1 truncate text-sm font-semibold ${active ? "text-stone-950 dark:text-stone-100" : "text-stone-500 dark:text-stone-400"}`}>{value}</div>
+        <div className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
+            <div className="text-xs text-[var(--gm-text-3)]">{label}</div>
+            <div className={`mt-1 truncate text-sm font-semibold ${active ? "text-[var(--gm-text)]" : "text-[var(--gm-text-2)]"}`}>{value}</div>
         </div>
     );
 }

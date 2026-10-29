@@ -141,6 +141,7 @@ export function TeachingPrepBoard({ teacherName, schoolName, courses, offerings,
                         <span className="absolute inset-0 -z-10 transition-transform duration-700 group-hover:scale-105">
                             <TeachingCourseCover seed={resume.course.id} coverUrl={resume.course.coverUrl} />
                         </span>
+                        {/* 颜色保留：压在封面图上的固定深色遮罩，保证白字在深浅两套主题下都可读；gm token 会随主题变浅，故不迁 */}
                         <span className="absolute inset-0 -z-10 bg-gradient-to-r from-[#060a18]/75 via-[#060a18]/35 to-transparent" />
                         <span className="flex flex-col justify-between gap-6">
                             <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] backdrop-blur">
@@ -153,7 +154,7 @@ export function TeachingPrepBoard({ teacherName, schoolName, courses, offerings,
                                     {classesByAssignment.get(resume.id)?.length ? ` · ${classesByAssignment.get(resume.id)?.join("、")}` : ""}
                                 </span>
                             </span>
-                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-[var(--gm-text)] transition-transform group-hover:translate-x-1 dark:bg-[var(--gm-surface)]">进入备课 →</span>
+                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[var(--gm-surface)] px-3.5 py-1.5 text-xs font-semibold text-[var(--gm-text)] transition-transform group-hover:translate-x-1">进入备课 →</span>
                         </span>
                     </Link>
                 ) : null}

@@ -36,7 +36,7 @@ const iconStyles: Record<HelpArticleId, string> = {
     prompts: "bg-orange-50 text-orange-700 dark:bg-orange-300/10 dark:text-orange-300",
     account: "bg-violet-50 text-violet-700 dark:bg-violet-300/10 dark:text-violet-300",
     rights: "bg-blue-50 text-blue-700 dark:bg-blue-300/10 dark:text-blue-300",
-    troubleshooting: "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+    troubleshooting: "bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]",
 };
 
 export default function HelpPage() {
@@ -59,7 +59,7 @@ export default function HelpPage() {
     };
 
     return (
-        <div className="h-full min-h-0 overflow-y-auto bg-[#f8fbff] text-[var(--gm-text)] dark:bg-[#080e1a]">
+        <div className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-[1480px] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
                 <header className="grid gap-4 border-b border-[var(--gm-border)] pb-5 sm:pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] lg:items-end">
                     <div className="min-w-0">
@@ -89,7 +89,7 @@ export default function HelpPage() {
                                             className={cn(
                                                 "flex min-w-0 items-start gap-3 rounded-lg border px-3 py-3 text-left transition",
                                                 activeId === article.id
-                                                    ? "!border-[#1b212f] !bg-[#1b212f] !text-white dark:!border-[#f2f5fa] dark:!bg-[#f2f5fa] dark:!text-[#1b212f]"
+                                                    ? "!border-[var(--gm-surface-light)] !bg-[var(--gm-surface-light)] !text-[var(--gm-inverse-text)]"
                                                     : "border-[var(--gm-border)] bg-[var(--gm-surface)] text-card-foreground hover:border-foreground/35 hover:bg-[var(--gm-wash)]/60",
                                             )}
                                             onClick={() => selectArticle(article.id)}
@@ -121,7 +121,7 @@ export default function HelpPage() {
                                         type="button"
                                         className={cn(
                                             "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition",
-                                            active ? "!bg-[#1b212f] !text-white font-medium dark:!bg-[#f2f5fa] dark:!text-[#1b212f]" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
+                                            active ? "!bg-[var(--gm-surface-light)] !text-[var(--gm-inverse-text)] font-medium" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
                                         )}
                                         onClick={() => selectArticle(article.id)}
                                         aria-current={active ? "page" : undefined}
@@ -185,7 +185,7 @@ function ArticleHeader({ article }: { article: (typeof helpArticles)[number] }) 
                 {article.route ? (
                     <Link
                         href={article.route.href}
-                        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg !bg-[#1b212f] px-3.5 text-sm font-medium !text-white transition hover:opacity-85 dark:!bg-[#f2f5fa] dark:!text-[#1b212f]"
+                        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg !bg-[var(--gm-surface-light)] px-3.5 text-sm font-medium !text-[var(--gm-inverse-text)] transition hover:opacity-85"
                     >
                         {article.route.label}
                         <ArrowUpRight className="size-3.5" />

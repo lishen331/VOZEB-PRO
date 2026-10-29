@@ -161,7 +161,7 @@ const AdminDramaLabGenerationSection = dynamic(loadDramaLabGenerationSection, { 
 const AdminDramaLabSd2Section = dynamic(loadDramaLabSd2Section, { loading: AdminSectionLoading });
 
 function AdminSectionLoading() {
-    return <div className="flex min-h-36 items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">正在加载分区...</div>;
+    return <div className="flex min-h-36 items-center justify-center text-sm text-[var(--gm-text-2)]">正在加载分区...</div>;
 }
 
 export function AdminDashboard(props: AdminDashboardProps) {
@@ -221,21 +221,21 @@ export function AdminDashboard(props: AdminDashboardProps) {
                 onMobileClose={() => setMobileNavOpen(false)}
             />
             <div className="w-full min-w-0 max-w-full overflow-x-hidden">
-                <header className="admin-dashboard-header sticky top-0 z-20 border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-950 sm:px-6 lg:px-5">
+                <header className="admin-dashboard-header sticky top-0 z-20 border-b border-[var(--gm-border)] bg-[var(--gm-surface)] px-4 py-2.5 sm:px-6 lg:px-5">
                     <div className="admin-dashboard-header-inner mx-auto flex min-h-9 w-full max-w-[1600px] min-w-0 items-center justify-between gap-3">
                         <div className="admin-dashboard-title-row flex min-w-0 items-center gap-3">
                             <button
                                 type="button"
-                                className="admin-mobile-menu-trigger flex size-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900 lg:hidden"
+                                className="admin-mobile-menu-trigger flex size-9 shrink-0 items-center justify-center rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] lg:hidden"
                                 aria-label="展开后台侧边栏"
                                 onClick={() => setMobileNavOpen(true)}
                             >
                                 <Menu className="size-4" />
                             </button>
-                            <div className="min-w-0 items-center gap-2 text-xs text-zinc-400 lg:flex">
+                            <div className="min-w-0 items-center gap-2 text-xs text-[var(--gm-text-3)] lg:flex">
                                 <span>后台</span>
                                 <span>/</span>
-                                <strong className="truncate font-medium text-zinc-700 dark:text-zinc-300">{activeSectionInfo.label}</strong>
+                                <strong className="truncate font-medium text-[var(--gm-text-2)]">{activeSectionInfo.label}</strong>
                             </div>
                         </div>
                         <div className="admin-dashboard-actions flex min-w-0 items-center gap-2 sm:justify-end">
@@ -243,18 +243,18 @@ export function AdminDashboard(props: AdminDashboardProps) {
                                 <Link
                                     href="/admin/setup"
                                     title={`下一项：${nextSetupStep.title}`}
-                                    className="admin-dashboard-setup-pill group flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-left transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+                                    className="admin-dashboard-setup-pill group flex min-w-0 items-center gap-2 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2.5 py-1.5 text-left transition hover:bg-[var(--gm-wash)]"
                                 >
-                                    <span className="admin-dashboard-setup-icon grid size-5 shrink-0 place-items-center text-zinc-500 dark:text-zinc-400">
+                                    <span className="admin-dashboard-setup-icon grid size-5 shrink-0 place-items-center text-[var(--gm-text-2)]">
                                         <Sparkles className="size-3.5" />
                                     </span>
                                     <span className="admin-dashboard-setup-copy flex min-w-0 items-center gap-2">
-                                        <span className="admin-dashboard-setup-title flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                                        <span className="admin-dashboard-setup-title flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-[var(--gm-text-2)]">
                                             初始化 {setupSummary.percent}%
-                                            <ArrowRight className="admin-dashboard-setup-arrow size-3 text-zinc-400 transition group-hover:translate-x-0.5" />
+                                            <ArrowRight className="admin-dashboard-setup-arrow size-3 text-[var(--gm-text-3)] transition group-hover:translate-x-0.5" />
                                         </span>
-                                        <span className="admin-dashboard-setup-track block h-1 w-16 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                                            <span className="admin-dashboard-setup-progress block h-full rounded-full bg-zinc-700 dark:bg-zinc-300" style={{ width: `${setupSummary.percent}%` }} />
+                                        <span className="admin-dashboard-setup-track block h-1 w-16 overflow-hidden rounded-full bg-[var(--gm-wash-strong)]">
+                                            <span className="admin-dashboard-setup-progress block h-full rounded-full bg-[var(--gm-blue)]" style={{ width: `${setupSummary.percent}%` }} />
                                         </span>
                                     </span>
                                 </Link>
@@ -265,9 +265,9 @@ export function AdminDashboard(props: AdminDashboardProps) {
                 </header>
 
                 <div className="mx-auto w-full max-w-[1600px] min-w-0 space-y-3 px-3 py-3 sm:space-y-5 sm:px-6 sm:py-6 lg:px-8 xl:px-9 xl:py-7">
-                    <section className="border-b border-zinc-200 pb-3 sm:pb-5 dark:border-zinc-800">
-                        <h1 className="text-lg font-semibold text-zinc-950 sm:text-xl dark:text-zinc-100">{activeSectionInfo.label}</h1>
-                        <div className="mt-1 line-clamp-2 max-w-3xl text-xs leading-5 text-zinc-500 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6 dark:text-zinc-400">{activeSectionInfo.description}</div>
+                    <section className="border-b border-[var(--gm-border)] pb-3 sm:pb-5">
+                        <h1 className="text-lg font-semibold text-[var(--gm-text)] sm:text-xl">{activeSectionInfo.label}</h1>
+                        <div className="mt-1 line-clamp-2 max-w-3xl text-xs leading-5 text-[var(--gm-text-3)] sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6">{activeSectionInfo.description}</div>
                     </section>
 
                     {activeSection === "overview" ? (
@@ -346,11 +346,11 @@ export function AdminDashboard(props: AdminDashboardProps) {
                 <Form className="admin-prompt-form" form={promptForm} layout="vertical" requiredMark={false} onFinish={createPrompt}>
                     <div className="max-h-[min(68dvh,680px)] overflow-y-auto pr-1">
                         <div className="admin-prompt-note mb-5 rounded-xl p-4">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
-                                <Plus className="size-4 text-stone-600 dark:text-stone-300" />
+                            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--gm-text)]">
+                                <Plus className="size-4 text-[var(--gm-text-2)]" />
                                 新增公共提示词
                             </div>
-                            <p className="mt-1 text-xs leading-5 text-stone-600 dark:text-stone-400">建议填写远程图片封面 URL，用户端会直接显示封面，不走本地素材存储。</p>
+                            <p className="mt-1 text-xs leading-5 text-[var(--gm-text-2)]">建议填写远程图片封面 URL，用户端会直接显示封面，不走本地素材存储。</p>
                         </div>
                         <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
                             <Form.Item label="提示词标题" name="title" rules={[{ required: true, message: "请输入标题" }]}>
@@ -384,17 +384,17 @@ export function AdminDashboard(props: AdminDashboardProps) {
             <Modal title="CDK 明细" open={Boolean(viewingCdkCode)} footer={null} onCancel={() => setViewingCdkCode(null)} width={760}>
                 {viewingCdkCode ? (
                     <div className="space-y-3">
-                        <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/60">
+                        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
                             <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">兑换码</div>
+                                <div className="text-sm font-semibold text-[var(--gm-text)]">兑换码</div>
                                 <Button size="small" icon={<Copy className="size-3.5" />} disabled={!viewingCdkCode.code} onClick={() => void copyCdkPlainCode(viewingCdkCode)}>
                                     复制明文
                                 </Button>
                             </div>
-                            <div className="break-all rounded-md border border-stone-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-stone-950 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-100">
+                            <div className="break-all rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2 font-mono text-sm font-semibold text-[var(--gm-text)]">
                                 {viewingCdkCode.code || "CDK 明文不可用"}
                             </div>
-                            {!viewingCdkCode.code ? <div className="mt-2 text-xs text-stone-500 dark:text-stone-400">这个 CDK 没有可复制的明文。</div> : null}
+                            {!viewingCdkCode.code ? <div className="mt-2 text-xs text-[var(--gm-text-3)]">这个 CDK 没有可复制的明文。</div> : null}
                         </div>
                         <CdkRedemptionDetail code={viewingCdkCode} />
                     </div>

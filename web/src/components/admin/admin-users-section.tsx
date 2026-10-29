@@ -32,21 +32,21 @@ export function AdminUsersSection({ controller }: { controller: AdminDashboardCo
                     ) : null
                 }
             />
-            <div className="border-b border-stone-200 bg-stone-50/45 p-4 sm:p-5 dark:border-stone-800 dark:bg-stone-900/20">
+            <div className="border-b border-[var(--gm-border)] bg-[var(--gm-wash)] p-4 sm:p-5">
                 <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                     <Input
                         allowClear
                         className="w-full min-w-0 sm:max-w-2xl xl:max-w-3xl"
-                        prefix={<Search className="size-4 text-stone-400" />}
+                        prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                         placeholder="搜索昵称、用户名、邮箱、用户 ID、角色或状态"
                         aria-label="搜索用户"
                         value={userSearch}
                         onChange={(event) => setUserSearch(event.target.value)}
                     />
                     <div className="flex w-full flex-wrap items-center justify-between gap-2 xl:w-auto xl:justify-end">
-                        <span className="inline-flex h-8 shrink-0 items-center rounded-md border border-stone-200 bg-white px-2.5 text-xs font-medium text-stone-600 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-300">
-                            已选 <strong className="mx-1 text-stone-950 dark:text-stone-100">{selectedUserIds.length}</strong>
-                            <span className="mx-1 text-stone-300 dark:text-stone-700">/</span>共 <strong className="ml-1 text-stone-950 dark:text-stone-100">{userTotal}</strong>
+                        <span className="inline-flex h-8 shrink-0 items-center rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2.5 text-xs font-medium text-[var(--gm-text-2)]">
+                            已选 <strong className="mx-1 text-[var(--gm-text)]">{selectedUserIds.length}</strong>
+                            <span className="mx-1 text-[var(--gm-text-3)]">/</span>共 <strong className="ml-1 text-[var(--gm-text)]">{userTotal}</strong>
                         </span>
                         {canCreateUser ? (
                             <Popconfirm title="批量删除选中用户？" description="会逐个清理用户会话、积分和额度记录；当前账号和最后一个管理员会被系统阻止删除。" okText="删除" cancelText="取消" onConfirm={() => void bulkDeleteUsers()}>

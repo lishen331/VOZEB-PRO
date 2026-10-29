@@ -28,27 +28,27 @@ export function CreativeGenerationWaiting({ run, message }: { run?: CreativeAgen
     const copy = creativeGenerationWaitingCopy({ mode: creativeRunMode(run), runStatus: run?.status, progressText: run?.tasks.some((task) => task.status === "needs_review") ? "上游结果待确认" : message.content, elapsedSeconds });
 
     return (
-        <div data-testid="creative-generation-waiting" className="mb-3 max-w-[520px] py-1 text-[#657085] dark:text-[#a2a8b5]">
+        <div data-testid="creative-generation-waiting" className="mb-3 max-w-[520px] py-1 text-[var(--gm-text-2)]">
             <div className="flex items-start gap-2.5">
                 <Sparkles className="mt-1 size-4 shrink-0 animate-pulse text-primary/75" aria-hidden />
                 <div className="min-w-0">
-                    <p className="text-sm leading-6 text-[#5a6377] dark:text-[#b1b7c4]" aria-live="polite">
+                    <p className="text-sm leading-6 text-[var(--gm-text-2)]" aria-live="polite">
                         {copy}
                     </p>
-                    <p data-testid="creative-generation-elapsed" className="mt-0.5 text-[11px] tabular-nums leading-4 text-[#9ba2ae] dark:text-[#7e889d]">
+                    <p data-testid="creative-generation-elapsed" className="mt-0.5 text-[11px] tabular-nums leading-4 text-[var(--gm-text-3)]">
                         已等待 {formatCreativeWaitingTime(elapsedSeconds)}
                     </p>
                     {stageProgress.length ? (
                         <div className="mt-3 space-y-1.5" aria-label="Agent 执行阶段">
                             {stageProgress.map((stage) => (
-                                <div key={stage.key} className="flex items-center gap-1.5 text-[12px] leading-5 text-[#657085] dark:text-[#9ba2ae]">
-                                    {stage.status === "completed" ? <Check className="size-3.5 shrink-0 text-emerald-500" aria-hidden /> : <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-500" aria-hidden />}
+                                <div key={stage.key} className="flex items-center gap-1.5 text-[12px] leading-5 text-[var(--gm-text-2)]">
+                                    {stage.status === "completed" ? <Check className="size-3.5 shrink-0 text-[var(--gm-success)]" aria-hidden /> : <LoaderCircle className="size-3.5 shrink-0 animate-spin text-[var(--gm-accent)]" aria-hidden />}
                                     <span>{stage.text}</span>
-                                    <span className="ml-auto tabular-nums text-[#9ba2ae]">{stage.status === "completed" ? `${stage.durationSeconds || 0} 秒` : `${currentStageSeconds} 秒`}</span>
+                                    <span className="ml-auto tabular-nums text-[var(--gm-text-3)]">{stage.status === "completed" ? `${stage.durationSeconds || 0} 秒` : `${currentStageSeconds} 秒`}</span>
                                 </div>
                             ))}
                             {stageProgress.length < 6 ? (
-                                <div className="flex items-center gap-1.5 text-[12px] leading-5 text-[#b1b7c4]">
+                                <div className="flex items-center gap-1.5 text-[12px] leading-5 text-[var(--gm-text-3)]">
                                     <Circle className="size-3.5 shrink-0" aria-hidden />
                                     等待后续阶段
                                 </div>

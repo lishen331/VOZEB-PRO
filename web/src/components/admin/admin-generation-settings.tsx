@@ -9,7 +9,7 @@ import type { AuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelConfig } from "@/lib/model-routing-config";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 
-const settingsPanelSurfaceClass = "rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950";
+const settingsPanelSurfaceClass = "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4";
 
 export type AgentReadiness = {
     ready: boolean;
@@ -41,7 +41,7 @@ export function GenerationConcurrencyPanel({ settings, onChange }: { settings: A
                     <InputNumber className="w-full" min={1} precision={0} value={settings.generationConcurrency.render} onChange={(value) => onChange("render", value)} />
                 </LabeledControl>
             </div>
-            <div className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">限制的是单个用户自己的并发任务，不是全站共享上限。</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">限制的是单个用户自己的并发任务，不是全站共享上限。</div>
         </div>
     );
 }
@@ -128,7 +128,7 @@ export function GenerationDefaultsPanel({ settings, onChange }: { settings: Auth
                     <Select className="w-full" value={settings.generationDefaults.audioFormat} options={["mp3", "wav", "opus", "aac", "flac"].map((value) => ({ value, label: value.toUpperCase() }))} onChange={(value) => onChange("audioFormat", value)} />
                 </LabeledControl>
             </div>
-            <div className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">新建画布生图节点和配置节点默认使用，单个节点仍可单独覆盖。</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">新建画布生图节点和配置节点默认使用，单个节点仍可单独覆盖。</div>
         </div>
     );
 }

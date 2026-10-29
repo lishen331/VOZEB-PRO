@@ -68,7 +68,7 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
             />
             <div className="space-y-3 p-2.5 sm:space-y-5 sm:p-5">
                 <div className="grid items-start gap-3 sm:gap-4 xl:grid-cols-[minmax(360px,0.85fr)_minmax(0,1.15fr)]">
-                    <section className="rounded-lg border border-stone-200 bg-stone-50/70 p-3 sm:p-4 dark:border-stone-800 dark:bg-stone-900/40">
+                    <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 sm:p-4">
                         <SectionTitle icon={<KeyRound className="size-4" />} title="生成 CDK" />
                         <div className="mt-3 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2.5 sm:mt-4 sm:gap-3">
                             <LabeledControl label="生成数量">
@@ -91,7 +91,7 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                                     onChange={(value) => setCdkForm((current) => ({ ...current, expiresInDays: value === null ? null : clampInteger(value, 1, 3650, 1) }))}
                                 />
                             </LabeledControl>
-                            <p className="col-span-2 -mt-0.5 text-xs leading-5 text-stone-500 dark:text-stone-400">有效天数留空时长期有效，填写数字则从生成当日起计算。</p>
+                            <p className="col-span-2 -mt-0.5 text-xs leading-5 text-[var(--gm-text-3)]">有效天数留空时长期有效，填写数字则从生成当日起计算。</p>
                             <div className="col-span-2">
                                 <LabeledControl label="备注">
                                     <Input value={cdkForm.note} maxLength={120} placeholder="例如：活动赠送 / 测试兑换" onChange={(event) => setCdkForm((current) => ({ ...current, note: event.target.value }))} />
@@ -104,11 +104,11 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                             </Button>
                         </div>
                     </section>
-                    <section className="rounded-lg border border-stone-200 bg-white p-3 sm:p-4 dark:border-stone-800 dark:bg-stone-950">
+                    <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
                                 <SectionTitle icon={<ShieldCheck className="size-4" />} title="本次生成结果" />
-                                <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">新生成会显示完整明文；删除后会从密钥管理移除，用户不能再兑换。</p>
+                                <p className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">新生成会显示完整明文；删除后会从密钥管理移除，用户不能再兑换。</p>
                             </div>
                             <div className="flex shrink-0 flex-wrap gap-2">
                                 <Button size="small" disabled={!createdCdkActionCodes.length} onClick={() => void copyCreatedCdkCodes()}>
@@ -131,7 +131,7 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                             </div>
                         </div>
                         {createdCdkCodes.length ? (
-                            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-stone-200 bg-stone-50/80 px-3 py-2 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-2 text-sm">
                                 <Checkbox
                                     checked={allCreatedCdkSelected}
                                     indeterminate={Boolean(selectedCreatedCdkIds.length) && !allCreatedCdkSelected}
@@ -139,7 +139,7 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                                 >
                                     全选当前结果
                                 </Checkbox>
-                                <span className="text-xs text-stone-500 dark:text-stone-400">
+                                <span className="text-xs text-[var(--gm-text-3)]">
                                     已选 {selectedCreatedCdkIds.length} 个 / 共 {createdCdkCodes.length} 个；新生成会追加在顶部并自动选中
                                 </span>
                             </div>
@@ -147,15 +147,15 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                         <div className="mt-4 max-h-72 space-y-2 overflow-y-auto">
                             {createdCdkCodes.length ? (
                                 createdCdkCodes.map((code) => (
-                                    <div key={code.id} className="grid gap-3 rounded-md border border-stone-200 p-3 dark:border-stone-800 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+                                    <div key={code.id} className="grid gap-3 rounded-md border border-[var(--gm-border)] p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
                                         <Checkbox
                                             checked={selectedCreatedCdkIds.includes(code.id)}
                                             onChange={(event) => setSelectedCreatedCdkIds((current) => (event.target.checked ? Array.from(new Set([...current, code.id])) : current.filter((id) => id !== code.id)))}
                                             aria-label={`选择 ${code.codePreview}`}
                                         />
                                         <div className="min-w-0">
-                                            <div className="break-all font-mono text-sm font-semibold text-stone-900 dark:text-stone-100">{code.code}</div>
-                                            <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                                            <div className="break-all font-mono text-sm font-semibold text-[var(--gm-text)]">{code.code}</div>
+                                            <div className="mt-1 text-xs text-[var(--gm-text-3)]">
                                                 {formatCreditAmount(code.points)} 积分 / 可兑 {code.maxRedemptions} 次{code.expiresAt ? ` / ${new Date(code.expiresAt).toLocaleDateString("zh-CN")} 过期` : " / 长期有效"}
                                             </div>
                                         </div>
@@ -172,17 +172,17 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                                     </div>
                                 ))
                             ) : (
-                                <div className="rounded-md border border-dashed border-stone-200 px-3 py-6 text-center text-sm text-stone-500 sm:py-10 dark:border-stone-800">生成后会在这里显示明文，请及时复制。</div>
+                                <div className="rounded-md border border-dashed border-[var(--gm-border)] px-3 py-6 text-center text-sm text-[var(--gm-text-2)] sm:py-10">生成后会在这里显示明文，请及时复制。</div>
                             )}
                         </div>
                     </section>
                 </div>
-                <section className="rounded-lg border border-stone-200 bg-white p-3 sm:p-4 dark:border-stone-800 dark:bg-stone-950">
+                <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:p-4">
                     <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                         <div className="min-w-0">
                             <SectionTitle icon={<Database className="size-4" />} title="CDK 密钥管理" />
-                            <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">这里管理的是可兑换密钥本身；可搜索、复制、查看明细、勾选批量删除，已兑换流水会保留在用户积分记录中。</p>
-                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-stone-500 dark:text-stone-400">
+                            <p className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">这里管理的是可兑换密钥本身；可搜索、复制、查看明细、勾选批量删除，已兑换流水会保留在用户积分记录中。</p>
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
                                 <Tag className="m-0">总数 {cdkStats.total}</Tag>
                                 <Tag className="m-0">已兑换 {cdkStats.redeemed}</Tag>
                                 <Tag className="m-0">未兑换 {cdkStats.unused}</Tag>
@@ -193,7 +193,7 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                             <Input
                                 allowClear
                                 className="w-full xl:max-w-64"
-                                prefix={<Search className="size-4 text-stone-400" />}
+                                prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                                 placeholder="搜索明文、备注、兑换用户或用户 ID"
                                 value={cdkSearch}
                                 onChange={(event) => {
@@ -224,12 +224,12 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                             </Popconfirm>
                         </div>
                     </div>
-                    <div className="rounded-lg border border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-950">
+                    <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]">
                         <div className="md:hidden">
                             {cdkLoading ? (
-                                <div className="px-3 py-8 text-center text-sm text-stone-500 dark:text-stone-400">加载中...</div>
+                                <div className="px-3 py-8 text-center text-sm text-[var(--gm-text-2)]">加载中...</div>
                             ) : cdkCodes.length ? (
-                                <div className="divide-y divide-stone-200 dark:divide-stone-800">
+                                <div className="divide-y divide-[var(--gm-border)]">
                                     {cdkCodes.map((code) => {
                                         const latest = [...code.redemptions].sort((a, b) => Date.parse(b.redeemedAt) - Date.parse(a.redeemedAt))[0];
                                         const selected = selectedCdkIds.includes(code.id);
@@ -244,36 +244,36 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                                                     />
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                                            <span className="min-w-0 max-w-full break-all font-mono text-sm font-semibold leading-5 text-stone-950 dark:text-stone-100">{code.code || "CDK"}</span>
+                                                            <span className="min-w-0 max-w-full break-all font-mono text-sm font-semibold leading-5 text-[var(--gm-text)]">{code.code || "CDK"}</span>
                                                             <Tag className="m-0" color={cdkStatusTone(code)}>
                                                                 {cdkStatusLabel(code)}
                                                             </Tag>
                                                         </div>
-                                                        {code.note ? <div className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">备注：{code.note}</div> : null}
+                                                        {code.note ? <div className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">备注：{code.note}</div> : null}
                                                     </div>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-2 rounded-md bg-stone-50/80 p-3 text-xs leading-5 dark:bg-stone-900/50">
+                                                <div className="grid grid-cols-2 gap-2 rounded-md bg-[var(--gm-wash)] p-3 text-xs leading-5">
                                                     <div>
-                                                        <div className="text-stone-400 dark:text-stone-500">兑换规则</div>
-                                                        <div className="mt-0.5 font-medium text-stone-800 dark:text-stone-100">
+                                                        <div className="text-[var(--gm-text-3)]">兑换规则</div>
+                                                        <div className="mt-0.5 font-medium text-[var(--gm-text)]">
                                                             {formatCreditAmount(code.points)} 积分 · {code.redeemedCount}/{code.maxRedemptions}
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-stone-400 dark:text-stone-500">有效期</div>
-                                                        <div className="mt-0.5 font-medium text-stone-800 dark:text-stone-100">{code.expiresAt ? new Date(code.expiresAt).toLocaleDateString("zh-CN") : "长期有效"}</div>
+                                                        <div className="text-[var(--gm-text-3)]">有效期</div>
+                                                        <div className="mt-0.5 font-medium text-[var(--gm-text)]">{code.expiresAt ? new Date(code.expiresAt).toLocaleDateString("zh-CN") : "长期有效"}</div>
                                                     </div>
                                                     <div className="col-span-2">
-                                                        <div className="text-stone-400 dark:text-stone-500">最近兑换</div>
+                                                        <div className="text-[var(--gm-text-3)]">最近兑换</div>
                                                         {latest ? (
-                                                            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 font-medium text-stone-800 dark:text-stone-100">
+                                                            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 font-medium text-[var(--gm-text)]">
                                                                 <span className="truncate">
                                                                     {latest.displayName} @{latest.username}
                                                                 </span>
                                                                 <AdminAccountId accountId={latest.accountId} className="shrink-0" />
                                                             </div>
                                                         ) : (
-                                                            <div className="mt-0.5 font-medium text-stone-800 dark:text-stone-100">暂无兑换</div>
+                                                            <div className="mt-0.5 font-medium text-[var(--gm-text)]">暂无兑换</div>
                                                         )}
                                                     </div>
                                                 </div>
@@ -295,7 +295,7 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                                     })}
                                 </div>
                             ) : (
-                                <div className="px-3 py-8 text-center text-sm text-stone-500 dark:text-stone-400">暂无符合条件的 CDK</div>
+                                <div className="px-3 py-8 text-center text-sm text-[var(--gm-text-2)]">暂无符合条件的 CDK</div>
                             )}
                         </div>
                         <div className="hidden md:block">
@@ -313,10 +313,10 @@ export function AdminCdkSection({ controller }: { controller: AdminDashboardCont
                                 locale={{ emptyText: "暂无符合条件的 CDK" }}
                             />
                         </div>
-                        <div className="flex flex-col gap-3 border-t border-stone-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800">
-                            <div className="text-sm text-stone-500 dark:text-stone-400">
-                                已选 <span className="font-semibold text-stone-950 dark:text-stone-100">{selectedCdkIds.length}</span> 个，当前页 <span className="font-semibold text-stone-950 dark:text-stone-100">{cdkCodes.length}</span> 条，共{" "}
-                                <span className="font-semibold text-stone-950 dark:text-stone-100">{cdkTotal}</span> 条
+                        <div className="flex flex-col gap-3 border-t border-[var(--gm-border)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-sm text-[var(--gm-text-2)]">
+                                已选 <span className="font-semibold text-[var(--gm-text)]">{selectedCdkIds.length}</span> 个，当前页 <span className="font-semibold text-[var(--gm-text)]">{cdkCodes.length}</span> 条，共{" "}
+                                <span className="font-semibold text-[var(--gm-text)]">{cdkTotal}</span> 条
                             </div>
                             <Pagination current={cdkPage} pageSize={CDK_PAGE_SIZE} total={cdkTotal} showSizeChanger={false} onChange={(page) => setCdkPage(page)} />
                         </div>

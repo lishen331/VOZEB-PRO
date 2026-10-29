@@ -70,7 +70,7 @@ export function AdminModelConnectionTest({ targets, label = "连接测试", titl
                 <div className="space-y-3">
                     {results.length ? (
                         results.map((result) => (
-                            <div key={`${result.capability}:${result.logicalModelId}`} className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+                            <div key={`${result.capability}:${result.logicalModelId}`} className="rounded-lg border border-[var(--gm-border)] p-3">
                                 <div className="flex items-center justify-between">
                                     <span className="font-medium">{result.modelName}</span>
                                     <Tag color={result.status === "available" ? "green" : result.status === "partial" ? "orange" : "red"}>{statusLabel(result.status)}</Tag>
@@ -81,14 +81,14 @@ export function AdminModelConnectionTest({ targets, label = "连接测试", titl
                                             <StatusIcon status={channel.status} />
                                             {channel.channelName} · {channel.responseMs}ms
                                         </div>
-                                        <div className="text-stone-500">请求 ID：{channel.requestId}</div>
-                                        {channel.error ? <div className="text-red-600">{channel.error}</div> : null}
+                                        <div className="text-[var(--gm-text-2)]">请求 ID：{channel.requestId}</div>
+                                        {channel.error ? <div className="text-[var(--gm-danger)]">{channel.error}</div> : null}
                                     </div>
                                 ))}
                             </div>
                         ))
                     ) : (
-                        <div className="py-8 text-center text-stone-500">点击“重新测试”开始测试当前实际路由</div>
+                        <div className="py-8 text-center text-[var(--gm-text-2)]">点击“重新测试”开始测试当前实际路由</div>
                     )}
                 </div>
             </Modal>
@@ -104,5 +104,5 @@ function statusLabel(status: ModelResult["status"]) {
     return status === "available" ? "可用" : status === "partial" ? "部分可用" : status === "unavailable" ? "不可用" : "未测试";
 }
 function StatusIcon({ status }: { status: ModelResult["status"] }) {
-    return status === "available" ? <CheckCircle2 className="size-3.5 text-emerald-600" /> : status === "partial" ? <Clock3 className="size-3.5 text-orange-500" /> : <XCircle className="size-3.5 text-red-600" />;
+    return status === "available" ? <CheckCircle2 className="size-3.5 text-[var(--gm-success)]" /> : status === "partial" ? <Clock3 className="size-3.5 text-[var(--gm-warning)]" /> : <XCircle className="size-3.5 text-[var(--gm-danger)]" />;
 }

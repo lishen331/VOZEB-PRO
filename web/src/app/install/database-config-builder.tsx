@@ -6,6 +6,8 @@ import { Check, Copy, Database, FileCode2, KeyRound, RefreshCw, Server, Terminal
 
 import { buildDeploymentSnippets, generateDeploymentSecret, modeOptions, type DeployMode } from "./database-config";
 
+// 颜色暂不迁 gm token：安装向导外层 page.tsx / install-wizard.tsx 仍是固定浅色 slate 配色（不在本批），
+// 只迁这个组件会在深色主题下出现浅底页面里套深色卡片。需与外层一起迁。
 export function DatabaseConfigBuilder() {
     const [mode, setMode] = useState<DeployMode>("local");
     const [host, setHost] = useState("localhost");

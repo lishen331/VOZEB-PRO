@@ -249,7 +249,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, onEnableWithou
             setSubmitting(false);
         }
     };
-    const muted = "text-xs leading-5 text-stone-500 dark:text-stone-400";
+    const muted = "text-xs leading-5 text-[var(--gm-text-3)]";
     return (
         <Modal
             open={open}
@@ -418,7 +418,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, onEnableWithou
                         </section>
                         <section className="min-w-0 space-y-3">
                             <b>生成结果</b>
-                            <div className="flex min-h-64 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-900">
+                            <div className="flex min-h-64 items-center justify-center rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
                                 {result?.text ? (
                                     <article className="w-full whitespace-pre-wrap break-words text-sm">{result.text}</article>
                                 ) : result?.url && capability === "video" ? (
@@ -452,7 +452,7 @@ function BindingVerificationSession({ open, onCancel, onVerified, onEnableWithou
                                 下载诊断 JSON
                             </Button>
                         </Space>
-                        <pre className="whitespace-pre-wrap break-all rounded-lg bg-stone-50 p-4 text-xs dark:bg-stone-900">{test ? bindingVerificationDiagnosticsJson(test) : "尚未提交测试，无诊断记录。"}</pre>
+                        <pre className="whitespace-pre-wrap break-all rounded-lg bg-[var(--gm-wash)] p-4 text-xs">{test ? bindingVerificationDiagnosticsJson(test) : "尚未提交测试，无诊断记录。"}</pre>
                     </div>
                 ) : null}
                 {channel && onProtocolChange ? (

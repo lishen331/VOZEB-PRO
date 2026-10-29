@@ -207,7 +207,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
 
     const jsonField = (key: keyof typeof jsonText, label: string, expected: "array" | "object") => (
         <div>
-            <div className="mb-1 text-xs font-medium text-stone-600 dark:text-stone-300">{label}</div>
+            <div className="mb-1 text-xs font-medium text-[var(--gm-text-2)]">{label}</div>
             <Input.TextArea
                 value={jsonText[key]}
                 autoSize={{ minRows: 8, maxRows: 18 }}
@@ -215,9 +215,9 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                 readOnly
                 placeholder="根据上方识别结果自动生成，通过勾选候选项控制"
                 status={errors[key] ? "error" : undefined}
-                className="bg-stone-50 dark:bg-stone-900"
+                className="bg-[var(--gm-wash)]"
             />
-            {errors[key] ? <div className="mt-1 text-xs text-red-600">{`${key}: ${errors[key]}`}</div> : null}
+            {errors[key] ? <div className="mt-1 text-xs text-[var(--gm-danger)]">{`${key}: ${errors[key]}`}</div> : null}
         </div>
     );
 
@@ -302,10 +302,10 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                                 ) : null}
                                 {workflow?.generationSizeOptions?.length ? (
                                     <div className="sm:col-span-2">
-                                        <div className="mb-1 text-xs font-medium text-stone-600 dark:text-stone-300">可用尺寸预设</div>
+                                        <div className="mb-1 text-xs font-medium text-[var(--gm-text-2)]">可用尺寸预设</div>
                                         <div className="flex flex-wrap gap-2">
                                             {workflow.generationSizeOptions.map((option) => (
-                                                <span key={option.key} className="rounded border border-stone-200 px-2 py-1 text-xs text-stone-600 dark:border-stone-700 dark:text-stone-300">
+                                                <span key={option.key} className="rounded border border-[var(--gm-border)] px-2 py-1 text-xs text-[var(--gm-text-2)]">
                                                     {option.label}
                                                     {option.disabled ? "（停用）" : ""}
                                                 </span>
@@ -345,7 +345,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                                 ) : null}
                                 <div className="grid gap-2 sm:grid-cols-2">
                                     {discovery.candidates.map((candidate) => (
-                                        <label key={`${candidate.nodeId}.${candidate.fieldName}`} className="flex items-start gap-2 rounded-md border border-stone-200 p-2 text-sm dark:border-stone-800">
+                                        <label key={`${candidate.nodeId}.${candidate.fieldName}`} className="flex items-start gap-2 rounded-md border border-[var(--gm-border)] p-2 text-sm">
                                             <Checkbox
                                                 checked={selectedCandidates.includes(`${candidate.nodeId}.${candidate.fieldName}`)}
                                                 disabled={candidate.role === "unknown"}
@@ -355,19 +355,19 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                                             />
                                             <span>
                                                 <span className="font-medium">{candidate.label}</span>
-                                                <span className="ml-2 text-xs text-stone-500">
+                                                <span className="ml-2 text-xs text-[var(--gm-text-3)]">
                                                     {candidate.nodeId}.{candidate.fieldName} · {candidate.confidence}
                                                 </span>
                                             </span>
                                         </label>
                                     ))}
                                 </div>
-                                <div className="text-xs text-stone-500">
+                                <div className="text-xs text-[var(--gm-text-3)]">
                                     已生成 {discovery.suggestedInputs.length} 个输入、{discovery.suggestedOutputs.length} 个输出建议，请确认后保存。
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-sm text-stone-500">先点击“读取工作流”获取输入、输出候选和默认文件风险。</div>
+                            <div className="text-sm text-[var(--gm-text-2)]">先点击“读取工作流”获取输入、输出候选和默认文件风险。</div>
                         ),
                     },
                     {
@@ -386,7 +386,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                     {
                         key: "test",
                         label: "测试运行",
-                        children: <div className="rounded-md border border-dashed border-stone-300 p-4 text-sm text-stone-500 dark:border-stone-700">保存工作流后可在列表中打开测试运行面板。测试不会自动启用版本，也不会产生学校项目或积分流水。</div>,
+                        children: <div className="rounded-md border border-dashed border-[var(--gm-border-strong)] p-4 text-sm text-[var(--gm-text-2)]">保存工作流后可在列表中打开测试运行面板。测试不会自动启用版本，也不会产生学校项目或积分流水。</div>,
                     },
                 ]}
             />
@@ -397,9 +397,9 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
     return (
         <label className="block min-w-0">
-            <div className="mb-1 text-xs font-medium text-stone-600 dark:text-stone-300">{label}</div>
+            <div className="mb-1 text-xs font-medium text-[var(--gm-text-2)]">{label}</div>
             {children}
-            {error ? <div className="mt-1 text-xs text-red-600">{error}</div> : null}
+            {error ? <div className="mt-1 text-xs text-[var(--gm-danger)]">{error}</div> : null}
         </label>
     );
 }

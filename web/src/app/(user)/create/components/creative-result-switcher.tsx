@@ -113,10 +113,10 @@ export function CreativeResultSwitcher({
             style={style}
         >
             <div className={cn("mb-2 flex h-8 items-center justify-between gap-3 sm:shrink-0 sm:gap-1", scrollState.overflow ? "sm:grid sm:h-10 sm:grid-cols-[minmax(0,1fr)_20px] sm:grid-rows-2 sm:gap-x-1 sm:gap-y-0" : "sm:h-6")}>
-                <span className="whitespace-nowrap text-xs font-medium leading-5 text-[#798398] dark:text-[#8e98ae] sm:col-start-1 sm:row-start-1">更多</span>
+                <span className="whitespace-nowrap text-xs font-medium leading-5 text-[var(--gm-text-3)] sm:col-start-1 sm:row-start-1">更多</span>
                 <span
                     data-testid="creative-result-position"
-                    className="mr-auto whitespace-nowrap text-[10px] tabular-nums leading-4 text-[#9ba2ae] dark:text-[#7e889d] sm:col-start-1 sm:row-start-2"
+                    className="mr-auto whitespace-nowrap text-[10px] tabular-nums leading-4 text-[var(--gm-text-3)] sm:col-start-1 sm:row-start-2"
                     aria-label={`第 ${selectedIndex + 1} 项，共 ${results.length} 项`}
                 >
                     {selectedIndex + 1} / {results.length}
@@ -125,7 +125,7 @@ export function CreativeResultSwitcher({
                     <div className="flex items-center gap-1 sm:contents">
                         <button
                             type="button"
-                            className="grid size-8 place-items-center rounded-lg border border-[#e4e7ec] bg-white text-[#657085] transition hover:border-[#cdd4e1] hover:bg-[#f6f9ff] disabled:cursor-not-allowed disabled:opacity-35 dark:border-[#323a49] dark:bg-[#111724] dark:text-[#abb1be] dark:hover:bg-[#1d2431] sm:col-start-2 sm:row-start-1 sm:size-5 sm:rounded-md"
+                            className="grid size-8 place-items-center rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text-2)] transition hover:border-[var(--gm-border-strong)] hover:bg-[var(--gm-wash)] disabled:cursor-not-allowed disabled:opacity-35 sm:col-start-2 sm:row-start-1 sm:size-5 sm:rounded-md"
                             disabled={!scrollState.previous}
                             onClick={() => scroll(-1)}
                             aria-label="查看上一组生成结果"
@@ -134,7 +134,7 @@ export function CreativeResultSwitcher({
                         </button>
                         <button
                             type="button"
-                            className="grid size-8 place-items-center rounded-lg border border-[#e4e7ec] bg-white text-[#657085] transition hover:border-[#cdd4e1] hover:bg-[#f6f9ff] disabled:cursor-not-allowed disabled:opacity-35 dark:border-[#323a49] dark:bg-[#111724] dark:text-[#abb1be] dark:hover:bg-[#1d2431] sm:col-start-2 sm:row-start-2 sm:size-5 sm:rounded-md"
+                            className="grid size-8 place-items-center rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text-2)] transition hover:border-[var(--gm-border-strong)] hover:bg-[var(--gm-wash)] disabled:cursor-not-allowed disabled:opacity-35 sm:col-start-2 sm:row-start-2 sm:size-5 sm:rounded-md"
                             disabled={!scrollState.next}
                             onClick={() => scroll(1)}
                             aria-label="查看更多生成结果"
@@ -153,8 +153,8 @@ export function CreativeResultSwitcher({
                             key={result.id}
                             type="button"
                             className={cn(
-                                "relative h-16 w-[var(--creative-result-thumbnail-mobile-width)] shrink-0 overflow-hidden rounded-lg border bg-[#f3f6fc] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 dark:bg-[#1d2431] sm:h-12 sm:w-full",
-                                selected ? "border-transparent" : "border-[#e4e7ec] hover:border-[#b7bdca] dark:border-[#353d50] dark:hover:border-[#576074]",
+                                "relative h-16 w-[var(--creative-result-thumbnail-mobile-width)] shrink-0 overflow-hidden rounded-lg border bg-[var(--gm-wash)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-12 sm:w-full",
+                                selected ? "border-transparent" : "border-[var(--gm-border)] hover:border-[var(--gm-border-strong)]",
                             )}
                             onClick={() => onSelect(index)}
                             aria-label={`查看生成结果 ${index + 1}`}

@@ -92,10 +92,10 @@ export function CreativeAssetsPanel({
     }, [activeTab, libraryPromptCategory, libraryPromptKeyword, libraryPrompts, loadPromptPage, myPromptCategory, myPromptKeyword, myPrompts, open]);
 
     const panel = (
-        <div className="flex h-full min-h-0 flex-col bg-white dark:bg-[#0e1320]">
-            <div className="hidden h-14 shrink-0 items-center gap-2 border-b border-[#ebeef3] px-4 lg:flex dark:border-[#282f3d]">
-                <LibraryBig className="size-4 text-[#366bd0] dark:text-[#9bbfff]" />
-                <h2 className="min-w-0 flex-1 text-sm font-semibold text-[#1b212f] dark:text-[#f2f5fa]">资产</h2>
+        <div className="flex h-full min-h-0 flex-col bg-[var(--gm-bg-elevated)]">
+            <div className="hidden h-14 shrink-0 items-center gap-2 border-b border-[var(--gm-border)] px-4 lg:flex">
+                <LibraryBig className="size-4 text-[var(--gm-accent)]" />
+                <h2 className="min-w-0 flex-1 text-sm font-semibold text-[var(--gm-text)]">资产</h2>
                 <Tooltip title="关闭资产面板">
                     <Button type="text" shape="circle" icon={<X className="size-4" />} onClick={onClose} aria-label="关闭资产面板" />
                 </Tooltip>
@@ -105,7 +105,7 @@ export function CreativeAssetsPanel({
                     activeKey={activeTab}
                     onChange={(key) => setActiveTab(key as AssetPanelTab)}
                     tabBarGutter={0}
-                    className="creative-assets-tabs !flex !h-full !min-h-0 !flex-col px-3 [&_.gm-tabs-content]:!h-full [&_.gm-tabs-content]:!min-h-0 [&_.gm-tabs-nav-list]:w-full [&_.gm-tabs-nav]:!shrink-0 [&_.gm-tabs-tab]:!mx-0 [&_.gm-tabs-tab]:!flex-1 [&_.gm-tabs-tab]:!justify-center [&_.gm-tabs-tab]:!px-1 [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:!text-[#3164c8] [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:dark:!text-[#9fc2ff] [&_.gm-tabs-tabpane]:!h-full [&_.gm-tabs-tabpane]:!min-h-0 [&_.gm-tabs-tabpane]:!overflow-hidden"
+                    className="creative-assets-tabs !flex !h-full !min-h-0 !flex-col px-3 [&_.gm-tabs-content]:!h-full [&_.gm-tabs-content]:!min-h-0 [&_.gm-tabs-nav-list]:w-full [&_.gm-tabs-nav]:!shrink-0 [&_.gm-tabs-tab]:!mx-0 [&_.gm-tabs-tab]:!flex-1 [&_.gm-tabs-tab]:!justify-center [&_.gm-tabs-tab]:!px-1 [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:!text-[var(--gm-accent)] [&_.gm-tabs-tabpane]:!h-full [&_.gm-tabs-tabpane]:!min-h-0 [&_.gm-tabs-tabpane]:!overflow-hidden"
                     items={[
                         {
                             key: "assets",
@@ -166,7 +166,7 @@ export function CreativeAssetsPanel({
 
     return (
         <>
-            {open && screens.lg ? <aside className="h-full min-h-0 w-[352px] shrink-0 border-l border-[#ebeef3] dark:border-[#282f3d]">{panel}</aside> : null}
+            {open && screens.lg ? <aside className="h-full min-h-0 w-[352px] shrink-0 border-l border-[var(--gm-border)]">{panel}</aside> : null}
             <Drawer title="资产" placement="right" size={360} open={open && screens.lg !== true} onClose={onClose} styles={{ wrapper: { maxWidth: "100vw" }, body: { height: "100%", padding: 0, overflow: "hidden" } }}>
                 {screens.lg !== true ? panel : null}
             </Drawer>
@@ -197,7 +197,7 @@ export function ConversationAssets({
     const selected = new Set(selectedAssetIds);
     return (
         <div className="flex h-full min-h-0 flex-col" data-testid="creative-conversation-assets">
-            <div className="mx-3 mb-2 grid grid-cols-2 gap-1 rounded-lg border border-[#e4e7ec] bg-[#f3f6fc] p-1 dark:border-[#323948] dark:bg-[#1b212f]" role="tablist" aria-label="当前对话资产类型">
+            <div className="mx-3 mb-2 grid grid-cols-2 gap-1 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-1" role="tablist" aria-label="当前对话资产类型">
                 <ConversationAssetTypeTab label="图片" count={imageAssets.length} active={visibleType === "image"} disabled={!imageAssets.length} onClick={() => setActiveType("image")} />
                 <ConversationAssetTypeTab label="视频" count={videoAssets.length} active={visibleType === "video"} disabled={!videoAssets.length} onClick={() => setActiveType("video")} />
             </div>
@@ -206,14 +206,15 @@ export function ConversationAssets({
                     const active = selected.has(asset.id);
                     return (
                         <article key={asset.id} className="group min-w-0" title={asset.title}>
+                            {/* 选中描边 border-[#3d72d9] / dark:border-[#7baaff] 保留：creative-assets-panel.test.tsx 断言了 border-[#3d72d9]，测试不在本次改动范围 */}
                             <div
                                 className={`relative aspect-square overflow-hidden rounded-md border-2 transition ${
-                                    active ? "border-[#3d72d9] bg-[#f0f3f8] dark:border-[#7baaff] dark:bg-[#202e47]" : "border-transparent bg-[#f0f3f8] group-hover:border-[#bed0f0] dark:bg-[#1f2634] dark:group-hover:border-[#57709d]"
+                                    active ? "border-[#3d72d9] bg-[var(--gm-accent-soft)] dark:border-[#7baaff]" : "border-transparent bg-[var(--gm-wash-strong)] group-hover:border-[var(--gm-accent-ring)]"
                                 }`}
                             >
                                 <button
                                     type="button"
-                                    className="block size-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3d72d9]"
+                                    className="block size-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--gm-accent)]"
                                     onClick={() => {
                                         const url = asset.serverUrl || asset.remoteUrl;
                                         if (!url || (asset.type !== "image" && asset.type !== "video")) return;
@@ -233,8 +234,8 @@ export function ConversationAssets({
                             <button
                                 type="button"
                                 data-testid="creative-asset-reference-action"
-                                className={`mt-1 flex h-5 w-full items-center justify-center gap-1 rounded-sm !bg-transparent !text-[11px] font-medium transition-colors hover:!bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d72d9] ${
-                                    active ? "!text-[#3164c8] dark:!text-[#afccff]" : "!text-[#677185] hover:!text-[#3164c8] dark:!text-[#acb2bf] dark:hover:!text-[#afccff]"
+                                className={`mt-1 flex h-5 w-full items-center justify-center gap-1 rounded-sm !bg-transparent !text-[11px] font-medium transition-colors hover:!bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] ${
+                                    active ? "!text-[var(--gm-accent)]" : "!text-[var(--gm-text-2)] hover:!text-[var(--gm-accent)]"
                                 }`}
                                 onClick={() => onToggle(asset.id)}
                                 aria-pressed={active}
@@ -261,8 +262,8 @@ function ConversationAssetTypeTab({ label, count, active, disabled, onClick }: {
             disabled={disabled}
             className={`flex h-8 items-center justify-center gap-1 rounded-md text-xs font-medium transition ${
                 active
-                    ? "bg-white text-[#3164c8] shadow-[0_1px_3px_rgba(32,36,42,0.08)] dark:bg-[#2d3442] dark:text-[#afccff]"
-                    : "text-[#677185] hover:bg-white/70 hover:text-[#303746] disabled:cursor-default disabled:opacity-35 dark:text-[#acb2bf] dark:hover:bg-[#272e3c] dark:hover:text-white"
+                    ? "bg-[var(--gm-surface)] text-[var(--gm-accent)] shadow-[0_1px_3px_rgba(32,36,42,0.08)]"
+                    : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] disabled:cursor-default disabled:opacity-35"
             }`}
             onClick={onClick}
         >
@@ -301,12 +302,12 @@ export function PromptList({
     const categories = [ALL_PROMPTS_OPTION, ...collection.categories];
     return (
         <div data-testid="creative-prompt-scroll" className="hide-scrollbar h-full min-h-0 overflow-y-auto overscroll-contain px-3 pb-4">
-            <div className="sticky top-0 z-20 mb-2 flex min-w-0 gap-1.5 bg-white pb-2 dark:bg-[#0e1320]">
+            <div className="sticky top-0 z-20 mb-2 flex min-w-0 gap-1.5 bg-[var(--gm-bg-elevated)] pb-2">
                 <Input
                     value={searchValue}
                     allowClear
                     prefix={
-                        <button type="button" className="grid size-6 place-items-center text-[#798398] transition hover:text-[#3164c8] dark:text-[#919bb1] dark:hover:text-[#afccff]" onClick={() => onSearch(searchValue.trim())} aria-label="搜索提示词">
+                        <button type="button" className="grid size-6 place-items-center text-[var(--gm-text-3)] transition hover:text-[var(--gm-accent)]" onClick={() => onSearch(searchValue.trim())} aria-label="搜索提示词">
                             <Search className="size-4" />
                         </button>
                     }
@@ -330,10 +331,10 @@ export function PromptList({
                     >
                         <button
                             type="button"
-                            className="flex h-8 max-w-28 shrink-0 items-center gap-1.5 rounded-md border border-[#e2e5ea] bg-transparent px-2.5 text-xs font-medium text-[#5a6478] transition hover:border-[#b1c6ec] hover:bg-[#f5f8fe] hover:text-[#2d5ebe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d72d9] dark:border-[#323948] dark:text-[#b6bcc9] dark:hover:border-[#57709d] dark:hover:bg-[#1c283e] dark:hover:text-[#afccff]"
+                            className="flex h-8 max-w-28 shrink-0 items-center gap-1.5 rounded-md border border-[var(--gm-border-strong)] bg-transparent px-2.5 text-xs font-medium text-[var(--gm-text-2)] transition hover:border-[var(--gm-accent-ring)] hover:bg-[var(--gm-accent-soft)] hover:text-[var(--gm-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
                             aria-label="提示词分类"
                         >
-                            <ListFilter className="size-3.5 shrink-0 text-[#3d72d9] dark:text-[#9fc2ff]" />
+                            <ListFilter className="size-3.5 shrink-0 text-[var(--gm-accent)]" />
                             <span className="truncate">{promptCategoryLabel(activeCategory)}</span>
                             <ChevronDown className="size-3.5 shrink-0 opacity-55" />
                         </button>
@@ -361,18 +362,18 @@ export function PromptList({
                     <div className="grid grid-cols-4 gap-1.5" data-testid="creative-prompt-thumbnails">
                         {collection.items.map((item) => (
                             <article key={item.id} className="group min-w-0" title={item.title}>
-                                <div className="aspect-square overflow-hidden rounded-md border border-[#e4e7ec] bg-[#f0f3f8] dark:border-[#2e3544] dark:bg-[#1f2634]">
+                                <div className="aspect-square overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash-strong)]">
                                     {item.coverUrl ? (
                                         <button
                                             type="button"
-                                            className="block size-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3d72d9]"
+                                            className="block size-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--gm-accent)]"
                                             onClick={() => onPreview({ type: "image", url: item.coverUrl, title: item.title })}
                                             aria-label={`展开查看${item.title}`}
                                         >
                                             <LazyMediaImage src={imagePreviewUrl(item.coverUrl, 480)} alt="" containerClassName="size-full" imageClassName="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]" />
                                         </button>
                                     ) : (
-                                        <span className="grid size-full place-items-center text-[#909ab0] dark:text-[#778196]" aria-hidden="true">
+                                        <span className="grid size-full place-items-center text-[var(--gm-text-3)]" aria-hidden="true">
                                             <Sparkles className="size-5" />
                                         </span>
                                     )}
@@ -380,7 +381,7 @@ export function PromptList({
                                 <button
                                     type="button"
                                     data-testid="creative-prompt-insert-action"
-                                    className="mt-1 flex h-5 w-full items-center justify-center gap-1 rounded-sm !bg-transparent !text-[11px] !text-[#677185] font-medium transition-colors hover:!bg-transparent hover:!text-[#3164c8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d72d9] dark:!text-[#acb2bf] dark:hover:!text-[#afccff]"
+                                    className="mt-1 flex h-5 w-full items-center justify-center gap-1 rounded-sm !bg-transparent !text-[11px] !text-[var(--gm-text-2)] font-medium transition-colors hover:!bg-transparent hover:!text-[var(--gm-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
                                     onClick={() => onUse(item.prompt)}
                                     aria-label={`插入：${item.title}`}
                                 >
@@ -403,8 +404,8 @@ export function PromptList({
 
 function PanelEmpty({ icon, text, action }: { icon: React.ReactNode; text: string; action?: React.ReactNode }) {
     return (
-        <div className="flex h-48 flex-col items-center justify-center gap-2 px-5 text-center text-xs text-[#8993a9] dark:text-[#7e889d]">
-            <span className="grid size-10 place-items-center rounded-md bg-[#eff2f7] text-[#3c70d3] dark:bg-[#223049] dark:text-[#9fc2ff]">{icon}</span>
+        <div className="flex h-48 flex-col items-center justify-center gap-2 px-5 text-center text-xs text-[var(--gm-text-3)]">
+            <span className="grid size-10 place-items-center rounded-md bg-[var(--gm-accent-soft)] text-[var(--gm-accent)]">{icon}</span>
             <span>{text}</span>
             {action}
         </div>
@@ -419,7 +420,7 @@ function AssetPreview({ asset }: { asset: CreativeAsset }) {
     if (asset.type === "video" && url) return <video src={url} aria-label={asset.title} className="size-full bg-black object-cover" muted playsInline preload="metadata" />;
     const Icon = asset.type === "video" ? FileVideo : ImageIcon;
     return (
-        <span className="grid size-full place-items-center text-[#798398] dark:text-[#acb2bf]">
+        <span className="grid size-full place-items-center text-[var(--gm-text-2)]">
             <Icon className="size-5" />
         </span>
     );
@@ -428,7 +429,7 @@ function AssetPreview({ asset }: { asset: CreativeAsset }) {
 function AssetPreviewModal({ preview, onClose }: { preview?: PanelPreview; onClose: () => void }) {
     return (
         <Modal title="预览" open={Boolean(preview)} footer={null} centered width="fit-content" destroyOnHidden onCancel={onClose} style={{ maxWidth: "calc(100vw - 32px)" }}>
-            <div className="overflow-hidden rounded-md border border-[#e4e7ec] bg-white dark:border-[#323948] dark:bg-[#080e1a]">
+            <div className="overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)]">
                 {preview?.type === "image" ? <img src={imagePreviewUrl(preview.url, 2048)} alt={preview.title} className="block h-auto max-h-[78dvh] w-auto max-w-[calc(100vw-80px)] object-contain" /> : null}
                 {preview?.type === "video" ? (
                     <video

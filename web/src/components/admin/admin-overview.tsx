@@ -35,7 +35,7 @@ type AdminOverviewProps = {
 export function AdminOverview({ stats, settingsSummary, walletSummary, billingSummary, operationsSummary, promptCount, assetStats, enabledProducts, billingLoading, loading, onRefreshBilling, onRefresh }: AdminOverviewProps) {
     return (
         <div className="space-y-3 sm:space-y-5">
-            <section className="admin-metric-grid grid grid-cols-2 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 xl:grid-cols-4">
+            <section className="admin-metric-grid grid grid-cols-2 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] xl:grid-cols-4">
                 <Metric label="用户总数" value={stats.total} detail={stats.active + " 个可用账号"} icon={<UsersRound className="size-5" />} tone="slate" />
                 <Metric label="接口配置" value={settingsSummary.enabledChannels} detail={"共 " + settingsSummary.totalChannels + " 个渠道"} icon={<PlugZap className="size-5" />} tone="emerald" />
                 <Metric label="实收金额" value={formatAdminMoney(billingSummary?.orders.paidAmountCents || 0)} detail={(billingSummary?.orders.paid || 0) + " 笔已支付订单"} icon={<CircleDollarSign className="size-5" />} tone="slate" />
@@ -90,8 +90,8 @@ function ModelDistributionPanel({ items, emptyText }: { items: DistributionItem[
                 <div className="flex items-center justify-center">
                     <DonutChart items={items} emptyText={emptyText} totalLabel="请求总量" variant="large" />
                 </div>
-                <div className="min-w-0 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
-                    <div className="grid grid-cols-[minmax(0,1.2fr)_58px_58px] border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-[10px] font-semibold text-zinc-500 sm:grid-cols-[minmax(0,1.2fr)_72px_72px] sm:px-4 sm:py-2.5 sm:text-[11px] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                <div className="min-w-0 overflow-hidden rounded-md border border-[var(--gm-border)]">
+                    <div className="grid grid-cols-[minmax(0,1.2fr)_58px_58px] border-b border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-2 text-[10px] font-semibold text-[var(--gm-text-3)] sm:grid-cols-[minmax(0,1.2fr)_72px_72px] sm:px-4 sm:py-2.5 sm:text-[11px]">
                         <span>模型</span>
                         <span className="text-right">请求</span>
                         <span className="text-right">占比</span>
@@ -99,14 +99,14 @@ function ModelDistributionPanel({ items, emptyText }: { items: DistributionItem[
                     {displayItems.map((item, index) => (
                         <div
                             key={item.label}
-                            className="grid grid-cols-[minmax(0,1.2fr)_58px_58px] items-center border-b border-zinc-100 px-3 py-2.5 text-xs last:border-b-0 sm:grid-cols-[minmax(0,1.2fr)_72px_72px] sm:px-4 sm:py-3 sm:text-sm dark:border-zinc-800/70"
+                            className="grid grid-cols-[minmax(0,1.2fr)_58px_58px] items-center border-b border-[var(--gm-border)] px-3 py-2.5 text-xs last:border-b-0 sm:grid-cols-[minmax(0,1.2fr)_72px_72px] sm:px-4 sm:py-3 sm:text-sm"
                         >
                             <div className="flex min-w-0 items-center gap-2">
-                                <span className={`size-2.5 shrink-0 rounded-full ${items.length ? "" : "bg-stone-300 dark:bg-stone-700"}`} style={items.length ? { background: chartColor(index) } : undefined} />
-                                <span className={`min-w-0 truncate font-medium ${items.length ? "text-stone-900 dark:text-stone-100" : "text-stone-500 dark:text-stone-400"}`}>{item.label}</span>
+                                <span className={`size-2.5 shrink-0 rounded-full ${items.length ? "" : "bg-[var(--gm-wash-heavy)]"}`} style={items.length ? { background: chartColor(index) } : undefined} />
+                                <span className={`min-w-0 truncate font-medium ${items.length ? "text-[var(--gm-text)]" : "text-[var(--gm-text-2)]"}`}>{item.label}</span>
                             </div>
-                            <span className="text-right tabular-nums text-stone-500 dark:text-stone-400">{formatCompactNumber(item.value)}</span>
-                            <span className="text-right tabular-nums font-semibold text-stone-950 dark:text-stone-100">{items.length ? `${item.percent}%` : "-"}</span>
+                            <span className="text-right tabular-nums text-[var(--gm-text-2)]">{formatCompactNumber(item.value)}</span>
+                            <span className="text-right tabular-nums font-semibold text-[var(--gm-text)]">{items.length ? `${item.percent}%` : "-"}</span>
                         </div>
                     ))}
                 </div>
@@ -126,15 +126,15 @@ function CompactDonutPanel({ title, description, items, emptyText, totalLabel }:
                 </div>
                 <div className="min-w-0 self-center">
                     {displayItems.map((item, index) => (
-                        <div key={item.label} className="min-w-0 border-b border-zinc-100 px-1 py-3 last:border-b-0 dark:border-zinc-800">
+                        <div key={item.label} className="min-w-0 border-b border-[var(--gm-border)] px-1 py-3 last:border-b-0">
                             <div className="flex items-center justify-between gap-3 text-sm">
                                 <span className="flex min-w-0 items-center gap-2">
-                                    <span className={`size-2.5 shrink-0 rounded-full ${items.length ? "" : "bg-stone-300 dark:bg-stone-700"}`} style={items.length ? { background: chartColor(index) } : undefined} />
-                                    <span className={`min-w-0 truncate font-medium ${items.length ? "text-stone-900 dark:text-stone-100" : "text-stone-500 dark:text-stone-400"}`}>{item.label}</span>
+                                    <span className={`size-2.5 shrink-0 rounded-full ${items.length ? "" : "bg-[var(--gm-wash-heavy)]"}`} style={items.length ? { background: chartColor(index) } : undefined} />
+                                    <span className={`min-w-0 truncate font-medium ${items.length ? "text-[var(--gm-text)]" : "text-[var(--gm-text-2)]"}`}>{item.label}</span>
                                 </span>
-                                <span className="shrink-0 tabular-nums font-semibold text-stone-950 dark:text-stone-100">{items.length ? `${item.percent}%` : "-"}</span>
+                                <span className="shrink-0 tabular-nums font-semibold text-[var(--gm-text)]">{items.length ? `${item.percent}%` : "-"}</span>
                             </div>
-                            <div className="mt-2 text-xs tabular-nums text-stone-500 dark:text-stone-400">{formatCompactNumber(item.value)} 次</div>
+                            <div className="mt-2 text-xs tabular-nums text-[var(--gm-text-3)]">{formatCompactNumber(item.value)} 次</div>
                         </div>
                     ))}
                 </div>
@@ -158,7 +158,7 @@ function DonutChart({ items, emptyText, totalLabel, variant }: { items: Distribu
     return (
         <div className={`relative ${sizeClass}`}>
             <svg className="size-full -rotate-90" viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`} aria-hidden="true">
-                <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" className="text-stone-100 dark:text-stone-800" style={{ color: "var(--admin-chart-track)" }} strokeWidth={strokeWidth} />
+                <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" className="text-[var(--gm-wash-strong)]" style={{ color: "var(--admin-chart-track)" }} strokeWidth={strokeWidth} />
                 {displayItems.map((item, index) => {
                     const dash = items.length ? (item.value / Math.max(1, total)) * circumference : circumference;
                     const segment = (
@@ -169,7 +169,7 @@ function DonutChart({ items, emptyText, totalLabel, variant }: { items: Distribu
                             r={radius}
                             fill="none"
                             stroke="currentColor"
-                            className={items.length ? "" : "text-stone-200 dark:text-stone-800"}
+                            className={items.length ? "" : "text-[var(--gm-wash-heavy)]"}
                             style={items.length ? { color: chartColor(index) } : undefined}
                             strokeWidth={strokeWidth}
                             strokeDasharray={`${dash} ${Math.max(0, circumference - dash)}`}
@@ -183,8 +183,8 @@ function DonutChart({ items, emptyText, totalLabel, variant }: { items: Distribu
             </svg>
             <div className="absolute inset-0 grid place-items-center text-center">
                 <div>
-                    <div className={`${totalClassName} font-semibold tracking-normal text-stone-950 dark:text-stone-100`}>{formatCompactNumber(total)}</div>
-                    <div className={`mt-1 ${labelClassName} text-stone-500 dark:text-stone-400`}>{totalLabel}</div>
+                    <div className={`${totalClassName} font-semibold tracking-normal text-[var(--gm-text)]`}>{formatCompactNumber(total)}</div>
+                    <div className={`mt-1 ${labelClassName} text-[var(--gm-text-2)]`}>{totalLabel}</div>
                 </div>
             </div>
         </div>
@@ -219,7 +219,7 @@ function UsageLinePanel({ items, loading, onRefresh }: { items: Array<{ label: s
             />
             <div className="p-3 sm:p-5">
                 <div>
-                    <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-stone-500 sm:mb-4 dark:text-stone-400">
+                    <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-[var(--gm-text-3)] sm:mb-4">
                         <span className="inline-flex items-center gap-1.5">
                             <span className="size-2.5 rounded-full" style={{ background: "var(--admin-chart-1)" }} />
                             请求量
@@ -230,19 +230,19 @@ function UsageLinePanel({ items, loading, onRefresh }: { items: Array<{ label: s
                     <svg className="h-44 w-full overflow-visible sm:h-72" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
                         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
                             const y = paddingY + ratio * plotHeight;
-                            return <line key={ratio} x1={paddingX} x2={paddingX + plotWidth} y1={y} y2={y} className="stroke-stone-200 dark:stroke-stone-800" strokeWidth="1" />;
+                            return <line key={ratio} x1={paddingX} x2={paddingX + plotWidth} y1={y} y2={y} className="stroke-[var(--gm-border)]" strokeWidth="1" />;
                         })}
                         {area ? <polygon points={area} style={{ fill: "var(--admin-chart-area)" }} /> : null}
                         {polyline ? <polyline points={polyline} fill="none" style={{ stroke: "var(--admin-chart-1)" }} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" /> : null}
                         {points.map((point) => (
-                            <circle key={point.label} cx={point.x} cy={point.y} r="5" className="fill-white dark:fill-stone-950" style={{ stroke: "var(--admin-chart-1)" }} strokeWidth="3" />
+                            <circle key={point.label} cx={point.x} cy={point.y} r="5" className="fill-[var(--gm-surface)]" style={{ stroke: "var(--admin-chart-1)" }} strokeWidth="3" />
                         ))}
                     </svg>
-                    <div className="mt-3 grid grid-cols-7 gap-2 text-center text-[11px] text-stone-400">
+                    <div className="mt-3 grid grid-cols-7 gap-2 text-center text-[11px] text-[var(--gm-text-3)]">
                         {items.map((item) => (
                             <div key={item.label} className="min-w-0">
                                 <div className="truncate">{item.label}</div>
-                                <div className="mt-1 font-semibold tabular-nums text-stone-700 dark:text-stone-300">{item.value}</div>
+                                <div className="mt-1 font-semibold tabular-nums text-[var(--gm-text-2)]">{item.value}</div>
                             </div>
                         ))}
                     </div>
@@ -255,9 +255,9 @@ function UsageLinePanel({ items, loading, onRefresh }: { items: Array<{ label: s
 function ResourceStat({ label, value, detail }: { label: string; value: string; detail: string }) {
     return (
         <div className="admin-resource-stat min-w-0 p-2.5 sm:p-5">
-            <div className="text-[10px] font-medium text-zinc-500 sm:text-[11px] dark:text-zinc-400">{label}</div>
-            <div className="mt-1 truncate text-base font-semibold tabular-nums text-zinc-950 sm:mt-2 sm:text-lg dark:text-zinc-100">{value}</div>
-            <div className="mt-0.5 truncate text-[10px] text-zinc-400 sm:mt-1 sm:text-[11px] dark:text-zinc-500">{detail}</div>
+            <div className="text-[10px] font-medium text-[var(--gm-text-3)] sm:text-[11px]">{label}</div>
+            <div className="mt-1 truncate text-base font-semibold tabular-nums text-[var(--gm-text)] sm:mt-2 sm:text-lg">{value}</div>
+            <div className="mt-0.5 truncate text-[10px] text-[var(--gm-text-3)] sm:mt-1 sm:text-[11px]">{detail}</div>
         </div>
     );
 }

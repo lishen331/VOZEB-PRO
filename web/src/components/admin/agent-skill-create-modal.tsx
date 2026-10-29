@@ -198,13 +198,13 @@ export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate 
                 />
 
                 {mode === "github" ? (
-                    <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900/70 dark:bg-blue-950/20">
-                        <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">公开 Skill 地址</div>
+                    <div className="space-y-3 rounded-lg border border-[color-mix(in_srgb,var(--gm-accent)_40%,transparent)] bg-[var(--gm-accent-soft)] p-4">
+                        <div className="text-sm font-semibold text-[var(--gm-text)]">公开 Skill 地址</div>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <Input
                                 name="sourceUrl"
                                 value={sourceUrl}
-                                prefix={<GitBranch className="size-4 text-stone-400" />}
+                                prefix={<GitBranch className="size-4 text-[var(--gm-text-3)]" />}
                                 placeholder="https://github.com/owner/repo 或 .../SKILL.md"
                                 onChange={(event) => {
                                     setSourceUrl(event.target.value);
@@ -221,7 +221,7 @@ export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate 
                         {importError ? <Alert type="error" showIcon message={importError} /> : null}
                         {candidates.length ? (
                             <div className="space-y-2">
-                                <div className="text-xs text-stone-600 dark:text-stone-300">发现 {candidates.length} 个 SKILL.md，请选择一个后读取。</div>
+                                <div className="text-xs text-[var(--gm-text-2)]">发现 {candidates.length} 个 SKILL.md，请选择一个后读取。</div>
                                 <Select className="w-full" value={selectedPath} options={candidates.map((item) => ({ value: item.path, label: `${item.name} · ${item.path}` }))} onChange={setSelectedPath} />
                                 <Button icon={<Download className="size-4" />} loading={loading} onClick={() => void extract()}>
                                     读取选中的 Skill
@@ -241,7 +241,7 @@ export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate 
                                 }
                             />
                         ) : (
-                            <div className="text-xs leading-5 text-stone-600 dark:text-stone-400">读取公开仓库中的 SKILL.md 后，由后台默认文本模型整理为中文原生规则；不会执行仓库代码，整理后仍可编辑确认。</div>
+                            <div className="text-xs leading-5 text-[var(--gm-text-2)]">读取公开仓库中的 SKILL.md 后，由后台默认文本模型整理为中文原生规则；不会执行仓库代码，整理后仍可编辑确认。</div>
                         )}
                     </div>
                 ) : null}
@@ -296,12 +296,12 @@ export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate 
                     <Form.Item name="requiresReference" valuePropName="checked" className="mb-0">
                         <Space>
                             <Switch size="small" />
-                            <span className="text-sm text-stone-700 dark:text-stone-300">必须使用参考素材</span>
+                            <span className="text-sm text-[var(--gm-text-2)]">必须使用参考素材</span>
                         </Space>
                     </Form.Item>
                 </Form>
                 {importedSkill?.sourceUrl ? (
-                    <a href={importedSkill.sourceUrl} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 break-all text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                    <a href={importedSkill.sourceUrl} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 break-all text-xs text-[var(--gm-accent)] hover:text-[var(--gm-accent)]">
                         <GitBranch className="size-3.5 shrink-0" />
                         {importedSkill.sourceUrl}
                     </a>

@@ -160,14 +160,14 @@ export function AdminChannelOnboardingDrawer({ open, initialProtocol, settings, 
         >
             <div className="mb-5 md:hidden">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+                    <span className="text-xs font-medium text-[var(--gm-text-3)]">
                         步骤 {step + 1} / {steps.length}
                     </span>
-                    <span className="text-sm font-semibold text-stone-950 dark:text-stone-100">{steps[step].title}</span>
+                    <span className="text-sm font-semibold text-[var(--gm-text)]">{steps[step].title}</span>
                 </div>
                 <div className="grid grid-cols-5 gap-1" role="progressbar" aria-label={`接入进度：${steps[step].title}`} aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={step + 1}>
                     {steps.map((item, index) => (
-                        <span key={item.title} className={`h-1 rounded-full ${index < step ? "bg-emerald-500 dark:bg-emerald-400" : index === step ? "bg-stone-950 dark:bg-stone-100" : "bg-stone-200 dark:bg-stone-700"}`} aria-hidden />
+                        <span key={item.title} className={`h-1 rounded-full ${index < step ? "bg-[var(--gm-success)]" : index === step ? "bg-[var(--gm-blue)]" : "bg-[var(--gm-wash-heavy)]"}`} aria-hidden />
                     ))}
                 </div>
             </div>
@@ -190,15 +190,15 @@ function OnboardingProgress({ current }: { current: number }) {
                                 <span
                                     className={`inline-flex size-7 items-center justify-center rounded-full border text-xs font-semibold ${
                                         completed
-                                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
+                                            ? "border-[color-mix(in_srgb,var(--gm-success)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] text-[var(--gm-success)]"
                                             : active
                                               ? "border-[var(--gm-blue)] bg-[var(--gm-blue)] text-white"
-                                              : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400"
+                                              : "border-[var(--gm-border)] bg-[var(--gm-wash-strong)] text-[var(--gm-text-3)]"
                                     }`}
                                     aria-label={completed ? `${item.title}已完成` : active ? `${item.title}进行中` : `${item.title}未开始`}
                                 >
                                     {completed ? (
-                                        <span className="inline-flex size-5.5 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 dark:bg-emerald-400 dark:text-emerald-950">
+                                        <span className="inline-flex size-5.5 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] text-[var(--gm-success)]">
                                             <Check className="size-3.5" aria-hidden />
                                         </span>
                                     ) : (
@@ -207,13 +207,13 @@ function OnboardingProgress({ current }: { current: number }) {
                                 </span>
                                 <span
                                     className={`whitespace-nowrap text-sm ${
-                                        completed ? "font-semibold text-emerald-700 dark:text-emerald-300" : active ? "font-semibold text-stone-950 dark:text-stone-100" : "font-medium text-stone-400 dark:text-stone-500"
+                                        completed ? "font-semibold text-[var(--gm-success)]" : active ? "font-semibold text-[var(--gm-text)]" : "font-medium text-[var(--gm-text-3)]"
                                     }`}
                                 >
                                     {item.title}
                                 </span>
                             </span>
-                            {index < steps.length - 1 ? <span className={`mx-2 h-px min-w-2 flex-1 ${completed ? "bg-emerald-300 dark:bg-emerald-700" : "bg-stone-300 dark:bg-stone-700"}`} aria-hidden /> : null}
+                            {index < steps.length - 1 ? <span className={`mx-2 h-px min-w-2 flex-1 ${completed ? "bg-[color-mix(in_srgb,var(--gm-success)_40%,transparent)]" : "bg-[var(--gm-border-strong)]"}`} aria-hidden /> : null}
                         </li>
                     );
                 })}
@@ -225,7 +225,7 @@ function OnboardingProgress({ current }: { current: number }) {
 function ProtocolSelection({ protocols, selected, onSelect }: { protocols: ReturnType<typeof channelProtocolOptions>; selected: SystemChannelProtocol; onSelect: (protocol: SystemChannelProtocol) => void }) {
     return (
         <div>
-            <div className="mb-3 text-sm font-semibold text-stone-950 dark:text-stone-100">选择上游协议</div>
+            <div className="mb-3 text-sm font-semibold text-[var(--gm-text)]">选择上游协议</div>
             <div className="grid gap-2 sm:grid-cols-2">
                 {protocols.map((protocol) => {
                     const definition = channelProtocolDefinition(protocol.value);
@@ -235,19 +235,19 @@ function ProtocolSelection({ protocols, selected, onSelect }: { protocols: Retur
                             key={protocol.value}
                             type="button"
                             aria-pressed={active}
-                            className={`min-w-0 rounded-md border p-3 text-left transition ${active ? "!border-stone-950 !bg-stone-50 !text-stone-950 ring-1 ring-inset ring-stone-950 dark:!border-stone-100 dark:!bg-stone-900 dark:!text-stone-100 dark:ring-stone-100" : "border-stone-200 bg-white text-stone-950 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-100 dark:hover:border-stone-600 dark:hover:bg-stone-900"}`}
+                            className={`min-w-0 rounded-md border p-3 text-left transition ${active ? "!border-[var(--gm-accent)] !bg-[var(--gm-accent-soft)] !text-[var(--gm-text)] ring-1 ring-inset ring-[var(--gm-accent)]" : "border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text)] hover:border-[var(--gm-border-strong)] hover:bg-[var(--gm-wash)]"}`}
                             onClick={() => onSelect(protocol.value)}
                         >
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-sm font-semibold">{protocol.label}</span>
                                 {active ? <Check className="size-4 shrink-0" aria-hidden /> : protocol.value === "custom" ? <WandSparkles className="size-4 shrink-0" aria-hidden /> : <PlugZap className="size-4 shrink-0" aria-hidden />}
                             </div>
-                            <div className={`mt-1 text-xs leading-5 ${active ? "text-stone-600 dark:text-stone-300" : "text-stone-500 dark:text-stone-400"}`}>{protocol.description}</div>
+                            <div className={`mt-1 text-xs leading-5 ${active ? "text-[var(--gm-text-2)]" : "text-[var(--gm-text-3)]"}`}>{protocol.description}</div>
                             <div className="mt-2 flex flex-wrap gap-1">
                                 {definition.capabilities.map((capability) => (
                                     <span
                                         key={capability}
-                                        className={`rounded border px-1.5 py-0.5 text-[11px] ${active ? "border-stone-400 bg-white text-stone-800 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-200" : "border-stone-200 text-stone-700 dark:border-stone-700 dark:text-stone-300"}`}
+                                        className={`rounded border px-1.5 py-0.5 text-[11px] ${active ? "border-[var(--gm-border-strong)] bg-[var(--gm-surface)] text-[var(--gm-text)]" : "border-[var(--gm-border)] text-[var(--gm-text-2)]"}`}
                                     >
                                         {capabilityLabel(capability)}
                                     </span>
@@ -298,7 +298,7 @@ function ConnectionStep({ channel, onChange }: { channel: SystemModelChannel; on
                         </LabeledControl>
                     </div>
                 ) : (
-                    <div className="sm:col-span-2 border-y border-stone-200 py-3 text-sm text-stone-600 dark:border-stone-800 dark:text-stone-300">当前协议无需 API Key，服务端不会发送鉴权请求头。</div>
+                    <div className="sm:col-span-2 border-y border-[var(--gm-border)] py-3 text-sm text-[var(--gm-text-2)]">当前协议无需 API Key，服务端不会发送鉴权请求头。</div>
                 )}
             </div>
             {custom ? <AdminChannelProtocolSetup channel={channel} protocolLocked onChange={onChange} /> : <ProtocolLockedSummary channel={channel} />}
@@ -316,13 +316,13 @@ const authModeOptions: Array<{ label: string; value: SystemChannelAuthMode }> = 
 function ProtocolLockedSummary({ channel }: { channel: SystemModelChannel }) {
     const definition = channelProtocolDefinition(channel.advancedConfig?.protocol || "auto");
     return (
-        <div className="border-y border-stone-200 py-3 dark:border-stone-800">
+        <div className="border-y border-[var(--gm-border)] py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                    <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">{definition.label}</div>
-                    <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">内置协议参数由注册表固定，渠道只保存地址、凭据和模型。</div>
+                    <div className="text-sm font-semibold text-[var(--gm-text)]">{definition.label}</div>
+                    <div className="mt-1 text-xs text-[var(--gm-text-3)]">内置协议参数由注册表固定，渠道只保存地址、凭据和模型。</div>
                 </div>
-                <Tag className="m-0 !border-stone-300 !bg-stone-50 !text-stone-700 dark:!border-stone-700 dark:!bg-stone-900 dark:!text-stone-200">{definition.strict ? "严格协议" : "兼容协议"}</Tag>
+                <Tag className="m-0 !border-[var(--gm-border-strong)] !bg-[var(--gm-wash)] !text-[var(--gm-text-2)]">{definition.strict ? "严格协议" : "兼容协议"}</Tag>
             </div>
         </div>
     );
@@ -364,10 +364,10 @@ function ModelStep({ channel, fetching, onChange, onFetch }: { channel: SystemMo
     };
     return (
         <div>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-3 dark:border-stone-800">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--gm-border)] pb-3">
                 <div>
-                    <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">上游模型</div>
-                    <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                    <div className="text-sm font-semibold text-[var(--gm-text)]">上游模型</div>
+                    <div className="mt-1 text-xs text-[var(--gm-text-3)]">
                         {canSync ? "同步只会合并模型，不删除手工模型。" : hasDocumentedModels ? `已按官方文档预置 ${definition.builtInModels?.length} 个模型，无需目录同步。` : "当前协议没有公开模型目录，请填写上游提供的真实模型 ID。"}
                     </div>
                 </div>
@@ -378,8 +378,8 @@ function ModelStep({ channel, fetching, onChange, onFetch }: { channel: SystemMo
                 ) : null}
             </div>
             {!canSync ? (
-                <div className="mb-4 flex items-start gap-2 border-y border-stone-200 py-3 text-sm leading-6 text-stone-600 dark:border-stone-800 dark:text-stone-300">
-                    <Info className="mt-1 size-4 shrink-0 text-stone-400" aria-hidden />
+                <div className="mb-4 flex items-start gap-2 border-y border-[var(--gm-border)] py-3 text-sm leading-6 text-[var(--gm-text-2)]">
+                    <Info className="mt-1 size-4 shrink-0 text-[var(--gm-text-3)]" aria-hidden />
                     <span>
                         {hasDocumentedModels
                             ? "模型 ID 已按官方新版文档写入协议配置；系统不会请求旧版 /v1/models。"
@@ -401,10 +401,10 @@ function ModelStep({ channel, fetching, onChange, onFetch }: { channel: SystemMo
                     onChange={updateModels}
                 />
             </LabeledControl>
-            <div className="mt-4 divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+            <div className="mt-4 divide-y divide-[var(--gm-border)] border-y border-[var(--gm-border)]">
                 {channel.models.map((model) => (
                     <div key={model} className="flex min-w-0 items-center justify-between gap-3 py-2.5">
-                        <span className="min-w-0 truncate text-sm font-medium text-stone-900 dark:text-stone-100">{model}</span>
+                        <span className="min-w-0 truncate text-sm font-medium text-[var(--gm-text)]">{model}</span>
                         {canSync || hasDocumentedModels || manualCapabilityOptions.length <= 1 ? (
                             <Tag className="m-0">{capabilityLabel(channelModelCapability(channel, model))}</Tag>
                         ) : (
@@ -414,7 +414,7 @@ function ModelStep({ channel, fetching, onChange, onFetch }: { channel: SystemMo
                         )}
                     </div>
                 ))}
-                {!channel.models.length ? <div className="py-8 text-center text-sm text-stone-500 dark:text-stone-400">{canSync ? "尚未获得模型" : "请先添加至少一个模型 ID"}</div> : null}
+                {!channel.models.length ? <div className="py-8 text-center text-sm text-[var(--gm-text-2)]">{canSync ? "尚未获得模型" : "请先添加至少一个模型 ID"}</div> : null}
             </div>
             <RunningHubChannelFields channel={channel} onChange={onChange} />
         </div>
@@ -437,22 +437,22 @@ function BindingStep({
     return (
         <div className="space-y-4">
             <ChannelInfoNote title="逻辑模型由渠道目录自动维护" description="同名上游模型会跨渠道合并；没有同名项时会按上游模型名建立独立逻辑模型，创建后可在逻辑模型页设置前端展示昵称。" />
-            <div className="divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+            <div className="divide-y divide-[var(--gm-border)] border-y border-[var(--gm-border)]">
                 {channel.models.map((upstreamModel) => {
                     const logical = logicalModels.find((model) => model.bindings.some((binding) => normalizedUpstreamModel(binding.upstreamModel) === normalizedUpstreamModel(upstreamModel)));
                     return (
                         <div key={upstreamModel} className="flex min-w-0 items-center justify-between gap-3 py-2.5 text-sm">
                             <div className="min-w-0">
-                                <div className="truncate font-medium text-stone-950 dark:text-stone-100">{upstreamModel}</div>
-                                <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{capabilityLabel(channelModelCapability(channel, upstreamModel))}</div>
+                                <div className="truncate font-medium text-[var(--gm-text)]">{upstreamModel}</div>
+                                <div className="mt-0.5 text-xs text-[var(--gm-text-3)]">{capabilityLabel(channelModelCapability(channel, upstreamModel))}</div>
                             </div>
                             <Tag className="m-0 shrink-0">{logical?.name || displayUpstreamModel(upstreamModel)}</Tag>
                         </div>
                     );
                 })}
             </div>
-            <div className="flex min-h-10 items-center justify-between gap-3 border-b border-stone-200 pb-4 dark:border-stone-800">
-                <span className="text-sm text-stone-700 dark:text-stone-300">为尚未配置的能力设置默认模型</span>
+            <div className="flex min-h-10 items-center justify-between gap-3 border-b border-[var(--gm-border)] pb-4">
+                <span className="text-sm text-[var(--gm-text-2)]">为尚未配置的能力设置默认模型</span>
                 <Switch checked={setAsDefault} onChange={onSetAsDefault} />
             </div>
             <Button type="primary" icon={<Link2 className="size-4" />} onClick={onSynchronize}>
@@ -474,7 +474,7 @@ function ReviewStep({ channel, settings }: { channel: SystemModelChannel; settin
     const bindings = settings.logicalModels.flatMap((model) => model.bindings.filter((binding) => binding.channelId === channel.id).map((binding) => ({ logical: model, binding })));
     return (
         <div className="space-y-5">
-            <div className="grid gap-x-6 gap-y-4 border-y border-stone-200 py-4 sm:grid-cols-2 dark:border-stone-800">
+            <div className="grid gap-x-6 gap-y-4 border-y border-[var(--gm-border)] py-4 sm:grid-cols-2">
                 <ReviewValue label="渠道" value={channel.name} />
                 <ReviewValue label="协议" value={channelProtocolDefinition(channel.advancedConfig?.protocol || "auto").label} />
                 <ReviewValue label="Base URL" value={channel.baseUrl} />
@@ -483,18 +483,18 @@ function ReviewStep({ channel, settings }: { channel: SystemModelChannel; settin
                 <ReviewValue label="逻辑绑定" value={`${bindings.length} 个`} />
             </div>
             <div>
-                <div className="mb-2 text-sm font-semibold text-stone-950 dark:text-stone-100">模型绑定</div>
-                <div className="divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+                <div className="mb-2 text-sm font-semibold text-[var(--gm-text)]">模型绑定</div>
+                <div className="divide-y divide-[var(--gm-border)] border-y border-[var(--gm-border)]">
                     {bindings.map(({ logical, binding }) => (
                         <div key={binding.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                             <span>{logical.name}</span>
-                            <span className="min-w-0 truncate text-stone-500 dark:text-stone-400">{binding.upstreamModel}</span>
+                            <span className="min-w-0 truncate text-[var(--gm-text-2)]">{binding.upstreamModel}</span>
                         </div>
                     ))}
                 </div>
             </div>
             <ChannelInfoNote title="启用后请在用户工作台验证" description="文本、图片、视频和音频能力以对应工作台的真实业务请求为准。" />
-            <div className="flex items-start gap-2 text-xs leading-5 text-stone-500 dark:text-stone-400">
+            <div className="flex items-start gap-2 text-xs leading-5 text-[var(--gm-text-3)]">
                 <CircleDollarSign className="mt-0.5 size-4 shrink-0" />
                 <span>用户积分仍按逻辑模型配置；上游模型名只用于真实请求。</span>
             </div>
@@ -505,19 +505,19 @@ function ReviewStep({ channel, settings }: { channel: SystemModelChannel; settin
 function ReviewValue({ label, value }: { label: string; value: string }) {
     return (
         <div className="min-w-0">
-            <div className="text-xs text-stone-500 dark:text-stone-400">{label}</div>
-            <div className="mt-1 break-all text-sm font-medium text-stone-950 dark:text-stone-100">{value || "未设置"}</div>
+            <div className="text-xs text-[var(--gm-text-3)]">{label}</div>
+            <div className="mt-1 break-all text-sm font-medium text-[var(--gm-text)]">{value || "未设置"}</div>
         </div>
     );
 }
 
 function ChannelInfoNote({ title, description }: { title: string; description: string }) {
     return (
-        <div className="flex items-start gap-3 border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-emerald-950 dark:border-emerald-800/70 dark:bg-emerald-950/25 dark:text-emerald-50">
-            <Info className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+        <div className="flex items-start gap-3 border border-[color-mix(in_srgb,var(--gm-success)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] px-4 py-3 text-[var(--gm-success)]">
+            <Info className="mt-0.5 size-4 shrink-0 text-[var(--gm-success)]" aria-hidden />
             <div className="min-w-0">
                 <div className="text-sm font-semibold leading-6">{title}</div>
-                <div className="mt-0.5 text-sm leading-6 text-stone-600 dark:text-stone-300">{description}</div>
+                <div className="mt-0.5 text-sm leading-6 text-[var(--gm-text-2)]">{description}</div>
             </div>
         </div>
     );

@@ -108,16 +108,16 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
                 }
             />
             {agentReadiness ? (
-                <div className="mx-4 mt-4 rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40 sm:mx-5">
+                <div className="mx-4 mt-4 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4 sm:mx-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="font-semibold">Agent 执行就绪检查</div>
                         <Tag color={agentReadiness.ready ? "success" : "warning"}>{agentReadiness.ready ? "四类能力已就绪" : "需要补充模型配置"}</Tag>
                     </div>
-                    <div className="mt-3 rounded-md border border-stone-200 bg-white px-3 py-3 dark:border-stone-800 dark:bg-stone-950">
+                    <div className="mt-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-3">
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <div className="text-sm font-medium">剧本练习</div>
-                                <div className="mt-1 text-xs text-stone-500">独立文本剧本能力，不创建图片、视频或音频任务。</div>
+                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">独立文本剧本能力，不创建图片、视频或音频任务。</div>
                             </div>
                             <Switch
                                 checked={settings.practiceScriptSettings?.enabled !== false}
@@ -129,29 +129,29 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
                     </div>{" "}
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         {agentReadiness.capabilities.map((item) => (
-                            <div key={item.type} className="rounded-md border border-stone-200 bg-white px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-950">
+                            <div key={item.type} className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2 text-sm">
                                 <div className="flex items-center justify-between">
                                     <span className="font-medium">{{ text: "文本", image: "图片", video: "视频", audio: "音频" }[item.type]}</span>
-                                    <span className={item.ready ? "text-emerald-600" : "text-amber-600"}>{item.ready ? "就绪" : "未就绪"}</span>
+                                    <span className={item.ready ? "text-[var(--gm-success)]" : "text-[var(--gm-warning)]"}>{item.ready ? "就绪" : "未就绪"}</span>
                                 </div>
-                                <div className="mt-1 truncate text-xs text-stone-500">{item.model || "未设置模型"}</div>
-                                <div className="mt-1 text-xs text-stone-500">{item.message}</div>
+                                <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">{item.model || "未设置模型"}</div>
+                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">{item.message}</div>
                             </div>
                         ))}
                     </div>
-                    <div className="mt-3 text-xs text-stone-500">
+                    <div className="mt-3 text-xs text-[var(--gm-text-3)]">
                         启用 Skills：生图 {agentReadiness.skills.image} · 视频 {agentReadiness.skills.video} · 画布 {agentReadiness.skills.canvas} · 短剧 {agentReadiness.skills.drama}
                     </div>
                 </div>
             ) : null}
             <div className="columns-1 gap-4 p-3 sm:p-5 lg:columns-2">
                 {settings.agentSkills.map((skill) => (
-                    <section key={skill.id} className="mb-3 break-inside-avoid rounded-lg border border-stone-200 bg-stone-50/70 p-3 sm:mb-4 sm:p-4 dark:border-stone-800 dark:bg-stone-900/40">
+                    <section key={skill.id} className="mb-3 break-inside-avoid rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 sm:mb-4 sm:p-4">
                         <div className="flex items-center justify-between gap-3 sm:mb-3">
                             <div>
                                 <div className="font-semibold">{skill.name}</div>
                                 {skill.sourceUrl ? (
-                                    <a href={skill.sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 dark:text-blue-400">
+                                    <a href={skill.sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-[var(--gm-accent)]">
                                         {skill.sourceVersion || "GitHub"} · {skill.license || "来源"}
                                     </a>
                                 ) : null}
@@ -173,7 +173,7 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
                             </div>
                         </div>
                         <details className="group">
-                            <summary className="mt-2 flex cursor-pointer list-none items-center justify-between rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50 sm:hidden dark:border-stone-700 dark:bg-stone-950 dark:text-stone-200 dark:hover:bg-stone-900">
+                            <summary className="mt-2 flex cursor-pointer list-none items-center justify-between rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2 text-xs font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] sm:hidden">
                                 编辑规则
                                 <ChevronDown className="size-3.5 transition group-open:rotate-180" />
                             </summary>
@@ -228,8 +228,8 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
                                         onChange={(action) => setSettings((current) => ({ ...current, agentSkills: current.agentSkills.map((item) => (item.id === skill.id ? { ...item, action } : item)) }))}
                                     />
                                 </div>
-                                <div className="mt-3 flex min-h-8 items-center justify-between rounded-md border border-stone-200 px-3 dark:border-stone-700">
-                                    <span className="text-sm text-stone-600 dark:text-stone-300">必须上传参考素材</span>
+                                <div className="mt-3 flex min-h-8 items-center justify-between rounded-md border border-[var(--gm-border)] px-3">
+                                    <span className="text-sm text-[var(--gm-text-2)]">必须上传参考素材</span>
                                     <Switch
                                         size="small"
                                         aria-label={`${skill.name}必须上传参考素材`}
@@ -325,7 +325,7 @@ export function AdminDramaLabPluginSection({ controller }: { controller: AdminDa
                 <div className="flex items-center justify-between rounded-md border p-4">
                     <div>
                         <div className="font-medium">本剧资源库编辑弹窗</div>
-                        <div className="text-xs text-stone-500">仅控制前端显示，功能代码和后端逻辑保留。</div>
+                        <div className="text-xs text-[var(--gm-text-3)]">仅控制前端显示，功能代码和后端逻辑保留。</div>
                     </div>
                     <Switch
                         checked={settings.featureModules["drama-lab-resource-editor"] !== false}
@@ -346,19 +346,19 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
     return (
         <Panel>
             <PanelHeader title="插件市场" description="启停已发布的前台模块。停用后会隐藏导航和跨模块入口，并阻止新建、写入和生成；历史数据与运行中任务会保留。" />
-            <section className="mx-3 mt-3 border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40 sm:mx-5">
+            <section className="mx-3 mt-3 border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4 sm:mx-5">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                        <h2 className="font-semibold text-stone-950 dark:text-stone-100">练习模块</h2>
-                        <p className="mt-1 text-xs leading-5 text-stone-500">控制练习首页的入口显示。隐藏只影响新入口，历史记录不会被删除。</p>
+                        <h2 className="font-semibold text-[var(--gm-text)]">练习模块</h2>
+                        <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">控制练习首页的入口显示。隐藏只影响新入口，历史记录不会被删除。</p>
                     </div>
                     <Tag color="processing">6 个模块 · 7 条工作流</Tag>
                 </div>
-                <div className="mt-3 rounded-md border border-stone-200 bg-white px-3 py-3 dark:border-stone-800 dark:bg-stone-950">
+                <div className="mt-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-3">
                     <div className="flex items-center justify-between gap-3">
                         <div>
                             <div className="text-sm font-medium">剧本练习</div>
-                            <div className="mt-1 text-xs text-stone-500">独立文本剧本能力，不创建图片、视频或音频任务。</div>
+                            <div className="mt-1 text-xs text-[var(--gm-text-3)]">独立文本剧本能力，不创建图片、视频或音频任务。</div>
                         </div>
                         <Switch
                             checked={settings.practiceScriptSettings?.enabled !== false}
@@ -372,10 +372,10 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     {PRACTICE_VISIBILITY_FIELDS.map(([key, label, description]) => {
                         const enabled = (settings.practiceModuleVisibility || DEFAULT_PRACTICE_MODULE_VISIBILITY)[key];
                         return (
-                            <div key={key} className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-stone-200 bg-white px-3 py-2.5 dark:border-stone-800 dark:bg-stone-950">
+                            <div key={key} className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2.5">
                                 <div className="min-w-0">
                                     <div className="truncate text-sm font-medium">{label}</div>
-                                    <div className="truncate text-xs text-stone-500">{description}</div>
+                                    <div className="truncate text-xs text-[var(--gm-text-3)]">{description}</div>
                                 </div>
                                 <Switch
                                     checked={enabled}
@@ -406,22 +406,22 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     return (
                         <section
                             key={plugin.id}
-                            className="flex min-h-40 cursor-pointer flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950"
+                            className="flex min-h-40 cursor-pointer flex-col border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4"
                             onClick={() => (plugin.id === "drama-lab" ? (window.location.href = "/admin/drama-lab-features") : undefined)}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex min-w-0 items-center gap-3">
-                                    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-200">
+                                    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]">
                                         <Icon className="size-4.5" />
                                     </span>
                                     <div className="min-w-0">
-                                        <h2 className="truncate font-semibold text-stone-950 dark:text-stone-100">{plugin.name}</h2>
-                                        <div className="mt-1 text-xs text-stone-500">{plugin.group}</div>
+                                        <h2 className="truncate font-semibold text-[var(--gm-text)]">{plugin.name}</h2>
+                                        <div className="mt-1 text-xs text-[var(--gm-text-3)]">{plugin.group}</div>
                                     </div>
                                 </div>
                                 <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onClick={() => undefined} onChange={(next) => void toggle(plugin.id, next)} />
                             </div>
-                            <p className="mt-3 line-clamp-2 text-sm leading-5 text-stone-600 dark:text-stone-400">{plugin.description}</p>
+                            <p className="mt-3 line-clamp-2 text-sm leading-5 text-[var(--gm-text-2)]">{plugin.description}</p>
                             <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
                                 {plugin.pathPrefixes.map((path) => (
                                     <Tag key={path}>{path}</Tag>

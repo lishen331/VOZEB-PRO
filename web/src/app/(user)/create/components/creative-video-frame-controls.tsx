@@ -40,7 +40,7 @@ export function CreativeVideoFrameControls({
             <FrameSlot role="first_frame" label="首帧" assetId={firstFrameAssetId} images={images} uploading={uploading} placement={placement === "bottomLeft" ? "bottomLeft" : "topLeft"} onSelect={onSelect} onUpload={onUpload} onRemove={onRemove} />
             {mode === "first_last" ? (
                 <>
-                    <ArrowLeftRight className="mt-7 size-3.5 shrink-0 text-[#9ca2af] dark:text-[#7c869b]" aria-hidden="true" />
+                    <ArrowLeftRight className="mt-7 size-3.5 shrink-0 text-[var(--gm-text-3)]" aria-hidden="true" />
                     <FrameSlot
                         role="last_frame"
                         label="尾帧"
@@ -93,7 +93,7 @@ function FrameSlot({
                 onOpenChange={setOpen}
                 content={
                     <div className="w-64 max-w-[calc(100vw-40px)] py-0.5 sm:w-80">
-                        <p className="px-1 pb-2 text-xs font-semibold text-[#313847] dark:text-[#eef1f6]">选择{label}图片</p>
+                        <p className="px-1 pb-2 text-xs font-semibold text-[var(--gm-text)]">选择{label}图片</p>
                         <div className="hide-scrollbar grid max-h-52 grid-cols-3 gap-1.5 overflow-y-auto">
                             {images.map((item) => {
                                 const itemUrl = assetUrl(item);
@@ -104,8 +104,8 @@ function FrameSlot({
                                         type="button"
                                         disabled={!itemUrl}
                                         className={cn(
-                                            "relative aspect-square min-w-0 overflow-hidden rounded-lg border bg-[#f0f3f8] transition disabled:opacity-40 dark:bg-[#272e3c]",
-                                            selected ? "border-[#42838b] ring-2 ring-[#42838b]/20 dark:border-[#7cb1b7]" : "border-[#e1e4e9] hover:border-[#b0b7c4] dark:border-[#384154] dark:hover:border-[#626c80]",
+                                            "relative aspect-square min-w-0 overflow-hidden rounded-lg border bg-[var(--gm-wash-strong)] transition disabled:opacity-40",
+                                            selected ? "border-[var(--gm-accent)] ring-2 ring-[var(--gm-accent-ring)]" : "border-[var(--gm-border)] hover:border-[var(--gm-border-strong)]",
                                         )}
                                         onClick={() => {
                                             onSelect(role, item.id);
@@ -113,12 +113,12 @@ function FrameSlot({
                                         }}
                                         aria-label={`设为${label}：${item.title}`}
                                     >
-                                        {itemUrl ? <img src={imagePreviewUrl(itemUrl, 320)} alt="" className="size-full object-cover" /> : <ImagePlus className="absolute inset-0 m-auto size-4 text-[#9ca2af]" />}
+                                        {itemUrl ? <img src={imagePreviewUrl(itemUrl, 320)} alt="" className="size-full object-cover" /> : <ImagePlus className="absolute inset-0 m-auto size-4 text-[var(--gm-text-3)]" />}
                                     </button>
                                 );
                             })}
                         </div>
-                        {!images.length ? <p className="py-4 text-center text-xs text-[#8993a9] dark:text-[#7e889d]">本轮还没有图片素材</p> : null}
+                        {!images.length ? <p className="py-4 text-center text-xs text-[var(--gm-text-3)]">本轮还没有图片素材</p> : null}
                         <Button
                             type="text"
                             block
@@ -139,7 +139,7 @@ function FrameSlot({
                 <button
                     type="button"
                     className={cn(
-                        "relative grid size-14 place-items-center overflow-hidden rounded-lg border border-[#e1e3e9] bg-[#f0f3f8] text-[#848fa4] shadow-[0_2px_8px_rgba(38,49,65,0.08)] transition hover:border-[#b0b7c4] hover:text-[#40495c] dark:border-[#3a4356] dark:bg-[#121825] dark:text-[#a1a7b4] dark:hover:border-[#626c80] dark:hover:text-white",
+                        "relative grid size-14 place-items-center overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] text-[var(--gm-text-3)] shadow-[0_2px_8px_rgba(38,49,65,0.08)] transition hover:border-[var(--gm-border-strong)] hover:text-[var(--gm-text)]",
                         role === "first_frame" ? "rotate-[-3deg]" : "rotate-[3deg]",
                     )}
                     aria-label={asset ? `更换视频${label}` : `添加视频${label}`}
@@ -147,7 +147,7 @@ function FrameSlot({
                     {url ? (
                         <img src={imagePreviewUrl(url, 320)} alt={asset?.title || label} className="size-full object-cover" />
                     ) : (
-                        <span className="grid size-full place-items-center bg-[#f0f3f8] dark:bg-[#202735]">
+                        <span className="grid size-full place-items-center bg-[var(--gm-wash-strong)]">
                             <ImagePlus className="size-5" />
                         </span>
                     )}
@@ -157,7 +157,7 @@ function FrameSlot({
             {asset ? (
                 <button
                     type="button"
-                    className="absolute -right-1 -top-1 z-10 grid size-5 place-items-center rounded-full border border-white bg-black/60 text-white transition hover:bg-black/80 dark:border-[#111724]"
+                    className="absolute -right-1 -top-1 z-10 grid size-5 place-items-center rounded-full border border-[var(--gm-surface)] bg-black/60 text-white transition hover:bg-black/80"
                     onClick={() => onRemove(role)}
                     aria-label={`移除视频${label}`}
                 >

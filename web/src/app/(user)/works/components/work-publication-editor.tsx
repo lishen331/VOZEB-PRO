@@ -241,7 +241,7 @@ export function WorkPublicationEditor({
             onCancel={onCancel}
         >
             {loading ? (
-                <div className="grid min-h-72 place-items-center text-sm text-stone-500 dark:text-stone-400">
+                <div className="grid min-h-72 place-items-center text-sm text-[var(--gm-text-2)]">
                     <span className="flex items-center gap-2">
                         <LoaderCircle className="size-4 animate-spin" /> 正在加载发布信息
                     </span>
@@ -249,8 +249,8 @@ export function WorkPublicationEditor({
             ) : (
                 <Form form={form} layout="vertical" requiredMark={false} onFinish={(values) => void save(values)}>
                     <div className="max-h-[min(70dvh,760px)] min-w-0 space-y-4 overflow-y-auto pr-1">
-                        <section className="rounded-lg border border-stone-200 p-3 sm:p-4 dark:border-stone-800">
-                            <div className="mb-3 text-sm font-semibold text-stone-950 dark:text-stone-100">选择发布来源</div>
+                        <section className="rounded-lg border border-[var(--gm-border)] p-3 sm:p-4">
+                            <div className="mb-3 text-sm font-semibold text-[var(--gm-text)]">选择发布来源</div>
                             <div className="grid gap-x-4 sm:grid-cols-[220px_minmax(0,1fr)]">
                                 <Form.Item label="来源类型" name="sourceType" rules={[{ required: true }]}>
                                     <Segmented
@@ -294,13 +294,13 @@ export function WorkPublicationEditor({
                             </div>
                         </section>
 
-                        <section className="rounded-lg border border-stone-200 p-3 sm:p-4 dark:border-stone-800">
+                        <section className="rounded-lg border border-[var(--gm-border)] p-3 sm:p-4">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">作品媒体</div>
-                                    <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">已选 {selectedKeys.length} 项，图片可设为分享封面</div>
+                                    <div className="text-sm font-semibold text-[var(--gm-text)]">作品媒体</div>
+                                    <div className="mt-1 text-xs text-[var(--gm-text-3)]">已选 {selectedKeys.length} 项，图片可设为分享封面</div>
                                 </div>
-                                {sourceLoading ? <LoaderCircle className="size-4 animate-spin text-stone-400" /> : null}
+                                {sourceLoading ? <LoaderCircle className="size-4 animate-spin text-[var(--gm-text-3)]" /> : null}
                             </div>
                             {source?.candidates.length ? (
                                 <div className="mt-3 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -308,15 +308,15 @@ export function WorkPublicationEditor({
                                         const selected = selectedKeys.includes(candidate.storageKey);
                                         const cover = coverKey === candidate.storageKey;
                                         return (
-                                            <article key={candidate.storageKey} className={`min-w-0 overflow-hidden rounded-md border ${selected ? "border-stone-950 dark:border-stone-100" : "border-stone-200 dark:border-stone-800"}`}>
-                                                <div className="relative aspect-[4/3] overflow-hidden bg-stone-100 dark:bg-stone-900">
+                                            <article key={candidate.storageKey} className={`min-w-0 overflow-hidden rounded-md border ${selected ? "border-[var(--gm-accent)]" : "border-[var(--gm-border)]"}`}>
+                                                <div className="relative aspect-[4/3] overflow-hidden bg-[var(--gm-wash-strong)]">
                                                     {candidate.mediaType === "image" ? (
                                                         <img src={imagePreviewUrl(candidate.previewUrl, 320)} alt={candidate.originalName} className="size-full object-cover" loading="lazy" />
                                                     ) : candidate.mediaType === "video" ? (
                                                         <video src={candidate.previewUrl} className="size-full object-cover" preload="metadata" muted />
                                                     ) : null}
                                                     <Checkbox
-                                                        className="!absolute !left-2 !top-2 !m-0 [&_.gm-checkbox]:!size-5 [&_.gm-checkbox]:!border-white/90 [&_.gm-checkbox]:!bg-white/95 [&_.gm-checkbox-checked]:!border-stone-950 [&_.gm-checkbox-checked]:!bg-stone-950 dark:[&_.gm-checkbox]:!border-stone-700 dark:[&_.gm-checkbox]:!bg-stone-900 dark:[&_.gm-checkbox-checked]:!border-white dark:[&_.gm-checkbox-checked]:!bg-white dark:"
+                                                        className="!absolute !left-2 !top-2 !m-0 [&_.gm-checkbox]:!size-5 [&_.gm-checkbox]:!border-[var(--gm-border-strong)] [&_.gm-checkbox]:!bg-[var(--gm-surface)] [&_.gm-checkbox-checked]:!border-[var(--gm-blue)] [&_.gm-checkbox-checked]:!bg-[var(--gm-blue)]"
                                                         checked={selected}
                                                         aria-label={`选择 ${candidate.originalName}`}
                                                         onChange={(event) => setSelectedKeys((keys) => (event.target.checked ? [...new Set([...keys, candidate.storageKey])] : keys.filter((key) => key !== candidate.storageKey)))}
@@ -327,7 +327,7 @@ export function WorkPublicationEditor({
                                                     </Tag>
                                                 </div>
                                                 <div className="min-w-0 p-2">
-                                                    <div className="truncate text-xs font-medium text-stone-800 dark:text-stone-200" title={candidate.originalName}>
+                                                    <div className="truncate text-xs font-medium text-[var(--gm-text)]" title={candidate.originalName}>
                                                         {candidate.originalName}
                                                     </div>
                                                     {candidate.mediaType === "image" ? (
@@ -341,11 +341,11 @@ export function WorkPublicationEditor({
                                     })}
                                 </div>
                             ) : (
-                                <div className="mt-3 grid min-h-24 place-items-center rounded-md border border-dashed border-stone-300 px-3 text-center text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">选择来源后加载可发布媒体</div>
+                                <div className="mt-3 grid min-h-24 place-items-center rounded-md border border-dashed border-[var(--gm-border-strong)] px-3 text-center text-sm text-[var(--gm-text-2)]">选择来源后加载可发布媒体</div>
                             )}
                         </section>
 
-                        <section className="rounded-lg border border-stone-200 p-3 sm:p-4 dark:border-stone-800">
+                        <section className="rounded-lg border border-[var(--gm-border)] p-3 sm:p-4">
                             <div className="grid gap-x-4 sm:grid-cols-2">
                                 <Form.Item label="作品标题" name="title" rules={[{ required: true, message: "请输入作品标题" }, { max: 100 }]}>
                                     <Input placeholder="清楚说明作品内容" maxLength={100} />
@@ -377,7 +377,7 @@ export function WorkPublicationEditor({
                                     />
                                 </Form.Item>
                             </div>
-                            <p className={`-mt-2 mb-4 text-xs leading-5 ${visibility === "public" ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>
+                            <p className={`-mt-2 mb-4 text-xs leading-5 ${visibility === "public" ? "text-[var(--gm-success)]" : "text-[var(--gm-warning)]"}`}>
                                 {visibility === "public" ? "审核通过后会进入作品广场，并可通过分享链接访问。" : visibility === "unlisted" ? "审核通过后仅持链接可访问，不会出现在作品广场。" : "仅自己可见，不会生成公开分享页面，也不会进入作品广场。"}
                             </p>
                             {authorDisplay === "custom" ? (

@@ -10,20 +10,20 @@ import { nanoid } from "nanoid";
 import { urlHostMatches, urlPathStartsWith } from "@/lib/url-host";
 
 export const settingsStatusToneClass = {
-    cyan: "bg-cyan-50 text-cyan-700 ring-cyan-100 dark:bg-cyan-950/45 dark:text-cyan-200 dark:ring-cyan-900/40",
-    blue: "bg-blue-50 text-blue-700 ring-blue-100 dark:bg-blue-950/45 dark:text-blue-200 dark:ring-blue-900/40",
-    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-950/45 dark:text-emerald-200 dark:ring-emerald-900/40",
-    amber: "bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-950/45 dark:text-amber-200 dark:ring-amber-900/40",
+    cyan: "bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-[color-mix(in_srgb,var(--gm-accent)_25%,transparent)]",
+    blue: "bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-[color-mix(in_srgb,var(--gm-accent)_25%,transparent)]",
+    emerald: "bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] text-[var(--gm-success)] ring-[color-mix(in_srgb,var(--gm-success)_25%,transparent)]",
+    amber: "bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] text-[var(--gm-warning)] ring-[color-mix(in_srgb,var(--gm-warning)_25%,transparent)]",
 };
 
 export function SettingsStatusTile({ icon, label, value, detail, tone }: { icon: ReactNode; label: string; value: string; detail: string; tone: keyof typeof settingsStatusToneClass }) {
     return (
-        <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950 sm:p-4">
+        <div className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:p-4">
             <div className="flex items-start justify-between gap-2.5 sm:gap-3">
                 <div className="min-w-0">
-                    <div className="text-[11px] font-medium text-stone-500 sm:text-xs dark:text-stone-400">{label}</div>
-                    <div className="mt-1 truncate text-sm font-semibold text-stone-950 sm:mt-2 sm:text-base dark:text-stone-100">{value}</div>
-                    <div className="mt-0.5 truncate text-[11px] text-stone-500 sm:mt-1 sm:text-xs dark:text-stone-400">{detail}</div>
+                    <div className="text-[11px] font-medium text-[var(--gm-text-3)] sm:text-xs">{label}</div>
+                    <div className="mt-1 truncate text-sm font-semibold text-[var(--gm-text)] sm:mt-2 sm:text-base">{value}</div>
+                    <div className="mt-0.5 truncate text-[11px] text-[var(--gm-text-3)] sm:mt-1 sm:text-xs">{detail}</div>
                 </div>
                 <span className={"flex size-7 shrink-0 items-center justify-center rounded-md ring-1 [&>svg]:size-3.5 sm:size-9 sm:rounded-lg sm:[&>svg]:size-4 " + settingsStatusToneClass[tone]}>{icon}</span>
             </div>
@@ -35,12 +35,12 @@ export function SettingsAnchorItem({ href, icon, title, detail }: { href: string
     return (
         <a
             href={href}
-            className="group flex min-w-0 items-center gap-1 rounded-md px-2 py-2 text-left transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 sm:gap-3 sm:px-3 sm:py-2.5 dark:hover:bg-zinc-900"
+            className="group flex min-w-0 items-center gap-1 rounded-md px-2 py-2 text-left transition hover:bg-[var(--gm-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-border-strong)] sm:gap-3 sm:px-3 sm:py-2.5"
         >
-            <span className="flex size-5 shrink-0 items-center justify-center text-zinc-500 transition [&>svg]:size-3 sm:size-8 sm:[&>svg]:size-4 group-hover:text-zinc-950 dark:text-zinc-400 dark:group-hover:text-white">{icon}</span>
+            <span className="flex size-5 shrink-0 items-center justify-center text-[var(--gm-text-2)] transition [&>svg]:size-3 sm:size-8 sm:[&>svg]:size-4 group-hover:text-[var(--gm-text)]">{icon}</span>
             <span className="min-w-0">
-                <span className="block truncate text-xs font-semibold text-stone-900 sm:text-sm dark:text-stone-100">{title}</span>
-                <span className="mt-0.5 hidden truncate text-xs text-stone-500 sm:block dark:text-stone-400">{detail}</span>
+                <span className="block truncate text-xs font-semibold text-[var(--gm-text)] sm:text-sm">{title}</span>
+                <span className="mt-0.5 hidden truncate text-xs text-[var(--gm-text-3)] sm:block">{detail}</span>
             </span>
         </a>
     );
@@ -48,15 +48,15 @@ export function SettingsAnchorItem({ href, icon, title, detail }: { href: string
 
 export function FinanceFlowItem({ title, amount, description, icon }: { title: string; amount: string; description: string; icon: ReactNode }) {
     return (
-        <div className="rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950 sm:p-4">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:p-4">
             <div className="flex items-start justify-between gap-2.5 sm:gap-3">
                 <div>
-                    <div className="text-xs text-stone-500 sm:text-sm dark:text-stone-400">{title}</div>
-                    <div className="mt-1 text-lg font-semibold tracking-normal text-stone-950 sm:mt-2 sm:text-2xl dark:text-stone-100">{amount}</div>
+                    <div className="text-xs text-[var(--gm-text-3)] sm:text-sm">{title}</div>
+                    <div className="mt-1 text-lg font-semibold tracking-normal text-[var(--gm-text)] sm:mt-2 sm:text-2xl">{amount}</div>
                 </div>
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-stone-700 [&>svg]:size-3.5 sm:size-9 sm:rounded-lg sm:[&>svg]:size-4 dark:bg-stone-900 dark:text-stone-200">{icon}</span>
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)] [&>svg]:size-3.5 sm:size-9 sm:rounded-lg sm:[&>svg]:size-4">{icon}</span>
             </div>
-            <div className="mt-2 line-clamp-2 text-xs leading-5 text-stone-500 sm:mt-3 sm:line-clamp-none sm:text-sm sm:leading-6 dark:text-stone-400">{description}</div>
+            <div className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)] sm:mt-3 sm:line-clamp-none sm:text-sm sm:leading-6">{description}</div>
         </div>
     );
 }
@@ -64,8 +64,8 @@ export function FinanceFlowItem({ title, amount, description, icon }: { title: s
 export function FinanceMiniRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex items-center justify-between gap-3">
-            <span className="text-stone-500 dark:text-stone-400">{label}</span>
-            <span className="font-semibold text-stone-950 dark:text-stone-100">{value}</span>
+            <span className="text-[var(--gm-text-2)]">{label}</span>
+            <span className="font-semibold text-[var(--gm-text)]">{value}</span>
         </div>
     );
 }
@@ -186,22 +186,22 @@ export function CdkRedemptionDetail({ code }: { code: PublicCdkCode }) {
     const visibleRedemptions = redemptions.slice(0, 20);
 
     return (
-        <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/60">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">兑换明细</div>
-                <div className="text-xs text-stone-500 dark:text-stone-400">
+                <div className="text-sm font-semibold text-[var(--gm-text)]">兑换明细</div>
+                <div className="text-xs text-[var(--gm-text-3)]">
                     共 {redemptions.length} 条{redemptions.length > visibleRedemptions.length ? "，展示最近 20 条" : ""}
                 </div>
             </div>
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {visibleRedemptions.map((item) => (
-                    <div key={`${item.userId}-${item.redeemedAt}`} className="min-w-0 rounded-md border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950">
-                        <div className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">
+                    <div key={`${item.userId}-${item.redeemedAt}`} className="min-w-0 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
+                        <div className="truncate text-sm font-medium text-[var(--gm-text)]">
                             {item.displayName}
-                            <span className="ml-1 font-normal text-stone-500 dark:text-stone-400">@{item.username}</span>
+                            <span className="ml-1 font-normal text-[var(--gm-text-2)]">@{item.username}</span>
                         </div>
                         <AdminAccountId accountId={item.accountId} className="mt-0.5" />
-                        <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">{new Date(item.redeemedAt).toLocaleString("zh-CN")}</div>
+                        <div className="mt-1 text-xs text-[var(--gm-text-3)]">{new Date(item.redeemedAt).toLocaleString("zh-CN")}</div>
                     </div>
                 ))}
             </div>

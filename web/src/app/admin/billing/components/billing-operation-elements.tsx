@@ -32,17 +32,17 @@ import { BillingReconciliationImport } from "./billing-reconciliation-import";
 
 export function ReconciliationPanel({ reconciliationIssues, summary, onImport }: { reconciliationIssues: number; summary: BillingSummary | null; onImport: () => void }) {
     return (
-        <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
             <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">对账检查</div>
+                <div className="text-sm font-semibold text-[var(--gm-text)]">对账检查</div>
                 <Tag color={reconciliationIssues ? "red" : "green"}>{reconciliationIssues ? "需处理" : "正常"}</Tag>
             </div>
-            <div className="mt-3 space-y-2 text-sm text-stone-600 dark:text-stone-300">
+            <div className="mt-3 space-y-2 text-sm text-[var(--gm-text-2)]">
                 <CheckLine label="已支付但缺少成功流水" value={summary?.reconciliation.paidOrdersWithoutSucceededPayment || 0} />
                 <CheckLine label="成功流水未对应已支付订单" value={summary?.reconciliation.succeededPaymentsWithoutPaidOrder || 0} />
                 <CheckLine label="流水金额与订单金额不一致" value={summary?.reconciliation.amountMismatchPayments || 0} />
             </div>
-            <div className="mt-4 border-t border-stone-200 pt-3 dark:border-stone-800">
+            <div className="mt-4 border-t border-[var(--gm-border)] pt-3">
                 <Button className="w-full" icon={<FileUp className="size-4" />} onClick={onImport}>
                     导入支付商账单
                 </Button>
@@ -53,29 +53,29 @@ export function ReconciliationPanel({ reconciliationIssues, summary, onImport }:
 
 export function ActiveProductsPanel({ activeProducts }: { activeProducts: BillingProduct[] }) {
     return (
-        <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--gm-text)]">
                 <Package className="size-4" />
                 在售商品
             </div>
             <div className="space-y-2">
                 {activeProducts.length ? (
                     activeProducts.map((product) => (
-                        <div key={product.id} className="rounded-md border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950">
+                        <div key={product.id} className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                    <div className="truncate text-sm font-medium text-stone-950 dark:text-stone-100">{product.name}</div>
-                                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500 dark:text-stone-400">{product.description || product.planId}</div>
+                                    <div className="truncate text-sm font-medium text-[var(--gm-text)]">{product.name}</div>
+                                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{product.description || product.planId}</div>
                                 </div>
                                 <Tag color="green">{formatMoney(product.amountCents, product.currency)}</Tag>
                             </div>
-                            <div className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+                            <div className="mt-2 text-xs text-[var(--gm-text-3)]">
                                 {product.pointsAmount} 积分 / {product.periodDays ? `${product.periodDays} 天` : "长期"}
                             </div>
                         </div>
                     ))
                 ) : (
-                    <div className="rounded-md border border-dashed border-stone-200 px-3 py-6 text-center text-sm text-stone-500 dark:border-stone-800 dark:text-stone-400">暂无在售商品</div>
+                    <div className="rounded-md border border-dashed border-[var(--gm-border)] px-3 py-6 text-center text-sm text-[var(--gm-text-2)]">暂无在售商品</div>
                 )}
             </div>
         </div>
@@ -84,9 +84,9 @@ export function ActiveProductsPanel({ activeProducts }: { activeProducts: Billin
 
 export function ProductFact({ label, value }: { label: string; value: string }) {
     return (
-        <div className="min-w-0 rounded-md bg-white px-2 py-2 ring-1 ring-stone-200 dark:bg-stone-950 dark:ring-stone-800">
+        <div className="min-w-0 rounded-md bg-[var(--gm-surface)] px-2 py-2 ring-1 ring-[var(--gm-border)]">
             <div>{label}</div>
-            <div className="mt-1 truncate font-semibold text-stone-950 dark:text-stone-100">{value}</div>
+            <div className="mt-1 truncate font-semibold text-[var(--gm-text)]">{value}</div>
         </div>
     );
 }
@@ -162,14 +162,14 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
             <section
                 className={
                     embedded
-                        ? "overflow-hidden rounded-3xl border border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-950"
-                        : "overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm shadow-stone-200/40 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20"
+                        ? "overflow-hidden rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-surface)]"
+                        : "overflow-hidden rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm"
                 }
             >
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 border-b border-stone-200 px-3 py-3 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-5 dark:border-stone-800">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 border-b border-[var(--gm-border)] px-3 py-3 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-5">
                     <div className="contents sm:block sm:min-w-0">
-                        <h2 className="min-w-0 truncate text-base font-semibold tracking-normal text-stone-950 sm:text-xl dark:text-stone-100">支付渠道配置</h2>
-                        <div className="col-span-2 line-clamp-2 text-xs leading-5 text-stone-500 sm:mt-1 sm:block sm:text-sm sm:leading-6 dark:text-stone-400">每个渠道独立保存。下单接口、密钥、回调验签、返回地址和字段映射都可以在这里配置。</div>
+                        <h2 className="min-w-0 truncate text-base font-semibold tracking-normal text-[var(--gm-text)] sm:text-xl">支付渠道配置</h2>
+                        <div className="col-span-2 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)] sm:mt-1 sm:block sm:text-sm sm:leading-6">每个渠道独立保存。下单接口、密钥、回调验签、返回地址和字段映射都可以在这里配置。</div>
                     </div>
                     <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
                         <Tag className="m-0 hidden sm:inline-flex">{paymentConfig?.readyProviders || 0} 个真实支付可用</Tag>
@@ -178,15 +178,15 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                         </Button>
                     </div>
                 </div>
-                <div className="grid gap-3 bg-stone-50/70 p-3 sm:gap-5 sm:p-5 xl:grid-cols-[300px_minmax(0,1fr)] dark:bg-stone-950/45">
+                <div className="grid gap-3 bg-[var(--gm-wash)] p-3 sm:gap-5 sm:p-5 xl:grid-cols-[300px_minmax(0,1fr)]">
                     <aside className="space-y-3">
-                        <div className="rounded-xl border border-stone-200/80 bg-white p-2.5 sm:rounded-3xl sm:p-3 dark:border-stone-800 dark:bg-stone-900/60">
-                            <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-stone-400">支付渠道</div>
+                        <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2.5 sm:rounded-3xl sm:p-3">
+                            <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--gm-text-3)]">支付渠道</div>
                             <div className="grid grid-cols-2 gap-1.5 sm:block sm:space-y-2">
                                 {providers.map((provider) => (
                                     <PaymentProviderCard key={provider.id} provider={provider} active={provider.id === activeProvider?.id} onSelect={() => setActiveProviderId(provider.id)} />
                                 ))}
-                                {!providers.length ? <div className="rounded-xl border border-dashed border-stone-200 px-3 py-10 text-center text-sm text-stone-500 dark:border-stone-800 dark:text-stone-400">支付配置状态加载中</div> : null}
+                                {!providers.length ? <div className="rounded-xl border border-dashed border-[var(--gm-border)] px-3 py-10 text-center text-sm text-[var(--gm-text-2)]">支付配置状态加载中</div> : null}
                             </div>
                         </div>
                     </aside>
@@ -195,27 +195,27 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                             <Form.Item name="enabled" valuePropName="checked" hidden>
                                 <Switch />
                             </Form.Item>
-                            <div className="min-w-0 overflow-hidden rounded-3xl border border-stone-200/80 bg-white dark:border-stone-800 dark:bg-stone-950">
-                                <div className="border-b border-stone-200/80 px-3 py-3 sm:px-5 sm:py-5 dark:border-stone-800">
+                            <div className="min-w-0 overflow-hidden rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-surface)]">
+                                <div className="border-b border-[var(--gm-border)] px-3 py-3 sm:px-5 sm:py-5">
                                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                         <div className="min-w-0">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <h3 className="text-xl font-semibold tracking-normal text-stone-950 sm:text-2xl dark:text-stone-100">{activeProvider.name}</h3>
+                                                <h3 className="text-xl font-semibold tracking-normal text-[var(--gm-text)] sm:text-2xl">{activeProvider.name}</h3>
                                                 <Tag className="m-0" color={activeProvider.ready ? "green" : activeProvider.checkoutReady ? "gold" : "default"}>
                                                     {activeProvider.ready ? "可用" : activeProvider.checkoutReady ? "待回调" : "待配置"}
                                                 </Tag>
                                                 <Tag className="m-0">{activeProvider.sourceLabel}</Tag>
                                                 {activeProvider.id === "alipay" ? <Tag className="m-0">{alipaySignaturePresentation?.label || "普通公钥"}</Tag> : null}
                                             </div>
-                                            <div className="mt-1 line-clamp-2 max-w-3xl text-xs leading-5 text-stone-500 sm:mt-2 sm:line-clamp-none sm:text-sm sm:leading-6 dark:text-stone-400">
+                                            <div className="mt-1 line-clamp-2 max-w-3xl text-xs leading-5 text-[var(--gm-text-3)] sm:mt-2 sm:line-clamp-none sm:text-sm sm:leading-6">
                                                 {activeProvider.id === "alipay" ? alipayPresentation?.description || activeProvider.description : activeProvider.description}
                                             </div>
-                                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-500 dark:text-stone-400">
-                                                <span className="rounded-full bg-stone-100 px-2.5 py-1 ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-800">
+                                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
+                                                <span className="rounded-full bg-[var(--gm-wash-strong)] px-2.5 py-1 ring-1 ring-[var(--gm-border)]">
                                                     必填 {requiredReady}/{requiredFields.length}
                                                 </span>
-                                                <span className="rounded-full bg-stone-100 px-2.5 py-1 ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-800">下单：{activeProvider.checkoutReady ? "已配置" : "待配置"}</span>
-                                                <span className="rounded-full bg-stone-100 px-2.5 py-1 ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-800">
+                                                <span className="rounded-full bg-[var(--gm-wash-strong)] px-2.5 py-1 ring-1 ring-[var(--gm-border)]">下单：{activeProvider.checkoutReady ? "已配置" : "待配置"}</span>
+                                                <span className="rounded-full bg-[var(--gm-wash-strong)] px-2.5 py-1 ring-1 ring-[var(--gm-border)]">
                                                     回调：{activeProvider.webhookOptional ? "可选" : activeProvider.webhookReady ? "已配置" : "待配置"}
                                                 </span>
                                             </div>
@@ -228,22 +228,22 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                         </div>
                                     </div>
                                 </div>
-                                <div className="border-b border-stone-200/80 bg-stone-50/65 px-3 py-3 sm:px-5 sm:py-4 dark:border-stone-800 dark:bg-stone-900/35">
-                                    <div className="rounded-xl border border-stone-200/80 bg-white p-3 sm:rounded-2xl sm:p-4 dark:border-stone-800 dark:bg-stone-950">
+                                <div className="border-b border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-3 sm:px-5 sm:py-4">
+                                    <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:rounded-2xl sm:p-4">
                                         <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center">
-                                            <div className="flex shrink-0 items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
-                                                <Copy className="size-4 text-stone-500 dark:text-stone-400" />
+                                            <div className="flex shrink-0 items-center gap-2 text-sm font-semibold text-[var(--gm-text)]">
+                                                <Copy className="size-4 text-[var(--gm-text-2)]" />
                                                 系统回调地址
                                             </div>
-                                            <div className="min-w-0 flex-1 truncate rounded-xl bg-stone-50 px-3 py-2 font-mono text-xs leading-5 text-stone-700 ring-1 ring-stone-200 dark:bg-stone-900 dark:text-stone-200 dark:ring-stone-800">
+                                            <div className="min-w-0 flex-1 truncate rounded-xl bg-[var(--gm-wash)] px-3 py-2 font-mono text-xs leading-5 text-[var(--gm-text-2)] ring-1 ring-[var(--gm-border)]">
                                                 {activeProvider.webhookUrl}
                                             </div>
                                             <Button className="shrink-0 justify-center" size="middle" icon={<Copy className="size-3.5" />} onClick={() => onCopy(activeProvider.webhookUrl)}>
                                                 复制
                                             </Button>
                                         </div>
-                                        <div className="mt-4 border-t border-stone-200/80 pt-4 dark:border-stone-800">
-                                            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
+                                        <div className="mt-4 border-t border-[var(--gm-border)] pt-4">
+                                            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--gm-text)]">
                                                 <Settings2 className="size-4" />
                                                 必填检查
                                             </div>
@@ -268,15 +268,15 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                         </PaymentFieldSection>
                                     ) : null}
                                     {advancedFields.length ? (
-                                        <div className="rounded-3xl border border-stone-200/80 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/45">
+                                        <div className="rounded-3xl border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
                                             <button
                                                 type="button"
-                                                className="flex w-full items-center justify-between gap-3 rounded-2xl px-1 py-1 text-left transition hover:text-stone-950 dark:hover:text-stone-100"
+                                                className="flex w-full items-center justify-between gap-3 rounded-2xl px-1 py-1 text-left transition hover:text-[var(--gm-text)]"
                                                 onClick={() => setAdvancedOpen((value) => !value)}
                                             >
                                                 <span>
-                                                    <span className="block text-base font-semibold text-stone-950 dark:text-stone-100">高级字段映射</span>
-                                                    <span className="mt-1 block text-xs leading-5 text-stone-500 dark:text-stone-400">支付商字段映射、额外请求头、请求体模板和高级回调设置，不确定时可以先保持为空。</span>
+                                                    <span className="block text-base font-semibold text-[var(--gm-text)]">高级字段映射</span>
+                                                    <span className="mt-1 block text-xs leading-5 text-[var(--gm-text-3)]">支付商字段映射、额外请求头、请求体模板和高级回调设置，不确定时可以先保持为空。</span>
                                                 </span>
                                                 <Tag className="m-0">{advancedOpen ? "收起" : `${advancedFields.length} 项`}</Tag>
                                             </button>
@@ -290,8 +290,8 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                         </div>
                                     ) : null}
                                 </div>
-                                <div className="mx-5 mb-5 flex flex-col-reverse gap-3 border-t border-stone-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800">
-                                    <div className="text-xs leading-5 text-stone-500 dark:text-stone-400">密钥留空表示保留原值；需要清空密钥时请关闭该渠道或覆盖保存新的值。</div>
+                                <div className="mx-5 mb-5 flex flex-col-reverse gap-3 border-t border-[var(--gm-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="text-xs leading-5 text-[var(--gm-text-3)]">密钥留空表示保留原值；需要清空密钥时请关闭该渠道或覆盖保存新的值。</div>
                                     <Button type="primary" htmlType="submit" icon={<Save className="size-4" />} loading={saving} className="!text-white">
                                         保存支付配置
                                     </Button>
@@ -310,29 +310,29 @@ export function PaymentProviderCard({ provider, active, onSelect }: { provider: 
     return (
         <button
             type="button"
-            className={`w-full rounded-lg border p-2 text-left transition sm:rounded-2xl sm:p-3 ${active ? "border-stone-400 bg-white shadow-sm dark:border-stone-600 dark:bg-stone-950" : "border-transparent bg-transparent hover:bg-white/80 dark:hover:bg-stone-950/70"}`}
+            className={`w-full rounded-lg border p-2 text-left transition sm:rounded-2xl sm:p-3 ${active ? "border-[var(--gm-border-strong)] bg-[var(--gm-surface)] shadow-sm" : "border-transparent bg-transparent hover:bg-[var(--gm-wash)]"}`}
             onClick={onSelect}
         >
             <div className="flex items-start gap-2 sm:gap-3">
                 <span
-                    className={`flex size-7 shrink-0 items-center justify-center rounded-md ring-1 [&>svg]:size-3.5 sm:size-10 sm:rounded-xl sm:[&>svg]:size-5 ${active ? "bg-[var(--gm-blue)] text-white ring-[var(--gm-blue)]" : "bg-white text-stone-700 ring-stone-200 dark:bg-stone-950 dark:text-stone-200 dark:ring-stone-800"}`}
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-md ring-1 [&>svg]:size-3.5 sm:size-10 sm:rounded-xl sm:[&>svg]:size-5 ${active ? "bg-[var(--gm-blue)] text-white ring-[var(--gm-blue)]" : "bg-[var(--gm-surface)] text-[var(--gm-text-2)] ring-[var(--gm-border)]"}`}
                 >
                     <Icon />
                 </span>
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                            <div className="truncate text-xs font-semibold text-stone-950 sm:text-sm dark:text-stone-100">{provider.name}</div>
-                            <div className="mt-1 hidden truncate text-xs text-stone-500 sm:block dark:text-stone-400">{provider.sourceLabel}</div>
+                            <div className="truncate text-xs font-semibold text-[var(--gm-text)] sm:text-sm">{provider.name}</div>
+                            <div className="mt-1 hidden truncate text-xs text-[var(--gm-text-3)] sm:block">{provider.sourceLabel}</div>
                         </div>
                         <Tag className="m-0 shrink-0 !px-1 !text-[10px] sm:!px-[7px] sm:!text-xs" color={provider.ready ? "green" : provider.checkoutReady ? "gold" : "default"}>
                             {provider.ready ? "可用" : provider.checkoutReady ? "待回调" : "待配置"}
                         </Tag>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1 sm:mt-3 sm:gap-1.5">
-                        <span className={`h-1.5 rounded-full ${provider.enabled ? "bg-stone-950 dark:bg-white" : "bg-stone-200 dark:bg-stone-800"}`} />
-                        <span className={`h-1.5 rounded-full ${provider.checkoutReady ? "bg-stone-950 dark:bg-white" : "bg-stone-200 dark:bg-stone-800"}`} />
-                        <span className={`h-1.5 rounded-full ${provider.webhookReady || provider.webhookOptional ? "bg-stone-950 dark:bg-white" : "bg-stone-200 dark:bg-stone-800"}`} />
+                        <span className={`h-1.5 rounded-full ${provider.enabled ? "bg-[var(--gm-blue)]" : "bg-[var(--gm-wash-heavy)]"}`} />
+                        <span className={`h-1.5 rounded-full ${provider.checkoutReady ? "bg-[var(--gm-blue)]" : "bg-[var(--gm-wash-heavy)]"}`} />
+                        <span className={`h-1.5 rounded-full ${provider.webhookReady || provider.webhookOptional ? "bg-[var(--gm-blue)]" : "bg-[var(--gm-wash-heavy)]"}`} />
                     </div>
                 </div>
             </div>
@@ -342,10 +342,10 @@ export function PaymentProviderCard({ provider, active, onSelect }: { provider: 
 
 export function PaymentFieldSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
     return (
-        <div className="rounded-xl border border-stone-200/80 bg-stone-50/70 p-3 sm:rounded-3xl sm:p-4 dark:border-stone-800 dark:bg-stone-900/45">
+        <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 sm:rounded-3xl sm:p-4">
             <div className="mb-3 min-w-0">
-                <div className="text-base font-semibold text-stone-950 dark:text-stone-100">{title}</div>
-                <div className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">{description}</div>
+                <div className="text-base font-semibold text-[var(--gm-text)]">{title}</div>
+                <div className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">{description}</div>
             </div>
             <div className="grid items-start gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))]">{children}</div>
         </div>
@@ -374,7 +374,7 @@ export function PaymentConfigFieldControl({ field, providerEnabled }: { field: P
     const usesSystemDefault = paymentFieldUsesSystemDefault(field);
     const inputClassName = "admin-payment-compact-control w-full";
     return (
-        <div className={`min-w-0 self-start rounded-2xl border border-stone-200/80 bg-white shadow-sm shadow-stone-200/20 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/10 ${wide ? "p-3 md:col-span-full" : "p-3"}`}>
+        <div className={`min-w-0 self-start rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm ${wide ? "p-3 md:col-span-full" : "p-3"}`}>
             <PaymentFieldHeader field={field} />
             <Form.Item name={field.key} rules={rules} className="m-0 !mt-2.5">
                 {(field.key === "mode" || field.key === "signatureMode") && field.options?.length === 2 ? (
@@ -389,7 +389,7 @@ export function PaymentConfigFieldControl({ field, providerEnabled }: { field: P
                     <Input className={inputClassName} maxLength={2000} placeholder={field.placeholder} />
                 )}
             </Form.Item>
-            {field.note || usesSystemDefault ? <div className="mt-2.5 text-xs leading-5 text-stone-500 dark:text-stone-400">{field.note || "留空时自动使用系统默认值，仅在需要自定义时填写。"}</div> : null}
+            {field.note || usesSystemDefault ? <div className="mt-2.5 text-xs leading-5 text-[var(--gm-text-3)]">{field.note || "留空时自动使用系统默认值，仅在需要自定义时填写。"}</div> : null}
         </div>
     );
 }
@@ -399,8 +399,8 @@ export function PaymentFieldHeader({ field }: { field: PaymentProviderConfigFiel
     return (
         <div className="flex min-w-0 items-center justify-between gap-2">
             <div className="min-w-0">
-                <div className="truncate text-[13px] font-semibold leading-5 text-stone-950 dark:text-stone-100">{field.label}</div>
-                {field.configured || usesSystemDefault ? <div className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">{field.configured ? field.sourceLabel : "留空自动使用"}</div> : null}
+                <div className="truncate text-[13px] font-semibold leading-5 text-[var(--gm-text)]">{field.label}</div>
+                {field.configured || usesSystemDefault ? <div className="mt-0.5 text-xs text-[var(--gm-text-3)]">{field.configured ? field.sourceLabel : "留空自动使用"}</div> : null}
             </div>
             <div className="flex shrink-0 flex-wrap justify-end gap-1">
                 {field.required ? <Tag className="m-0">必填</Tag> : null}
@@ -419,19 +419,19 @@ function paymentFieldUsesSystemDefault(field: PaymentProviderConfigField & { con
 export function RequirementGrid({ checkout, webhook, webhookOptional }: { checkout: PaymentConfigRequirement[]; webhook: PaymentConfigRequirement[]; webhookOptional?: boolean }) {
     const items = [...checkout.map((item) => ({ ...item, group: "下单" })), ...webhook.map((item) => ({ ...item, group: "回调" }))];
     if (!items.length) {
-        return <div className="rounded-md border border-dashed border-stone-200 px-3 py-3 text-sm text-stone-500 dark:border-stone-800 dark:text-stone-400">{webhookOptional ? "该渠道无需强制回调配置" : "暂无必填变量"}</div>;
+        return <div className="rounded-md border border-dashed border-[var(--gm-border)] px-3 py-3 text-sm text-[var(--gm-text-2)]">{webhookOptional ? "该渠道无需强制回调配置" : "暂无必填变量"}</div>;
     }
     return (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-2">
             {items.map((item) => (
-                <div key={`${item.group}:${item.label}:${item.envNames.join(",")}`} className="min-w-0 rounded-xl border border-stone-200 bg-white px-3 py-2 dark:border-stone-800 dark:bg-stone-950">
+                <div key={`${item.group}:${item.label}:${item.envNames.join(",")}`} className="min-w-0 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-xs text-stone-500 dark:text-stone-400">{item.group}</span>
+                        <span className="truncate text-xs text-[var(--gm-text-3)]">{item.group}</span>
                         <Tag className="m-0" color={item.configured ? "green" : "gold"}>
                             {item.configured ? "已设置" : "待设置"}
                         </Tag>
                     </div>
-                    <div className="mt-1 truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{item.label}</div>
+                    <div className="mt-1 truncate text-sm font-semibold text-[var(--gm-text)]">{item.label}</div>
                 </div>
             ))}
         </div>
@@ -461,12 +461,12 @@ export async function copyText(value: string, message: { success: (content: stri
 
 export function Metric({ title, value, icon, tone }: { title: string; value: string | number; icon: ReactNode; tone: "emerald" | "amber" | "blue" | "rose" | "slate" }) {
     return (
-        <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm shadow-stone-200/40 sm:p-4 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 shadow-sm sm:p-4">
             <div className="flex items-center justify-between gap-2 sm:gap-3">
-                <div className="text-xs text-stone-500 sm:text-sm dark:text-stone-400">{title}</div>
+                <div className="text-xs text-[var(--gm-text-3)] sm:text-sm">{title}</div>
                 <span className={`flex size-7 items-center justify-center rounded-md [&>svg]:size-3.5 sm:size-8 sm:[&>svg]:size-4 ${metricTone(tone)}`}>{icon}</span>
             </div>
-            <div className="mt-2 text-lg font-semibold tracking-normal text-stone-950 sm:mt-3 sm:text-2xl dark:text-stone-100">{value}</div>
+            <div className="mt-2 text-lg font-semibold tracking-normal text-[var(--gm-text)] sm:mt-3 sm:text-2xl">{value}</div>
         </div>
     );
 }
@@ -475,17 +475,17 @@ export function CheckLine({ label, value }: { label: string; value: number }) {
     return (
         <div className="flex items-center justify-between gap-3">
             <span>{label}</span>
-            <span className={value ? "font-semibold text-rose-600 dark:text-rose-300" : "font-semibold text-emerald-600 dark:text-emerald-300"}>{value}</span>
+            <span className={value ? "font-semibold text-[var(--gm-danger)]" : "font-semibold text-[var(--gm-success)]"}>{value}</span>
         </div>
     );
 }
 
 export function metricTone(tone: "emerald" | "amber" | "blue" | "rose" | "slate") {
-    if (tone === "emerald") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
-    if (tone === "amber") return "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200";
-    if (tone === "blue") return "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200";
-    if (tone === "rose") return "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200";
-    return "bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-200";
+    if (tone === "emerald") return "bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] text-[var(--gm-success)]";
+    if (tone === "amber") return "bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] text-[var(--gm-warning)]";
+    if (tone === "blue") return "bg-[var(--gm-accent-soft)] text-[var(--gm-accent)]";
+    if (tone === "rose") return "bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] text-[var(--gm-danger)]";
+    return "bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]";
 }
 
 export function statusLabel(status: BillingOrderStatus) {

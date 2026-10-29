@@ -72,28 +72,28 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-white dark:bg-[#111724]">
-            <div className="shrink-0 border-b border-[#e7eaef] px-3 py-3 dark:border-[#282f3e]">
+        <div className="flex h-full min-h-0 flex-col bg-[var(--gm-bg)]">
+            <div className="shrink-0 border-b border-[var(--gm-border)] px-3 py-3">
                 <button
                     type="button"
-                    className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#1b212f] !bg-[#1b212f] px-3 text-sm font-medium !text-white transition hover:border-[#323948] hover:!bg-[#323948] dark:border-[#f2f5fa] dark:!bg-[#f2f5fa] dark:!text-[#1b212f] dark:hover:border-white dark:hover:!bg-white"
+                    className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[var(--gm-surface-light)] !bg-[var(--gm-surface-light)] px-3 text-sm font-medium !text-[var(--gm-inverse-text)] transition hover:opacity-85"
                     onClick={onNew}
                 >
                     <Plus className="size-4 text-current" /> 新建对话
                 </button>
             </div>
 
-            <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-[#edf0f5] px-3 dark:border-[#212836]">
+            <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-[var(--gm-border)] px-3">
                 {managing ? (
                     <Checkbox checked={allSelected} indeterminate={selectedIds.length > 0 && !allSelected} onChange={(event) => setSelectedIds(event.target.checked ? items.map((item) => item.id) : [])}>
                         全选
                     </Checkbox>
                 ) : (
-                    <span className="text-xs text-[#8993a9] dark:text-[#7e889d]">{items.length} 条对话</span>
+                    <span className="text-xs text-[var(--gm-text-3)]">{items.length} 条对话</span>
                 )}
                 <button
                     type="button"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-[#687287] transition hover:bg-[#f0f3f8] hover:text-[#1b212f] dark:text-[#a8aebb] dark:hover:bg-[#212836] dark:hover:text-white"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
                     onClick={() => (managing ? leaveManage() : setManaging(true))}
                 >
                     {managing ? <X className="size-3.5" /> : <CheckSquare2 className="size-3.5" />}
@@ -102,8 +102,8 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-                {loading ? <div className="py-10 text-center text-sm text-stone-400">正在读取...</div> : null}
-                {!loading && !items.length ? <div className="py-10 text-center text-sm text-stone-400">暂无创作会话</div> : null}
+                {loading ? <div className="py-10 text-center text-sm text-[var(--gm-text-3)]">正在读取...</div> : null}
+                {!loading && !items.length ? <div className="py-10 text-center text-sm text-[var(--gm-text-3)]">暂无创作会话</div> : null}
                 <div className="space-y-1.5">
                     {items.map((item) => {
                         const checked = selected.has(item.id);
@@ -112,12 +112,12 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                 key={item.id}
                                 className={cn(
                                     "group flex min-h-13 items-center gap-1 rounded-lg border px-1 transition",
-                                    activeId === item.id ? "border-[#d4dae8] bg-[#eff2f7] dark:border-[#394154] dark:bg-[#212836]" : "border-transparent hover:border-[#e5e8ed] hover:bg-[#f5f8fe] dark:hover:border-[#2e3544] dark:hover:bg-[#1b212f]",
+                                    activeId === item.id ? "border-[var(--gm-border-strong)] bg-[var(--gm-wash-strong)]" : "border-transparent hover:border-[var(--gm-border)] hover:bg-[var(--gm-wash)]",
                                 )}
                             >
                                 {renaming?.id === item.id ? (
                                     <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2">
-                                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#eef1f6] text-[#667085] dark:bg-[#282f3d] dark:text-[#b1b8c5]">
+                                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]">
                                             <MessagesSquare className="size-4" />
                                         </span>
                                         <Input
@@ -134,7 +134,7 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                         />
                                         <button
                                             type="button"
-                                            className="grid size-8 shrink-0 place-items-center rounded-md text-[#566074] transition hover:bg-[#e9ebf1] hover:text-[#1b212f] dark:text-[#b9bfcd] dark:hover:bg-[#2f3645] dark:hover:text-white"
+                                            className="grid size-8 shrink-0 place-items-center rounded-md text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash-heavy)] hover:text-[var(--gm-text)]"
                                             aria-label="保存标题"
                                             title="保存标题"
                                             onClick={() => void saveTitle()}
@@ -143,7 +143,7 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                         </button>
                                         <button
                                             type="button"
-                                            className="grid size-8 shrink-0 place-items-center rounded-md text-[#8993a9] transition hover:bg-[#e9ebf1] hover:text-[#1b212f] dark:text-[#8e98ae] dark:hover:bg-[#2f3645] dark:hover:text-white"
+                                            className="grid size-8 shrink-0 place-items-center rounded-md text-[var(--gm-text-3)] transition hover:bg-[var(--gm-wash-heavy)] hover:text-[var(--gm-text)]"
                                             aria-label="取消修改"
                                             title="取消修改"
                                             onClick={() => setRenaming(undefined)}
@@ -161,12 +161,12 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                             className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2 text-left"
                                             onClick={() => (managing ? setSelectedIds((current) => (checked ? current.filter((id) => id !== item.id) : [...current, item.id])) : onOpen(item.id))}
                                         >
-                                            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#eef1f6] text-[#667085] dark:bg-[#282f3d] dark:text-[#b1b8c5]">
+                                            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]">
                                                 <MessagesSquare className="size-4" />
                                             </span>
                                             <span className="min-w-0 flex-1">
-                                                <span className="block truncate text-sm font-medium text-stone-800 dark:text-stone-100">{item.title}</span>
-                                                <span className="mt-0.5 flex items-center gap-1 text-[11px] text-stone-400 dark:text-stone-500">
+                                                <span className="block truncate text-sm font-medium text-[var(--gm-text)]">{item.title}</span>
+                                                <span className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--gm-text-3)]">
                                                     <Clock3 className="size-3" /> {formatConversationTime(item.lastMessageAt)}
                                                 </span>
                                             </span>
@@ -188,7 +188,7 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                                             >
                                                 <button
                                                     type="button"
-                                                    className="grid size-8 shrink-0 place-items-center rounded-md text-stone-400 opacity-100 transition hover:bg-white hover:text-stone-950 sm:opacity-0 sm:group-hover:opacity-100 dark:text-stone-500 dark:hover:bg-stone-700 dark:hover:text-white"
+                                                    className="grid size-8 shrink-0 place-items-center rounded-md text-[var(--gm-text-3)] opacity-100 transition hover:bg-[var(--gm-wash-heavy)] hover:text-[var(--gm-text)] sm:opacity-0 sm:group-hover:opacity-100"
                                                     aria-label={`管理${item.title}`}
                                                     title="管理对话"
                                                 >
@@ -210,8 +210,8 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
             </div>
 
             {managing ? (
-                <div className="flex shrink-0 items-center gap-3 border-t border-[#e7eaef] bg-white px-4 py-3 dark:border-[#282f3e] dark:bg-[#111724]">
-                    <span className="min-w-0 flex-1 text-xs text-[#8993a9] dark:text-[#7e889d]">已选择 {selectedIds.length} 条</span>
+                <div className="flex shrink-0 items-center gap-3 border-t border-[var(--gm-border)] bg-[var(--gm-bg)] px-4 py-3">
+                    <span className="min-w-0 flex-1 text-xs text-[var(--gm-text-3)]">已选择 {selectedIds.length} 条</span>
                     <Button danger icon={<Trash2 className="size-3.5" />} disabled={!selectedIds.length} loading={submitting} onClick={() => setDeleteIds(selectedIds)}>
                         批量删除
                     </Button>
@@ -232,7 +232,7 @@ export function CreativeConversationList({ items, activeId, loading, onNew, onOp
                 }
                 onCancel={() => setDeleteIds([])}
             >
-                <p className="text-sm text-[#687287] dark:text-[#a8aebb]">将永久删除消息、生成记录和仅由这些对话使用的媒体；仍被素材库、画布、短剧或作品引用的媒体会保留。</p>
+                <p className="text-sm text-[var(--gm-text-2)]">将永久删除消息、生成记录和仅由这些对话使用的媒体；仍被素材库、画布、短剧或作品引用的媒体会保留。</p>
             </Modal>
         </div>
     );

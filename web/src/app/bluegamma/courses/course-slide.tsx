@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
  * 版式按页面类型（封面 / 目标 / 流程定位 / 要点 / 示范提示词 / 练习 / 小结）区分。
  */
 
+// 课件底色 / 墨色（#060a18、#f6f8fc、#0b1020）与示范代码色保留：课件按 dark 参数固定深或浅版式，
+// 和放映 / 导出一致，不随站点主题切换；只把主题无关的品牌色换成 --gm-blue / --gm-cyan。
 function Frame({ children, className, dark = false }: { children: ReactNode; className?: string; dark?: boolean }) {
     return <div className={cn("@container relative aspect-video w-full overflow-hidden select-none", dark ? "bg-[#060a18] text-white" : "bg-[#f6f8fc] text-[#0b1020]", className)}>{children}</div>;
 }
@@ -33,7 +35,7 @@ function Footer({ course, lesson, page, total, dark = false }: { course: Course;
 function Heading({ eyebrow, title }: { eyebrow: string; title: string }) {
     return (
         <div className="flex flex-col gap-[0.8cqw]">
-            <span className="font-mono text-[1.3cqw] tracking-[0.2em] text-[#0050f5] uppercase">{eyebrow}</span>
+            <span className="font-mono text-[1.3cqw] tracking-[0.2em] text-[var(--gm-blue)] uppercase">{eyebrow}</span>
             <h2 className="text-[3.6cqw] leading-tight font-bold">{title}</h2>
         </div>
     );
@@ -44,7 +46,7 @@ function Bullets({ items, icon = "dot" }: { items: readonly string[]; icon?: "do
         <ul className="flex flex-col gap-[1.6cqw]">
             {items.map((item, index) => (
                 <li key={item} className="flex items-start gap-[1.4cqw] text-[2cqw] leading-snug">
-                    <span className="mt-[0.3cqw] grid size-[2.6cqw] shrink-0 place-items-center rounded-full bg-[#0050f5] text-[1.3cqw] font-bold text-white">
+                    <span className="mt-[0.3cqw] grid size-[2.6cqw] shrink-0 place-items-center rounded-full bg-[var(--gm-blue)] text-[1.3cqw] font-bold text-white">
                         {icon === "check" ? <Check className="size-[1.6cqw]" /> : icon === "num" ? index + 1 : <span className="size-[0.8cqw] rounded-full bg-white" />}
                     </span>
                     {item}
@@ -66,7 +68,7 @@ export function CourseSlide({ course, lesson, slide, page, className }: { course
                 </span>
                 <div className="absolute inset-0 bg-[radial-gradient(70%_90%_at_0%_100%,rgba(0,80,245,0.55),transparent_60%)]" />
                 <div className="absolute inset-y-0 left-[6cqw] flex w-[52%] flex-col justify-center gap-[1.6cqw]">
-                    <span className="font-mono text-[1.4cqw] tracking-[0.24em] text-[#28ebfa]">LESSON {String(lesson.index + 1).padStart(2, "0")}</span>
+                    <span className="font-mono text-[1.4cqw] tracking-[0.24em] text-[var(--gm-cyan)]">LESSON {String(lesson.index + 1).padStart(2, "0")}</span>
                     <h1 className="text-[6cqw] leading-[1.05] font-bold">{lesson.title}</h1>
                     <p className="text-[1.9cqw] text-white/70">{course.title}</p>
                     <div className="mt-[1cqw] flex gap-[1cqw] text-[1.4cqw]">
@@ -95,12 +97,12 @@ export function CourseSlide({ course, lesson, slide, page, className }: { course
                                     <span
                                         className={cn(
                                             "grid size-[5cqw] place-items-center rounded-full text-[1.8cqw] font-bold",
-                                            current ? "bg-[#0050f5] text-white shadow-[0_0_0_1cqw_rgba(0,80,245,0.15)]" : done ? "bg-[#0b1020] text-white" : "bg-white text-[#0b1020]/40 ring-1 ring-[#0b1020]/10",
+                                            current ? "bg-[var(--gm-blue)] text-white shadow-[0_0_0_1cqw_rgba(0,80,245,0.15)]" : done ? "bg-[#0b1020] text-white" : "bg-white text-[#0b1020]/40 ring-1 ring-[#0b1020]/10",
                                         )}
                                     >
                                         {done ? <Check className="size-[2.2cqw]" /> : index + 1}
                                     </span>
-                                    <span className={cn("w-[10cqw] text-center text-[1.4cqw]", current ? "font-bold text-[#0050f5]" : "text-[#0b1020]/60")}>{item.title}</span>
+                                    <span className={cn("w-[10cqw] text-center text-[1.4cqw]", current ? "font-bold text-[var(--gm-blue)]" : "text-[#0b1020]/60")}>{item.title}</span>
                                 </span>
                                 {index < course.lessons.length - 1 ? <span className={cn("mx-[0.6cqw] mb-[3.6cqw] h-[0.3cqw] flex-1 rounded-full", done ? "bg-[#0b1020]" : "bg-[#0b1020]/10")} /> : null}
                             </li>
@@ -130,7 +132,7 @@ export function CourseSlide({ course, lesson, slide, page, className }: { course
                 <div className="absolute inset-x-[6cqw] bottom-[8cqw] flex flex-wrap gap-[1cqw] text-[1.4cqw]">
                     <span className="text-white/50">可选模板：</span>
                     {slide.bullets?.map((item) => (
-                        <span key={item} className="rounded-full bg-[#0050f5]/40 px-[1.2cqw] py-[0.3cqw]">
+                        <span key={item} className="rounded-full bg-[var(--gm-blue)]/40 px-[1.2cqw] py-[0.3cqw]">
                             {item}
                         </span>
                     ))}
@@ -147,7 +149,7 @@ export function CourseSlide({ course, lesson, slide, page, className }: { course
             <div aria-hidden className="absolute -top-[10cqw] -right-[10cqw] size-[36cqw] rounded-full bg-[radial-gradient(circle,rgba(40,235,250,0.25),transparent_65%)]" />
             <div className="absolute inset-x-[6cqw] top-[6cqw] flex items-start justify-between">
                 <Heading eyebrow={eyebrow} title={slide.title} />
-                <span className="grid size-[6cqw] place-items-center rounded-[1.6cqw] bg-white text-[#0050f5] shadow-[0_1cqw_3cqw_rgba(0,30,90,0.08)]">
+                <span className="grid size-[6cqw] place-items-center rounded-[1.6cqw] bg-white text-[var(--gm-blue)] shadow-[0_1cqw_3cqw_rgba(0,30,90,0.08)]">
                     <Icon className="size-[3cqw]" />
                 </span>
             </div>

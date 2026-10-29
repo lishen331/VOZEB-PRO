@@ -29,7 +29,7 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
             />
             <div className="grid gap-5 p-4 lg:grid-cols-[minmax(0,1fr)_360px] sm:p-5">
                 <div className="space-y-5">
-                    <div className="space-y-5 rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+                    <div className="space-y-5 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
                         <SectionTitle icon={<Globe2 className="size-4" />} title="基础信息" />
                         <div className="grid gap-4 md:grid-cols-2">
                             <LabeledControl label="网站标题">
@@ -52,11 +52,11 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                                 </div>
                             </LabeledControl>
                         </div>
-                        <div className="rounded-md border border-dashed border-stone-300 bg-white p-3 text-xs leading-5 text-stone-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-400">
+                        <div className="rounded-md border border-dashed border-[var(--gm-border-strong)] bg-[var(--gm-surface)] p-3 text-xs leading-5 text-[var(--gm-text-3)]">
                             Logo 用于站点品牌展示，浏览器图标用于 favicon、Apple 图标和 PWA；两者支持站内路径、远程 URL、data:image 或本地上传，最大 300KB。
                         </div>
 
-                        <div className="border-t border-stone-200 pt-5 dark:border-stone-800">
+                        <div className="border-t border-[var(--gm-border)] pt-5">
                             <SectionTitle icon={<Sparkles className="size-4" />} title="登录页" />
                             <div className="mt-4 grid gap-4 md:grid-cols-2">
                                 <LabeledControl label="宣传语">
@@ -83,15 +83,15 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                                         ["jointBrandUrl", "联合品牌图", "image/png,image/jpeg,image/webp"],
                                     ] as const
                                 ).map(([key, label, accept]) => (
-                                    <div key={key} className="rounded-md border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950/60">
-                                        <div className="mb-2 text-sm font-semibold text-stone-950 dark:text-stone-100">{label}</div>
+                                    <div key={key} className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
+                                        <div className="mb-2 text-sm font-semibold text-[var(--gm-text)]">{label}</div>
                                         {key === "heroVideoUrl" ? (
                                             <video className="mb-3 aspect-[4/5] w-full rounded object-cover" src={settings.site.loginPage[key]} poster={settings.site.loginPage.heroPosterUrl} muted controls preload="metadata" />
                                         ) : (
                                             <img className="mb-3 aspect-[4/2] w-full rounded object-contain" src={settings.site.loginPage[key]} alt={label} />
                                         )}
                                         <Input value={settings.site.loginPage[key]} maxLength={2000} onChange={(event) => updateSiteSetting("loginPage", { ...settings.site.loginPage, [key]: event.target.value })} />
-                                        <label className="mt-2 inline-flex cursor-pointer items-center rounded-md border border-stone-200 px-3 py-1.5 text-xs font-medium dark:border-stone-700">
+                                        <label className="mt-2 inline-flex cursor-pointer items-center rounded-md border border-[var(--gm-border)] px-3 py-1.5 text-xs font-medium">
                                             上传
                                             <input
                                                 className="hidden"
@@ -108,7 +108,7 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                             </div>
                         </div>
 
-                        <div className="border-t border-stone-200 pt-5 dark:border-stone-800">
+                        <div className="border-t border-[var(--gm-border)] pt-5">
                             <SectionTitle icon={<Search className="size-4" />} title="SEO 信息" />
                             <div className="mt-4 space-y-4">
                                 <LabeledControl label="SEO 标题">
@@ -129,10 +129,10 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                         </div>
                     </div>
 
-                    <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+                    <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <SectionTitle icon={<Globe2 className="size-4" />} title="首页收尾与社交媒体" />
-                            <span className="text-xs font-medium text-stone-500 dark:text-stone-400">独立控制首页尾页展示</span>
+                            <span className="text-xs font-medium text-[var(--gm-text-3)]">独立控制首页尾页展示</span>
                         </div>
                         <div className="mt-5 space-y-4">
                             <LabeledControl label="版权所有">
@@ -165,10 +165,10 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                                 {siteSocialItems.map((item) => {
                                     const social = settings.site.socials[item.key];
                                     return (
-                                        <div key={item.key} className="rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950/60">
+                                        <div key={item.key} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                                             <div className="mb-3 flex items-center justify-between gap-3">
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
-                                                    <span className="flex size-7 items-center justify-center rounded-md bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200/70 dark:bg-cyan-950/40 dark:text-cyan-200 dark:ring-cyan-900/60">{item.icon}</span>
+                                                <div className="flex items-center gap-2 text-sm font-semibold text-[var(--gm-text)]">
+                                                    <span className="flex size-7 items-center justify-center rounded-md bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[color-mix(in_srgb,var(--gm-accent)_40%,transparent)]">{item.icon}</span>
                                                     {item.label}
                                                 </div>
                                                 <Switch checked={social.enabled} checkedChildren="显示" unCheckedChildren="隐藏" onChange={(enabled) => updateSiteSocialSetting(item.key, { enabled })} />
@@ -181,11 +181,11 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                                     );
                                 })}
                             </div>
-                            <div className="border-t border-stone-200 pt-4 dark:border-stone-800">
+                            <div className="border-t border-[var(--gm-border)] pt-4">
                                 <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
-                                        <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">友情链接</div>
-                                        <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">启用后会显示在首页底部友情链接区。</div>
+                                        <div className="text-sm font-semibold text-[var(--gm-text)]">友情链接</div>
+                                        <div className="mt-1 text-xs text-[var(--gm-text-3)]">启用后会显示在首页底部友情链接区。</div>
                                     </div>
                                     <Button icon={<Plus className="size-4" />} onClick={addFriendLink}>
                                         添加链接
@@ -193,9 +193,9 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                                 </div>
                                 <div className="grid gap-3">
                                     {(settings.site.friendLinks || []).map((link) => (
-                                        <div key={link.id} className="rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950/60">
+                                        <div key={link.id} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                                             <div className="mb-3 flex items-center justify-between gap-3">
-                                                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">{link.label || "友情链接"}</div>
+                                                <div className="text-sm font-semibold text-[var(--gm-text)]">{link.label || "友情链接"}</div>
                                                 <div className="flex items-center gap-2">
                                                     <Switch checked={link.enabled} checkedChildren="显示" unCheckedChildren="隐藏" onChange={(enabled) => updateFriendLink(link.id, { enabled })} />
                                                     <Button size="small" danger icon={<Trash2 className="size-3.5" />} aria-label="删除友情链接" title="删除友情链接" onClick={() => deleteFriendLink(link.id)} />
@@ -207,7 +207,7 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                                             </div>
                                         </div>
                                     ))}
-                                    {!settings.site.friendLinks?.length ? <div className="rounded-md border border-dashed border-stone-200 px-3 py-6 text-center text-sm text-stone-500 dark:border-stone-800">暂无友情链接。</div> : null}
+                                    {!settings.site.friendLinks?.length ? <div className="rounded-md border border-dashed border-[var(--gm-border)] px-3 py-6 text-center text-sm text-[var(--gm-text-2)]">暂无友情链接。</div> : null}
                                 </div>
                             </div>
                         </div>
@@ -215,19 +215,19 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                 </div>
 
                 <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-                    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm shadow-stone-200/40 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
+                    <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 shadow-sm">
                         <SectionTitle icon={<ImageIcon className="size-4" />} title="前台预览" />
-                        <div className="mt-5 rounded-lg border border-stone-200 bg-white p-5 text-stone-950 shadow-sm shadow-stone-200/60 dark:border-white/10 dark:bg-stone-950 dark:text-white dark:shadow-black/20">
+                        <div className="mt-5 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5 text-[var(--gm-text)] shadow-sm">
                             <div className="flex items-center gap-3">
                                 <SiteLogoPreview logoUrl={settings.site.logoUrl} />
                                 <div className="min-w-0">
                                     <div className="truncate text-lg font-semibold">{settings.site.title || "网站名称"}</div>
-                                    <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">首页导航品牌</div>
+                                    <div className="mt-1 text-xs text-[var(--gm-text-3)]">首页导航品牌</div>
                                 </div>
                             </div>
-                            <div className="mt-6 border-t border-stone-200 pt-4 dark:border-white/10">
+                            <div className="mt-6 border-t border-[var(--gm-border)] pt-4">
                                 <div className="text-base font-semibold">{settings.site.seoTitle || settings.site.title}</div>
-                                <p className="mt-2 line-clamp-3 text-sm leading-6 text-stone-500 dark:text-stone-400">{settings.site.seoDescription}</p>
+                                <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--gm-text-2)]">{settings.site.seoDescription}</p>
                             </div>
                         </div>
                     </div>
@@ -269,7 +269,7 @@ export function AdminSettingsSection({ controller }: { controller: AdminDashboar
                 description={description}
                 actions={
                     <div className="flex items-center justify-end gap-1.5 sm:w-auto sm:flex-row sm:gap-2">
-                        <div className="hidden flex-wrap gap-2 text-xs text-stone-500 sm:flex dark:text-stone-400">{access.system ? <Tag className="m-0">注册关闭</Tag> : <Tag className="m-0">生成控制</Tag>}</div>
+                        <div className="hidden flex-wrap gap-2 text-xs text-[var(--gm-text-3)] sm:flex">{access.system ? <Tag className="m-0">注册关闭</Tag> : <Tag className="m-0">生成控制</Tag>}</div>
                         <Button
                             type="primary"
                             aria-label="保存系统设置"
@@ -300,8 +300,8 @@ export function AdminSettingsSection({ controller }: { controller: AdminDashboar
 
                 <div className="grid gap-4 2xl:grid-cols-[248px_minmax(0,1fr)]">
                     <aside className="2xl:sticky 2xl:top-4 2xl:self-start">
-                        <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                            <div className="px-2 pb-2 text-xs font-semibold text-stone-500 dark:text-stone-400">设置顺序</div>
+                        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
+                            <div className="px-2 pb-2 text-xs font-semibold text-[var(--gm-text-3)]">设置顺序</div>
                             <nav className={navigationClass} aria-label="系统设置分组">
                                 {access.system ? <SettingsAnchorItem href="#admin-settings-account" icon={<UserCog className="size-4" />} title="账号与邮箱" detail="注册、SMTP、测试邮件" /> : null}
                                 {access.upstream ? <SettingsAnchorItem href="#admin-settings-generation" icon={<SlidersHorizontal className="size-4" />} title="生成控制" detail="默认值、并发上限" /> : null}
@@ -312,18 +312,18 @@ export function AdminSettingsSection({ controller }: { controller: AdminDashboar
 
                     <div className="min-w-0 space-y-4">
                         {access.system ? (
-                            <section id="admin-settings-account" className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                            <section id="admin-settings-account" className="scroll-mt-6 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4">
                                 <div className="grid gap-5 xl:grid-cols-[minmax(240px,0.72fr)_minmax(0,1.28fr)]">
                                     <div className="min-w-0 space-y-4">
                                         <SectionTitle icon={<UserCog className="size-4" />} title="账号策略" />
                                         <div className="grid gap-3">
-                                            <div className="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm leading-6 text-stone-600 dark:border-stone-800 dark:bg-stone-900/50 dark:text-stone-300">
+                                            <div className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 text-sm leading-6 text-[var(--gm-text-2)]">
                                                 公开注册已关闭。新账号请由管理员在“用户运营”中创建。
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="min-w-0 border-t border-stone-200 pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0 dark:border-stone-800">
+                                    <div className="min-w-0 border-t border-[var(--gm-border)] pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <SectionTitle icon={<Mail className="size-4" />} title="邮箱服务" />
                                             <Button className="w-full sm:w-auto" loading={mailTestLoading} icon={<Send className="size-4" />} onClick={() => void testMailSettings()}>
@@ -364,7 +364,7 @@ export function AdminSettingsSection({ controller }: { controller: AdminDashboar
                                             <LabeledControl label="测试收件邮箱">
                                                 <Input value={mailTestTo} placeholder="留空则发送到发件邮箱" onChange={(event) => setMailTestTo(event.target.value)} />
                                             </LabeledControl>
-                                            <div className="rounded-lg border border-cyan-200/70 bg-cyan-50/80 px-3 py-2 text-xs leading-5 text-cyan-900 dark:border-cyan-900/50 dark:bg-cyan-950/30 dark:text-cyan-100">
+                                            <div className="rounded-lg border border-[color-mix(in_srgb,var(--gm-accent)_40%,transparent)] bg-[var(--gm-accent-soft)] px-3 py-2 text-xs leading-5 text-[var(--gm-accent)]">
                                                 QQ、网易、企业邮箱都可填写对应 SMTP；QQ 默认 `smtp.qq.com:465 SSL`，密码通常使用邮箱授权码。
                                             </div>
                                         </div>

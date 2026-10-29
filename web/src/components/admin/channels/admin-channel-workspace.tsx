@@ -68,16 +68,16 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
             render: (_, channel) => (
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className="max-w-[240px] truncate font-medium text-stone-950 dark:text-stone-100">{channel.name || "未命名渠道"}</span>
+                        <span className="max-w-[240px] truncate font-medium text-[var(--gm-text)]">{channel.name || "未命名渠道"}</span>
                         <ChannelStatusTag channel={channel} />
                     </div>
-                    <div className="mt-1 max-w-[320px] truncate text-xs text-stone-500 dark:text-stone-400">{channel.baseUrl || "未配置 Base URL"}</div>
+                    <div className="mt-1 max-w-[320px] truncate text-xs text-[var(--gm-text-3)]">{channel.baseUrl || "未配置 Base URL"}</div>
                 </div>
             ),
         },
         { title: "协议", key: "protocol", width: 190, render: (_, channel) => <span className="text-sm">{channelProtocolLabel(channel)}</span> },
         { title: "模型/工作流", key: "models", width: 100, align: "center", render: (_, channel) => (channel.advancedConfig?.protocol === "runninghub" ? Object.keys(channel.advancedConfig.workflowConfigs || {}).length : channel.models.length) },
-        { title: "能力", key: "capabilities", width: 170, render: (_, channel) => <span className="text-xs text-stone-600 dark:text-stone-300">{channelCapabilityLabels(channel).join("、") || "待识别"}</span> },
+        { title: "能力", key: "capabilities", width: 170, render: (_, channel) => <span className="text-xs text-[var(--gm-text-2)]">{channelCapabilityLabels(channel).join("、") || "待识别"}</span> },
         { title: "绑定", key: "bindings", width: 80, align: "center", render: (_, channel) => channelBindingCount(channel.id, settings) },
         {
             title: "启用",
@@ -205,11 +205,11 @@ function ChannelMetrics({ enabled, total, synchronized, protocols, readyDefaults
         { label: "默认能力", value: `${readyDefaults}/4` },
     ];
     return (
-        <div className="grid grid-cols-2 border-b border-stone-200 sm:grid-cols-4 dark:border-stone-800">
+        <div className="grid grid-cols-2 border-b border-[var(--gm-border)] sm:grid-cols-4">
             {metrics.map((metric, index) => (
-                <div key={metric.label} className={`px-2 py-3 sm:px-4 ${index % 2 ? "border-l" : ""} ${index > 1 ? "border-t sm:border-t-0" : ""} sm:border-l dark:border-stone-800`}>
-                    <div className="text-xs text-stone-500 dark:text-stone-400">{metric.label}</div>
-                    <div className="mt-1 text-lg font-semibold text-stone-950 dark:text-stone-100">{metric.value}</div>
+                <div key={metric.label} className={`px-2 py-3 sm:px-4 ${index % 2 ? "border-l" : ""} ${index > 1 ? "border-t sm:border-t-0" : ""} border-[var(--gm-border)] sm:border-l`}>
+                    <div className="text-xs text-[var(--gm-text-3)]">{metric.label}</div>
+                    <div className="mt-1 text-lg font-semibold text-[var(--gm-text)]">{metric.value}</div>
                 </div>
             ))}
         </div>
@@ -252,7 +252,7 @@ function ChannelList({
     return (
         <div>
             <div className="mb-3 flex min-w-0 flex-col gap-2 md:flex-row">
-                <Input allowClear className="min-w-0 flex-1" prefix={<Search className="size-4 text-stone-400" />} value={query} placeholder="搜索渠道、地址、协议或模型" onChange={(event) => onQuery(event.target.value)} />
+                <Input allowClear className="min-w-0 flex-1" prefix={<Search className="size-4 text-[var(--gm-text-3)]" />} value={query} placeholder="搜索渠道、地址、协议或模型" onChange={(event) => onQuery(event.target.value)} />
                 <div className="grid grid-cols-2 gap-2 md:flex md:shrink-0">
                     <div className="min-w-0 md:w-32">
                         <Select
@@ -285,23 +285,23 @@ function ChannelList({
             </div>
             <div className="space-y-2 md:hidden">
                 {channels.map((channel) => (
-                    <div key={channel.id} className="min-w-0 overflow-hidden rounded-md border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950">
+                    <div key={channel.id} className="min-w-0 overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                         <div className="flex min-w-0 items-start justify-between gap-2">
                             <div className="min-w-0">
                                 <div className="flex min-w-0 items-center gap-2">
-                                    <span className="truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{channel.name || "未命名渠道"}</span>
+                                    <span className="truncate text-sm font-semibold text-[var(--gm-text)]">{channel.name || "未命名渠道"}</span>
                                     <ChannelStatusTag channel={channel} />
                                 </div>
-                                <div className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">{channelProtocolLabel(channel)}</div>
+                                <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">{channelProtocolLabel(channel)}</div>
                             </div>
                             <Switch size="small" checked={channel.enabled} disabled aria-label={`${channel.name}当前启用状态`} />
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+                        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
                             <span>{channel.models.length} 个模型</span>
                             <span>{channelCapabilityLabels(channel).join("、") || "能力待识别"}</span>
                             <span>{channelBindingCount(channel.id, settings)} 个绑定</span>
                         </div>
-                        <div className="mt-3 flex items-center gap-2 border-t border-stone-100 pt-3 dark:border-stone-900">
+                        <div className="mt-3 flex items-center gap-2 border-t border-[var(--gm-border)] pt-3">
                             <Button size="small" className="min-w-0 flex-1" onClick={() => onOpen(channel.id)}>
                                 查看
                             </Button>
@@ -324,22 +324,22 @@ function ProtocolCenter({ settings, onCreate, onOpenChannel }: { settings: Chann
         <div className="space-y-6">
             <section>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">内置协议</div>
+                    <div className="text-sm font-semibold text-[var(--gm-text)]">内置协议</div>
                     <Tag>{definitions.length} 个</Tag>
                 </div>
                 <div className="grid gap-2 lg:grid-cols-2">
                     {definitions.map((definition) => {
                         const used = settings.systemChannels.filter((channel) => channel.advancedConfig?.protocol === definition.id).length;
                         return (
-                            <div key={definition.id} className="rounded-md border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950">
+                            <div key={definition.id} className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span className="text-sm font-semibold text-stone-950 dark:text-stone-100">{definition.label}</span>
+                                            <span className="text-sm font-semibold text-[var(--gm-text)]">{definition.label}</span>
                                             <Tag className="m-0">内置</Tag>
-                                            {definition.strict ? <Tag className="m-0 !border-stone-300 !bg-stone-50 !text-stone-700 dark:!border-stone-700 dark:!bg-stone-900 dark:!text-stone-200">严格</Tag> : null}
+                                            {definition.strict ? <Tag className="m-0 !border-[var(--gm-border-strong)] !bg-[var(--gm-wash)] !text-[var(--gm-text-2)]">严格</Tag> : null}
                                         </div>
-                                        <div className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">{definition.description}</div>
+                                        <div className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">{definition.description}</div>
                                     </div>
                                     <Button size="small" onClick={() => onCreate(definition.id)}>
                                         接入
@@ -349,7 +349,7 @@ function ProtocolCenter({ settings, onCreate, onOpenChannel }: { settings: Chann
                                     {definition.capabilities.map((capability) => (
                                         <Tag key={capability}>{capabilityLabel(capability)}</Tag>
                                     ))}
-                                    <span className="ml-auto text-xs text-stone-500 dark:text-stone-400">{used} 个渠道使用</span>
+                                    <span className="ml-auto text-xs text-[var(--gm-text-3)]">{used} 个渠道使用</span>
                                 </div>
                             </div>
                         );
@@ -359,19 +359,19 @@ function ProtocolCenter({ settings, onCreate, onOpenChannel }: { settings: Chann
             <section>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                        <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">自定义协议草稿</div>
-                        <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">当前版本保存于具体渠道；完成 AdapterRevision 数据结构后再提供跨渠道发布与回滚。</div>
+                        <div className="text-sm font-semibold text-[var(--gm-text)]">自定义协议草稿</div>
+                        <div className="mt-1 text-xs text-[var(--gm-text-3)]">当前版本保存于具体渠道；完成 AdapterRevision 数据结构后再提供跨渠道发布与回滚。</div>
                     </div>
                     <Button icon={<Plus className="size-4" />} onClick={() => onCreate("custom")}>
                         创建自定义协议
                     </Button>
                 </div>
-                <div className="divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+                <div className="divide-y divide-[var(--gm-border)] border-y border-[var(--gm-border)]">
                     {customChannels.map((channel) => (
                         <div key={channel.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-stone-950 dark:text-stone-100">{channel.name}</div>
-                                <div className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">{channel.advancedConfig?.documentationUrl || channel.baseUrl || "未填写文档和地址"}</div>
+                                <div className="truncate text-sm font-medium text-[var(--gm-text)]">{channel.name}</div>
+                                <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">{channel.advancedConfig?.documentationUrl || channel.baseUrl || "未填写文档和地址"}</div>
                             </div>
                             <Space>
                                 <Tag>{channel.enabled ? "渠道已启用" : "渠道级草稿"}</Tag>
@@ -381,7 +381,7 @@ function ProtocolCenter({ settings, onCreate, onOpenChannel }: { settings: Chann
                             </Space>
                         </div>
                     ))}
-                    {!customChannels.length ? <div className="py-8 text-center text-sm text-stone-500 dark:text-stone-400">还没有自定义协议草稿</div> : null}
+                    {!customChannels.length ? <div className="py-8 text-center text-sm text-[var(--gm-text-2)]">还没有自定义协议草稿</div> : null}
                 </div>
             </section>
         </div>

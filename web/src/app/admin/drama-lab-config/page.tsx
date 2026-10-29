@@ -102,7 +102,7 @@ export default function AdminDramaLabConfigPage({ initialTab = "ai" }: { initial
             {contextHolder}
             <div className="mb-5">
                 <h1 className="text-2xl font-semibold">创作工坊配置</h1>
-                <p className="mt-1 text-sm text-gray-500">管理创作工坊的九套系统提示词；其他配置页仅用于迁移查看，运行时统一使用平台全局配置。</p>
+                <p className="mt-1 text-sm text-[var(--gm-text-2)]">管理创作工坊的九套系统提示词；其他配置页仅用于迁移查看，运行时统一使用平台全局配置。</p>
             </div>
             <Tabs
                 activeKey={activeTab}
@@ -233,7 +233,7 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
                         <span>{value}</span>
                         {record.is_builtin ? <Tag color={record.is_customized ? "blue" : "default"}>{record.is_customized ? "已自定义" : "系统默认"}</Tag> : null}
                     </div>
-                    {record.description ? <div className="mt-1 text-xs text-gray-500">{record.description}</div> : null}
+                    {record.description ? <div className="mt-1 text-xs text-[var(--gm-text-3)]">{record.description}</div> : null}
                 </div>
             ),
         },

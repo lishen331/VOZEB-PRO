@@ -122,15 +122,15 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
                     <AdminUserIdentity displayName={record.displayName} username={record.username} avatarUrl={record.avatarUrl} />
                     <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:hidden">
                         <AdminAccountId accountId={record.accountId} />
-                        <span className="truncate text-xs text-zinc-400">{record.email || "未绑定邮箱"}</span>
+                        <span className="truncate text-xs text-[var(--gm-text-3)]">{record.email || "未绑定邮箱"}</span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1 sm:hidden">
                         <Tag color={record.status === "active" ? "green" : "red"}>{record.status === "active" ? "可用" : "已禁用"}</Tag>
-                        {record.schoolName ? <span className="self-center text-xs text-stone-500 dark:text-stone-400">{record.schoolName}</span> : null}
+                        {record.schoolName ? <span className="self-center text-xs text-[var(--gm-text-3)]">{record.schoolName}</span> : null}
                     </div>
-                    <div className="mt-2 space-y-1 text-xs text-stone-500 sm:hidden dark:text-stone-400">
+                    <div className="mt-2 space-y-1 text-xs text-[var(--gm-text-3)] sm:hidden">
                         <div>
-                            总计 <span className="font-semibold text-stone-950 dark:text-stone-100">{formatCreditAmount(record.pointsBalance)}</span> · 今日 {formatCreditAmount(record.dailyPointsBalance)} · 永久{" "}
+                            总计 <span className="font-semibold text-[var(--gm-text)]">{formatCreditAmount(record.pointsBalance)}</span> · 今日 {formatCreditAmount(record.dailyPointsBalance)} · 永久{" "}
                             {formatCreditAmount(record.permanentPointsBalance)}
                         </div>
                         <div>注册 {formatAdminLogTime(record.createdAt)}</div>
@@ -151,14 +151,14 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             dataIndex: "email",
             width: 220,
             responsive: ["sm"],
-            render: (email?: string) => <span className="block truncate text-sm text-zinc-600 dark:text-zinc-300">{email || "未绑定邮箱"}</span>,
+            render: (email?: string) => <span className="block truncate text-sm text-[var(--gm-text-2)]">{email || "未绑定邮箱"}</span>,
         },
         {
             title: "所属学校",
             dataIndex: "schoolName",
             width: 180,
             responsive: ["sm"],
-            render: (schoolName?: string) => <span className="block truncate text-sm text-zinc-600 dark:text-zinc-300">{schoolName || "---"}</span>,
+            render: (schoolName?: string) => <span className="block truncate text-sm text-[var(--gm-text-2)]">{schoolName || "---"}</span>,
         },
         {
             title: "状态",
@@ -173,8 +173,8 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             width: 170,
             responsive: ["sm"],
             render: (pointsBalance: number, record) => (
-                <div className="text-xs text-stone-500 dark:text-stone-400">
-                    <div className="font-semibold text-stone-950 dark:text-stone-100">总计 {formatCreditAmount(pointsBalance)}</div>
+                <div className="text-xs text-[var(--gm-text-3)]">
+                    <div className="font-semibold text-[var(--gm-text)]">总计 {formatCreditAmount(pointsBalance)}</div>
                     <div className="mt-1">
                         今日 {formatCreditAmount(record.dailyPointsBalance)} · 永久 {formatCreditAmount(record.permanentPointsBalance)}
                     </div>
@@ -186,13 +186,13 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             width: 210,
             responsive: ["sm"],
             render: (_, record) => (
-                <div className="space-y-1 text-xs text-stone-500 dark:text-stone-400">
+                <div className="space-y-1 text-xs text-[var(--gm-text-3)]">
                     <div>
-                        <span className="mr-2 text-stone-400 dark:text-stone-500">注册</span>
+                        <span className="mr-2 text-[var(--gm-text-3)]">注册</span>
                         {formatAdminLogTime(record.createdAt)}
                     </div>
                     <div>
-                        <span className="mr-2 text-stone-400 dark:text-stone-500">活跃</span>
+                        <span className="mr-2 text-[var(--gm-text-3)]">活跃</span>
                         {record.lastLoginAt ? formatAdminLogTime(record.lastLoginAt) : "从未登录"}
                     </div>
                 </div>
@@ -204,7 +204,7 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             render: (_, record) => {
                 const canEdit = canEditUserRecord(record);
                 const canDelete = canDeleteUserRecord(record);
-                if (!canEdit && !canDelete) return <span className="text-xs text-stone-400">只读</span>;
+                if (!canEdit && !canDelete) return <span className="text-xs text-[var(--gm-text-3)]">只读</span>;
                 return (
                     <Space size={6}>
                         {canEdit ? (
@@ -230,13 +230,13 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             render: (_, record) => (
                 <div className="flex min-w-0 gap-3">
                     {record.coverUrl ? (
-                        <img src={imagePreviewUrl(record.coverUrl, 480)} alt={record.title} className="h-14 w-20 shrink-0 rounded-md border border-stone-200 object-cover dark:border-stone-800" loading="lazy" referrerPolicy="no-referrer" />
+                        <img src={imagePreviewUrl(record.coverUrl, 480)} alt={record.title} className="h-14 w-20 shrink-0 rounded-md border border-[var(--gm-border)] object-cover" loading="lazy" referrerPolicy="no-referrer" />
                     ) : (
-                        <div className="h-14 w-20 shrink-0 rounded-md border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
+                        <div className="h-14 w-20 shrink-0 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash-strong)]" />
                     )}
                     <div className="min-w-0">
-                        <div className="font-medium text-stone-950 dark:text-stone-100">{record.title}</div>
-                        <div className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500 dark:text-stone-400">{record.prompt}</div>
+                        <div className="font-medium text-[var(--gm-text)]">{record.title}</div>
+                        <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{record.prompt}</div>
                         <div className="mt-2 flex flex-wrap gap-1">
                             {record.tags.map((tag) => (
                                 <Tag key={tag} className="m-0 text-[11px]">
@@ -264,7 +264,7 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             title: "时间",
             dataIndex: "createdAt",
             width: 170,
-            render: (value) => <span className="text-sm text-stone-700 dark:text-stone-200">{formatAdminLogTime(String(value))}</span>,
+            render: (value) => <span className="text-sm text-[var(--gm-text-2)]">{formatAdminLogTime(String(value))}</span>,
         },
         {
             title: "类型",
@@ -285,19 +285,19 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             title: "入口",
             dataIndex: "source",
             width: 120,
-            render: (value) => <span className="text-sm text-stone-600 dark:text-stone-300">{generationSourceLabel(String(value))}</span>,
+            render: (value) => <span className="text-sm text-[var(--gm-text-2)]">{generationSourceLabel(String(value))}</span>,
         },
         {
             title: "模型",
             dataIndex: "model",
             width: 160,
-            render: (value) => <span className="line-clamp-1 text-sm text-stone-600 dark:text-stone-300">{formatGenerationLogModel(String(value || ""))}</span>,
+            render: (value) => <span className="line-clamp-1 text-sm text-[var(--gm-text-2)]">{formatGenerationLogModel(String(value || ""))}</span>,
         },
         {
             title: "耗时",
             dataIndex: "durationMs",
             width: 90,
-            render: (value) => <span className="text-sm tabular-nums text-stone-700 dark:text-stone-200">{formatAdminLogDuration(Number(value) || 0)}</span>,
+            render: (value) => <span className="text-sm tabular-nums text-[var(--gm-text-2)]">{formatAdminLogDuration(Number(value) || 0)}</span>,
         },
         {
             title: "状态",
@@ -316,8 +316,8 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             width: 360,
             render: (_, record) => (
                 <div className="admin-generation-log-prompt-cell min-w-0">
-                    <div className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">{record.title}</div>
-                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500 dark:text-stone-400">{record.prompt || record.summary}</div>
+                    <div className="truncate text-sm font-medium text-[var(--gm-text)]">{record.title}</div>
+                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{record.prompt || record.summary}</div>
                 </div>
             ),
         },
@@ -347,12 +347,12 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             render: (_, code) => (
                 <div className="min-w-0 space-y-2">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="min-w-0 max-w-full truncate font-mono text-sm font-semibold text-stone-950 dark:text-stone-100">{code.code || "CDK"}</span>
+                        <span className="min-w-0 max-w-full truncate font-mono text-sm font-semibold text-[var(--gm-text)]">{code.code || "CDK"}</span>
                         <Tag className="m-0" color={cdkStatusTone(code)}>
                             {cdkStatusLabel(code)}
                         </Tag>
                     </div>
-                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
                         <Button className="h-6 px-1.5 text-xs" size="small" type="text" icon={<Copy className="size-3.5" />} onClick={() => void copyCdkPlainCode(code)}>
                             复制
                         </Button>
@@ -365,9 +365,9 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             title: "兑换规则",
             width: 190,
             render: (_, code) => (
-                <div className="text-sm leading-6 text-stone-700 dark:text-stone-200">
+                <div className="text-sm leading-6 text-[var(--gm-text-2)]">
                     <div>{formatCreditAmount(code.points)} 积分</div>
-                    <div className="text-xs text-stone-500 dark:text-stone-400">
+                    <div className="text-xs text-[var(--gm-text-3)]">
                         已兑 {code.redeemedCount}/{code.maxRedemptions}
                     </div>
                 </div>
@@ -378,15 +378,15 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             width: 260,
             render: (_, code) => {
                 const latest = [...code.redemptions].sort((a, b) => Date.parse(b.redeemedAt) - Date.parse(a.redeemedAt))[0];
-                if (!latest) return <span className="text-sm text-stone-500 dark:text-stone-400">暂无兑换</span>;
+                if (!latest) return <span className="text-sm text-[var(--gm-text-2)]">暂无兑换</span>;
                 return (
-                    <div className="min-w-0 text-sm leading-6 text-stone-700 dark:text-stone-200">
+                    <div className="min-w-0 text-sm leading-6 text-[var(--gm-text-2)]">
                         <div className="truncate font-medium">
                             {latest.displayName}
-                            <span className="ml-1 font-normal text-stone-500 dark:text-stone-400">@{latest.username}</span>
+                            <span className="ml-1 font-normal text-[var(--gm-text-2)]">@{latest.username}</span>
                         </div>
                         <AdminAccountId accountId={latest.accountId} />
-                        <div className="text-xs text-stone-500 dark:text-stone-400">{new Date(latest.redeemedAt).toLocaleString("zh-CN")}</div>
+                        <div className="text-xs text-[var(--gm-text-3)]">{new Date(latest.redeemedAt).toLocaleString("zh-CN")}</div>
                     </div>
                 );
             },
@@ -395,16 +395,16 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             title: "有效期",
             width: 190,
             render: (_, code) => (
-                <div className="text-sm text-stone-700 dark:text-stone-200">
+                <div className="text-sm text-[var(--gm-text-2)]">
                     {code.expiresAt ? (
                         <>
                             <div>{new Date(code.expiresAt).toLocaleString("zh-CN")}</div>
-                            <div className="text-xs text-stone-500 dark:text-stone-400">创建 {new Date(code.createdAt).toLocaleDateString("zh-CN")}</div>
+                            <div className="text-xs text-[var(--gm-text-3)]">创建 {new Date(code.createdAt).toLocaleDateString("zh-CN")}</div>
                         </>
                     ) : (
                         <>
                             <div>长期有效</div>
-                            <div className="text-xs text-stone-500 dark:text-stone-400">创建 {new Date(code.createdAt).toLocaleDateString("zh-CN")}</div>
+                            <div className="text-xs text-[var(--gm-text-3)]">创建 {new Date(code.createdAt).toLocaleDateString("zh-CN")}</div>
                         </>
                     )}
                 </div>

@@ -36,8 +36,8 @@ function FlowEdges({ flow, state }: { flow: MajorFlow; state: FlowState }) {
         <svg aria-hidden className="pointer-events-none absolute inset-0 overflow-visible" width={canvasWidth(flow)} height={CANVAS_H}>
             <defs>
                 <linearGradient id="flow-edge" x1="0" x2="1">
-                    <stop offset="0%" stopColor="#0050f5" />
-                    <stop offset="100%" stopColor="#28ebfa" />
+                    <stop offset="0%" style={{ stopColor: "var(--gm-blue)" }} />
+                    <stop offset="100%" style={{ stopColor: "var(--gm-cyan)" }} />
                 </linearGradient>
             </defs>
             {flow.steps.flatMap((step, toIndex) =>

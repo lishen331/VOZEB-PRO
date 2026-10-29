@@ -61,16 +61,16 @@ export function CreativeGenerationControls({
                     <div className="hide-scrollbar max-h-[calc(100vh-96px)] w-[calc(100vw-40px)] max-w-[360px] overflow-y-auto py-1">
                         <div className="flex items-center justify-between gap-3 px-1 pb-3">
                             <div className="min-w-0">
-                                <p className="text-sm font-semibold text-[#1b212f] dark:text-[#f2f5fa]">选择模型</p>
-                                <p className="mt-0.5 truncate text-[11px] text-[#8993a9] dark:text-[#7e889d]">{selectedModels.length ? `已选择 ${selectedModels.length} 个，最多 6 个` : smartPlanning ? "默认由智能规划自动匹配" : "请选择至少一个模型"}</p>
+                                <p className="text-sm font-semibold text-[var(--gm-text)]">选择模型</p>
+                                <p className="mt-0.5 truncate text-[11px] text-[var(--gm-text-3)]">{selectedModels.length ? `已选择 ${selectedModels.length} 个，最多 6 个` : smartPlanning ? "默认由智能规划自动匹配" : "请选择至少一个模型"}</p>
                             </div>
-                            <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-[#445a81] dark:text-[#86bcc3]">
+                            <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-[var(--gm-accent)]">
                                 <span>{smartPlanning ? "智能" : "手动"}</span>
                                 <Switch size="small" checked={smartPlanning} aria-label={smartPlanning ? "关闭自动智能规划" : "开启自动智能规划"} onChange={() => onToggleSmartPlanning()} />
                             </span>
                         </div>
                         {modelCapabilities.length > 1 ? (
-                            <div className={cn("mb-2 grid gap-1 rounded-xl bg-[#eef1f6] p-1 dark:bg-[#212836]", modelCapabilities.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+                            <div className={cn("mb-2 grid gap-1 rounded-xl bg-[var(--gm-wash-strong)] p-1", modelCapabilities.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
                                 {modelCapabilities.map((capability) => {
                                     const count = models.filter((model) => model.capability === capability).length;
                                     return (
@@ -79,7 +79,7 @@ export function CreativeGenerationControls({
                                             type="button"
                                             className={cn(
                                                 "h-8 rounded-lg text-xs font-medium transition",
-                                                activeCapability === capability ? "bg-white text-[#1b212f] shadow-sm dark:bg-[#333a49] dark:text-white" : "text-[#7a8499] hover:text-[#1b212f] dark:text-[#8e98ae] dark:hover:text-white",
+                                                activeCapability === capability ? "bg-[var(--gm-surface)] text-[var(--gm-text)] shadow-sm" : "text-[var(--gm-text-3)] hover:text-[var(--gm-text)]",
                                             )}
                                             onClick={() => setPreferredCapability(capability)}
                                             aria-pressed={activeCapability === capability}
@@ -91,7 +91,7 @@ export function CreativeGenerationControls({
                             </div>
                         ) : null}
                         <div className="hide-scrollbar max-h-64 space-y-1 overflow-y-auto overscroll-contain">
-                            {!models.some((model) => model.capability === activeCapability) ? <p className="px-2 py-5 text-center text-xs text-[#8993a9] dark:text-[#7e889d]">当前未配置可用的{mediaCapabilityLabel(activeCapability)}模型</p> : null}
+                            {!models.some((model) => model.capability === activeCapability) ? <p className="px-2 py-5 text-center text-xs text-[var(--gm-text-3)]">当前未配置可用的{mediaCapabilityLabel(activeCapability)}模型</p> : null}
                             {models
                                 .filter((model) => model.capability === activeCapability)
                                 .map((model) => {
@@ -102,21 +102,21 @@ export function CreativeGenerationControls({
                                             type="button"
                                             className={cn(
                                                 "flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition",
-                                                selected ? "bg-[#eef1f6] text-[#1b212f] dark:bg-[#272e3c] dark:text-white" : "text-[#4c5569] hover:bg-[#f3f6fb] dark:text-[#c2c8d6] dark:hover:bg-[#202735]",
+                                                selected ? "bg-[var(--gm-wash-strong)] text-[var(--gm-text)]" : "text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)]",
                                             )}
                                             onClick={() => onToggleModel(model)}
                                         >
-                                            <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-white text-[#495265] shadow-sm dark:bg-[#333a49] dark:text-[#e7eaef]">
+                                            <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-[var(--gm-surface)] text-[var(--gm-text-2)] shadow-sm">
                                                 <ModelPlatformIcon model={model} />
                                             </span>
                                             <span className="min-w-0 flex-1">
                                                 <span className="block truncate text-xs font-medium">{model.name}</span>
-                                                <span className="mt-0.5 block text-[11px] leading-4 text-[#8993a9] dark:text-[#7e889d]">{mediaCapabilityLabel(model.capability)}模型 · 可与其他模型同时生成</span>
+                                                <span className="mt-0.5 block text-[11px] leading-4 text-[var(--gm-text-3)]">{mediaCapabilityLabel(model.capability)}模型 · 可与其他模型同时生成</span>
                                             </span>
                                             <span
                                                 className={cn(
                                                     "mt-1 grid size-4 shrink-0 place-items-center rounded border",
-                                                    selected ? "border-[#1b212f] bg-[#1b212f] text-white dark:border-white dark:bg-white dark:text-[#1b212f]" : "border-[#cbd1df] text-transparent dark:border-[#4f586c]",
+                                                    selected ? "border-[var(--gm-text)] bg-[var(--gm-text)] text-[var(--gm-surface)]" : "border-[var(--gm-border-strong)] text-transparent",
                                                 )}
                                             >
                                                 <Check className="size-3" />
@@ -128,7 +128,7 @@ export function CreativeGenerationControls({
                         {!smartPlanning && selectedModels.length ? (
                             <button
                                 type="button"
-                                className="mt-2 w-full rounded-lg px-2 py-2 text-xs font-medium text-[#6c768b] transition hover:bg-[#f2f5fa] hover:text-[#1b212f] dark:text-[#9ba1ae] dark:hover:bg-[#212836] dark:hover:text-white"
+                                className="mt-2 w-full rounded-lg px-2 py-2 text-xs font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
                                 onClick={onClearModels}
                             >
                                 清除选择并恢复智能规划

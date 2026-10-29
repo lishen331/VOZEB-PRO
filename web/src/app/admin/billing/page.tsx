@@ -50,10 +50,10 @@ export default async function AdminBillingPage({ searchParams }: AdminBillingPag
                 mfaEnabled: currentUser.mfaEnabled,
             }}
         >
-            <main className="admin-console-page app-scroll-page bg-white text-stone-950 dark:bg-stone-950 dark:text-stone-100">
-                <header className="sticky top-0 z-20 border-b border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-950">
+            <main className="admin-console-page app-scroll-page bg-[var(--gm-surface)] text-[var(--gm-text)]">
+                <header className="sticky top-0 z-20 border-b border-[var(--gm-border)] bg-[var(--gm-surface)]">
                     <div className="mx-auto flex h-16 max-w-[1440px] min-w-0 items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6">
-                        <Link href="/admin" className="flex min-w-0 items-center gap-2.5 text-base font-semibold text-stone-950 dark:text-stone-100">
+                        <Link href="/admin" className="flex min-w-0 items-center gap-2.5 text-base font-semibold text-[var(--gm-text)]">
                             <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--gm-blue)] text-white">
                                 <ArrowLeft className="size-4" />
                             </span>
@@ -64,19 +64,19 @@ export default async function AdminBillingPage({ searchParams }: AdminBillingPag
                 </header>
 
                 <div className="mx-auto max-w-[1440px] px-3 py-4 sm:px-6 sm:py-5 lg:py-6">
-                    <div className="mb-5 flex flex-col gap-4 rounded-lg border border-stone-200 bg-white px-4 py-4 shadow-sm shadow-stone-200/40 sm:px-5 md:flex-row md:items-center md:justify-between dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
+                    <div className="mb-5 flex flex-col gap-4 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-4 py-4 shadow-sm sm:px-5 md:flex-row md:items-center md:justify-between">
                         <div className="flex min-w-0 items-start gap-3">
-                            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-emerald-600 text-white dark:bg-emerald-400 dark:text-stone-950">
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] text-[var(--gm-success)]">
                                 <ReceiptText className="size-5" />
                             </span>
                             <div className="min-w-0">
-                                <h1 className="text-2xl font-semibold tracking-normal text-stone-950 dark:text-stone-100">财务钱包</h1>
-                                <p className="mt-1.5 max-w-2xl text-sm leading-6 text-stone-500 dark:text-stone-400">管理套餐商品、限时促销、优惠券、支付配置、订单收款和退款对账。</p>
+                                <h1 className="text-2xl font-semibold tracking-normal text-[var(--gm-text)]">财务钱包</h1>
+                                <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--gm-text-2)]">管理套餐商品、限时促销、优惠券、支付配置、订单收款和退款对账。</p>
                             </div>
                         </div>
                         <Link
                             href="/admin"
-                            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-stone-200 px-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50 dark:border-stone-800 dark:text-stone-200 dark:hover:bg-stone-900"
+                            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[var(--gm-border)] px-3 text-sm font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)]"
                         >
                             <ArrowLeft className="size-4" />
                             返回后台

@@ -70,16 +70,16 @@ export function AccountDeletionPanel() {
     const accepted = request?.status === "accepted";
 
     return (
-        <div className="border-t border-stone-200 pt-5 dark:border-stone-800">
+        <div className="border-t border-[var(--gm-border)] pt-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-semibold text-stone-950 dark:text-white">账号注销</h3>
+                        <h3 className="text-sm font-semibold text-[var(--gm-text)]">账号注销</h3>
                         {request ? <Tag color={statusColor(request.status)}>{statusLabel(request.status)}</Tag> : null}
                     </div>
-                    <p className="mt-1 max-w-xl text-sm leading-6 text-stone-500 dark:text-stone-400">提交后由管理员人工核验。受理只代表进入注销处理，不会立即删除订单、支付记录或仍需保留的数据。</p>
+                    <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--gm-text-2)]">提交后由管理员人工核验。受理只代表进入注销处理，不会立即删除订单、支付记录或仍需保留的数据。</p>
                     {request ? (
-                        <div className="mt-3 space-y-1 text-xs leading-5 text-stone-500 dark:text-stone-400">
+                        <div className="mt-3 space-y-1 text-xs leading-5 text-[var(--gm-text-3)]">
                             <div>申请时间：{formatTime(request.requestedAt)}</div>
                             {request.reviewNote ? <div className="break-words">处理备注：{request.reviewNote}</div> : null}
                         </div>
@@ -118,15 +118,15 @@ export function AccountDeletionPanel() {
                 }}
             >
                 <div className="space-y-4 pt-2">
-                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-6 text-red-800 dark:border-red-950 dark:bg-red-950/35 dark:text-red-200">
+                    <div className="rounded-md border border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] px-3 py-2.5 text-sm leading-6 text-[var(--gm-danger)]">
                         管理员会核对创作数据、媒体引用和订单保留要求。正式执行前可能需要进一步身份复核。
                     </div>
                     <label className="block space-y-2">
-                        <span className="text-sm font-medium text-stone-700 dark:text-stone-200">当前密码</span>
+                        <span className="text-sm font-medium text-[var(--gm-text-2)]">当前密码</span>
                         <Input.Password value={currentPassword} autoComplete="current-password" placeholder="用于确认是本人操作" onChange={(event) => setCurrentPassword(event.target.value)} />
                     </label>
                     <label className="block space-y-2">
-                        <span className="text-sm font-medium text-stone-700 dark:text-stone-200">补充说明（选填）</span>
+                        <span className="text-sm font-medium text-[var(--gm-text-2)]">补充说明（选填）</span>
                         <Input.TextArea value={note} maxLength={500} rows={3} showCount placeholder="可填写注销原因或需要管理员注意的事项" onChange={(event) => setNote(event.target.value)} />
                     </label>
                 </div>

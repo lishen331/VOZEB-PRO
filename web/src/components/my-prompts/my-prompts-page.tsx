@@ -107,8 +107,8 @@ export function MyPromptsPage() {
             dataIndex: "title",
             render: (_, record) => (
                 <div className="min-w-0">
-                    <div className="font-medium text-stone-950 dark:text-stone-100">{record.title}</div>
-                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500 dark:text-stone-400">{record.prompt}</div>
+                    <div className="font-medium text-[var(--gm-text)]">{record.title}</div>
+                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{record.prompt}</div>
                     <div className="mt-2 flex flex-wrap gap-1">
                         {record.tags.map((tag) => (
                             <Tag key={tag} className="m-0 text-[11px]">
@@ -145,13 +145,13 @@ export function MyPromptsPage() {
     ];
 
     return (
-        <div className="flex h-full flex-col overflow-hidden bg-[var(--gm-bg)] text-stone-800 dark:text-stone-100">
+        <div className="flex h-full flex-col overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-6 sm:py-8">
                 <div className="mx-auto max-w-7xl space-y-3 sm:space-y-6">
                     <div className="flex flex-row items-center justify-between gap-3 sm:items-end sm:gap-4">
                         <div>
-                            <h1 className="text-xl font-semibold text-stone-950 sm:text-2xl dark:text-stone-100">我的提示词</h1>
-                            <p className="mt-1.5 text-xs leading-5 text-stone-500 sm:mt-2 sm:text-sm dark:text-stone-400">保存自己的提示词记录，复制使用或沉淀到我的素材。</p>
+                            <h1 className="text-xl font-semibold text-[var(--gm-text)] sm:text-2xl">我的提示词</h1>
+                            <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-2)] sm:mt-2 sm:text-sm">保存自己的提示词记录，复制使用或沉淀到我的素材。</p>
                         </div>
                         <Button type="primary" size="middle" className="shrink-0" icon={<Plus className="size-3.5 sm:size-4" />} onClick={() => setCreateOpen(true)}>
                             添加提示词
@@ -160,7 +160,7 @@ export function MyPromptsPage() {
 
                     <section className="overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]">
                         <div className="border-b border-[var(--gm-border)] px-3 py-2.5 sm:px-5 sm:py-4">
-                            <h2 className="text-base font-semibold text-stone-950 sm:text-lg dark:text-stone-100">我的记录</h2>
+                            <h2 className="text-base font-semibold text-[var(--gm-text)] sm:text-lg">我的记录</h2>
                         </div>
                         <Table
                             className="[&_.gm-table tbody>tr>td]:!py-2 sm:[&_.gm-table tbody>tr>td]:!py-3 [&_.gm-table thead>tr>th]:!py-2"

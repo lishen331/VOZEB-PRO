@@ -185,11 +185,11 @@ export function CouponTemplatePanel({ products, productsLoading }: { products: B
     };
 
     return (
-        <section className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm shadow-stone-200/40 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
-            <div className="flex items-start justify-between gap-3 border-b border-stone-200 p-3 sm:items-center sm:p-4 dark:border-stone-800">
+        <section className="overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm">
+            <div className="flex items-start justify-between gap-3 border-b border-[var(--gm-border)] p-3 sm:items-center sm:p-4">
                 <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-stone-950 dark:text-stone-100">优惠券</h2>
-                    <p className="mt-1 text-xs leading-5 text-stone-500 sm:text-sm dark:text-stone-400">管理优惠规则、领取范围和发行库存，并向指定用户发放优惠券。</p>
+                    <h2 className="text-base font-semibold text-[var(--gm-text)]">优惠券</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)] sm:text-sm">管理优惠规则、领取范围和发行库存，并向指定用户发放优惠券。</p>
                 </div>
                 <div className="flex shrink-0 flex-wrap justify-end gap-2">
                     <Button icon={<Send className="size-4" />} disabled={!templates.length} onClick={() => setGrantOpen(true)}>
@@ -210,24 +210,24 @@ export function CouponTemplatePanel({ products, productsLoading }: { products: B
                     templates.map((template) => {
                         const state = templateState(template);
                         return (
-                            <article key={template.id} className="min-w-0 rounded-lg border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40 sm:p-4">
+                            <article key={template.id} className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 sm:p-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                            <TicketPercent className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
-                                            <h3 className="truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{template.name}</h3>
+                                            <TicketPercent className="size-4 shrink-0 text-[var(--gm-danger)]" />
+                                            <h3 className="truncate text-sm font-semibold text-[var(--gm-text)]">{template.name}</h3>
                                             <Tag className="m-0" color={state.color}>
                                                 {state.label}
                                             </Tag>
                                         </div>
-                                        <div className="mt-2 font-mono text-xs text-stone-500 dark:text-stone-400">{template.code}</div>
+                                        <div className="mt-2 font-mono text-xs text-[var(--gm-text-3)]">{template.code}</div>
                                     </div>
                                     <div className="shrink-0 text-right">
-                                        <div className="text-lg font-semibold tabular-nums text-stone-950 dark:text-stone-100">{discountLabel(template)}</div>
-                                        <div className="mt-0.5 text-[11px] text-stone-500 dark:text-stone-400">{template.minimumAmountCents ? `满 ¥${formatYuan(template.minimumAmountCents)} 可用` : "无使用门槛"}</div>
+                                        <div className="text-lg font-semibold tabular-nums text-[var(--gm-text)]">{discountLabel(template)}</div>
+                                        <div className="mt-0.5 text-[11px] text-[var(--gm-text-3)]">{template.minimumAmountCents ? `满 ¥${formatYuan(template.minimumAmountCents)} 可用` : "无使用门槛"}</div>
                                     </div>
                                 </div>
-                                <div className="mt-3 grid grid-cols-3 gap-2 border-y border-stone-200 py-3 text-center dark:border-stone-800">
+                                <div className="mt-3 grid grid-cols-3 gap-2 border-y border-[var(--gm-border)] py-3 text-center">
                                     <Fact label="已发行" value={`${template.issuedCount}${template.totalLimit ? ` / ${template.totalLimit}` : ""}`} />
                                     <Fact label="已核销" value={String(template.redeemedCount)} />
                                     <Fact label="每人限领" value={`${template.perUserLimit} 张`} />
@@ -241,8 +241,8 @@ export function CouponTemplatePanel({ products, productsLoading }: { products: B
                                         {template.claimable ? "可主动领取" : "仅后台发放"}
                                     </Tag>
                                 </div>
-                                {template.productIds.length ? <p className="mt-2 truncate text-xs text-stone-500 dark:text-stone-400">适用：{template.productIds.map((id) => adminProductLabel(products, id)).join("、")}</p> : null}
-                                <div className="mt-3 flex justify-end gap-2 border-t border-stone-200 pt-3 dark:border-stone-800">
+                                {template.productIds.length ? <p className="mt-2 truncate text-xs text-[var(--gm-text-3)]">适用：{template.productIds.map((id) => adminProductLabel(products, id)).join("、")}</p> : null}
+                                <div className="mt-3 flex justify-end gap-2 border-t border-[var(--gm-border)] pt-3">
                                     <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => showEdit(template)}>
                                         编辑
                                     </Button>
@@ -278,7 +278,7 @@ export function CouponTemplatePanel({ products, productsLoading }: { products: B
             >
                 <Form form={form} layout="vertical" onFinish={(value) => void save(value)}>
                     {editing?.issuedCount ? (
-                        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                        <div className="mb-4 rounded-lg border border-[color-mix(in_srgb,var(--gm-warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] px-3 py-2 text-xs leading-5 text-[var(--gm-warning)]">
                             优惠券已经发行，折扣、门槛、范围和有效期不可修改，只能调整说明、开关和发行总量。
                         </div>
                     ) : null}
@@ -403,20 +403,20 @@ function formatNumber(value: number) {
 function Fact({ label, value }: { label: string; value: string }) {
     return (
         <div className="min-w-0">
-            <div className="text-[11px] text-stone-500 dark:text-stone-400">{label}</div>
-            <div className="mt-1 truncate text-xs font-semibold tabular-nums text-stone-900 dark:text-stone-100">{value}</div>
+            <div className="text-[11px] text-[var(--gm-text-3)]">{label}</div>
+            <div className="mt-1 truncate text-xs font-semibold tabular-nums text-[var(--gm-text)]">{value}</div>
         </div>
     );
 }
 
 function Loading() {
     return (
-        <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-stone-200 px-3 py-10 text-sm text-stone-500 lg:col-span-2 dark:border-stone-800 dark:text-stone-400">
+        <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--gm-border)] px-3 py-10 text-sm text-[var(--gm-text-2)] lg:col-span-2">
             <RefreshCw className="size-4 animate-spin" /> 正在加载优惠券
         </div>
     );
 }
 
 function Empty() {
-    return <div className="rounded-lg border border-dashed border-stone-200 px-3 py-10 text-center text-sm text-stone-500 lg:col-span-2 dark:border-stone-800 dark:text-stone-400">暂无优惠券模板</div>;
+    return <div className="rounded-lg border border-dashed border-[var(--gm-border)] px-3 py-10 text-center text-sm text-[var(--gm-text-2)] lg:col-span-2">暂无优惠券模板</div>;
 }

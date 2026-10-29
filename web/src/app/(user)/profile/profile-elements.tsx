@@ -41,7 +41,7 @@ export function ProfileSectionNav({ activeKey, onChange, mode }: { activeKey: Pr
     if (mode === "mobile") {
         return (
             <nav className="flex h-9 items-center gap-2 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2 text-card-foreground" aria-label="个人中心分区">
-                <span className="shrink-0 text-[11px] font-medium text-stone-500 dark:text-stone-400">当前分区</span>
+                <span className="shrink-0 text-[11px] font-medium text-[var(--gm-text-3)]">当前分区</span>
                 <Select aria-label="切换个人中心分区" className="min-w-0 flex-1" variant="borderless" value={activeKey} options={profileSections.map((section) => ({ label: section.label, value: section.key }))} onChange={onChange} />
             </nav>
         );
@@ -49,7 +49,7 @@ export function ProfileSectionNav({ activeKey, onChange, mode }: { activeKey: Pr
 
     return (
         <aside className="min-w-0 self-start xl:sticky xl:top-0">
-            <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-1 text-card-foreground shadow-sm shadow-stone-200/60 dark:shadow-black/20">
+            <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-1 text-card-foreground shadow-sm">
                 <div className="flex flex-col gap-1">
                     {profileSections.map((section) => {
                         const active = section.key === activeKey;
@@ -65,7 +65,7 @@ export function ProfileSectionNav({ activeKey, onChange, mode }: { activeKey: Pr
                                 )}
                                 onClick={() => onChange(section.key)}
                             >
-                                <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", active ? "bg-white shadow-sm text-[var(--gm-text-2)] dark:bg-[var(--gm-wash)]" : "bg-[var(--gm-wash)] text-[var(--gm-text-3)]")}>
+                                <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", active ? "bg-[var(--gm-wash-strong)] shadow-sm text-[var(--gm-text-2)]" : "bg-[var(--gm-wash)] text-[var(--gm-text-3)]")}>
                                     {section.icon}
                                 </span>
                                 <span className="min-w-0">
@@ -86,20 +86,20 @@ export function BillingCenterSection({ products, productsLoading, onRefresh, onC
         <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 text-card-foreground sm:rounded-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="text-lg font-semibold tracking-tight text-stone-950 sm:text-xl dark:text-white">套餐中心</h2>
-                    <p className="mt-1 text-xs leading-5 text-stone-500 sm:text-sm sm:leading-6 dark:text-stone-400">选择适合当前创作频率的方案，结算时进入独立安全支付页。</p>
+                    <h2 className="text-lg font-semibold tracking-tight text-[var(--gm-text)] sm:text-xl">套餐中心</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--gm-text-2)] sm:text-sm sm:leading-6">选择适合当前创作频率的方案，结算时进入独立安全支付页。</p>
                 </div>
                 <Button className={`${profileSecondaryButtonClass} shrink-0`} icon={<RefreshCw className="size-4" />} onClick={onRefresh} loading={productsLoading}>
                     <span className="hidden sm:inline">刷新</span>
                 </Button>
             </div>
-            <div className="mt-2 border-t border-stone-200 pt-2 sm:mt-4 sm:pt-4 dark:border-stone-800">
+            <div className="mt-2 border-t border-[var(--gm-border)] pt-2 sm:mt-4 sm:pt-4">
                 <div className="flex items-end justify-between gap-3">
                     <div className="min-w-0">
-                        <h3 className="text-base font-semibold text-stone-950 dark:text-white">可选套餐</h3>
-                        <p className="mt-1 hidden text-sm text-stone-500 sm:block dark:text-stone-400">价格、积分与有效期均同步后台已上架商品。</p>
+                        <h3 className="text-base font-semibold text-[var(--gm-text)]">可选套餐</h3>
+                        <p className="mt-1 hidden text-sm text-[var(--gm-text-2)] sm:block">价格、积分与有效期均同步后台已上架商品。</p>
                     </div>
-                    {!productsLoading && products.length ? <span className="shrink-0 text-xs text-stone-400 dark:text-stone-500">共 {products.length} 个方案</span> : null}
+                    {!productsLoading && products.length ? <span className="shrink-0 text-xs text-[var(--gm-text-3)]">共 {products.length} 个方案</span> : null}
                 </div>
                 <div className="mt-2 sm:mt-4">
                     {productsLoading ? <LoadingBlock /> : products.length ? <BillingPlanGrid products={products} onSelect={onCheckout} /> : <CompactEmptyState title="暂无已上架套餐商品" description="管理员上架商品后会显示在这里。" />}
@@ -131,15 +131,15 @@ export function ProfileForm({
             <ProfileAvatarUploader />
             <div className="mt-3 grid gap-3 sm:mt-4 sm:grid-cols-2 sm:gap-4">
                 <label className="block min-w-0 space-y-2">
-                    <span className="text-sm font-medium text-stone-700 dark:text-stone-200">登录用户名</span>
+                    <span className="text-sm font-medium text-[var(--gm-text-2)]">登录用户名</span>
                     <Input value={user?.username || ""} disabled />
                 </label>
                 <label className="block min-w-0 space-y-2">
-                    <span className="text-sm font-medium text-stone-700 dark:text-stone-200">显示昵称</span>
+                    <span className="text-sm font-medium text-[var(--gm-text-2)]">显示昵称</span>
                     <Input value={displayName} onChange={(event) => onDisplayNameChange(event.target.value)} />
                 </label>
                 <label className="block min-w-0 space-y-2 sm:col-span-2">
-                    <span className="text-sm font-medium text-stone-700 dark:text-stone-200">个人简介</span>
+                    <span className="text-sm font-medium text-[var(--gm-text-2)]">个人简介</span>
                     <Input.TextArea value={bio} maxLength={160} showCount autoSize={{ minRows: 3, maxRows: 5 }} placeholder="介绍你的创作方向、擅长领域或常用风格" onChange={(event) => onBioChange(event.target.value)} />
                 </label>
                 <Button className={`${profilePrimaryButtonClass} w-fit sm:col-span-2`} type="primary" icon={<Save className="size-4" />} loading={savingProfile} onClick={onSave}>
@@ -176,16 +176,16 @@ export function AccountEmailForm({
     return (
         <div className="max-w-2xl">
             <div>
-                <h3 className="text-sm font-semibold text-stone-950 dark:text-white">绑定邮箱</h3>
-                <p className="mt-1 break-all text-sm leading-6 text-stone-500 dark:text-stone-400">{boundEmail || "绑定邮箱后可用于找回密码和接收验证码。"}</p>
+                <h3 className="text-sm font-semibold text-[var(--gm-text)]">绑定邮箱</h3>
+                <p className="mt-1 break-all text-sm leading-6 text-[var(--gm-text-2)]">{boundEmail || "绑定邮箱后可用于找回密码和接收验证码。"}</p>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <label className="block min-w-0 space-y-2">
-                    <span className="text-sm font-medium text-stone-700 dark:text-stone-200">{boundEmail ? "修改邮箱" : "绑定邮箱"}</span>
+                    <span className="text-sm font-medium text-[var(--gm-text-2)]">{boundEmail ? "修改邮箱" : "绑定邮箱"}</span>
                     <Input value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="请输入邮箱地址" />
                 </label>
                 <label className="block min-w-0 space-y-2">
-                    <span className="text-sm font-medium text-stone-700 dark:text-stone-200">邮箱验证码</span>
+                    <span className="text-sm font-medium text-[var(--gm-text-2)]">邮箱验证码</span>
                     <Input.Search
                         className="profile-email-code-search"
                         value={emailCode}
@@ -209,12 +209,12 @@ export function OrderList({ loading, orders, total, page, onPageChange, compact 
     if (loading) return <LoadingBlock />;
     if (!orders.length) return <CompactEmptyState title="暂无订单记录" description="购买套餐后可在这里查看支付状态。" />;
     return (
-        <div className="divide-y divide-stone-200 dark:divide-stone-800" role="list">
+        <div className="divide-y divide-[var(--gm-border)]" role="list">
             {orders.map((order) => (
                 <div key={order.id} role="listitem" className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 py-1.5 text-xs first:pt-0 last:pb-0 sm:min-h-0 sm:gap-3 sm:px-1 sm:py-3 sm:text-sm">
                     <div className="min-w-0">
-                        <div className="truncate font-semibold text-stone-950 dark:text-white">{order.subject}</div>
-                        <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] leading-4 text-stone-500 sm:mt-1 sm:gap-2 sm:text-xs dark:text-stone-400">
+                        <div className="truncate font-semibold text-[var(--gm-text)]">{order.subject}</div>
+                        <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] leading-4 text-[var(--gm-text-3)] sm:mt-1 sm:gap-2 sm:text-xs">
                             <span className={cn("truncate", compact && "hidden sm:inline")}>{order.orderNo}</span>
                             <span className="shrink-0">{formatShortTime(order.createdAt)}</span>
                         </div>
@@ -223,7 +223,7 @@ export function OrderList({ loading, orders, total, page, onPageChange, compact 
                         <Tag className="m-0 !px-1 !py-0 text-[10px] leading-[18px] sm:!px-2 sm:text-xs sm:leading-5" color={orderStatusColor(order.status)}>
                             {orderStatusLabel(order.status)}
                         </Tag>
-                        <div className="text-xs font-semibold tabular-nums text-stone-900 dark:text-stone-100 sm:text-[13px]">{formatMoney(order.amountCents, order.currency)}</div>
+                        <div className="text-xs font-semibold tabular-nums text-[var(--gm-text)] sm:text-[13px]">{formatMoney(order.amountCents, order.currency)}</div>
                     </div>
                 </div>
             ))}
@@ -234,13 +234,13 @@ export function OrderList({ loading, orders, total, page, onPageChange, compact 
 
 export function AccountMetric({ label, value, icon, detail }: { label: string; value: string; icon: ReactNode; detail?: string }) {
     return (
-        <div className="rounded-lg bg-stone-50/70 px-2.5 py-2 text-card-foreground xl:rounded-2xl xl:border xl:border-[var(--gm-border)] xl:bg-[var(--gm-surface)] xl:p-4 xl:shadow-sm xl:shadow-stone-200/60 dark:bg-stone-900/35 xl:dark:bg-[var(--gm-surface)] xl:dark:shadow-black/20">
+        <div className="rounded-lg bg-[var(--gm-wash)] px-2.5 py-2 text-card-foreground xl:rounded-2xl xl:border xl:border-[var(--gm-border)] xl:bg-[var(--gm-surface)] xl:p-4 xl:shadow-sm">
             <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-stone-500 xl:text-sm dark:text-stone-400">{label}</div>
-                <span className="flex size-5 items-center justify-center text-stone-400 xl:size-8 xl:rounded-xl xl:bg-stone-100 xl:text-stone-700 dark:text-stone-500 xl:dark:bg-stone-900 xl:dark:text-stone-200">{icon}</span>
+                <div className="text-xs text-[var(--gm-text-3)] xl:text-sm">{label}</div>
+                <span className="flex size-5 items-center justify-center text-[var(--gm-text-3)] xl:size-8 xl:rounded-xl xl:bg-[var(--gm-wash-strong)] xl:text-[var(--gm-text-2)]">{icon}</span>
             </div>
-            <div className="mt-1 truncate text-sm font-semibold tracking-normal text-stone-950 xl:mt-3 xl:text-xl dark:text-white">{value}</div>
-            {detail ? <div className="mt-0.5 truncate text-[10px] text-stone-500 xl:mt-1 xl:text-xs dark:text-stone-400">{detail}</div> : null}
+            <div className="mt-1 truncate text-sm font-semibold tracking-normal text-[var(--gm-text)] xl:mt-3 xl:text-xl">{value}</div>
+            {detail ? <div className="mt-0.5 truncate text-[10px] text-[var(--gm-text-3)] xl:mt-1 xl:text-xs">{detail}</div> : null}
         </div>
     );
 }
@@ -250,8 +250,8 @@ export function AccountPanel({ title, description, action, children }: { title: 
         <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 text-card-foreground sm:rounded-2xl sm:p-5 sm:shadow-[0_12px_40px_rgba(15,23,42,0.07)] dark:sm:shadow-black/20">
             <div className="mb-1.5 flex items-start justify-between gap-3 sm:mb-4">
                 <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-stone-950 sm:text-lg dark:text-white">{title}</h2>
-                    <p className="mt-1 hidden text-sm leading-6 text-stone-500 sm:block dark:text-stone-400">{description}</p>
+                    <h2 className="text-base font-semibold text-[var(--gm-text)] sm:text-lg">{title}</h2>
+                    <p className="mt-1 hidden text-sm leading-6 text-[var(--gm-text-2)] sm:block">{description}</p>
                 </div>
                 {action}
             </div>
@@ -262,7 +262,7 @@ export function AccountPanel({ title, description, action, children }: { title: 
 
 export function LoadingBlock() {
     return (
-        <div className="flex min-h-12 items-center justify-center rounded-lg border border-dashed border-stone-200 sm:min-h-24 dark:border-stone-800">
+        <div className="flex min-h-12 items-center justify-center rounded-lg border border-dashed border-[var(--gm-border)] sm:min-h-24">
             <Spin size="small" />
         </div>
     );
@@ -270,22 +270,22 @@ export function LoadingBlock() {
 
 export function RecordList({ records }: { records: PointRecord[] }) {
     return (
-        <div className="divide-y divide-stone-200 dark:divide-stone-800">
+        <div className="divide-y divide-[var(--gm-border)]">
             {records.map((record) => {
                 const positive = record.amount >= 0;
                 return (
                     <div key={record.id} className="py-1.5 first:pt-0 last:pb-0 sm:px-1 sm:py-3">
                         <div className="flex min-w-0 items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <div className="break-words text-sm font-semibold text-stone-900 dark:text-stone-100">{record.description || pointRecordTypeLabel(record.type)}</div>
-                                <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">{formatTime(record.createdAt)}</div>
+                                <div className="break-words text-sm font-semibold text-[var(--gm-text)]">{record.description || pointRecordTypeLabel(record.type)}</div>
+                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">{formatTime(record.createdAt)}</div>
                             </div>
                             <Tag color={positive ? "green" : "red"} className="m-0 shrink-0">
                                 {positive ? "+" : ""}
                                 {formatCreditAmount(record.amount)}
                             </Tag>
                         </div>
-                        <div className="mt-0.5 text-[11px] text-stone-500 dark:text-stone-400">余额 {formatCreditAmount(record.balanceAfter)}</div>
+                        <div className="mt-0.5 text-[11px] text-[var(--gm-text-3)]">余额 {formatCreditAmount(record.balanceAfter)}</div>
                     </div>
                 );
             })}

@@ -107,36 +107,36 @@ export function BillingResultPage({ mode, orderId }: { mode: "success" | "cancel
     const statusColor = paid ? "green" : refunded ? "blue" : canceled ? "default" : "gold";
 
     return (
-        <main className="profile-page-scroll h-full min-h-0 overflow-y-auto bg-[#f8fbff] px-2 py-2 text-stone-950 sm:px-6 sm:py-8 dark:bg-[#080e1a] dark:text-stone-100">
+        <main className="profile-page-scroll h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] px-2 py-2 text-[var(--gm-text)] sm:px-6 sm:py-8">
             <div className="mx-auto flex min-h-0 max-w-xl items-center justify-center sm:min-h-[calc(100dvh-8rem)]">
-                <section className="w-full rounded-xl border border-stone-200 bg-white p-3 text-center shadow-sm shadow-stone-200/60 sm:rounded-2xl sm:p-8 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/25">
+                <section className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 text-center shadow-sm sm:rounded-2xl sm:p-8">
                     {loading ? (
                         <div className="py-2 sm:py-12">
                             <Spin />
-                            <div className="mt-4 text-sm text-stone-500 dark:text-stone-400">正在确认支付结果…</div>
+                            <div className="mt-4 text-sm text-[var(--gm-text-2)]">正在确认支付结果…</div>
                         </div>
                     ) : (
                         <>
                             <span
-                                className={`mx-auto grid size-12 place-items-center rounded-xl sm:size-16 sm:rounded-2xl ${paid ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300" : canceled ? "bg-rose-50 text-rose-600 dark:bg-rose-400/10 dark:text-rose-300" : refunded ? "bg-sky-50 text-sky-600 dark:bg-sky-400/10 dark:text-sky-300" : "bg-amber-50 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300"}`}
+                                className={`mx-auto grid size-12 place-items-center rounded-xl sm:size-16 sm:rounded-2xl ${paid ? "bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] text-[var(--gm-success)]" : canceled ? "bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] text-[var(--gm-danger)]" : refunded ? "bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] text-[var(--gm-warning)]" : "bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] text-[var(--gm-warning)]"}`}
                             >
                                 <Icon className="size-6 sm:size-8" />
                             </span>
                             <h1 className="mt-3 text-xl font-semibold sm:mt-5 sm:text-2xl">{title}</h1>
-                            <p className="mt-2 text-sm leading-6 text-stone-500 dark:text-stone-400">{error || description}</p>
+                            <p className="mt-2 text-sm leading-6 text-[var(--gm-text-2)]">{error || description}</p>
                             {mode === "success" && pending ? (
                                 <Button className="mt-3" icon={<RefreshCw className="size-4" />} loading={checking} onClick={() => void checkOrder()}>
                                     重新检查
                                 </Button>
                             ) : null}
                             {order ? (
-                                <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-3.5 text-left sm:mt-6 sm:p-4 dark:border-stone-800 dark:bg-stone-900/55">
+                                <div className="mt-4 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3.5 text-left sm:mt-6 sm:p-4">
                                     <div className="flex items-center justify-between gap-3 text-sm">
-                                        <span className="text-stone-500 dark:text-stone-400">订单号</span>
+                                        <span className="text-[var(--gm-text-2)]">订单号</span>
                                         <span className="break-all font-mono text-xs">{order.orderNo}</span>
                                     </div>
                                     <div className="mt-3 flex items-center justify-between gap-3 text-sm">
-                                        <span className="text-stone-500 dark:text-stone-400">当前状态</span>
+                                        <span className="text-[var(--gm-text-2)]">当前状态</span>
                                         <Tag color={statusColor}>{statusLabel}</Tag>
                                     </div>
                                 </div>

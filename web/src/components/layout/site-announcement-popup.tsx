@@ -54,11 +54,11 @@ export function SiteAnnouncementPopup() {
                             <Megaphone className="size-5" />
                         </span>
                         <div className="min-w-0">
-                            <h2 className="truncate text-lg font-semibold text-stone-950 dark:text-stone-100">{active.title}</h2>
-                            <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">{new Date(active.createdAt).toLocaleString("zh-CN")}</div>
+                            <h2 className="truncate text-lg font-semibold text-[var(--gm-text)]">{active.title}</h2>
+                            <div className="mt-1 text-xs text-[var(--gm-text-3)]">{new Date(active.createdAt).toLocaleString("zh-CN")}</div>
                         </div>
                     </div>
-                    <div className="max-h-[50dvh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-stone-200 bg-stone-50/70 p-4 text-sm leading-7 text-stone-700 dark:border-stone-800 dark:bg-stone-900/50 dark:text-stone-200">
+                    <div className="max-h-[50dvh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4 text-sm leading-7 text-[var(--gm-text-2)]">
                         {active.content}
                     </div>
                     <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">

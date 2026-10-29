@@ -56,7 +56,7 @@ export function AdminOfficialWorkMediaPicker({ open, selected, onClose, onSelect
                             type="button"
                             key={item.storageKey}
                             disabled={selected.includes(item.storageKey)}
-                            className="min-w-0 rounded-md border border-stone-200 p-2 text-left disabled:opacity-45 dark:border-stone-700"
+                            className="min-w-0 rounded-md border border-[var(--gm-border)] p-2 text-left disabled:opacity-45"
                             onClick={() => onSelect(item)}
                         >
                             {item.mediaType === "image" ? (

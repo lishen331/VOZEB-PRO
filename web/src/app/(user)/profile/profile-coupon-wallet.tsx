@@ -48,19 +48,19 @@ export function CouponWalletSection({ coupons, templates, templatesTotal, templa
         <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 text-card-foreground sm:rounded-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-stone-950 sm:text-xl dark:text-white">我的优惠券</h2>
-                    <p className="mt-1 text-xs leading-5 text-stone-500 sm:text-sm sm:leading-6 dark:text-stone-400">领取并查看可用于套餐结算的优惠券，实际优惠以结算页服务端报价为准。</p>
+                    <h2 className="text-lg font-semibold text-[var(--gm-text)] sm:text-xl">我的优惠券</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--gm-text-2)] sm:text-sm sm:leading-6">领取并查看可用于套餐结算的优惠券，实际优惠以结算页服务端报价为准。</p>
                 </div>
                 <Button className={`${profileSecondaryButtonClass} shrink-0`} icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void onRefresh()}>
                     <span className="hidden sm:inline">刷新</span>
                 </Button>
             </div>
 
-            <div className="mt-3 grid gap-2 border-t border-stone-200 pt-3 sm:mt-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:pt-5 dark:border-stone-800">
+            <div className="mt-3 grid gap-2 border-t border-[var(--gm-border)] pt-3 sm:mt-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:pt-5">
                 <Input
                     value={code}
                     maxLength={40}
-                    prefix={<TicketPercent className="size-4 text-stone-400" />}
+                    prefix={<TicketPercent className="size-4 text-[var(--gm-text-3)]" />}
                     placeholder="输入优惠券领取码"
                     onChange={(event) => setCode(event.target.value.toUpperCase())}
                     onPressEnter={() => (code.trim() ? void claim({ code: code.trim() }, "code") : undefined)}
@@ -73,18 +73,18 @@ export function CouponWalletSection({ coupons, templates, templatesTotal, templa
             {templates.length ? (
                 <div className="mt-4 sm:mt-5">
                     <div className="mb-2 flex items-center justify-between gap-3">
-                        <h3 className="text-sm font-semibold text-stone-950 dark:text-stone-100">可领取</h3>
-                        <span className="text-xs text-stone-400 dark:text-stone-500">共 {templatesTotal} 个活动</span>
+                        <h3 className="text-sm font-semibold text-[var(--gm-text)]">可领取</h3>
+                        <span className="text-xs text-[var(--gm-text-3)]">共 {templatesTotal} 个活动</span>
                     </div>
                     <div className="grid gap-2 lg:grid-cols-2">
                         {templates.map((template) => (
-                            <article key={template.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-dashed border-rose-200 bg-rose-50/55 p-3 dark:border-rose-900/50 dark:bg-rose-950/15">
+                            <article key={template.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] p-3">
                                 <div className="min-w-0">
                                     <div className="flex min-w-0 items-center gap-2">
-                                        <span className="shrink-0 text-base font-semibold text-rose-700 dark:text-rose-200">{discountLabel(template)}</span>
-                                        <span className="truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{template.name}</span>
+                                        <span className="shrink-0 text-base font-semibold text-[var(--gm-danger)]">{discountLabel(template)}</span>
+                                        <span className="truncate text-sm font-semibold text-[var(--gm-text)]">{template.name}</span>
                                     </div>
-                                    <p className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">
+                                    <p className="mt-1 truncate text-xs text-[var(--gm-text-3)]">
                                         {template.minimumAmountCents ? `满 ¥${formatYuan(template.minimumAmountCents)} 可用` : "无使用门槛"} · 至 {formatDate(template.endsAt)}
                                     </p>
                                 </div>
@@ -102,10 +102,10 @@ export function CouponWalletSection({ coupons, templates, templatesTotal, templa
                 </div>
             ) : null}
 
-            <div className="mt-4 border-t border-stone-200 pt-4 sm:mt-5 sm:pt-5 dark:border-stone-800">
+            <div className="mt-4 border-t border-[var(--gm-border)] pt-4 sm:mt-5 sm:pt-5">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold text-stone-950 dark:text-stone-100">已领取优惠券</h3>
-                    {!loading ? <span className="text-xs text-stone-400 dark:text-stone-500">共 {total} 张</span> : null}
+                    <h3 className="text-sm font-semibold text-[var(--gm-text)]">已领取优惠券</h3>
+                    {!loading ? <span className="text-xs text-[var(--gm-text-3)]">共 {total} 张</span> : null}
                 </div>
                 {loading ? (
                     <LoadingBlock />
@@ -113,23 +113,23 @@ export function CouponWalletSection({ coupons, templates, templatesTotal, templa
                     <>
                         <div className="grid gap-2 lg:grid-cols-2">
                             {coupons.map((coupon) => (
-                                <article key={coupon.id} className="min-w-0 rounded-lg border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40 sm:p-4">
+                                <article key={coupon.id} className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 sm:p-4">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
-                                            <div className="truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{coupon.template?.name || "优惠券"}</div>
-                                            <div className="mt-1 font-mono text-xs text-stone-500 dark:text-stone-400">{coupon.template?.code || coupon.templateId}</div>
+                                            <div className="truncate text-sm font-semibold text-[var(--gm-text)]">{coupon.template?.name || "优惠券"}</div>
+                                            <div className="mt-1 font-mono text-xs text-[var(--gm-text-3)]">{coupon.template?.code || coupon.templateId}</div>
                                         </div>
                                         <div className="shrink-0 text-right">
-                                            <div className="text-lg font-semibold text-rose-700 dark:text-rose-200">{coupon.template ? discountLabel(coupon.template) : "-"}</div>
+                                            <div className="text-lg font-semibold text-[var(--gm-danger)]">{coupon.template ? discountLabel(coupon.template) : "-"}</div>
                                             <Tag className="m-0 mt-1" color={couponStatusColor(coupon.status)}>
                                                 {couponStatusLabel(coupon.status)}
                                             </Tag>
                                         </div>
                                     </div>
-                                    <div className="mt-3 flex items-center gap-2 border-t border-stone-200 pt-3 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
+                                    <div className="mt-3 flex items-center gap-2 border-t border-[var(--gm-border)] pt-3 text-xs text-[var(--gm-text-3)]">
                                         <Clock3 className="size-3.5 shrink-0" />
                                         <span>有效期至 {formatDate(coupon.expiresAt)}</span>
-                                        {coupon.template?.stackWithPromotion ? <span className="ml-auto shrink-0 text-emerald-700 dark:text-emerald-300">可叠加活动</span> : null}
+                                        {coupon.template?.stackWithPromotion ? <span className="ml-auto shrink-0 text-[var(--gm-success)]">可叠加活动</span> : null}
                                     </div>
                                 </article>
                             ))}

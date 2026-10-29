@@ -14,27 +14,27 @@ export function GenerationLogAssetPreview({ log }: { log: StoredGenerationLog })
     const assetUrl = asset ? generationLogAssetAccessUrl(asset) : "";
     if (!assetUrl) {
         return (
-            <div className="flex size-12 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-400 dark:border-stone-800 dark:bg-stone-900">
+            <div className="flex size-12 items-center justify-center rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] text-[var(--gm-text-3)]">
                 {log.kind === "video" ? <Film className="size-4" /> : log.kind === "audio" ? <AudioLines className="size-4" /> : log.kind === "text" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
             </div>
         );
     }
     if (asset.type === "video") {
-        return <video className="size-12 rounded-lg border border-stone-200 bg-stone-100 object-cover dark:border-stone-800 dark:bg-stone-900" src={assetUrl} muted playsInline preload="metadata" />;
+        return <video className="size-12 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] object-cover" src={assetUrl} muted playsInline preload="metadata" />;
     }
     if (asset.type === "audio") {
         return (
-            <div className="flex size-12 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-800 dark:bg-stone-900">
+            <div className="flex size-12 items-center justify-center rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]">
                 <AudioLines className="size-5" />
             </div>
         );
     }
-    return <img className="size-12 rounded-lg border border-stone-200 bg-stone-100 object-cover dark:border-stone-800 dark:bg-stone-900" src={imagePreviewUrl(assetUrl, 256)} alt="" loading="lazy" referrerPolicy="no-referrer" />;
+    return <img className="size-12 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] object-cover" src={imagePreviewUrl(assetUrl, 256)} alt="" loading="lazy" referrerPolicy="no-referrer" />;
 }
 
 export function GenerationLogMobileCard({ log, selected, onSelectedChange, onView, onDelete }: { log: StoredGenerationLog; selected: boolean; onSelectedChange: (checked: boolean) => void; onView: () => void; onDelete: () => void }) {
     return (
-        <div className="rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3">
                 <Checkbox checked={selected} onChange={(event) => onSelectedChange(event.target.checked)} />
                 <div className="min-w-0">
@@ -43,11 +43,11 @@ export function GenerationLogMobileCard({ log, selected, onSelectedChange, onVie
                             {generationKindLabel(log.kind)}
                         </Tag>
                         <span className={generationStatusClass(log.status)}>{generationStatusLabel(log.status)}</span>
-                        <span className="text-xs text-stone-500">{generationSourceLabel(log.source)}</span>
+                        <span className="text-xs text-[var(--gm-text-3)]">{generationSourceLabel(log.source)}</span>
                     </div>
-                    <div className="mt-2 truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{log.title}</div>
-                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500 dark:text-stone-400">{log.prompt || log.summary}</div>
-                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+                    <div className="mt-2 truncate text-sm font-semibold text-[var(--gm-text)]">{log.title}</div>
+                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{log.prompt || log.summary}</div>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
                         <span>{formatAdminLogTime(log.createdAt)}</span>
                         <span>{log.displayName || log.username}</span>
                         <AdminAccountId accountId={log.accountId} />
@@ -85,13 +85,13 @@ export function GenerationLogDetail({ log }: { log: StoredGenerationLog }) {
             </div>
             <GenerationLogResultSection log={log} />
             <div>
-                <div className="mb-1 text-sm font-semibold text-stone-950 dark:text-stone-100">提示词</div>
-                <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm leading-6 text-stone-700 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-200">{log.prompt || "-"}</div>
+                <div className="mb-1 text-sm font-semibold text-[var(--gm-text)]">提示词</div>
+                <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 text-sm leading-6 text-[var(--gm-text-2)]">{log.prompt || "-"}</div>
             </div>
             {log.error ? (
                 <div>
-                    <div className="mb-1 text-sm font-semibold text-red-600 dark:text-red-300">错误信息</div>
-                    <div className="whitespace-pre-wrap rounded-lg border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{log.error}</div>
+                    <div className="mb-1 text-sm font-semibold text-[var(--gm-danger)]">错误信息</div>
+                    <div className="whitespace-pre-wrap rounded-lg border border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] p-3 text-sm leading-6 text-[var(--gm-danger)]">{log.error}</div>
                 </div>
             ) : null}
         </div>
@@ -102,20 +102,20 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
     const assets = (log.assets || []).filter((asset) => Boolean(generationLogAssetAccessUrl(asset)));
     if (!assets.length) {
         return (
-            <div className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900/70">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
+            <div className="rounded-lg border border-dashed border-[var(--gm-border-strong)] bg-[var(--gm-wash)] p-4">
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--gm-text)]">
                     {log.kind === "video" ? <Film className="size-4" /> : log.kind === "audio" ? <AudioLines className="size-4" /> : log.kind === "text" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
                     生成结果
                 </div>
-                <div className="text-sm leading-6 text-stone-500 dark:text-stone-400">{log.status === "success" ? "这条日志没有可访问的媒体文件。" : "这条日志没有成功结果，暂无可预览的媒体。"}</div>
+                <div className="text-sm leading-6 text-[var(--gm-text-2)]">{log.status === "success" ? "这条日志没有可访问的媒体文件。" : "这条日志没有成功结果，暂无可预览的媒体。"}</div>
             </div>
         );
     }
 
     return (
-        <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+        <div className="rounded-lg border border-[var(--gm-border)] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">生成结果</div>
+                <div className="text-sm font-semibold text-[var(--gm-text)]">生成结果</div>
                 <Tag className="m-0" color={log.kind === "video" ? "purple" : log.kind === "text" ? "green" : "blue"}>
                     {assets.length} 个结果
                 </Tag>
@@ -124,15 +124,15 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
                 {assets.map((asset, index) => {
                     const assetUrl = generationLogAssetAccessUrl(asset);
                     return (
-                        <div key={`${asset.url}-${index}`} className="grid min-w-0 items-start gap-3 rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950/60 sm:grid-cols-[156px_minmax(0,1fr)]">
+                        <div key={`${asset.url}-${index}`} className="grid min-w-0 items-start gap-3 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:grid-cols-[156px_minmax(0,1fr)]">
                             <div className="min-w-0">
-                                <div className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-stone-500 dark:text-stone-400">
+                                <div className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-[var(--gm-text-3)]">
                                     <span>{asset.type === "video" ? `视频 ${index + 1}` : asset.type === "audio" ? `音频 ${index + 1}` : `图片 ${index + 1}`}</span>
                                     {asset.width || asset.height ? <span className="shrink-0 tabular-nums">{[asset.width, asset.height].filter(Boolean).join("x")}</span> : null}
                                 </div>
-                                <div className="flex h-32 items-center justify-center overflow-hidden rounded-md bg-stone-100 p-2 dark:bg-stone-900 sm:h-36">
+                                <div className="flex h-32 items-center justify-center overflow-hidden rounded-md bg-[var(--gm-wash-strong)] p-2 sm:h-36">
                                     {asset.type === "video" ? (
-                                        <video className="h-full w-full rounded bg-black object-contain" src={assetUrl} controls playsInline preload="metadata" />
+                                        <video /* 视频播放底保持纯黑（媒体 letterbox），不随主题切换，故不换 token */ className="h-full w-full rounded bg-black object-contain" src={assetUrl} controls playsInline preload="metadata" />
                                     ) : asset.type === "audio" ? (
                                         <audio className="w-full" src={assetUrl} controls preload="metadata" />
                                     ) : (
@@ -140,7 +140,7 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
                                     )}
                                 </div>
                             </div>
-                            <div className="min-w-0 self-center text-sm text-stone-500 dark:text-stone-400">
+                            <div className="min-w-0 self-center text-sm text-[var(--gm-text-2)]">
                                 <div>{asset.type === "video" ? "视频" : asset.type === "audio" ? "音频" : "图片"}</div>
                                 <div className="mt-1 text-xs">{asset.bytes ? formatAssetBytes(asset.bytes) : "大小未记录"}</div>
                             </div>
@@ -207,16 +207,16 @@ export function generationStatusLabel(value: string) {
 }
 
 export function generationStatusClass(value: string) {
-    if (value === "success") return "inline-flex h-6 items-center rounded-md bg-emerald-50 px-2 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-500/25";
-    if (value === "failed") return "inline-flex h-6 items-center rounded-md bg-rose-50 px-2 text-xs font-medium text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-500/25";
-    return "inline-flex h-6 items-center rounded-md bg-sky-50 px-2 text-xs font-medium text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-500/25";
+    if (value === "success") return "inline-flex h-6 items-center rounded-md bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] px-2 text-xs font-medium text-[var(--gm-success)] ring-1 ring-[color-mix(in_srgb,var(--gm-success)_40%,transparent)]";
+    if (value === "failed") return "inline-flex h-6 items-center rounded-md bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] px-2 text-xs font-medium text-[var(--gm-danger)] ring-1 ring-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)]";
+    return "inline-flex h-6 items-center rounded-md bg-[var(--gm-accent-soft)] px-2 text-xs font-medium text-[var(--gm-accent)] ring-1 ring-[color-mix(in_srgb,var(--gm-accent)_40%,transparent)]";
 }
 
 function InfoBox({ label, value }: { label: string; value: string }) {
     return (
-        <div className="min-w-0 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-800 dark:bg-stone-900">
-            <div className="text-xs text-stone-500 dark:text-stone-400">{label}</div>
-            <div className="mt-1 truncate text-sm font-medium text-stone-900 dark:text-stone-100" title={value}>
+        <div className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-2">
+            <div className="text-xs text-[var(--gm-text-3)]">{label}</div>
+            <div className="mt-1 truncate text-sm font-medium text-[var(--gm-text)]" title={value}>
                 {value}
             </div>
         </div>

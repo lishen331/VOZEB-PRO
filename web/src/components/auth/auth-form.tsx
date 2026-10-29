@@ -176,23 +176,23 @@ export function AuthForm({
                 ) : (
                     <div className="auth-form-header">
                         <p className="auth-form-kicker text-sm font-medium">{firstUser ? "首次初始化" : isRegister ? "创建创作账号" : "欢迎回来"}</p>
-                        <h2 className={cn("mt-2 font-semibold tracking-normal text-stone-950 dark:text-white", variant === "embedded" ? "text-2xl" : "text-3xl")}>{firstUser ? "创建首个管理员" : isRegister ? `注册 ${siteTitle}` : `登录 ${siteTitle}`}</h2>
-                        <p className="auth-form-description mt-3 text-sm leading-6 text-stone-500 dark:text-stone-400">{isRegister ? "保存创作项目、提示词和常用风格，从同一个入口继续。" : "继续你的电商、短剧、美颜与画布创作。"}</p>
+                        <h2 className={cn("mt-2 font-semibold tracking-normal text-[var(--gm-text)]", variant === "embedded" ? "text-2xl" : "text-3xl")}>{firstUser ? "创建首个管理员" : isRegister ? `注册 ${siteTitle}` : `登录 ${siteTitle}`}</h2>
+                        <p className="auth-form-description mt-3 text-sm leading-6 text-[var(--gm-text-2)]">{isRegister ? "保存创作项目、提示词和常用风格，从同一个入口继续。" : "继续你的电商、短剧、美颜与画布创作。"}</p>
                     </div>
                 )}
 
-                {authError ? <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-100">{authError}</div> : null}
+                {authError ? <div className="rounded-md border border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] px-4 py-3 text-sm text-[var(--gm-danger)]">{authError}</div> : null}
 
-                {isRegister && inviteError ? <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">{inviteError}</div> : null}
+                {isRegister && inviteError ? <div className="rounded-md border border-[color-mix(in_srgb,var(--gm-warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] px-4 py-3 text-sm text-[var(--gm-warning)]">{inviteError}</div> : null}
 
-                {disabled ? <div className="rounded-md border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-300/20 dark:bg-cyan-300/8 dark:text-cyan-50">当前站点已关闭注册，请联系管理员开通账号。</div> : null}
+                {disabled ? <div className="rounded-md border border-[color-mix(in_srgb,var(--gm-accent)_40%,transparent)] bg-[var(--gm-accent-soft)] px-4 py-3 text-sm text-[var(--gm-accent)]">当前站点已关闭注册，请联系管理员开通账号。</div> : null}
 
                 {firstUser ? (
                     <label className="block space-y-3">
-                        <span className="text-sm font-medium text-stone-700 dark:text-stone-200">一次性安装令牌</span>
+                        <span className="text-sm font-medium text-[var(--gm-text-2)]">一次性安装令牌</span>
                         <Input.Password
                             size="large"
-                            prefix={<LockKeyhole className="size-4 text-stone-500" />}
+                            prefix={<LockKeyhole className="size-4 text-[var(--gm-text-3)]" />}
                             value={installToken}
                             onChange={(event) => onInstallTokenChange?.(event.target.value)}
                             placeholder="从服务器 .env 中粘贴 VOZEB_PRO_INSTALL_TOKEN"
@@ -200,15 +200,15 @@ export function AuthForm({
                             disabled={submitting}
                             required
                         />
-                        <span className="block text-xs leading-5 text-stone-500 dark:text-stone-400">令牌只保存在当前页面内存中，不会写入浏览器存储。</span>
+                        <span className="block text-xs leading-5 text-[var(--gm-text-3)]">令牌只保存在当前页面内存中，不会写入浏览器存储。</span>
                     </label>
                 ) : null}
 
                 <label className="block space-y-3">
-                    <span className={educationLogin ? "sr-only" : "text-sm font-medium text-stone-700 dark:text-stone-200"}>{isRegister ? "用户名" : "用户名或邮箱"}</span>
+                    <span className={educationLogin ? "sr-only" : "text-sm font-medium text-[var(--gm-text-2)]"}>{isRegister ? "用户名" : "用户名或邮箱"}</span>
                     <Input
                         size="large"
-                        prefix={<UserRound className="size-4 text-stone-500" />}
+                        prefix={<UserRound className="size-4 text-[var(--gm-text-3)]" />}
                         value={username}
                         onChange={(event) => {
                             setUsername(event.target.value);
@@ -221,16 +221,16 @@ export function AuthForm({
                         disabled={submitting || disabled}
                         required
                     />
-                    {isRegister ? <span className="block text-xs leading-5 text-stone-500 dark:text-stone-400">用于登录，注册后不可修改；创作昵称可随时调整。</span> : null}
+                    {isRegister ? <span className="block text-xs leading-5 text-[var(--gm-text-3)]">用于登录，注册后不可修改；创作昵称可随时调整。</span> : null}
                 </label>
 
                 {isRegister && emailRegistrationEnabled ? (
                     <div className="space-y-3">
                         <label className="block space-y-3">
-                            <span className="text-sm font-medium text-stone-700 dark:text-stone-200">邮箱</span>
+                            <span className="text-sm font-medium text-[var(--gm-text-2)]">邮箱</span>
                             <Input
                                 size="large"
-                                prefix={<Mail className="size-4 text-stone-500" />}
+                                prefix={<Mail className="size-4 text-[var(--gm-text-3)]" />}
                                 value={email}
                                 onChange={(event) => setEmail(event.target.value)}
                                 placeholder="csyqlz@gmail.com"
@@ -241,7 +241,7 @@ export function AuthForm({
                             />
                         </label>
                         <label className="block space-y-3">
-                            <span className="text-sm font-medium text-stone-700 dark:text-stone-200">邮箱验证码</span>
+                            <span className="text-sm font-medium text-[var(--gm-text-2)]">邮箱验证码</span>
                             <Input.Search
                                 size="large"
                                 value={emailCode}
@@ -259,17 +259,17 @@ export function AuthForm({
 
                 {isRegister ? (
                     <label className="block space-y-3">
-                        <span className="text-sm font-medium text-stone-700 dark:text-stone-200">创作昵称</span>
+                        <span className="text-sm font-medium text-[var(--gm-text-2)]">创作昵称</span>
                         <Input size="large" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="显示在账号菜单，可留空" autoComplete="name" disabled={submitting || disabled} />
                     </label>
                 ) : null}
 
                 {isRegister && !firstUser ? (
                     <label className="block space-y-3">
-                        <span className="text-sm font-medium text-stone-700 dark:text-stone-200">邀请码（选填）</span>
+                        <span className="text-sm font-medium text-[var(--gm-text-2)]">邀请码（选填）</span>
                         <Input
                             size="large"
-                            prefix={<Gift className="size-4 text-stone-500" />}
+                            prefix={<Gift className="size-4 text-[var(--gm-text-3)]" />}
                             value={referralCode}
                             onChange={(event) => setReferralCode(event.target.value.toUpperCase())}
                             placeholder="通过邀请链接进入时会自动填写"
@@ -281,10 +281,10 @@ export function AuthForm({
                 ) : null}
 
                 <label className="block space-y-3">
-                    <span className={educationLogin ? "sr-only" : "text-sm font-medium text-stone-700 dark:text-stone-200"}>密码</span>
+                    <span className={educationLogin ? "sr-only" : "text-sm font-medium text-[var(--gm-text-2)]"}>密码</span>
                     <Input.Password
                         size="large"
-                        prefix={<LockKeyhole className="size-4 text-stone-500" />}
+                        prefix={<LockKeyhole className="size-4 text-[var(--gm-text-3)]" />}
                         value={password}
                         onChange={(event) => {
                             setPassword(event.target.value);
@@ -301,10 +301,10 @@ export function AuthForm({
 
                 {!isRegister && mfaRequired ? (
                     <label className="block space-y-3">
-                        <span className="text-sm font-medium text-stone-700 dark:text-stone-200">动态验证码</span>
+                        <span className="text-sm font-medium text-[var(--gm-text-2)]">动态验证码</span>
                         <Input
                             size="large"
-                            prefix={<ShieldCheck className="size-4 text-stone-500" />}
+                            prefix={<ShieldCheck className="size-4 text-[var(--gm-text-3)]" />}
                             value={totpCode}
                             autoFocus
                             autoComplete="one-time-code"
@@ -333,13 +333,13 @@ export function AuthForm({
 
                 {educationLogin || (isRegister && !firstUser) ? (
                     <Checkbox className={educationLogin ? "auth-education-policy" : undefined} checked={policyAccepted} disabled={submitting || disabled} onChange={(event) => setPolicyAccepted(event.target.checked)}>
-                        <span className="text-sm leading-6 text-stone-600 dark:text-stone-300">
+                        <span className="text-sm leading-6 text-[var(--gm-text-2)]">
                             我已阅读并同意
-                            <a className="mx-1 font-medium text-stone-950 hover:underline dark:text-white" href={site.termsUrl || "/terms"} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
+                            <a className="mx-1 font-medium text-[var(--gm-text)] hover:underline" href={site.termsUrl || "/terms"} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
                                 服务条款
                             </a>
                             和
-                            <a className="ml-1 font-medium text-stone-950 hover:underline dark:text-white" href={site.privacyUrl || "/privacy"} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
+                            <a className="ml-1 font-medium text-[var(--gm-text)] hover:underline" href={site.privacyUrl || "/privacy"} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
                                 隐私政策
                             </a>
                         </span>
@@ -347,9 +347,9 @@ export function AuthForm({
                 ) : null}
 
                 {isRegister ? (
-                    <div className="auth-switch-link pt-2 text-center text-sm text-stone-500 dark:text-stone-400">
+                    <div className="auth-switch-link pt-2 text-center text-sm text-[var(--gm-text-2)]">
                         已有账号？{" "}
-                        <Link href="/login" className="font-medium text-stone-950 hover:underline dark:text-white">
+                        <Link href="/login" className="font-medium text-[var(--gm-text)] hover:underline">
                             直接登录
                         </Link>
                     </div>
@@ -429,7 +429,7 @@ export function AuthForm({
     return (
         <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-[var(--gm-text)] sm:px-6 sm:py-10">
             <div className="auth-page-card grid w-full max-w-5xl overflow-hidden border backdrop-blur md:grid-cols-[0.9fr_1fr]">
-                <section className="auth-page-brand-panel flex min-h-[220px] flex-col justify-between gap-5 border-b p-5 text-stone-950 sm:min-h-[360px] sm:gap-8 sm:p-8 md:border-b-0 md:border-r dark:text-white">
+                <section className="auth-page-brand-panel flex min-h-[220px] flex-col justify-between gap-5 border-b p-5 text-[var(--gm-text)] sm:min-h-[360px] sm:gap-8 sm:p-8 md:border-b-0 md:border-r">
                     <div className="flex items-start justify-between gap-4">
                         <Link href="/" className="inline-flex items-center gap-4 text-base font-semibold">
                             <SiteLogo logoUrl={site.logoUrl} className="size-16 sm:size-20" />
@@ -437,7 +437,7 @@ export function AuthForm({
                         </Link>
                         <Link
                             href="/"
-                            className="auth-back-home inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-stone-200 bg-white/70 px-3 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:text-stone-950 dark:border-white/10 dark:bg-white/5 dark:text-stone-200 dark:hover:border-white/20 dark:hover:text-white"
+                            className="auth-back-home inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-[var(--gm-border)] bg-[color-mix(in_srgb,var(--gm-surface)_70%,transparent)] px-3 text-sm font-medium text-[var(--gm-text-2)] transition hover:border-[var(--gm-border-strong)] hover:text-[var(--gm-text)]"
                         >
                             <ArrowLeft className="size-4" />
                             <span>返回首页</span>
@@ -446,7 +446,7 @@ export function AuthForm({
                     <div className="auth-page-brand-copy">
                         <h1 className="text-balance text-2xl font-semibold tracking-normal sm:text-3xl">{firstUser ? "创建首个管理员" : isRegister ? "从一个入口开始视觉创作" : "回到你的视觉创作台"}</h1>
                     </div>
-                    <div className="auth-page-feature-list grid gap-2 text-sm text-stone-600 dark:text-stone-300">
+                    <div className="auth-page-feature-list grid gap-2 text-sm text-[var(--gm-text-2)]">
                         {["电商、短剧与美颜创作", "画布项目与提示词复用", "图片、视频与音频统一创作"].map((item) => (
                             <div key={item} className="flex items-center gap-2">
                                 <span className="auth-feature-dot size-1.5 rounded-full" />
@@ -454,7 +454,7 @@ export function AuthForm({
                             </div>
                         ))}
                     </div>
-                    <p className="auth-page-brand-description max-w-sm text-sm leading-6 text-stone-500 dark:text-stone-400">登录后从首页场景入口继续创作，项目、提示词和常用风格都能随时接着使用。</p>
+                    <p className="auth-page-brand-description max-w-sm text-sm leading-6 text-[var(--gm-text-2)]">登录后从首页场景入口继续创作，项目、提示词和常用风格都能随时接着使用。</p>
                 </section>
                 {form}
             </div>

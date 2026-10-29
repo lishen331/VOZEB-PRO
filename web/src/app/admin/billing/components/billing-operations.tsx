@@ -369,8 +369,8 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
             width: 230,
             render: (_, order) => (
                 <div className="min-w-0">
-                    <div className="truncate font-medium text-stone-950 dark:text-stone-100">{order.orderNo}</div>
-                    <div className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">{order.subject}</div>
+                    <div className="truncate font-medium text-[var(--gm-text)]">{order.orderNo}</div>
+                    <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">{order.subject}</div>
                 </div>
             ),
         },
@@ -384,7 +384,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
             title: "渠道",
             dataIndex: "provider",
             width: 110,
-            render: (value: string) => <span className="text-sm text-stone-700 dark:text-stone-200">{providerLabel(value)}</span>,
+            render: (value: string) => <span className="text-sm text-[var(--gm-text-2)]">{providerLabel(value)}</span>,
         },
         {
             title: "金额",
@@ -396,9 +396,9 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
             title: "权益",
             width: 150,
             render: (_, order) => (
-                <div className="text-sm text-stone-600 dark:text-stone-300">
+                <div className="text-sm text-[var(--gm-text-2)]">
                     <div>{order.pointsAmount} 永久积分</div>
-                    <div className="text-xs text-stone-500 dark:text-stone-400">
+                    <div className="text-xs text-[var(--gm-text-3)]">
                         每日 {order.dailyPoints} · {order.periodDays ? `${order.periodDays} 天` : "长期"}
                     </div>
                 </div>
@@ -445,7 +445,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
     return (
         <div className="space-y-3 sm:space-y-5">
             {!hideTabs ? (
-                <section className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm shadow-stone-200/40 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
+                <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 shadow-sm">
                     <Segmented
                         block
                         value={activeTab}
@@ -457,12 +457,12 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
             ) : null}
 
             {allowedTabs.includes(activeTab) && activeTab !== "payments" && !commercialOperationsAvailable ? (
-                <section data-billing-database-required className="flex min-h-56 flex-col items-center justify-center rounded-lg border border-stone-200 bg-white px-5 py-10 text-center dark:border-stone-800 dark:bg-stone-950">
-                    <span className="flex size-10 items-center justify-center rounded-md bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                <section data-billing-database-required className="flex min-h-56 flex-col items-center justify-center rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-5 py-10 text-center">
+                    <span className="flex size-10 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--gm-warning)_10%,transparent)] text-[var(--gm-warning)]">
                         <Landmark className="size-5" />
                     </span>
-                    <h2 className="mt-4 text-base font-semibold text-stone-950 dark:text-stone-100">商业运营需要启用 PostgreSQL</h2>
-                    <p className="mt-2 max-w-lg text-sm leading-6 text-stone-500 dark:text-stone-400">订单、套餐商品、促销和优惠券依赖数据库事务与并发约束。切换数据库后即可使用，文件模式下不会发起无效请求。</p>
+                    <h2 className="mt-4 text-base font-semibold text-[var(--gm-text)]">商业运营需要启用 PostgreSQL</h2>
+                    <p className="mt-2 max-w-lg text-sm leading-6 text-[var(--gm-text-2)]">订单、套餐商品、促销和优惠券依赖数据库事务与并发约束。切换数据库后即可使用，文件模式下不会发起无效请求。</p>
                     <Button className="mt-5" href="/admin/setup" icon={<Settings2 className="size-4" />}>
                         前往初始化
                     </Button>
@@ -481,14 +481,14 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                     <section
                         className={
                             embedded
-                                ? "rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950 sm:p-4"
-                                : "rounded-lg border border-stone-200 bg-white p-3 shadow-sm shadow-stone-200/40 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20 sm:p-4"
+                                ? "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:p-4"
+                                : "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 shadow-sm sm:p-4"
                         }
                     >
                         <div>
                             <div>
-                                <h2 className="text-base font-semibold text-stone-950 dark:text-stone-100">运营筛选</h2>
-                                <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">日期范围影响摘要；订单列表可按状态和关键词筛选。</p>
+                                <h2 className="text-base font-semibold text-[var(--gm-text)]">运营筛选</h2>
+                                <p className="mt-1 text-sm text-[var(--gm-text-2)]">日期范围影响摘要；订单列表可按状态和关键词筛选。</p>
                             </div>
                             <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_minmax(128px,0.45fr)_minmax(220px,0.9fr)_auto]">
                                 <DatePicker.RangePicker className="w-full" value={range} onChange={(value) => setRange(value)} />
@@ -505,7 +505,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                                     className="w-full"
                                     allowClear
                                     value={keyword}
-                                    prefix={<Search className="size-4 text-stone-400" />}
+                                    prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                                     placeholder="订单号 / 商品 / 支付单号 / 用户 ID"
                                     onChange={(event) => setKeyword(event.target.value)}
                                     onPressEnter={() => {
@@ -532,7 +532,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                         </div>
 
                         <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
-                            <div className="min-w-0 overflow-hidden rounded-lg border border-stone-200 dark:border-stone-800">
+                            <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--gm-border)]">
                                 <Table
                                     rowKey="id"
                                     size="middle"
@@ -564,12 +564,12 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                 <>
                     <section className="grid min-w-0 items-start gap-4">
                         <div
-                            className={`min-w-0 overflow-hidden ${embedded ? "rounded-lg border border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-950" : "rounded-lg border border-stone-200 bg-white shadow-sm shadow-stone-200/40 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20"}`}
+                            className={`min-w-0 overflow-hidden ${embedded ? "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]" : "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm"}`}
                         >
-                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 border-b border-stone-200 p-3 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4 dark:border-stone-800">
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 border-b border-[var(--gm-border)] p-3 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4">
                                 <div className="contents sm:block">
-                                    <h2 className="text-base font-semibold text-stone-950 dark:text-stone-100">套餐商品</h2>
-                                    <div className="col-span-2 line-clamp-2 text-xs leading-5 text-stone-500 sm:mt-1 sm:block sm:text-sm dark:text-stone-400">上架后会出现在用户端充值中心；创建和编辑都在弹窗中完成。</div>
+                                    <h2 className="text-base font-semibold text-[var(--gm-text)]">套餐商品</h2>
+                                    <div className="col-span-2 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)] sm:mt-1 sm:block sm:text-sm">上架后会出现在用户端充值中心；创建和编辑都在弹窗中完成。</div>
                                 </div>
                                 <div className="col-start-2 row-start-1 flex flex-wrap justify-end gap-1.5 sm:gap-2">
                                     <Button type="primary" aria-label="创建商品" title="创建商品" icon={<Plus className="size-4" />} onClick={openCreateProductModal}>
@@ -583,7 +583,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                             </div>
                             <div className="grid min-w-0 gap-2 p-3 sm:gap-3 sm:p-4 md:grid-cols-2">
                                 {productsLoading && !products.length ? (
-                                    <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-stone-200 px-3 py-6 text-sm text-stone-500 sm:py-10 md:col-span-2 dark:border-stone-800 dark:text-stone-400">
+                                    <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--gm-border)] px-3 py-6 text-sm text-[var(--gm-text-2)] sm:py-10 md:col-span-2">
                                         <RefreshCw className="size-4 animate-spin" />
                                         <span>正在加载套餐商品</span>
                                     </div>
@@ -591,19 +591,19 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                                     products.map((product) => (
                                         <article
                                             key={product.id}
-                                            className={`min-w-0 rounded-lg border p-3 text-left transition sm:p-4 ${productModalOpen && editingProductId === product.id ? "border-stone-400 bg-stone-100/80 dark:border-stone-500 dark:bg-stone-800/55" : "border-stone-200 bg-stone-50/70 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900/40 dark:hover:border-stone-700"}`}
+                                            className={`min-w-0 rounded-lg border p-3 text-left transition sm:p-4 ${productModalOpen && editingProductId === product.id ? "border-[var(--gm-border-strong)] bg-[var(--gm-wash-strong)]" : "border-[var(--gm-border)] bg-[var(--gm-wash)] hover:border-[var(--gm-border-strong)]"}`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
-                                                    <div className="truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{product.name}</div>
-                                                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500 dark:text-stone-400">{product.description || (product.productKind === "points" ? "积分充值商品" : product.planId || "未关联套餐")}</div>
+                                                    <div className="truncate text-sm font-semibold text-[var(--gm-text)]">{product.name}</div>
+                                                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{product.description || (product.productKind === "points" ? "积分充值商品" : product.planId || "未关联套餐")}</div>
                                                     {product.pricing.discountCents > 0 ? (
                                                         <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
                                                             <Tag className="m-0" color="red">
                                                                 {product.pricing.promotion?.label || "活动进行中"}
                                                             </Tag>
-                                                            <span className="font-semibold text-rose-600 dark:text-rose-300">活动价 {formatMoney(product.pricing.saleUnitAmountCents, product.currency)}</span>
-                                                            <span className="text-stone-400 line-through dark:text-stone-500">日常价 {formatMoney(product.amountCents, product.currency)}</span>
+                                                            <span className="font-semibold text-[var(--gm-danger)]">活动价 {formatMoney(product.pricing.saleUnitAmountCents, product.currency)}</span>
+                                                            <span className="text-[var(--gm-text-3)] line-through">日常价 {formatMoney(product.amountCents, product.currency)}</span>
                                                         </div>
                                                     ) : null}
                                                 </div>
@@ -612,13 +612,13 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                                                     <Tag color={product.enabled ? "green" : "default"}>{product.enabled ? "上架" : "下架"}</Tag>
                                                 </div>
                                             </div>
-                                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-stone-500 sm:mt-4 sm:grid-cols-4 dark:text-stone-400">
+                                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--gm-text-3)] sm:mt-4 sm:grid-cols-4">
                                                 <ProductFact label="日常价" value={formatMoney(product.amountCents, product.currency)} />
                                                 <ProductFact label={product.productKind === "points" ? "充值积分" : "永久积分"} value={`${product.pointsAmount}`} />
                                                 <ProductFact label="每日赠送" value={product.productKind === "plan" ? `${product.dailyPoints}` : "-"} />
                                                 <ProductFact label="周期" value={product.productKind === "plan" ? (product.periodDays ? `${product.periodDays} 天` : "长期") : "一次性"} />
                                             </div>
-                                            <div className="mt-3 flex justify-end gap-2 border-t border-stone-200 pt-2.5 sm:mt-4 sm:pt-3 dark:border-stone-800">
+                                            <div className="mt-3 flex justify-end gap-2 border-t border-[var(--gm-border)] pt-2.5 sm:mt-4 sm:pt-3">
                                                 <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => editProduct(product)}>
                                                     编辑
                                                 </Button>
@@ -629,7 +629,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                                         </article>
                                     ))
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-stone-200 px-3 py-6 text-center text-sm text-stone-500 sm:gap-3 sm:py-10 md:col-span-2 dark:border-stone-800 dark:text-stone-400">
+                                    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--gm-border)] px-3 py-6 text-center text-sm text-[var(--gm-text-2)] sm:gap-3 sm:py-10 md:col-span-2">
                                         <span>暂无套餐商品</span>
                                     </div>
                                 )}
@@ -654,7 +654,7 @@ export function BillingOperations({ databaseProvider, initialTab = "orders", ini
                         ]}
                     >
                         <Form form={productForm} layout="vertical" initialValues={defaultProductFormValue(products.length + 1)} onFinish={(value) => void saveProduct(value)}>
-                            <div className="mb-4 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm leading-6 text-stone-500 dark:border-stone-800 dark:bg-stone-900/50 dark:text-stone-400">
+                            <div className="mb-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-wash)] px-4 py-3 text-sm leading-6 text-[var(--gm-text-2)]">
                                 保存后会立即影响充值中心展示。积分充值只增加永久积分；套餐可同时配置有效期内的每日赠送积分。
                             </div>
                             <Form.Item name="id" hidden>

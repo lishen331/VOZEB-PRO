@@ -744,6 +744,7 @@ export default function ProjectOutlinePage() {
                                     onClick={() => setStylePickerOpen(true)}
                                 >
                                     <span className="grid size-6 shrink-0 overflow-hidden rounded-sm bg-[var(--gm-wash)]">
+                                        {/* 未选风格时的装饰占位色块（violet→primary→slate），无对应 gm token，保留原样 */}
                                         {selectedStyleOption?.thumb ? <img src={selectedStyleOption.thumb} alt="" className="size-full object-cover" /> : <span className="size-full bg-gradient-to-br from-violet-300 via-primary/60 to-slate-700" />}
                                     </span>
                                     <span className={selectedStyle ? "min-w-0 flex-1 truncate text-[var(--gm-text)]" : "min-w-0 flex-1 truncate text-[var(--gm-text-3)]"}>{selectedStyleOption?.label || selectedStyle || "选择生成风格"}</span>
@@ -1160,13 +1161,13 @@ export default function ProjectOutlinePage() {
                                                     <img src={reference.url} alt={`历史图 ${index + 1}`} className="size-full object-cover" />
                                                 </button>
                                                 <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/45 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
-                                                    <button type="button" aria-label="放大历史图" className="rounded bg-white px-1.5 text-xs" onClick={() => setResourcePreview({ url: reference.url || "", title: `历史图 ${index + 1}` })}>
+                                                    <button type="button" aria-label="放大历史图" className="rounded bg-[var(--gm-surface)] px-1.5 text-xs text-[var(--gm-text)]" onClick={() => setResourcePreview({ url: reference.url || "", title: `历史图 ${index + 1}` })}>
                                                         ⌕
                                                     </button>
                                                     <button
                                                         type="button"
                                                         aria-label="删除历史图"
-                                                        className="rounded bg-white px-1.5 text-xs"
+                                                        className="rounded bg-[var(--gm-surface)] px-1.5 text-xs text-[var(--gm-text)]"
                                                         onClick={() => updateResourceAsset((asset) => ({ ...asset, references: (asset.references || []).filter((item) => item.id !== reference.id) }))}
                                                     >
                                                         ×
@@ -1203,7 +1204,7 @@ export default function ProjectOutlinePage() {
                                             <button
                                                 type="button"
                                                 aria-label={`移除${reference.label}`}
-                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs"
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-[var(--gm-surface)]/90 text-xs text-[var(--gm-text)]"
                                                 onClick={() => updateResourceAsset((asset) => ({ ...asset, references: (asset.references || []).filter((item) => item.id !== reference.id) }))}
                                             >
                                                 ×

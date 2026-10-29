@@ -101,7 +101,7 @@ export function AssetPreviewModal({ asset, onClose, onCopy, onDownload }: { asse
                     {cover ? (
                         <Image src={imagePreviewUrl(cover, 960)} alt={asset.title} className="rounded-lg" preview={{ src: imagePreviewUrl(cover, 1920) }} />
                     ) : (
-                        <div className="rounded-lg border border-stone-200 bg-stone-50 p-5 text-sm leading-6 text-stone-600 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300">{asset.kind === "text" ? asset.data.content : "暂无封面"}</div>
+                        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-5 text-sm leading-6 text-[var(--gm-text-2)]">{asset.kind === "text" ? asset.data.content : "暂无封面"}</div>
                     )}
                     <div>
                         <Typography.Title level={4} className="!mb-2">
@@ -114,7 +114,7 @@ export function AssetPreviewModal({ asset, onClose, onCopy, onDownload }: { asse
                             ))}
                         </Space>
                     </div>
-                    <div className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+                    <div className="rounded-lg border border-[var(--gm-border)] p-4">
                         <Typography.Text type="secondary" className="block text-xs">
                             内容
                         </Typography.Text>

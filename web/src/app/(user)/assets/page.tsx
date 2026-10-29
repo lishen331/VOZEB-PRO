@@ -292,7 +292,7 @@ export default function AssetsPage() {
                                 className="w-full"
                                 size="middle"
                                 allowClear
-                                prefix={<Search className="size-4 text-stone-400" />}
+                                prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                                 value={keyword}
                                 placeholder="搜索标题、内容、标签或来源"
                                 onChange={(event) => {
@@ -340,7 +340,7 @@ export default function AssetsPage() {
                             </section>
                         ) : error ? (
                             <section className="flex min-h-32 flex-col items-center justify-center gap-3 border-y border-[var(--gm-border)] px-4 text-center sm:min-h-56">
-                                <p className="text-sm text-stone-500 dark:text-stone-400">{error}</p>
+                                <p className="text-sm text-[var(--gm-text-2)]">{error}</p>
                                 <Button size="small" onClick={reload}>
                                     重新加载
                                 </Button>
@@ -388,7 +388,7 @@ export default function AssetsPage() {
                         </Form.Item>
                         <Form.Item label="封面 URL">
                             <div
-                                className={cn("rounded-md transition", isCoverDragActive && "ring-2 ring-cyan-300 ring-offset-2 ring-offset-white dark:ring-cyan-500 dark:ring-offset-stone-950")}
+                                className={cn("rounded-md transition", isCoverDragActive && "ring-2 ring-[var(--gm-accent)] ring-offset-2 ring-offset-[var(--gm-surface)]")}
                                 onDragEnter={handleCoverDragOver}
                                 onDragOver={handleCoverDragOver}
                                 onDragLeave={handleCoverDragLeave}
@@ -426,8 +426,8 @@ export default function AssetsPage() {
                             <Form.Item label={`${formKind === "image" ? "图片" : formKind === "video" ? "视频" : "音频"}内容`} required>
                                 <div
                                     className={cn(
-                                        "rounded-lg border border-dashed border-stone-300 p-4 transition dark:border-stone-700",
-                                        isImageDragActive && "border-cyan-400 bg-cyan-50/60 ring-1 ring-cyan-200 dark:border-cyan-400 dark:bg-cyan-500/10 dark:ring-cyan-400/25",
+                                        "rounded-lg border border-dashed border-[var(--gm-border-strong)] p-4 transition",
+                                        isImageDragActive && "border-[var(--gm-accent)] bg-[var(--gm-accent-soft)] ring-1 ring-[var(--gm-accent-ring)]",
                                     )}
                                     onDragEnter={handleImageDragOver}
                                     onDragOver={handleImageDragOver}
@@ -451,21 +451,22 @@ export default function AssetsPage() {
                             </Form.Item>
                         )}
                     </Form>
-                    <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-950">
+                    <div className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
                         <Typography.Text strong>预览</Typography.Text>
-                        <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-[var(--gm-bg)] dark:border-stone-800">
+                        <div className="mt-3 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-bg)]">
                             {coverUrl || (mediaDraft && "dataUrl" in mediaDraft ? mediaDraft.dataUrl : "") ? (
                                 <img src={imagePreviewUrl(coverUrl || (mediaDraft && "dataUrl" in mediaDraft ? mediaDraft.dataUrl : ""), 960)} alt="" className="aspect-[4/3] w-full object-cover" />
                             ) : formKind === "video" && mediaDraft && "url" in mediaDraft ? (
+                                // 跳过：视频占位模拟播放器黑底，深浅主题都应为深色，gm 无对应常量 token
                                 <div className="flex aspect-[4/3] items-center justify-center bg-stone-900 text-white">
                                     <Film className="size-10" />
                                 </div>
                             ) : formKind === "audio" && mediaDraft && "url" in mediaDraft ? (
-                                <div className="flex aspect-[4/3] items-center justify-center bg-stone-100 text-stone-500 dark:bg-stone-900">
+                                <div className="flex aspect-[4/3] items-center justify-center bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]">
                                     <FileAudio className="size-10" />
                                 </div>
                             ) : (
-                                <div className="flex aspect-[4/3] items-center justify-center bg-stone-100 p-5 text-center text-sm text-stone-500 dark:bg-stone-900">{content || "暂无封面"}</div>
+                                <div className="flex aspect-[4/3] items-center justify-center bg-[var(--gm-wash-strong)] p-5 text-center text-sm text-[var(--gm-text-2)]">{content || "暂无封面"}</div>
                             )}
                             <div className="p-4">
                                 <Typography.Text strong ellipsis className="block">

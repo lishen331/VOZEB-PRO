@@ -91,14 +91,15 @@ export default async function TermsPage() {
     return (
         <main className="app-scroll-page bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-8 sm:py-8">
-                <Link href="/" className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3.5 text-sm font-medium text-[var(--gm-text-2)] transition hover:border-cyan-300 hover:text-cyan-700">
+                <Link href="/" className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3.5 text-sm font-medium text-[var(--gm-text-2)] transition hover:border-[var(--gm-accent)] hover:text-[var(--gm-accent)]">
                     <ArrowLeft className="size-4" />
                     返回首页
                 </Link>
 
                 <article className="mt-5 overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-[var(--gm-shadow)]">
+                    {/* 跳过：法务页品牌头图在深浅主题下都保持深底白字，gm 无对应的常暗面 token */}
                     <header className="bg-[#070c19] px-5 py-8 text-white sm:px-9 sm:py-10">
-                        <div className="inline-flex items-center gap-2 text-sm font-medium text-cyan-200">
+                        <div className="inline-flex items-center gap-2 text-sm font-medium text-[var(--gm-cyan)]">
                             <Scale className="size-4" />
                             使用规则与用户权益
                         </div>
@@ -110,7 +111,7 @@ export default async function TermsPage() {
                     <div className="grid gap-3 border-b border-[var(--gm-border)] p-4 sm:grid-cols-3 sm:p-6">
                         {highlights.map(({ title, body, icon: Icon }) => (
                             <section key={title} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface-2)] p-4">
-                                <Icon className="size-5 text-cyan-600" />
+                                <Icon className="size-5 text-[var(--gm-accent)]" />
                                 <h2 className="mt-3 text-sm font-semibold text-[var(--gm-text)]">{title}</h2>
                                 <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-2)]">{body}</p>
                             </section>
@@ -120,7 +121,7 @@ export default async function TermsPage() {
                     <div className="divide-y divide-[var(--gm-border)] px-5 sm:px-9">
                         {sections.map((section, index) => (
                             <section key={section.title} className="grid gap-3 py-6 sm:grid-cols-[44px_minmax(0,1fr)] sm:py-8">
-                                <span className="grid size-8 place-items-center rounded-full bg-cyan-50 text-xs font-semibold text-cyan-700">{String(index + 1).padStart(2, "0")}</span>
+                                <span className="grid size-8 place-items-center rounded-full bg-[var(--gm-accent-soft)] text-xs font-semibold text-[var(--gm-accent)]">{String(index + 1).padStart(2, "0")}</span>
                                 <div>
                                     <h2 className="text-lg font-semibold text-[var(--gm-text)]">{section.title}</h2>
                                     <div className="mt-3 space-y-3 text-sm leading-7 text-[var(--gm-text-2)]">

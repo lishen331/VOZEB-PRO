@@ -126,11 +126,11 @@ export function PromotionCampaignPanel({ products, productsLoading }: { products
     };
 
     return (
-        <section className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm shadow-stone-200/40 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
-            <div className="flex items-start justify-between gap-3 border-b border-stone-200 p-3 sm:items-center sm:p-4 dark:border-stone-800">
+        <section className="overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-sm">
+            <div className="flex items-start justify-between gap-3 border-b border-[var(--gm-border)] p-3 sm:items-center sm:p-4">
                 <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-stone-950 dark:text-stone-100">促销活动</h2>
-                    <p className="mt-1 text-xs leading-5 text-stone-500 sm:text-sm dark:text-stone-400">活动价由服务端按生效时间解析，同一商品不能配置重叠活动。</p>
+                    <h2 className="text-base font-semibold text-[var(--gm-text)]">促销活动</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)] sm:text-sm">活动价由服务端按生效时间解析，同一商品不能配置重叠活动。</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
                     <Button icon={<RefreshCw className="size-4" />} loading={loading} aria-label="刷新促销活动" title="刷新促销活动" onClick={() => void load()} />
@@ -148,35 +148,35 @@ export function PromotionCampaignPanel({ products, productsLoading }: { products
                     campaigns.map((campaign) => {
                         const state = campaignState(campaign);
                         return (
-                            <article key={campaign.id} className="min-w-0 rounded-lg border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40 sm:p-4">
+                            <article key={campaign.id} className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 sm:p-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                            <BadgePercent className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                            <h3 className="truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{campaign.name}</h3>
+                                            <BadgePercent className="size-4 shrink-0 text-[var(--gm-success)]" />
+                                            <h3 className="truncate text-sm font-semibold text-[var(--gm-text)]">{campaign.name}</h3>
                                             <Tag className="m-0" color={state.color}>
                                                 {state.label}
                                             </Tag>
                                         </div>
-                                        <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">标签：{campaign.label}</p>
+                                        <p className="mt-2 text-xs text-[var(--gm-text-3)]">标签：{campaign.label}</p>
                                     </div>
                                     <Tag className="m-0 shrink-0" color={campaign.enabled ? "green" : "default"}>
                                         {campaign.enabled ? "启用" : "停用"}
                                     </Tag>
                                 </div>
-                                <div className="mt-3 flex items-start gap-2 text-xs leading-5 text-stone-500 dark:text-stone-400">
+                                <div className="mt-3 flex items-start gap-2 text-xs leading-5 text-[var(--gm-text-3)]">
                                     <CalendarClock className="mt-0.5 size-3.5 shrink-0" />
                                     <span>{formatRange(campaign.startsAt, campaign.endsAt)}</span>
                                 </div>
-                                <div className="mt-3 space-y-1.5 border-t border-stone-200 pt-3 dark:border-stone-800">
+                                <div className="mt-3 space-y-1.5 border-t border-[var(--gm-border)] pt-3">
                                     {campaign.products.map((item) => (
                                         <div key={item.productId} className="flex items-center justify-between gap-3 text-xs">
-                                            <span className="min-w-0 truncate text-stone-600 dark:text-stone-300">{adminProductLabel(products, item.productId)}</span>
-                                            <span className="shrink-0 font-semibold tabular-nums text-stone-950 dark:text-stone-100">¥ {formatYuan(item.promotionalAmountCents)}</span>
+                                            <span className="min-w-0 truncate text-[var(--gm-text-2)]">{adminProductLabel(products, item.productId)}</span>
+                                            <span className="shrink-0 font-semibold tabular-nums text-[var(--gm-text)]">¥ {formatYuan(item.promotionalAmountCents)}</span>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="mt-3 flex justify-end gap-2 border-t border-stone-200 pt-3 dark:border-stone-800">
+                                <div className="mt-3 flex justify-end gap-2 border-t border-[var(--gm-border)] pt-3">
                                     <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => showEdit(campaign)}>
                                         编辑
                                     </Button>
@@ -226,7 +226,7 @@ export function PromotionCampaignPanel({ products, productsLoading }: { products
                         <Select mode="multiple" optionFilterProp="label" placeholder="选择已配置日常价的商品" options={products.map((product) => ({ value: product.id, label: `${product.name} · ¥${formatYuan(product.amountCents)}` }))} />
                     </Form.Item>
                     {productIds.length ? (
-                        <div className="grid gap-x-3 rounded-lg border border-stone-200 bg-stone-50/70 p-3 sm:grid-cols-2 dark:border-stone-800 dark:bg-stone-900/45">
+                        <div className="grid gap-x-3 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 sm:grid-cols-2">
                             {productIds.map((productId) => {
                                 const product = products.find((item) => item.id === productId);
                                 return (
@@ -265,12 +265,12 @@ function formatYuan(amountCents: number) {
 
 function Loading({ label }: { label: string }) {
     return (
-        <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-stone-200 px-3 py-10 text-sm text-stone-500 lg:col-span-2 dark:border-stone-800 dark:text-stone-400">
+        <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--gm-border)] px-3 py-10 text-sm text-[var(--gm-text-2)] lg:col-span-2">
             <RefreshCw className="size-4 animate-spin" /> {label}
         </div>
     );
 }
 
 function Empty({ label }: { label: string }) {
-    return <div className="rounded-lg border border-dashed border-stone-200 px-3 py-10 text-center text-sm text-stone-500 lg:col-span-2 dark:border-stone-800 dark:text-stone-400">{label}</div>;
+    return <div className="rounded-lg border border-dashed border-[var(--gm-border)] px-3 py-10 text-center text-sm text-[var(--gm-text-2)] lg:col-span-2">{label}</div>;
 }

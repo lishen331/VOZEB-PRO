@@ -57,26 +57,26 @@ export function AdminAnnouncementsSection({ controller }: { controller: AdminDas
                 }
             />
             <div className="space-y-5 p-4 sm:p-5">
-                <section className="rounded-lg border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950">
+                <section className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4">
                     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <SectionTitle icon={<Database className="size-4" />} title="公告记录" />
                         <Tag className="m-0 w-fit">共 {announcementTotal} 条</Tag>
                     </div>
                     <div className="grid gap-3">
                         {announcements.map((announcement) => (
-                            <div key={announcement.id} className="rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+                            <div key={announcement.id} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
                                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <h3 className="text-base font-semibold text-stone-950 dark:text-stone-100">{announcement.title}</h3>
+                                            <h3 className="text-base font-semibold text-[var(--gm-text)]">{announcement.title}</h3>
                                             <Tag color={announcement.enabled ? "green" : "default"} className="m-0">
                                                 {announcement.enabled ? "展示中" : "已停用"}
                                             </Tag>
                                             {announcement.popupHome ? <Tag className="m-0">首页弹窗</Tag> : null}
                                             {announcement.popupAfterLogin ? <Tag className="m-0">登录弹窗</Tag> : null}
                                         </div>
-                                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-600 dark:text-stone-300">{announcement.content}</p>
-                                        <div className="mt-2 text-xs text-stone-500 dark:text-stone-400">{new Date(announcement.createdAt).toLocaleString("zh-CN")}</div>
+                                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--gm-text-2)]">{announcement.content}</p>
+                                        <div className="mt-2 text-xs text-[var(--gm-text-3)]">{new Date(announcement.createdAt).toLocaleString("zh-CN")}</div>
                                     </div>
                                     <Space wrap className="shrink-0 lg:justify-end">
                                         <Button size="small" href={`/announcements#${announcement.id}`} target="_blank" icon={<ExternalLink className="size-3.5" />}>
@@ -95,7 +95,7 @@ export function AdminAnnouncementsSection({ controller }: { controller: AdminDas
                             </div>
                         ))}
                         {!announcements.length && !announcementsLoading ? (
-                            <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-stone-200 px-3 py-10 text-center text-sm text-stone-500 dark:border-stone-800">
+                            <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-[var(--gm-border)] px-3 py-10 text-center text-sm text-[var(--gm-text-2)]">
                                 <span>暂无公告。</span>
                                 <Button type="primary" icon={<Plus className="size-4" />} onClick={openAnnouncementModal}>
                                     发布第一条公告
@@ -125,7 +125,7 @@ export function AdminAnnouncementsSection({ controller }: { controller: AdminDas
                     </Button>,
                 ]}
             >
-                <div className="mb-4 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm leading-6 text-stone-500 dark:border-stone-800 dark:bg-stone-900/50 dark:text-stone-400">
+                <div className="mb-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-wash)] px-4 py-3 text-sm leading-6 text-[var(--gm-text-2)]">
                     公告发布后会进入公告记录；勾选首页弹窗或登录后弹窗后，用户会在对应场景看到提醒。
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -212,20 +212,20 @@ export function AdminPromptsSection({ controller }: { controller: AdminDashboard
                 <section className="admin-prompt-table rounded-xl">
                     <div className="admin-prompt-table-header flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
                         <div className="min-w-0">
-                            <h3 className="text-base font-semibold text-stone-950 dark:text-stone-100">提示词列表</h3>
-                            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">已收录的公共提示词会同步展示到用户端提示词库。</p>
+                            <h3 className="text-base font-semibold text-[var(--gm-text)]">提示词列表</h3>
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">已收录的公共提示词会同步展示到用户端提示词库。</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                            <span className="rounded-md bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600 dark:bg-white/10 dark:text-stone-300">{promptListTotal ? `${promptListStart}-${promptListEnd} / ${promptListTotal} 条` : "0 条"}</span>
+                            <span className="rounded-md bg-[var(--gm-wash-strong)] px-2.5 py-1 text-xs font-medium text-[var(--gm-text-2)]">{promptListTotal ? `${promptListStart}-${promptListEnd} / ${promptListTotal} 条` : "0 条"}</span>
                             <Button size="small" icon={<Plus className="size-3.5" />} onClick={openPromptModal}>
                                 添加
                             </Button>
                         </div>
                     </div>
-                    <div className="flex flex-col gap-3 border-t border-stone-200/70 px-4 py-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div className="flex flex-col gap-3 border-t border-[var(--gm-border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                         <Input
                             className="w-full sm:max-w-md"
-                            prefix={<Search className="size-4 text-stone-400" />}
+                            prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                             allowClear
                             placeholder="搜索标题、分类、标签或提示词内容"
                             value={promptSearch}
@@ -235,7 +235,7 @@ export function AdminPromptsSection({ controller }: { controller: AdminDashboard
                             }}
                         />
                         <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
-                            <span className="text-xs text-stone-500 dark:text-stone-400">已选 {selectedPrompts.length} 条</span>
+                            <span className="text-xs text-[var(--gm-text-3)]">已选 {selectedPrompts.length} 条</span>
                             <Popconfirm title="批量删除选中提示词？" description="会从公共提示词库中移除，用户端将不再显示这些提示词。" okText="删除" cancelText="取消" onConfirm={() => void bulkDeletePrompts()}>
                                 <Button danger disabled={!selectedPrompts.length} loading={bulkDeletingPrompts} icon={<Trash2 className="size-4" />}>
                                     批量删除
@@ -245,7 +245,7 @@ export function AdminPromptsSection({ controller }: { controller: AdminDashboard
                     </div>
                     <div className="space-y-3 px-4 pb-4 md:hidden">
                         {prompts.map((prompt) => (
-                            <div key={prompt.id} className="rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950">
+                            <div key={prompt.id} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                                 <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3">
                                     <Checkbox checked={selectedPromptIds.includes(prompt.id)} onChange={(event) => setSelectedPromptIds((ids) => (event.target.checked ? Array.from(new Set([...ids, prompt.id])) : ids.filter((id) => id !== prompt.id)))} />
                                     <div className="min-w-0">
@@ -254,16 +254,16 @@ export function AdminPromptsSection({ controller }: { controller: AdminDashboard
                                                 <img
                                                     src={imagePreviewUrl(prompt.coverUrl, 480)}
                                                     alt={prompt.title}
-                                                    className="h-16 w-24 shrink-0 rounded-md border border-stone-200 object-cover dark:border-stone-800"
+                                                    className="h-16 w-24 shrink-0 rounded-md border border-[var(--gm-border)] object-cover"
                                                     loading="lazy"
                                                     referrerPolicy="no-referrer"
                                                 />
                                             ) : (
-                                                <div className="h-16 w-24 shrink-0 rounded-md border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
+                                                <div className="h-16 w-24 shrink-0 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash-strong)]" />
                                             )}
                                             <div className="min-w-0">
-                                                <div className="truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{prompt.title}</div>
-                                                <div className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500 dark:text-stone-400">{prompt.prompt}</div>
+                                                <div className="truncate text-sm font-semibold text-[var(--gm-text)]">{prompt.title}</div>
+                                                <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{prompt.prompt}</div>
                                             </div>
                                         </div>
                                         <div className="mt-3 flex min-w-0 flex-wrap gap-1">
@@ -290,7 +290,7 @@ export function AdminPromptsSection({ controller }: { controller: AdminDashboard
                             </div>
                         ))}
                         {!prompts.length && !promptsLoading ? (
-                            <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300 py-12 text-center text-sm text-stone-500 dark:border-stone-700">
+                            <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gm-border-strong)] py-12 text-center text-sm text-[var(--gm-text-2)]">
                                 <span>暂无提示词</span>
                                 <Button type="primary" icon={<Plus className="size-4" />} onClick={openPromptModal}>
                                     添加第一条提示词

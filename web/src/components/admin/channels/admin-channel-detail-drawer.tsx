@@ -71,7 +71,7 @@ function ChannelOverview({ channel, settings, status, onFetchModels, fetching }:
     const canSync = !runningHub && channelSupportsModelCatalog(channel);
     return (
         <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-4 dark:border-stone-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gm-border)] pb-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <ChannelStatusBadge status={status} />
                     <Tag>{channelProtocolLabel(channel)}</Tag>
@@ -100,19 +100,19 @@ function ChannelOverview({ channel, settings, status, onFetchModels, fetching }:
             </div>
             {!runningHub ? (
                 <div>
-                    <div className="mb-2 text-sm font-semibold text-stone-950 dark:text-stone-100">逻辑模型绑定</div>
-                    <div className="divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+                    <div className="mb-2 text-sm font-semibold text-[var(--gm-text)]">逻辑模型绑定</div>
+                    <div className="divide-y divide-[var(--gm-border)] border-y border-[var(--gm-border)]">
                         {settings.logicalModels.flatMap((model) =>
                             model.bindings
                                 .filter((binding) => binding.channelId === channel.id)
                                 .map((binding) => (
                                     <div key={binding.id} className="flex min-w-0 items-center justify-between gap-3 py-2.5 text-sm">
-                                        <span className="font-medium text-stone-900 dark:text-stone-100">{model.name}</span>
-                                        <span className="min-w-0 truncate text-stone-500 dark:text-stone-400">{binding.upstreamModel}</span>
+                                        <span className="font-medium text-[var(--gm-text)]">{model.name}</span>
+                                        <span className="min-w-0 truncate text-[var(--gm-text-2)]">{binding.upstreamModel}</span>
                                     </div>
                                 )),
                         )}
-                        {!channelBindingCount(channel.id, settings) ? <div className="py-8 text-center text-sm text-stone-500 dark:text-stone-400">尚未绑定逻辑模型</div> : null}
+                        {!channelBindingCount(channel.id, settings) ? <div className="py-8 text-center text-sm text-[var(--gm-text-2)]">尚未绑定逻辑模型</div> : null}
                     </div>
                 </div>
             ) : null}
@@ -122,10 +122,10 @@ function ChannelOverview({ channel, settings, status, onFetchModels, fetching }:
 
 function ChannelModels({ channel }: { channel: SystemModelChannel }) {
     return (
-        <div className="divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+        <div className="divide-y divide-[var(--gm-border)] border-y border-[var(--gm-border)]">
             {channel.models.map((model) => (
                 <div key={model} className="flex min-w-0 items-center justify-between gap-3 py-3">
-                    <span className="min-w-0 truncate text-sm font-medium text-stone-950 dark:text-stone-100">{model}</span>
+                    <span className="min-w-0 truncate text-sm font-medium text-[var(--gm-text)]">{model}</span>
                     <Tag className="m-0">{capabilityLabel(channelModelCapability(channel, model))}</Tag>
                 </div>
             ))}
@@ -136,9 +136,9 @@ function ChannelModels({ channel }: { channel: SystemModelChannel }) {
 
 function OverviewValue({ label, value }: { label: string; value: string }) {
     return (
-        <div className="min-w-0 border-b border-stone-100 pb-3 dark:border-stone-900">
-            <div className="text-xs text-stone-500 dark:text-stone-400">{label}</div>
-            <div className="mt-1 break-all text-sm font-medium text-stone-950 dark:text-stone-100">{value}</div>
+        <div className="min-w-0 border-b border-[var(--gm-border)] pb-3">
+            <div className="text-xs text-[var(--gm-text-3)]">{label}</div>
+            <div className="mt-1 break-all text-sm font-medium text-[var(--gm-text)]">{value}</div>
         </div>
     );
 }
