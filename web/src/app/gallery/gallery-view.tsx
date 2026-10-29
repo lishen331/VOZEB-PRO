@@ -1,13 +1,12 @@
 "use client";
 
-import { ArrowRight, ChevronLeft, GalleryVerticalEnd, Plus, Search, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, GalleryVerticalEnd, Plus, RotateCw, Search, Sparkles, Tag } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Select } from "@/components/gamma-ui/gamma-ant-select";
-import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Checkbox } from "@/components/gamma-ui/gamma-ant";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
+import { GammaTabs, gammaChipClass } from "@/components/gamma-ui/gamma-controls";
+import { GammaEmptyState } from "@/components/gamma-ui/gamma-overlays";
 
 import { PublicWorkPreviewModal } from "@/components/works/public-work-preview-modal";
 import { PublicWorkGalleryCard } from "@/components/works/public-work-gallery-card";
@@ -18,21 +17,43 @@ import { cn } from "@/lib/utils";
 import type { GalleryFilters, GalleryResult } from "./gallery-data";
 import { GalleryPublishLink } from "./gallery-publish-link";
 
-const linkControlClass = "inline-flex h-10 items-center gap-2 rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] px-3 text-sm text-[var(--gm-text)] transition hover:bg-[var(--gm-wash)]";
+/*
+ * 作品广场（/gallery 公开页、/community 工作空间内）共用的视图。
+ * 控件与首页作品区一致：分段排序 + 胶囊分类 + 搜索框；筛选条件都在 URL 上，所以分类、精选用链接，排序切换后跳转。
+ */
+
+const SORT_TABS = [
+    { value: "random", label: "推荐" },
+    { value: "featured", label: "精选" },
+    { value: "latest", label: "最新" },
+    { value: "popular", label: "最多访问" },
+    { value: "weekly", label: "本周热榜" },
+    { value: "monthly", label: "本月热榜" },
+];
+
+const linkControlClass = "inline-flex h-8 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]";
+const searchFieldClass =
+    "flex h-9 min-w-0 items-center gap-2 rounded-[var(--gm-radius)] bg-[var(--gm-surface)] px-3 ring-1 ring-[var(--gm-border)] transition-shadow focus-within:shadow-[0_0_0_4px_var(--gm-accent-soft)] focus-within:ring-[var(--gm-accent)]";
+const searchInputClass = "h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--gm-text)] outline-none placeholder:text-[var(--gm-text-3)]";
 const primaryLinkClass =
-    "inline-flex h-9 items-center justify-center gap-2 rounded-[var(--gm-radius-sm)] bg-[image:var(--gm-gradient)] px-4 text-sm font-medium text-white shadow-[var(--gm-glow-blue)] transition-shadow hover:shadow-[0_10px_34px_rgba(0,80,245,0.6)]";
+    "inline-flex h-8 items-center justify-center gap-1.5 rounded-[var(--gm-radius-sm)] bg-[image:var(--gm-gradient)] px-3 text-[13px] font-medium text-white shadow-[var(--gm-glow-blue)] transition-shadow hover:shadow-[0_10px_34px_rgba(0,80,245,0.6)]";
 
 export function GalleryView({ filters, gallery, basePath, embedded = false }: { filters: GalleryFilters; gallery: GalleryResult; basePath: string; embedded?: boolean }) {
     const filtered = hasFilters(filters);
     const [previewSlug, setPreviewSlug] = useState("");
     const [creatorUsername, setCreatorUsername] = useState("");
+    // 先在本地切过去，指示块立刻滑动，不用等页面跳转完成
     const [sort, setSort] = useState(filters.sort);
     const router = useRouter();
 
     useEffect(() => setSort(filters.sort), [filters.sort]);
+    const changeSort = (value: string) => {
+        setSort(value);
+        router.push(galleryFilterHref(basePath, filters, { sort: value }));
+    };
     return (
-        <div className={cn("mx-auto w-full max-w-[1600px]", embedded ? "px-2 py-2 sm:px-6 sm:py-6" : "px-3 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-6")}>
-            <section className="flex min-w-0 items-center justify-between gap-3 pb-3 sm:pb-4">
+        <div className={cn("mx-auto flex w-full max-w-[1600px] flex-col gap-2.5", embedded ? "px-2 py-2 sm:px-6 sm:py-6" : "px-3 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-6")}>
+            <section className="flex min-w-0 items-center justify-between gap-3 pb-1">
                 <div className="flex min-w-0 items-center gap-2">
                     {!embedded ? (
                         <button
@@ -54,100 +75,95 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
                 ) : null}
             </section>
 
-            <nav className="flex min-w-0 gap-1 overflow-x-auto border-b border-[var(--gm-border)] pb-2" aria-label="作品分类">
-                <Link href={galleryFilterHref(basePath, filters, "")} className={categoryClass(!filters.category)}>
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <div className="hide-scrollbar max-w-full overflow-x-auto">
+                    <GammaTabs label="作品排序" options={SORT_TABS} value={sort} onChange={changeSort} />
+                </div>
+                <span aria-hidden className="hidden h-6 w-px bg-[var(--gm-border-strong)] md:block" />
+                <form className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1" action={basePath}>
+                    <input type="hidden" name="category" value={filters.category} />
+                    <input type="hidden" name="sort" value={sort} />
+                    {filters.featured ? <input type="hidden" name="featured" value="1" /> : null}
+                    <label className={cn(searchFieldClass, "flex-1 md:max-w-80")}>
+                        <Search className="size-4 shrink-0 text-[var(--gm-text-3)]" aria-hidden />
+                        <span className="sr-only">搜索作品</span>
+                        <input name="keyword" defaultValue={filters.keyword} placeholder="搜索作品或提示词" className={searchInputClass} />
+                    </label>
+                    <label className={cn(searchFieldClass, "w-28 shrink-0 sm:w-36")}>
+                        <Tag className="size-4 shrink-0 text-[var(--gm-text-3)]" aria-hidden />
+                        <span className="sr-only">作品标签</span>
+                        <input name="tag" defaultValue={filters.tag} placeholder="标签" className={searchInputClass} />
+                    </label>
+                    <GammaButton size="sm" variant="soft" type="submit" icon={<Search className="size-3.5" aria-hidden />}>
+                        搜索
+                    </GammaButton>
+                </form>
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <Link href={galleryFilterHref(basePath, filters, { featured: filters.featured ? "" : "1" })} aria-pressed={filters.featured === "1"} className={gammaChipClass(filters.featured === "1")}>
+                        <Sparkles className="size-3.5" aria-hidden />
+                        只看精选
+                    </Link>
+                    {filtered ? (
+                        <Link href={basePath} className={linkControlClass}>
+                            清除筛选
+                        </Link>
+                    ) : null}
+                </div>
+            </div>
+
+            <nav className="hide-scrollbar flex min-w-0 flex-nowrap gap-2 overflow-x-auto" aria-label="作品分类">
+                <Link href={galleryFilterHref(basePath, filters, { category: "" })} aria-current={!filters.category ? "page" : undefined} className={gammaChipClass(!filters.category)}>
                     全部
                 </Link>
                 {WORK_CATEGORY_OPTIONS.map((option) => (
-                    <Link key={option.value} href={galleryFilterHref(basePath, filters, option.value)} className={categoryClass(filters.category === option.value)}>
+                    <Link key={option.value} href={galleryFilterHref(basePath, filters, { category: option.value })} aria-current={filters.category === option.value ? "page" : undefined} className={gammaChipClass(filters.category === option.value)}>
                         {option.label}
                     </Link>
                 ))}
             </nav>
-
-            <form className="grid min-w-0 grid-cols-2 gap-2 border-b border-[var(--gm-border)] py-2.5 md:grid-cols-[minmax(220px,1fr)_140px_150px_auto_auto]" action={basePath}>
-                <input type="hidden" name="category" value={filters.category} />
-                <div className="col-span-2 min-w-0 md:col-span-1">
-                    <Input name="keyword" defaultValue={filters.keyword} placeholder="搜索标题、说明或提示词" aria-label="搜索作品" size="large" prefix={<Search className="size-4" aria-hidden />} className="w-full" />
-                </div>
-                <Input name="tag" defaultValue={filters.tag} placeholder="标签" aria-label="作品标签" size="large" />
-                <input type="hidden" name="sort" value={sort} />
-                <Select
-                    aria-label="作品排序"
-                    className="w-full"
-                    size="large"
-                    value={sort}
-                    options={[
-                        { value: "random", label: "随机发现" },
-                        { value: "featured", label: "精选优先" },
-                        { value: "latest", label: "最新发布" },
-                        { value: "popular", label: "最多访问" },
-                        { value: "weekly", label: "本周热榜" },
-                        { value: "monthly", label: "本月热榜" },
-                    ]}
-                    onChange={setSort}
-                />
-                <Checkbox
-                    name="featured"
-                    value="1"
-                    defaultChecked={filters.featured === "1"}
-                    className="h-12 min-h-12 !items-center rounded-[var(--gm-radius-sm)] border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] px-3 transition hover:border-[var(--gm-accent)]"
-                >
-                    只看精选
-                </Checkbox>
-                <div className="col-span-2 flex min-w-0 items-center justify-end gap-2 md:col-span-1">
-                    {filtered ? (
-                        <Link href={basePath} className={cn(linkControlClass, "h-12")}>
-                            清除
-                        </Link>
-                    ) : null}
-                    <GammaButton size="lg" icon={<Search className="size-4" aria-hidden />} type="submit" className="min-w-0 flex-1 md:flex-none">
-                        筛选
-                    </GammaButton>
-                </div>
-            </form>
-
             {gallery.error ? (
-                <section className="grid min-h-48 place-items-center border-b border-dashed border-[var(--gm-border)] px-4 text-center">
-                    <div>
-                        <p className="text-sm font-medium text-[var(--gm-text)]">作品广场暂时不可用</p>
-                        <p className="mt-1 text-xs text-[var(--gm-text-3)]">{gallery.error}</p>
-                    </div>
-                </section>
+                <GammaEmptyState
+                    icon={<RotateCw />}
+                    title="作品广场暂时不可用"
+                    description={gallery.error}
+                    action={
+                        <GammaButton size="sm" variant="soft" onClick={() => router.refresh()}>
+                            重新加载
+                        </GammaButton>
+                    }
+                />
             ) : gallery.items.length ? (
-                <ResponsiveMasonryGrid className="grid-cols-2 py-3 sm:grid-cols-3 sm:py-4 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6" ariaLabel="作品列表">
+                <ResponsiveMasonryGrid className="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6" ariaLabel="作品列表">
                     {gallery.items.map((item) => (
                         <PublicWorkGalleryCard key={item.slug} item={item} nextPath={basePath} onOpen={() => setPreviewSlug(item.slug)} onOpenAuthor={setCreatorUsername} />
                     ))}
                 </ResponsiveMasonryGrid>
             ) : (
-                <section className="flex min-h-64 flex-col items-center justify-center border-b border-dashed border-[var(--gm-border)] px-4 py-10 text-center sm:min-h-80">
-                    <span className="grid size-11 place-items-center rounded-[var(--gm-radius)] bg-[var(--gm-surface)] text-[var(--gm-text-3)] ring-1 ring-[var(--gm-border)]">
-                        <GalleryVerticalEnd className="size-5" aria-hidden />
-                    </span>
-                    <h2 className="mt-4 text-base font-semibold text-[var(--gm-text)]">{filtered ? "没有匹配的公开作品" : "还没有公开作品"}</h2>
-                    <p className="mt-1.5 max-w-sm text-sm leading-6 text-[var(--gm-text-3)]">{filtered ? "调整筛选条件后再查看。" : "审核通过并公开发布的作品会出现在这里。"}</p>
-                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                        {filtered ? (
+                <GammaEmptyState
+                    icon={filtered ? <Search /> : <GalleryVerticalEnd />}
+                    title={filtered ? "没有匹配的公开作品" : "还没有公开作品"}
+                    description={filtered ? "换个关键词或分类看看" : "审核通过并公开发布的作品会出现在这里"}
+                    action={
+                        filtered ? (
                             <Link href={basePath} className={primaryLinkClass}>
                                 清除筛选
                             </Link>
                         ) : (
-                            <>
+                            <div className="flex flex-wrap items-center justify-center gap-2">
                                 <GalleryPublishLink className={primaryLinkClass} label="发布第一个作品" />
                                 <Link href="/create" className={linkControlClass}>
                                     <Sparkles className="size-4" aria-hidden />
                                     开始创作
                                 </Link>
-                            </>
-                        )}
-                    </div>
-                </section>
+                            </div>
+                        )
+                    }
+                />
             )}
 
             {gallery.nextCursor ? (
                 <div className="flex justify-center pt-2 sm:pt-4">
-                    <Link href={nextPageHref(basePath, filters, gallery.nextCursor)} className={linkControlClass}>
+                    <Link href={nextPageHref(basePath, filters, gallery.nextCursor)} className={cn(linkControlClass, "h-10 px-4 ring-1 ring-[var(--gm-border-strong)]")}>
                         查看更多
                         <ArrowRight className="size-4" aria-hidden />
                     </Link>
@@ -159,31 +175,14 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
     );
 }
 
-function MediaPlaceholder({ icon, label }: { icon: React.ReactNode; label: string }) {
-    return (
-        <div className="grid size-full place-items-center text-[var(--gm-text-3)]">
-            <div className="flex flex-col items-center gap-2 text-xs">
-                {icon}
-                {label}
-            </div>
-        </div>
-    );
-}
-
 function hasFilters(filters: GalleryFilters) {
     return Boolean(filters.keyword || filters.category || filters.tag || filters.featured || filters.sort !== "random");
 }
 
-function categoryClass(active: boolean) {
-    return cn(
-        "inline-flex h-9 shrink-0 items-center rounded-[var(--gm-radius-sm)] px-3 text-sm transition",
-        active ? "bg-[var(--gm-accent-soft)] font-medium text-[var(--gm-accent)] ring-1 ring-inset ring-[var(--gm-accent-ring)]" : "text-[var(--gm-text-3)] hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]",
-    );
-}
-
-function galleryFilterHref(basePath: string, filters: GalleryFilters, category: string) {
+/** 改一个筛选条件后的地址；换条件就从第一页开始 */
+function galleryFilterHref(basePath: string, filters: GalleryFilters, patch: Partial<GalleryFilters>) {
     const params = new URLSearchParams();
-    Object.entries({ ...filters, category, cursor: "" }).forEach(([key, value]) => {
+    Object.entries({ ...filters, ...patch, cursor: "" }).forEach(([key, value]) => {
         if (value) params.set(key, value);
     });
     const query = params.toString();
