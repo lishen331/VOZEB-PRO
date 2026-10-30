@@ -60,12 +60,12 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
                             type="button"
                             aria-label="返回上一页"
                             onClick={() => router.back()}
-                            className="grid size-8 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
+                            className="gm-glass gm-glass-sheen gm-glass-refract grid size-9 shrink-0 place-items-center rounded-full text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)] focus-visible:outline-2 focus-visible:outline-[var(--gm-accent)]"
                         >
-                            <ChevronLeft className="size-5" aria-hidden />
+                            <ChevronLeft className="relative z-[1] size-5" aria-hidden />
                         </button>
                     ) : null}
-                    <h1 className="min-w-0 text-xl font-semibold text-[var(--gm-text)] sm:text-2xl">灵感发现</h1>
+                    <h1 className="!m-0 min-w-0 text-xl leading-9 font-semibold text-[var(--gm-text)] sm:text-2xl sm:leading-9">灵感发现</h1>
                 </div>
                 {embedded ? (
                     <Link href="/works" className={linkControlClass}>

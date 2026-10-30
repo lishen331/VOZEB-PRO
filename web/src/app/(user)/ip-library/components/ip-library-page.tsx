@@ -2,7 +2,9 @@
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Empty, Pagination, Segmented, Spin } from "@/components/gamma-ui/gamma-ant";
+import { Empty, Pagination, Segmented } from "@/components/gamma-ui/gamma-ant";
+import { GammaCardGridSkeleton } from "@/components/gamma-ui/gamma-data";
+import { GammaReveal, useFirstEntry } from "@/components/gamma-ui/gamma-motion";
 import { BookOpen, Search } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useState } from "react";
@@ -33,6 +35,7 @@ export default function IpLibraryPage() {
     const [items, setItems] = useState<IpSummary[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const firstEntry = useFirstEntry(!loading);
     const deferredKeyword = useDeferredValue(keyword.trim());
 
     useEffect(() => {
@@ -90,13 +93,13 @@ export default function IpLibraryPage() {
                 </div>
 
                 {loading ? (
-                    <div className="grid min-h-56 place-items-center">
-                        <Spin />
-                    </div>
+                    <GammaCardGridSkeleton count={10} media="aspect-[4/3]" className="mt-4 min-w-0 grid-cols-2 gap-2 sm:mt-6 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5" label="正在加载 IP 库" />
                 ) : items.length ? (
                     <div className="mt-4 grid min-w-0 grid-cols-2 gap-2 sm:mt-6 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-                        {items.map((item) => (
-                            <IpLibraryCard key={item.id} item={item} />
+                        {items.map((item, index) => (
+                            <GammaReveal key={item.id} index={index} animate={firstEntry} className="grid min-w-0">
+                                <IpLibraryCard item={item} />
+                            </GammaReveal>
                         ))}
                     </div>
                 ) : (
