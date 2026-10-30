@@ -75,6 +75,17 @@ describe("sweepStaleNeedsReviewTasks", () => {
         expect(params[0]).toBe(new Date(10_000_000 - 2 * 60 * 60_000).toISOString());
     });
 
+    it("excludes already-expired rows so they cannot permanently clog the LIMIT window", async () => {
+        // 2026-10-30 staging 实测：429 条过期 needs_review 行若不过滤，会按 updated_at 升序
+        // 永久占满 LIMIT 200，排在它们后面的可处理任务永远排不上号。
+        mocks.getAuthSettings.mockResolvedValue(settings(true));
+
+        await sweepStaleNeedsReviewTasks();
+
+        const [sql] = mocks.postgresQuery.mock.calls[0];
+        expect(sql).toContain("expires_at > now()");
+    });
+
     it("closes a stale image task: marks it failed and moves execution_phase to completed", async () => {
         mocks.getAuthSettings.mockResolvedValue(settings(true));
         mocks.postgresQuery.mockResolvedValue({ rows: [{ id: "image-one", task_type: "image" }] });

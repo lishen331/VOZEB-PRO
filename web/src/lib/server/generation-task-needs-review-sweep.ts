@@ -26,9 +26,11 @@ export async function sweepStaleNeedsReviewTasks(input: { now?: number } = {}): 
     const now = input.now ?? Date.now();
     const staleBefore = new Date(now - NEEDS_REVIEW_AUTO_REFUND_GRACE_MS);
     await ensurePostgresSchema();
+    // expires_at > now() 必须过滤：过期行 getXTask 永远查不到，会原地卡死 LIMIT 窗口，
+    // 让排在它们后面的真正可处理任务永远排不上号（2026-10-30 staging 实测 429 条过期行卡死整条队列）。
     const result = await postgresQuery<{ id: string; task_type: string }>(
         `SELECT id, task_type FROM generation_tasks
-         WHERE execution_phase = 'needs_review' AND task_type IN ('text', 'image', 'video', 'audio') AND updated_at < $1
+         WHERE execution_phase = 'needs_review' AND task_type IN ('text', 'image', 'video', 'audio') AND updated_at < $1 AND expires_at > now()
          ORDER BY updated_at ASC, id ASC
          LIMIT 200`,
         [staleBefore.toISOString()],
