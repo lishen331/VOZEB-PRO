@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-10-22。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **426** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-10-30。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **432** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**426**
-- 方法出现次数：DELETE 64、GET 212、HEAD 6、PATCH 61、POST 242、PUT 16
-- 一级域：`admin` 133、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**432**
+- 方法出现次数：DELETE 65、GET 216、HEAD 6、PATCH 61、POST 244、PUT 18
+- 一级域：`admin` 134、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（133）
+### `admin`（134）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -70,6 +70,7 @@
 | POST | `/api/admin/course-chapters/[id]/lessons` | 管理员 | [route.ts](web/src/app/api/admin/course-chapters/[id]/lessons/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-chapters / 单项 / lessons：提交/执行 |
 | PUT | `/api/admin/course-covers` | 管理员 | [route.ts](web/src/app/api/admin/course-covers/route.ts) | [course-cover-service](web/src/lib/server/course-cover-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-covers：替换 |
 | DELETE, PATCH | `/api/admin/course-lessons/[id]` | 管理员 | [route.ts](web/src/app/api/admin/course-lessons/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-lessons / 单项：更新、删除 |
+| DELETE, GET, PUT | `/api/admin/course-lessons/[id]/template` | 管理员 | [route.ts](web/src/app/api/admin/course-lessons/[id]/template/route.ts) | [platform-lesson-template-service](web/src/lib/server/platform-lesson-template-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-lessons / 单项 / template：查询、删除、替换 |
 | DELETE, PATCH | `/api/admin/course-materials/[id]` | 管理员 | [route.ts](web/src/app/api/admin/course-materials/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-materials / 单项：更新、删除 |
 | GET, POST | `/api/admin/courses` | 管理员 | [route.ts](web/src/app/api/admin/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses：查询、提交/执行 |
 | DELETE, GET, PATCH | `/api/admin/courses/[id]` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项：查询、更新、删除 |
@@ -167,10 +168,11 @@
 | POST | `/api/admin/works/[id]/take-down` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/take-down/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 下架：提交/执行 |
 | DELETE, GET, POST | `/api/admin/works/media` | 管理员 | [route.ts](web/src/app/api/admin/works/media/route.ts) | [official-work-media-service](web/src/lib/server/official-work-media-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 媒体：查询、删除、提交/执行 |
 
-### `agent`（8）
+### `agent`（9）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
+| POST | `/api/agent/lyrics-writing` | 混合 | [route.ts](web/src/app/api/agent/lyrics-writing/route.ts) | [prompt-optimization-service](web/src/lib/server/prompt-optimization-service.ts)<br>[store](web/src/lib/auth/store.ts)<br>[create-agent-prompt](web/src/lib/create-agent-prompt.ts) | PostgreSQL、生成任务、模型上游 | Agent / lyrics-writing：提交/执行 |
 | POST | `/api/agent/prompt-optimization` | 混合 | [route.ts](web/src/app/api/agent/prompt-optimization/route.ts) | [prompt-optimization-service](web/src/lib/server/prompt-optimization-service.ts)<br>[store](web/src/lib/auth/store.ts)<br>[create-agent-prompt](web/src/lib/create-agent-prompt.ts) | PostgreSQL、生成任务、模型上游 | Agent / 提示词优化：提交/执行 |
 | POST | `/api/agent/review` | 用户 | [route.ts](web/src/app/api/agent/review/route.ts) | [creative-review-service](web/src/lib/server/creative-review-service.ts)<br>[store](web/src/lib/auth/store.ts)<br>[creative-agent-contract](web/src/lib/creative-agent-contract.ts) | PostgreSQL、生成任务、模型上游 | Agent / 审核：提交/执行 |
 | GET, POST | `/api/agent/runs` | 混合 | [route.ts](web/src/app/api/agent/runs/route.ts) | [agent-run-store](web/src/lib/server/agent-run-store.ts)<br>[creative-runtime-store](web/src/lib/server/creative-runtime-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、生成任务、模型上游 | Agent / 运行：查询、提交/执行 |
@@ -426,7 +428,7 @@
 | POST | `/api/maintenance/billing-refunds/run` | Worker | [route.ts](web/src/app/api/maintenance/billing-refunds/run/route.ts) | [billing-refund-orchestration-service](web/src/lib/server/billing-refund-orchestration-service.ts)<br>[install-status](web/src/lib/server/install-status.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | Worker Token、PostgreSQL、支付退款 | 后台维护 / 计费退款 / 执行：提交/执行 |
 | POST | `/api/maintenance/data-lifecycle/run` | 维护 | [route.ts](web/src/app/api/maintenance/data-lifecycle/run/route.ts) | [data-lifecycle-service](web/src/lib/server/data-lifecycle-service.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | 维护 Token、PostgreSQL | 后台维护 / 数据生命周期 / 执行：提交/执行 |
 | POST | `/api/maintenance/generation-tasks/heartbeat` | Worker | [route.ts](web/src/app/api/maintenance/generation-tasks/heartbeat/route.ts) | [generation-worker-heartbeat](web/src/lib/server/generation-worker-heartbeat.ts)<br>[install-status](web/src/lib/server/install-status.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | Worker Token、PostgreSQL、模型上游 | 后台维护 / 生成任务 / 心跳：提交/执行 |
-| POST | `/api/maintenance/generation-tasks/run` | Worker | [route.ts](web/src/app/api/maintenance/generation-tasks/run/route.ts) | [generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[media-task-diagnostic-store](web/src/lib/server/media-task-diagnostic-store.ts)<br>[generation-task-scheduler](web/src/lib/server/generation-task-scheduler.ts) | Worker Token、PostgreSQL、模型上游 | 后台维护 / 生成任务 / 执行：提交/执行 |
+| POST | `/api/maintenance/generation-tasks/run` | Worker | [route.ts](web/src/app/api/maintenance/generation-tasks/run/route.ts) | [generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[media-task-diagnostic-store](web/src/lib/server/media-task-diagnostic-store.ts)<br>[generation-task-needs-review-sweep](web/src/lib/server/generation-task-needs-review-sweep.ts) | Worker Token、PostgreSQL、模型上游 | 后台维护 / 生成任务 / 执行：提交/执行 |
 | POST | `/api/maintenance/referrals/settle` | 维护 | [route.ts](web/src/app/api/maintenance/referrals/settle/route.ts) | [referral-service](web/src/lib/server/referral-service.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | 维护 Token、PostgreSQL | 后台维护 / 邀请返利 / 结算：提交/执行 |
 
 ### `media-assets`（1）
@@ -627,7 +629,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/site-icon` | 公开 | [route.ts](web/src/app/api/site-icon/route.ts) | [site-metadata](web/src/lib/server/site-metadata.ts) | PostgreSQL、公开内容/站点设置 | 站点图标：查询 |
 
-### `teaching`（15）
+### `teaching`（19）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -638,6 +640,10 @@
 | GET | `/api/teaching/commercial-orders/[id]/participants` | 用户 | [route.ts](web/src/app/api/teaching/commercial-orders/[id]/participants/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / commercial-orders / 单项 / participants：查询 |
 | GET, POST | `/api/teaching/commercial-orders/[id]/submissions` | 用户 | [route.ts](web/src/app/api/teaching/commercial-orders/[id]/submissions/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / commercial-orders / 单项 / submissions：查询、提交/执行 |
 | GET | `/api/teaching/courses` | 用户 | [route.ts](web/src/app/api/teaching/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / courses：查询 |
+| GET | `/api/teaching/lesson-plans` | 用户 | [route.ts](web/src/app/api/teaching/lesson-plans/route.ts) | [teaching-lesson-plan-service](web/src/lib/server/teaching-lesson-plan-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / lesson-plans：查询 |
+| GET, PUT | `/api/teaching/lesson-plans/[assignmentId]/[lessonId]` | 用户 | [route.ts](web/src/app/api/teaching/lesson-plans/[assignmentId]/[lessonId]/route.ts) | [teaching-lesson-plan-service](web/src/lib/server/teaching-lesson-plan-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / lesson-plans / [assignmentId] / [lessonId]：查询、替换 |
+| POST | `/api/teaching/lesson-plans/[assignmentId]/[lessonId]/rehearsals` | 用户 | [route.ts](web/src/app/api/teaching/lesson-plans/[assignmentId]/[lessonId]/rehearsals/route.ts) | [teaching-lesson-plan-service](web/src/lib/server/teaching-lesson-plan-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / lesson-plans / [assignmentId] / [lessonId] / rehearsals：提交/执行 |
+| GET | `/api/teaching/lesson-plans/[assignmentId]/[lessonId]/template` | 用户 | [route.ts](web/src/app/api/teaching/lesson-plans/[assignmentId]/[lessonId]/template/route.ts) | [teaching-lesson-plan-service](web/src/lib/server/teaching-lesson-plan-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / lesson-plans / [assignmentId] / [lessonId] / template：查询 |
 | GET | `/api/teaching/offerings` | 用户 | [route.ts](web/src/app/api/teaching/offerings/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / offerings：查询 |
 | GET | `/api/teaching/production-groups` | 用户 | [route.ts](web/src/app/api/teaching/production-groups/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / production-groups：查询 |
 | GET, POST | `/api/teaching/production-groups/[id]/allocation-requests` | 用户 | [route.ts](web/src/app/api/teaching/production-groups/[id]/allocation-requests/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / production-groups / 单项 / allocation-requests：查询、提交/执行 |
