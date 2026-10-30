@@ -188,7 +188,7 @@ function sanitizeProviderMessage(value: string) {
         .slice(0, 360);
 }
 
-function isMissingObjectError(error: unknown) {
+export function isMissingObjectError(error: unknown) {
     if (!error || typeof error !== "object") return false;
     const value = error as { name?: string; Code?: string; $metadata?: { httpStatusCode?: number } };
     return value.name === "NotFound" || value.Code === "NoSuchKey" || value.$metadata?.httpStatusCode === 404;

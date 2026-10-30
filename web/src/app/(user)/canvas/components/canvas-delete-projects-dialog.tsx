@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Modal } from "antd";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button } from "@/components/gamma-ui/gamma-ant";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 
 import { useCanvasStore } from "../stores/use-canvas-store";
 import { useCanvasUiStore } from "../stores/use-canvas-ui-store";
@@ -41,7 +43,7 @@ export function CanvasDeleteProjectsDialog() {
                 </>
             }
         >
-            <p className="text-sm text-stone-500">将永久删除 {ids.length} 个画布、节点、连线和专属生成记录；仍被素材库、其他项目或作品引用的媒体会保留。</p>
+            <p className="text-sm leading-6 text-[var(--gm-text-2)]">将永久删除 {ids.length} 个画布、节点、连线和专属生成记录；仍被素材库、其他项目或作品引用的媒体会保留。</p>
         </Modal>
     );
 }
