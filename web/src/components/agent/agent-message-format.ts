@@ -72,7 +72,7 @@ function classifiedTechnicalError(value: string) {
     if (/任务已达到并发上限/.test(message)) return generationUserMessage(message);
     if (/版权|copyright|last[\s_-]?frame.{0,80}mix|尾帧.{0,20}(不能|无法|不可)/i.test(message)) return generationUserMessage(message);
     // 生成类技术错误统一成三类提示（网络异常 / 模型暂时不可用 / 安全审核），与画布一致。
-    if (/status\s*[=:]\s*451|内容(?:不符合|未通过).*审核|content[\s_-]?(policy|filter|safety)|moderation|nsfw|sensitive/i.test(message)) return generationUserMessage(message);
+    if (/status\s*[=:]\s*451|内容(?:不符合|未通过).*审核|content[\s_-]?management[\s_-]?policy|content[\s_-]?(policy|filter|safety)|moderation|nsfw|sensitive/i.test(message)) return generationUserMessage(message);
     if (/status\s*[=:]\s*(401|403)|unauthorized|forbidden|鉴权失败|api\s*key|密钥/i.test(message)) return GENERATION_UNAVAILABLE_MESSAGE;
     if (/status\s*[=:]\s*4(?!29)\d{2}|invalid|unsupported|参数(?:错误|无效|不支持)|请求参数|not available|no available channel|model[\s_-]?not[\s_-]?found|quota is not enough|insufficient[\s_-]?quota|没有可用|无可用/i.test(message))
         return GENERATION_UNAVAILABLE_MESSAGE;
