@@ -89,6 +89,39 @@ describe("work governance service", () => {
         expect(mocks.workGovernance.listGallery).toHaveBeenCalledWith(expect.objectContaining({ sort: "random", randomSeed: expect.any(String) }));
     });
 
+    it("normalizes official import categories and titles for the public gallery", async () => {
+        mocks.workGovernance.listGallery.mockResolvedValue({
+            items: [
+                {
+                    workId: "work-official",
+                    versionId: "version-official",
+                    authorUserId: "admin",
+                    slug: "officialwork",
+                    sourceType: "media",
+                    publicationOrigin: "official",
+                    viewCount: 0,
+                    likeCount: 0,
+                    isFeatured: false,
+                    publishedAt: "2026-07-27T00:00:00.000Z",
+                    title: "地标建筑生长动画_8tgkoxugln",
+                    description: "",
+                    category: "01_建筑室内空间设计",
+                    tags: [],
+                    authorDisplay: "custom",
+                    authorName: "平台官方",
+                    assetId: "asset-one",
+                    assetMediaType: "image",
+                    assetMimeType: "image/jpeg",
+                },
+            ],
+            hasMore: false,
+        });
+
+        const result = await listPublicGallery({ category: "视觉设计" });
+
+        expect(result.items[0]).toMatchObject({ title: "地标建筑生长动画", category: "视觉设计" });
+    });
+
     it("keeps the same random seed when loading the next gallery page", async () => {
         const item = {
             workId: "work-one",

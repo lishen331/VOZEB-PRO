@@ -24,6 +24,7 @@ describe("public work preview layout", () => {
         expect(preview).toContain("PublicWorkProcessView");
         expect(preview).toContain("publicWorkPublicationsApi.getProcess");
         expect(preview).toContain("publicWorkPublicationsApi.copyToPractice");
+        expect(preview).toContain('work.sourceType === "media"');
         expect(preview).toContain("copyInFlightRef");
         expect(preview).toContain("复制到练习");
         expect(preview).toContain("制作流程");

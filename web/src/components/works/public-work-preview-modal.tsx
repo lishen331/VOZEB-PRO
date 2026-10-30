@@ -284,7 +284,7 @@ export function PublicWorkPreviewModal({
                                                 </Tooltip>
                                             ) : null}
                                         </div>
-                                        {!onUsePrompt ? (
+                                        {!onUsePrompt && work.sourceType === "media" ? (
                                             <Link
                                                 href={remixHref}
                                                 className="gm-btn-primary mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[var(--gm-radius)] border border-transparent bg-[image:var(--gm-gradient)] px-4 text-sm font-semibold !text-white shadow-[var(--gm-glow-blue)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
