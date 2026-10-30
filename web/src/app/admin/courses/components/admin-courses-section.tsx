@@ -22,7 +22,7 @@ import { CourseTreeEditor } from "./course-tree-editor";
 // The tree editor owns coursesApi.uploadPlatformCourseAttachment and multiple-file cleanup;
 // if (!committed && uploadedKeys.length) remains the upload rollback condition.
 // Form.List is intentionally not used for legacy flat attachments; materials live in the tree.
-export const COURSE_ATTACHMENT_ACCEPT = ".docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
+export const COURSE_ATTACHMENT_ACCEPT = ".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
 
 const PAGE_SIZE = 12;
 type CourseForm = { title: string; summary?: string; body?: string; category?: string; validUntil?: dayjs.Dayjs | null };

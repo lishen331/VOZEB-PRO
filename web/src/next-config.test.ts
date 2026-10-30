@@ -14,6 +14,17 @@ describe("Next response headers", () => {
         expect(privateRule?.headers).toContainEqual({ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet, noimageindex" });
     });
 
+    it("allows same-origin framing only for course media", async () => {
+        const config = createNextConfig("phase-production-build");
+        const rules = (await config.headers?.()) || [];
+        const global = rules.find((rule) => rule.source === "/(.*)");
+        const media = rules.find((rule) => rule.source === "/api/reference-assets/:path*");
+
+        expect(global?.headers).toContainEqual({ key: "X-Frame-Options", value: "DENY" });
+        expect(media?.headers).toEqual([{ key: "X-Frame-Options", value: "SAMEORIGIN" }]);
+        expect(rules.indexOf(media!)).toBeGreaterThan(rules.indexOf(global!));
+    });
+
     it("loads local environment variables for standalone production testing", async () => {
         const packageJson = JSON.parse(await readFile(resolve(process.cwd(), "package.json"), "utf8")) as { scripts?: Record<string, string> };
 

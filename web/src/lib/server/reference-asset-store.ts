@@ -196,6 +196,7 @@ function mimeTypeFromToken(token: string) {
     if (lower.endsWith(".flac")) return "audio/flac";
     if (lower.endsWith(".mp3")) return "audio/mpeg";
     if (lower.endsWith(".zip")) return "application/zip";
+    if (lower.endsWith(".pdf")) return "application/pdf";
     if (lower.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     if (lower.endsWith(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -203,10 +204,10 @@ function mimeTypeFromToken(token: string) {
 }
 
 export function isReferenceAssetPath(value: string) {
-    return /^(?:temporary|permanent)\/\d{4}\/\d{2}\/\d{2}\/(?:images|videos|audio|attachments)\/\d{8}-\d{6}-[0-9a-f-]{36}\.(?:png|jpg|jpeg|webp|gif|mp4|webm|mov|mp3|wav|ogg|aac|flac|docx|pptx|xlsx|zip)$/i.test(value);
+    return /^(?:temporary|permanent)\/\d{4}\/\d{2}\/\d{2}\/(?:images|videos|audio|attachments)\/\d{8}-\d{6}-[0-9a-f-]{36}\.(?:png|jpg|jpeg|webp|gif|mp4|webm|mov|mp3|wav|ogg|aac|flac|pdf|docx|pptx|xlsx|zip)$/i.test(value);
 }
 
 function extensionFromFileName(fileName: string) {
     const extension = fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
-    return extension && /^(?:\.docx|\.pptx|\.xlsx|\.png|\.jpe?g|\.webp|\.mp4|\.mov|\.zip)$/.test(extension) ? extension : ".bin";
+    return extension && /^(?:\.pdf|\.docx|\.pptx|\.xlsx|\.png|\.jpe?g|\.webp|\.mp4|\.mov|\.zip)$/.test(extension) ? extension : ".bin";
 }

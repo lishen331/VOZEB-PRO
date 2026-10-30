@@ -11,6 +11,7 @@ import { deleteLocalMediaAssetsByStorageKeys, deleteUserLocalMediaAssets } from 
 import { writePersistentAttachmentFile } from "@/lib/server/reference-asset-store";
 
 const COURSE_ATTACHMENT_MIME_TYPES: Record<string, string> = {
+    ".pdf": "application/pdf",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

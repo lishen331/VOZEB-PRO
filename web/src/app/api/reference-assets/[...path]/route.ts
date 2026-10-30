@@ -87,7 +87,10 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
                 return withMediaConcurrency(response, permit, request.signal);
             }
             const externalUrl = await createExternalMediaReadUrl(request, mediaRegistration);
-            if (externalUrl && signed && url.searchParams.get("purpose") === REFERENCE_ASSET_SIGNATURE_PURPOSE && mediaRegistration.mimeType.startsWith("video/")) {
+            const signedVideoRead = signed && url.searchParams.get("purpose") === REFERENCE_ASSET_SIGNATURE_PURPOSE && mediaRegistration.mimeType.startsWith("video/");
+            // Course PDFs preview in a same-origin iframe; CSP frame-src would block a redirect to OSS.
+            const inlinePdfRead = mediaRegistration.mimeType === "application/pdf" && url.searchParams.get("download") !== "original";
+            if (externalUrl && (signedVideoRead || inlinePdfRead)) {
                 const sourceAbort = new AbortController();
                 permit.setExpiryHandler(() => sourceAbort.abort("Media concurrency lease expired"));
                 const range = request.headers.get("range");

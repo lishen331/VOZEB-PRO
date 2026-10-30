@@ -51,7 +51,7 @@ export default function TeachingPage() {
     const user = useUserStore((state) => state.user);
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { prepared } = usePreparedLessons(user?.id);
+    const { prepared } = usePreparedLessons(context?.membership.role === "teacher");
     const [reviewForm] = Form.useForm<ReviewForm>();
     const [offerings, setOfferings] = useState<SchoolCourseOffering[]>([]);
     const [courses, setCourses] = useState<SchoolCourseAssignment[]>([]);

@@ -658,7 +658,7 @@ async function toPublicIdentity(membership: SchoolMembershipRecord | null): Prom
     };
 }
 
-async function requireEducationAdmin(actorId: string) {
+export async function requireEducationAdmin(actorId: string) {
     const actor = (await getPublicUsersByIds([actorId]))[0];
     if (!hasAdminPermission(actor, "education.manage")) throw new SchoolServiceError(403, "当前管理员没有产教运营职责权限");
     return actor;

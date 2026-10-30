@@ -3,7 +3,8 @@ import styles from "./practice-workbench.module.css";
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Button, Empty, Spin } from "@/components/gamma-ui/gamma-ant";
+import { Button, Empty } from "@/components/gamma-ui/gamma-ant";
+import { GammaListSkeleton } from "@/components/gamma-ui/gamma-data";
 import { ArrowLeft, BookOpen, Box, Film, Image, Mic2, Music2, PanelsTopLeft, RefreshCw, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -329,9 +330,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                             <span className="ml-auto text-xs text-[var(--gm-text-3)]">素材与生成参数</span>
                         </div>
                         {loading ? (
-                            <div className="grid min-h-40 place-items-center">
-                                <Spin />
-                            </div>
+                            <GammaListSkeleton rows={4} className="min-h-40" label="正在加载练习工具" />
                         ) : capability ? (
                             <>
                                 {!capability.available ? <p className="mb-4 border border-dashed border-[var(--gm-border)] p-3 text-sm text-[var(--gm-text-3)]">{capability.unavailableReason}</p> : null}
@@ -354,7 +353,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                         历史练习
                     </h2>
                     {historyBusy ? (
-                        <Spin />
+                        <GammaListSkeleton rows={3} className="mt-4" label="正在加载历史练习" />
                     ) : sessions.length ? (
                         <PracticeSessionHistory
                             sessions={sessions}

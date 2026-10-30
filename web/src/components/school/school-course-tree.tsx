@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CourseMaterial, PlatformCourseDetail } from "@/lib/school-domain";
 import { coursesApi } from "@/services/api/courses";
 
-const ACCEPT = ".docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
+const ACCEPT = ".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
 
 export function SchoolCourseTree({ assignmentId, canManage = false }: { assignmentId: string; canManage?: boolean }) {
     const { message, modal } = App.useApp();

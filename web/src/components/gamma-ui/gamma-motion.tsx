@@ -32,6 +32,32 @@ export function GammaStaggerItem({ children, className }: { children: ReactNode;
     );
 }
 
+/** 页面入场只排前 12 项，之后的直接出现，整段控制在 ~500ms 内 */
+export const GM_ENTRY_STAGGER_LIMIT = 12;
+
+/**
+ * 只在第一次拿到数据时返回 true；之后筛选、翻页、刷新不再重播入场。
+ * 渲染期读 ref 是有意的：内容首次出现那一帧要拿到 true，effect 之后才落标记。
+ */
+export function useFirstEntry(ready: boolean) {
+    const played = useRef(false);
+    const shouldAnimate = !played.current;
+    useEffect(() => {
+        if (ready) played.current = true;
+    }, [ready]);
+    return shouldAnimate;
+}
+
+/** 页面入场单元：淡入上移 8px，按 index 间隔 40ms；超过上限或 animate=false 直接出现 */
+export function GammaReveal({ children, index = 0, animate = true, className }: { children: ReactNode; index?: number; animate?: boolean; className?: string }) {
+    const play = animate && index < GM_ENTRY_STAGGER_LIMIT;
+    return (
+        <motion.div className={className} initial={play ? { opacity: 0, y: 8 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: GM_EASE, delay: play ? index * 0.04 : 0 }}>
+            {children}
+        </motion.div>
+    );
+}
+
 /** 数字滚动：值变化时平滑过渡，而不是直接跳 */
 export function GammaCountUp({ value, duration = 0.6, className }: { value: number; duration?: number; className?: string }) {
     const reduce = useReducedMotion();

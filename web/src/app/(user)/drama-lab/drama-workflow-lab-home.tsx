@@ -4,7 +4,9 @@ import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Alert, Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
+import { Alert, Button, Tag } from "@/components/gamma-ui/gamma-ant";
+import { GammaCardGridSkeleton } from "@/components/gamma-ui/gamma-data";
+import { GammaReveal, useFirstEntry } from "@/components/gamma-ui/gamma-motion";
 import { ArrowRight, Clapperboard, Download, FlaskConical, Pencil, Plus, RefreshCcw, Trash2, Upload, UserRound, Image as ImageIcon, Box } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,6 +27,7 @@ export function DramaWorkflowLabHome() {
     const [projects, setProjects] = useState<DramaProjectSummary[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const firstEntry = useFirstEntry(!loading);
     const [error, setError] = useState<string>();
     const [createOpen, setCreateOpen] = useState(false);
     const [creating, setCreating] = useState(false);
@@ -268,41 +271,41 @@ export function DramaWorkflowLabHome() {
                         />
                     ) : null}
                     {loading ? (
-                        <div className="grid min-h-44 place-items-center">
-                            <Spin />
-                        </div>
+                        <GammaCardGridSkeleton count={6} className="mt-4 md:grid-cols-2 xl:grid-cols-3" label="正在加载短剧项目" />
                     ) : projects.length ? (
                         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {projects.map((project) => (
-                                <article key={project.id} className="group rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5 transition hover:border-[var(--gm-border-strong)] hover:shadow-[var(--gm-shadow)]">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                                                <Clapperboard className="size-4" />
-                                                短剧项目
+                            {projects.map((project, index) => (
+                                <GammaReveal key={project.id} index={index} animate={firstEntry} className="grid">
+                                    <article className="group rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5 transition hover:border-[var(--gm-border-strong)] hover:shadow-[var(--gm-shadow)]">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 text-xs text-[var(--gm-text-3)]">
+                                                    <Clapperboard className="size-4" />
+                                                    短剧项目
+                                                </div>
+                                                <h3 className="mt-3 truncate text-lg font-semibold">{project.title}</h3>
+                                                <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-[var(--gm-text-3)]">{project.summary || "暂无项目简介"}</p>
+                                            </Link>
+                                            <div className="flex items-center gap-1">
+                                                <Button type="text" size="small" icon={<Download className="size-4" />} aria-label="导出项目" title="导出项目" loading={exportingId === project.id} onClick={() => void exportProject(project)} />
+                                                <Button type="text" size="small" icon={<Pencil className="size-4" />} aria-label="编辑项目" title="编辑项目" onClick={() => openProjectEditor(project)} />
+                                                <Button type="text" danger size="small" icon={<Trash2 className="size-4" />} aria-label="删除项目" title="删除项目" loading={deletingId === project.id} onClick={() => deleteProject(project)} />
                                             </div>
-                                            <h3 className="mt-3 truncate text-lg font-semibold">{project.title}</h3>
-                                            <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-[var(--gm-text-3)]">{project.summary || "暂无项目简介"}</p>
-                                        </Link>
-                                        <div className="flex items-center gap-1">
-                                            <Button type="text" size="small" icon={<Download className="size-4" />} aria-label="导出项目" title="导出项目" loading={exportingId === project.id} onClick={() => void exportProject(project)} />
-                                            <Button type="text" size="small" icon={<Pencil className="size-4" />} aria-label="编辑项目" title="编辑项目" onClick={() => openProjectEditor(project)} />
-                                            <Button type="text" danger size="small" icon={<Trash2 className="size-4" />} aria-label="删除项目" title="删除项目" loading={deletingId === project.id} onClick={() => deleteProject(project)} />
                                         </div>
-                                    </div>
-                                    <div className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
-                                        <Tag>{project.episodeCount} 集</Tag>
-                                        <Tag>{project.shotCount} 分镜</Tag>
-                                        <Tag>{project.ratio}</Tag>
-                                        <Tag>{project.style || DEFAULT_STYLE}</Tag>
-                                    </div>
-                                    <div className="mt-5 flex items-center justify-between border-t border-[var(--gm-border)] pt-4">
-                                        <span className="text-xs text-[var(--gm-text-3)]">更新于 {new Date(project.updatedAt).toLocaleDateString("zh-CN")}</span>
-                                        <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-                                            进入制作 <ArrowRight className="size-4" />
-                                        </Link>
-                                    </div>
-                                </article>
+                                        <div className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
+                                            <Tag>{project.episodeCount} 集</Tag>
+                                            <Tag>{project.shotCount} 分镜</Tag>
+                                            <Tag>{project.ratio}</Tag>
+                                            <Tag>{project.style || DEFAULT_STYLE}</Tag>
+                                        </div>
+                                        <div className="mt-5 flex items-center justify-between border-t border-[var(--gm-border)] pt-4">
+                                            <span className="text-xs text-[var(--gm-text-3)]">更新于 {new Date(project.updatedAt).toLocaleDateString("zh-CN")}</span>
+                                            <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                                                进入制作 <ArrowRight className="size-4" />
+                                            </Link>
+                                        </div>
+                                    </article>
+                                </GammaReveal>
                             ))}
                         </div>
                     ) : (

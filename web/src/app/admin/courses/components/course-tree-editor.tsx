@@ -6,12 +6,14 @@ import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Empty, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
-import { BookOpen, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookMarked, BookOpen, FileText, FolderUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { CourseChapter, CourseLesson, CourseMaterial, PlatformCourse, PlatformCourseDetail } from "@/lib/school-domain";
 import { coursesApi } from "@/services/api/courses";
-const COURSE_ATTACHMENT_ACCEPT = ".docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
+import { CourseBulkImportDialog } from "./course-bulk-import-dialog";
+import { LessonTemplateEditor } from "./lesson-template-editor";
+const COURSE_ATTACHMENT_ACCEPT = ".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
 
 type SelectedNode = { kind: "chapter"; value: CourseChapter } | { kind: "lesson"; value: CourseLesson };
 
@@ -21,6 +23,9 @@ export function CourseTreeEditor({ course, open, onClose, onChanged }: { course:
     const [selectedId, setSelectedId] = useState("");
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [templateLesson, setTemplateLesson] = useState<CourseLesson | null>(null);
+    const [bulkOpen, setBulkOpen] = useState(false);
+    const closeTemplate = useCallback(() => setTemplateLesson(null), []);
     const [nodeForm] = Form.useForm<{ title: string; description?: string }>();
 
     const load = useCallback(async () => {
@@ -151,9 +156,14 @@ export function CourseTreeEditor({ course, open, onClose, onChanged }: { course:
                     <aside className="border-b border-zinc-200 pb-4 md:border-r md:border-b-0 md:pr-4 dark:border-zinc-800">
                         <div className="mb-3 flex items-center justify-between gap-2">
                             <h3 className="text-sm font-medium">章节与课时</h3>
-                            <Button size="small" icon={<Plus className="size-3.5" />} onClick={() => openNodeEditor("chapter")}>
-                                章节
-                            </Button>
+                            <div className="flex gap-1">
+                                <Button size="small" icon={<FolderUp className="size-3.5" />} disabled={!tree} onClick={() => setBulkOpen(true)}>
+                                    批量导入
+                                </Button>
+                                <Button size="small" icon={<Plus className="size-3.5" />} onClick={() => openNodeEditor("chapter")}>
+                                    章节
+                                </Button>
+                            </div>
                         </div>
                         <div className="max-h-[56vh] space-y-2 overflow-y-auto pr-1">
                             {(tree?.chapters || []).map((chapter) => (
@@ -188,6 +198,11 @@ export function CourseTreeEditor({ course, open, onClose, onChanged }: { course:
                                         <p className="mt-1 text-sm text-zinc-500">{selected.value.description || "暂无说明"}</p>
                                     </div>
                                     <div className="flex gap-1">
+                                        {selected.kind === "lesson" ? (
+                                            <Button icon={<BookMarked className="size-4" />} onClick={() => setTemplateLesson(selected.value)}>
+                                                标准教案
+                                            </Button>
+                                        ) : null}
                                         <Button icon={<Pencil className="size-4" />} onClick={() => openNodeEditor(selected.kind, selected.value)}>
                                             编辑
                                         </Button>
@@ -228,6 +243,17 @@ export function CourseTreeEditor({ course, open, onClose, onChanged }: { course:
                     </section>
                 </div>
             </Spin>
+            <LessonTemplateEditor lesson={templateLesson} onClose={closeTemplate} />
+            <CourseBulkImportDialog
+                tree={tree}
+                open={bulkOpen}
+                accept={COURSE_ATTACHMENT_ACCEPT}
+                onClose={() => setBulkOpen(false)}
+                onImported={async () => {
+                    await load();
+                    onChanged();
+                }}
+            />
         </Modal>
     );
 }

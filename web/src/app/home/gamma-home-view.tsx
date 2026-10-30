@@ -65,7 +65,7 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
                 eyebrow: "短剧制作 · 从剧本到成片",
                 title: "一个人也能拍完一部短剧",
                 description: "剧本拆分镜、角色与场景定妆、分镜出图与视频合成",
-                cover: "/style-thumbs/realistic.jpg",
+                cover: "/home/banner-drama.jpg",
                 action: (
                     <GammaButton size="sm" variant="glass" onClick={() => openProtectedPath("/drama")}>
                         新建短剧

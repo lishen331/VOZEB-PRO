@@ -3,7 +3,8 @@
 import { Image as AntImage } from "@/components/gamma-ui/gamma-ant-image";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
-import { Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
+import { GammaDetailSkeleton } from "@/components/gamma-ui/gamma-data";
 import { BookOpen, Boxes, ChevronLeft, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -78,8 +79,8 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
 
     if (loading)
         return (
-            <main className="grid h-full min-h-0 place-items-center">
-                <Spin />
+            <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]">
+                <GammaDetailSkeleton label="正在加载 IP" />
             </main>
         );
     if (!detail || !selected) return <main className="grid h-full min-h-0 place-items-center px-4 text-sm text-[var(--gm-text-3)]">IP 不存在或当前无权查看</main>;
