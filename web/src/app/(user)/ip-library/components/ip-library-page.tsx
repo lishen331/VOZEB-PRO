@@ -2,13 +2,14 @@
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Empty, Pagination, Segmented } from "@/components/gamma-ui/gamma-ant";
+import { Pagination, Segmented } from "@/components/gamma-ui/gamma-ant";
 import { GammaCardGridSkeleton } from "@/components/gamma-ui/gamma-data";
 import { GammaReveal, useFirstEntry } from "@/components/gamma-ui/gamma-motion";
-import { BookOpen, Search } from "lucide-react";
+import { ArrowUpRight, BookOpen, LibraryBig, Search } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useState } from "react";
 
+import { CompactEmptyState } from "@/components/compact-empty-state";
 import type { IpSummary } from "@/lib/server/ip-library-service";
 import { ipLibraryApi } from "@/services/api/ip-library";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
@@ -62,10 +63,14 @@ export default function IpLibraryPage() {
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]" data-ip-library-page>
             <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
-                <header className="flex min-w-0 flex-col gap-4 border-b border-[var(--gm-border)] pb-4 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
+                <header className="flex min-w-0 flex-col gap-3 border-b border-[var(--gm-border)] pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5 sm:pb-6">
                     <div className="min-w-0">
-                        <h1 className="mt-1.5 text-2xl font-semibold tracking-normal sm:text-3xl">IP库</h1>
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--gm-text-3)]">查看可用的 IP 内容，用于教学、练习和创作。</p>
+                        <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
+                            <LibraryBig className="size-4" />
+                            授权内容资源
+                        </div>
+                        <h1 className="mt-1.5 text-xl font-semibold sm:mt-2 sm:text-2xl">IP 库</h1>
+                        <p className="mt-1.5 max-w-2xl text-xs leading-5 text-[var(--gm-text-3)] sm:mt-2 sm:text-sm">查看可用的 IP 内容，用于教学、练习和创作。</p>
                     </div>
                     <Segmented<IpLibraryScope>
                         value={scope}
@@ -103,7 +108,12 @@ export default function IpLibraryPage() {
                         ))}
                     </div>
                 ) : (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={scope === "school" ? "本校暂未获得 IP 授权" : "暂无公共 IP"} className="!my-12" />
+                    <CompactEmptyState
+                        title={deferredKeyword ? "没有匹配的 IP" : scope === "school" ? "本校暂未获得 IP 授权" : "暂无公共 IP"}
+                        description={deferredKeyword ? "换个关键词再试试。" : "获得授权的 IP 内容会出现在这里。"}
+                        icon={<LibraryBig className="size-4" />}
+                        className="mt-3 min-h-24 sm:mt-6 sm:min-h-40"
+                    />
                 )}
 
                 {total > PAGE_SIZE ? <Pagination className="mt-6 flex justify-center" current={page} pageSize={PAGE_SIZE} total={total} showSizeChanger={false} onChange={setPage} /> : null}
@@ -116,22 +126,27 @@ function IpLibraryCard({ item }: { item: IpSummary }) {
     return (
         <Link
             href={`/ip-library/${encodeURIComponent(item.id)}`}
-            className="group min-w-0 overflow-hidden border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text)] transition hover:border-foreground/30 hover:shadow-sm"
+            className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text)] outline-none transition hover:-translate-y-px hover:border-[var(--gm-border-strong)] hover:shadow-[var(--gm-shadow)] focus-visible:border-[var(--gm-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent-ring)]"
             data-ip-library-card={item.id}
         >
-            <div className="aspect-[4/3] overflow-hidden bg-[var(--gm-wash)]/50">
+            <div className="aspect-[4/3] overflow-hidden border-b border-[var(--gm-border)] bg-[var(--gm-wash)]">
                 {item.coverPreviewUrl ? (
                     <img src={item.coverPreviewUrl} alt={item.title} loading="lazy" className="size-full object-cover transition duration-300 group-hover:scale-[1.02]" />
                 ) : (
                     <BookOpen className="m-auto size-8 h-full text-[var(--gm-text-3)]/50" />
                 )}
             </div>
-            <div className="min-w-0 p-3">
-                <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5">{item.title}</h2>
-                <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{item.summary || "暂无简介"}</p>
-                <div className="mt-3 flex items-center justify-between text-xs text-[var(--gm-text-3)]">
-                    <span>{item.subIpCount > 1 ? `${item.subIpCount} 个子 IP` : "IP 内容"}</span>
-                    <span>{item.accessibleSubIpCount && item.accessibleSubIpCount !== item.subIpCount ? `已授权 ${item.accessibleSubIpCount} 个` : "查看详情"}</span>
+            <div className="flex min-w-0 flex-1 flex-col p-3">
+                <div className="min-w-0 flex-1">
+                    <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 sm:text-[15px]">{item.title}</h2>
+                    <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{item.summary || "暂无简介"}</p>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--gm-border)] pt-2.5 text-xs text-[var(--gm-text-3)]">
+                    <span className="truncate">{item.subIpCount > 1 ? `${item.subIpCount} 个子 IP` : "IP 内容"}</span>
+                    <span className="inline-flex shrink-0 items-center gap-1 transition group-hover:text-[var(--gm-text)]">
+                        {item.accessibleSubIpCount && item.accessibleSubIpCount !== item.subIpCount ? `已授权 ${item.accessibleSubIpCount} 个` : "查看详情"}
+                        <ArrowUpRight className="size-3.5" />
+                    </span>
                 </div>
             </div>
         </Link>

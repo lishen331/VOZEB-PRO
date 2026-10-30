@@ -243,7 +243,7 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {detail.subIps.map((subIp) => (
-                        <article key={subIp.id} className="group overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text)] transition hover:border-foreground/30 hover:shadow-sm">
+                        <article key={subIp.id} className="group overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] text-[var(--gm-text)] transition hover:-translate-y-px hover:border-[var(--gm-border-strong)] hover:shadow-[var(--gm-shadow)] focus-within:border-[var(--gm-accent)] focus-within:ring-2 focus-within:ring-[var(--gm-accent-ring)]">
                             <Link href={`/ip-library/${encodeURIComponent(detail.id)}/${encodeURIComponent(subIp.id)}`} className="block">
                                 <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-[var(--gm-wash)]/50">
                                     {subIp.coverPreviewUrl ? (
@@ -360,7 +360,7 @@ function UseTarget({ icon, title, onClick }: { icon: React.ReactNode; title: str
     return (
         <button
             type="button"
-            className="flex min-h-24 flex-col items-center justify-center gap-2 border border-[var(--gm-border)] bg-[var(--gm-surface)] text-sm font-medium transition hover:border-foreground/30 hover:bg-[var(--gm-wash)]/30"
+            className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] text-sm font-medium text-[var(--gm-text)] outline-none transition hover:border-[var(--gm-border-strong)] hover:bg-[var(--gm-wash)] focus-visible:border-[var(--gm-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent-ring)]"
             onClick={onClick}
         >
             {icon}
