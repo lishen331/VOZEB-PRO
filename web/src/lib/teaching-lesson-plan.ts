@@ -134,6 +134,28 @@ export function normalizeLessonPlanContent(value: unknown): LessonPlanContent {
     };
 }
 
+/**
+ * 平台标准教案：课程方给每个课时写的参考教案，老师只读。
+ * 结构与老师教案相同，但没有教学反思，环节也不绑定资料（资料是老师那边按本校情况挑的）。
+ */
+export type PlatformLessonTemplate = {
+    lessonId: string;
+    content: LessonPlanContent;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export function normalizeLessonTemplateContent(value: unknown): LessonPlanContent {
+    const content = normalizeLessonPlanContent(value);
+    return { ...content, reflection: "", phases: content.phases.map((phase) => ({ ...phase, materialIds: [] })) };
+}
+
+/** 什么都没写（包括只加了空环节）的标准教案视为没有 */
+export function isLessonTemplateEmpty(content: LessonPlanContent) {
+    const phaseText = content.phases.some((phase) => phase.name || phase.teacher || phase.student || phase.notes);
+    return !content.objectives.length && !content.keyPoints && !content.difficulties && !content.preparation && !content.homework && !phaseText;
+}
+
 export function lessonPlanTotalMinutes(content: { phases: readonly Pick<LessonPlanPhase, "minutes">[] }) {
     return content.phases.reduce((sum, phase) => sum + phase.minutes, 0);
 }

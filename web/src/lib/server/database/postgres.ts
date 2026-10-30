@@ -125,6 +125,7 @@ const POSTGRES_TABLES = [
     "school_compute_settlements",
     "school_compute_consumptions",
     "teaching_lesson_plans",
+    "platform_lesson_plan_templates",
     "ip_packages",
     "ip_sub_ips",
     "ip_versions",

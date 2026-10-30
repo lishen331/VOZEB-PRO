@@ -1,4 +1,4 @@
-import type { LessonPlanContent, LessonPlanStatus, TeachingLessonPlan, TeachingLessonPlanSummary } from "@/lib/teaching-lesson-plan";
+import type { LessonPlanContent, LessonPlanStatus, PlatformLessonTemplate, TeachingLessonPlan, TeachingLessonPlanSummary } from "@/lib/teaching-lesson-plan";
 
 /** 接口错误：保留 HTTP 状态（409 = 版本冲突）和 data（标记已备失败时的 missing 列表） */
 export class LessonPlanApiError extends Error {
@@ -37,6 +37,10 @@ export const lessonPlansApi = {
     /** keepalive：切课时 / 离开页面时把未保存的修改发出去，页面卸载后请求仍会完成 */
     save(assignmentId: string, lessonId: string, input: { content: LessonPlanContent; status: LessonPlanStatus; baseUpdatedAt: string | null }, options: { keepalive?: boolean } = {}) {
         return request<TeachingLessonPlan>(planPath(assignmentId, lessonId), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input), keepalive: options.keepalive });
+    },
+    /** 课程方的标准教案（只读）；没有时为 null */
+    getTemplate(assignmentId: string, lessonId: string, options?: { signal?: AbortSignal }) {
+        return request<PlatformLessonTemplate | null>(`${planPath(assignmentId, lessonId)}/template`, options);
     },
     recordRehearsal(assignmentId: string, lessonId: string, input: { totalSeconds: number; phases: { phaseId: string; seconds: number }[] }) {
         return request<TeachingLessonPlan>(`${planPath(assignmentId, lessonId)}/rehearsals`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });

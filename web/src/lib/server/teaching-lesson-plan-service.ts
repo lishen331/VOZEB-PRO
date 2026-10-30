@@ -4,6 +4,7 @@ import { ensurePostgresSchema, isPostgresDatabaseEnabled } from "@/lib/server/da
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
 import { requireTeacher, SchoolServiceError } from "@/lib/server/school-access-service";
 import { createTeachingLessonPlanRepository, type LessonPlanKey, type LessonPlanRecord } from "@/lib/server/teaching-lesson-plan-repository";
+import { createPlatformLessonTemplateRepository, toLessonTemplate } from "@/lib/server/platform-lesson-template-repository";
 import {
     isLessonPlanStatus,
     lessonPlanMissingItems,
@@ -12,6 +13,7 @@ import {
     normalizeLessonPlanRehearsal,
     type LessonPlanRehearsalInput,
     type LessonPlanSaveInput,
+    type PlatformLessonTemplate,
     type TeachingLessonPlan,
     type TeachingLessonPlanSummary,
 } from "@/lib/teaching-lesson-plan";
@@ -68,6 +70,19 @@ export async function listMyLessonPlans(userId: string, assignmentId?: string): 
     const context = await requireTeacher(userId);
     const records = await createTeachingLessonPlanRepository().listPlans(context.school.id, context.membership.id, assignmentId?.trim() || undefined);
     return records.map(toSummary);
+}
+
+/** 课程方给这节课写的标准教案（只读参考）；没有返回 null */
+export async function getLessonTemplateForTeacher(userId: string, assignmentId: string, lessonId: string): Promise<PlatformLessonTemplate | null> {
+    await prepare();
+    const key = await resolveLessonKey(userId, assignmentId, lessonId);
+    // 停用的课程分配可能仍是 active，和学校课程树一致：只有已发布的课程才对老师可见
+    const repository = createSchoolDomainRepository();
+    const lesson = await repository.getCourseLesson(key.lessonId);
+    const course = lesson ? await repository.getPlatformCourse(lesson.courseId) : null;
+    if (!course || course.status !== "published") return null;
+    const record = await createPlatformLessonTemplateRepository().getTemplate(key.lessonId);
+    return record ? toLessonTemplate(record) : null;
 }
 
 /** 读一节课的教案；还没写过返回 null，由前端给起步模板 */

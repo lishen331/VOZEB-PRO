@@ -64,6 +64,11 @@ export default function nextConfig(phase: string): NextConfig {
                     source: privatePageSource,
                     headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet, noimageindex" }],
                 },
+                // 课件 PDF 在备课页 / 试讲里用 iframe 预览：媒体地址允许被本站页面内嵌（同名 header 后面的规则覆盖前面的 DENY）
+                {
+                    source: "/api/reference-assets/:path*",
+                    headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+                },
             ];
         },
     };

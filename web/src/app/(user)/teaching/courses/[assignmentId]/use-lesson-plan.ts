@@ -20,6 +20,8 @@ export type PlanDoc = {
     lastRehearsal: LessonPlanRehearsal | null;
     rehearsalCount: number;
     isStarter: boolean;
+    /** 课程方的标准教案（只读参考）；没有时为 null */
+    template: LessonPlanContent | null;
 };
 
 export type SaveState = "idle" | "saving" | "saved" | "error" | "conflict";
@@ -118,8 +120,14 @@ export function useLessonPlan(assignmentId: string, lesson: PrepLesson | null, o
         setSavedAt(null);
         queue.current
             .catch(() => undefined)
-            .then(() => lessonPlansApi.get(assignmentId, lessonId, { signal: controller.signal }))
-            .then((plan) => {
+            .then(() =>
+                Promise.all([
+                    lessonPlansApi.get(assignmentId, lessonId, { signal: controller.signal }),
+                    // 标准教案只是参考，读不到不影响老师写自己的教案
+                    lessonPlansApi.getTemplate(assignmentId, lessonId, { signal: controller.signal }).catch(() => null),
+                ]),
+            )
+            .then(([plan, template]) => {
                 if (controller.signal.aborted) return;
                 const current = lessonRef.current;
                 versions.current[lessonId] = plan?.updatedAt ?? null;
@@ -136,6 +144,7 @@ export function useLessonPlan(assignmentId: string, lesson: PrepLesson | null, o
                     lastRehearsal: plan?.lastRehearsal ?? null,
                     rehearsalCount: plan?.rehearsalCount ?? 0,
                     isStarter: !plan,
+                    template: template?.content ?? null,
                 });
                 setSavedAt(plan?.updatedAt ?? null);
                 setLoad({ phase: "ready" });

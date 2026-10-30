@@ -9,6 +9,7 @@ import type { CourseMaterial } from "@/lib/school-domain";
 import { LESSON_PLAN_LIMITS, type LessonPlanContent, type LessonPlanRehearsal } from "@/lib/teaching-lesson-plan";
 import type { PlanDoc, PlanLoad, SaveState } from "./use-lesson-plan";
 import { PhaseEditor } from "./prep-plan-phases";
+import { LessonTemplatePanel } from "./prep-plan-template";
 
 /*
  * 右栏「教案」：老师自己的教案，停手自动保存。
@@ -205,6 +206,7 @@ export function PlanEditor({ doc, load, materials, saveState, saveError, savedAt
     return (
         <div className="flex flex-col gap-5">
             <SaveIndicator state={saveState} error={saveError} savedAt={savedAt} dirty={dirty} isStarter={doc.isStarter} onReload={onReload} onOverwrite={onOverwrite} onRetry={onRetrySave} />
+            {doc.template ? <LessonTemplatePanel content={doc.template} /> : null}
             <Section title="教学目标" hint="写 2–4 条，学完能检验的结果">
                 <ObjectiveList objectives={content.objectives} onChange={(next) => set("objectives", next)} />
             </Section>

@@ -65,7 +65,7 @@ type PhaseCardProps = {
     phase: LessonPlanPhase;
     index: number;
     count: number;
-    materials: readonly CourseMaterial[];
+    materials?: readonly CourseMaterial[];
     onChange: (patch: Partial<LessonPlanPhase>) => void;
     onMove: (offset: -1 | 1) => void;
     onRemove: () => void;
@@ -128,37 +128,45 @@ function PhaseCard({ phase, index, count, materials, onChange, onMove, onRemove 
                     onChange={(event) => onChange({ notes: event.target.value })}
                 />
             </Field>
-            <div className="flex flex-col gap-1.5">
-                <span className="text-[11px] font-medium text-[var(--gm-text-3)]">本环节放映的资料</span>
-                {materials.length ? (
-                    <div className="flex flex-wrap gap-1.5">
-                        {materials.map((material) => {
-                            const on = phase.materialIds.includes(material.id);
-                            return (
-                                <button
-                                    key={material.id}
-                                    type="button"
-                                    aria-pressed={on}
-                                    onClick={() => toggleMaterial(material.id)}
-                                    className={cn(
-                                        "max-w-56 truncate rounded-full px-2.5 py-1 text-[12px] ring-1 transition-colors",
-                                        on ? "bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-[var(--gm-accent-ring)]" : "text-[var(--gm-text-2)] ring-[var(--gm-border)] hover:bg-[var(--gm-wash)]",
-                                    )}
-                                >
-                                    {material.title}
-                                </button>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <p className="text-[12px] text-[var(--gm-text-3)]">本课时还没有资料，可在右侧「资料」标签上传后再选。</p>
-                )}
-            </div>
+            {materials ? <PhaseMaterials phase={phase} materials={materials} onToggle={toggleMaterial} /> : null}
         </li>
     );
 }
 
-export function PhaseEditor({ phases, materials, onChange }: { phases: readonly LessonPlanPhase[]; materials: readonly CourseMaterial[]; onChange: (phases: LessonPlanPhase[]) => void }) {
+/** 本环节放映的资料（老师教案用；标准教案不绑定资料，不显示这一栏） */
+function PhaseMaterials({ phase, materials, onToggle }: { phase: LessonPlanPhase; materials: readonly CourseMaterial[]; onToggle: (id: string) => void }) {
+    return (
+        <div className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium text-[var(--gm-text-3)]">本环节放映的资料</span>
+            {materials.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                    {materials.map((material) => {
+                        const on = phase.materialIds.includes(material.id);
+                        return (
+                            <button
+                                key={material.id}
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => onToggle(material.id)}
+                                className={cn(
+                                    "max-w-56 truncate rounded-full px-2.5 py-1 text-[12px] ring-1 transition-colors",
+                                    on ? "bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-[var(--gm-accent-ring)]" : "text-[var(--gm-text-2)] ring-[var(--gm-border)] hover:bg-[var(--gm-wash)]",
+                                )}
+                            >
+                                {material.title}
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : (
+                <p className="text-[12px] text-[var(--gm-text-3)]">本课时还没有资料，可在右侧「资料」标签上传后再选。</p>
+            )}
+        </div>
+    );
+}
+
+/** materials 不传 = 不显示「本环节放映的资料」（平台标准教案用） */
+export function PhaseEditor({ phases, materials, onChange }: { phases: readonly LessonPlanPhase[]; materials?: readonly CourseMaterial[]; onChange: (phases: LessonPlanPhase[]) => void }) {
     const patch = (index: number, value: Partial<LessonPlanPhase>) => onChange(phases.map((phase, i) => (i === index ? { ...phase, ...value } : phase)));
     const move = (index: number, offset: -1 | 1) => {
         const next = [...phases];

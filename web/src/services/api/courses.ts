@@ -16,6 +16,7 @@ import type {
     TeachingAssignmentInput,
     TeachingSubmission,
 } from "@/lib/school-domain";
+import type { LessonPlanContent, PlatformLessonTemplate } from "@/lib/teaching-lesson-plan";
 import { serializeApiParams } from "@/services/api/request";
 
 export const coursesApi = {
@@ -86,6 +87,13 @@ export const coursesApi = {
     },
     deletePlatformCourseMaterial(id: string) {
         return request<{ deleted: boolean }>(`/api/admin/course-materials/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    getPlatformLessonTemplate(lessonId: string) {
+        return nullableRequest<PlatformLessonTemplate>(`/api/admin/course-lessons/${encodeURIComponent(lessonId)}/template`);
+    },
+    /** 内容全空时服务端删除标准教案并返回 null */
+    savePlatformLessonTemplate(lessonId: string, content: LessonPlanContent) {
+        return nullableRequest<PlatformLessonTemplate>(`/api/admin/course-lessons/${encodeURIComponent(lessonId)}/template`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) });
     },
     restorePlatformCourse(id: string) {
         return request<PlatformCourse>(`/api/admin/courses/${encodeURIComponent(id)}/restore`, { method: "POST" });
@@ -171,4 +179,9 @@ async function request<T>(url: string, init?: RequestInit) {
     const payload = (await response.json().catch(() => null)) as { code?: number; data?: T; msg?: string } | null;
     if (!response.ok || !payload || payload.code !== 0 || payload.data === undefined) throw new Error(payload?.msg || "请求失败");
     return payload.data;
+}
+
+/** data 允许为 null（例如课时还没有标准教案） */
+function nullableRequest<T>(url: string, init?: RequestInit) {
+    return request<T | null>(url, init);
 }
