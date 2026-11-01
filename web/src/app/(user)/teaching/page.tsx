@@ -333,7 +333,8 @@ export default function TeachingPage() {
                     <Button icon={<RefreshCw className="size-4" />} aria-label="刷新教学中心" loading={loading} onClick={() => void load()} />
                 </header>
                 <ProductionGroupMemberPanel />
-                {loading && !courses.length && !assignments.length && activeTab !== "prep" ? (
+                {/* 大厅解锁后会回刷教学中心；这里不能因为 loading 就把 Tabs 卸载，否则正在看的课程抽屉会跟着消失 */}
+                {loading && !courses.length && !assignments.length && activeTab !== "prep" && activeTab !== "catalog" ? (
                     <div className="flex min-h-40 items-center justify-center">
                         <Spin />
                     </div>
