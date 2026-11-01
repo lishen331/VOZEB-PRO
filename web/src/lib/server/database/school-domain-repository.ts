@@ -296,10 +296,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
                       WHERE a.school_id = $1 AND a.status = 'active' AND ${relationship}`;
         // 老师分支的 SQL 里没有 $2（membershipId），参数要跟着关系条件一起收窄，否则 Postgres 会报参数类型无法推断
         const params = role === "teacher" ? [schoolId] : [schoolId, membershipId];
-        const [rows, count] = await Promise.all([
-            this.db.query(`SELECT a.* ${from} ORDER BY a.updated_at DESC, a.id DESC LIMIT $3 OFFSET $4`, [...params, pageSize, offset]),
-            this.db.query(`SELECT COUNT(*)::int AS total ${from}`, params),
-        ]);
+        const [rows, count] = await Promise.all([this.db.query(`SELECT a.* ${from} ORDER BY a.updated_at DESC, a.id DESC LIMIT $3 OFFSET $4`, [...params, pageSize, offset]), this.db.query(`SELECT COUNT(*)::int AS total ${from}`, params)]);
         return pageResult(rows.rows.map(mapCourseAssignment), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
