@@ -1,8 +1,8 @@
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { getDatabaseProvider, postgresQuery, type QueryExecutor } from "@/lib/server/database/postgres";
-import { isoValue, jsonParam, stringValue } from "@/lib/server/database/repository-utils";
+import { isoValue, jsonParam, numberValue, stringValue } from "@/lib/server/database/repository-utils";
 import type { JsonValue } from "@/lib/server/database/repository-types";
-import { normalizeLessonTemplateContent, type LessonPlanContent, type PlatformLessonTemplate } from "@/lib/teaching-lesson-plan";
+import { isLessonTemplateEmpty, normalizeLessonTemplateContent, type LessonPlanContent, type PlatformLessonTemplate } from "@/lib/teaching-lesson-plan";
 
 /*
  * 平台标准教案的存储：Postgres 表 platform_lesson_plan_templates（每个课时一行），
@@ -23,6 +23,8 @@ export interface PlatformLessonTemplateRepository {
     /** 有则覆盖，没有则新建；createdAt 只在新建时生效 */
     saveTemplate(record: LessonTemplateRecord): Promise<LessonTemplateRecord>;
     deleteTemplate(lessonId: string): Promise<boolean>;
+    /** 只读统计：给定课时里有几节写了标准教案（备课大厅用，不读内容） */
+    countTemplates(lessonIds: readonly string[]): Promise<number>;
 }
 
 export function toLessonTemplate(record: LessonTemplateRecord): PlatformLessonTemplate {
@@ -56,6 +58,12 @@ class PostgresLessonTemplateRepository implements PlatformLessonTemplateReposito
     async deleteTemplate(lessonId: string) {
         const result = await this.db.query("DELETE FROM platform_lesson_plan_templates WHERE lesson_id = $1 RETURNING lesson_id", [lessonId]);
         return result.rows.length > 0;
+    }
+
+    async countTemplates(lessonIds: readonly string[]) {
+        if (!lessonIds.length) return 0;
+        const result = await this.db.query(`SELECT COUNT(*)::int AS total FROM platform_lesson_plan_templates WHERE lesson_id = ANY($1::text[]) AND content <> '{}'::jsonb`, [lessonIds]);
+        return numberValue(result.rows[0]?.total);
     }
 }
 
@@ -111,5 +119,11 @@ class FileLessonTemplateRepository implements PlatformLessonTemplateRepository {
             state.templates = state.templates.filter((item) => item.lessonId !== lessonId);
             return state.templates.length !== before;
         });
+    }
+
+    async countTemplates(lessonIds: readonly string[]) {
+        if (!lessonIds.length) return 0;
+        const wanted = new Set(lessonIds);
+        return (await this.read()).templates.filter((item) => wanted.has(item.lessonId) && !isLessonTemplateEmpty(item.content)).length;
     }
 }

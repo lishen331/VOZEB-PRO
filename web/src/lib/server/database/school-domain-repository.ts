@@ -29,6 +29,8 @@ import type {
     CourseChapterUpdate,
     CourseLessonRecord,
     CourseLessonUpdate,
+    CourseCatalogEntryRecord,
+    CourseCatalogPageQuery,
     CourseMaterialQuery,
     CourseMaterialRecord,
     CourseMaterialUpdate,
@@ -283,9 +285,11 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async listVisibleCourses(schoolId: string, membershipId: string, role: SchoolMemberRole, input: PageQuery) {
         const { page, pageSize, offset } = pagination(input);
+        // 老师：本校已解锁（active 授权）的课程都能看到并备课，是否排课（offering）不影响；
+        // 学生：仍按「安排到自己班级的授课」判断。
         const relationship =
             role === "teacher"
-                ? "EXISTS (SELECT 1 FROM school_course_offerings o WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND o.status = 'active' AND o.teacher_membership_id = $2)"
+                ? "TRUE"
                 : "EXISTS (SELECT 1 FROM school_course_offerings o JOIN school_class_members cm ON cm.school_id = o.school_id AND cm.class_id = o.class_id WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND o.status = 'active' AND cm.membership_id = $2)";
         const from = `FROM school_course_assignments a
                       JOIN platform_courses c ON c.id = a.course_id AND c.status = 'published'
@@ -314,6 +318,29 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
             this.db.query(`SELECT COUNT(*)::int AS total FROM platform_courses ${where}`, [status, keyword]),
         ]);
         return pageResult(rows.rows.map(mapPlatformCourse), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async listCourseCatalog(schoolId: string, input: CourseCatalogPageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const keyword = input.keyword?.trim() || null;
+        const scope = input.scope || "all";
+        const from = `FROM platform_courses c
+            LEFT JOIN school_course_assignments a ON a.course_id = c.id AND a.school_id = $1 AND a.status = 'active'
+            WHERE c.status = 'published'
+              AND ($2::text IS NULL OR c.id ILIKE '%' || $2 || '%' OR c.title ILIKE '%' || $2 || '%' OR c.summary ILIKE '%' || $2 || '%')
+              AND ($3::text = 'all' OR ($3::text = 'unlocked' AND a.id IS NOT NULL) OR ($3::text = 'locked' AND a.id IS NULL))`;
+        const [rows, count] = await Promise.all([
+            this.db.query(
+                `SELECT c.*, a.id AS assignment_id,
+                (SELECT COUNT(*)::int FROM platform_course_chapters ch WHERE ch.course_id = c.id) AS chapter_count,
+                (SELECT COUNT(*)::int FROM platform_course_lessons l WHERE l.course_id = c.id) AS lesson_count,
+                (SELECT COUNT(*)::int FROM course_materials m WHERE m.course_id = c.id AND m.status = 'active' AND m.source_scope = 'platform') AS material_count
+                ${from} ORDER BY (a.id IS NOT NULL) DESC, c.updated_at DESC, c.id DESC LIMIT $4 OFFSET $5`,
+                [schoolId, keyword, scope, pageSize, offset],
+            ),
+            this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId, keyword, scope]),
+        ]);
+        return pageResult(rows.rows.map(mapCourseCatalogEntry), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
     async getPlatformCourse(courseId: string, forUpdate = false) {
@@ -366,6 +393,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         }
         return {
             ...mapPlatformCourseSummary(courseResult.rows[0]),
+            content: (jsonValue(courseResult.rows[0].content) as Record<string, unknown>) || {},
             chapters: chapters.map((chapter) => ({
                 ...chapter,
                 materials: materialByChapter.get(chapter.id) || [],
@@ -563,6 +591,11 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return result.rows[0] ? mapCourseAssignment(result.rows[0]) : null;
     }
 
+    async getActiveCourseAssignmentByCourse(schoolId: string, courseId: string) {
+        const result = await this.db.query("SELECT * FROM school_course_assignments WHERE school_id = $1 AND course_id = $2 AND status = 'active' LIMIT 1", [schoolId, courseId]);
+        return result.rows[0] ? mapCourseAssignment(result.rows[0]) : null;
+    }
+
     async hasVisibleCourseAssignment(schoolId: string, membershipId: string, role: SchoolMemberRole, assignmentId: string) {
         const relationship =
             role === "teacher"
@@ -581,7 +614,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async getReadableCourseMaterial(userId: string, storageKey: string) {
         const result = await this.db.query(
-            `SELECT m.* FROM course_materials m JOIN school_course_assignments assignment ON assignment.course_id = m.course_id AND assignment.status = 'active' AND (m.source_scope = 'platform' OR m.school_course_assignment_id = assignment.id) JOIN school_memberships membership ON membership.school_id = assignment.school_id AND membership.user_id = $1 AND membership.status = 'active' LEFT JOIN school_course_offerings offering ON offering.school_id = assignment.school_id AND offering.assignment_id = assignment.id AND offering.status = 'active' LEFT JOIN school_class_members class_member ON class_member.school_id = offering.school_id AND class_member.class_id = offering.class_id AND class_member.membership_id = membership.id JOIN platform_courses course ON course.id = m.course_id AND course.status = 'published' WHERE m.storage_key = $2 AND m.status = 'active' AND (membership.role = 'teacher' AND membership.permissions @> '["school.manage"]'::jsonb OR offering.teacher_membership_id = membership.id OR class_member.membership_id = membership.id) LIMIT 1`,
+            `SELECT m.* FROM course_materials m JOIN school_course_assignments assignment ON assignment.course_id = m.course_id AND assignment.status = 'active' AND (m.source_scope = 'platform' OR m.school_course_assignment_id = assignment.id) JOIN school_memberships membership ON membership.school_id = assignment.school_id AND membership.user_id = $1 AND membership.status = 'active' LEFT JOIN school_course_offerings offering ON offering.school_id = assignment.school_id AND offering.assignment_id = assignment.id AND offering.status = 'active' LEFT JOIN school_class_members class_member ON class_member.school_id = offering.school_id AND class_member.class_id = offering.class_id AND class_member.membership_id = membership.id JOIN platform_courses course ON course.id = m.course_id AND course.status = 'published' WHERE m.storage_key = $2 AND m.status = 'active' AND (membership.role = 'teacher' OR offering.teacher_membership_id = membership.id OR class_member.membership_id = membership.id) LIMIT 1`,
             [userId, storageKey],
         );
         return result.rows[0] ? mapCourseMaterial(result.rows[0]) : null;
@@ -1252,11 +1285,10 @@ function mapPlatformCourse(row: Record<string, unknown>): PlatformCourseRecord {
 function mapPlatformCourseSummary(row: Record<string, unknown>) {
     return {
         ...mapPlatformCourse(row),
-        content: (jsonValue(row.content) as Record<string, unknown>) || {},
         chapterCount: numberValue(row.chapter_count),
         lessonCount: numberValue(row.lesson_count),
         materialCount: numberValue(row.material_count),
-    };
+    } satisfies PlatformCourseRecord;
 }
 
 function mapCourseChapter(row: Record<string, unknown>): CourseChapterRecord {
@@ -1318,6 +1350,11 @@ function mapCourseDeletionImpact(row: Record<string, unknown>, courseId: string)
         submissionCount: numberValue(row.submission_count),
         storageKeys: Array.isArray(row.storage_keys) ? row.storage_keys.map(String) : [],
     };
+}
+
+function mapCourseCatalogEntry(row: Record<string, unknown>): CourseCatalogEntryRecord {
+    const assignmentId = optionalString(row.assignment_id);
+    return { ...mapPlatformCourseSummary(row), ...(assignmentId ? { assignmentId } : {}), unlocked: Boolean(assignmentId) };
 }
 
 function mapCourseAssignment(row: Record<string, unknown>): SchoolCourseAssignmentRecord {

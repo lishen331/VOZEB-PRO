@@ -36,6 +36,7 @@ import { ProductionGroupMemberPanel } from "@/components/school/production-group
 import { SubmissionReferenceList } from "@/components/school/submission-reference-list";
 import { useUserStore } from "@/stores/use-user-store";
 import { AssignmentCreateModal } from "./teaching-assignment-modal";
+import { TeachingCatalogBoard } from "./teaching-catalog-board";
 import { TeachingPrepBoard } from "./teaching-prep-board";
 import { parseTeachingTab, teachingCourseHref, teachingHref, TEACHING_TAB_LABELS, type TeachingTab } from "./teaching-routes";
 import { usePreparedLessons } from "./use-prepared-lessons";
@@ -210,6 +211,11 @@ export default function TeachingPage() {
             key: "prep",
             label: TEACHING_TAB_LABELS.prep,
             children: <TeachingPrepBoard teacherName={teacherName} schoolName={context?.school.name} courses={courses} offerings={offerings} prepared={prepared} loading={loading} />,
+        },
+        {
+            key: "catalog",
+            label: TEACHING_TAB_LABELS.catalog,
+            children: <TeachingCatalogBoard onUnlocked={load} />,
         },
         {
             key: "classes",

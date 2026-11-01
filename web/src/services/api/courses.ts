@@ -11,6 +11,8 @@ import type {
     PlatformCourseDetail,
     SchoolContentReference,
     SchoolCourseAssignment,
+    SchoolCourseCatalogDetail,
+    SchoolCourseCatalogEntry,
     SchoolCourseOffering,
     TeachingAssignment,
     TeachingAssignmentInput,
@@ -108,6 +110,15 @@ export const coursesApi = {
     },
     assignCourseToSchools(id: string, schoolIds: string[]) {
         return request<SchoolCourseAssignment[]>(`/api/admin/courses/${encodeURIComponent(id)}/schools`, jsonRequest("POST", { schoolIds }));
+    },
+    listCourseCatalog(input: { page?: number; pageSize?: number; keyword?: string; scope?: "all" | "locked" | "unlocked" } = {}) {
+        return request<PageResult<SchoolCourseCatalogEntry>>(`/api/school/course-catalog${query(input)}`);
+    },
+    getCourseCatalogDetail(courseId: string, options: RequestOptions = {}) {
+        return request<SchoolCourseCatalogDetail>(`/api/school/course-catalog/${encodeURIComponent(courseId)}`, options);
+    },
+    unlockCourse(courseId: string) {
+        return request<SchoolCourseCatalogEntry>(`/api/school/course-catalog/${encodeURIComponent(courseId)}/unlock`, { method: "POST" });
     },
     listSchoolCourses(input: { page?: number; pageSize?: number } = {}) {
         return request<PageResult<SchoolCourseAssignment>>(`/api/school/courses${query(input)}`);

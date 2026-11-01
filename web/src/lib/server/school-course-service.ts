@@ -26,6 +26,7 @@ import type {
     CourseChapterRecord,
     CourseLessonRecord,
     CourseMaterialRecord,
+    CourseCatalogPageQuery,
     PlatformCourseRecord,
     SchoolCourseOfferingRecord,
     SchoolDomainRepository,
@@ -106,7 +107,11 @@ export async function getSchoolCourseTree(userId: string, assignmentId: string) 
     if (!assignment || assignment.status !== "active") throw new SchoolServiceError(404, "学校课程不存在");
     const course = await repository.getPlatformCourse(assignment.courseId);
     if (!course || course.status !== "published") throw new SchoolServiceError(404, "学校课程不存在");
-    if (!context.canManageSchool && !(await repository.hasVisibleCourseAssignment(context.school.id, context.membership.id, context.membership.role, assignmentId))) throw new SchoolServiceError(404, "学校课程不存在");
+    // 解锁（本校 active 的课程授权）即代表本校可以读这门课：排课前老师也能打开课程树备课，
+    // offering 只决定作业、学生提交和班级范围。学生仍按班级判断。
+    if (context.membership.role !== "teacher" && !context.canManageSchool && !(await repository.hasVisibleCourseAssignment(context.school.id, context.membership.id, context.membership.role, assignmentId))) {
+        throw new SchoolServiceError(404, "学校课程不存在");
+    }
     const tree = await repository.getPlatformCourseTree(course.id, { schoolCourseAssignmentId: assignmentId });
     if (!tree) throw new SchoolServiceError(404, "学校课程不存在");
     return withAssignmentCover({ ...tree, ...deriveCourseContentFields((tree.content as Record<string, unknown>) || {}) }, assignmentId);

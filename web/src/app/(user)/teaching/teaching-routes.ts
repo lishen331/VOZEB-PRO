@@ -11,12 +11,13 @@ import type { CourseChapter, CourseLesson, PlatformCourseDetail } from "@/lib/sc
  * - 放映、布置作业、上传资料都是 L2 上的浮层，不占路由
  */
 
-export const TEACHING_TABS = ["prep", "classes", "assignments", "submissions", "orders"] as const;
+export const TEACHING_TABS = ["prep", "catalog", "classes", "assignments", "submissions", "orders"] as const;
 export type TeachingTab = (typeof TEACHING_TABS)[number];
 export const DEFAULT_TEACHING_TAB: TeachingTab = "prep";
 
 export const TEACHING_TAB_LABELS: Record<TeachingTab, string> = {
     prep: "备课",
+    catalog: "备课大厅",
     classes: "我的班级",
     assignments: "作业",
     submissions: "学生提交",
