@@ -16,7 +16,7 @@ const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
 const STEP = 0.2;
 
-type PdfDocumentProxy = { numPages: number; getPage: (page: number) => Promise<PdfPageProxy>; destroy: () => Promise<void> };
+type PdfDocumentProxy = { numPages: number; getPage: (page: number) => Promise<PdfPageProxy>; destroy?: () => Promise<void> };
 type PdfPageProxy = {
     getViewport: (options: { scale: number }) => { width: number; height: number };
     render: (options: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<void>; cancel: () => void };
@@ -48,7 +48,7 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
         setStatus("loading");
         setPage(1);
         setPages(0);
-        docRef.current?.destroy().catch(() => undefined);
+        void docRef.current?.destroy?.()?.catch(() => undefined);
         docRef.current = null;
 
         void (async () => {
@@ -57,7 +57,7 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
                 pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
                 const doc = (await pdfjs.getDocument({ url: src, withCredentials: true }).promise) as unknown as PdfDocumentProxy;
                 if (cancelled) {
-                    void doc.destroy();
+                    void doc.destroy?.();
                     return;
                 }
                 docRef.current = doc;
@@ -73,7 +73,7 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
         return () => {
             cancelled = true;
             renderTask.current?.cancel();
-            docRef.current?.destroy().catch(() => undefined);
+            void docRef.current?.destroy?.()?.catch(() => undefined);
             docRef.current = null;
         };
     }, [src]);
