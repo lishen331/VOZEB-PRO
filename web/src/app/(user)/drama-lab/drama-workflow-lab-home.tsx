@@ -192,7 +192,7 @@ export function DramaWorkflowLabHome() {
 
     return (
         <main className="h-full overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
-            <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
+            <div className="gm-page px-4 py-5 sm:px-6 sm:py-8">
                 <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--gm-border)] pb-5">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
@@ -271,9 +271,9 @@ export function DramaWorkflowLabHome() {
                         />
                     ) : null}
                     {loading ? (
-                        <GammaCardGridSkeleton count={6} className="mt-4 md:grid-cols-2 xl:grid-cols-3" label="正在加载短剧项目" />
+                        <GammaCardGridSkeleton count={6} className="gm-card-grid-wide mt-4" label="正在加载短剧项目" />
                     ) : projects.length ? (
-                        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="gm-card-grid-wide mt-4">
                             {projects.map((project, index) => (
                                 <GammaReveal key={project.id} index={index} animate={firstEntry} className="grid">
                                     <article className="group rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5 transition hover:border-[var(--gm-border-strong)] hover:shadow-[var(--gm-shadow)]">

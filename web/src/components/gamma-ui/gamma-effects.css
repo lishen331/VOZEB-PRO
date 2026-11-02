@@ -267,3 +267,74 @@
         transition: none;
     }
 }
+
+/* ===== 页面容器与卡片网格 =====
+ * 全站统一：内容区宽度、左右留白、卡片列数都在这里定，页面里不要再各写一套 max-w-* / grid-cols-*，
+ * 否则会出现「有的页面铺满、有的页面大屏留一大片空白」。
+ *   .gm-page      页面内容容器（替代 mx-auto max-w-7xl）
+ *   .gm-card-grid 卡片网格（2 列起步，按屏宽 2→3→4→5→6 列）
+ */
+.gm-page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 1760px;
+}
+
+.gm-card-grid {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+    .gm-card-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .gm-card-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .gm-card-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1600px) {
+    .gm-card-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+/* 宽卡（横向信息多、需要更宽一格）时用这个：2→2→3→4 */
+.gm-card-grid-wide {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+    .gm-card-grid-wide {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (min-width: 1280px) {
+    .gm-card-grid-wide {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1600px) {
+    .gm-card-grid-wide {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}

@@ -57,7 +57,7 @@ export function SchoolAdministration() {
     const context = useSchoolContextStore((state) => state.context);
     return (
         <main className="h-full min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-7xl">
+            <div className="gm-page">
                 <header className="mb-4 flex items-center gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800">
                     <div className="grid size-10 shrink-0 place-items-center rounded-md bg-[var(--gm-blue)] text-white">
                         <School className="size-5" />

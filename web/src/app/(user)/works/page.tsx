@@ -190,7 +190,7 @@ export default function WorksPage() {
 
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
-            <div className="mx-auto w-full max-w-7xl px-2 py-2 sm:px-6 sm:py-8">
+            <div className="gm-page px-2 py-2 sm:px-6 sm:py-8">
                 <header className="flex flex-col gap-3 border-b border-[var(--gm-border)] pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5 sm:pb-6">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">

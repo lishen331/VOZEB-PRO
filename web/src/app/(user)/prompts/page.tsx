@@ -88,7 +88,7 @@ export default function PromptsPage() {
     return (
         <div className="flex h-full flex-col overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <main ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto bg-[var(--gm-bg)] px-3 py-3 sm:px-6 sm:py-8">
-                <div className="mx-auto max-w-7xl">
+                <div className="gm-page">
                     <div>
                         <h1 className="text-xl font-semibold text-[var(--gm-text)] sm:text-2xl">提示词库</h1>
                         <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-2)] sm:mt-2 sm:text-sm">浏览公共提示词，复制使用或保存到我的素材。</p>
@@ -125,9 +125,9 @@ export default function PromptsPage() {
                     </section>
 
                     <div ref={listStartRef} className="scroll-mt-4 pt-3 sm:pt-5">
-                        {query.isLoading ? <GammaCardGridSkeleton count={8} media="aspect-[16/10]" className="gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-4" label="正在加载提示词" /> : null}
+                        {query.isLoading ? <GammaCardGridSkeleton count={8} media="aspect-[16/10]" className="gm-card-grid" label="正在加载提示词" /> : null}
                         {!query.isLoading ? (
-                            <div className="grid gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-4">
+                            <div className="gm-card-grid">
                                 {promptItems.map((item, index) => (
                                     <GammaReveal key={item.id} index={index} animate={firstEntry}>
                                         <PromptCard

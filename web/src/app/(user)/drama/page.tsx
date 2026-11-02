@@ -80,7 +80,7 @@ export default function DramaPage() {
     };
     return (
         <main className="h-full overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
-            <div className="mx-auto w-full max-w-7xl px-2 py-2 sm:px-6 sm:py-8">
+            <div className="gm-page px-2 py-2 sm:px-6 sm:py-8">
                 <header className="flex items-end justify-between gap-3 border-b border-[var(--gm-border)] pb-3 sm:gap-5 sm:pb-6">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
@@ -101,7 +101,7 @@ export default function DramaPage() {
                     <div className="grid min-h-16 place-items-center text-sm text-[var(--gm-text-3)] sm:min-h-32">正在加载短剧项目…</div>
                 ) : projects.length ? (
                     <>
-                        <section className="grid gap-1.5 py-1 sm:grid-cols-2 sm:gap-4 sm:py-6 xl:grid-cols-3">
+                        <section className="gm-card-grid-wide py-1 sm:py-6">
                             {projects.map((project) => (
                                 <DramaProjectCard key={project.id} project={project} />
                             ))}
