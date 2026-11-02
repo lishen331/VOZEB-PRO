@@ -51,7 +51,7 @@ export type WorkGovernanceCasePage = { items: WorkGovernanceCase[]; total: numbe
 
 export type PublicGalleryPage = { items: PublicGalleryItem[]; nextCursor?: string };
 
-export function listPublicGallery(input: { category?: string; limit?: number; sort?: "random" | "featured" | "latest" | "popular" } = {}) {
+export function listPublicGallery(input: { category?: string; limit?: number; sort?: "random" | "featured" | "latest" | "popular"; keyword?: string; cursor?: string } = {}) {
     return request<PublicGalleryPage>(`/api/public/gallery?${searchParams(input)}`);
 }
 

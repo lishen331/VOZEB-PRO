@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { ArrowRight, Eye, Film, Heart, ImageOff, Play, RotateCw, Search, Sparkles } from "lucide-react";
 
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
@@ -19,6 +19,10 @@ import { listPublicGallery, type PublicGalleryItem } from "@/services/api/work-g
  * 新首页下半屏：公开作品广场（真实数据 /api/public/gallery）。
  * 推荐 / 精选 / 最新 三个排序 + 关键词 + 作品分类筛选 + 瀑布流；点作品打开公开作品详情弹窗。
  * 瀑布流按行排：接口顺序里的前 N 个作品正好铺满第一行（推荐页精选置顶靠这个呈现）。
+ *
+ * 分页：接口按 cursor 翻页，滚动到底自动续接；同时保留一个可聚焦的「加载更多」按钮兜底
+ * （IntersectionObserver 不可用时可手动继续）。distributeToColumns 是贪心前缀算法，
+ * 追加数据只会继续往最矮的列放，已渲染的卡片不会跳位。
  */
 
 type FeedSort = "random" | "featured" | "latest";
@@ -31,10 +35,40 @@ const FEED_TABS = [
 
 const ALL = "all";
 const PAGE_LIMIT = 30;
+/** 关键词停顿后再发请求，避免逐字查询 */
+const KEYWORD_DEBOUNCE_MS = 350;
+/** 哨兵提前一屏触发，滚动时不会看到空白等待 */
+const SENTINEL_ROOT_MARGIN = "600px 0px";
 
-function matchesKeyword(item: PublicGalleryItem, keyword: string) {
-    if (!keyword) return true;
-    return [item.title, item.description, item.publicPrompt, item.authorName, item.category, ...item.tags].some((field) => field?.toLowerCase().includes(keyword));
+type GalleryPage = { items: PublicGalleryItem[]; nextCursor?: string };
+/** 只声明本组件用到的字段，避免 useInfiniteQuery 的泛型推导渗进 props */
+type GalleryQuery = {
+    isPending: boolean;
+    isError: boolean;
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    isFetchNextPageError: boolean;
+    fetchNextPage: () => void;
+    refetch: () => void;
+};
+
+function useDebouncedValue<T>(value: T, delay: number) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+    return debounced;
+}
+
+/** 随机排序下 cursor 理论上不会重复，仍按 slug 去重，避免瀑布流出现重复卡片 */
+function uniqueBySlug(items: PublicGalleryItem[]) {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+        if (seen.has(item.slug)) return false;
+        seen.add(item.slug);
+        return true;
+    });
 }
 
 export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: () => void; /** 首页把搜索放进顶栏，广场不再重复一个搜索框 */ hideSearch?: boolean }) {
@@ -42,14 +76,25 @@ export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: (
     const [category, setCategory] = useState<string>(ALL);
     const [keyword, setKeyword] = useState("");
     const [previewSlug, setPreviewSlug] = useState("");
+    const debouncedKeyword = useDebouncedValue(keyword.trim(), KEYWORD_DEBOUNCE_MS);
 
-    const query = useQuery({
-        queryKey: ["home-public-gallery", sort, category],
-        queryFn: () => listPublicGallery({ limit: PAGE_LIMIT, sort, category: category === ALL ? undefined : category }),
+    const query = useInfiniteQuery({
+        queryKey: ["home-public-gallery", sort, category, debouncedKeyword],
+        queryFn: ({ pageParam }) =>
+            listPublicGallery({
+                limit: PAGE_LIMIT,
+                sort,
+                category: category === ALL ? undefined : category,
+                keyword: debouncedKeyword || undefined,
+                cursor: pageParam,
+            }),
+        initialPageParam: undefined as string | undefined,
+        getNextPageParam: (lastPage: GalleryPage) => lastPage.nextCursor,
         staleTime: 60_000,
     });
-    const items = useMemo(() => (query.data?.items || []).filter((item) => matchesKeyword(item, keyword.trim().toLowerCase())), [query.data, keyword]);
-    const filtered = Boolean(keyword.trim()) || category !== ALL;
+
+    const items = useMemo(() => uniqueBySlug(query.data?.pages.flatMap((page) => page.items) || []), [query.data?.pages]);
+    const filtered = Boolean(debouncedKeyword) || category !== ALL;
 
     const resetFilters = () => {
         setKeyword("");
@@ -139,22 +184,8 @@ export function distributeToColumns<T>(items: T[], columnCount: number, isTall: 
 
 const isTallCard = (index: number) => index % 3 === 0;
 
-function GalleryBody({
-    query,
-    items,
-    sort,
-    filtered,
-    onReset,
-    onPreview,
-}: {
-    query: { isLoading: boolean; isError: boolean; refetch: () => unknown };
-    items: PublicGalleryItem[];
-    sort: FeedSort;
-    filtered: boolean;
-    onReset: () => void;
-    onPreview: (slug: string) => void;
-}) {
-    if (query.isLoading) {
+function GalleryBody({ query, items, sort, filtered, onReset, onPreview }: { query: GalleryQuery; items: PublicGalleryItem[]; sort: FeedSort; filtered: boolean; onReset: () => void; onPreview: (slug: string) => void }) {
+    if (query.isPending) {
         return (
             <div aria-label="正在加载公开作品" className={MASONRY}>
                 {Array.from({ length: 10 }, (_, index) => (
@@ -170,7 +201,7 @@ function GalleryBody({
                 title="作品暂时无法加载"
                 description="请稍后重试，或刷新页面后再试"
                 action={
-                    <GammaButton size="sm" variant="soft" onClick={() => void query.refetch()}>
+                    <GammaButton size="sm" variant="soft" onClick={() => query.refetch()}>
                         重新加载
                     </GammaButton>
                 }
@@ -193,7 +224,69 @@ function GalleryBody({
             />
         );
     }
-    return <GalleryColumns items={items} onPreview={onPreview} />;
+    return (
+        <>
+            <GalleryColumns items={items} onPreview={onPreview} />
+            <GalleryLoadMore query={query} loadedCount={items.length} />
+        </>
+    );
+}
+
+/** 最近的纵向滚动容器：首页滚动的是 main，不是 window，IntersectionObserver 必须以它为 root */
+function findScrollParent(element: HTMLElement): HTMLElement | null {
+    let node = element.parentElement;
+    while (node && node !== document.body) {
+        const overflowY = getComputedStyle(node).overflowY;
+        if (overflowY === "auto" || overflowY === "scroll") return node;
+        node = node.parentElement;
+    }
+    return null;
+}
+
+function GalleryLoadMore({ query, loadedCount }: { query: GalleryQuery; loadedCount: number }) {
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+    const { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage } = query;
+
+    const loadNext = useCallback(() => {
+        if (!hasNextPage || isFetchingNextPage) return;
+        fetchNextPage();
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel || !hasNextPage || typeof IntersectionObserver === "undefined") return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) loadNext();
+            },
+            { root: findScrollParent(sentinel), rootMargin: SENTINEL_ROOT_MARGIN },
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasNextPage, loadNext]);
+
+    const statusText = isFetchingNextPage ? `正在加载更多作品 · 已显示 ${loadedCount} 个` : hasNextPage ? "" : `已经到底了 · 共 ${loadedCount} 个作品`;
+
+    return (
+        <div className="mt-4 flex flex-col items-center gap-2">
+            <div ref={sentinelRef} aria-hidden className="h-px w-full" />
+            <p aria-live="polite" className="text-xs text-[var(--gm-text-3)]">
+                {statusText}
+            </p>
+            {isFetchNextPageError ? (
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-[var(--gm-danger)]">加载更多失败</span>
+                    <GammaButton size="sm" variant="soft" onClick={loadNext}>
+                        重试
+                    </GammaButton>
+                </div>
+            ) : hasNextPage ? (
+                <GammaButton size="sm" variant="ghost" loading={isFetchingNextPage} onClick={loadNext}>
+                    加载更多
+                </GammaButton>
+            ) : null}
+        </div>
+    );
 }
 
 function GalleryColumns({ items, onPreview }: { items: PublicGalleryItem[]; onPreview: (slug: string) => void }) {
