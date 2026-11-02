@@ -217,7 +217,7 @@ export async function createSchoolMaterial(userId: string, assignmentId: string,
     const course = await repository.getPlatformCourse(assignment.courseId);
     if (!course || course.status !== "published") throw new SchoolServiceError(409, "课程未发布或已停用");
     if (context.membership.role !== "teacher") throw new SchoolServiceError(403, "只有老师可以上传本校资料");
-    if (!context.canManageSchool && !(await repository.hasActiveOfferingForTeacher(context.school.id, context.membership.id, assignmentId))) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
+    // 解锁即代表本校可用这门课：排课前老师也能给课时补自己的资料，offering 只影响作业与班级范围
     await assertTreeTarget(repository, assignment.courseId, input.chapterId, input.lessonId);
     return repository.insertCourseMaterial(await materialRecord(repository, userId, assignment.courseId, input, "school", assignmentId));
 }
@@ -805,10 +805,16 @@ async function materialRecord(
     };
 }
 
+/**
+ * 本校资料的维护权限：学校管理员不限；普通老师只要是本校已解锁（active 授权）这门课即可。
+ * 不要求排课 —— 备课大厅解锁后老师就能直接备课，offering 只决定作业与班级范围。
+ */
 async function assertSchoolMaterialManager(repository: SchoolDomainRepository, schoolId: string, membershipId: string, canManageSchool: boolean, assignmentId?: string) {
     if (canManageSchool) return;
-    if (!assignmentId) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
-    if (!(await repository.hasActiveOfferingForTeacher(schoolId, membershipId, assignmentId))) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
+    if (!assignmentId) throw new SchoolServiceError(403, "当前老师没有这门课的本校资料权限");
+    const assignment = await repository.getSchoolCourseAssignment(schoolId, assignmentId);
+    if (!assignment || assignment.status !== "active") throw new SchoolServiceError(403, "本校尚未解锁这门课程");
+    void membershipId;
 }
 
 function positiveOrder(value: unknown) {
