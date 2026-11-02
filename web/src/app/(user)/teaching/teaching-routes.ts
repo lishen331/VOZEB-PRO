@@ -6,6 +6,7 @@ import type { CourseChapter, CourseLesson, PlatformCourseDetail } from "@/lib/sc
  *   L1    /teaching?tab=<tab>                                      教学中心（侧栏「教学中心」）
  *   L1.5  /teaching/catalog/<courseId>                              课程详情（备课大厅点进来的课程）
  *   L2    /teaching/courses/<assignmentId>?lesson=<id>&from=<tab>   课程备课
+ *   L3    /teaching/courses/<assignmentId>/plan/<lessonId>          教案（全屏写）
  *
  * - L1 的标签页写进 URL，所以从 L2 返回能回到原来的标签页（from 参数记录从哪个标签进来）
  * - L2 内切换课时用 replace，不新增历史记录：浏览器后退和页面左上角「返回」都回到 L1
@@ -46,6 +47,14 @@ export function teachingCourseHref(assignmentId: string, options: { lessonId?: s
     if (options.from && options.from !== DEFAULT_TEACHING_TAB) params.set("from", options.from);
     const query = params.toString();
     return `/teaching/courses/${encodeURIComponent(assignmentId)}${query ? `?${query}` : ""}`;
+}
+
+/** L3：某节课的教案全屏页（备课页右栏的「教案」打开它） */
+export function teachingLessonPlanHref(assignmentId: string, lessonId: string, options: { from?: TeachingTab } = {}) {
+    const params = new URLSearchParams();
+    if (options.from && options.from !== DEFAULT_TEACHING_TAB) params.set("from", options.from);
+    const query = params.toString();
+    return `/teaching/courses/${encodeURIComponent(assignmentId)}/plan/${encodeURIComponent(lessonId)}${query ? `?${query}` : ""}`;
 }
 
 export type PrepLesson = CourseLesson & { chapter: CourseChapter; number: number };
