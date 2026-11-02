@@ -20,6 +20,7 @@ const CHANNEL_PROTOCOLS: SystemChannelProtocol[] = [
     "modelbay-image-task",
     "tuzi-image-task",
     "tuzi-suno",
+    "qwen-tts",
     "stable-diffusion",
     "volcengine-video",
     "seedance-special",

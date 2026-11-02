@@ -11,11 +11,14 @@ import type {
     PlatformCourseDetail,
     SchoolContentReference,
     SchoolCourseAssignment,
+    SchoolCourseCatalogDetail,
+    SchoolCourseCatalogEntry,
     SchoolCourseOffering,
     TeachingAssignment,
     TeachingAssignmentInput,
     TeachingSubmission,
 } from "@/lib/school-domain";
+import type { LessonPlanContent, PlatformLessonTemplate } from "@/lib/teaching-lesson-plan";
 import { serializeApiParams } from "@/services/api/request";
 
 export const coursesApi = {
@@ -87,6 +90,13 @@ export const coursesApi = {
     deletePlatformCourseMaterial(id: string) {
         return request<{ deleted: boolean }>(`/api/admin/course-materials/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+    getPlatformLessonTemplate(lessonId: string) {
+        return nullableRequest<PlatformLessonTemplate>(`/api/admin/course-lessons/${encodeURIComponent(lessonId)}/template`);
+    },
+    /** 内容全空时服务端删除标准教案并返回 null */
+    savePlatformLessonTemplate(lessonId: string, content: LessonPlanContent) {
+        return nullableRequest<PlatformLessonTemplate>(`/api/admin/course-lessons/${encodeURIComponent(lessonId)}/template`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) });
+    },
     restorePlatformCourse(id: string) {
         return request<PlatformCourse>(`/api/admin/courses/${encodeURIComponent(id)}/restore`, { method: "POST" });
     },
@@ -100,6 +110,15 @@ export const coursesApi = {
     },
     assignCourseToSchools(id: string, schoolIds: string[]) {
         return request<SchoolCourseAssignment[]>(`/api/admin/courses/${encodeURIComponent(id)}/schools`, jsonRequest("POST", { schoolIds }));
+    },
+    listCourseCatalog(input: { page?: number; pageSize?: number; keyword?: string; scope?: "all" | "locked" | "unlocked" } = {}) {
+        return request<PageResult<SchoolCourseCatalogEntry>>(`/api/school/course-catalog${query(input)}`);
+    },
+    getCourseCatalogDetail(courseId: string, options: RequestOptions = {}) {
+        return request<SchoolCourseCatalogDetail>(`/api/school/course-catalog/${encodeURIComponent(courseId)}`, options);
+    },
+    unlockCourse(courseId: string) {
+        return request<SchoolCourseCatalogEntry>(`/api/school/course-catalog/${encodeURIComponent(courseId)}/unlock`, { method: "POST" });
     },
     listSchoolCourses(input: { page?: number; pageSize?: number } = {}) {
         return request<PageResult<SchoolCourseAssignment>>(`/api/school/courses${query(input)}`);
@@ -171,4 +190,9 @@ async function request<T>(url: string, init?: RequestInit) {
     const payload = (await response.json().catch(() => null)) as { code?: number; data?: T; msg?: string } | null;
     if (!response.ok || !payload || payload.code !== 0 || payload.data === undefined) throw new Error(payload?.msg || "请求失败");
     return payload.data;
+}
+
+/** data 允许为 null（例如课时还没有标准教案） */
+function nullableRequest<T>(url: string, init?: RequestInit) {
+    return request<T | null>(url, init);
 }

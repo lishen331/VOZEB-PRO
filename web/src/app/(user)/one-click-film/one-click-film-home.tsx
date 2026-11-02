@@ -4,7 +4,9 @@ import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Button, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
+import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
+import { GammaCardGridSkeleton } from "@/components/gamma-ui/gamma-data";
+import { GammaReveal, useFirstEntry } from "@/components/gamma-ui/gamma-motion";
 import { ArrowRight, Film, Plus, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,6 +21,7 @@ export default function OneClickFilmHome() {
     const [projects, setProjects] = useState<DramaProjectSummary[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const firstEntry = useFirstEntry(!loading);
     const [error, setError] = useState<string>();
     const [createOpen, setCreateOpen] = useState(false);
     const [creating, setCreating] = useState(false);
@@ -92,9 +95,7 @@ export default function OneClickFilmHome() {
                         <span className="text-sm text-[var(--gm-text-3)]">共 {total} 个项目</span>
                     </div>
                     {loading ? (
-                        <div className="flex min-h-48 items-center justify-center">
-                            <Spin />
-                        </div>
+                        <GammaCardGridSkeleton count={6} className="mt-4 sm:grid-cols-2 xl:grid-cols-3" label="正在加载一键成片项目" />
                     ) : error ? (
                         <div className="py-12 text-center text-sm text-destructive">
                             {error}
@@ -105,28 +106,30 @@ export default function OneClickFilmHome() {
                         </div>
                     ) : projects.length ? (
                         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                            {projects.map((project) => (
-                                <article key={project.id} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <div className="text-xs text-[var(--gm-text-3)]">商单项目</div>
-                                            <h3 className="mt-2 text-lg font-semibold">{project.title}</h3>
+                            {projects.map((project, index) => (
+                                <GammaReveal key={project.id} index={index} animate={firstEntry} className="grid">
+                                    <article className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <div className="text-xs text-[var(--gm-text-3)]">商单项目</div>
+                                                <h3 className="mt-2 text-lg font-semibold">{project.title}</h3>
+                                            </div>
+                                            <Tag>{project.episodeCount} 集</Tag>
                                         </div>
-                                        <Tag>{project.episodeCount} 集</Tag>
-                                    </div>
-                                    <p className="mt-3 line-clamp-2 min-h-10 text-sm text-[var(--gm-text-3)]">{project.summary || "暂无项目简介"}</p>
-                                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
-                                        <Tag>{project.shotCount} 分镜</Tag>
-                                        <Tag>{project.ratio}</Tag>
-                                        <Tag>{project.style || "电影感国漫"}</Tag>
-                                    </div>
-                                    <div className="mt-5 border-t border-[var(--gm-border)] pt-4">
-                                        <Link href={`/one-click-film/${encodeURIComponent(project.id)}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-                                            进入制作
-                                            <ArrowRight className="size-4" />
-                                        </Link>
-                                    </div>
-                                </article>
+                                        <p className="mt-3 line-clamp-2 min-h-10 text-sm text-[var(--gm-text-3)]">{project.summary || "暂无项目简介"}</p>
+                                        <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
+                                            <Tag>{project.shotCount} 分镜</Tag>
+                                            <Tag>{project.ratio}</Tag>
+                                            <Tag>{project.style || "电影感国漫"}</Tag>
+                                        </div>
+                                        <div className="mt-5 border-t border-[var(--gm-border)] pt-4">
+                                            <Link href={`/one-click-film/${encodeURIComponent(project.id)}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                                                进入制作
+                                                <ArrowRight className="size-4" />
+                                            </Link>
+                                        </div>
+                                    </article>
+                                </GammaReveal>
                             ))}
                         </div>
                     ) : (

@@ -7,6 +7,7 @@ import { Progress } from "@/components/gamma-ui/gamma-ant-display";
 import { Popconfirm, Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Spin, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
+import { GammaDetailSkeleton } from "@/components/gamma-ui/gamma-data";
 import { ArrowLeft, Clapperboard, Download, ExternalLink, Film, PanelsTopLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -329,12 +330,7 @@ export default function OneClickFilmProject() {
             setSavingEpisode(false);
         }
     };
-    if (loading)
-        return (
-            <div className="flex h-full items-center justify-center">
-                <Spin />
-            </div>
-        );
+    if (loading) return <GammaDetailSkeleton label="正在加载项目" />;
     if (error || !project)
         return (
             <main className="p-8">

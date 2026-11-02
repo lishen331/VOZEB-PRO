@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
+import { sweepStaleNeedsReviewTasks } from "@/lib/server/generation-task-needs-review-sweep";
 import { getNextGenerationTaskDueAt } from "@/lib/server/generation-task-scheduler";
 import { isAuthorizedWorkerRequest, isWorkerTokenConfigured } from "@/lib/server/maintenance-auth";
 import { getInstallStatus } from "@/lib/server/install-status";
@@ -24,8 +25,9 @@ export async function POST(request: Request) {
             workerId: workerId || undefined,
         });
         await cleanupMediaDiagnostics(50);
+        const needsReviewSweep = await sweepStaleNeedsReviewTasks();
         const nextDueAt = await getNextGenerationTaskDueAt();
-        return NextResponse.json({ code: 0, data: { ...result, nextDueAt }, msg: result.claimed ? `已处理 ${result.claimed} 个生成任务` : "没有到期的生成任务" });
+        return NextResponse.json({ code: 0, data: { ...result, needsReviewSweep, nextDueAt }, msg: result.claimed ? `已处理 ${result.claimed} 个生成任务` : "没有到期的生成任务" });
     } catch (error) {
         console.error("Generation task recovery batch failed", error);
         return NextResponse.json({ code: 500, data: null, msg: "生成任务恢复失败" }, { status: 500 });

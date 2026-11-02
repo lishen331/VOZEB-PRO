@@ -26,6 +26,7 @@ import type {
     CourseChapterRecord,
     CourseLessonRecord,
     CourseMaterialRecord,
+    CourseCatalogPageQuery,
     PlatformCourseRecord,
     SchoolCourseOfferingRecord,
     SchoolDomainRepository,
@@ -106,7 +107,11 @@ export async function getSchoolCourseTree(userId: string, assignmentId: string) 
     if (!assignment || assignment.status !== "active") throw new SchoolServiceError(404, "学校课程不存在");
     const course = await repository.getPlatformCourse(assignment.courseId);
     if (!course || course.status !== "published") throw new SchoolServiceError(404, "学校课程不存在");
-    if (!context.canManageSchool && !(await repository.hasVisibleCourseAssignment(context.school.id, context.membership.id, context.membership.role, assignmentId))) throw new SchoolServiceError(404, "学校课程不存在");
+    // 解锁（本校 active 的课程授权）即代表本校可以读这门课：排课前老师也能打开课程树备课，
+    // offering 只决定作业、学生提交和班级范围。学生仍按班级判断。
+    if (context.membership.role !== "teacher" && !context.canManageSchool && !(await repository.hasVisibleCourseAssignment(context.school.id, context.membership.id, context.membership.role, assignmentId))) {
+        throw new SchoolServiceError(404, "学校课程不存在");
+    }
     const tree = await repository.getPlatformCourseTree(course.id, { schoolCourseAssignmentId: assignmentId });
     if (!tree) throw new SchoolServiceError(404, "学校课程不存在");
     return withAssignmentCover({ ...tree, ...deriveCourseContentFields((tree.content as Record<string, unknown>) || {}) }, assignmentId);
@@ -212,7 +217,7 @@ export async function createSchoolMaterial(userId: string, assignmentId: string,
     const course = await repository.getPlatformCourse(assignment.courseId);
     if (!course || course.status !== "published") throw new SchoolServiceError(409, "课程未发布或已停用");
     if (context.membership.role !== "teacher") throw new SchoolServiceError(403, "只有老师可以上传本校资料");
-    if (!context.canManageSchool && !(await repository.hasActiveOfferingForTeacher(context.school.id, context.membership.id, assignmentId))) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
+    // 解锁即代表本校可用这门课：排课前老师也能给课时补自己的资料，offering 只影响作业与班级范围
     await assertTreeTarget(repository, assignment.courseId, input.chapterId, input.lessonId);
     return repository.insertCourseMaterial(await materialRecord(repository, userId, assignment.courseId, input, "school", assignmentId));
 }
@@ -658,7 +663,7 @@ async function toPublicIdentity(membership: SchoolMembershipRecord | null): Prom
     };
 }
 
-async function requireEducationAdmin(actorId: string) {
+export async function requireEducationAdmin(actorId: string) {
     const actor = (await getPublicUsersByIds([actorId]))[0];
     if (!hasAdminPermission(actor, "education.manage")) throw new SchoolServiceError(403, "当前管理员没有产教运营职责权限");
     return actor;
@@ -800,10 +805,16 @@ async function materialRecord(
     };
 }
 
+/**
+ * 本校资料的维护权限：学校管理员不限；普通老师只要是本校已解锁（active 授权）这门课即可。
+ * 不要求排课 —— 课程中心解锁后老师就能直接备课，offering 只决定作业与班级范围。
+ */
 async function assertSchoolMaterialManager(repository: SchoolDomainRepository, schoolId: string, membershipId: string, canManageSchool: boolean, assignmentId?: string) {
     if (canManageSchool) return;
-    if (!assignmentId) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
-    if (!(await repository.hasActiveOfferingForTeacher(schoolId, membershipId, assignmentId))) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
+    if (!assignmentId) throw new SchoolServiceError(403, "当前老师没有这门课的本校资料权限");
+    const assignment = await repository.getSchoolCourseAssignment(schoolId, assignmentId);
+    if (!assignment || assignment.status !== "active") throw new SchoolServiceError(403, "本校尚未解锁这门课程");
+    void membershipId;
 }
 
 function positiveOrder(value: unknown) {

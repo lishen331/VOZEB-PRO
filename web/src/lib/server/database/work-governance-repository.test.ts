@@ -64,8 +64,21 @@ describe("WorkGovernanceRepository", () => {
 
         expect(sql).toContain("md5(work.id || gallery_cursor.random_seed)");
         expect(sql).toContain("gallery_cursor.random_rank");
+        expect(sql).toMatch(/ORDER BY work\.is_featured DESC, coalesce\(work\.featured_at, to_timestamp\(0\)\) DESC, md5\(work\.id \|\| gallery_cursor\.random_seed\) ASC, work\.id ASC/);
+        expect(sql).toContain("gallery_cursor.feature_rank");
         expect(values[10]).toBe("seed-one");
         expect(values[11]).toBe("0123456789abcdef0123456789abcdef");
+    });
+
+    it("filters already normalized official categories without falling back to other", async () => {
+        const query = vi.fn().mockResolvedValue({ rows: [] });
+        const repository = new WorkGovernanceRepository({ query });
+
+        await repository.listGallery({ limit: 12, sort: "latest", category: "摄影" });
+        const [sql, values] = query.mock.calls[0] as [string, unknown[]];
+
+        expect(sql).toContain("WHEN version.category IN ('视觉设计', '插画', '摄影', '品牌内容', '视频', '短剧', '其他') THEN version.category");
+        expect(values[0]).toBe("摄影");
     });
 
     it("only features active approved public versions", async () => {

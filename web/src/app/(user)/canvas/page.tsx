@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { App, Button, Pagination } from "antd";
-import { Download, FileUp, Plus } from "lucide-react";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
+import { Download, FileUp, Plus, Trash2, Workflow } from "lucide-react";
 
+import { CompactEmptyState } from "@/components/compact-empty-state";
 import { readZip } from "@/lib/zip";
 import { APP_EXPORT_ID } from "@/lib/storage-keys";
 import { uploadMediaFile } from "@/services/file-storage";
@@ -131,29 +133,37 @@ export default function CanvasPage() {
         })();
     }, [createProject, enterProject, ipId, ipReferenceKey, message, mode, projects, ready, siteTitle, subIpId, total]);
 
-    if (ready && (mode === "new" || mode === "recent" || ipReferenceKey)) return <main className="flex h-full items-center justify-center bg-background text-sm text-stone-500">正在打开画布...</main>;
+    if (ready && (mode === "new" || mode === "recent" || ipReferenceKey)) return <main className="flex h-full items-center justify-center bg-[var(--gm-bg)] text-sm text-[var(--gm-text-3)]">正在打开画布...</main>;
 
     return (
-        <main className="h-full overflow-auto bg-background text-stone-950 dark:text-stone-100">
+        <main className="h-full overflow-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-2 py-2 sm:gap-6 sm:px-6 sm:py-8">
-                <header className="flex flex-wrap items-end justify-between gap-2.5 border-b border-border pb-3 sm:gap-4 sm:pb-5">
-                    <div>
-                        <p className="text-xs text-stone-500">画布库</p>
-                        <h1 className="mt-1 text-xl font-semibold sm:mt-2 sm:text-2xl">我的画布</h1>
+                <header className="flex flex-wrap items-end justify-between gap-2.5 border-b border-[var(--gm-border)] pb-3 sm:gap-4 sm:pb-5">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
+                            <Workflow className="size-4" />
+                            画布库
+                        </div>
+                        <h1 className="mt-1.5 text-xl font-semibold sm:mt-2 sm:text-2xl">我的画布</h1>
+                        {ready ? (
+                            <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-3)] sm:mt-2 sm:text-sm">
+                                共 {total} 个画布{selectedIds.length ? ` · 已选 ${selectedIds.length} 个` : ""}
+                            </p>
+                        ) : null}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         {selectedIds.length ? (
                             <>
                                 <Button disabled={!ready} loading={exporting} icon={<Download className="size-4" />} onClick={() => void exportSelectedProjects()}>
                                     导出选中
                                 </Button>
-                                <Button disabled={!ready} onClick={() => setDeleteIds(selectedIds)}>
+                                <Button danger disabled={!ready} icon={<Trash2 className="size-4" />} onClick={() => setDeleteIds(selectedIds)}>
                                     删除选中
                                 </Button>
                             </>
                         ) : null}
                         {projects.length ? (
-                            <Button disabled={!ready} onClick={() => setDeleteIds(projects.map((project) => project.id))}>
+                            <Button danger disabled={!ready} icon={<Trash2 className="size-4" />} onClick={() => setDeleteIds(projects.map((project) => project.id))}>
                                 删除当前页
                             </Button>
                         ) : null}
@@ -167,8 +177,8 @@ export default function CanvasPage() {
                 </header>
 
                 {!ready ? (
-                    <section className="flex min-h-24 flex-col items-center justify-center gap-3 border-y border-stone-200 px-4 text-center text-sm text-stone-500 sm:min-h-48 dark:border-stone-800">
-                        <span>{syncError || "正在加载画布..."}</span>
+                    <section className="flex min-h-24 flex-col items-center justify-center gap-3 px-4 text-center text-sm sm:min-h-48">
+                        <span className={syncError ? "text-[var(--gm-danger)]" : "text-[var(--gm-text-3)]"}>{syncError || "正在加载画布..."}</span>
                         {syncError ? (
                             <Button size="small" onClick={() => void hydrate(true)}>
                                 重新加载
@@ -177,7 +187,7 @@ export default function CanvasPage() {
                     </section>
                 ) : projects.length ? (
                     <>
-                        <div className="grid gap-2 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
+                        <div className="grid gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                             {projects.map((project) => (
                                 <CanvasProjectCard key={project.id} project={project} />
                             ))}
@@ -189,13 +199,17 @@ export default function CanvasPage() {
                         ) : null}
                     </>
                 ) : (
-                    <section className="flex min-h-24 flex-col items-center justify-center border-y border-stone-200 px-3 py-5 text-center sm:min-h-56 sm:py-8 dark:border-stone-800">
-                        <h2 className="text-lg font-medium sm:text-xl">还没有画布</h2>
-                        <p className="mt-1.5 text-xs text-stone-500 sm:mt-3 sm:text-sm">新建一个画布后，就可以独立保存节点、连线和画布外观。</p>
-                        <Button type="primary" size="small" className="mt-3 sm:mt-5" loading={creating} icon={<Plus className="size-4" />} onClick={() => void createAndEnter()}>
-                            新建画布
-                        </Button>
-                    </section>
+                    <CompactEmptyState
+                        title="还没有画布"
+                        description="新建一个画布后，就可以独立保存节点、连线和画布外观。"
+                        icon={<Workflow className="size-4" />}
+                        className="min-h-24 sm:min-h-40"
+                        action={
+                            <Button type="primary" loading={creating} icon={<Plus className="size-4" />} onClick={() => void createAndEnter()}>
+                                新建画布
+                            </Button>
+                        }
+                    />
                 )}
             </div>
 

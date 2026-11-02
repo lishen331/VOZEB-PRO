@@ -28,7 +28,7 @@ export default async function GalleryPage({ searchParams }: { searchParams: Gall
     return (
         <main className="app-scroll-page bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <header className="sticky top-0 z-20 border-b border-[var(--gm-border)] bg-[var(--gm-bg)]/95 backdrop-blur-xl">
-                <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-3 px-3 sm:h-16 sm:px-6">
+                <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center justify-between gap-3 px-3 sm:h-16 sm:px-6">
                     <Link href="/" className="flex min-w-0 items-center gap-2.5 text-[var(--gm-text)]" aria-label={site.title}>
                         <SiteLogo logoUrl={site.logoUrl || "/logo.svg"} className="size-7 sm:size-8" />
                         <span className="truncate text-sm font-semibold sm:text-base">{site.title}</span>

@@ -39,7 +39,7 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
         );
 
     return (
-        <div className="workspace-shell flex h-dvh min-h-0 overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]">
+        <div className="workspace-shell flex h-dvh min-h-0 overflow-hidden bg-[var(--gm-bg)] bg-[image:var(--gm-page-gradient)] bg-fixed text-[var(--gm-text)]">
             <div className="hidden h-full lg:flex">
                 <GammaAppSidebar collapsed={sidebar.collapsed} onToggle={sidebar.toggle} featureModules={effectiveFeatureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} showTheme />
             </div>

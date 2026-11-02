@@ -44,7 +44,7 @@ describe("admin channel config", () => {
             ...structuredClone(DEFAULT_SETTINGS),
             mail: { ...DEFAULT_SETTINGS.mail, host: "smtp.internal", password: "mail-secret" },
             dataLifecycle: { ...DEFAULT_SETTINGS.dataLifecycle, maintenanceBatchSize: 81 },
-            generationCostControl: { maxPointsPerTask: 9, dailyUserPointSpend: 90, dailyTotalPointSpend: 900 },
+            generationCostControl: { maxPointsPerTask: 9, dailyUserPointSpend: 90, dailyTotalPointSpend: 900, needsReviewAutoRefundEnabled: false },
             systemChannels: [
                 {
                     ...savedChannel,

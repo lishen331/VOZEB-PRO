@@ -10,6 +10,8 @@ import { PublicWorkPreviewModal } from "@/components/works/public-work-preview-m
 import { PublicCreatorModal } from "@/components/works/public-creator-modal";
 import { PublicWorkLikeButton } from "@/components/works/public-work-like-button";
 import { ResponsiveMasonryGrid } from "@/components/works/responsive-masonry-grid";
+import { GammaCardGridSkeleton } from "@/components/gamma-ui/gamma-data";
+import { GammaReveal, useFirstEntry } from "@/components/gamma-ui/gamma-motion";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { LazyMediaImage } from "@/components/media/lazy-media-image";
 import { PublicWorkCardTitle } from "@/components/works/public-work-card-title";
@@ -24,6 +26,7 @@ export function CreateInspirationGallery({ onUsePrompt, onUseImage }: { onUsePro
     const [category, setCategory] = useState("");
     const [items, setItems] = useState<PublicGalleryItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const firstEntry = useFirstEntry(!loading);
     const [error, setError] = useState("");
     const [reloadToken, setReloadToken] = useState(0);
     const [importingSlug, setImportingSlug] = useState("");
@@ -86,9 +89,7 @@ export function CreateInspirationGallery({ onUsePrompt, onUseImage }: { onUsePro
             </nav>
 
             {loading ? (
-                <div className="flex min-h-36 items-center justify-center gap-2 text-xs text-[var(--gm-text-3)]">
-                    <LoaderCircle className="size-4 animate-spin" /> 正在读取灵感作品...
-                </div>
+                <GammaCardGridSkeleton count={12} media="aspect-[3/4]" className="grid-cols-2 gap-2 pt-3 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6" label="正在读取灵感作品" />
             ) : error ? (
                 <div className="flex min-h-36 flex-col items-center justify-center gap-2 text-center">
                     <p className="text-xs text-[var(--gm-danger)]">{error}</p>
@@ -98,8 +99,10 @@ export function CreateInspirationGallery({ onUsePrompt, onUseImage }: { onUsePro
                 </div>
             ) : items.length ? (
                 <ResponsiveMasonryGrid className="grid-cols-2 pt-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6" ariaLabel="灵感作品列表">
-                    {items.map((item) => (
-                        <InspirationCard key={item.slug} item={item} importing={importingSlug === item.slug} onOpen={() => setPreviewSlug(item.slug)} onOpenAuthor={setCreatorUsername} onUsePrompt={onUsePrompt} onUseImage={() => void importImage(item)} />
+                    {items.map((item, index) => (
+                        <GammaReveal key={item.slug} index={index} animate={firstEntry}>
+                            <InspirationCard item={item} importing={importingSlug === item.slug} onOpen={() => setPreviewSlug(item.slug)} onOpenAuthor={setCreatorUsername} onUsePrompt={onUsePrompt} onUseImage={() => void importImage(item)} />
+                        </GammaReveal>
                     ))}
                 </ResponsiveMasonryGrid>
             ) : (

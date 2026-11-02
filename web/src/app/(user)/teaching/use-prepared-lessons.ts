@@ -1,50 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import type { TeachingLessonPlanSummary } from "@/lib/teaching-lesson-plan";
+import { lessonPlansApi } from "@/services/api/lesson-plans";
 
 /*
- * 老师的备课进度：哪些课时已经备过。后端还没有备课记录接口，先按账号存在本机 localStorage，
- * 换浏览器不同步；接口上线后只需替换这个 hook。
+ * 老师的备课进度，来自后端教案表（换电脑、换浏览器都一致）：
+ *   prepared  学校课程 id → 已标记「已备课」的课时 id
+ *   drafted   学校课程 id → 写过教案但还没标记已备的课时 id
+ * assignmentId 不传 = 全部课程（教学中心备课看板），传了只拉一门课（备课页）。
  */
 
-type PreparedMap = Record<string, readonly string[]>;
+type LessonMap = Record<string, readonly string[]>;
 
-const storageKey = (userId: string) => `vozeb:teaching-prepared:${userId}`;
-
-function read(userId: string): PreparedMap {
-    try {
-        const parsed: unknown = JSON.parse(window.localStorage.getItem(storageKey(userId)) ?? "{}");
-        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-        return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string[]] => Array.isArray(entry[1]) && entry[1].every((id) => typeof id === "string")));
-    } catch {
-        return {};
-    }
+function group(items: readonly TeachingLessonPlanSummary[], status: TeachingLessonPlanSummary["status"]): LessonMap {
+    return items.reduce<LessonMap>((map, item) => (item.status === status ? { ...map, [item.assignmentId]: [...(map[item.assignmentId] ?? []), item.lessonId] } : map), {});
 }
 
-export function usePreparedLessons(userId: string | undefined) {
-    const [prepared, setPrepared] = useState<PreparedMap>({});
+export function usePreparedLessons(enabled: boolean, assignmentId?: string) {
+    const [items, setItems] = useState<readonly TeachingLessonPlanSummary[]>([]);
+
+    const refresh = useCallback(async () => {
+        if (!enabled) return;
+        try {
+            setItems(await lessonPlansApi.list(assignmentId));
+        } catch {
+            // 非老师身份或网络失败：进度显示为空，不打断页面
+            setItems([]);
+        }
+    }, [assignmentId, enabled]);
 
     useEffect(() => {
-        setPrepared(userId ? read(userId) : {});
-    }, [userId]);
+        void refresh();
+    }, [refresh]);
 
-    const toggle = useCallback(
-        (courseId: string, lessonId: string, done: boolean) => {
-            if (!userId) return;
-            setPrepared((current) => {
-                const list = current[courseId] ?? [];
-                const nextList = done ? (list.includes(lessonId) ? list : [...list, lessonId]) : list.filter((id) => id !== lessonId);
-                const next = { ...current, [courseId]: nextList };
-                try {
-                    window.localStorage.setItem(storageKey(userId), JSON.stringify(next));
-                } catch {
-                    // 隐私模式写不进去：只在当前页面生效
-                }
-                return next;
-            });
-        },
-        [userId],
-    );
-
-    return { prepared, toggle };
+    const prepared = useMemo(() => group(items, "ready"), [items]);
+    const drafted = useMemo(() => group(items, "draft"), [items]);
+    return { prepared, drafted, refresh };
 }

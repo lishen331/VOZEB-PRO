@@ -3,7 +3,7 @@ import { getTrustedProxyHops } from "@/lib/server/trusted-proxy";
 
 export function proxy(request: NextRequest) {
     const nonce = crypto.randomUUID().replaceAll("-", "");
-    const contentSecurityPolicy = buildContentSecurityPolicy(nonce, isHttpsRequest(request));
+    const contentSecurityPolicy = buildContentSecurityPolicy(nonce, isHttpsRequest(request), isFramableMediaPath(request.nextUrl.pathname));
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("content-security-policy", contentSecurityPolicy);
@@ -45,7 +45,12 @@ function securedJsonResponse(body: unknown, status: number, contentSecurityPolic
     return response;
 }
 
-function buildContentSecurityPolicy(nonce: string, isHttpsRequest: boolean) {
+/** 课件 PDF 在备课页用 iframe 预览，只有媒体地址允许被本站页面内嵌 */
+function isFramableMediaPath(pathname: string) {
+    return pathname.startsWith("/api/reference-assets/");
+}
+
+function buildContentSecurityPolicy(nonce: string, isHttpsRequest: boolean, framableBySameOrigin = false) {
     const isDev = process.env.NODE_ENV !== "production";
     return [
         "default-src 'self'",
@@ -60,7 +65,7 @@ function buildContentSecurityPolicy(nonce: string, isHttpsRequest: boolean) {
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
-        "frame-ancestors 'none'",
+        framableBySameOrigin ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
         ...(!isDev && isHttpsRequest ? ["upgrade-insecure-requests"] : []),
     ].join("; ");
 }

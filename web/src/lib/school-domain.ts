@@ -155,6 +155,32 @@ export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "co
 };
 export type PlatformCoursePatch = Partial<PlatformCourseInput> & { status?: PlatformCourseStatus };
 export type SchoolCourseAssignment = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string; course: PlatformCourse };
+
+/** 课程中心里的课程条目：没解锁的只有课程信息，解锁后带上本校课程授权 id（可直接进备课） */
+export type SchoolCourseCatalogEntry = PlatformCourse & { assignmentId?: string; unlocked: boolean; canUnlock: boolean };
+/** 课程中心的章节目录预览：锁定状态只给标题和资料文件名，不给地址和详情 */
+export type SchoolCourseCatalogMaterial = Pick<CourseMaterial, "id" | "title" | "fileName" | "mimeType" | "bytes"> & {
+    chapterId?: string;
+    lessonId?: string;
+    url?: string;
+    storageKey?: string;
+};
+export type SchoolCourseCatalogItem = Pick<CourseLesson, "id" | "courseId" | "chapterId" | "title" | "description" | "sortOrder" | "createdAt" | "updatedAt"> & {
+    materials: SchoolCourseCatalogMaterial[];
+};
+export type SchoolCourseCatalogChapter = Pick<CourseChapter, "id" | "courseId" | "title" | "description" | "sortOrder" | "createdAt" | "updatedAt"> & {
+    lessons: SchoolCourseCatalogItem[];
+    materials: SchoolCourseCatalogMaterial[];
+};
+export type SchoolCourseCatalogDetail = Omit<PlatformCourse, "content"> & {
+    content: Record<string, unknown>;
+    chapters: SchoolCourseCatalogChapter[];
+    assignmentId?: string;
+    unlocked: boolean;
+    canUnlock: boolean;
+    /** 平台给这门课写了几节标准教案（锁定状态下也显示，用于判断值不值得解锁） */
+    templateLessonCount: number;
+};
 export type CourseOfferingInput = { classId: string; teacherMembershipId: string; status?: SchoolStatus };
 export type SchoolPublicIdentity = { accountId: string; username: string; displayName: string };
 export type SchoolCourseOffering = {

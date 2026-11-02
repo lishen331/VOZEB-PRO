@@ -869,6 +869,7 @@ function targetUrl(baseUrl: string, apiFormat: "openai" | "gemini", path: string
         protocol === "modelbay-image-task" ||
         protocol === "tuzi-image-task" ||
         protocol === "tuzi-suno" ||
+        protocol === "qwen-tts" ||
         protocol === "volcengine-video" ||
         protocol === "seedance-special" ||
         protocol === "stable-diffusion" ||

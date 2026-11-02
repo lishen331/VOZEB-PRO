@@ -1,9 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence } from "motion/react";
-import { Check, ChevronLeft, ChevronRight, Layers, Paperclip, Presentation, Users } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Layers, Paperclip, Presentation, Timer, Users } from "lucide-react";
 
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import type { PlatformCourseDetail, SchoolCourseOffering, TeachingAssignment } from "@/lib/school-domain";
@@ -15,7 +16,7 @@ import { PrepPanel, type MaterialActions } from "./prep-panel";
 
 /*
  * 备课页的版式（与 /bluegamma/courses 的 CoursePrepView 一致）：
- *   顶栏：返回上一级 + 面包屑（教学中心 / 来源标签 / 课程 / 第 N 课）+ 标记已备 + 放映
+ *   顶栏：返回上一级 + 面包屑（教学中心 / 来源标签 / 课程 / 第 N 课）+ 标记已备 + 放映 + 试讲
  *   主体：左大纲 248px · 中资料预览 · 右备课面板 360px；平板收窄，竖屏时右栏落到中栏下方
  */
 
@@ -64,13 +65,40 @@ export interface PrepLayoutProps {
     assignments: readonly TeachingAssignment[];
     backHref: string;
     backLabel: string;
+    /** 写过教案但还没标记已备的课时（大纲里显示「草稿」） */
+    drafted: readonly string[];
     materialActions: MaterialActions;
+    /** 右栏「教案」标签内容 */
+    planEditor: ReactNode;
+    /** 教案已载入、不处于冲突状态：才允许标记已备 / 试讲 */
+    canMarkPrepared: boolean;
+    canRehearse: boolean;
     onPickLesson: (lessonId: string) => void;
     onTogglePrepared: (lessonId: string, done: boolean) => void;
+    onRehearse: () => void;
     onCreateAssignment: () => void;
     onOpenAssignments: () => void;
 }
-export function PrepLayout({ tree, lessons, lesson, prepared, offerings, assignments, backHref, backLabel, materialActions, onPickLesson, onTogglePrepared, onCreateAssignment, onOpenAssignments }: PrepLayoutProps) {
+export function PrepLayout({
+    tree,
+    lessons,
+    lesson,
+    prepared,
+    drafted,
+    offerings,
+    assignments,
+    backHref,
+    backLabel,
+    materialActions,
+    planEditor,
+    canMarkPrepared,
+    canRehearse,
+    onPickLesson,
+    onTogglePrepared,
+    onRehearse,
+    onCreateAssignment,
+    onOpenAssignments,
+}: PrepLayoutProps) {
     // 资料序号跟课时绑定：切到别的课时立即回到第 1 份
     const [cursor, setCursor] = useState({ lessonId: "", index: 0 });
     const index = lesson && cursor.lessonId === lesson.id ? cursor.index : 0;
@@ -113,13 +141,18 @@ export function PrepLayout({ tree, lessons, lesson, prepared, offerings, assignm
                     ) : null}
                 </span>
                 {lesson ? (
-                    <GammaButton size="sm" variant={done ? "soft" : "outline"} icon={<Check className="size-4" />} onClick={() => onTogglePrepared(lesson.id, !done)}>
+                    <GammaButton size="sm" variant={done ? "soft" : "outline"} icon={<Check className="size-4" />} disabled={!canMarkPrepared && !done} onClick={() => onTogglePrepared(lesson.id, !done)}>
                         {done ? "已备课" : "标记已备"}
                     </GammaButton>
                 ) : null}
-                <GammaButton size="sm" icon={<Presentation className="size-4" />} disabled={!materials.length} onClick={() => setPresenting(true)}>
+                <GammaButton size="sm" variant="outline" icon={<Presentation className="size-4" />} disabled={!materials.length} onClick={() => setPresenting(true)}>
                     放映
                 </GammaButton>
+                {lesson ? (
+                    <GammaButton size="sm" icon={<Timer className="size-4" />} disabled={!canRehearse} onClick={onRehearse}>
+                        试讲
+                    </GammaButton>
+                ) : null}
             </header>
 
             {lesson ? (
@@ -128,7 +161,7 @@ export function PrepLayout({ tree, lessons, lesson, prepared, offerings, assignm
                         <p className="px-2 pb-2 text-xs text-[var(--gm-text-3)]">
                             课程大纲 · {preparedInCourse}/{lessons.length} 已备
                         </p>
-                        <PrepOutline lessons={lessons} lessonId={lesson.id} prepared={prepared} onPick={onPickLesson} />
+                        <PrepOutline lessons={lessons} lessonId={lesson.id} prepared={prepared} drafted={drafted} onPick={onPickLesson} />
                     </aside>
                     <main className="gm-scroll min-w-0 overflow-y-auto p-5">
                         {materials.length ? (
@@ -158,6 +191,7 @@ export function PrepLayout({ tree, lessons, lesson, prepared, offerings, assignm
                             }}
                             assignments={lessonAssignments}
                             canCreateAssignment={offerings.some((item) => item.status === "active")}
+                            planEditor={planEditor}
                             onCreateAssignment={onCreateAssignment}
                             onOpenAssignments={onOpenAssignments}
                         />

@@ -24,6 +24,8 @@ export type MemberPageQuery = PageQuery & { keyword?: string; role?: SchoolMembe
 export type ClassPageQuery = PageQuery & { keyword?: string; status?: SchoolStatus };
 export type OrderPageQuery = PageQuery & { keyword?: string; status?: CommercialOrderStatus };
 export type PlatformCoursePageQuery = PageQuery & { keyword?: string; status?: PlatformCourseStatus };
+export type CourseCatalogScope = "all" | "locked" | "unlocked";
+export type CourseCatalogPageQuery = PageQuery & { keyword?: string; scope?: CourseCatalogScope };
 export type TeachingSubmissionPageQuery = PageQuery & { assignmentIds?: string[] };
 
 export type SchoolRecord = { id: string; name: string; profile: JsonValue; status: SchoolStatus; createdAt: string; updatedAt: string };
@@ -71,6 +73,7 @@ export type PlatformCourseRecord = {
     materialCount?: number;
 };
 export type PlatformCourseUpdate = Partial<Pick<PlatformCourseRecord, "title" | "summary" | "content" | "status">> & { updatedAt: string };
+export type CourseCatalogEntryRecord = PlatformCourseRecord & { assignmentId?: string; unlocked: boolean };
 export type SchoolCourseAssignmentRecord = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string };
 export type SchoolCourseAssignmentInput = Omit<SchoolCourseAssignmentRecord, "courseId">;
 export type SchoolCourseOfferingRecord = {
@@ -224,6 +227,8 @@ export interface SchoolDomainRepository {
     listAssignedCourses(schoolId: string, input: PageQuery): Promise<Page<SchoolCourseAssignmentRecord>>;
     listVisibleCourses(schoolId: string, membershipId: string, role: SchoolMemberRole, input: PageQuery): Promise<Page<SchoolCourseAssignmentRecord>>;
     listPlatformCourses(input: PlatformCoursePageQuery): Promise<Page<PlatformCourseRecord>>;
+    /** 课程中心：全平台已发布课程 + 本校是否已解锁 */
+    listCourseCatalog(schoolId: string, input: CourseCatalogPageQuery): Promise<Page<CourseCatalogEntryRecord>>;
     getPlatformCourse(courseId: string, forUpdate?: boolean): Promise<PlatformCourseRecord | null>;
     updatePlatformCourse(courseId: string, patch: PlatformCourseUpdate): Promise<PlatformCourseRecord | null>;
     getPlatformCourseTree(courseId: string, options?: { schoolCourseAssignmentId?: string }): Promise<import("@/lib/school-domain").PlatformCourseDetail | null>;
@@ -246,6 +251,8 @@ export interface SchoolDomainRepository {
     restorePlatformCourse(courseId: string, patch: { updatedAt: string }): Promise<PlatformCourseRecord | null>;
     permanentlyDeletePlatformCourse(courseId: string): Promise<{ storageKeys: string[] }>;
     getSchoolCourseAssignment(schoolId: string, assignmentId: string, forUpdate?: boolean): Promise<SchoolCourseAssignmentRecord | null>;
+    /** 课程中心：本校对某门课的 active 课程授权（解锁凭据），没有则 null */
+    getActiveCourseAssignmentByCourse(schoolId: string, courseId: string): Promise<SchoolCourseAssignmentRecord | null>;
     hasVisibleCourseAssignment(schoolId: string, membershipId: string, role: SchoolMemberRole, assignmentId: string): Promise<boolean>;
     getReadableCourseMaterial(userId: string, storageKey: string): Promise<CourseMaterialRecord | null>;
     hasActiveOfferingForTeacher(schoolId: string, membershipId: string, assignmentId: string): Promise<boolean>;

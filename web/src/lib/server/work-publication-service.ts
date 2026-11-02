@@ -17,6 +17,7 @@ import { collectLocalMediaStorageKeys } from "@/lib/server/local-media-reference
 import { getLocalMediaRegistration, getLocalMediaRegistrations, type LocalMediaRegistration } from "@/lib/server/local-media-registry";
 import { moderateWorkContent } from "@/lib/server/work-content-moderation";
 import { userAvatarUrl } from "@/lib/user-avatar";
+import { cleanOfficialWorkTitle, normalizeOfficialCategory } from "@/lib/work-publication-import";
 
 type WorkPublicationRepositories = ReturnType<typeof createPostgresRepositories>;
 
@@ -488,10 +489,10 @@ export async function getPublicWorkPublication(slugValue: unknown) {
         viewCount: work.viewCount,
         likeCount: work.likeCount,
         publishedAt: work.publishedVersion.reviewedAt || work.publishedVersion.updatedAt,
-        title: work.publishedVersion.title,
+        title: work.publicationOrigin === "official" ? cleanOfficialWorkTitle(work.publishedVersion.title) : work.publishedVersion.title,
         description: work.publishedVersion.description,
         publicPrompt: work.publishedVersion.publicPrompt,
-        category: work.publishedVersion.category,
+        category: work.publicationOrigin === "official" ? normalizeOfficialCategory(work.publishedVersion.category) : work.publishedVersion.category,
         tags: work.publishedVersion.tags,
         visibility: work.publishedVersion.visibility,
         hasProcess: work.sourceType !== "media" && work.publishedVersion.pullFilmEnabled === true,

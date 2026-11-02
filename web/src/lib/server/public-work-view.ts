@@ -1,8 +1,11 @@
 import type { PublishedGalleryItemRecord } from "@/lib/server/database";
 import { userAvatarUrl } from "@/lib/user-avatar";
+import { cleanOfficialWorkTitle, normalizeOfficialCategory } from "@/lib/work-publication-import";
 
 export function publicGalleryItem(item: PublishedGalleryItemRecord) {
     const profileAuthor = item.publicationOrigin !== "official" && item.authorDisplay === "profile";
+    const title = item.publicationOrigin === "official" ? cleanOfficialWorkTitle(item.title) : item.title;
+    const category = item.publicationOrigin === "official" ? normalizeOfficialCategory(item.category) : item.category;
     return {
         slug: item.slug,
         sourceType: item.sourceType,
@@ -13,10 +16,10 @@ export function publicGalleryItem(item: PublishedGalleryItemRecord) {
         hasProcess: item.hasProcess,
         processVersionId: item.processVersionId,
         publishedAt: item.publishedAt,
-        title: item.title,
+        title,
         description: item.description,
         publicPrompt: item.publicPrompt,
-        category: item.category,
+        category,
         tags: item.tags,
         authorName: item.authorDisplay === "hidden" ? undefined : item.authorName,
         authorUsername: profileAuthor ? item.authorUsername : undefined,

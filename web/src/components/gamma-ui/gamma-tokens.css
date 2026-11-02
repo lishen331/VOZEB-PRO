@@ -6,7 +6,11 @@
  */
 .gm,
 html.gm-app {
+    /* 页面底：墨蓝基底 + 左上蓝光、右下青光，液态玻璃才有可透的层次 */
     --gm-bg: #04060c;
+    --gm-page-gradient:
+        radial-gradient(120% 80% at 12% -10%, rgba(0, 80, 245, 0.28), transparent 62%), radial-gradient(90% 70% at 92% 8%, rgba(40, 235, 250, 0.12), transparent 58%), radial-gradient(70% 60% at 50% 108%, rgba(124, 92, 255, 0.16), transparent 66%),
+        linear-gradient(168deg, #05070f 0%, #04060c 46%, #060a15 100%);
     --gm-bg-elevated: #080c16;
     --gm-surface: #0d121e;
     --gm-surface-2: #131a29;
@@ -84,7 +88,11 @@ html.gm-app {
  */
 .gm.gm-light,
 html.gm-app:not(.dark) {
-    --gm-bg: #f3f6fb;
+    /* 页面底：近白基底 + 蓝青光晕，避免整片死白让玻璃失去质感 */
+    --gm-bg: #eef3fb;
+    --gm-page-gradient:
+        radial-gradient(110% 78% at 8% -12%, rgba(0, 80, 245, 0.14), transparent 60%), radial-gradient(90% 66% at 94% 6%, rgba(40, 235, 250, 0.2), transparent 56%), radial-gradient(80% 70% at 46% 112%, rgba(124, 92, 255, 0.1), transparent 64%),
+        linear-gradient(170deg, #f7faff 0%, #eef3fb 48%, #e9eff9 100%);
     --gm-bg-elevated: #ffffff;
     /* 卡片面比页面底更亮一级且带描边，避免大块卡片在浅色下边界发虚 */
     --gm-surface: #ffffff;

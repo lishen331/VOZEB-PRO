@@ -38,6 +38,14 @@ describe("application proxy security", () => {
 
         expect(policy).not.toContain("upgrade-insecure-requests");
     });
+    it("lets only course media be framed by the site itself (PDF preview)", () => {
+        const media = proxy(new NextRequest("https://app.example.com/api/reference-assets/permanent/2026/10/30/attachments/x.pdf")).headers.get("content-security-policy") || "";
+        const page = proxy(new NextRequest("https://app.example.com/teaching/courses/one")).headers.get("content-security-policy") || "";
+
+        expect(media).toContain("frame-ancestors 'self'");
+        expect(page).toContain("frame-ancestors 'none'");
+    });
+
     it("forwards the exact internal path for protected-page login redirects", () => {
         const response = proxy(new NextRequest("https://app.example.com/canvas/project-one?tab=layers"));
         expect(response.headers.get("x-middleware-request-x-vozeb-login-next")).toBe("/canvas/project-one?tab=layers");

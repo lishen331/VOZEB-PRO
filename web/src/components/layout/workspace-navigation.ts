@@ -29,6 +29,7 @@ type Entry = { slug: string; label: string; icon: GammaNavIconName; group: Works
  * 展示顺序即侧栏顺序；slug 与 navigation-tools 一致。
  * 学校身份（老师 / 学生 / 学校管理员）才会出现，紧跟在首页后面单独成组；
  * 无限练习属于练习区，与学校板块之间用分隔线隔开。
+ * 作品广场（/gallery、/community）不进侧栏，从首页作品区「全部作品」进入；两个页面本身仍可访问。
  */
 const ENTRIES: readonly Entry[] = [
     { slug: "teaching", label: "教学中心", icon: "teaching", group: "school" },
@@ -44,12 +45,9 @@ const ENTRIES: readonly Entry[] = [
     { slug: "assets", label: "我的素材", icon: "assets", group: "assets" },
     { slug: "my-prompts", label: "我的提示词", icon: "library", group: "assets" },
     { slug: "prompts", label: "提示词库", icon: "prompts", group: "assets" },
-    { slug: "community", label: "创作社区", icon: "classes", group: "community" },
     { slug: "ip-library", label: "IP 库", icon: "ip", group: "community" },
     { slug: "me", label: "我的主页", icon: "profile", group: "community" },
 ];
-
-const GALLERY_ITEM: WorkspaceNavItem = { key: "gallery", label: "作品广场", icon: "plaza", href: "/gallery", group: "community" };
 
 export type WorkspaceNavOptions = {
     schoolContext?: SchoolContext | null;
@@ -64,10 +62,7 @@ export function workspaceNavItems({ schoolContext = null, featureModules, menuPe
     const hasSchool = visible.some((item) => item.group === "school");
     // 没有学校入口时，首页并入创作组，免得顶上孤零零一条分隔线
     const home: WorkspaceNavItem = { key: "home", label: "首页", icon: "home", href: "/", group: hasSchool ? "home" : "create" };
-    // 作品广场是公开页面（/gallery），不受模块开关影响，固定排在社区组第一位
-    const communityIndex = visible.findIndex((item) => item.group === "community");
-    const withGallery = communityIndex < 0 ? [...visible, GALLERY_ITEM] : [...visible.slice(0, communityIndex), GALLERY_ITEM, ...visible.slice(communityIndex)];
-    return [home, ...withGallery];
+    return [home, ...visible];
 }
 
 /** 帮助中心不放在导航列表里，由侧栏底部操作区单独展示 */

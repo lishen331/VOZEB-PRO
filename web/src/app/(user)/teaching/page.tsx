@@ -36,6 +36,7 @@ import { ProductionGroupMemberPanel } from "@/components/school/production-group
 import { SubmissionReferenceList } from "@/components/school/submission-reference-list";
 import { useUserStore } from "@/stores/use-user-store";
 import { AssignmentCreateModal } from "./teaching-assignment-modal";
+import { TeachingCatalogBoard } from "./teaching-catalog-board";
 import { TeachingPrepBoard } from "./teaching-prep-board";
 import { parseTeachingTab, teachingCourseHref, teachingHref, TEACHING_TAB_LABELS, type TeachingTab } from "./teaching-routes";
 import { usePreparedLessons } from "./use-prepared-lessons";
@@ -51,7 +52,7 @@ export default function TeachingPage() {
     const user = useUserStore((state) => state.user);
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { prepared } = usePreparedLessons(user?.id);
+    const { prepared } = usePreparedLessons(context?.membership.role === "teacher");
     const [reviewForm] = Form.useForm<ReviewForm>();
     const [offerings, setOfferings] = useState<SchoolCourseOffering[]>([]);
     const [courses, setCourses] = useState<SchoolCourseAssignment[]>([]);
@@ -212,6 +213,11 @@ export default function TeachingPage() {
             children: <TeachingPrepBoard teacherName={teacherName} schoolName={context?.school.name} courses={courses} offerings={offerings} prepared={prepared} loading={loading} />,
         },
         {
+            key: "catalog",
+            label: TEACHING_TAB_LABELS.catalog,
+            children: <TeachingCatalogBoard />,
+        },
+        {
             key: "classes",
             label: TEACHING_TAB_LABELS.classes,
             children: (
@@ -327,7 +333,8 @@ export default function TeachingPage() {
                     <Button icon={<RefreshCw className="size-4" />} aria-label="刷新教学中心" loading={loading} onClick={() => void load()} />
                 </header>
                 <ProductionGroupMemberPanel />
-                {loading && !courses.length && !assignments.length && activeTab !== "prep" ? (
+                {/* 大厅解锁后会回刷教学中心；这里不能因为 loading 就把 Tabs 卸载，否则正在看的课程抽屉会跟着消失 */}
+                {loading && !courses.length && !assignments.length && activeTab !== "prep" && activeTab !== "catalog" ? (
                     <div className="flex min-h-40 items-center justify-center">
                         <Spin />
                     </div>

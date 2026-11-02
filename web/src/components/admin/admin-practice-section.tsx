@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { Form } from "@/components/gamma-ui/gamma-ant-form";
+import { useMemo, type ReactNode } from "react";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
@@ -10,15 +9,19 @@ import type { AdminDashboardController } from "./use-admin-dashboard-controller"
 import { SCRIPT_AGENT_TOOL_NAMES } from "@/lib/server/script-practice-agent-tools";
 import { DEFAULT_PRACTICE_SCRIPT_SETTINGS } from "@/lib/server/practice-script-settings";
 import { AdminPracticeScriptAgent } from "./admin-practice-script-agent";
+import { applyPracticeVisibilityToggle, practiceVisibilityMerged } from "./admin-practice-visibility";
 
-const DEFAULT_PRACTICE_MODULE_VISIBILITY = {
-    character: true,
-    scene: true,
-    prop: true,
-    "storyboard-image": true,
-    "storyboard-video": true,
-    dubbing: true,
-} as const;
+/** 前台模块显隐：与插件市场同一组 8 个开关，两个页面共用一份默认值，避免互相重置。 */
+const PRACTICE_VISIBILITY_OPTIONS = [
+    ["canvas", "无限画布"],
+    ["drama", "无限短剧"],
+    ["character", "角色"],
+    ["scene", "场景"],
+    ["prop", "道具"],
+    ["storyboard-image", "分镜图"],
+    ["storyboard-video", "分镜视频"],
+    ["dubbing", "配音"],
+] as const;
 
 const SCRIPT_PRACTICE_SKILLS = [
     { value: "script-structure", label: "剧本结构" },
@@ -73,10 +76,10 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                     <h3 className="font-medium">剧本模型</h3>
                     <div className="mt-3 grid gap-3">
-                        <Form.Item label="剧本生成模型" className="mb-0">
+                        <Field label="剧本生成模型">
                             <Select value={script.defaultModelId || undefined} placeholder="选择文本逻辑模型" options={modelOptions} onChange={(value) => updateScript({ defaultModelId: value, endpointId: "" })} />
-                        </Form.Item>
-                        <Form.Item label="备用剧本模型" className="mb-0">
+                        </Field>
+                        <Field label="备用剧本模型">
                             <Select
                                 allowClear
                                 value={script.fallbackModelId || undefined}
@@ -84,15 +87,15 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                                 options={modelOptions.filter((item) => item.value !== script.defaultModelId)}
                                 onChange={(value) => updateScript({ fallbackModelId: value || "" })}
                             />
-                        </Form.Item>
-                        <Form.Item label="使用渠道" className="mb-0">
+                        </Field>
+                        <Field label="使用渠道">
                             <Select allowClear value={script.endpointId || undefined} placeholder="自动选择可用渠道" options={channelOptions} onChange={(value) => updateScript({ endpointId: value || "" })} />
-                        </Form.Item>
+                        </Field>
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <Form.Item label="默认语言" className="mb-0">
+                            <Field label="默认语言">
                                 <Input value={script.defaultLanguage} onChange={(event) => updateScript({ defaultLanguage: event.target.value })} />
-                            </Form.Item>
-                            <Form.Item label="默认格式" className="mb-0">
+                            </Field>
+                            <Field label="默认格式">
                                 <Select
                                     value={script.defaultFormat}
                                     options={[
@@ -101,7 +104,7 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                                     ]}
                                     onChange={(value) => updateScript({ defaultFormat: value })}
                                 />
-                            </Form.Item>
+                            </Field>
                         </div>
                     </div>
                     {!script.defaultModelId ? (
@@ -130,16 +133,17 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 </div>
                 <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 lg:col-span-2">
                     <h3 className="font-medium">前台模块显隐</h3>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {(["character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing"] as const).map((key) => (
+                    <p className="mt-1 text-xs text-zinc-500">与插件市场是同一组开关，拨动即保存；只改当前这一项，不会重置其他模块。</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        {PRACTICE_VISIBILITY_OPTIONS.map(([key, label]) => (
                             <label key={key} className="flex items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
-                                <span>{{ character: "角色", scene: "场景", prop: "道具", "storyboard-image": "分镜图", "storyboard-video": "分镜视频", dubbing: "配音" }[key]}</span>
+                                <span>{label}</span>
                                 <Switch
                                     size="small"
-                                    checked={settings.practiceModuleVisibility?.[key] !== false}
-                                    onChange={(checked) =>
-                                        setSettings((current) => ({ ...current, practiceModuleVisibility: { canvas: false, drama: false, ...DEFAULT_PRACTICE_MODULE_VISIBILITY, ...(current.practiceModuleVisibility || {}), [key]: checked } }))
-                                    }
+                                    loading={settingsLoading}
+                                    aria-label={`${label}显示状态`}
+                                    checked={practiceVisibilityMerged(settings.practiceModuleVisibility)[key]}
+                                    onChange={(checked) => void saveSettings((current) => ({ practiceModuleVisibility: applyPracticeVisibilityToggle(current.practiceModuleVisibility, key, checked) }), `${label}${checked ? "已显示" : "已隐藏"}`)}
                                 />
                             </label>
                         ))}
@@ -156,5 +160,18 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 </Button>
             </div>
         </section>
+    );
+}
+
+/**
+ * 本页的控件值都由 settings 直接驱动，不经过 Form 的字段存储，
+ * 所以用这个轻量标签容器代替 Form.Item（后者必须放在 <Form> 内，否则整页渲染报错）。
+ */
+function Field({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-medium text-[var(--gm-text)]">{label}</span>
+            {children}
+        </div>
     );
 }

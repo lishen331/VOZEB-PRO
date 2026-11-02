@@ -1,9 +1,9 @@
 export type AudioParamValue = string | number | boolean;
 export type AudioParams = Record<string, AudioParamValue>;
-export type AudioModelFamily = "minimax" | "suno" | "openai";
+export type AudioModelFamily = "minimax" | "suno" | "qwen" | "openai";
 
 type Option = { value: string; label: string };
-type FieldBase = { key: string; label: string; group: string; hint?: string };
+type FieldBase = { key: string; label: string; group: string; hint?: string; visibleWhen?: { key: string; value: AudioParamValue } };
 export type AudioParamField =
     | (FieldBase & { type: "slider"; min: number; max: number; step: number; defaultValue: number })
     | (FieldBase & { type: "segmented" | "select"; options: Option[]; defaultValue: string })
@@ -13,6 +13,7 @@ export type AudioParamField =
 export function audioModelFamily(model: string | undefined): AudioModelFamily {
     const name = (model || "").toLowerCase();
     if (name.includes("suno")) return "suno";
+    if (/qwen.*tts/.test(name)) return "qwen";
     if (/(^|[/_-])speech-(0\d|\d+\.\d)|minimax.*speech/.test(name)) return "minimax";
     return "openai";
 }
@@ -88,6 +89,77 @@ const MINIMAX_FIELDS: AudioParamField[] = [
     },
 ];
 
+// 百炼 Qwen-Audio-TTS 音色列表（2026-10-29）；音色必须属于所选模型，跨模型返回 InvalidParameter。
+const QWEN_31_MULTILINGUAL: Option[] = [
+    { value: "longanhuan_v3.1", label: "龙安欢（女）" },
+    { value: "longanlingxin_v3.1", label: "龙安灵心（女）" },
+    { value: "longanfengyue_v3.1", label: "龙安风悦（女）" },
+    { value: "xunanchuan_v3.1", label: "许南川（男）" },
+];
+export const qwenVoiceOptionsByModel: Record<string, Option[]> = {
+    "qwen-audio-3.1-tts-plus": QWEN_31_MULTILINGUAL,
+    "qwen-audio-3.1-tts-flash": [
+        ...QWEN_31_MULTILINGUAL,
+        { value: "yuxiaoyun_v3.1", label: "于小云（女·元气亲切）" },
+        { value: "qiaoxiaojiao_v3.1", label: "乔小娇（女·俏丽可爱）" },
+        { value: "xiaxiaochen_v3.1", label: "夏小晨（女·元气明亮）" },
+        { value: "anmingyuan_v3.1", label: "安明远（男·清亮自然）" },
+        { value: "wenhuaiqing_v3.1", label: "温怀清（女·清亮柔和）" },
+        { value: "anxiaolan_v3.1", label: "安小岚（女·清甜纯净）" },
+        { value: "xieshurou_v3.1", label: "谢舒柔（女·柔和知性）" },
+        { value: "xuyuyuan_v3.1", label: "许玉远（女·知性成熟）" },
+        { value: "huozhuoshi_v3.1", label: "霍拙石（男·清亮）" },
+        { value: "baianran_v3.1", label: "白安然（女·低沉气声）" },
+        { value: "yezhiqing_v3.1", label: "叶知晴（女·轻快自然）" },
+        { value: "longcheng_v3.1", label: "龙橙（男）" },
+        { value: "longshu_v3.1", label: "龙书（男）" },
+        { value: "longze_v3.1", label: "龙泽（男）" },
+        { value: "longxiaocheng_v3.1", label: "龙小诚（男·磁性低音）" },
+        { value: "longke_v3.1", label: "龙可（童声）" },
+        { value: "loongbella_v3.1", label: "Bella（女·中英）" },
+    ],
+    "qwen-audio-3.0-tts-plus": [
+        { value: "longanlingxin", label: "龙安灵心（女）" },
+        { value: "longanlufeng", label: "龙安鲁风（男）" },
+    ],
+    "qwen-audio-3.0-tts-flash": [
+        { value: "longanhuan_v3.6", label: "龙安欢（女）" },
+        { value: "longanfengyue", label: "龙安风悦（女）" },
+        { value: "longanyuanfei", label: "龙安元妃（女）" },
+        { value: "longanlingxi", label: "龙安灵希（女）" },
+        { value: "longanxiaoxin", label: "龙安小昕（女）" },
+        { value: "longjielidou_v3.6", label: "龙杰力豆（男童）" },
+        { value: "longpaopao_v3.6", label: "龙泡泡（女童）" },
+        { value: "longhuohuo_v3.6", label: "龙火火（少年）" },
+        { value: "longchuanshu_v3.6", label: "龙川叔（男）" },
+    ],
+};
+
+export function qwenVoiceOptions(model: string | undefined): Option[] {
+    const name = (model || "").toLowerCase();
+    const key = Object.keys(qwenVoiceOptionsByModel).find((id) => name.endsWith(id));
+    return qwenVoiceOptionsByModel[key || "qwen-audio-3.1-tts-flash"];
+}
+
+function qwenFields(model: string | undefined): AudioParamField[] {
+    const voices = qwenVoiceOptions(model);
+    return [
+        { key: "voiceId", label: "音色", group: "音色", type: "select", options: voices, defaultValue: voices[0].value },
+        { key: "rate", label: "语速", group: "基础调节", type: "slider", min: 0.5, max: 2, step: 0.01, defaultValue: 1 },
+        { key: "pitch", label: "音调", group: "基础调节", type: "slider", min: 0.5, max: 2, step: 0.01, defaultValue: 1 },
+        { key: "volume", label: "音量", group: "基础调节", type: "slider", min: 0, max: 100, step: 1, defaultValue: 50 },
+        { key: "instruction", label: "指令", group: "基础调节", type: "text", placeholder: "如：请讲上海话 / 语气欢快", defaultValue: "", hint: "控制方言、情感或角色，部分英文音色不支持" },
+        {
+            key: "format",
+            label: "输出格式",
+            group: "输出",
+            type: "segmented",
+            defaultValue: "mp3",
+            options: ["mp3", "wav"].map((value) => ({ value, label: value })),
+        },
+    ];
+}
+
 const SUNO_FIELDS: AudioParamField[] = [
     {
         key: "mode",
@@ -100,14 +172,24 @@ const SUNO_FIELDS: AudioParamField[] = [
             { value: "lyrics", label: "歌词生音乐" },
         ],
     },
-    { key: "instrumental", label: "纯音乐", group: "高级设置", type: "switch", defaultValue: false },
-    { key: "title", label: "歌曲标题", group: "高级设置", type: "text", placeholder: "可选", defaultValue: "" },
+    { key: "instrumental", label: "纯音乐", group: "高级设置", type: "switch", defaultValue: false, visibleWhen: { key: "mode", value: "describe" } },
+    { key: "title", label: "歌曲标题", group: "高级设置", type: "text", placeholder: "可选", defaultValue: "", visibleWhen: { key: "mode", value: "lyrics" } },
     { key: "tags", label: "音乐风格", group: "高级设置", type: "text", placeholder: "如：流行, 电子, 女声", defaultValue: "" },
 ];
 
 export function audioModelFields(model: string | undefined) {
     const family = audioModelFamily(model);
+    if (family === "qwen") return qwenFields(model);
     return family === "minimax" ? MINIMAX_FIELDS : family === "suno" ? SUNO_FIELDS : [];
+}
+
+export function audioVisibleFields(model: string | undefined, input: unknown) {
+    const params = normalizeAudioParams(model, input);
+    return audioModelFields(model).filter((field) => !field.visibleWhen || params[field.visibleWhen.key] === field.visibleWhen.value);
+}
+
+export function isAudioLyricsMode(model: string | undefined, input: unknown) {
+    return audioModelFamily(model) === "suno" && normalizeAudioParams(model, input).mode === "lyrics";
 }
 
 /** Fill in defaults and clamp every value to its field contract; unknown keys are dropped. */
@@ -130,10 +212,10 @@ export function normalizeAudioParams(model: string | undefined, input: unknown):
     return result;
 }
 
-export function audioModelPlaceholder(model: string | undefined) {
+export function audioModelPlaceholder(model: string | undefined, params?: unknown) {
     const family = audioModelFamily(model);
-    if (family === "minimax") return "输入要合成的文本";
-    if (family === "suno") return "描述您想要的音乐，或在歌词模式下输入歌词";
+    if (family === "minimax" || family === "qwen") return "输入要合成的文本";
+    if (family === "suno") return isAudioLyricsMode(model, params) ? "输入歌词，可用 [Verse] [Chorus] 分段，或点 AI 写歌词" : "描述你想要的音乐，如：一首甜甜的恋爱歌曲";
     return "描述要生成的音频内容";
 }
 
@@ -141,7 +223,8 @@ export function audioParamsSummary(model: string | undefined, input: unknown) {
     const family = audioModelFamily(model);
     const params = normalizeAudioParams(model, input);
     if (family === "minimax") return `${minimaxVoiceOptions.find((option) => option.value === params.voiceId)?.label || params.voiceId} · ${Number(params.speed).toFixed(2)}x`;
-    if (family === "suno") return `${params.mode === "lyrics" ? "歌词生音乐" : "描述生音乐"}${params.instrumental ? " · 纯音乐" : ""}`;
+    if (family === "qwen") return `${qwenVoiceOptions(model).find((option) => option.value === params.voiceId)?.label || params.voiceId} · ${Number(params.rate).toFixed(2)}x`;
+    if (family === "suno") return params.mode === "lyrics" ? "歌词生音乐" : `描述生音乐${params.instrumental ? " · 纯音乐" : ""}`;
     return "";
 }
 
@@ -151,9 +234,14 @@ export function audioUpstreamFields(model: string | undefined, prompt: string, i
     if (family === "openai") return {};
     const params = normalizeAudioParams(model, input);
     if (family === "suno") {
-        const instrumental = Boolean(params.instrumental);
-        if (params.mode === "lyrics") return { prompt, title: params.title || undefined, tags: params.tags || undefined, make_instrumental: instrumental };
-        return { prompt: "", gpt_description_prompt: prompt, tags: params.tags || undefined, make_instrumental: instrumental };
+        if (params.mode === "lyrics") return { prompt, title: params.title || undefined, tags: params.tags || undefined, make_instrumental: false };
+        return { prompt: "", gpt_description_prompt: prompt, tags: params.tags || undefined, make_instrumental: Boolean(params.instrumental) };
+    }
+    if (family === "qwen") {
+        const instruction = String(params.instruction || "");
+        return {
+            input: { text: prompt, voice: params.voiceId, format: params.format, rate: Number(params.rate), pitch: Number(params.pitch), volume: Math.round(Number(params.volume)), ...(instruction ? { instruction } : {}) },
+        };
     }
     const speed = Number(params.speed);
     const format = String(params.format);

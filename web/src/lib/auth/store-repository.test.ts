@@ -44,7 +44,7 @@ describe("PostgreSQL auth read paths", () => {
     it("normalizes persisted generation cost controls", () => {
         const settings = mapPostgresSettings({ generation_cost_control: { maxPointsPerTask: 1.7, dailyUserPointSpend: 20, dailyTotalPointSpend: 100 } }, [], []);
 
-        expect(settings.generationCostControl).toEqual({ maxPointsPerTask: 1.7, dailyUserPointSpend: 20, dailyTotalPointSpend: 100 });
+        expect(settings.generationCostControl).toEqual({ maxPointsPerTask: 1.7, dailyUserPointSpend: 20, dailyTotalPointSpend: 100, needsReviewAutoRefundEnabled: false });
         expect(POSTGRESQL_SCHEMA_SQL).toContain("generation_cost_control jsonb");
     });
 

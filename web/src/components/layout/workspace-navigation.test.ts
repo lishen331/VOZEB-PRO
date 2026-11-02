@@ -19,9 +19,10 @@ const keys = (options: Parameters<typeof workspaceNavItems>[0]) => workspaceNavI
 describe("workspaceNavItems", () => {
     it("shows every creator entry for a normal user, grouped like the home sidebar", () => {
         const items = workspaceNavItems({ featureModules: ALL_MODULES, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS });
-        expect(items.map((item) => item.key)).toEqual(["home", "create", "drama", "canvas", "drama-lab", "one-click-film", "works", "assets", "my-prompts", "prompts", "gallery", "community", "ip-library", "me"]);
+        expect(items.map((item) => item.key)).toEqual(["home", "create", "drama", "canvas", "drama-lab", "one-click-film", "works", "assets", "my-prompts", "prompts", "ip-library", "me"]);
         expect(items[0]).toMatchObject({ key: "home", href: "/", group: "create" });
-        expect(items.find((item) => item.key === "gallery")).toMatchObject({ href: "/gallery", group: "community" });
+        // 作品广场（/gallery、/community）不进侧栏
+        expect(items.some((item) => item.key === "gallery" || item.key === "community")).toBe(false);
         // 普通用户看不到学校入口
         expect(items.some((item) => item.group === "school")).toBe(false);
     });
@@ -38,12 +39,12 @@ describe("workspaceNavItems", () => {
 
     it("respects the role menu permissions", () => {
         const menuPermissions: UserNavigationMenuPermission[] = ["creative-agent", "assets", "community"];
-        expect(keys({ featureModules: ALL_MODULES, menuPermissions })).toEqual(["home", "create", "assets", "gallery", "community"]);
+        expect(keys({ featureModules: ALL_MODULES, menuPermissions })).toEqual(["home", "create", "assets"]);
     });
 
-    it("keeps home and the public gallery even when every module is off", () => {
+    it("keeps only home when every module is off", () => {
         const modules = normalizeFeatureModuleSettings(Object.fromEntries(Object.keys(ALL_MODULES).map((id) => [id, false])));
-        expect(keys({ featureModules: modules, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS })).toEqual(["home", "gallery"]);
+        expect(keys({ featureModules: modules, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS })).toEqual(["home"]);
     });
 
     it("separates the student's school entry from 无限练习 with its own group", () => {
@@ -90,5 +91,7 @@ describe("workspaceNavActiveKey", () => {
         expect(workspaceNavActiveKey("/assets", items)).toBe("assets");
         expect(workspaceNavActiveKey("/my-prompts/abc", items)).toBe("my-prompts");
         expect(workspaceNavActiveKey("/profile", items)).toBe("");
+        expect(workspaceNavActiveKey("/gallery", items)).toBe("");
+        expect(workspaceNavActiveKey("/community", items)).toBe("");
     });
 });

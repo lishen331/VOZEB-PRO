@@ -12,17 +12,7 @@ import { useState } from "react";
 import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
-
-const DEFAULT_PRACTICE_MODULE_VISIBILITY: PracticeModuleVisibility = {
-    canvas: false,
-    drama: false,
-    character: true,
-    scene: true,
-    prop: true,
-    "storyboard-image": true,
-    "storyboard-video": true,
-    dubbing: true,
-};
+import { applyPracticeVisibilityToggle, practiceVisibilityMerged } from "./admin-practice-visibility";
 
 const PRACTICE_VISIBILITY_FIELDS = [
     ["canvas", "无限画布", "暂未开放的节点式创作入口"],
@@ -370,7 +360,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                 </div>{" "}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {PRACTICE_VISIBILITY_FIELDS.map(([key, label, description]) => {
-                        const enabled = (settings.practiceModuleVisibility || DEFAULT_PRACTICE_MODULE_VISIBILITY)[key];
+                        const enabled = practiceVisibilityMerged(settings.practiceModuleVisibility)[key];
                         return (
                             <div key={key} className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2.5">
                                 <div className="min-w-0">
@@ -384,11 +374,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                                     onChange={(next) =>
                                         void saveSettings(
                                             (current) => ({
-                                                practiceModuleVisibility: {
-                                                    ...DEFAULT_PRACTICE_MODULE_VISIBILITY,
-                                                    ...current.practiceModuleVisibility,
-                                                    [key]: next,
-                                                },
+                                                practiceModuleVisibility: applyPracticeVisibilityToggle(current.practiceModuleVisibility, key, next),
                                             }),
                                             `${label}${next ? "已显示" : "已隐藏"}`,
                                         )

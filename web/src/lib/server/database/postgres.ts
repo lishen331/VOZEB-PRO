@@ -124,6 +124,8 @@ const POSTGRES_TABLES = [
     "school_compute_personal_advances",
     "school_compute_settlements",
     "school_compute_consumptions",
+    "teaching_lesson_plans",
+    "platform_lesson_plan_templates",
     "ip_packages",
     "ip_sub_ips",
     "ip_versions",
@@ -157,6 +159,7 @@ const POSTGRES_TABLES = [
     "drama_lab_approval_configs",
     "drama_lab_approvals",
     "check_ins",
+    "custom_voices",
 ] as const;
 
 const POSTGRES_SCHEMA_OBJECTS = [
@@ -377,6 +380,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "school_compute_settlements_school_group_status_idx",
     "school_compute_consumptions_school_order_created_idx",
     "school_compute_consumptions_generation_task_idx",
+    "teaching_lesson_plans_school_teacher_assignment_idx",
     "ip_packages_slug_idx",
     "ip_packages_visibility_status_updated_idx",
     "ip_packages_visibility_check",
@@ -518,6 +522,9 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "canvas_projects_identity_immutable",
     "drama_projects_identity_immutable",
     "object_storage_settings_set_updated_at",
+    "custom_voices_owner_idx",
+    "custom_voices_shared_idx",
+    "custom_voices_expires_idx",
 ] as const;
 
 const POSTGRES_RELATION_NAMES = new Set<string>([...POSTGRES_TABLES, ...POSTGRES_SCHEMA_OBJECTS]);
