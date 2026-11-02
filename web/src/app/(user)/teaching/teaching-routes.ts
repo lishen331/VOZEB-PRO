@@ -3,8 +3,9 @@ import type { CourseChapter, CourseLesson, PlatformCourseDetail } from "@/lib/sc
 /*
  * 教学中心的页面层级（上下级关系只在这里定义一次，页面和测试都用它）：
  *
- *   L1  /teaching?tab=<tab>                                        教学中心（侧栏「教学中心」）
- *   L2  /teaching/courses/<assignmentId>?lesson=<id>&from=<tab>    课程备课
+ *   L1    /teaching?tab=<tab>                                      教学中心（侧栏「教学中心」）
+ *   L1.5  /teaching/catalog/<courseId>                              课程详情（备课大厅点进来的课程）
+ *   L2    /teaching/courses/<assignmentId>?lesson=<id>&from=<tab>   课程备课
  *
  * - L1 的标签页写进 URL，所以从 L2 返回能回到原来的标签页（from 参数记录从哪个标签进来）
  * - L2 内切换课时用 replace，不新增历史记录：浏览器后退和页面左上角「返回」都回到 L1
@@ -31,6 +32,11 @@ export function parseTeachingTab(value: string | null | undefined): TeachingTab 
 /** L1：教学中心某个标签页；默认标签不带参数，保持地址干净 */
 export function teachingHref(tab: TeachingTab = DEFAULT_TEACHING_TAB) {
     return tab === DEFAULT_TEACHING_TAB ? "/teaching" : `/teaching?tab=${tab}`;
+}
+
+/** L1.5：备课大厅某门课的详情页（目录、解锁、进入备课） */
+export function teachingCatalogCourseHref(courseId: string) {
+    return `/teaching/catalog/${encodeURIComponent(courseId)}`;
 }
 
 /** L2：某门课的备课页，可指定课时和来源标签 */

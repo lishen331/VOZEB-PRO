@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, FileText, Layers, Lock, LockOpen, Paperclip, Search, Sparkles } from "lucide-react";
+import { BookOpen, Layers, Lock, LockOpen, Paperclip, Search, Sparkles } from "lucide-react";
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
-import { Button, Pagination, Spin, Tag } from "@/components/gamma-ui/gamma-ant";
-import { Drawer } from "@/components/gamma-ui/gamma-ant-modal";
+import { Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 import { GammaEmptyState } from "@/components/gamma-ui/gamma-overlays";
-import type { SchoolCourseCatalogDetail, SchoolCourseCatalogEntry } from "@/lib/school-domain";
+import type { SchoolCourseCatalogEntry } from "@/lib/school-domain";
 import { coursesApi } from "@/services/api/courses";
 import { TeachingCourseCover } from "./teaching-course-cover";
-import { teachingCourseHref } from "./teaching-routes";
+import { teachingCatalogCourseHref } from "./teaching-routes";
 
 /*
  * 教学中心 · 备课大厅（L1 标签）：平台所有已上架课程都能浏览，
@@ -26,22 +25,15 @@ const SCOPES: readonly { key: Scope; label: string }[] = [
 ];
 const PAGE_SIZE = 12;
 
-function formatBytes(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
 function errorMessage(error: unknown, fallback: string) {
     return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function CatalogCard({ item, onOpen }: { item: SchoolCourseCatalogEntry; onOpen: () => void }) {
+function CatalogCard({ item }: { item: SchoolCourseCatalogEntry }) {
     return (
         <li>
-            <button
-                type="button"
-                onClick={onOpen}
+            <Link
+                href={teachingCatalogCourseHref(item.id)}
                 className="group flex h-full w-full flex-col overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] text-left text-[var(--gm-text)] ring-1 ring-[var(--gm-border)] transition-[box-shadow,transform] duration-300 hover:-translate-y-1 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-accent-ring)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
             >
                 <span className="relative block aspect-[16/9] overflow-hidden">
@@ -73,62 +65,12 @@ function CatalogCard({ item, onOpen }: { item: SchoolCourseCatalogEntry; onOpen:
                         </span>
                     </span>
                 </span>
-            </button>
+            </Link>
         </li>
     );
 }
 
-function CatalogOutline({ detail }: { detail: SchoolCourseCatalogDetail }) {
-    return (
-        <div className="space-y-4">
-            {detail.chapters.map((chapter, chapterIndex) => (
-                <section key={chapter.id} className="rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] ring-1 ring-[var(--gm-border)]">
-                    <header className="flex items-baseline gap-2 border-b border-[var(--gm-border)] px-4 py-3">
-                        <span className="text-[11px] font-medium text-[var(--gm-text-3)] tabular-nums">第 {chapterIndex + 1} 章</span>
-                        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{chapter.title}</h3>
-                        <span className="shrink-0 text-[11px] text-[var(--gm-text-3)]">{chapter.lessons.length} 课时</span>
-                    </header>
-                    {chapter.materials.length ? (
-                        <ul className="space-y-1 px-4 py-3">
-                            {chapter.materials.map((material) => (
-                                <li key={material.id} className="flex items-center gap-2 text-xs text-[var(--gm-text-2)]">
-                                    <FileText className="size-3.5 shrink-0 text-[var(--gm-text-3)]" />
-                                    <span className="truncate">{material.fileName}</span>
-                                    <span className="shrink-0 text-[11px] text-[var(--gm-text-3)]">{formatBytes(material.bytes)}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : null}
-                    <ul className="divide-y divide-[var(--gm-border)]">
-                        {chapter.lessons.map((lesson, lessonIndex) => (
-                            <li key={lesson.id} className="px-4 py-3">
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-[11px] text-[var(--gm-text-3)] tabular-nums">{lessonIndex + 1}</span>
-                                    <h4 className="min-w-0 flex-1 truncate text-[13px] font-medium">{lesson.title}</h4>
-                                </div>
-                                {lesson.materials.length ? (
-                                    <ul className="mt-1.5 space-y-1 pl-5">
-                                        {lesson.materials.map((material) => (
-                                            <li key={material.id} className="flex items-center gap-2 text-xs text-[var(--gm-text-2)]">
-                                                <FileText className="size-3.5 shrink-0 text-[var(--gm-text-3)]" />
-                                                <span className="truncate">{material.fileName}</span>
-                                                <span className="shrink-0 text-[11px] text-[var(--gm-text-3)]">{formatBytes(material.bytes)}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : null}
-                            </li>
-                        ))}
-                        {!chapter.lessons.length ? <li className="px-4 py-3 text-xs text-[var(--gm-text-3)]">本章还没有课时</li> : null}
-                    </ul>
-                </section>
-            ))}
-            {!detail.chapters.length ? <p className="py-8 text-center text-sm text-[var(--gm-text-3)]">这门课还没有章节内容</p> : null}
-        </div>
-    );
-}
-
-export function TeachingCatalogBoard({ onUnlocked }: { onUnlocked: () => void | Promise<void> }) {
+export function TeachingCatalogBoard() {
     const { message } = App.useApp();
     const [scope, setScope] = useState<Scope>("all");
     const [query, setQuery] = useState("");
@@ -137,12 +79,7 @@ export function TeachingCatalogBoard({ onUnlocked }: { onUnlocked: () => void | 
     const [total, setTotal] = useState(0);
     const [items, setItems] = useState<SchoolCourseCatalogEntry[]>([]);
     const [loading, setLoading] = useState(true);
-    const [detail, setDetail] = useState<SchoolCourseCatalogDetail | null>(null);
-    const [detailOpen, setDetailOpen] = useState(false);
-    const [detailLoading, setDetailLoading] = useState(false);
-    const [unlocking, setUnlocking] = useState(false);
     const listSequence = useRef(0);
-    const detailSequence = useRef(0);
 
     // 输入框停顿 300ms 再查，避免每敲一个字打一次接口
     useEffect(() => {
@@ -173,42 +110,7 @@ export function TeachingCatalogBoard({ onUnlocked }: { onUnlocked: () => void | 
 
     useEffect(() => void load(), [load]);
 
-    const openDetail = async (item: SchoolCourseCatalogEntry) => {
-        const requestId = ++detailSequence.current;
-        setDetailOpen(true);
-        setDetail(null);
-        setDetailLoading(true);
-        try {
-            const result = await coursesApi.getCourseCatalogDetail(item.id);
-            if (requestId !== detailSequence.current) return;
-            setDetail(result);
-        } catch (error) {
-            if (requestId !== detailSequence.current) return;
-            setDetailOpen(false);
-            message.error(errorMessage(error, "课程目录加载失败"));
-        } finally {
-            if (requestId === detailSequence.current) setDetailLoading(false);
-        }
-    };
-
-    const unlock = async () => {
-        if (!detail) return;
-        setUnlocking(true);
-        try {
-            const entry = await coursesApi.unlockCourse(detail.id);
-            message.success(`已解锁《${detail.title}》`);
-            setDetail({ ...detail, unlocked: true, canUnlock: false, assignmentId: entry.assignmentId });
-            await load();
-            await onUnlocked();
-        } catch (error) {
-            message.error(errorMessage(error, "课程解锁失败"));
-        } finally {
-            setUnlocking(false);
-        }
-    };
-
     const unlockedCount = useMemo(() => items.filter((item) => item.unlocked).length, [items]);
-    const prepHref = detail?.unlocked && detail.assignmentId ? teachingCourseHref(detail.assignmentId, { from: "catalog" }) : null;
 
     return (
         <div className="flex flex-col gap-5">
@@ -258,7 +160,7 @@ export function TeachingCatalogBoard({ onUnlocked }: { onUnlocked: () => void | 
             ) : items.length ? (
                 <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                     {items.map((item) => (
-                        <CatalogCard key={item.id} item={item} onOpen={() => void openDetail(item)} />
+                        <CatalogCard key={item.id} item={item} />
                     ))}
                 </ul>
             ) : (
@@ -270,46 +172,6 @@ export function TeachingCatalogBoard({ onUnlocked }: { onUnlocked: () => void | 
             )}
 
             {total > PAGE_SIZE ? <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} onChange={setPage} /> : null}
-
-            <Drawer title={detail?.title || "课程详情"} open={detailOpen} destroyOnHidden size="min(720px, 100vw)" onClose={() => setDetailOpen(false)}>
-                {detailLoading || !detail ? (
-                    <div className="flex min-h-40 items-center justify-center">
-                        <Spin />
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        <section className="rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] p-4 ring-1 ring-[var(--gm-border)]">
-                            <div className="flex flex-wrap items-center gap-2">
-                                {detail.unlocked ? <Tag color="success">本校已解锁</Tag> : <Tag>待解锁</Tag>}
-                                {detail.category ? <Tag>{detail.category}</Tag> : null}
-                                {detail.templateLessonCount ? <Tag color="blue">{detail.templateLessonCount} 节标准教案</Tag> : null}
-                            </div>
-                            <p className="mt-2 text-[13px] leading-relaxed text-[var(--gm-text-2)]">{detail.summary || "暂无课程简介"}</p>
-                            <p className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--gm-text-3)]">
-                                <span>{detail.chapterCount} 章</span>
-                                <span>{detail.lessonCount} 课时</span>
-                                <span>{detail.materialCount} 份资料</span>
-                            </p>
-                            <div className="mt-3 flex flex-wrap items-center gap-2">
-                                {prepHref ? (
-                                    <Link href={prepHref} className="inline-flex h-9 items-center gap-1.5 rounded-[var(--gm-radius-sm)] bg-[image:var(--gm-gradient)] px-3.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90">
-                                        进入备课
-                                        <ArrowRight className="size-4" />
-                                    </Link>
-                                ) : null}
-                                {detail.canUnlock ? (
-                                    <Button type="primary" icon={<LockOpen className="size-4" />} loading={unlocking} onClick={() => void unlock()}>
-                                        解锁这门课程
-                                    </Button>
-                                ) : null}
-                                {!detail.unlocked && !detail.canUnlock ? <p className="text-xs text-[var(--gm-text-3)]">解锁需要学校管理员操作，请联系本校管理员。</p> : null}
-                            </div>
-                        </section>
-                        {!detail.unlocked ? <p className="text-xs text-[var(--gm-text-3)]">未解锁时只显示章节目录和资料文件名，解锁后可查看并下载全部资料。</p> : null}
-                        <CatalogOutline detail={detail} />
-                    </div>
-                )}
-            </Drawer>
         </div>
     );
 }

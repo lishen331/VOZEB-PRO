@@ -215,7 +215,7 @@ export default function TeachingPage() {
         {
             key: "catalog",
             label: TEACHING_TAB_LABELS.catalog,
-            children: <TeachingCatalogBoard onUnlocked={load} />,
+            children: <TeachingCatalogBoard />,
         },
         {
             key: "classes",
