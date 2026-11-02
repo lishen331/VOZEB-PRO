@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, Download, FileArchive, FileSpreadsheet, FileText, Film, ImageIcon, Presentation, X } from "lucide-react";
 
+import { PdfPreview } from "@/components/gamma-ui/gamma-pdf-preview";
 import type { CourseMaterial } from "@/lib/school-domain";
 import { cn } from "@/lib/utils";
 
@@ -53,8 +54,8 @@ export function MaterialStage({ material }: { material: CourseMaterial }) {
         return <img src={material.url} alt={material.title} className="mx-auto block h-full max-h-full max-w-full object-contain" />;
     }
     if (kind === "video") return <video key={material.id} src={material.url} controls preload="metadata" className="mx-auto block h-full max-h-full max-w-full" />;
-    // 浏览器自带的 PDF 阅读器：翻页、缩放、下载都由浏览器提供
-    if (kind === "pdf") return <iframe key={material.id} src={material.url} title={material.title} className="block size-full border-0 bg-white" />;
+    // PDF 用项目自己的渲染器（pdfjs），不要浏览器阅读器的灰框和双滚动条
+    if (kind === "pdf") return <PdfPreview src={material.url} title={material.title} downloadHref={materialDownloadHref(material)} className="size-full" />;
     return (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <span className="grid size-16 place-items-center rounded-2xl bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[var(--gm-accent-ring)]">
