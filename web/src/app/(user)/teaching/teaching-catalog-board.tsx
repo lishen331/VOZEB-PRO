@@ -139,7 +139,7 @@ export function TeachingCatalogBoard() {
     const unlockedCount = useMemo(() => items.filter((item) => item.unlocked).length, [items]);
 
     return (
-        <div className="gm-page flex flex-col gap-5">
+        <div className="mx-auto w-full max-w-[1760px] flex flex-col gap-5">
             <section className="gm-glass gm-glass-sheen gm-glass-refract relative isolate overflow-hidden rounded-[var(--gm-radius-xl)] p-5">
                 <div aria-hidden className="gm-aurora pointer-events-none absolute -top-24 right-6 size-60 rounded-full bg-[var(--gm-blue)] opacity-25 blur-3xl" />
                 <h2 className="relative flex items-center gap-2 text-base font-semibold">
@@ -183,7 +183,7 @@ export function TeachingCatalogBoard() {
                     <Spin />
                 </div>
             ) : items.length ? (
-                <ul className="gm-card-grid">
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                     {items.map((item) => (
                         <CatalogCard key={item.id} item={item} />
                     ))}

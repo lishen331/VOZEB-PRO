@@ -154,7 +154,7 @@ export default function PracticeHome() {
 
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]" data-practice-home>
-            <div className="gm-page px-4 py-6 sm:px-6 sm:py-10">
+            <div className="mx-auto w-full max-w-[1760px] px-4 py-6 sm:px-6 sm:py-10">
                 <PracticeHero />
 
                 {stats.length ? (

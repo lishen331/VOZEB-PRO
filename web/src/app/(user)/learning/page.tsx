@@ -417,7 +417,7 @@ export default function LearningPage() {
 
     return (
         <main className="h-full min-h-0 overflow-y-auto px-3 py-3 sm:px-6 sm:py-6 lg:px-8">
-            <div className="gm-page">
+            <div className="mx-auto w-full max-w-[1760px]">
                 <header className="flex items-start justify-between gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800">
                     <div className="min-w-0">
                         <h1 className="truncate text-lg font-semibold text-zinc-950 sm:text-xl dark:text-zinc-100">学习中心</h1>
@@ -747,7 +747,7 @@ function DescriptionBlock({ title, value, empty }: { title: string; value: strin
 
 function ResponsiveGrid({ children, empty, emptyText }: { children: ReactNode; empty: boolean; emptyText: string }) {
     if (empty) return <EmptyText text={emptyText} />;
-    return <div className="gm-card-grid-wide gap-3">{children}</div>;
+    return <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 gap-3">{children}</div>;
 }
 
 function ResourceList({ values, emptyText }: { values: unknown[]; emptyText: string }) {
