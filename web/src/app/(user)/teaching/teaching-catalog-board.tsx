@@ -2,19 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Layers, Lock, LockOpen, Paperclip, Search, Sparkles } from "lucide-react";
+import { ArrowUpRight, BookOpen, Layers, Lock, LockOpen, Paperclip, Search, Sparkles } from "lucide-react";
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
 import { GammaEmptyState } from "@/components/gamma-ui/gamma-overlays";
 import type { SchoolCourseCatalogEntry } from "@/lib/school-domain";
+import { cn } from "@/lib/utils";
 import { coursesApi } from "@/services/api/courses";
 import { TeachingCourseCover } from "./teaching-course-cover";
 import { teachingCatalogCourseHref } from "./teaching-routes";
 
 /*
- * 教学中心 · 备课大厅（L1 标签）：平台所有已上架课程都能浏览，
+ * 教学中心 · 课程中心（L1 标签）：平台所有已上架课程都能浏览，
  * 本校没解锁的只给目录（章节/课时标题 + 资料文件名），管理员解锁后课程进入「备课」标签，老师可以直接备课。
+ * 卡片整块是液态玻璃：封面铺满整卡，文字压在底部渐变上，不再是「半张图 + 下面一大段字」。
  */
 
 type Scope = "all" | "unlocked" | "locked";
@@ -24,37 +26,62 @@ const SCOPES: readonly { key: Scope; label: string }[] = [
     { key: "locked", label: "待解锁" },
 ];
 const PAGE_SIZE = 12;
+/** 卡片上只留一句完整的话：取第一句，过长再截到标点，绝不半句断开 */
+const INTRO_MAX = 46;
 
 function errorMessage(error: unknown, fallback: string) {
     return error instanceof Error && error.message ? error.message : fallback;
 }
 
+/** 取简介的第一句完整话；超过上限就在标点处收尾，保证读起来是完整的 */
+export function courseIntro(summary: string) {
+    const text = summary.replace(/\s+/g, " ").trim();
+    if (!text) return "";
+    if (text.length <= INTRO_MAX) return text;
+    const firstSentence = text.match(/^[^。！？!?]*[。！？!?]/)?.[0];
+    if (firstSentence && firstSentence.length <= INTRO_MAX) return firstSentence;
+    const head = text.slice(0, INTRO_MAX);
+    const cut = Math.max(head.lastIndexOf("，"), head.lastIndexOf(","), head.lastIndexOf("；"), head.lastIndexOf("、"));
+    return cut >= INTRO_MAX * 0.5 ? `${head.slice(0, cut)}…` : `${head}…`;
+}
+
+/** 指针位置写进 CSS 变量，给 gm-glass-spec 的跟随高光用 */
+function trackSpecular(event: React.PointerEvent<HTMLElement>) {
+    const node = event.currentTarget;
+    const rect = node.getBoundingClientRect();
+    node.style.setProperty("--gm-gx", `${((event.clientX - rect.left) / rect.width) * 100}%`);
+    node.style.setProperty("--gm-gy", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+}
+
 function CatalogCard({ item }: { item: SchoolCourseCatalogEntry }) {
+    const intro = courseIntro(item.summary);
     return (
         <li>
             <Link
                 href={teachingCatalogCourseHref(item.id)}
-                className="group flex h-full w-full flex-col overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] text-left text-[var(--gm-text)] ring-1 ring-[var(--gm-border)] transition-[box-shadow,transform] duration-300 hover:-translate-y-1 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-accent-ring)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                onPointerMove={trackSpecular}
+                className="gm-glass gm-glass-sheen gm-glass-refract gm-glass-spec group relative isolate flex aspect-[4/3] w-full flex-col justify-end overflow-hidden rounded-[var(--gm-radius-xl)] text-[var(--gm-text)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_28px_64px_-28px_rgba(2,6,20,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
             >
-                <span className="relative block aspect-[16/9] overflow-hidden">
-                    <TeachingCourseCover seed={item.id} coverUrl={item.coverUrl} className="transition-transform duration-700 group-hover:scale-105" />
-                    <span className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-                    {item.category ? <span className="absolute top-3 left-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white backdrop-blur">{item.category}</span> : null}
-                    <span
-                        className={
-                            item.unlocked
-                                ? "absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-[var(--gm-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--gm-text)] shadow-sm"
-                                : "absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur"
-                        }
-                    >
+                {/* 封面铺满整张卡，下面压一层深色渐变保证文字可读 */}
+                <span aria-hidden className="pointer-events-none absolute inset-0 -z-[2] overflow-hidden [clip-path:inset(0_round_var(--gm-radius-xl))]">
+                    <TeachingCourseCover seed={item.id} coverUrl={item.coverUrl} className="transition-transform duration-700 group-hover:scale-[1.06]" />
+                    <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,20,0.15)_0%,rgba(4,8,20,0.05)_38%,rgba(4,8,20,0.62)_72%,rgba(4,8,20,0.88)_100%)]" />
+                </span>
+
+                {/* 顶部角标 */}
+                <span className="absolute inset-x-0 top-0 flex items-start gap-2 p-3.5">
+                    {item.category ? <span className="gm-glass gm-glass-refract rounded-full px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-md">{item.category}</span> : null}
+                    <span className={cn("ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium backdrop-blur-md", item.unlocked ? "bg-white/90 text-[#0b1526]" : "bg-black/45 text-white ring-1 ring-white/25")}>
                         {item.unlocked ? <LockOpen className="size-3" /> : <Lock className="size-3" />}
                         {item.unlocked ? "已解锁" : "待解锁"}
                     </span>
                 </span>
-                <span className="flex flex-1 flex-col gap-2 p-4">
-                    <span className="line-clamp-1 text-[15px] font-semibold">{item.title}</span>
-                    <span className="line-clamp-2 min-h-[2.5em] text-xs leading-relaxed text-[var(--gm-text-3)]">{item.summary || "暂无课程简介"}</span>
-                    <span className="mt-auto flex flex-wrap items-center gap-3 pt-1 text-xs text-[var(--gm-text-2)]">
+
+                {/* 底部信息：标题 + 一句完整介绍 + 统计，全部压在渐变上 */}
+                <span className="relative flex flex-col gap-1.5 p-4 pt-10">
+                    <span className="line-clamp-2 text-[15px] leading-snug font-semibold text-white drop-shadow-[0_1px_6px_rgba(2,6,20,0.6)]">{item.title}</span>
+                    {intro ? <span className="line-clamp-1 text-xs leading-relaxed text-white/75">{intro}</span> : null}
+                    <span className="mt-1 flex items-center gap-3 text-[11px] text-white/70 tabular-nums">
                         <span className="inline-flex items-center gap-1">
                             <Layers className="size-3.5" />
                             {item.chapterCount} 章 · {item.lessonCount} 课时
@@ -63,6 +90,7 @@ function CatalogCard({ item }: { item: SchoolCourseCatalogEntry }) {
                             <Paperclip className="size-3.5" />
                             {item.materialCount} 份资料
                         </span>
+                        <ArrowUpRight className="ml-auto size-4 text-white/60 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white" />
                     </span>
                 </span>
             </Link>
@@ -102,7 +130,7 @@ export function TeachingCatalogBoard() {
             if (requestId !== listSequence.current) return;
             setItems([]);
             setTotal(0);
-            message.error(errorMessage(error, "备课大厅加载失败"));
+            message.error(errorMessage(error, "课程中心加载失败"));
         } finally {
             if (requestId === listSequence.current) setLoading(false);
         }
@@ -114,20 +142,20 @@ export function TeachingCatalogBoard() {
 
     return (
         <div className="flex flex-col gap-5">
-            <section className="relative overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 ring-1 ring-[var(--gm-border)]">
-                <div aria-hidden className="gm-aurora pointer-events-none absolute -top-20 right-8 size-56 rounded-full bg-[var(--gm-blue)] opacity-20 blur-3xl" />
+            <section className="gm-glass gm-glass-sheen gm-glass-refract relative isolate overflow-hidden rounded-[var(--gm-radius-xl)] p-5">
+                <div aria-hidden className="gm-aurora pointer-events-none absolute -top-24 right-6 size-60 rounded-full bg-[var(--gm-blue)] opacity-25 blur-3xl" />
                 <h2 className="relative flex items-center gap-2 text-base font-semibold">
                     <Sparkles className="size-4 text-[var(--gm-accent)]" />
-                    备课大厅
+                    课程中心
                 </h2>
-                <p className="relative mt-1 max-w-2xl text-[13px] leading-relaxed text-[var(--gm-text-2)]">这里是平台提供的全部教学资源。未解锁的课程可以查看章节目录和资料清单；学校管理员解锁后，课程会进入「备课」标签，老师就能直接使用里面的课件备课。</p>
-                <p className="relative mt-2 text-xs text-[var(--gm-text-3)]">
-                    当前页已解锁 {unlockedCount} / {items.length} 门 · 共 {total} 门课程可浏览
+                <p className="relative mt-1 max-w-2xl text-[13px] leading-relaxed text-[var(--gm-text-2)]">平台全部教学资源都在这里。点开课程可以看章节目录和资料清单；学校管理员解锁后，课程进入「备课」标签，老师可以直接用它备课。</p>
+                <p className="relative mt-2 text-xs text-[var(--gm-text-3)] tabular-nums">
+                    当前页已解锁 {unlockedCount} / {items.length} 门 · 共 {total} 门课程
                 </p>
             </section>
 
             <section className="flex flex-wrap items-center gap-3">
-                <div role="group" aria-label="解锁状态" className="flex rounded-full bg-[var(--gm-wash)] p-1 ring-1 ring-[var(--gm-border)]">
+                <div role="group" aria-label="解锁状态" className="gm-glass gm-glass-refract flex rounded-full p-1">
                     {SCOPES.map((item) => (
                         <button
                             key={item.key}
@@ -137,17 +165,16 @@ export function TeachingCatalogBoard() {
                                 setScope(item.key);
                                 setPage(1);
                             }}
-                            className={
-                                scope === item.key
-                                    ? "h-8 rounded-full bg-[var(--gm-bg-elevated)] px-4 text-[13px] font-medium text-[var(--gm-text)] shadow-sm ring-1 ring-[var(--gm-border-strong)]"
-                                    : "h-8 rounded-full px-4 text-[13px] text-[var(--gm-text-2)] transition-colors hover:text-[var(--gm-text)]"
-                            }
+                            className={cn(
+                                "h-8 rounded-full px-4 text-[13px] transition-colors",
+                                scope === item.key ? "bg-[var(--gm-bg-elevated)] font-medium text-[var(--gm-text)] shadow-sm ring-1 ring-[var(--gm-border-strong)]" : "text-[var(--gm-text-2)] hover:text-[var(--gm-text)]",
+                            )}
                         >
                             {item.label}
                         </button>
                     ))}
                 </div>
-                <label className="ml-auto flex h-9 w-full items-center gap-2 rounded-full bg-[var(--gm-wash)] px-3.5 ring-1 ring-[var(--gm-border)] focus-within:ring-[var(--gm-accent)] sm:w-72">
+                <label className="gm-glass gm-glass-refract ml-auto flex h-9 w-full items-center gap-2 rounded-full px-3.5 sm:w-72">
                     <Search className="size-4 text-[var(--gm-text-3)]" />
                     <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索课程" aria-label="搜索课程" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--gm-text-3)]" />
                 </label>

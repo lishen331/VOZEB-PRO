@@ -4,7 +4,7 @@ import type { CourseChapter, CourseLesson, PlatformCourseDetail } from "@/lib/sc
  * 教学中心的页面层级（上下级关系只在这里定义一次，页面和测试都用它）：
  *
  *   L1    /teaching?tab=<tab>                                      教学中心（侧栏「教学中心」）
- *   L1.5  /teaching/catalog/<courseId>                              课程详情（备课大厅点进来的课程）
+ *   L1.5  /teaching/catalog/<courseId>                              课程详情（课程中心点进来的课程）
  *   L2    /teaching/courses/<assignmentId>?lesson=<id>&from=<tab>   课程备课
  *   L3    /teaching/courses/<assignmentId>/plan/<lessonId>          教案（全屏写）
  *
@@ -19,7 +19,7 @@ export const DEFAULT_TEACHING_TAB: TeachingTab = "prep";
 
 export const TEACHING_TAB_LABELS: Record<TeachingTab, string> = {
     prep: "备课",
-    catalog: "备课大厅",
+    catalog: "课程中心",
     classes: "我的班级",
     assignments: "作业",
     submissions: "学生提交",
@@ -35,7 +35,7 @@ export function teachingHref(tab: TeachingTab = DEFAULT_TEACHING_TAB) {
     return tab === DEFAULT_TEACHING_TAB ? "/teaching" : `/teaching?tab=${tab}`;
 }
 
-/** L1.5：备课大厅某门课的详情页（目录、解锁、进入备课） */
+/** L1.5：课程中心某门课的详情页（目录、解锁、进入备课） */
 export function teachingCatalogCourseHref(courseId: string) {
     return `/teaching/catalog/${encodeURIComponent(courseId)}`;
 }

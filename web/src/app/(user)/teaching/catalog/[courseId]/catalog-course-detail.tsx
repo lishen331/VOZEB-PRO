@@ -15,7 +15,7 @@ import { TeachingCourseCover } from "../../teaching-course-cover";
 import { teachingCourseHref, teachingHref } from "../../teaching-routes";
 
 /*
- * L1.5 课程详情（/teaching/catalog/<courseId>）：
+ * L1.5 课程详情（/teaching/catalog/<courseId>，从课程中心点进来）：
  *   面包屑 → 课程头（封面 / 标题 / 简介 / 统计 / 主操作）→ 章节大纲
  * 未解锁只给目录和资料文件名；解锁后给课时说明与资料地址。
  * 后续「资源库」等能力作为这里的一个区块/标签接进来，不再挤进抽屉。
@@ -100,7 +100,7 @@ export function CatalogCourseDetail({ courseId }: { courseId: string }) {
                         description={error || "这门课程可能已下架，或者你所在学校没有访问权限。"}
                         action={
                             <Link href={backHref} className="inline-flex h-9 items-center gap-1 rounded-full px-4 text-[13px] text-[var(--gm-text-2)] ring-1 ring-[var(--gm-border-strong)] hover:bg-[var(--gm-wash)]">
-                                返回备课大厅
+                                返回课程中心
                             </Link>
                         }
                     />
@@ -120,7 +120,7 @@ export function CatalogCourseDetail({ courseId }: { courseId: string }) {
                     </Link>
                     <ChevronRight aria-hidden className="size-3 shrink-0" />
                     <Link href={backHref} className="hover:text-[var(--gm-text)]">
-                        备课大厅
+                        课程中心
                     </Link>
                     <ChevronRight aria-hidden className="size-3 shrink-0" />
                     <span className="truncate text-[var(--gm-text-2)]">{detail.title}</span>

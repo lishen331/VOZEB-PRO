@@ -6,7 +6,7 @@ import { createSchoolDomainRepository, type CourseCatalogEntryRecord, type Cours
 import { requireActiveSchoolContext, requireSchoolManager, SchoolServiceError } from "@/lib/server/school-access-service";
 
 /*
- * 备课大厅（课程大厅）：
+ * 课程中心（原「备课大厅」）：
  * - 全平台已发布课程对所有有学校身份的人可见，「本校是否解锁」由 school_course_assignments 决定；
  * - 锁定状态只给课程简介 + 章节/课时标题 + 资料文件名，不给资料地址、课时说明和封面原图；
  * - 解锁 = 学校管理员写入一条 active 的本校课程授权，之后课程进入教学中心，老师即可备课。
@@ -44,7 +44,7 @@ export async function unlockSchoolCourse(userId: string, courseId: string): Prom
     return toCatalogEntry({ ...course, assignmentId: assignment.id, unlocked: true }, context.canManageSchool);
 }
 
-/** 备课大厅的课程封面：任何本校成员都能看已上架课程的封面（是否解锁不影响浏览） */
+/** 课程中心的课程封面：任何本校成员都能看已上架课程的封面（是否解锁不影响浏览） */
 export async function readCatalogCourseCoverKey(userId: string, courseId: string) {
     await requireActiveSchoolContext(userId);
     const course = await createSchoolDomainRepository().getPlatformCourse(courseId);

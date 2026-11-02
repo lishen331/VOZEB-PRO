@@ -807,7 +807,7 @@ async function materialRecord(
 
 /**
  * 本校资料的维护权限：学校管理员不限；普通老师只要是本校已解锁（active 授权）这门课即可。
- * 不要求排课 —— 备课大厅解锁后老师就能直接备课，offering 只决定作业与班级范围。
+ * 不要求排课 —— 课程中心解锁后老师就能直接备课，offering 只决定作业与班级范围。
  */
 async function assertSchoolMaterialManager(repository: SchoolDomainRepository, schoolId: string, membershipId: string, canManageSchool: boolean, assignmentId?: string) {
     if (canManageSchool) return;

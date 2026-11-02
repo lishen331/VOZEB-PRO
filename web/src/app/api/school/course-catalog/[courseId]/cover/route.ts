@@ -9,7 +9,7 @@ import { schoolApiError, schoolApiFailure } from "@/lib/server/school-api-respon
 export const runtime = "nodejs";
 type Context = { params: Promise<{ courseId: string }> };
 
-/** 备课大厅封面：浏览课程不需要解锁，所以按课程可见性而不是本校授权来校验 */
+/** 课程中心封面：浏览课程不需要解锁，所以按课程可见性而不是本校授权来校验 */
 export async function GET(request: Request, context: Context) {
     const user = await getCurrentUser(request);
     if (!user) return schoolApiError(401, "请先登录");

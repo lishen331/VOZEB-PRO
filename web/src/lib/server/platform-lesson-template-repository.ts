@@ -23,7 +23,7 @@ export interface PlatformLessonTemplateRepository {
     /** 有则覆盖，没有则新建；createdAt 只在新建时生效 */
     saveTemplate(record: LessonTemplateRecord): Promise<LessonTemplateRecord>;
     deleteTemplate(lessonId: string): Promise<boolean>;
-    /** 只读统计：给定课时里有几节写了标准教案（备课大厅用，不读内容） */
+    /** 只读统计：给定课时里有几节写了标准教案（课程中心用，不读内容） */
     countTemplates(lessonIds: readonly string[]): Promise<number>;
 }
 

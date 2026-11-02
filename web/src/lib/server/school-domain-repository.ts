@@ -227,7 +227,7 @@ export interface SchoolDomainRepository {
     listAssignedCourses(schoolId: string, input: PageQuery): Promise<Page<SchoolCourseAssignmentRecord>>;
     listVisibleCourses(schoolId: string, membershipId: string, role: SchoolMemberRole, input: PageQuery): Promise<Page<SchoolCourseAssignmentRecord>>;
     listPlatformCourses(input: PlatformCoursePageQuery): Promise<Page<PlatformCourseRecord>>;
-    /** 备课大厅：全平台已发布课程 + 本校是否已解锁 */
+    /** 课程中心：全平台已发布课程 + 本校是否已解锁 */
     listCourseCatalog(schoolId: string, input: CourseCatalogPageQuery): Promise<Page<CourseCatalogEntryRecord>>;
     getPlatformCourse(courseId: string, forUpdate?: boolean): Promise<PlatformCourseRecord | null>;
     updatePlatformCourse(courseId: string, patch: PlatformCourseUpdate): Promise<PlatformCourseRecord | null>;
@@ -251,7 +251,7 @@ export interface SchoolDomainRepository {
     restorePlatformCourse(courseId: string, patch: { updatedAt: string }): Promise<PlatformCourseRecord | null>;
     permanentlyDeletePlatformCourse(courseId: string): Promise<{ storageKeys: string[] }>;
     getSchoolCourseAssignment(schoolId: string, assignmentId: string, forUpdate?: boolean): Promise<SchoolCourseAssignmentRecord | null>;
-    /** 备课大厅：本校对某门课的 active 课程授权（解锁凭据），没有则 null */
+    /** 课程中心：本校对某门课的 active 课程授权（解锁凭据），没有则 null */
     getActiveCourseAssignmentByCourse(schoolId: string, courseId: string): Promise<SchoolCourseAssignmentRecord | null>;
     hasVisibleCourseAssignment(schoolId: string, membershipId: string, role: SchoolMemberRole, assignmentId: string): Promise<boolean>;
     getReadableCourseMaterial(userId: string, storageKey: string): Promise<CourseMaterialRecord | null>;
