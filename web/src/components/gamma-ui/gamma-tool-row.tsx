@@ -41,10 +41,14 @@ export function GammaToolRow({ featured, subjects, onPick }: { featured: GammaSu
 
     return (
         <div className="relative">
-            {/* 可滚动的一侧渐隐，避免末张卡被箭头按钮压住、看起来像被硬裁 */}
+            {/*
+              可滚动的一侧渐隐，避免末张卡被箭头按钮压住、看起来像被硬裁。
+              overflow-x-auto 会把 overflow-y 的计算值也变成 auto；卡片里的光晕向下溢出 36px，
+              容器因此多出一条纵向滚动、卡片被上下裁切，所以这里显式锁死纵向。
+            */}
             <div
                 ref={scrollerRef}
-                className="hide-scrollbar flex gap-3 overflow-x-auto pb-1"
+                className="hide-scrollbar flex gap-3 overflow-x-auto overflow-y-hidden pb-1"
                 role="list"
                 aria-label="专业方向"
                 style={{ maskImage: `linear-gradient(90deg, ${edges.start ? "transparent, #000 48px" : "#000"}, ${edges.end ? "#000 calc(100% - 72px), transparent" : "#000"})` }}
