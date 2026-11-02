@@ -7,6 +7,7 @@ import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import { Download, FileUp, Plus, Trash2, Workflow } from "lucide-react";
 
 import { CompactEmptyState } from "@/components/compact-empty-state";
+import { GuideLink } from "@/components/onboarding/guide-link";
 import { readZip } from "@/lib/zip";
 import { APP_EXPORT_ID } from "@/lib/storage-keys";
 import { uploadMediaFile } from "@/services/file-storage";
@@ -205,9 +206,12 @@ export default function CanvasPage() {
                         icon={<Workflow className="size-4" />}
                         className="min-h-24 sm:min-h-40"
                         action={
-                            <Button type="primary" loading={creating} icon={<Plus className="size-4" />} onClick={() => void createAndEnter()}>
-                                新建画布
-                            </Button>
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                <Button type="primary" loading={creating} icon={<Plus className="size-4" />} onClick={() => void createAndEnter()}>
+                                    新建画布
+                                </Button>
+                                <GuideLink section="canvas" />
+                            </div>
                         }
                     />
                 )}

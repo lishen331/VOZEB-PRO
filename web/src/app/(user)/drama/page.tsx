@@ -9,6 +9,7 @@ import { Clapperboard, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/stores/use-user-store";
 import { CompactEmptyState } from "@/components/compact-empty-state";
+import { GuideLink } from "@/components/onboarding/guide-link";
 import { IpReferencePicker, ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
 import { IP_REFERENCE_ENTRY_VISIBLE, type IpReference } from "@/lib/ip-library-domain";
 import { normalizeDramaImageSize } from "@/lib/drama-image-size";
@@ -121,9 +122,12 @@ export default function DramaPage() {
                         icon={<Clapperboard className="size-4" />}
                         className="mt-3 min-h-24 sm:mt-6 sm:min-h-40"
                         action={
-                            <Button type="primary" onClick={openCreate}>
-                                新建第一个项目
-                            </Button>
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                <Button type="primary" onClick={openCreate}>
+                                    新建第一个项目
+                                </Button>
+                                <GuideLink section="drama" />
+                            </div>
                         }
                     />
                 )}

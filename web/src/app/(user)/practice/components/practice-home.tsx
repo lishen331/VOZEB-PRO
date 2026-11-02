@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
+import { GuideLink } from "@/components/onboarding/guide-link";
 import { ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
 import { practiceApi, type PracticeProjectSummary, type PracticeSession } from "@/services/api/practice";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
@@ -200,6 +201,9 @@ export default function PracticeHome() {
                 {/* 练习模块 */}
                 <section className="mt-10" aria-labelledby="practice-modules-heading">
                     <SectionHeading id="practice-modules-heading" title="练习模块" hint="单块技能专项训练，每个模块独立，互不串联" />
+                    <div className="mt-1.5">
+                        <GuideLink section="agent" label="第一次用？看练习入门说明" />
+                    </div>
                     <GammaStagger className={cn("mt-4 grid gap-4", moduleGridClass)}>
                         {moduleCards.map((card) => (
                             <GammaStaggerItem key={card.module} className="h-full">

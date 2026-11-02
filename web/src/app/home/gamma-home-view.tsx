@@ -11,6 +11,7 @@ import { useGammaSidebarState } from "@/components/gamma-ui/gamma-sidebar";
 import { GAMMA_SUBJECTS, gammaSubjectBySlug } from "@/components/gamma-ui/gamma-subjects";
 import { GammaToolRow } from "@/components/gamma-ui/gamma-tool-row";
 import { GammaAppSidebar } from "@/components/layout/gamma-app-sidebar";
+import { WelcomeGuide } from "@/components/onboarding/welcome-guide";
 import type { FeatureModuleSettings, UserNavigationMenuPermission } from "@/lib/feature-modules";
 import type { SchoolContext } from "@/lib/school-domain";
 import { GammaHomeGallery } from "./gamma-home-gallery";
@@ -158,6 +159,8 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
                 </main>
                 <BackToTopButton visible={showBackToTop} containerRef={scrollRef} />
             </div>
+            {/* 首次使用引导：内容按当前可见模块生成，全部不可见时组件自身返回 null */}
+            <WelcomeGuide featureModules={featureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} />
         </div>
     );
 }
