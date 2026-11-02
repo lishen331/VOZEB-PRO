@@ -17,6 +17,7 @@ import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata } from ".
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasImageConfigPatch, canvasVideoConfigPatch, resolveCanvasGenerationModel } from "../utils/canvas-node-config";
 import { canvasModelConfigPatch } from "../utils/canvas-model-capabilities";
+import { practiceCanvasModelValue, type PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 
 type CanvasConfigNodePanelProps = {
     node: CanvasNodeData;
@@ -27,9 +28,11 @@ type CanvasConfigNodePanelProps = {
     onGenerate: (nodeId: string) => void;
     onStop: (nodeId: string) => void;
     onComposerToggle: () => void;
+    /** 仅练习画布传入。为空时模型下拉保持原有行为。 */
+    practiceModels?: PracticeCanvasModelOptions;
 };
 
-export function CanvasConfigNodePanel({ node, isRunning, inputSummary, references, onConfigChange, onGenerate, onStop, onComposerToggle }: CanvasConfigNodePanelProps) {
+export function CanvasConfigNodePanel({ node, isRunning, inputSummary, references, onConfigChange, onGenerate, onStop, onComposerToggle, practiceModels }: CanvasConfigNodePanelProps) {
     const [detailsOpen, setDetailsOpen] = useState(node.metadata?.configDetailsOpen === true);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
     const globalConfig = useEffectiveConfig();
@@ -141,11 +144,13 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
                 <ModelPicker
                     className="canvas-compact-control !h-9 !rounded-none !border-0 !bg-transparent !shadow-none"
                     config={config}
-                    value={config.model}
+                    value={mode === "audio" ? config.model : practiceCanvasModelValue(practiceModels, mode, config.model)}
                     onChange={(model) => onConfigChange(node.id, mode === "image" || mode === "video" ? canvasModelConfigPatch(config, model, mode) : { model })}
                     capability={mode}
                     onMissingConfig={() => openConfigDialog(true)}
                     fullWidth
+                    optionsOverride={mode === "audio" ? undefined : practiceModels?.[mode]?.models}
+                    disabled={mode === "audio" ? false : practiceModels?.[mode]?.locked}
                 />
                 {mode === "video" ? (
                     <CanvasVideoSettingsPopover

@@ -17,7 +17,7 @@ import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { permissionTreeCheckState, updatePermissionTreeSelection } from "@/components/admin/admin-rbac-permission-tree";
 import { adminSectionGroups } from "@/components/admin/admin-section-nav";
 import { adminMenuPermission } from "@/components/admin/admin-sections";
-import { featureModuleDefinition, USER_NAVIGATION_MENU_PERMISSION_GROUPS, USER_NAVIGATION_ROLE_KEYS, type UserNavigationRoleKey } from "@/lib/feature-modules";
+import { featureModuleDefinition, OPT_IN_USER_NAVIGATION_MENU_PERMISSIONS, USER_NAVIGATION_MENU_PERMISSION_GROUPS, USER_NAVIGATION_ROLE_KEYS, type UserNavigationRoleKey } from "@/lib/feature-modules";
 
 const MENU_PERMISSION_TREE = adminSectionGroups.map((group) => ({
     title: group.title,
@@ -37,7 +37,7 @@ function userMenuPermissionTree(roleKey?: UserNavigationRoleKey) {
         key: "menu-" + group.key,
         children: group.moduleIds
             .filter((id) => group.key !== "school" || (roleKey === "teacher" ? id === "teaching" : roleKey === "student" ? id === "learning" : false))
-            .map((id) => ({ title: id === "practice" ? "无限练习" : featureModuleDefinition(id).name, key: id })),
+            .map((id) => ({ title: id === "practice-model-test" ? OPT_IN_USER_NAVIGATION_MENU_PERMISSIONS[0].name : id === "practice" ? "无限练习" : featureModuleDefinition(id).name, key: id })),
     })).filter((group) => group.children.length);
 }
 

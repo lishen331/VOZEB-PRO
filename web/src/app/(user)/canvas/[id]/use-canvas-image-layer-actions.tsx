@@ -14,8 +14,9 @@ import { buildGenerationConfig, imageMetadata, uploadCanvasImage } from "./canva
 import { toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
 import type { CanvasPageState } from "./use-canvas-page-state";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
+import type { PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 
-export function useCanvasImageLayerActions({ state, tasks }: { state: CanvasPageState; tasks: CanvasTaskRuntime }) {
+export function useCanvasImageLayerActions({ state, tasks, practiceModels }: { state: CanvasPageState; tasks: CanvasTaskRuntime; practiceModels?: PracticeCanvasModelOptions }) {
     const { message, effectiveConfig, isAiConfigReady, nodes, openConfigDialog, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, setToolbarNodeId, setDialogNodeId, setRunningNodeId } = state;
     const operationNodeIds = useRef(new Set<string>());
 
@@ -62,7 +63,7 @@ export function useCanvasImageLayerActions({ state, tasks }: { state: CanvasPage
         async (node: CanvasNodeData) => {
             if (!node.metadata?.content) return;
             if (operationNodeIds.current.has(node.id)) return message.info("正在处理这张图片，请稍候");
-            const baseConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
+            const baseConfig = { ...buildGenerationConfig(effectiveConfig, node, "image", practiceModels?.image?.models), count: "1" };
             if (!isAiConfigReady(baseConfig, baseConfig.model)) {
                 openConfigDialog(true);
                 return;

@@ -6,7 +6,9 @@ import {
     attachPracticeWorkflowToChannel,
     buildRunningHubWorkflowPayload,
     generationBusinessCode,
+    listPracticeCanvasPoolModels,
     recordWorkflowTaskContext,
+    resolvePracticeCanvasPoolCandidates,
     resolvePracticeGenerationCandidates,
     resolvePracticeWorkflowCandidates,
     workflowConfigForTask,
@@ -392,5 +394,62 @@ describe("RunningHub Demo workflow routing", () => {
         } as never as Parameters<typeof resolvePracticeGenerationCandidates>[0];
         expect(resolvePracticeGenerationCandidates(settings, "text", "practice-script", { executionProfile: "open-source-practice", businessCode: "script" })[0]).toMatchObject({ logicalModelId: "practice-script", channelId: "text-practice" });
         expect(resolvePracticeGenerationCandidates(settings, "image", "runninghub-demo-storyboard_shot", { executionProfile: "production" })).toEqual([]);
+    });
+});
+
+describe("practice canvas model pool", () => {
+    function poolChannel(overrides: Partial<{ id: string; enabled: boolean; purpose: "production" | "open-source-practice" | "shared"; baseUrl: string; hasApiKey: boolean; models: string[]; capability: "image" | "video" | "text" }>) {
+        const models = overrides.models || ["agnes-image-2.1-flash"];
+        const capability = overrides.capability || "image";
+        return {
+            id: overrides.id || "practice-image",
+            name: overrides.id || "practice-image",
+            baseUrl: overrides.baseUrl ?? "https://practice.example",
+            apiKey: "",
+            hasApiKey: overrides.hasApiKey ?? true,
+            apiFormat: "openai" as const,
+            models,
+            enabled: overrides.enabled ?? true,
+            purpose: overrides.purpose || "open-source-practice",
+            advancedConfig: { modelCapabilities: Object.fromEntries(models.map((model) => [model.toLowerCase(), capability])) },
+        } as never as import("@/lib/auth/store").SystemModelChannel;
+    }
+
+    it("picks a random order from the practice pool for a virtual model and ignores production channels", () => {
+        const settings = {
+            logicalModels: [],
+            systemChannels: [
+                poolChannel({ id: "practice-a" }),
+                poolChannel({ id: "practice-b", models: ["agnes-image-2.0"] }),
+                poolChannel({ id: "production", purpose: "production" }),
+                poolChannel({ id: "video", models: ["agnes-video-v2.0"], capability: "video" }),
+                poolChannel({ id: "offline", enabled: false }),
+                poolChannel({ id: "unready", hasApiKey: false, baseUrl: "" }),
+            ],
+        };
+        const candidates = resolvePracticeGenerationCandidates(settings, "image", "gamaimage", { executionProfile: "open-source-practice" });
+        expect(candidates.map((candidate) => candidate.channelId).sort()).toEqual(["practice-a", "practice-b"]);
+        expect(resolvePracticeGenerationCandidates(settings, "video", "gamaimage", { executionProfile: "open-source-practice" })).toEqual([]);
+        expect(resolvePracticeGenerationCandidates(settings, "image", "gamaimage", { executionProfile: "production" })).toEqual([]);
+    });
+
+    it("routes an authorized explicit model only to the matching practice channels and fails closed otherwise", () => {
+        const settings = {
+            logicalModels: [],
+            systemChannels: [poolChannel({ id: "practice-a" }), poolChannel({ id: "practice-b", models: ["agnes-image-2.0"] }), poolChannel({ id: "production", purpose: "production", models: ["agnes-image-2.0"] })],
+        };
+        const selected = resolvePracticeGenerationCandidates(settings, "image", "agnes-image-2.0", { executionProfile: "open-source-practice", practiceModelTest: true });
+        expect(selected.map((candidate) => candidate.channelId)).toEqual(["practice-b"]);
+        expect(resolvePracticeGenerationCandidates(settings, "image", "missing-model", { executionProfile: "open-source-practice", practiceModelTest: true })).toEqual([]);
+        expect(resolvePracticeGenerationCandidates(settings, "image", "agnes-image-2.0", { executionProfile: "open-source-practice" })).toEqual([]);
+    });
+
+    it("lists practice pool models in channel order without duplicates", () => {
+        const settings = { systemChannels: [poolChannel({ id: "first", models: ["agnes-image-2.1-flash", "agnes-image-2.0"] }), poolChannel({ id: "second", models: ["Agnes-Image-2.0", "agnes-image-2.1-flash"] })] };
+        expect(listPracticeCanvasPoolModels(settings, "image")).toEqual([
+            { id: "agnes-image-2.1-flash", name: "agnes-image-2.1-flash" },
+            { id: "agnes-image-2.0", name: "agnes-image-2.0" },
+        ]);
+        expect(resolvePracticeCanvasPoolCandidates(settings, "image")).toHaveLength(4);
     });
 });

@@ -43,6 +43,8 @@ export function hasUntrustedWorkflowContext(value: unknown) {
 export function sanitizeGenerationContext(value: unknown, preserveWorkflow: boolean) {
     const context = value && typeof value === "object" && !Array.isArray(value) ? { ...(value as Record<string, unknown>) } : {};
     delete context.billingContext;
+    // 测试权限只由服务端按角色判定后写入，客户端传什么都不采信
+    delete context.practiceModelTest;
     if (!preserveWorkflow) {
         delete context.executionProfile;
         delete context.workflowKey;

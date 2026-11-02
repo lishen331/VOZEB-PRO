@@ -16,12 +16,15 @@ type ModelPickerProps = {
     fullWidth?: boolean;
     placeholder?: string;
     onMissingConfig?: () => void;
+    /** 传入后不再读取用户配置的模型列表，练习画布用它展示虚拟名或练习池模型。 */
+    optionsOverride?: string[];
+    disabled?: boolean;
 };
 
-export function ModelPicker({ config, value, onChange, capability, className, fullWidth = false, placeholder = "选择模型", onMissingConfig }: ModelPickerProps) {
+export function ModelPicker({ config, value, onChange, capability, className, fullWidth = false, placeholder = "选择模型", onMissingConfig, optionsOverride, disabled = false }: ModelPickerProps) {
     const pickerId = useId();
     const [open, setOpen] = useState(false);
-    const configuredOptions = useMemo(() => selectableModelsByCapability(config, capability), [capability, config]);
+    const configuredOptions = useMemo(() => (optionsOverride ? optionsOverride.filter(Boolean) : selectableModelsByCapability(config, capability)), [capability, config, optionsOverride]);
     const current = !capability || !value || configuredOptions.includes(value) ? value || "" : "";
     const options = useMemo(() => {
         const currentOption = !capability || !value || configuredOptions.includes(value) ? value : "";
@@ -42,6 +45,10 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
             open={open}
             value={current}
             onOpenChange={(nextOpen) => {
+                if (disabled) {
+                    setOpen(false);
+                    return;
+                }
                 if (nextOpen && !hasConfiguredOptions) {
                     setOpen(false);
                     onMissingConfig?.();
@@ -62,9 +69,10 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
                 onMouseDown={(event) => event.stopPropagation()}
                 onPointerDown={(event) => event.stopPropagation()}
                 title={current ? modelOptionLabel(config, current) : placeholder}
+                disabled={disabled}
             >
                 <ModelIcon model={current} />
-                <span className="canvas-model-picker-text min-w-0 flex-1 truncate text-left">{current ? modelOptionLabel(config, current) : placeholder}</span>
+                <span className="canvas-model-picker-text min-w-0 flex-1 truncate text-left">{current ? (optionsOverride ? current : modelOptionLabel(config, current)) : placeholder}</span>
             </SelectTrigger>
             <SelectContent
                 data-canvas-no-zoom
@@ -78,8 +86,8 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
             >
                 {options.length ? (
                     options.map((model) => (
-                        <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}>
-                            <ModelLabel config={config} model={model} />
+                        <SelectItem key={model} value={model} textValue={optionsOverride ? model : modelOptionLabel(config, model)}>
+                            {optionsOverride ? <span className="truncate">{model}</span> : <ModelLabel config={config} model={model} />}
                         </SelectItem>
                     ))
                 ) : (

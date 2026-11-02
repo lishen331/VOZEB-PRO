@@ -51,10 +51,11 @@ import { useCanvasPageController } from "./use-canvas-page-controller";
 // `[]` on every render — a new reference here defeats CanvasNode's React.memo.
 const EMPTY_MENTION_REFERENCES: CanvasResourceReference[] = [];
 
-function VozebProCanvasPage() {
+export function VozebProCanvasPage({ executionProfile }: { executionProfile?: "open-source-practice" } = {}) {
     const [nodeCreatePosition, setNodeCreatePosition] = useState<Position | null>(null);
     const [interactionMode, setInteractionMode] = useState<CanvasInteractionMode>("pan");
-    const controller = useCanvasPageController();
+    const controller = useCanvasPageController(executionProfile);
+    const practiceModels = controller.practiceModels;
     const hoverCommitHandleRef = useRef<number | null>(null);
     const queuedHoveredNodeIdRef = useRef<string | null>(null);
     const {
@@ -362,6 +363,7 @@ function VozebProCanvasPage() {
             onImageDimensions: handleImageDimensions,
             onViewImage: handleNodeViewImage,
             onPanelPlacementChange: handlePanelPlacementChange,
+            practiceFree: executionProfile === "open-source-practice",
         }),
         [
             handleNodeHoverStart,
@@ -376,6 +378,7 @@ function VozebProCanvasPage() {
             handleImageDimensions,
             handleNodeViewImage,
             handlePanelPlacementChange,
+            executionProfile,
         ],
     );
     const getNodeViewProps = useCallback(
@@ -408,6 +411,7 @@ function VozebProCanvasPage() {
                     node={panelNode}
                     isRunning={runningNodeId === panelNode.id}
                     mentionReferences={mentionReferencesByNodeId.get(panelNode.id) || EMPTY_MENTION_REFERENCES}
+                    practiceModels={practiceModels}
                     onPromptChange={handleNodePromptChange}
                     onConfigChange={handleConfigNodeChange}
                     onGenerate={handleGenerateNode}
@@ -422,7 +426,21 @@ function VozebProCanvasPage() {
                     }}
                 />
             ),
-        [configInputsById, runningNodeId, mentionReferencesByNodeId, handleNodePromptChange, handleConfigNodeChange, handleGenerateNode, confirmStopGeneration, setDialogNodeId, setNodeImageSettingsOpen, setToolbarNodeId, connectionsRef, deleteConnection],
+        [
+            configInputsById,
+            runningNodeId,
+            mentionReferencesByNodeId,
+            handleNodePromptChange,
+            handleConfigNodeChange,
+            handleGenerateNode,
+            confirmStopGeneration,
+            setDialogNodeId,
+            setNodeImageSettingsOpen,
+            setToolbarNodeId,
+            connectionsRef,
+            deleteConnection,
+            practiceModels,
+        ],
     );
     const renderCanvasNode = useCallback(
         (contentNode: CanvasNodeData) => (
@@ -431,6 +449,7 @@ function VozebProCanvasPage() {
                 isRunning={runningNodeId === contentNode.id}
                 inputSummary={getInputSummary(configInputsById.get(contentNode.id) || [])}
                 references={mentionReferencesByNodeId.get(contentNode.id) || EMPTY_MENTION_REFERENCES}
+                practiceModels={practiceModels}
                 onConfigChange={handleConfigNodeChange}
                 onComposerToggle={() => setDialogNodeId((current) => (current === contentNode.id ? null : contentNode.id))}
                 onStop={confirmStopGeneration}
@@ -440,7 +459,7 @@ function VozebProCanvasPage() {
                 }}
             />
         ),
-        [runningNodeId, configInputsById, mentionReferencesByNodeId, handleConfigNodeChange, confirmStopGeneration, setDialogNodeId, nodesRef, handleGenerateNode],
+        [runningNodeId, configInputsById, mentionReferencesByNodeId, handleConfigNodeChange, confirmStopGeneration, setDialogNodeId, nodesRef, handleGenerateNode, practiceModels],
     );
     const handleNodeContextMenu = useCallback(
         (event: React.MouseEvent, id: string) => {

@@ -17,7 +17,7 @@ describe("practice home contract", () => {
         expect(source).toContain("scriptEnabled ? (");
     });
     it("routes project and module actions to stable workspaces", () => {
-        expect(practiceProjectPath("canvas", "canvas-practice-1")).toBe("/canvas/canvas-practice-1");
+        expect(practiceProjectPath("canvas", "canvas-practice-1")).toBe("/practice/canvas/canvas-practice-1");
         expect(practiceProjectPath("drama", "drama-practice-1")).toBe("/drama/drama-practice-1");
         expect(practiceModulePath("storyboard-video")).toBe("/practice/storyboard-video");
     });
