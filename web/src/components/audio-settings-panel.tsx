@@ -4,7 +4,7 @@ import { type ReactNode } from "react";
 import { Segmented, Select, Slider, Switch, Tooltip } from "antd";
 import { CircleHelp, RotateCcw } from "lucide-react";
 
-import { audioModelFields, normalizeAudioParams, type AudioParamField, type AudioParams } from "@/lib/audio-model-params";
+import { audioVisibleFields, normalizeAudioParams, type AudioParamField, type AudioParams } from "@/lib/audio-model-params";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
@@ -83,7 +83,7 @@ function SettingGroup({ title, color, children }: { title: string; color: string
 }
 
 export function AudioModelParamsPanel({ model, params, onChange, theme }: { model: string; params: AudioParams | undefined; onChange: (params: AudioParams) => void; theme: CanvasTheme }) {
-    const fields = audioModelFields(model);
+    const fields = audioVisibleFields(model, params);
     const values = normalizeAudioParams(model, params);
     const groups = [...new Set(fields.map((field) => field.group))];
     const update = (key: string, value: AudioParams[string]) => onChange({ ...values, [key]: value });
@@ -91,7 +91,7 @@ export function AudioModelParamsPanel({ model, params, onChange, theme }: { mode
 
     return (
         <ImageSettingsTheme theme={theme}>
-            <div className="w-[340px] space-y-4" style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="w-full min-w-0 space-y-4" style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {groups.map((group, index) => (
                     <section key={group} className="space-y-2.5">
                         <div className="flex items-center justify-between text-xs font-medium" style={{ color: theme.node.muted }}>
@@ -106,7 +106,7 @@ export function AudioModelParamsPanel({ model, params, onChange, theme }: { mode
                         {fields
                             .filter((field) => field.group === group)
                             .map((field) => (
-                                <AudioParamControl key={field.key} field={field} value={values[field.key]} theme={theme} onChange={(value) => update(field.key, value)} />
+                                <AudioParamControl key={field.key} field={field} hideLabel={field.label === group} value={values[field.key]} theme={theme} onChange={(value) => update(field.key, value)} />
                             ))}
                     </section>
                 ))}
@@ -115,7 +115,7 @@ export function AudioModelParamsPanel({ model, params, onChange, theme }: { mode
     );
 }
 
-function AudioParamControl({ field, value, theme, onChange }: { field: AudioParamField; value: AudioParams[string]; theme: CanvasTheme; onChange: (value: AudioParams[string]) => void }) {
+function AudioParamControl({ field, hideLabel, value, theme, onChange }: { field: AudioParamField; hideLabel?: boolean; value: AudioParams[string]; theme: CanvasTheme; onChange: (value: AudioParams[string]) => void }) {
     const label = (
         <span className="inline-flex shrink-0 items-center gap-1 text-sm">
             {field.label}
@@ -165,7 +165,7 @@ function AudioParamControl({ field, value, theme, onChange }: { field: AudioPara
     if (field.type === "segmented") {
         return (
             <div className="space-y-1.5">
-                {label}
+                {hideLabel ? null : label}
                 <Segmented block size="small" value={String(value)} options={field.options} onChange={(next) => onChange(String(next))} />
             </div>
         );

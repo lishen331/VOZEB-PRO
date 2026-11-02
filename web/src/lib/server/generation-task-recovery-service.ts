@@ -5,12 +5,12 @@ import { generationTaskNextPollAt, claimDueGenerationTasks, releaseGenerationTas
 import { createQueuedPracticeVideoTaskUpstreamStep, failVideoTaskFromWorker, persistVideoTaskResult, queryVideoTaskUpstream, VideoQueryAuthError } from "@/lib/server/video-task-runtime";
 import { isVideoProviderMediaUrl } from "@/lib/server/video-provider-response";
 import { getVideoTask, type VideoTask } from "@/lib/server/video-task-store";
-import { createAudioTaskUpstreamStep, markAudioTaskFailed, persistAudioTaskResult, queryAudioTaskUpstreamStep } from "@/lib/server/audio-task-runtime";
+import { createAudioTaskUpstreamStep, markAudioTaskFailed, persistAudioTaskResult, prepareAudioTaskAutomaticRetry, queryAudioTaskUpstreamStep } from "@/lib/server/audio-task-runtime";
 import { getAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { createImageTaskUpstreamStep, markImageTaskFailed, persistImageTaskResult, prepareImageTaskAutomaticRetry, queryCancelledImageTaskUpstreamStep, queryImageTaskUpstreamStep } from "@/lib/server/image-task-runtime";
 import { getImageTask, updateImageTask, type ImageTask } from "@/lib/server/image-task-store";
 import { getTextTask, transitionTextTask, updateTextTask } from "@/lib/server/text-task-store";
-import { markTextTaskFailed, queryCancelledTextTaskUpstreamStep, runTextTaskStep } from "@/lib/server/text-task-runtime";
+import { markTextTaskFailed, prepareTextTaskAutomaticRetry, queryCancelledTextTaskUpstreamStep, runTextTaskStep } from "@/lib/server/text-task-runtime";
 import { materializeDramaLabStoryTask } from "@/lib/server/drama-lab-story-generation-service";
 import { executeAgentRun } from "@/lib/server/agent-run-executor";
 import { processAgentRunReview } from "@/lib/server/agent-run-execution";
@@ -526,6 +526,28 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
             return "completed";
         }
         if (step.state === "failed") {
+            if (step.retryReason === "upstream_failed") {
+                const retry = await prepareTextTaskAutomaticRetry(task, step.error);
+                if (retry) {
+                    await releaseGenerationTaskLease(
+                        "text",
+                        task.id,
+                        workerId,
+                        {
+                            executionPhase: "created",
+                            channelId: retry.config.channelId,
+                            provider: retry.config.advancedConfig?.protocol || retry.config.apiFormat,
+                            queryPath: retry.config.advancedConfig?.queryPath,
+                            nextPollAt: Date.now(),
+                            lastPollAt: Date.now(),
+                            lastUpstreamStatus: "automatic_retry_after_upstream_failure",
+                        },
+                        { resetUpstreamIdentity: true },
+                    );
+                    return "pending";
+                }
+            }
+            await markTextTaskFailed((await getTextTask(task.id)) || task, step.error);
             await releaseGenerationTaskLease("text", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "failed" });
             return "failed";
         }
@@ -882,6 +904,26 @@ async function processAudioLease(lease: GenerationTaskLease, workerId: string, o
         const step = task.upstream?.id ? await queryAudioTaskUpstreamStep(task, origin, cookie, cookie ? "" : task.userId) : await createAudioTaskUpstreamStep(task, origin, cookie, cookie ? "" : task.userId);
         const now = Date.now();
         if (step.state === "failed") {
+            if (step.retryReason === "upstream_failed") {
+                const retry = await prepareAudioTaskAutomaticRetry(task, step.error);
+                if (retry) {
+                    await releaseGenerationTaskLease(
+                        "audio",
+                        task.id,
+                        workerId,
+                        {
+                            executionPhase: "created",
+                            channelId: retry.config.channelId,
+                            provider: retry.config.advancedConfig?.protocol || retry.config.apiFormat,
+                            nextPollAt: now,
+                            lastPollAt: now,
+                            lastUpstreamStatus: "automatic_retry_after_upstream_failure",
+                        },
+                        { resetUpstreamIdentity: true },
+                    );
+                    return "pending";
+                }
+            }
             await markAudioTaskFailed(task, step.error);
             await releaseGenerationTaskLease("audio", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: step.status });
             return "failed";

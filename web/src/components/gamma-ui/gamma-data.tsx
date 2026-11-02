@@ -140,6 +140,68 @@ export function GammaSkeleton({ className }: { className?: string }) {
     return <span aria-hidden className={cn("gm-shimmer block rounded-[var(--gm-radius-sm)] bg-[var(--gm-surface-2)]", className)} />;
 }
 
+function SkeletonFrame({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+    return (
+        <div role="status" aria-busy="true" aria-label={label} className={className}>
+            {children}
+        </div>
+    );
+}
+
+/** 卡片网格骨架：列数由调用方按真实列表传入，内容到达时不跳版 */
+export function GammaCardGridSkeleton({ count = 6, className, media, label = "正在加载" }: { count?: number; className?: string; media?: string; label?: string }) {
+    return (
+        <SkeletonFrame label={label} className={cn("grid gap-4", className)}>
+            {Array.from({ length: count }, (_, index) => (
+                <div key={index} className="overflow-hidden rounded-[var(--gm-radius-lg)] border border-[var(--gm-border)] bg-[var(--gm-surface)]">
+                    {media ? <GammaSkeleton className={cn("w-full rounded-none", media)} /> : null}
+                    <div className="space-y-3 p-5">
+                        <GammaSkeleton className="h-3 w-1/4" />
+                        <GammaSkeleton className="h-4 w-3/5" />
+                        <GammaSkeleton className="h-3 w-4/5" />
+                    </div>
+                </div>
+            ))}
+        </SkeletonFrame>
+    );
+}
+
+/** 竖排列表骨架：历史记录、最近练习 */
+export function GammaListSkeleton({ rows = 3, className, label = "正在加载" }: { rows?: number; className?: string; label?: string }) {
+    return (
+        <SkeletonFrame label={label} className={cn("space-y-3", className)}>
+            {Array.from({ length: rows }, (_, index) => (
+                <div key={index} className="flex items-center gap-3">
+                    <GammaSkeleton className="size-8 shrink-0" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                        <GammaSkeleton className="h-3 w-3/5" />
+                        <GammaSkeleton className="h-3 w-2/5" />
+                    </div>
+                </div>
+            ))}
+        </SkeletonFrame>
+    );
+}
+
+/** 详情页骨架：标题 + 左主图右信息 */
+export function GammaDetailSkeleton({ className, label = "正在加载" }: { className?: string; label?: string }) {
+    return (
+        <SkeletonFrame label={label} className={cn("mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8", className)}>
+            <GammaSkeleton className="h-7 w-48" />
+            <GammaSkeleton className="mt-3 h-3 w-80 max-w-full" />
+            <div className="mt-8 grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+                <GammaSkeleton className="aspect-[4/3] w-full rounded-[var(--gm-radius-lg)]" />
+                <div className="space-y-3">
+                    <GammaSkeleton className="h-4 w-2/5" />
+                    <GammaSkeleton className="h-3 w-full" />
+                    <GammaSkeleton className="h-3 w-4/5" />
+                    <GammaSkeleton className="h-3 w-3/5" />
+                </div>
+            </div>
+        </SkeletonFrame>
+    );
+}
+
 /* ===== 数据表格 ===== */
 
 export interface GammaColumn<Row> {

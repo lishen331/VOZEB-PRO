@@ -9,15 +9,16 @@ import type { CourseMaterial } from "@/lib/school-domain";
 import { cn } from "@/lib/utils";
 
 /*
- * 课时资料的展示：大图预览（图片 / 视频直接看，文档给下载卡）、缩略条、全屏放映。
+ * 课时资料的展示：大图预览（图片 / 视频 / PDF 直接看，其他文档给下载卡）、缩略条、全屏放映。
  * 版式对应预览页 /bluegamma/courses 的 SlideViewer / CoursePresent，数据换成真实课程资料。
  */
 
-export const MATERIAL_ACCEPT = ".docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
+export const MATERIAL_ACCEPT = ".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
 
 export function materialKind(material: Pick<CourseMaterial, "mimeType">) {
     if (material.mimeType.startsWith("image/")) return "image" as const;
     if (material.mimeType.startsWith("video/")) return "video" as const;
+    if (material.mimeType === "application/pdf") return "pdf" as const;
     return "file" as const;
 }
 
@@ -52,6 +53,8 @@ export function MaterialStage({ material }: { material: CourseMaterial }) {
         return <img src={material.url} alt={material.title} className="mx-auto block h-full max-h-full max-w-full object-contain" />;
     }
     if (kind === "video") return <video key={material.id} src={material.url} controls preload="metadata" className="mx-auto block h-full max-h-full max-w-full" />;
+    // 浏览器自带的 PDF 阅读器：翻页、缩放、下载都由浏览器提供
+    if (kind === "pdf") return <iframe key={material.id} src={material.url} title={material.title} className="block size-full border-0 bg-white" />;
     return (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <span className="grid size-16 place-items-center rounded-2xl bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[var(--gm-accent-ring)]">

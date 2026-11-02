@@ -11,7 +11,7 @@ type DataLifecycleKey = keyof AuthSettings["dataLifecycle"];
 export function DataLifecyclePanel({ settings, onChange }: { settings: AuthSettings; onChange: (key: DataLifecycleKey, value: boolean | number) => void }) {
     const lifecycle = settings.dataLifecycle;
     return (
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4">
             <SectionTitle icon={<DatabaseZap className="size-4" />} title="到期技术数据" />
             <div className="mt-4 grid gap-x-6 gap-y-4 lg:grid-cols-2">
                 <SettingToggle
@@ -47,7 +47,7 @@ export function DataLifecyclePanel({ settings, onChange }: { settings: AuthSetti
                     onChange={(value) => onChange("cleanupExpiredTemporaryMedia", value)}
                 />
             </div>
-            <div className="mt-4 max-w-xs border-t border-stone-200 pt-4 dark:border-stone-800">
+            <div className="mt-4 max-w-xs border-t border-[var(--gm-border)] pt-4">
                 <LabeledControl label="单类每批处理数量">
                     <InputNumber className="w-full" min={1} max={500} precision={0} value={lifecycle.maintenanceBatchSize} onChange={(value) => onChange("maintenanceBatchSize", Number(value))} />
                 </LabeledControl>

@@ -539,6 +539,7 @@ export function normalizeGenerationCostControl(settings: Partial<GenerationCostC
         maxPointsPerTask: Math.max(0, normalizePointAmount(settings?.maxPointsPerTask, 0)),
         dailyUserPointSpend: Math.max(0, normalizePointAmount(settings?.dailyUserPointSpend, 0)),
         dailyTotalPointSpend: Math.max(0, normalizePointAmount(settings?.dailyTotalPointSpend, 0)),
+        needsReviewAutoRefundEnabled: Boolean(settings?.needsReviewAutoRefundEnabled),
     };
 }
 

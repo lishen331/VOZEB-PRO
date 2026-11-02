@@ -236,7 +236,7 @@ export default function WorksPage() {
                     <Input
                         className="min-w-0 flex-1 sm:max-w-sm"
                         allowClear
-                        prefix={<Search className="size-4 text-stone-400" />}
+                        prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                         placeholder="搜索标题或作品链接"
                         value={keyword}
                         onChange={(event) => {
@@ -247,8 +247,8 @@ export default function WorksPage() {
                 </section>
 
                 {error ? (
-                    <section className="mt-4 flex min-h-40 flex-col items-center justify-center gap-3 border-y border-rose-200 px-4 text-center dark:border-rose-900/70">
-                        <p className="text-sm text-rose-700 dark:text-rose-300">{error}</p>
+                    <section className="mt-4 flex min-h-40 flex-col items-center justify-center gap-3 border-y border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] px-4 text-center">
+                        <p className="text-sm text-[var(--gm-danger)]">{error}</p>
                         <Button icon={<RefreshCw className="size-4" />} onClick={() => void load()}>
                             重新加载
                         </Button>
@@ -374,7 +374,7 @@ function WorkListItem({
                             <span>{work.viewCount} 次访问</span>
                             <span>更新于 {formatWorkTime(work.updatedAt)}</span>
                         </div>
-                        {version.rejectionReason ? <div className="mt-1.5 border-l-2 border-rose-400 pl-2 text-xs leading-5 text-rose-700 dark:text-rose-300">驳回原因：{version.rejectionReason}</div> : null}
+                        {version.rejectionReason ? <div className="mt-1.5 border-l-2 border-[var(--gm-danger)] pl-2 text-xs leading-5 text-[var(--gm-danger)]">驳回原因：{version.rejectionReason}</div> : null}
                     </div>
                 </div>
                 <div className="flex min-w-0 flex-wrap gap-1.5 border-t border-[var(--gm-border)] pt-3 md:max-w-md md:shrink-0 md:justify-end md:border-t-0 md:pt-0">

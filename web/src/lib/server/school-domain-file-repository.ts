@@ -44,6 +44,8 @@ import type {
     TeachingSubmissionRecord,
     TeachingSubmissionPageQuery,
     TeachingSubmissionUpdate,
+    CourseCatalogEntryRecord,
+    CourseCatalogPageQuery,
 } from "@/lib/server/school-domain-repository";
 import type { CommercialOrderStatus, SchoolMemberRole, SchoolStatus } from "@/lib/school-domain";
 
@@ -316,11 +318,10 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         const state = await this.read();
         const classIds = role === "student" ? new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.classId)) : null;
         const publishedCourseIds = new Set(state.courses.filter((course) => course.status === "published").map((course) => course.id));
-        const assignmentIds = new Set(
-            state.courseOfferings.filter((item) => item.schoolId === schoolId && item.status === "active" && (role === "teacher" ? item.teacherMembershipId === membershipId : classIds?.has(item.classId))).map((item) => item.assignmentId),
-        );
+        // 老师：本校已解锁的课程都能看到并备课，是否排课（offering）不影响；学生：仍按所在班级判断。
+        const assignmentIds = role === "teacher" ? null : new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && item.status === "active" && classIds?.has(item.classId)).map((item) => item.assignmentId));
         return paginate(
-            state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active" && publishedCourseIds.has(item.courseId) && assignmentIds.has(item.id)),
+            state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active" && publishedCourseIds.has(item.courseId) && (!assignmentIds || assignmentIds.has(item.id))),
             input,
         );
     }
@@ -339,6 +340,30 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
             }))
             .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
         return paginate(courses, input);
+    }
+
+    async listCourseCatalog(schoolId: string, input: CourseCatalogPageQuery) {
+        const state = await this.read();
+        const keyword = input.keyword?.trim().toLowerCase() || "";
+        const scope = input.scope || "all";
+        const activeAssignmentByCourse = new Map(state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active").map((item) => [item.courseId, item] as const));
+        const entries: CourseCatalogEntryRecord[] = state.courses
+            .filter((course) => course.status === "published")
+            .filter((course) => !keyword || `${course.id} ${course.title} ${course.summary}`.toLowerCase().includes(keyword))
+            .map((course) => {
+                const assignment = activeAssignmentByCourse.get(course.id);
+                return {
+                    ...course,
+                    chapterCount: state.courseChapters.filter((item) => item.courseId === course.id).length,
+                    lessonCount: state.courseLessons.filter((item) => item.courseId === course.id).length,
+                    materialCount: state.courseMaterials.filter((item) => item.courseId === course.id && item.status === "active" && item.sourceScope === "platform").length,
+                    ...(assignment ? { assignmentId: assignment.id } : {}),
+                    unlocked: Boolean(assignment),
+                };
+            })
+            .filter((entry) => scope === "all" || (scope === "unlocked" ? entry.unlocked : !entry.unlocked))
+            .sort((a, b) => Number(b.unlocked) - Number(a.unlocked) || b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+        return paginate(entries, input);
     }
 
     async getPlatformCourse(courseId: string) {
@@ -599,6 +624,10 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         return detached((await this.read()).courseAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId));
     }
 
+    async getActiveCourseAssignmentByCourse(schoolId: string, courseId: string) {
+        return detached((await this.read()).courseAssignments.find((item) => item.schoolId === schoolId && item.courseId === courseId && item.status === "active"));
+    }
+
     async hasVisibleCourseAssignment(schoolId: string, membershipId: string, role: SchoolMemberRole, assignmentId: string) {
         const state = await this.read();
         const assignment = state.courseAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId && item.status === "active");
@@ -619,9 +648,9 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
                 (item) => item.schoolId === membership.schoolId && item.courseId === material.courseId && item.status === "active" && (material.sourceScope === "platform" || material.schoolCourseAssignmentId === item.id),
             );
             if (!assignment) return false;
-            if (membership.role === "teacher" && membership.permissions.includes("school.manage")) return true;
+            // 解锁 = 本校老师都可读这门课的资料（排课前也能看课件）；学生仍按所在班级判断
+            if (membership.role === "teacher") return true;
             const offerings = state.courseOfferings.filter((item) => item.schoolId === membership.schoolId && item.assignmentId === assignment.id && item.status === "active");
-            if (membership.role === "teacher") return offerings.some((item) => item.teacherMembershipId === membership.id);
             const classIds = new Set(state.classMembers.filter((item) => item.schoolId === membership.schoolId && item.membershipId === membership.id).map((item) => item.classId));
             return offerings.some((item) => classIds.has(item.classId));
         })

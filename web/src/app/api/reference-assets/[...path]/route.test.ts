@@ -281,6 +281,25 @@ describe("provider-read object video delivery", () => {
         expect(mocks.read).not.toHaveBeenCalled();
     });
 
+    it("proxies object PDFs same-origin so the iframe preview is not blocked by frame-src", async () => {
+        const pdfPath = "permanent/2026/07/20/attachments/file.pdf";
+        const pdfContext = { params: Promise.resolve({ path: pdfPath.split("/") }) };
+        mocks.verify.mockReturnValue(false);
+        mocks.getCurrentUser.mockResolvedValue({ id: "owner", role: "user" });
+        mocks.registration.mockResolvedValue({ ...video, externalObjectKey: "bucket/file.pdf", mimeType: "application/pdf", originalName: "课件.pdf" });
+        mocks.fetch.mockResolvedValue(new Response("%PDF-1.7", { headers: { "Content-Type": "application/pdf", "Content-Length": "8" } }));
+        const response = await GET(new Request(`http://localhost/api/reference-assets/${pdfPath}`), pdfContext);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+        expect(response.headers.get("content-type")).toBe("application/pdf");
+        expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+        expect(await response.text()).toBe("%PDF-1.7");
+        expect(mocks.release).toHaveBeenCalled();
+
+        const download = await GET(new Request(`http://localhost/api/reference-assets/${pdfPath}?download=original`), pdfContext);
+        expect(download.status).toBe(307);
+    });
+
     it.each([
         ["bytes=2-4", "234", "bytes 2-4/10"],
         ["bytes=2-", "23456789", "bytes 2-9/10"],

@@ -17,6 +17,7 @@ describe("generationUserMessage", () => {
         ["内容未通过安全审核：prompt rejected", GENERATION_POLICY_MESSAGE],
         ["Your request was rejected by the content policy (violence)", GENERATION_POLICY_MESSAGE],
         ["HTTP 451 Unavailable For Legal Reasons", GENERATION_POLICY_MESSAGE],
+        ["The response was filtered due to the prompt triggering Azure OpenAI's content management policy.", GENERATION_POLICY_MESSAGE],
         ["积分不足，当前余额 0", "积分不足，请充值后重试"],
         ["The input image contains a real person face", "参考图包含真人人脸，请更换图片后重试"],
         ["The request failed because the output video may be related to copyright restrictions. Request id: 0217916225520000", GENERATION_COPYRIGHT_MESSAGE],

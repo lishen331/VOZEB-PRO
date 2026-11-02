@@ -73,14 +73,14 @@ export function QuotaRuleTable({
     const visibleModels = groupedModels.find((group) => group.value === activeCapability)?.models || [];
     return (
         <div className="min-w-0">
-            <section className="grid gap-3 border-b border-zinc-200 pb-4 sm:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] sm:items-end sm:gap-6 sm:pb-5 dark:border-zinc-800">
+            <section className="grid gap-3 border-b border-[var(--gm-border)] pb-4 sm:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] sm:items-end sm:gap-6 sm:pb-5">
                 <div className="min-w-0">
-                    <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">免费用户每日积分</div>
-                    <p className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">未购买套餐的用户每天自动获得，仅当日有效；套餐每日赠送由商品配置决定，不受此开关影响。</p>
+                    <div className="text-sm font-semibold text-[var(--gm-text)]">免费用户每日积分</div>
+                    <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">未购买套餐的用户每天自动获得，仅当日有效；套餐每日赠送由商品配置决定，不受此开关影响。</p>
                 </div>
                 <div className="grid grid-cols-[auto_minmax(0,1fr)] items-end gap-3">
                     <div className="pb-1">
-                        <div className="mb-1.5 text-xs font-medium text-stone-600 dark:text-stone-300">发放状态</div>
+                        <div className="mb-1.5 text-xs font-medium text-[var(--gm-text-2)]">发放状态</div>
                         <Switch size="small" checked={settings.freeDailyPointsEnabled} checkedChildren="开启" unCheckedChildren="关闭" onChange={onFreeDailyPointsEnabledChange} />
                     </div>
                     <LabeledControl label="每日额度">
@@ -88,9 +88,9 @@ export function QuotaRuleTable({
                     </LabeledControl>
                 </div>
             </section>
-            <section className="border-b border-zinc-200 py-4 sm:py-5 dark:border-zinc-800">
-                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">模型基础扣费</div>
-                <div className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">每次生成先扣除模型基础积分；单独配置的模型使用自己的数值，其他模型使用统一默认值。</div>
+            <section className="border-b border-[var(--gm-border)] py-4 sm:py-5">
+                <div className="text-sm font-semibold text-[var(--gm-text)]">模型基础扣费</div>
+                <div className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">每次生成先扣除模型基础积分；单独配置的模型使用自己的数值，其他模型使用统一默认值。</div>
                 <div className="mt-3 grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-end">
                     <LabeledControl label="其他模型每次默认扣除积分">
                         <InputNumber className="w-full" min={0} precision={2} value={settings.modelPointCosts[DEFAULT_MODEL_POINT_COST_KEY] ?? 1} onChange={(value) => onModelPointCostChange(DEFAULT_MODEL_POINT_COST_KEY, toNumberOrOne(value))} />
@@ -113,7 +113,7 @@ export function QuotaRuleTable({
                         onChange={(value) => setActiveCapability(value as LogicalModelCapability)}
                     />
                 </div>
-                <div className="mt-3 text-[11px] text-stone-400 dark:text-stone-500">当前显示{modelCapabilityOptions.find((item) => item.value === activeCapability)?.label}模型；每个数值均表示该模型每次调用扣除的基础积分。</div>
+                <div className="mt-3 text-[11px] text-[var(--gm-text-3)]">当前显示{modelCapabilityOptions.find((item) => item.value === activeCapability)?.label}模型；每个数值均表示该模型每次调用扣除的基础积分。</div>
                 <div className="mt-3 grid gap-x-5 gap-y-2 md:grid-cols-2">
                     {visibleModels.length ? (
                         visibleModels.map((model) => {
@@ -121,19 +121,19 @@ export function QuotaRuleTable({
                             return (
                                 <div
                                     key={model}
-                                    className="grid min-w-0 grid-cols-[minmax(0,1fr)_76px_28px] items-center gap-2 border-t border-zinc-100 py-2 first:border-t-0 md:[&:nth-child(2)]:border-t-0 dark:border-zinc-900 sm:grid-cols-[minmax(0,1fr)_104px_32px]"
+                                    className="grid min-w-0 grid-cols-[minmax(0,1fr)_76px_28px] items-center gap-2 border-t border-[var(--gm-border)] py-2 first:border-t-0 md:[&:nth-child(2)]:border-t-0 sm:grid-cols-[minmax(0,1fr)_104px_32px]"
                                 >
                                     <div className="min-w-0">
                                         <div className="flex min-w-0 items-center gap-2">
-                                            <span className="block min-w-0 truncate text-sm text-stone-700 dark:text-stone-200" title={logical ? `${logical.name} (${logical.id})` : model}>
+                                            <span className="block min-w-0 truncate text-sm text-[var(--gm-text-2)]" title={logical ? `${logical.name} (${logical.id})` : model}>
                                                 {logical?.name || model}
                                             </span>
                                             <ModelCapabilityTag capability={activeCapability} />
                                         </div>
                                         {logical && logical.name !== logical.id ? (
-                                            <span className="mt-0.5 block truncate text-xs text-stone-400">ID: {logical.id}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-[var(--gm-text-3)]">ID: {logical.id}</span>
                                         ) : !managedModelSet.has(model) ? (
-                                            <span className="mt-0.5 block text-xs text-stone-400">手动添加</span>
+                                            <span className="mt-0.5 block text-xs text-[var(--gm-text-3)]">手动添加</span>
                                         ) : null}
                                     </div>
                                     <InputNumber
@@ -159,15 +159,15 @@ export function QuotaRuleTable({
                             );
                         })
                     ) : (
-                        <div className="rounded-md border border-dashed border-stone-200 px-3 py-6 text-center text-sm text-stone-500 md:col-span-2 dark:border-stone-800">
+                        <div className="rounded-md border border-dashed border-[var(--gm-border)] px-3 py-6 text-center text-sm text-[var(--gm-text-2)] md:col-span-2">
                             当前没有{modelCapabilityOptions.find((item) => item.value === activeCapability)?.label}模型，请先在模型渠道中配置对应能力。
                         </div>
                     )}
                 </div>
             </section>
             <section className="pt-4 sm:pt-5">
-                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">生成参数倍率</div>
-                <div className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">最终扣费 = 模型消耗 × 图片张数/视频任务 × 对应参数倍率；图片为画质倍率 × 清晰度倍率。模型没有画质参数时画质按「自动」计。未命中的自定义参数按 1 倍计算。</div>
+                <div className="text-sm font-semibold text-[var(--gm-text)]">生成参数倍率</div>
+                <div className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">最终扣费 = 模型消耗 × 图片张数/视频任务 × 对应参数倍率；图片为画质倍率 × 清晰度倍率。模型没有画质参数时画质按「自动」计。未命中的自定义参数按 1 倍计算。</div>
                 <div className="mt-3 grid gap-3 xl:grid-cols-2 2xl:grid-cols-[minmax(200px,0.8fr)_minmax(200px,0.8fr)_minmax(200px,0.8fr)_minmax(320px,1.4fr)]">
                     <MultiplierGroup title="图片画质" values={imageQualityMultiplierOptions} group="imageQuality" settings={settings.generationPointMultipliers.imageQuality} onChange={onGenerationPointMultiplierChange} />
                     <MultiplierGroup title="图片清晰度" values={imageResolutionMultiplierOptions} group="imageResolution" settings={settings.generationPointMultipliers.imageResolution || {}} onChange={onGenerationPointMultiplierChange} />
@@ -221,12 +221,12 @@ function MultiplierGroup({
     onChange: (group: keyof AuthSettings["generationPointMultipliers"], key: string, value: number | null) => void;
 }) {
     return (
-        <div className="min-w-0 rounded-md border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/50">
-            <div className="mb-3 text-xs font-semibold text-stone-600 dark:text-stone-300">{title}</div>
+        <div className="min-w-0 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
+            <div className="mb-3 text-xs font-semibold text-[var(--gm-text-2)]">{title}</div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(104px,1fr))]">
                 {values.map((item) => (
-                    <div key={item.key} className="min-w-0 rounded-md border border-stone-200 bg-white px-2 py-2 dark:border-stone-800 dark:bg-stone-950/70">
-                        <div className="mb-1 truncate text-xs font-medium text-stone-600 dark:text-stone-300">{item.label}</div>
+                    <div key={item.key} className="min-w-0 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2 py-2">
+                        <div className="mb-1 truncate text-xs font-medium text-[var(--gm-text-2)]">{item.label}</div>
                         <InputNumber className="w-full" size="small" min={0} precision={2} value={settings[item.key] ?? 1} onChange={(value) => onChange(group, item.key, toNumberOrOne(value))} />
                     </div>
                 ))}
@@ -263,8 +263,8 @@ function VideoSecondsMultiplierGroup({
     };
 
     return (
-        <div className="min-w-0 rounded-md border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/50">
-            <div className="mb-3 text-xs font-semibold text-stone-600 dark:text-stone-300">视频秒数</div>
+        <div className="min-w-0 rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
+            <div className="mb-3 text-xs font-semibold text-[var(--gm-text-2)]">视频秒数</div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(96px,1fr))]">
                 {videoSecondsMultiplierOptions.map((item) => (
                     <VideoSecondMultiplierCell key={item.key} label={item.label} value={settings[item.key] ?? 1} onChange={(value) => onChange("videoSeconds", item.key, value)} />
@@ -292,8 +292,8 @@ function VideoSecondsMultiplierGroup({
 
 function VideoSecondMultiplierCell({ label, value, onChange, onDelete }: { label: string; value: number; onChange: (value: number | null) => void; onDelete?: () => void }) {
     return (
-        <div className="relative min-w-0 rounded-md border border-stone-200 bg-white px-2 py-2 dark:border-stone-800 dark:bg-stone-950/70">
-            <div className="mb-1 truncate pr-6 text-xs font-medium text-stone-600 dark:text-stone-300">{label}</div>
+        <div className="relative min-w-0 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-2 py-2">
+            <div className="mb-1 truncate pr-6 text-xs font-medium text-[var(--gm-text-2)]">{label}</div>
             {onDelete ? <Button className="!absolute right-1 top-1 !h-5 !w-5 !min-w-5 !p-0" size="small" danger icon={<Trash2 className="size-3" />} aria-label="删除自定义秒数" title="删除自定义秒数" onClick={onDelete} /> : null}
             <InputNumber className="w-full" size="small" min={0} precision={2} value={value} onChange={(nextValue) => onChange(toNumberOrOne(nextValue))} />
         </div>

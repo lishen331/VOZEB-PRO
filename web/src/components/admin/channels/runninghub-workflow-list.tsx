@@ -171,8 +171,8 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 render: (_, item) => (
                     <div className="min-w-0">
                         <div className="truncate font-medium">{item.workflowName}</div>
-                        <div className="truncate text-xs text-stone-500">{item.workflowCode || item.workflowKey}</div>
-                        <div className="truncate text-xs text-stone-500">
+                        <div className="truncate text-xs text-[var(--gm-text-3)]">{item.workflowCode || item.workflowKey}</div>
+                        <div className="truncate text-xs text-[var(--gm-text-3)]">
                             {item.adapterType || "generic"} · {runningHubWorkflowSnapshotLabel(item)}
                         </div>
                     </div>
@@ -197,11 +197,11 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 width: 150,
                 render: (_, item) =>
                     item.lastTestAt ? (
-                        <span className={item.requiresRetest ? "text-amber-600" : item.lastTestResult === "success" ? "text-emerald-600" : "text-red-600"}>
+                        <span className={item.requiresRetest ? "text-[var(--gm-warning)]" : item.lastTestResult === "success" ? "text-[var(--gm-success)]" : "text-[var(--gm-danger)]"}>
                             {runningHubWorkflowTestLabel(item)} · {new Date(item.lastTestAt).toLocaleString()}
                         </span>
                     ) : (
-                        <span className={item.requiresRetest ? "text-amber-600" : "text-stone-500"}>{runningHubWorkflowTestLabel(item)}</span>
+                        <span className={item.requiresRetest ? "text-[var(--gm-warning)]" : "text-[var(--gm-text-2)]"}>{runningHubWorkflowTestLabel(item)}</span>
                     ),
             },
             getRunningHubWorkflowActionColumn((_, item) => (
@@ -235,7 +235,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
     );
 
     return (
-        <section className="mt-4 space-y-3 border-t border-stone-200 pt-4 dark:border-stone-800">
+        <section className="mt-4 space-y-3 border-t border-[var(--gm-border)] pt-4">
             {!channel.enabled ? (
                 <div role="alert" className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)]/50 p-3 text-sm">
                     <strong>所属渠道已停用</strong>
@@ -248,7 +248,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                         <span>RunningHub 工作流</span>
                         <Tag>{items.length}</Tag>
                     </div>
-                    <div className="mt-1 text-xs text-stone-500">按业务 code 维护版本和参数契约；API Key 继续由渠道配置管理。</div>
+                    <div className="mt-1 text-xs text-[var(--gm-text-3)]">按业务 code 维护版本和参数契约；API Key 继续由渠道配置管理。</div>
                 </div>
                 <Space>
                     <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={loading} onClick={() => void load()}>
@@ -263,7 +263,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 </Space>
             </div>
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_150px]">
-                <Input allowClear value={search} prefix={<Settings2 className="size-3.5 text-stone-400" />} placeholder="搜索名称、业务 code 或 Workflow ID" onChange={(event) => setSearch(event.target.value)} />
+                <Input allowClear value={search} prefix={<Settings2 className="size-3.5 text-[var(--gm-text-3)]" />} placeholder="搜索名称、业务 code 或 Workflow ID" onChange={(event) => setSearch(event.target.value)} />
                 <Select
                     value={status}
                     options={[
@@ -288,14 +288,14 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
             </div>
             <div className="space-y-2 md:hidden">
                 {items.map((item) => (
-                    <div key={item.workflowKey} className="rounded-md border border-stone-200 p-3 dark:border-stone-800">
+                    <div key={item.workflowKey} className="rounded-md border border-[var(--gm-border)] p-3">
                         <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                                 <div className="truncate text-sm font-medium">{item.workflowName}</div>
-                                <div className="mt-1 text-xs text-stone-500">
+                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">
                                     {labels[item.businessCode]} · {item.workflowCode || item.workflowKey} · v{item.version}
                                 </div>
-                                <div className="mt-1 text-xs text-stone-500">{runningHubWorkflowSnapshotLabel(item)}</div>
+                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">{runningHubWorkflowSnapshotLabel(item)}</div>
                             </div>
                             <Tag color={item.enabled ? "success" : "default"}>{item.enabled ? "启用" : "停用"}</Tag>
                         </div>

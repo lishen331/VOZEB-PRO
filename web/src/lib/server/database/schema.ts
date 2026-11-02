@@ -4,6 +4,7 @@ import { POSTGRESQL_COMMERCIAL_FEATURES_SCHEMA_SQL } from "./schema-commercial-f
 import { POSTGRESQL_IP_LIBRARY_SCHEMA_SQL } from "./schema-ip-library";
 import { POSTGRESQL_SCHOOL_COMPUTE_SCHEMA_SQL } from "./schema-school-compute";
 import { POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL } from "./schema-school-domain";
+import { POSTGRESQL_TEACHING_LESSON_PLANS_SCHEMA_SQL } from "./schema-teaching-lesson-plans";
 import { POSTGRESQL_TRIGGER_SCHEMA_SQL } from "./schema-triggers";
 import { DRAMA_LAB_SCHEMA_SQL } from "./schema-drama-lab";
 
@@ -1167,6 +1168,8 @@ CREATE INDEX IF NOT EXISTS audit_logs_target_idx ON audit_logs (target_type, tar
 ${POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL}
 
 ${POSTGRESQL_SCHOOL_COMPUTE_SCHEMA_SQL}
+
+${POSTGRESQL_TEACHING_LESSON_PLANS_SCHEMA_SQL}
 
 ${POSTGRESQL_IP_LIBRARY_SCHEMA_SQL}
 

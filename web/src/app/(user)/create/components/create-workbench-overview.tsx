@@ -13,9 +13,9 @@ import { cn } from "@/lib/utils";
 import { useCreateWorkbenchOverview } from "../use-create-workbench-overview";
 import { createConversationHref } from "../create-conversation-navigation";
 
-const sectionTitleClass = "text-[15px] font-semibold text-[#1b212f] dark:text-[#f2f5fa]";
-const sectionHintClass = "mt-1 text-xs text-[#8993a9] dark:text-[#7e889d]";
-const panelClass = "rounded-lg border border-[#e4e6ec] bg-white dark:border-[#282f3e] dark:bg-[#111724]";
+const sectionTitleClass = "text-[15px] font-semibold text-[var(--gm-text)]";
+const sectionHintClass = "mt-1 text-xs text-[var(--gm-text-3)]";
+const panelClass = "rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)]";
 const recentAssetVisibilityClasses = ["", "", "hidden sm:block", "hidden lg:block", "hidden xl:block", "hidden 2xl:block"];
 
 export function CreateWorkbenchOverview({ onUseAsset }: { onUseAsset: (asset: CreateOverviewAsset) => Promise<void> }) {
@@ -34,14 +34,14 @@ export function CreateWorkbenchOverview({ onUseAsset }: { onUseAsset: (asset: Cr
     return (
         <div className="mt-3 w-full space-y-3 pb-3 sm:mt-12 sm:space-y-9 sm:pb-8">
             <section aria-labelledby="create-assets-heading">
-                <div className="flex items-end justify-between gap-3 border-b border-[#e8ebf0] pb-3 dark:border-[#252c3a]">
+                <div className="flex items-end justify-between gap-3 border-b border-[var(--gm-border)] pb-3">
                     <div>
                         <h2 id="create-assets-heading" className={sectionTitleClass}>
                             最近生成
                         </h2>
                         <p className={sectionHintClass}>点击图片或视频可直接放大查看</p>
                     </div>
-                    <Link href="/assets" className="inline-flex shrink-0 items-center gap-1 text-xs text-[#687287] transition hover:text-[#1b212f] dark:text-[#9ca2af] dark:hover:text-white">
+                    <Link href="/assets" className="inline-flex shrink-0 items-center gap-1 text-xs text-[var(--gm-text-2)] transition hover:text-[var(--gm-text)]">
                         查看素材库 <ArrowUpRight className="size-3.5" />
                     </Link>
                 </div>
@@ -60,14 +60,14 @@ export function CreateWorkbenchOverview({ onUseAsset }: { onUseAsset: (asset: Cr
             </section>
 
             <section aria-labelledby="create-projects-heading">
-                <div className="flex items-end justify-between gap-3 border-b border-[#e8ebf0] pb-3 dark:border-[#252c3a]">
+                <div className="flex items-end justify-between gap-3 border-b border-[var(--gm-border)] pb-3">
                     <div>
                         <h2 id="create-projects-heading" className={sectionTitleClass}>
                             项目与任务
                         </h2>
                         <p className={sectionHintClass}>回到最近的项目，或查看仍在运行的任务</p>
                     </div>
-                    <Link href="/canvas" className="inline-flex shrink-0 items-center gap-1 text-xs text-[#687287] transition hover:text-[#1b212f] dark:text-[#9ca2af] dark:hover:text-white">
+                    <Link href="/canvas" className="inline-flex shrink-0 items-center gap-1 text-xs text-[var(--gm-text-2)] transition hover:text-[var(--gm-text)]">
                         全部项目 <ArrowUpRight className="size-3.5" />
                     </Link>
                 </div>
@@ -107,10 +107,10 @@ function LatestProjectCard({ project, loading, error, onRetry }: { project?: Ret
             href={`/canvas/${project.id}`}
             className={cn(
                 panelClass,
-                "group grid h-32 grid-cols-[minmax(100px,34%)_minmax(0,1fr)] overflow-hidden transition hover:border-[#cbd1df] hover:shadow-[0_8px_20px_rgba(32,36,42,0.08)] dark:hover:border-[#394154] dark:hover:shadow-black/25 sm:h-44 sm:grid-cols-[minmax(150px,34%)_minmax(0,1fr)]",
+                "group grid h-32 grid-cols-[minmax(100px,34%)_minmax(0,1fr)] overflow-hidden transition hover:border-[var(--gm-border-strong)] hover:shadow-[0_8px_20px_rgba(32,36,42,0.08)] dark:hover:shadow-black/25 sm:h-44 sm:grid-cols-[minmax(150px,34%)_minmax(0,1fr)]",
             )}
         >
-            <div className="relative h-full min-h-0 overflow-hidden bg-[#eef1f6] dark:bg-[#212836]">
+            <div className="relative h-full min-h-0 overflow-hidden bg-[var(--gm-wash-strong)]">
                 <CanvasProjectCover previews={project.previews} />
                 <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
                     <Maximize2 className="size-3" /> Canvas 项目
@@ -118,13 +118,13 @@ function LatestProjectCard({ project, loading, error, onRetry }: { project?: Ret
             </div>
             <div className="flex min-w-0 flex-col justify-between gap-1.5 p-2.5 sm:p-4">
                 <div className="min-w-0">
-                    <p className="text-[11px] text-[#8993a9] dark:text-[#7e889d]">最近编辑 · {formatRecentTime(project.updatedAt)}</p>
-                    <h3 className="mt-1.5 truncate text-sm font-semibold text-[#1b212f] sm:text-base dark:text-[#f2f5fa]">{project.title || "未命名项目"}</h3>
-                    <p className="mt-1.5 text-[11px] text-[#687287] sm:text-xs dark:text-[#9ca2af]">
+                    <p className="text-[11px] text-[var(--gm-text-3)]">最近编辑 · {formatRecentTime(project.updatedAt)}</p>
+                    <h3 className="mt-1.5 truncate text-sm font-semibold text-[var(--gm-text)] sm:text-base">{project.title || "未命名项目"}</h3>
+                    <p className="mt-1.5 text-[11px] text-[var(--gm-text-2)] sm:text-xs">
                         {project.nodeCount} 个节点 · {project.connectionCount} 条连线
                     </p>
                 </div>
-                <span className="inline-flex w-fit items-center gap-1.5 rounded-md bg-[#1b212f] px-2.5 py-1.5 text-xs font-semibold text-white transition group-hover:bg-[#333a49] dark:bg-[#f2f5fa] dark:text-[#1b212f] dark:group-hover:bg-white">
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-md bg-[var(--gm-surface-light)] px-2.5 py-1.5 text-xs font-semibold text-[var(--gm-inverse-text)] transition group-hover:opacity-85">
                     继续编辑 <ArrowUpRight className="size-3.5" />
                 </span>
             </div>
@@ -141,7 +141,7 @@ function CanvasProjectCover({ previews }: { previews: CreateOverviewMedia[] }) {
 
     if (!preview)
         return (
-            <div className="grid size-full place-items-center text-[#8993a9] dark:text-[#727c91]">
+            <div className="grid size-full place-items-center text-[var(--gm-text-3)]">
                 <Maximize2 className="size-8" />
             </div>
         );
@@ -156,21 +156,21 @@ function CanvasProjectCover({ previews }: { previews: CreateOverviewMedia[] }) {
 
 function RecentAssetCard({ asset, importing, onUse }: { asset: CreateOverviewAsset; importing: boolean; onUse: () => void }) {
     return (
-        <div className="group min-w-0 overflow-hidden rounded-lg border border-[#e4e6ec] bg-white transition hover:border-[#cbd1df] hover:shadow-[0_8px_20px_rgba(32,36,42,0.08)] dark:border-[#282f3e] dark:bg-[#111724] dark:hover:border-[#394154] dark:hover:shadow-black/25">
-            <div className="relative overflow-hidden bg-[#eef1f6] dark:bg-[#212836]">
+        <div className="group min-w-0 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] transition hover:border-[var(--gm-border-strong)] hover:shadow-[0_8px_20px_rgba(32,36,42,0.08)] dark:hover:shadow-black/25">
+            <div className="relative overflow-hidden bg-[var(--gm-wash-strong)]">
                 <AgentMediaPreview type={asset.kind} url={browserReadableMediaUrl(asset.url)} title={asset.title} className="aspect-[4/3] max-h-52" />
                 <span className="pointer-events-none absolute left-2 top-2 inline-flex size-7 items-center justify-center rounded-lg bg-black/55 text-white backdrop-blur-sm" aria-hidden="true">
                     {asset.kind === "image" ? <FileImage className="size-3.5" /> : <Video className="size-3.5" />}
                 </span>
             </div>
             <div className="min-w-0 px-2.5 py-2">
-                <p className="truncate text-xs font-medium text-[#333a49] dark:text-[#dee0e6]">{asset.title}</p>
+                <p className="truncate text-xs font-medium text-[var(--gm-text)]">{asset.title}</p>
                 <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
-                    <p className="min-w-0 truncate text-[11px] text-[#9ba1ae] dark:text-[#727c91]">{formatRecentTime(asset.createdAt)}</p>
+                    <p className="min-w-0 truncate text-[11px] text-[var(--gm-text-3)]">{formatRecentTime(asset.createdAt)}</p>
                     <button
                         type="button"
                         disabled={importing}
-                        className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-[#596377] transition hover:bg-[#eef1f6] hover:text-[#1b212f] disabled:cursor-wait disabled:opacity-60 dark:text-[#abb1be] dark:hover:bg-[#212836] dark:hover:text-white"
+                        className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)] disabled:cursor-wait disabled:opacity-60"
                         onClick={onUse}
                         aria-label="引用到 Agent"
                         title="引用到 Agent"
@@ -187,21 +187,21 @@ function RunningTasksCard({ tasks, loading, error, onRetry }: { tasks: CreateOve
     return (
         <div className={cn(panelClass, "flex h-32 min-h-0 flex-col p-3 sm:h-44 sm:p-4")}>
             <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-[#1b212f] dark:text-[#f2f5fa]">运行任务</h3>
-                {tasks.length ? <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#eff2f8] px-2 py-1 text-[11px] font-semibold text-[#4874c8] dark:bg-[#26354f] dark:text-[#adcbff]">{tasks.length}</span> : null}
+                <h3 className="text-sm font-semibold text-[var(--gm-text)]">运行任务</h3>
+                {tasks.length ? <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-[var(--gm-accent-soft)] px-2 py-1 text-[11px] font-semibold text-[var(--gm-accent)]">{tasks.length}</span> : null}
             </div>
             {loading ? <OverviewLoading label="正在读取运行任务..." compact /> : null}
             {!loading && error ? <OverviewError message={error} onRetry={onRetry} compact /> : null}
             {!loading && !error && tasks.length ? (
-                <div className="hide-scrollbar mt-2 min-h-0 flex-1 divide-y divide-[#edf0f5] overflow-y-auto dark:divide-[#252c3a]">
+                <div className="hide-scrollbar mt-2 min-h-0 flex-1 divide-y divide-[var(--gm-border)] overflow-y-auto">
                     {tasks.map((task) => (
                         <TaskRow key={task.id} task={task} />
                     ))}
                 </div>
             ) : null}
             {!loading && !error && !tasks.length ? (
-                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5 text-center text-xs text-[#9ba1ae] dark:text-[#727c91]">
-                    <CheckCircle2 className="size-6 text-[#96a2b8] dark:text-[#66738b]" />
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5 text-center text-xs text-[var(--gm-text-3)]">
+                    <CheckCircle2 className="size-6 text-[var(--gm-text-3)]" />
                     <span>当前没有运行中的任务</span>
                 </div>
             ) : null}
@@ -216,23 +216,23 @@ function TaskRow({ task }: { task: CreateOverviewTask }) {
     const status = task.status === "paused" ? "已暂停" : task.status === "planning" ? "规划中" : "运行中";
     return (
         <Link href={href} className="group flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#f0f3f8] text-[#687287] dark:bg-[#212836] dark:text-[#abb1be]">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--gm-wash-strong)] text-[var(--gm-text-2)]">
                 <Icon className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium text-[#333a49] group-hover:text-[#1b212f] dark:text-[#dee0e6] dark:group-hover:text-white">{task.title || (isImage ? "图片生成" : "视频生成")}</span>
-                <span className="mt-1 block truncate text-[11px] text-[#9ba1ae] dark:text-[#727c91]">
+                <span className="block truncate text-xs font-medium text-[var(--gm-text)]">{task.title || (isImage ? "图片生成" : "视频生成")}</span>
+                <span className="mt-1 block truncate text-[11px] text-[var(--gm-text-3)]">
                     {formatRecentTime(task.createdAt)} · {status}
                 </span>
             </span>
-            <LoaderCircle className="size-4 shrink-0 animate-spin text-[#608bdb]" />
+            <LoaderCircle className="size-4 shrink-0 animate-spin text-[var(--gm-accent)]" />
         </Link>
     );
 }
 
 function OverviewLoading({ label, compact = false }: { label: string; compact?: boolean }) {
     return (
-        <div className={cn("flex items-center justify-center gap-2 text-xs text-[#9ba1ae] dark:text-[#727c91]", compact ? "min-h-20 sm:min-h-32" : "min-h-20 pt-2 sm:min-h-36 sm:pt-3")}>
+        <div className={cn("flex items-center justify-center gap-2 text-xs text-[var(--gm-text-3)]", compact ? "min-h-20 sm:min-h-32" : "min-h-20 pt-2 sm:min-h-36 sm:pt-3")}>
             <LoaderCircle className="size-4 animate-spin" />
             {label}
         </div>
@@ -240,14 +240,14 @@ function OverviewLoading({ label, compact = false }: { label: string; compact?: 
 }
 
 function OverviewEmpty({ label, compact = false }: { label: string; compact?: boolean }) {
-    return <div className={cn("flex items-center justify-center text-center text-xs text-[#9ba1ae] dark:text-[#727c91]", compact ? "min-h-20 sm:min-h-36" : "min-h-20 pt-2 sm:min-h-32 sm:pt-3")}>{label}</div>;
+    return <div className={cn("flex items-center justify-center text-center text-xs text-[var(--gm-text-3)]", compact ? "min-h-20 sm:min-h-36" : "min-h-20 pt-2 sm:min-h-32 sm:pt-3")}>{label}</div>;
 }
 
 function OverviewError({ message, onRetry, compact = false }: { message: string; onRetry: () => void; compact?: boolean }) {
     return (
         <div className={cn("flex flex-col items-center justify-center gap-2 text-center", compact ? "min-h-20 sm:min-h-32" : "min-h-20 pt-2 sm:min-h-36 sm:pt-3")}>
-            <p className="max-w-md text-xs text-[#9a5b5b] dark:text-[#d49a9a]">{message}</p>
-            <button type="button" onClick={onRetry} className="inline-flex items-center gap-1.5 text-xs font-medium text-[#687287] transition hover:text-[#1b212f] dark:text-[#9ca2af] dark:hover:text-white">
+            <p className="max-w-md text-xs text-[var(--gm-danger)]">{message}</p>
+            <button type="button" onClick={onRetry} className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--gm-text-2)] transition hover:text-[var(--gm-text)]">
                 <RefreshCw className="size-3.5" />
                 重新读取
             </button>

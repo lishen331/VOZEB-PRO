@@ -144,7 +144,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
     };
 
     return (
-        <section className="border-t border-stone-200 pt-5 dark:border-stone-800">
+        <section className="border-t border-[var(--gm-border)] pt-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -153,7 +153,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                             默认能力 {readyCount}/{availableDefaultFields.length} 可用
                         </Tag>
                     </div>
-                    <p className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">逻辑模型由渠道模型目录自动生成；同名上游模型跨渠道合并，前端昵称可独立设置。</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">逻辑模型由渠道模型目录自动生成；同名上游模型跨渠道合并，前端昵称可独立设置。</p>
                 </div>
                 <Button icon={<RefreshCw className="size-4" />} onClick={syncChannelModels}>
                     重新同步
@@ -163,7 +163,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="min-w-0">
                     <div className="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px]">
-                        <Input allowClear value={query} prefix={<Search className="size-4 text-stone-400" />} placeholder="搜索模型昵称、ID 或上游模型" onChange={(event) => setQuery(event.target.value)} />
+                        <Input allowClear value={query} prefix={<Search className="size-4 text-[var(--gm-text-3)]" />} placeholder="搜索模型昵称、ID 或上游模型" onChange={(event) => setQuery(event.target.value)} />
                         <Select value={capabilityFilter} options={[{ label: "全部能力", value: "all" }, ...availableCapabilityOptions]} onChange={(value) => setCapabilityFilter(value)} />
                     </div>
                     <div className="max-h-[680px] space-y-2 overflow-y-auto pr-1">
@@ -171,10 +171,10 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                             const resolved = resolveLogicalModelConfig(logicalModels, channels, model.capability, model.id, activeExecutionProfile);
                             const isDefault = Object.values(activeDefaults).some((value) => typeof value === "string" && value.toLowerCase() === model.id.toLowerCase());
                             return (
-                                <div key={model.id} className="flex min-w-0 flex-col gap-3 rounded-lg border border-stone-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800 dark:bg-stone-950">
+                                <div key={model.id} className="flex min-w-0 flex-col gap-3 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span className="truncate text-sm font-semibold text-stone-950 dark:text-stone-100">{model.name}</span>
+                                            <span className="truncate text-sm font-semibold text-[var(--gm-text)]">{model.name}</span>
                                             <Tag className="m-0">{capabilityLabel(model.capability)}</Tag>
                                             <Tag color={model.enabled ? "green" : "default"} className="m-0">
                                                 {model.enabled ? "启用" : "停用"}
@@ -185,10 +185,10 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                                 </Tag>
                                             ) : null}
                                         </div>
-                                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+                                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
                                             <span>ID：{model.id}</span>
                                             <span>{model.bindings.length} 个同名渠道绑定</span>
-                                            <span className={resolved ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>{resolved ? `${resolved.channel.name} / ${resolved.binding.upstreamModel}` : "当前无可用渠道"}</span>
+                                            <span className={resolved ? "text-[var(--gm-success)]" : "text-[var(--gm-warning)]"}>{resolved ? `${resolved.channel.name} / ${resolved.binding.upstreamModel}` : "当前无可用渠道"}</span>
                                         </div>
                                     </div>
                                     <Space className="shrink-0">
@@ -204,7 +204,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     </div>
                 </div>
 
-                <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+                <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <SectionTitle icon={<GitBranch className="size-4" />} title="默认模型" />
                         <AdminModelConnectionTest
@@ -225,7 +225,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                             onChange={(value) => setDefaultPool(value as typeof defaultPool)}
                         />
                     </div>
-                    <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。</p>
+                    <p className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。</p>
                     <div className="mt-4 space-y-4">
                         {availableDefaultFields.map(({ capability, key, label }) => {
                             const options = logicalModels
@@ -254,7 +254,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                         status={activeDefaults[key] && !resolved ? "error" : undefined}
                                         onChange={(value) => updateDefault(key, value || "")}
                                     />
-                                    <div className={`mt-1 flex items-center gap-1 text-xs ${resolved ? "text-stone-500 dark:text-stone-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    <div className={`mt-1 flex items-center gap-1 text-xs ${resolved ? "text-[var(--gm-text-3)]" : "text-[var(--gm-warning)]"}`}>
                                         {!resolved ? <AlertTriangle className="size-3.5 shrink-0" /> : null}
                                         <span>
                                             {resolved
@@ -297,8 +297,8 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             >
                 {draft ? (
                     <>
-                        <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-                            <div className="truncate text-xs text-stone-500 dark:text-stone-400">逻辑 ID：{draft.id}（由上游模型自动建立）</div>
+                        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
+                            <div className="truncate text-xs text-[var(--gm-text-3)]">逻辑 ID：{draft.id}（由上游模型自动建立）</div>
                             <div className="mt-2 grid gap-3 sm:max-w-[456px] sm:grid-cols-[192px_144px_96px]">
                                 <LabeledControl label="前端昵称">
                                     <Input
@@ -321,8 +321,8 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                             </div>
                         </div>
                         <div className="mt-5">
-                            <h3 className="text-sm font-semibold text-stone-950 dark:text-stone-100">同名渠道绑定</h3>
-                            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">渠道与上游模型由目录自动同步；这里调整路由优先级、启停和能力档案。</p>
+                            <h3 className="text-sm font-semibold text-[var(--gm-text)]">同名渠道绑定</h3>
+                            <p className="mt-1 text-xs text-[var(--gm-text-3)]">渠道与上游模型由目录自动同步；这里调整路由优先级、启停和能力档案。</p>
                             <div className="mt-3 space-y-3">
                                 {draft.bindings.map((binding) => (
                                     <BindingEditor
@@ -431,13 +431,13 @@ function BindingEditor({
                 .filter((item) => Number.isSafeInteger(item) && item > 0),
         });
     return (
-        <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+        <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_90px_90px_auto] sm:items-end">
                 <LabeledControl label="渠道">
-                    <div className="flex h-8 items-center truncate rounded-md border border-stone-200 bg-white px-3 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-200">{channel?.name || "渠道已移除"}</div>
+                    <div className="flex h-8 items-center truncate rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 text-sm text-[var(--gm-text-2)]">{channel?.name || "渠道已移除"}</div>
                 </LabeledControl>
                 <LabeledControl label="上游模型">
-                    <div className="flex h-8 items-center truncate rounded-md border border-stone-200 bg-white px-3 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-200">{binding.upstreamModel}</div>
+                    <div className="flex h-8 items-center truncate rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 text-sm text-[var(--gm-text-2)]">{binding.upstreamModel}</div>
                 </LabeledControl>
                 <LabeledControl label="优先级">
                     <InputNumber className="w-full" min={1} max={10000} precision={0} value={binding.priority} onChange={(priority) => onChange({ priority: Number(priority) || 1 })} />
@@ -454,16 +454,16 @@ function BindingEditor({
                     />
                 </div>
             </div>
-            <div className="mt-3 rounded-md border border-stone-200/80 bg-white/70 p-3 dark:border-stone-800 dark:bg-stone-950/40">
+            <div className="mt-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                        <div className="text-xs font-semibold text-stone-700 dark:text-stone-200">能力档案</div>
-                        <div className="mt-1 text-[11px] text-stone-500 dark:text-stone-400">控制参考素材、任务能力和资源限制。</div>
+                        <div className="text-xs font-semibold text-[var(--gm-text-2)]">能力档案</div>
+                        <div className="mt-1 text-[11px] text-[var(--gm-text-3)]">控制参考素材、任务能力和资源限制。</div>
                     </div>
                     <Tag className="m-0">{capabilityLabel(capability)}</Tag>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-stone-600 dark:text-stone-300 sm:col-span-2 lg:col-span-4">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--gm-text-2)] sm:col-span-2 lg:col-span-4">
                         <Checkbox
                             checked={capability === "text" ? profile.supportsImageInput === true : profile.supportsReferenceImage === true}
                             onChange={(event) => updateProfile(capability === "text" ? { supportsImageInput: event.target.checked } : { supportsReferenceImage: event.target.checked })}

@@ -57,7 +57,7 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                         <Input
                             allowClear
                             className="col-span-2 min-w-0 xl:col-span-1"
-                            prefix={<Search className="size-4 text-stone-400" />}
+                            prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                             placeholder="搜索日志"
                             value={generationLogSearch}
                             onChange={(event) => {
@@ -138,8 +138,8 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                         }}
                     />
                 </div>
-                <div className="flex flex-col gap-3 rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-3 dark:border-stone-800 dark:bg-stone-900/40 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-stone-500 dark:text-stone-400">
+                <div className="flex flex-col gap-3 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--gm-text-2)]">
                         <span>共 {generationLogTotal} 条</span>
                         <span>已选 {selectedGenerationLogs.length} 条</span>
                     </div>
@@ -171,7 +171,7 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                             onDelete={() => void deleteGenerationLogsByIds([log.id])}
                         />
                     ))}
-                    {!generationLogs.length && !generationLogsLoading ? <div className="rounded-lg border border-dashed border-stone-300 py-12 text-center text-sm text-stone-500 dark:border-stone-700">暂无生成日志</div> : null}
+                    {!generationLogs.length && !generationLogsLoading ? <div className="rounded-lg border border-dashed border-[var(--gm-border-strong)] py-12 text-center text-sm text-[var(--gm-text-2)]">暂无生成日志</div> : null}
                 </div>
                 <div className="hidden md:block">
                     <Table

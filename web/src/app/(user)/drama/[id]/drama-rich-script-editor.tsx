@@ -45,6 +45,8 @@ import type { DramaScriptRichContent } from "@/lib/drama-script-rich-content";
 import { dramaRichContentToPlainText, normalizeDramaScriptRichContent, plainTextToDramaRichContent } from "@/lib/drama-script-rich-content";
 import type { DramaEpisode } from "../types";
 
+// 颜色保留：以下是用户可选的富文本字色 / 高亮色，会写进剧本内容并随导出保留，
+// 必须是固定色值，不能换成随主题变化的 gm token。
 const TEXT_COLORS = [
     { label: "默认", value: "" },
     { label: "黑", value: "#111827" },

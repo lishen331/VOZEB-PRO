@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MotionConfig } from "motion/react";
 import { App, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import dayjs from "dayjs";
@@ -83,7 +84,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
                 {/* 非画布页面用 gamma-ui 的 message/modal；画布及其共享组件继续走上面 antd 的 App */}
                 <GammaAntAppProvider>
                     <QueryClientProvider client={queryClient}>
-                        <ClientRootInit>{children}</ClientRootInit>
+                        {/* 系统开了「减少动态效果」时，非画布页的 motion 动画只保留透明度变化；画布编辑器本轮不动 */}
+                        <MotionConfig reducedMotion={isCanvasEditorRoute ? "never" : "user"}>
+                            <ClientRootInit>{children}</ClientRootInit>
+                        </MotionConfig>
                     </QueryClientProvider>
                 </GammaAntAppProvider>
             </App>

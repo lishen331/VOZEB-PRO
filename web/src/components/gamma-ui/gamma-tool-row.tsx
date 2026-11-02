@@ -56,8 +56,11 @@ export function GammaToolRow({ featured, subjects, onPick }: { featured: GammaSu
                         onClick={() => onPick(featured.slug)}
                         className="group gm-on-dark relative isolate flex h-[88px] w-[360px] items-center gap-4 overflow-hidden rounded-[var(--gm-radius-lg)] bg-[#061226] px-5 text-left ring-1 ring-[var(--gm-accent-ring)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
                     >
-                        <span aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(120%_140%_at_0%_100%,rgba(0,80,245,0.55),transparent_60%),radial-gradient(80%_120%_at_100%_0%,rgba(40,235,250,0.25),transparent_60%)]" />
-                        <span aria-hidden className="gm-aurora absolute -top-10 -left-6 -z-10 size-32 rounded-full bg-[var(--gm-cyan)] opacity-20 blur-3xl" />
+                        {/* 背景层单独用 clip-path 裁圆角：带 blur / 动画的子层会被提升为合成层，Chromium 下会逃出 overflow-hidden 的圆角，四角漏出方块 */}
+                        <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 [clip-path:inset(0_round_var(--gm-radius-lg))]">
+                            <span className="absolute inset-0 bg-[radial-gradient(120%_140%_at_0%_100%,rgba(0,80,245,0.55),transparent_60%),radial-gradient(80%_120%_at_100%_0%,rgba(40,235,250,0.25),transparent_60%)]" />
+                            <span className="gm-aurora absolute -top-10 -left-6 size-32 rounded-full bg-[var(--gm-cyan)] opacity-20 blur-3xl" />
+                        </span>
                         <GammaCardCorners />
                         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[image:var(--gm-gradient)] text-white shadow-[var(--gm-glow-blue)] transition-transform duration-500 group-hover:rotate-[20deg]">
                             <FeaturedIcon className="size-5" />
@@ -81,10 +84,12 @@ export function GammaToolRow({ featured, subjects, onPick }: { featured: GammaSu
                                 type="button"
                                 onClick={() => onPick(subject.slug)}
                                 whileTap={reduce ? undefined : { scale: 0.97 }}
-                                className="group relative flex h-[88px] w-full min-w-[164px] flex-col justify-between overflow-hidden rounded-[var(--gm-radius-lg)] bg-[var(--gm-surface)] p-4 text-left ring-1 ring-[var(--gm-border)] transition-[box-shadow,background-color] duration-300 hover:bg-[var(--gm-surface-2)] hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                                className="gm-glass gm-glass-refract gm-glass-spec group flex h-[88px] w-full min-w-[164px] flex-col justify-between overflow-hidden rounded-[var(--gm-radius-lg)] p-4 text-left focus-visible:outline-2 focus-visible:outline-[var(--gm-accent)]"
                             >
-                                <span aria-hidden className="pointer-events-none absolute -right-8 -bottom-10 size-28 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" style={{ background: accent.glow }} />
-                                <GammaCardCorners />
+                                {/* 液态玻璃卡：图标直接放在玻璃上不再套小框；hover 时高光与色斑亮起。光斑带 blur，要用 clip-path 裁圆角，否则右下角漏方块 */}
+                                <span aria-hidden className="pointer-events-none absolute inset-0 [clip-path:inset(0_round_var(--gm-radius-lg))]">
+                                    <span className="absolute -right-8 -bottom-10 size-28 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" style={{ background: accent.glow }} />
+                                </span>
                                 {subject.badge ? (
                                     <span
                                         className={cn(
@@ -95,9 +100,7 @@ export function GammaToolRow({ featured, subjects, onPick }: { featured: GammaSu
                                         {subject.badge}
                                     </span>
                                 ) : null}
-                                <span className={cn("relative grid size-8 place-items-center rounded-lg ring-1 ring-[var(--gm-border-strong)] transition-transform duration-300 group-hover:scale-110", accent.chip, accent.text)}>
-                                    <Icon className="size-[17px]" strokeWidth={1.8} />
-                                </span>
+                                <Icon className={cn("relative size-5 transition-transform duration-300 group-hover:scale-110", accent.text)} strokeWidth={1.8} />
                                 <span className="relative flex items-center justify-between gap-2">
                                     <span className="truncate text-[14px] font-semibold text-[var(--gm-text)]">{subject.name}</span>
                                     <ArrowRight className="size-4 shrink-0 text-[var(--gm-text-3)] transition-[transform,color] duration-300 group-hover:translate-x-1 group-hover:text-[var(--gm-accent)]" />

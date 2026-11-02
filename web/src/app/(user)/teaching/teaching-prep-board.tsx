@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { BookOpen, Layers, Paperclip, Search, Users } from "lucide-react";
@@ -85,7 +85,18 @@ function greeting() {
     return hour < 11 ? "上午好" : hour < 13 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
 }
 
+/*
+ * 问候语依赖浏览器本地时间，而服务端容器是 UTC：直接渲染会让首屏 HTML 与客户端结果不一致
+ * （React #418 hydration 文本不匹配）。首屏先不写时段，挂载后再补。
+ */
+function useLocalGreeting() {
+    const [value, setValue] = useState("");
+    useEffect(() => setValue(greeting()), []);
+    return value;
+}
+
 export function TeachingPrepBoard({ teacherName, schoolName, courses, offerings, prepared, loading }: TeachingPrepBoardProps) {
+    const timeGreeting = useLocalGreeting();
     const [scope, setScope] = useState<Scope>("all");
     const [query, setQuery] = useState("");
     const classesByAssignment = useMemo(() => {
@@ -114,7 +125,8 @@ export function TeachingPrepBoard({ teacherName, schoolName, courses, offerings,
                     <div aria-hidden className="gm-aurora pointer-events-none absolute -top-16 right-10 size-56 rounded-full bg-[var(--gm-blue)] opacity-25 blur-3xl" />
                     <p className="relative text-xs text-[var(--gm-text-3)]">{schoolName || "学校课程"}</p>
                     <h2 className="relative mt-1 text-2xl font-semibold">
-                        {teacherName}，{greeting()}
+                        {teacherName}
+                        {timeGreeting ? `，${timeGreeting}` : ""}
                     </h2>
                     <p className="relative mt-1 text-sm text-[var(--gm-text-2)]">课程章节、课时资料都在这里，点开一门课开始备课。</p>
                     <dl className="relative mt-5 flex gap-8">
@@ -141,6 +153,7 @@ export function TeachingPrepBoard({ teacherName, schoolName, courses, offerings,
                         <span className="absolute inset-0 -z-10 transition-transform duration-700 group-hover:scale-105">
                             <TeachingCourseCover seed={resume.course.id} coverUrl={resume.course.coverUrl} />
                         </span>
+                        {/* 颜色保留：压在封面图上的固定深色遮罩，保证白字在深浅两套主题下都可读；gm token 会随主题变浅，故不迁 */}
                         <span className="absolute inset-0 -z-10 bg-gradient-to-r from-[#060a18]/75 via-[#060a18]/35 to-transparent" />
                         <span className="flex flex-col justify-between gap-6">
                             <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] backdrop-blur">
@@ -153,7 +166,7 @@ export function TeachingPrepBoard({ teacherName, schoolName, courses, offerings,
                                     {classesByAssignment.get(resume.id)?.length ? ` · ${classesByAssignment.get(resume.id)?.join("、")}` : ""}
                                 </span>
                             </span>
-                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-[var(--gm-text)] transition-transform group-hover:translate-x-1 dark:bg-[var(--gm-surface)]">进入备课 →</span>
+                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[var(--gm-surface)] px-3.5 py-1.5 text-xs font-semibold text-[var(--gm-text)] transition-transform group-hover:translate-x-1">进入备课 →</span>
                         </span>
                     </Link>
                 ) : null}

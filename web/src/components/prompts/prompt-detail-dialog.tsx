@@ -27,7 +27,7 @@ export function PromptDetailDialog({ prompt, previewUrl, onClose, onCopy, onSave
                                         imageClassName="mx-auto block h-auto max-h-[65vh] max-w-full object-contain"
                                     />
                                 ) : (
-                                    <div className="flex aspect-[4/3] w-full items-center justify-center rounded-lg bg-stone-100 px-5 text-center text-sm font-medium text-stone-500 dark:bg-stone-900 dark:text-stone-400">{prompt.title}</div>
+                                    <div className="flex aspect-[4/3] w-full items-center justify-center rounded-lg bg-[var(--gm-wash-strong)] px-5 text-center text-sm font-medium text-[var(--gm-text-2)]">{prompt.title}</div>
                                 )}
                             </div>
                             <div className="min-w-0">
@@ -38,8 +38,8 @@ export function PromptDetailDialog({ prompt, previewUrl, onClose, onCopy, onSave
                                         </Tag>
                                     ))}
                                 </div>
-                                <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-stone-800 dark:text-stone-300">{prompt.prompt}</p>
-                                <div className="mt-4 text-xs text-stone-500 dark:text-stone-400">
+                                <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[var(--gm-text)]">{prompt.prompt}</p>
+                                <div className="mt-4 text-xs text-[var(--gm-text-3)]">
                                     创建：{formatPromptDate(prompt.createdAt)} · 更新：{formatPromptDate(prompt.updatedAt)}
                                 </div>
                                 <Space wrap className="mt-5">

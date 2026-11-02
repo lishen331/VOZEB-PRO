@@ -52,12 +52,12 @@ export function AdminWalletSection({ controller }: { controller: AdminDashboardC
                         />
                         <FinanceFlowItem title="积分负债" amount={`${formatCreditAmount(walletSummary.totalBalance)} 积分`} description="所有用户当前积分余额，代表平台仍需履约的生成额度。" icon={<WalletCards className="size-4" />} />
                     </div>
-                    <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-3 sm:p-4 dark:border-stone-800 dark:bg-stone-900/40">
-                        <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">财务口径说明</div>
-                        <div className="mt-2 line-clamp-2 text-xs leading-5 text-stone-500 sm:line-clamp-none sm:text-sm sm:leading-6 dark:text-stone-400">
+                    <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)] p-3 sm:p-4">
+                        <div className="text-sm font-semibold text-[var(--gm-text)]">财务口径说明</div>
+                        <div className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)] sm:line-clamp-none sm:text-sm sm:leading-6">
                             财务流水只保留收入、退款、积分负债和对账口径。套餐管理负责商品权益，订单管理负责收款与售后，支付渠道负责密钥和回调。
                         </div>
-                        <div className="mt-4 grid gap-2 rounded-lg border border-stone-200 bg-white p-3 text-sm dark:border-stone-800 dark:bg-stone-950">
+                        <div className="mt-4 grid gap-2 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 text-sm">
                             <FinanceMiniRow label="总订单" value={`${billingSummary?.orders.total || 0} 笔`} />
                             <FinanceMiniRow
                                 label="对账异常"

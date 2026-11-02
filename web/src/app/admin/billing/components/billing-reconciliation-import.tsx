@@ -124,11 +124,11 @@ export function BillingReconciliationImport({ open, onClose }: BillingReconcilia
         >
             <div className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)_auto] sm:items-end">
-                    <label className="block text-sm font-medium text-stone-700 dark:text-stone-200">
+                    <label className="block text-sm font-medium text-[var(--gm-text-2)]">
                         支付渠道
                         <Select className="mt-2 w-full" value={provider} options={providerOptions} onChange={setProvider} />
                     </label>
-                    <div className="min-w-0 text-xs leading-5 text-stone-500 dark:text-stone-400">支持 CSV 表头：商户订单号、支付流水号、金额、币种、状态；也兼容 order_no、payment_id、amount、currency、status。</div>
+                    <div className="min-w-0 text-xs leading-5 text-[var(--gm-text-3)]">支持 CSV 表头：商户订单号、支付流水号、金额、币种、状态；也兼容 order_no、payment_id、amount、currency、status。</div>
                     <Button icon={<FileUp className="size-4" />} onClick={() => fileInputRef.current?.click()}>
                         选择 CSV
                     </Button>
@@ -167,7 +167,7 @@ function ReconciliationResultView({ result }: { result: BillingReconciliationRes
     return (
         <div className="space-y-4">
             {result.runId ? (
-                <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gm-text-3)]">
                     <Tag color={result.issueRows ? "red" : "green"} className="m-0">
                         已保存批次
                     </Tag>
@@ -210,18 +210,18 @@ function RecentRunsTable({ runs, loading, detailLoadingId, onRefresh, onOpen }: 
             title: "结果",
             width: 180,
             render: (_, run) => (
-                <div className="text-xs leading-5 text-stone-600 dark:text-stone-300">
+                <div className="text-xs leading-5 text-[var(--gm-text-2)]">
                     <div>
                         {run.totalRows} 行 / 匹配 {run.matchedRows}
                     </div>
-                    <div className={run.issueRows ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-300"}>异常 {run.issueRows}</div>
+                    <div className={run.issueRows ? "text-[var(--gm-danger)]" : "text-[var(--gm-success)]"}>异常 {run.issueRows}</div>
                 </div>
             ),
         },
         {
             title: "差额",
             width: 120,
-            render: (_, run) => <span className={run.differenceAmountCents ? "text-rose-600 dark:text-rose-300" : ""}>{formatMoney(run.differenceAmountCents)}</span>,
+            render: (_, run) => <span className={run.differenceAmountCents ? "text-[var(--gm-danger)]" : ""}>{formatMoney(run.differenceAmountCents)}</span>,
         },
         {
             title: "操作",
@@ -237,7 +237,7 @@ function RecentRunsTable({ runs, loading, detailLoadingId, onRefresh, onOpen }: 
     return (
         <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">最近对账批次</div>
+                <div className="text-sm font-semibold text-[var(--gm-text)]">最近对账批次</div>
                 <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={loading} onClick={() => onRefresh()}>
                     刷新
                 </Button>
@@ -258,8 +258,8 @@ const columns: TableColumnsType<BillingReconciliationRow> = [
         width: 260,
         render: (_, row) => (
             <div className="min-w-0">
-                <div className="truncate font-medium text-stone-950 dark:text-stone-100">{row.orderNo || row.providerPaymentId || row.providerOrderId || "-"}</div>
-                <div className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">
+                <div className="truncate font-medium text-[var(--gm-text)]">{row.orderNo || row.providerPaymentId || row.providerOrderId || "-"}</div>
+                <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">
                     {statusLabel(row.statementStatus)} / {row.amountCents === undefined ? "-" : formatMoney(row.amountCents, row.currency)}
                 </div>
             </div>
@@ -270,8 +270,8 @@ const columns: TableColumnsType<BillingReconciliationRow> = [
         width: 240,
         render: (_, row) => (
             <div className="min-w-0">
-                <div className="truncate font-medium text-stone-950 dark:text-stone-100">{row.localOrderNo || "-"}</div>
-                <div className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">
+                <div className="truncate font-medium text-[var(--gm-text)]">{row.localOrderNo || "-"}</div>
+                <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">
                     {row.localOrderStatus || "-"} / {row.localAmountCents === undefined ? "-" : formatMoney(row.localAmountCents, row.localCurrency)}
                 </div>
             </div>
@@ -300,7 +300,7 @@ const columns: TableColumnsType<BillingReconciliationRow> = [
 function ResultMetric({ label, value, tone = "slate" }: { label: string; value: string | number; tone?: "slate" | "rose" | "emerald" }) {
     return (
         <div
-            className={`rounded-lg border px-3 py-2 ${tone === "rose" ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200" : tone === "emerald" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-stone-200 bg-stone-50 text-stone-700 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-200"}`}
+            className={`rounded-lg border px-3 py-2 ${tone === "rose" ? "border-[color-mix(in_srgb,var(--gm-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-danger)_10%,transparent)] text-[var(--gm-danger)]" : tone === "emerald" ? "border-[color-mix(in_srgb,var(--gm-success)_40%,transparent)] bg-[color-mix(in_srgb,var(--gm-success)_10%,transparent)] text-[var(--gm-success)]" : "border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-2)]"}`}
         >
             <div className="flex items-center gap-1.5 text-xs">
                 {tone === "rose" ? <AlertTriangle className="size-3.5" /> : null}

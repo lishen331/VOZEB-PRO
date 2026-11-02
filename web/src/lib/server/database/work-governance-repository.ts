@@ -45,7 +45,15 @@ export class WorkGovernanceRepository {
                AND version.moderation_status = 'approved'
                AND version.visibility = 'public'
                AND EXISTS (SELECT 1 FROM published_work_assets visible_asset WHERE visible_asset.version_id = version.id AND visible_asset.role = 'content' AND visible_asset.media_type IN ('image', 'video'))
-               AND ($1 = '' OR lower(version.category) = lower($1))
+               AND ($1 = '' OR lower(CASE
+                    WHEN work.publication_origin = 'official' AND (version.category LIKE '01\\_%' ESCAPE '\\' OR version.category ILIKE '%建筑%' OR version.category ILIKE '%室内%') THEN '视觉设计'
+                    WHEN work.publication_origin = 'official' AND (version.category LIKE '02\\_%' ESCAPE '\\' OR version.category ILIKE '%广告%' OR version.category ILIKE '%电商%') THEN '品牌内容'
+                    WHEN work.publication_origin = 'official' AND (version.category LIKE '03\\_%' ESCAPE '\\' OR version.category ILIKE '%电影%' OR version.category ILIKE '%影视%') THEN '视频'
+                    WHEN work.publication_origin = 'official' AND (version.category LIKE '04\\_%' ESCAPE '\\' OR version.category ILIKE '%动漫%' OR version.category ILIKE '%游戏%') THEN '插画'
+                    WHEN work.publication_origin = 'official' AND (version.category LIKE '05\\_%' ESCAPE '\\' OR version.category ILIKE '%短视频%' OR version.category ILIKE '%vlog%') THEN '视频'
+                    WHEN work.publication_origin = 'official' THEN '其他'
+                    ELSE version.category
+               END) = lower($1))
                AND ($2 = '' OR version.tags ? $2)
                AND ($3 = '' OR to_tsvector('simple', coalesce(version.title, '') || ' ' || coalesce(version.description, '') || ' ' || coalesce(version.category, '')) @@ plainto_tsquery('simple', $3) OR lower(version.title) LIKE lower($4))
                AND (NOT $5::boolean OR work.is_featured)
@@ -188,15 +196,26 @@ export class WorkGovernanceRepository {
     }
 }
 
+const FEATURED_AT = "coalesce(work.featured_at, to_timestamp(0))";
+
 function galleryOrder(sort: GallerySort) {
-    if (sort === "random") return "md5(work.id || gallery_cursor.random_seed) ASC, work.id ASC";
+    // 推荐：精选作品固定在最前（最近设为精选的排第一），其余按随机种子打乱
+    if (sort === "random") return `work.is_featured DESC, ${FEATURED_AT} DESC, md5(work.id || gallery_cursor.random_seed) ASC, work.id ASC`;
     if (sort === "popular") return "work.view_count DESC, coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
     if (sort === "latest") return "coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
     return "work.is_featured DESC, coalesce(work.featured_at, to_timestamp(0)) DESC, coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
 }
 
 function galleryCursorClause(sort: GallerySort) {
-    if (sort === "random") return "(gallery_cursor.work_id IS NULL OR (md5(work.id || gallery_cursor.random_seed), work.id) > (gallery_cursor.random_rank, gallery_cursor.work_id))";
+    if (sort === "random") {
+        // 前两列降序、后两列升序，行比较表达不了混合方向，只能展开写
+        const rank = "(CASE WHEN work.is_featured THEN 1 ELSE 0 END)";
+        return `(gallery_cursor.work_id IS NULL
+                 OR ${rank} < gallery_cursor.feature_rank
+                 OR (${rank} = gallery_cursor.feature_rank AND ${FEATURED_AT} < gallery_cursor.featured_at)
+                 OR (${rank} = gallery_cursor.feature_rank AND ${FEATURED_AT} = gallery_cursor.featured_at
+                     AND (md5(work.id || gallery_cursor.random_seed), work.id) > (gallery_cursor.random_rank, gallery_cursor.work_id)))`;
+    }
     if (sort === "popular") return "(gallery_cursor.work_id IS NULL OR (work.view_count, coalesce(version.reviewed_at, version.updated_at), work.id) < (gallery_cursor.view_count, gallery_cursor.published_at, gallery_cursor.work_id))";
     if (sort === "latest") return "(gallery_cursor.work_id IS NULL OR (coalesce(version.reviewed_at, version.updated_at), work.id) < (gallery_cursor.published_at, gallery_cursor.work_id))";
     return "(gallery_cursor.work_id IS NULL OR ((CASE WHEN work.is_featured THEN 1 ELSE 0 END), coalesce(work.featured_at, to_timestamp(0)), coalesce(version.reviewed_at, version.updated_at), work.id) < (gallery_cursor.feature_rank, gallery_cursor.featured_at, gallery_cursor.published_at, gallery_cursor.work_id))";

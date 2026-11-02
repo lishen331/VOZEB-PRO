@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Eye, Film, Heart, ImageOff, Play, RotateCw, Search, Sparkles } from "lucide-react";
@@ -18,6 +18,7 @@ import { listPublicGallery, type PublicGalleryItem } from "@/services/api/work-g
 /*
  * 新首页下半屏：公开作品广场（真实数据 /api/public/gallery）。
  * 推荐 / 精选 / 最新 三个排序 + 关键词 + 作品分类筛选 + 瀑布流；点作品打开公开作品详情弹窗。
+ * 瀑布流按行排：接口顺序里的前 N 个作品正好铺满第一行（推荐页精选置顶靠这个呈现）。
  */
 
 type FeedSort = "random" | "featured" | "latest";
@@ -98,6 +99,46 @@ export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: (
 
 const MASONRY = "columns-2 gap-3 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6 [&>*]:mb-3";
 
+/** 与 MASONRY 的断点一致：md 3 列、lg 4 列、xl 5 列、2xl 6 列 */
+const COLUMN_BREAKPOINTS = [
+    { query: "(min-width: 1536px)", columns: 6 },
+    { query: "(min-width: 1280px)", columns: 5 },
+    { query: "(min-width: 1024px)", columns: 4 },
+    { query: "(min-width: 768px)", columns: 3 },
+];
+const MIN_COLUMNS = 2;
+
+function currentColumnCount() {
+    return COLUMN_BREAKPOINTS.find((item) => window.matchMedia(item.query).matches)?.columns ?? MIN_COLUMNS;
+}
+
+function subscribeColumnCount(onChange: () => void) {
+    const lists = COLUMN_BREAKPOINTS.map((item) => window.matchMedia(item.query));
+    lists.forEach((list) => list.addEventListener("change", onChange));
+    return () => lists.forEach((list) => list.removeEventListener("change", onChange));
+}
+
+function useColumnCount() {
+    return useSyncExternalStore(subscribeColumnCount, currentColumnCount, () => MIN_COLUMNS);
+}
+
+/** 卡片相对宽度的高度：封面 3:4 或 4:3，加上底部信息栏约 0.25 */
+const TALL_HEIGHT = 4 / 3 + 0.25;
+const WIDE_HEIGHT = 3 / 4 + 0.25;
+
+/** 逐个放进当前最矮的一列（同高取最左），前 columnCount 个作品因此依次落在第一行 */
+export function distributeToColumns<T>(items: T[], columnCount: number, isTall: (index: number) => boolean) {
+    const columns = Array.from({ length: Math.max(1, columnCount) }, () => ({ height: 0, entries: [] as Array<{ item: T; index: number }> }));
+    items.forEach((item, index) => {
+        const target = columns.reduce((lowest, column) => (column.height < lowest.height ? column : lowest), columns[0]);
+        target.entries.push({ item, index });
+        target.height += isTall(index) ? TALL_HEIGHT : WIDE_HEIGHT;
+    });
+    return columns.map((column) => column.entries);
+}
+
+const isTallCard = (index: number) => index % 3 === 0;
+
 function GalleryBody({
     query,
     items,
@@ -152,10 +193,20 @@ function GalleryBody({
             />
         );
     }
+    return <GalleryColumns items={items} onPreview={onPreview} />;
+}
+
+function GalleryColumns({ items, onPreview }: { items: PublicGalleryItem[]; onPreview: (slug: string) => void }) {
+    const columnCount = useColumnCount();
+    const columns = useMemo(() => distributeToColumns(items, columnCount, isTallCard), [items, columnCount]);
     return (
-        <div className={MASONRY} data-testid="home-public-gallery">
-            {items.map((item, index) => (
-                <GalleryCard key={item.slug} item={item} tall={index % 3 === 0} onPreview={() => onPreview(item.slug)} />
+        <div className="flex items-start gap-3" data-testid="home-public-gallery">
+            {columns.map((entries, columnIndex) => (
+                <div key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-3">
+                    {entries.map(({ item, index }) => (
+                        <GalleryCard key={item.slug} item={item} tall={isTallCard(index)} onPreview={() => onPreview(item.slug)} />
+                    ))}
+                </div>
             ))}
         </div>
     );

@@ -92,6 +92,7 @@ export default async function PrivacyPage() {
                 </Link>
 
                 <article className="mt-5 overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] shadow-[var(--gm-shadow)]">
+                    {/* 跳过：法务页品牌头图在深浅主题下都保持深底白字，gm 无对应的常暗面 token */}
                     <header className="bg-[#070c19] px-5 py-8 text-white sm:px-9 sm:py-10">
                         <div className="inline-flex items-center gap-2 text-sm font-medium text-[var(--gm-cyan)]">
                             <ShieldCheck className="size-4" />

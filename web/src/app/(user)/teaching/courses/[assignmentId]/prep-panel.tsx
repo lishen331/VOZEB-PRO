@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ClipboardList, Download, FileText, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Download, FileText, NotebookPen, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { GammaBadge } from "@/components/gamma-ui/gamma-controls";
@@ -13,13 +13,14 @@ import type { PrepLesson } from "@/app/(user)/teaching/teaching-routes";
 import { MATERIAL_ACCEPT, MaterialIcon, formatBytes, materialDownloadHref } from "./prep-materials";
 
 /*
- * 右栏：课时说明 / 资料 / 作业 三个标签（结构同 /bluegamma/courses 的 PrepPanel）。
+ * 右栏：教案（老师自己编辑，默认标签）/ 课程说明 / 资料 / 作业（结构同 /bluegamma/courses 的 PrepPanel）。
  * 资料：平台标准资料只读；本校补充资料可上传、重命名、删除（对所有使用此课程的班级可见）。
  */
 
-type PanelTab = "plan" | "files" | "tasks";
+type PanelTab = "lesson-plan" | "plan" | "files" | "tasks";
 const PANEL_TABS: readonly { key: PanelTab; label: string; icon: typeof FileText }[] = [
-    { key: "plan", label: "课时说明", icon: FileText },
+    { key: "lesson-plan", label: "教案", icon: NotebookPen },
+    { key: "plan", label: "课程说明", icon: FileText },
     { key: "files", label: "资料", icon: Paperclip },
     { key: "tasks", label: "作业", icon: ClipboardList },
 ];
@@ -182,12 +183,14 @@ export interface PrepPanelProps {
     actions: MaterialActions;
     assignments: readonly TeachingAssignment[];
     canCreateAssignment: boolean;
+    /** 「教案」标签的内容（编辑器由页面提供，面板只负责摆放） */
+    planEditor: ReactNode;
     onCreateAssignment: () => void;
     onOpenAssignments: () => void;
 }
 
-export function PrepPanel({ lesson, actions, assignments, canCreateAssignment, onCreateAssignment, onOpenAssignments }: PrepPanelProps) {
-    const [tab, setTab] = useState<PanelTab>("plan");
+export function PrepPanel({ lesson, actions, assignments, canCreateAssignment, planEditor, onCreateAssignment, onOpenAssignments }: PrepPanelProps) {
+    const [tab, setTab] = useState<PanelTab>("lesson-plan");
     const reduce = useReducedMotion();
     return (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -216,7 +219,9 @@ export function PrepPanel({ lesson, actions, assignments, canCreateAssignment, o
                 ))}
             </div>
             <div className="gm-scroll min-h-0 flex-1 overflow-y-auto p-4">
-                {tab === "plan" ? (
+                {tab === "lesson-plan" ? (
+                    planEditor
+                ) : tab === "plan" ? (
                     <PlanTab lesson={lesson} actions={actions} />
                 ) : tab === "files" ? (
                     <FilesTab lesson={lesson} actions={actions} />

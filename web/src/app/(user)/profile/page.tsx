@@ -180,8 +180,8 @@ export default function ProfilePage() {
             <div className="mx-auto w-full max-w-[1280px] pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-[calc(2rem+env(safe-area-inset-bottom))]">
                 <div className="mb-1 flex items-center justify-end gap-1.5 sm:mb-5 sm:justify-between sm:gap-3 sm:rounded-xl sm:border sm:border-[var(--gm-border)] sm:bg-[var(--gm-surface)] sm:p-6 sm:text-card-foreground">
                     <div className="hidden min-w-0 sm:block">
-                        <h1 className="text-lg font-semibold text-stone-950 sm:text-2xl dark:text-white">个人中心</h1>
-                        <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-stone-500 sm:block dark:text-stone-400">个人资料、套餐优惠、订单记录、消费记录和积分流水统一放在一个用户后台里。</p>
+                        <h1 className="text-lg font-semibold text-[var(--gm-text)] sm:text-2xl">个人中心</h1>
+                        <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-[var(--gm-text-2)] sm:block">个人资料、套餐优惠、订单记录、消费记录和积分流水统一放在一个用户后台里。</p>
                     </div>
                     <div className="flex shrink-0 gap-2">
                         <Button size="small" className={profileSecondaryButtonClass} icon={<RefreshCw className="size-3.5 sm:size-4" />} loading={accountLoading} onClick={() => void refreshAccount()}>
@@ -318,17 +318,17 @@ export default function ProfilePage() {
 
                                     <LoginSecurityPanel />
 
-                                    <div className="max-w-xl space-y-4 border-t border-stone-200 pt-5 dark:border-stone-800">
+                                    <div className="max-w-xl space-y-4 border-t border-[var(--gm-border)] pt-5">
                                         <div>
-                                            <h3 className="text-sm font-semibold text-stone-950 dark:text-white">登录密码</h3>
-                                            <p className="mt-1 text-sm leading-6 text-stone-500 dark:text-stone-400">修改密码后会退出当前登录，需要使用新密码重新登录。</p>
+                                            <h3 className="text-sm font-semibold text-[var(--gm-text)]">登录密码</h3>
+                                            <p className="mt-1 text-sm leading-6 text-[var(--gm-text-2)]">修改密码后会退出当前登录，需要使用新密码重新登录。</p>
                                         </div>
                                         <label className="block space-y-2">
-                                            <span className="text-sm font-medium text-stone-700 dark:text-stone-200">当前密码</span>
+                                            <span className="text-sm font-medium text-[var(--gm-text-2)]">当前密码</span>
                                             <Input.Password value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
                                         </label>
                                         <label className="block space-y-2">
-                                            <span className="text-sm font-medium text-stone-700 dark:text-stone-200">新密码</span>
+                                            <span className="text-sm font-medium text-[var(--gm-text-2)]">新密码</span>
                                             <Input.Password value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="至少 8 位" />
                                         </label>
                                         <Button danger className={profileDangerButtonClass} loading={savingPassword} icon={<ShieldCheck className="size-4" />} onClick={() => void savePassword()}>
@@ -336,11 +336,11 @@ export default function ProfilePage() {
                                         </Button>
                                     </div>
 
-                                    <div className="border-t border-stone-200 pt-5 dark:border-stone-800">
+                                    <div className="border-t border-[var(--gm-border)] pt-5">
                                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                             <div className="min-w-0">
-                                                <h3 className="text-sm font-semibold text-stone-950 dark:text-white">个人数据</h3>
-                                                <p className="mt-1 text-sm leading-6 text-stone-500 dark:text-stone-400">导出账户、积分、订单和创作记录。媒体原文件与安全凭据不包含在 JSON 中。</p>
+                                                <h3 className="text-sm font-semibold text-[var(--gm-text)]">个人数据</h3>
+                                                <p className="mt-1 text-sm leading-6 text-[var(--gm-text-2)]">导出账户、积分、订单和创作记录。媒体原文件与安全凭据不包含在 JSON 中。</p>
                                             </div>
                                             <Button className={`${profileSecondaryButtonClass} shrink-0`} loading={exportingData} icon={<Download className="size-4" />} onClick={() => void exportUserData()}>
                                                 导出我的数据

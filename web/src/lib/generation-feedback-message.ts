@@ -13,7 +13,7 @@ const LAST_FRAME_CONFLICT_PATTERN = /last[\s_-]?frame.{0,80}(cannot|can't|can no
 
 const REAL_FACE_PATTERN = /人脸|真人|肖像|real[\s_-]?person|human[\s_-]?face|\bfaces?\b|portrait|likeness|celebrit/i;
 const POLICY_PATTERN =
-    /\b451\b|色情|裸露|低俗|涉黄|暴力|血腥|涉政|政治敏感|敏感|违规|违禁|审核未通过|未通过.{0,6}审核|安全策略|内容安全|sexual|nsfw|nudity|porn|violen|gore|politic|sensitive|moderation|content[\s_-]?(policy|filter|safety)|safety[\s_-]?(system|filter|check)|prohibited|inappropriate/i;
+    /\b451\b|色情|裸露|低俗|涉黄|暴力|血腥|涉政|政治敏感|敏感|违规|违禁|审核未通过|未通过.{0,6}审核|安全策略|内容安全|sexual|nsfw|nudity|porn|violen|gore|politic|sensitive|moderation|content[\s_-]?management[\s_-]?policy|content[\s_-]?(policy|filter|safety)|safety[\s_-]?(system|filter|check)|prohibited|inappropriate/i;
 const UNAVAILABLE_PATTERN =
     /模型暂时不可用|模型暂不可用|没有可用.{0,6}(渠道|模型)|无可用.{0,6}渠道|模型.{0,6}(不存在|已下线|未启用|不支持)|渠道.{0,6}(繁忙|已满|满载)|鉴权失败|参数不被模型支持|model[\s_-]?not[\s_-]?found|no available channel|quota is not enough|insufficient[\s_-]?quota|unauthorized|forbidden|invalid api key/i;
 // 前端自己生成、用户能据此操作的文案，展示时原样保留。

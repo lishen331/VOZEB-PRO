@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     recover: vi.fn(),
     nextDueAt: vi.fn(),
     install: vi.fn(),
+    needsReviewSweep: vi.fn(),
 }));
 
 vi.mock("@/lib/server/maintenance-auth", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/server/maintenance-auth", () => ({
     isAuthorizedWorkerRequest: mocks.authorized,
 }));
 vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationTaskRecoveryBatch: mocks.recover }));
+vi.mock("@/lib/server/generation-task-needs-review-sweep", () => ({ sweepStaleNeedsReviewTasks: mocks.needsReviewSweep }));
 vi.mock("@/lib/server/generation-task-scheduler", () => ({ getNextGenerationTaskDueAt: mocks.nextDueAt }));
 vi.mock("@/lib/server/internal-origin", () => ({ resolveInternalOrigin: vi.fn(() => "http://internal:3000") }));
 vi.mock("@/lib/server/install-status", () => ({ getInstallStatus: mocks.install }));
@@ -28,6 +30,7 @@ describe("POST /api/maintenance/generation-tasks/run", () => {
         mocks.recover.mockResolvedValue({ claimed: 0 });
         mocks.nextDueAt.mockResolvedValue(undefined);
         mocks.install.mockResolvedValue({ database: { schemaReady: true } });
+        mocks.needsReviewSweep.mockResolvedValue({ scanned: 0, closed: 0, skipped: 0 });
     });
 
     it("allows a worker batch to outlive the longest upstream model request", () => {
@@ -58,6 +61,15 @@ describe("POST /api/maintenance/generation-tasks/run", () => {
         expect(await response.json()).toMatchObject({ code: 0, data: { claimed: 2, nextDueAt: 5_000 } });
     });
 
+    it("sweeps stale needs_review tasks after the recovery batch and includes the result", async () => {
+        mocks.needsReviewSweep.mockResolvedValue({ scanned: 3, closed: 2, skipped: 1 });
+        const response = await POST(request("worker-one"));
+
+        expect(response.status).toBe(200);
+        expect(mocks.needsReviewSweep).toHaveBeenCalledTimes(1);
+        expect(await response.json()).toMatchObject({ data: { needsReviewSweep: { scanned: 3, closed: 2, skipped: 1 } } });
+    });
+
     it("waits quietly before the database is initialized", async () => {
         mocks.install.mockResolvedValue({ database: { schemaReady: false } });
 
@@ -65,6 +77,7 @@ describe("POST /api/maintenance/generation-tasks/run", () => {
 
         expect(response.status).toBe(200);
         expect(mocks.recover).not.toHaveBeenCalled();
+        expect(mocks.needsReviewSweep).not.toHaveBeenCalled();
         await expect(response.json()).resolves.toMatchObject({ code: 0, data: { claimed: 0 } });
     });
 });

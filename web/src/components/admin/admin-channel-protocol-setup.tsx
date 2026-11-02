@@ -107,7 +107,7 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, tar
     const updateAuth = (patch: Partial<SystemChannelAdvancedConfig>) => onChange({ advancedConfig: { ...channel.advancedConfig!, ...patch } });
 
     return (
-        <section className="mt-3 border-y border-stone-200 bg-stone-50/70 px-3 py-3 dark:border-stone-800 dark:bg-stone-900/35">
+        <section className="mt-3 border-y border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-3">
             {!protocolLocked ? (
                 <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)] lg:items-end">
                     <LabeledControl label="接口协议">
@@ -121,14 +121,14 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, tar
                             }))}
                             optionRender={(option) => (
                                 <div className="py-1">
-                                    <div className="font-medium text-stone-900 dark:text-stone-100">{option.label}</div>
-                                    <div className="mt-0.5 whitespace-normal text-xs leading-5 text-stone-500 dark:text-stone-400">{option.title}</div>
+                                    <div className="font-medium text-[var(--gm-text)]">{option.label}</div>
+                                    <div className="mt-0.5 whitespace-normal text-xs leading-5 text-[var(--gm-text-3)]">{option.title}</div>
                                 </div>
                             )}
                             onChange={selectProtocol}
                         />
                     </LabeledControl>
-                    <div className="min-w-0 pb-0.5 text-xs leading-5 text-stone-500 dark:text-stone-400">
+                    <div className="min-w-0 pb-0.5 text-xs leading-5 text-[var(--gm-text-3)]">
                         <div>
                             {definition.label} 协议；
                             {detectedCapabilities.size
@@ -153,7 +153,7 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, tar
                 </div>
             ) : null}
             {protocol === "custom" ? (
-                <div className={protocolLocked ? "" : "mt-3 border-t border-stone-200 pt-3 dark:border-stone-800"}>
+                <div className={protocolLocked ? "" : "mt-3 border-t border-[var(--gm-border)] pt-3"}>
                     {!protocolLocked ? (
                         <div className="mb-3 grid gap-3 sm:grid-cols-2">
                             <LabeledControl label="鉴权方式">
@@ -177,10 +177,10 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, tar
                         </div>
                     ) : null}
                     <div className="flex items-start gap-2">
-                        <FileSearch className="mt-0.5 size-4 shrink-0 text-stone-500 dark:text-stone-400" />
+                        <FileSearch className="mt-0.5 size-4 shrink-0 text-[var(--gm-text-2)]" />
                         <div>
-                            <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">自定义协议助手</div>
-                            <div className="mt-0.5 text-xs leading-5 text-stone-500 dark:text-stone-400">提供官方文档链接或完整 cURL、请求 JSON、成功响应 JSON。系统只生成声明式草稿，不执行文档代码，也不会把 API Key 发给文本模型。</div>
+                            <div className="text-sm font-semibold text-[var(--gm-text)]">自定义协议助手</div>
+                            <div className="mt-0.5 text-xs leading-5 text-[var(--gm-text-3)]">提供官方文档链接或完整 cURL、请求 JSON、成功响应 JSON。系统只生成声明式草稿，不执行文档代码，也不会把 API Key 发给文本模型。</div>
                         </div>
                     </div>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -209,7 +209,7 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, tar
                         </Button>
                     </div>
                     {draft ? (
-                        <div className="mt-3 border-l-2 border-stone-400 pl-3 text-xs leading-5 text-stone-600 dark:border-stone-600 dark:text-stone-300">
+                        <div className="mt-3 border-l-2 border-[var(--gm-border-strong)] pl-3 text-xs leading-5 text-[var(--gm-text-2)]">
                             {draftWarnings.length ? <Alert className="mb-3" type="warning" showIcon message={draftWarnings[0]} description={draftWarnings.slice(1).join("；") || undefined} /> : null}
                             {drafts.length > 1 ? (
                                 <div className="mb-3 max-w-xl">
@@ -219,17 +219,17 @@ export function AdminChannelProtocolSetup({ channel, protocolLocked = false, tar
                                 </div>
                             ) : null}
                             <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="mr-1 font-semibold text-stone-900 dark:text-stone-100">协议分析结果</span>
+                                <span className="mr-1 font-semibold text-[var(--gm-text)]">协议分析结果</span>
                                 {sourcePages ? <Tag className="m-0">文档页 {sourcePages}</Tag> : null}
                                 <Tag className="m-0">目录 {draft.modelCatalogPaths.length}</Tag>
                                 <Tag className="m-0">能力 {draft.operations.length}</Tag>
                                 <Tag className="m-0">模型 {new Set(draft.operations.flatMap((item) => item.models.map(normalizeModelId))).size}</Tag>
                             </div>
                             {draft.modelCatalogPaths.length ? <div className="mt-2 break-all">模型目录：{draft.modelCatalogPaths.join("、")}</div> : null}
-                            <div className="mt-2 divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+                            <div className="mt-2 divide-y divide-[var(--gm-border)] border-y border-[var(--gm-border)]">
                                 {draft.operations.map((operation) => (
                                     <div key={`${operation.capability}:${operation.config.createPath}`} className="py-2">
-                                        <div className="font-medium text-stone-900 dark:text-stone-100">
+                                        <div className="font-medium text-[var(--gm-text)]">
                                             {capabilityOptions.find((item) => item.value === operation.capability)?.label} · {operation.models.length ? `${operation.models.length} 个已识别模型` : "同步目录后自动匹配模型"}
                                         </div>
                                         <div className="mt-0.5 break-all">

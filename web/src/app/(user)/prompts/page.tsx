@@ -5,7 +5,9 @@ import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Button, Pagination, Spin } from "@/components/gamma-ui/gamma-ant";
+import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
+import { GammaCardGridSkeleton } from "@/components/gamma-ui/gamma-data";
+import { GammaReveal, useFirstEntry } from "@/components/gamma-ui/gamma-motion";
 
 import { PromptCard } from "@/components/prompts/prompt-card";
 import { CompactEmptyState } from "@/components/compact-empty-state";
@@ -43,6 +45,7 @@ export default function PromptsPage() {
         page,
         pageSize: PAGE_SIZE,
     });
+    const firstEntry = useFirstEntry(!query.isLoading);
     const hasFilters = Boolean(titleKeyword.trim()) || selectedTag !== ALL_PROMPTS_OPTION || selectedCategory !== ALL_PROMPTS_OPTION;
 
     useEffect(() => {
@@ -83,12 +86,12 @@ export default function PromptsPage() {
     };
 
     return (
-        <div className="flex h-full flex-col overflow-hidden bg-[var(--gm-bg)] text-stone-800 dark:text-stone-100">
+        <div className="flex h-full flex-col overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]">
             <main ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto bg-[var(--gm-bg)] px-3 py-3 sm:px-6 sm:py-8">
                 <div className="mx-auto max-w-7xl">
                     <div>
-                        <h1 className="text-xl font-semibold text-stone-950 sm:text-2xl dark:text-stone-100">提示词库</h1>
-                        <p className="mt-1.5 text-xs leading-5 text-stone-500 sm:mt-2 sm:text-sm dark:text-stone-400">浏览公共提示词，复制使用或保存到我的素材。</p>
+                        <h1 className="text-xl font-semibold text-[var(--gm-text)] sm:text-2xl">提示词库</h1>
+                        <p className="mt-1.5 text-xs leading-5 text-[var(--gm-text-2)] sm:mt-2 sm:text-sm">浏览公共提示词，复制使用或保存到我的素材。</p>
                     </div>
 
                     <section className="mt-2.5 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 sm:mt-6 sm:p-3.5">
@@ -97,7 +100,7 @@ export default function PromptsPage() {
                                 <Input
                                     allowClear
                                     className="w-full"
-                                    prefix={<Search className="size-4 text-stone-400" />}
+                                    prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
                                     value={titleKeyword}
                                     placeholder="搜索标题或提示词"
                                     onChange={(event) => {
@@ -122,28 +125,25 @@ export default function PromptsPage() {
                     </section>
 
                     <div ref={listStartRef} className="scroll-mt-4 pt-3 sm:pt-5">
-                        {query.isLoading ? (
-                            <div className="flex h-32 items-center justify-center">
-                                <Spin />
-                            </div>
-                        ) : null}
+                        {query.isLoading ? <GammaCardGridSkeleton count={8} media="aspect-[16/10]" className="gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-4" label="正在加载提示词" /> : null}
                         {!query.isLoading ? (
                             <div className="grid gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-4">
-                                {promptItems.map((item) => (
-                                    <PromptCard
-                                        key={item.id}
-                                        item={item}
-                                        onOpen={(previewUrl) => {
-                                            setSelectedPrompt(item);
-                                            setSelectedPromptPreviewUrl(previewUrl || "");
-                                        }}
-                                        onCopy={() => copyText(item.prompt, "提示词已复制")}
-                                        extraAction={
-                                            <Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => savePromptAsset(item)}>
-                                                加入我的素材
-                                            </Button>
-                                        }
-                                    />
+                                {promptItems.map((item, index) => (
+                                    <GammaReveal key={item.id} index={index} animate={firstEntry}>
+                                        <PromptCard
+                                            item={item}
+                                            onOpen={(previewUrl) => {
+                                                setSelectedPrompt(item);
+                                                setSelectedPromptPreviewUrl(previewUrl || "");
+                                            }}
+                                            onCopy={() => copyText(item.prompt, "提示词已复制")}
+                                            extraAction={
+                                                <Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => savePromptAsset(item)}>
+                                                    加入我的素材
+                                                </Button>
+                                            }
+                                        />
+                                    </GammaReveal>
                                 ))}
                             </div>
                         ) : null}

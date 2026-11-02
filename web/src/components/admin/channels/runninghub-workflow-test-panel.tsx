@@ -118,7 +118,7 @@ export function RunningHubWorkflowTestPanel({ open, workflow, onClose }: { open:
                                         <Button size="small" onClick={() => fileInputs.current[field.key]?.click()}>
                                             选择{field.type === "image" ? "图片" : field.type === "video" ? "视频" : "音频"}
                                         </Button>
-                                        {files[field.key] ? <span className="truncate text-xs text-stone-500">{files[field.key]?.name}</span> : null}
+                                        {files[field.key] ? <span className="truncate text-xs text-[var(--gm-text-3)]">{files[field.key]?.name}</span> : null}
                                     </div>
                                 </div>
                             ) : (
@@ -142,25 +142,25 @@ export function RunningHubWorkflowTestPanel({ open, workflow, onClose }: { open:
                     {result?.status ? <Tag color={result.status === "success" ? "success" : result.status === "error" ? "error" : "processing"}>{result.status}</Tag> : null}
                 </Space>
                 {result ? (
-                    <div className="rounded-md border border-stone-200 p-3 text-sm dark:border-stone-800">
+                    <div className="rounded-md border border-[var(--gm-border)] p-3 text-sm">
                         <div>runId：{runId}</div>
                         {result.taskId ? <div className="mt-1">taskId：{result.taskId}</div> : null}
                         {result.durationMs ? <div className="mt-1">耗时：{result.durationMs} ms</div> : null}
                         {result.resultUrl && (!result.resultUrls || result.resultUrls.length <= 1) ? (
-                            <a className="mt-2 block break-all text-blue-600 underline" href={result.resultUrl} target="_blank" rel="noreferrer">
+                            <a className="mt-2 block break-all text-[var(--gm-accent)] underline" href={result.resultUrl} target="_blank" rel="noreferrer">
                                 查看结果
                             </a>
                         ) : null}
                         {result.resultUrls && result.resultUrls.length > 1 ? (
                             <div className="mt-2 space-y-1">
                                 {result.resultUrls.map((url, index) => (
-                                    <a key={`${url}-${index}`} className="block break-all text-blue-600 underline" href={url} target="_blank" rel="noreferrer">
+                                    <a key={`${url}-${index}`} className="block break-all text-[var(--gm-accent)] underline" href={url} target="_blank" rel="noreferrer">
                                         查看结果 {index + 1}
                                     </a>
                                 ))}
                             </div>
                         ) : null}
-                        {result.resultText ? <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 text-sm dark:bg-stone-900">{result.resultText}</pre> : null}
+                        {result.resultText ? <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-[var(--gm-wash)] p-2 text-sm">{result.resultText}</pre> : null}
                         {result.outputs?.length ? (
                             <div className="mt-2 space-y-2">
                                 {result.outputs.map((output) => (
@@ -168,21 +168,21 @@ export function RunningHubWorkflowTestPanel({ open, workflow, onClose }: { open:
                                         <div className="font-medium">
                                             {output.label} · {output.assetType}
                                         </div>
-                                        <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 text-xs dark:bg-stone-900">{JSON.stringify(output.values, null, 2)}</pre>
+                                        <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-[var(--gm-wash)] p-2 text-xs">{JSON.stringify(output.values, null, 2)}</pre>
                                     </div>
                                 ))}
                             </div>
                         ) : null}
                         {result.querySummary ? (
-                            <div className="mt-2 rounded border border-stone-200 p-2 text-xs dark:border-stone-700">
+                            <div className="mt-2 rounded border border-[var(--gm-border)] p-2 text-xs">
                                 <div className="font-medium">查询响应摘要</div>
                                 <div className="mt-1">状态：{result.querySummary.status || "未返回"}</div>
                                 <div>结果数量：{result.querySummary.resultCount}</div>
                                 <div>节点 ID：{result.querySummary.nodeIds.length ? result.querySummary.nodeIds.join(", ") : "未返回"}</div>
-                                {result.querySummary.upstreamError ? <div className="mt-1 text-red-600">上游原因：{result.querySummary.upstreamError}</div> : null}
+                                {result.querySummary.upstreamError ? <div className="mt-1 text-[var(--gm-danger)]">上游原因：{result.querySummary.upstreamError}</div> : null}
                             </div>
                         ) : null}
-                        {result.error ? <div className="mt-2 text-red-600">{result.error}</div> : null}
+                        {result.error ? <div className="mt-2 text-[var(--gm-danger)]">{result.error}</div> : null}
                     </div>
                 ) : null}
             </div>

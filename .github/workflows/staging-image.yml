@@ -71,6 +71,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push staging image
+        id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -107,6 +108,14 @@ jobs:
           ssh-keyscan -p "$STAGING_SSH_PORT" -H "$STAGING_SSH_HOST" >> "$known_hosts_file"
 
           image="${{ env.IMAGE_NAME }}:sha-${{ github.sha }}"
+          # Pull through the GHCR proxy by digest, not by tag: the proxy can lag on
+          # freshly pushed tags (manifest unknown), but a digest is immutable and is
+          # verified by Docker on pull. An empty digest skips the proxy entirely.
+          digest="${{ steps.build.outputs.digest }}"
+          proxy_image=""
+          if [ -n "$digest" ]; then
+            proxy_image="${STAGING_IMAGE_PROXY}/${IMAGE_NAME#ghcr.io/}@${digest}"
+          fi
           ssh_opts=(-i "$key_file" -p "$STAGING_SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts_file" -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
 
           # Pull the image on the staging server straight from GHCR (the package is
@@ -118,10 +127,23 @@ jobs:
           # kill-and-retry loops (120s and 300s were both tried) redownload the same
           # layers every attempt and never finish. Disk usage is printed on failure
           # because slow extraction on a nearly full disk looks identical to a stall.
-          ssh "${ssh_opts[@]}" "$STAGING_SSH_USER@$STAGING_SSH_HOST" "IMAGE='$image' bash -s" <<'REMOTE'
+          ssh "${ssh_opts[@]}" "$STAGING_SSH_USER@$STAGING_SSH_HOST" "IMAGE='$image' PROXY_IMAGE='$proxy_image' bash -s" <<'REMOTE'
           set -euo pipefail
           pulled=""
+          # Proxy first, one attempt. Layers it finishes stay cached and are reused
+          # by the direct GHCR pull below if the proxy fails or stalls.
+          if [ -n "$PROXY_IMAGE" ]; then
+            proxy_start=$(date +%s)
+            if timeout -k 30 900 docker pull "$PROXY_IMAGE"; then
+              docker tag "$PROXY_IMAGE" "$IMAGE"
+              pulled="yes"
+              printf 'Image pulled from proxy %s in %ss\n' "$PROXY_IMAGE" "$(( $(date +%s) - proxy_start ))"
+            else
+              printf 'Proxy pull failed after %ss; falling back to GHCR\n' "$(( $(date +%s) - proxy_start ))" >&2
+            fi
+          fi
           for attempt in $(seq 1 3); do
+            [ -n "$pulled" ] && break
             if timeout -k 30 1200 docker pull "$IMAGE"; then
               pulled="yes"
               printf 'Image pull succeeded on attempt %s/3\n' "$attempt"

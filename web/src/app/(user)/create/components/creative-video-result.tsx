@@ -47,7 +47,7 @@ export function CreativeVideoResult({
                 data-rendered-width={layout?.width}
                 data-rendered-height={layout?.height}
                 style={layout?.container}
-                className="col-start-1 row-start-1 max-w-full flex-none overflow-hidden rounded-xl border border-[#2d3442] bg-black shadow-[0_4px_18px_rgba(15,23,42,0.08)] dark:border-[#373f52] dark:shadow-black/25"
+                className="col-start-1 row-start-1 max-w-full flex-none overflow-hidden rounded-xl border border-[var(--gm-border-strong)] bg-black shadow-[0_4px_18px_rgba(15,23,42,0.08)] dark:shadow-black/25"
             >
                 <CreativeVideoPlayer
                     key={activeAsset.id}
@@ -102,6 +102,7 @@ function CreativeVideoPlayer({ asset, coverUrl, resolution, onDimensions }: { as
     const playback = useVideoPlayback(asset);
     const posterUrl = coverUrl ? imagePreviewUrl(coverUrl, 1440) : undefined;
     return (
+        // 焦点环 #4d8aff 保留：播放器底色恒为黑，--gm-accent 在浅色主题下是 #0050f5，压在黑底上对比度不足
         <div
             ref={playback.playerRef}
             data-testid="creative-video-player"

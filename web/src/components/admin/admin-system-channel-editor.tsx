@@ -50,11 +50,11 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
     const updateAdvanced = (patch: Partial<SystemChannelAdvancedConfig>) => onChange({ advancedConfig: { ...advanced, ...patch } });
     if (advanced.protocol === "runninghub") {
         return (
-            <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm shadow-stone-200/40 sm:p-4 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
+            <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 shadow-sm sm:p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">RunningHub 无限练习渠道</div>
-                        <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">仅保存渠道名称、Base URL、API Key 和启用状态；工作流在“工作流”页管理。</div>
+                        <div className="text-sm font-semibold text-[var(--gm-text)]">RunningHub 无限练习渠道</div>
+                        <div className="mt-1 text-xs text-[var(--gm-text-3)]">仅保存渠道名称、Base URL、API Key 和启用状态；工作流在“工作流”页管理。</div>
                     </div>
                     <Switch checkedChildren="启用" unCheckedChildren="停用" checked={channel.enabled} onChange={(enabled) => onChange({ enabled })} />
                 </div>
@@ -163,12 +163,12 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
     const requiresApiKey = channelRequiresApiKey(channel);
     return (
         <>
-            <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm shadow-stone-200/40 sm:p-4 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
+            <div className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 shadow-sm sm:p-4">
                 <div className="flex items-start justify-between gap-2 sm:flex-col sm:gap-3 lg:flex-row lg:justify-between">
                     <div className="min-w-0 flex-1 sm:flex-initial">
                         <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
-                                <PlugZap className="size-4 text-stone-400" />
+                            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--gm-text)]">
+                                <PlugZap className="size-4 text-[var(--gm-text-3)]" />
                                 <span className="truncate">{channel.name || "未命名渠道"}</span>
                             </div>
                             <Tag color={channel.enabled ? "green" : "default"} className="m-0">
@@ -177,8 +177,8 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
                             <Tag className="m-0">{channel.models.length} 个模型</Tag>
                             {capabilitySummary ? <Tag className="m-0">{capabilitySummary}</Tag> : null}
                         </div>
-                        <div className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">{channel.baseUrl || "未填写 Base URL"}</div>
-                        <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">
+                        <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">{channel.baseUrl || "未填写 Base URL"}</div>
+                        <div className="mt-1 text-xs text-[var(--gm-text-3)]">
                             {canSyncModels
                                 ? requiresApiKey
                                     ? "填写名称、Base URL 和 API Key，再同步上游模型。"
@@ -245,15 +245,15 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
                         </LabeledControl>
                     )}
                 </div>
-                <details className="mt-3 rounded-lg border border-stone-200 bg-stone-50/70 dark:border-stone-800 dark:bg-stone-900/40">
-                    <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-stone-800 dark:text-stone-100">高级设置</summary>
-                    <div className="grid gap-3 border-t border-stone-200 p-3 md:grid-cols-2 dark:border-stone-800">
+                <details className="mt-3 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash)]">
+                    <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-[var(--gm-text)]">高级设置</summary>
+                    <div className="grid gap-3 border-t border-[var(--gm-border)] p-3 md:grid-cols-2">
                         {protocolDefinition.advanced && advanced.protocol !== "custom" ? (
-                            <div className="md:col-span-2 rounded-lg border border-dashed border-stone-300 bg-white/70 p-3 dark:border-stone-700 dark:bg-stone-950/50">
+                            <div className="md:col-span-2 rounded-lg border border-dashed border-[var(--gm-border-strong)] bg-[var(--gm-surface)] p-3">
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
-                                        <div className="text-sm font-semibold text-stone-800 dark:text-stone-100">上游示例识别</div>
-                                        <div className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">粘贴文档里的 cURL、请求 JSON 或返回 JSON，系统会自动填入协议、模型、路径、模板、结果字段和参考素材规则；不会请求上游。</div>
+                                        <div className="text-sm font-semibold text-[var(--gm-text)]">上游示例识别</div>
+                                        <div className="mt-1 text-xs leading-5 text-[var(--gm-text-3)]">粘贴文档里的 cURL、请求 JSON 或返回 JSON，系统会自动填入协议、模型、路径、模板、结果字段和参考素材规则；不会请求上游。</div>
                                     </div>
                                     <Button size="small" icon={<Sparkles className="size-3.5" />} onClick={applyExampleConfig}>
                                         识别示例并填入
@@ -427,7 +427,7 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
                                     <LabeledControl label="请求字段模板">
                                         <Input.TextArea value={advanced.requestTemplate} rows={3} placeholder='{"model":"{{model}}","prompt":"{{prompt}}"}' onChange={(event) => updateAdvanced({ requestTemplate: event.target.value })} />
                                     </LabeledControl>
-                                    {detectedCapabilities.has("image") ? <div className="mt-1 text-[11px] leading-5 text-stone-500 dark:text-stone-400">{IMAGE_TEMPLATE_VARIABLE_HELP}</div> : null}
+                                    {detectedCapabilities.has("image") ? <div className="mt-1 text-[11px] leading-5 text-[var(--gm-text-3)]">{IMAGE_TEMPLATE_VARIABLE_HELP}</div> : null}
                                 </div>
                                 <div className="md:col-span-2">
                                     <LabeledControl label="参考素材规则">
@@ -435,7 +435,7 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
                                     </LabeledControl>
                                 </div>
                                 <div className="md:col-span-2">
-                                    <div className="mb-1.5 text-xs font-medium text-stone-500 dark:text-stone-400">参考素材能力</div>
+                                    <div className="mb-1.5 text-xs font-medium text-[var(--gm-text-3)]">参考素材能力</div>
                                     <div className="flex flex-wrap gap-4">
                                         <Checkbox checked={advanced.supportsReferenceImage} onChange={(event) => updateAdvanced({ supportsReferenceImage: event.target.checked })}>
                                             支持参考图
@@ -450,7 +450,7 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
                                 </div>
                             </>
                         ) : (
-                            <div className="md:col-span-2 text-xs leading-5 text-stone-500 dark:text-stone-400">当前协议的路径、请求字段、结果字段和参考素材能力由协议注册表固定；如需非标准字段，请在模型级路由中选择“自定义协议”。</div>
+                            <div className="md:col-span-2 text-xs leading-5 text-[var(--gm-text-3)]">当前协议的路径、请求字段、结果字段和参考素材能力由协议注册表固定；如需非标准字段，请在模型级路由中选择“自定义协议”。</div>
                         )}
                         {canSyncModels ? (
                             <div className="flex flex-wrap gap-2 md:col-span-2">
@@ -459,7 +459,7 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
                                 </Button>
                             </div>
                         ) : null}
-                        <div className="text-xs leading-5 text-stone-500 md:col-span-2 dark:text-stone-400">
+                        <div className="text-xs leading-5 text-[var(--gm-text-3)] md:col-span-2">
                             {canSyncModels
                                 ? "拉取会合并上游模型、官方目录和已有手工模型，不会覆盖手工配置；混合接口优先使用模型级路由，上方兜底字段只在模型没有专属配置时生效。"
                                 : hasDocumentedModels
@@ -506,11 +506,11 @@ function ModelRouteConfigEditor({ channel, advanced, onChange }: { channel: Syst
     };
 
     return (
-        <div className="rounded-md border border-stone-200 bg-white/70 p-3 md:col-span-2 dark:border-stone-800 dark:bg-stone-950/50">
+        <div className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3 md:col-span-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                    <div className="text-xs font-semibold text-stone-800 dark:text-stone-100">模型级路由</div>
-                    <div className="mt-1 text-[11px] leading-5 text-stone-500 dark:text-stone-400">同一公司接口包含多种能力时，每个模型独立保存协议与路径。</div>
+                    <div className="text-xs font-semibold text-[var(--gm-text)]">模型级路由</div>
+                    <div className="mt-1 text-[11px] leading-5 text-[var(--gm-text-3)]">同一公司接口包含多种能力时，每个模型独立保存协议与路径。</div>
                 </div>
                 {stored ? (
                     <Button type="text" size="small" onClick={clearRoutes}>
@@ -599,8 +599,8 @@ function ModelRouteConfigEditor({ channel, advanced, onChange }: { channel: Syst
                             </LabeledControl>
                         ) : null}
                     </div>
-                    <details className="mt-3 border-t border-stone-200 pt-2 dark:border-stone-800">
-                        <summary className="cursor-pointer text-xs font-medium text-stone-600 dark:text-stone-300">请求模板与参考素材</summary>
+                    <details className="mt-3 border-t border-[var(--gm-border)] pt-2">
+                        <summary className="cursor-pointer text-xs font-medium text-[var(--gm-text-2)]">请求模板与参考素材</summary>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                             <div className="sm:col-span-2">
                                 <LabeledControl label="请求字段模板">
@@ -612,9 +612,9 @@ function ModelRouteConfigEditor({ channel, advanced, onChange }: { channel: Syst
                                         onChange={(event) => update({ requestTemplate: event.target.value })}
                                     />
                                 </LabeledControl>
-                                {config.capability === "image" ? <div className="mt-1 text-[11px] leading-5 text-stone-500 dark:text-stone-400">{IMAGE_TEMPLATE_VARIABLE_HELP}</div> : null}
+                                {config.capability === "image" ? <div className="mt-1 text-[11px] leading-5 text-[var(--gm-text-3)]">{IMAGE_TEMPLATE_VARIABLE_HELP}</div> : null}
                             </div>
-                            <div className="sm:col-span-2 flex flex-wrap gap-4 text-xs text-stone-600 dark:text-stone-300">
+                            <div className="sm:col-span-2 flex flex-wrap gap-4 text-xs text-[var(--gm-text-2)]">
                                 <Checkbox disabled={definition.strict} checked={config.supportsReferenceImage === true} onChange={(event) => update({ supportsReferenceImage: event.target.checked })}>
                                     参考图片
                                 </Checkbox>
@@ -629,7 +629,7 @@ function ModelRouteConfigEditor({ channel, advanced, onChange }: { channel: Syst
                     </details>
                 </>
             ) : (
-                <div className="mt-3 text-xs text-stone-500 dark:text-stone-400">拉取或手动添加模型后可设置独立路由。</div>
+                <div className="mt-3 text-xs text-[var(--gm-text-3)]">拉取或手动添加模型后可设置独立路由。</div>
             )}
         </div>
     );
