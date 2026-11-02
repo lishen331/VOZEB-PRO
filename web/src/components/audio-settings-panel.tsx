@@ -1,10 +1,10 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Segmented, Select, Slider, Switch, Tooltip } from "antd";
-import { CircleHelp, RotateCcw } from "lucide-react";
+import { CircleHelp, Play, RotateCcw, Square } from "lucide-react";
 
-import { audioVisibleFields, normalizeAudioParams, type AudioParamField, type AudioParams } from "@/lib/audio-model-params";
+import { audioVisibleFields, normalizeAudioParams, type AudioParamField, type AudioParamOption, type AudioParams } from "@/lib/audio-model-params";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
@@ -120,7 +120,7 @@ function AudioParamControl({ field, hideLabel, value, theme, onChange }: { field
         <span className="inline-flex shrink-0 items-center gap-1 text-sm">
             {field.label}
             {field.hint ? (
-                <Tooltip title={field.hint}>
+                <Tooltip title={field.hint} zIndex={1305}>
                     <CircleHelp className="size-3.5" style={{ color: theme.node.muted }} />
                 </Tooltip>
             ) : null}
@@ -170,12 +170,116 @@ function AudioParamControl({ field, hideLabel, value, theme, onChange }: { field
             </div>
         );
     }
+    return <AudioParamSelect label={label} options={field.options} value={String(value)} theme={theme} onChange={onChange} />;
+}
+
+type SelectOption = AudioParamOption;
+
+function AudioParamSelect({ label, options, value, theme, onChange }: { label: ReactNode; options: SelectOption[]; value: string; theme: CanvasTheme; onChange: (value: string) => void }) {
+    const preview = useVoicePreview();
+    const grouped = useMemo(() => groupSelectOptions(options), [options]);
+    const hasPreview = options.some((option) => option.preview);
+    const currentPreview = options.find((option) => option.value === value)?.preview;
     return (
-        <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-3">
+        <div className={`grid ${hasPreview ? "grid-cols-[72px_minmax(0,1fr)_24px]" : "grid-cols-[72px_minmax(0,1fr)]"} items-center gap-3`}>
             {label}
-            <span className="block [&_.ant-select]:w-full">
-                <Select value={String(value)} options={field.options} listHeight={220} showSearch optionFilterProp="label" styles={{ popup: { root: { zIndex: 1305 } } }} onChange={(next) => onChange(next)} />
+            <span className="block min-w-0 [&_.ant-select]:w-full">
+                <Select<string, SelectEntry>
+                    value={value}
+                    options={grouped}
+                    listHeight={hasPreview ? 280 : 220}
+                    showSearch={{ optionFilterProp: hasPreview ? "search" : "label" }}
+                    styles={{ popup: { root: { zIndex: 1305 } } }}
+                    optionRender={
+                        hasPreview
+                            ? (option) => (
+                                  <span className="flex items-center justify-between gap-2">
+                                      <span className="min-w-0 truncate">{option.label}</span>
+                                      {"preview" in option.data && option.data.preview ? <VoicePreviewButton url={option.data.preview} preview={preview} theme={theme} /> : null}
+                                  </span>
+                              )
+                            : undefined
+                    }
+                    onChange={(next) => onChange(next)}
+                />
             </span>
+            {hasPreview ? currentPreview ? <VoicePreviewButton url={currentPreview} preview={preview} theme={theme} /> : <span /> : null}
         </div>
+    );
+}
+
+type SelectEntry = SelectOption | { label: string; title: string; options: SelectOption[] };
+
+function groupSelectOptions(options: SelectOption[]): SelectEntry[] {
+    if (!options.some((option) => option.group)) return options;
+    const groups = new Map<string, SelectOption[]>();
+    for (const option of options) {
+        const name = option.group || "其他";
+        groups.set(name, [...(groups.get(name) || []), option]);
+    }
+    return [...groups].map(([name, items]) => ({ label: name, title: name, options: items }));
+}
+
+type VoicePreview = ReturnType<typeof useVoicePreview>;
+
+function useVoicePreview() {
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [playing, setPlaying] = useState<string>();
+    const [failed, setFailed] = useState<string>();
+
+    useEffect(() => {
+        const ref = audioRef;
+        return () => ref.current?.pause();
+    }, []);
+
+    const toggle = useCallback(
+        (url: string) => {
+            audioRef.current?.pause();
+            if (playing === url) {
+                audioRef.current = null;
+                setPlaying(undefined);
+                return;
+            }
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            const stop = (error: boolean) => {
+                if (audioRef.current !== audio) return;
+                audioRef.current = null;
+                setPlaying(undefined);
+                if (error) setFailed(url);
+            };
+            audio.onended = () => stop(false);
+            audio.onerror = () => stop(true);
+            setFailed(undefined);
+            setPlaying(url);
+            audio.play().catch(() => stop(true));
+        },
+        [playing],
+    );
+
+    return { playing, failed, toggle };
+}
+
+function VoicePreviewButton({ url, preview, theme }: { url: string; preview: VoicePreview; theme: CanvasTheme }) {
+    const playing = preview.playing === url;
+    const failed = preview.failed === url;
+    return (
+        <button
+            type="button"
+            aria-label={playing ? "停止试听" : "试听"}
+            title={failed ? "试听加载失败，点击重试" : playing ? "停止试听" : "试听"}
+            className={`grid size-6 shrink-0 place-items-center rounded-full hover:opacity-75 ${failed ? "text-red-500" : ""}`}
+            style={failed ? undefined : { color: playing ? theme.node.text : theme.node.muted }}
+            onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            }}
+            onClick={(event) => {
+                event.stopPropagation();
+                preview.toggle(url);
+            }}
+        >
+            {playing ? <Square className="size-3" fill="currentColor" /> : <Play className="size-3.5" />}
+        </button>
     );
 }
