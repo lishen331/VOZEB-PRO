@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { AuthInputError, getAuthSettings, isAuthInputError, type SystemModelChannel } from "@/lib/auth/store";
-import { customVoiceCreatePoints, normalizeVoiceCustomization, VOICE_CUSTOMIZATION_TEMPLATES } from "@/lib/custom-voice-config";
+import { customVoiceCreatePoints, normalizeVoiceCustomization } from "@/lib/custom-voice-config";
 import { createCustomVoice, listCustomVoices, updateCustomVoice } from "@/lib/server/custom-voice-store";
 import { submitMinimaxVoiceClone, submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign } from "@/lib/server/custom-voice-upstream";
 import { chargeGeneration, refundGenerationCharge } from "@/lib/server/generation-charge-service";
@@ -36,9 +36,7 @@ export async function POST(request: NextRequest) {
         const ttsModel = body.ttsModel?.trim().slice(0, 100);
         if (!ttsModel) throw new AuthInputError("ttsModel is required");
         const settings = await getAuthSettings();
-        const channel = settings.systemChannels.find((ch): ch is SystemModelChannel =>
-            ch.models.includes(ttsModel) && ch.advancedConfig?.voiceCustomization !== undefined
-        );
+        const channel = settings.systemChannels.find((ch): ch is SystemModelChannel => ch.models.includes(ttsModel) && ch.advancedConfig?.voiceCustomization !== undefined);
         if (!channel || !channel.advancedConfig?.voiceCustomization) {
             return NextResponse.json({ error: "Channel not found or voice customization not enabled" }, { status: 404 });
         }
@@ -97,7 +95,15 @@ export async function POST(request: NextRequest) {
                     result = await submitQwenVoiceDesign(channel, voiceConfig, voiceId, name, prompt, previewText);
                 }
             }
-            await updateCustomVoice(voiceId, { chargeReceiptId: receipt.receiptId, upstreamRequestId: result.upstreamRequestId, status: result.status, upstreamVoiceId: result.upstreamVoiceId, previewUrl: result.previewUrl, previewMimeType: result.previewMimeType, failureReason: result.failureReason });
+            await updateCustomVoice(voiceId, {
+                chargeReceiptId: receipt.receiptId,
+                upstreamRequestId: result.upstreamRequestId,
+                status: result.status,
+                upstreamVoiceId: result.upstreamVoiceId,
+                previewUrl: result.previewUrl,
+                previewMimeType: result.previewMimeType,
+                failureReason: result.failureReason,
+            });
             return NextResponse.json({ voice: { ...voice, ...result, chargeReceiptId: receipt.receiptId } });
         } catch (error: unknown) {
             await updateCustomVoice(voiceId, { status: "failed", failureReason: error instanceof Error ? error.message : "Unknown error" });

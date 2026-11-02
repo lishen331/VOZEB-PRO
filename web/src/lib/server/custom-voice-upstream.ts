@@ -31,14 +31,7 @@ export type CustomVoiceUpstreamResult = {
     failureReason?: string;
 };
 
-export async function submitMinimaxVoiceClone(
-    channel: SystemModelChannel,
-    config: VoiceCustomizationConfig,
-    voiceId: string,
-    name: string,
-    audioBuffer: Buffer,
-    audioFormat: string,
-): Promise<CustomVoiceUpstreamResult> {
+export async function submitMinimaxVoiceClone(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, audioBuffer: Buffer, audioFormat: string): Promise<CustomVoiceUpstreamResult> {
     try {
         const uploadPath = config.paths.upload || "/v1/files/upload";
         const clonePath = config.paths.clone || "/v1/voice_clone";
@@ -88,14 +81,7 @@ export async function submitMinimaxVoiceClone(
     }
 }
 
-export async function submitMinimaxVoiceDesign(
-    channel: SystemModelChannel,
-    config: VoiceCustomizationConfig,
-    voiceId: string,
-    name: string,
-    description: string,
-    previewText?: string,
-): Promise<CustomVoiceUpstreamResult> {
+export async function submitMinimaxVoiceDesign(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, description: string, previewText?: string): Promise<CustomVoiceUpstreamResult> {
     try {
         const designPath = config.paths.design || "/v1/voice_design";
         const designRequest = { voice_id: voiceId, description, ...(previewText ? { preview_text: previewText } : {}) };
@@ -151,14 +137,7 @@ export async function deleteMinimaxVoice(channel: SystemModelChannel, config: Vo
     }
 }
 
-export async function submitQwenVoiceClone(
-    channel: SystemModelChannel,
-    config: VoiceCustomizationConfig,
-    voiceId: string,
-    name: string,
-    audioBuffer: Buffer,
-    audioFormat: string,
-): Promise<CustomVoiceUpstreamResult> {
+export async function submitQwenVoiceClone(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, audioBuffer: Buffer, audioFormat: string): Promise<CustomVoiceUpstreamResult> {
     try {
         const customizationPath = config.paths.customization || "/api/v1/services/audio/tts/customization";
         const audioBase64 = audioBuffer.toString("base64");
@@ -192,14 +171,7 @@ export async function submitQwenVoiceClone(
     }
 }
 
-export async function submitQwenVoiceDesign(
-    channel: SystemModelChannel,
-    config: VoiceCustomizationConfig,
-    voiceId: string,
-    name: string,
-    description: string,
-    previewText?: string,
-): Promise<CustomVoiceUpstreamResult> {
+export async function submitQwenVoiceDesign(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, description: string, previewText?: string): Promise<CustomVoiceUpstreamResult> {
     try {
         const customizationPath = config.paths.customization || "/api/v1/services/audio/tts/customization";
         const request = {

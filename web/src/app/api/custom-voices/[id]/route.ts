@@ -64,9 +64,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
         const settings = await getAuthSettings();
-        const channel = settings.systemChannels.find((ch): ch is SystemModelChannel =>
-            ch.id === voice.channelId && ch.advancedConfig?.voiceCustomization !== undefined
-        );
+        const channel = settings.systemChannels.find((ch): ch is SystemModelChannel => ch.id === voice.channelId && ch.advancedConfig?.voiceCustomization !== undefined);
         if (channel && channel.advancedConfig?.voiceCustomization && voice.upstreamVoiceId) {
             try {
                 if (voice.provider === "minimax") {
