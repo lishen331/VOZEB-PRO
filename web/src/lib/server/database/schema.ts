@@ -7,6 +7,7 @@ import { POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL } from "./schema-school-domain";
 import { POSTGRESQL_TEACHING_LESSON_PLANS_SCHEMA_SQL } from "./schema-teaching-lesson-plans";
 import { POSTGRESQL_TRIGGER_SCHEMA_SQL } from "./schema-triggers";
 import { DRAMA_LAB_SCHEMA_SQL } from "./schema-drama-lab";
+import { SCHEMA_CUSTOM_VOICES } from "./schema-custom-voices";
 
 const FULL_ADMIN_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
 
@@ -1174,6 +1175,8 @@ ${POSTGRESQL_TEACHING_LESSON_PLANS_SCHEMA_SQL}
 ${POSTGRESQL_IP_LIBRARY_SCHEMA_SQL}
 
 ${DRAMA_LAB_SCHEMA_SQL}
+
+${SCHEMA_CUSTOM_VOICES}
 
 CREATE TABLE IF NOT EXISTS practice_script_projects (
     school_id text,

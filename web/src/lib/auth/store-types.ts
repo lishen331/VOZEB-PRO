@@ -7,6 +7,7 @@ import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import { VOZEB_QQ_GROUP_URL } from "@/constant/community";
 import type { SystemChannelPurpose } from "@/lib/practice-domain";
 import type { FeatureModuleSettings } from "@/lib/feature-modules";
+import type { VoiceCustomizationConfig } from "@/lib/custom-voice-config";
 
 export type ApiCallFormat = "openai" | "gemini";
 export type SystemChannelProtocol =
@@ -206,6 +207,7 @@ export type SystemChannelAdvancedConfig = {
     // 只有实际支持按请求 ID 查询、且已人工验证过的渠道才应配置。不要对未验证渠道默认开启。
     requestIdQueryPath?: string;
     contextWindowTokens?: number;
+    voiceCustomization?: VoiceCustomizationConfig;
 };
 
 export type LegacyUserQuota = {
