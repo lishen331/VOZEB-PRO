@@ -24,6 +24,7 @@ import { CanvasNodeType, isCanvasImageNodeType, type CanvasGenerationMode, type 
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasImageConfigPatch, canvasVideoConfigPatch } from "../utils/canvas-node-config";
 import { canvasModelConfigPatch } from "../utils/canvas-model-capabilities";
+import { practiceCanvasModelValue, type PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 import { PANORAMA_IMAGE_SIZE } from "../utils/canvas-panorama";
 
 export type CanvasNodeGenerationMode = CanvasGenerationMode;
@@ -47,9 +48,11 @@ type CanvasNodePromptPanelProps = {
     mentionReferences?: CanvasResourceReference[];
     onImageSettingsOpenChange?: (open: boolean) => void;
     onRemoveReference?: (sourceNodeId: string) => void;
+    /** 仅练习画布传入。为空时模型下拉保持原有行为。 */
+    practiceModels?: PracticeCanvasModelOptions;
 };
 
-export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], onImageSettingsOpenChange, onRemoveReference }: CanvasNodePromptPanelProps) {
+export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], onImageSettingsOpenChange, onRemoveReference, practiceModels }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const theme = canvasThemes[useCanvasColorTheme().theme];
@@ -242,7 +245,15 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 <div className="canvas-composer-tools flex min-w-0 flex-1 flex-wrap items-center gap-2">
                     {mode === "image" ? (
                         <>
-                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))} capability="image" onMissingConfig={() => openConfigDialog(true)} />
+                            <ModelPicker
+                                config={config}
+                                value={practiceCanvasModelValue(practiceModels, "image", config.model)}
+                                onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))}
+                                capability="image"
+                                onMissingConfig={() => openConfigDialog(true)}
+                                optionsOverride={practiceModels?.image?.models}
+                                disabled={practiceModels?.image?.locked}
+                            />
                             <CanvasImageSettingsPopover
                                 config={config}
                                 placement="topLeft"
@@ -261,7 +272,15 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </>
                     ) : mode === "video" ? (
                         <>
-                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))} capability="video" onMissingConfig={() => openConfigDialog(true)} />
+                            <ModelPicker
+                                config={config}
+                                value={practiceCanvasModelValue(practiceModels, "video", config.model)}
+                                onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))}
+                                capability="video"
+                                onMissingConfig={() => openConfigDialog(true)}
+                                optionsOverride={practiceModels?.video?.models}
+                                disabled={practiceModels?.video?.locked}
+                            />
                             <CanvasVideoSettingsPopover
                                 config={config}
                                 metadata={node.metadata}
@@ -290,7 +309,15 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </>
                     ) : (
                         <>
-                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                            <ModelPicker
+                                config={config}
+                                value={practiceCanvasModelValue(practiceModels, "text", config.model)}
+                                onChange={(model) => onConfigChange(node.id, { model })}
+                                capability="text"
+                                onMissingConfig={() => openConfigDialog(true)}
+                                optionsOverride={practiceModels?.text?.models}
+                                disabled={practiceModels?.text?.locked}
+                            />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
                                 <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                             </div>

@@ -90,6 +90,13 @@ describe("CanvasNode image border", () => {
         expect(renderImageNode({ isRelated: true })).toContain(`border-color:${canvasThemes.light.node.muted}`);
     });
 
+    it("marks a generated result as free only on the practice canvas", () => {
+        expect(renderImageNode({ practiceFree: true })).toContain(">免费<");
+        expect(renderImageNode()).not.toContain(">免费<");
+        const empty = { ...imageNode, metadata: {} };
+        expect(renderImageNode({ data: empty, practiceFree: true })).not.toContain(">免费<");
+    });
+
     it("does not apply the related highlight to a batch child", () => {
         const batchChild = { ...imageNode, metadata: { ...imageNode.metadata, batchRootId: "batch-root" } };
 

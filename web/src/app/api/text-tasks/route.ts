@@ -16,6 +16,7 @@ import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/securit
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { resolvePracticeModelTestAccess } from "@/lib/server/user-navigation-permissions";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 import { createTextTask, type TextTask, type TextTaskConfig } from "@/lib/server/text-task-store";
 import { recordTextTaskLog } from "@/lib/server/text-task-log";
@@ -80,7 +81,8 @@ export async function POST(request: Request) {
             const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
             if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "text");
             const billingContext = await resolveSchoolComputeBillingContext(currentUser.id, { ...clientContext, executionProfile });
-            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+            const practiceModelTest = await resolvePracticeModelTestAccess(currentUser, { ...clientContext, executionProfile });
+            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;

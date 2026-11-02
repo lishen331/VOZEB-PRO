@@ -1191,6 +1191,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         workflowAdapterVersion: Number.isSafeInteger(Number(context.workflowAdapterVersion)) && Number(context.workflowAdapterVersion) > 0 ? Number(context.workflowAdapterVersion) : undefined,
         businessCode,
         taskOrigin: context.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
+        practiceModelTest: context.practiceModelTest === true ? true : undefined,
     };
 }
 
@@ -1224,6 +1225,7 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         taskOrigin: next.taskOrigin || previous?.taskOrigin || "user",
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
         schoolId: next.schoolId || previous?.schoolId,
+        practiceModelTest: next.practiceModelTest || storedPracticeModelTest(previous),
     };
 }
 
@@ -1540,6 +1542,13 @@ function storedSpeaker(record: StoredGenerationTaskRecord | undefined) {
     const payload = recordObject(record.payload);
     const nested = recordObject(payload.context);
     return cleanContextText(record.speaker) || cleanContextText(typeof payload.speaker === "string" ? payload.speaker : typeof nested.speaker === "string" ? nested.speaker : undefined);
+}
+
+function storedPracticeModelTest(record: StoredGenerationTaskRecord | undefined) {
+    if (!record) return undefined;
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    return payload.practiceModelTest === true || nested.practiceModelTest === true ? true : undefined;
 }
 
 function payloadContextText(payload: Record<string, unknown>, key: "episodeId" | "shotId") {

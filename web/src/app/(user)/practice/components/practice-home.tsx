@@ -44,7 +44,7 @@ export const PRACTICE_MODULES: Array<{ module: PracticeModuleKind; title: string
     { module: "dubbing", title: "音频", description: "为台词和旁白生成情绪化配音。", icon: Mic2, accent: "indigo" },
 ];
 export function practiceProjectPath(kind: PracticeProjectKind, id: string) {
-    return `/${kind}/${encodeURIComponent(id)}`;
+    return kind === "canvas" ? `/practice/canvas/${encodeURIComponent(id)}` : `/${kind}/${encodeURIComponent(id)}`;
 }
 
 export function practiceModulePath(module: PracticeModuleKind, options?: IpReference | { reference?: IpReference; sessionId?: string }) {

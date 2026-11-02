@@ -45,8 +45,9 @@ import {
 import type { CanvasInteractions } from "./use-canvas-interactions";
 import type { CanvasPageState } from "./use-canvas-page-state";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
+import type { PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 
-export function useCanvasGenerationActions({ state, tasks, interactions }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions }) {
+export function useCanvasGenerationActions({ state, tasks, interactions, practiceModels }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions; practiceModels?: PracticeCanvasModelOptions }) {
     const {
         message,
         modal,
@@ -172,7 +173,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 message.info("正在生成中，请稍候");
                 return;
             }
-            const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode);
+            const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode, mode === "audio" ? undefined : practiceModels?.[mode]?.models);
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;
@@ -663,6 +664,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             const batchRoot = node.metadata?.batchRootId ? nodesRef.current.find((item) => item.id === node.metadata?.batchRootId) : null;
             const savedImageMetadata = isCanvasImageNodeType(node.type) ? { ...batchRoot?.metadata, ...node.metadata } : undefined;
             const hasSavedImageMetadata = Boolean(savedImageMetadata?.generationType);
+            const retryMode = node.type === CanvasNodeType.Text ? "text" : isVideoRetry ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image";
             const generationConfig =
                 hasSavedImageMetadata && savedImageMetadata
                     ? {
@@ -672,7 +674,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                           size: savedImageMetadata.size || effectiveConfig.size,
                           count: "1",
                       }
-                    : { ...buildGenerationConfig(effectiveConfig, isVideoRetry ? node : sourceNode, node.type === CanvasNodeType.Text ? "text" : isVideoRetry ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
+                    : { ...buildGenerationConfig(effectiveConfig, isVideoRetry ? node : sourceNode, retryMode, retryMode === "audio" ? undefined : practiceModels?.[retryMode]?.models), count: "1" };
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;

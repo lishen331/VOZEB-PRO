@@ -1,8 +1,11 @@
+import { qwenCatalogModels, qwenCatalogVoices } from "@/lib/qwen-voice-catalog";
+
 export type AudioParamValue = string | number | boolean;
 export type AudioParams = Record<string, AudioParamValue>;
 export type AudioModelFamily = "minimax" | "suno" | "qwen" | "openai";
 
-type Option = { value: string; label: string };
+export type AudioParamOption = { value: string; label: string; group?: string; preview?: string; search?: string };
+type Option = AudioParamOption;
 type FieldBase = { key: string; label: string; group: string; hint?: string; visibleWhen?: { key: string; value: AudioParamValue } };
 export type AudioParamField =
     | (FieldBase & { type: "slider"; min: number; max: number; step: number; defaultValue: number })
@@ -89,62 +92,35 @@ const MINIMAX_FIELDS: AudioParamField[] = [
     },
 ];
 
-// 百炼 Qwen-Audio-TTS 音色列表（2026-10-29）；音色必须属于所选模型，跨模型返回 InvalidParameter。
-const QWEN_31_MULTILINGUAL: Option[] = [
-    { value: "longanhuan_v3.1", label: "龙安欢（女）" },
-    { value: "longanlingxin_v3.1", label: "龙安灵心（女）" },
-    { value: "longanfengyue_v3.1", label: "龙安风悦（女）" },
-    { value: "xunanchuan_v3.1", label: "许南川（男）" },
-];
-export const qwenVoiceOptionsByModel: Record<string, Option[]> = {
-    "qwen-audio-3.1-tts-plus": QWEN_31_MULTILINGUAL,
-    "qwen-audio-3.1-tts-flash": [
-        ...QWEN_31_MULTILINGUAL,
-        { value: "yuxiaoyun_v3.1", label: "于小云（女·元气亲切）" },
-        { value: "qiaoxiaojiao_v3.1", label: "乔小娇（女·俏丽可爱）" },
-        { value: "xiaxiaochen_v3.1", label: "夏小晨（女·元气明亮）" },
-        { value: "anmingyuan_v3.1", label: "安明远（男·清亮自然）" },
-        { value: "wenhuaiqing_v3.1", label: "温怀清（女·清亮柔和）" },
-        { value: "anxiaolan_v3.1", label: "安小岚（女·清甜纯净）" },
-        { value: "xieshurou_v3.1", label: "谢舒柔（女·柔和知性）" },
-        { value: "xuyuyuan_v3.1", label: "许玉远（女·知性成熟）" },
-        { value: "huozhuoshi_v3.1", label: "霍拙石（男·清亮）" },
-        { value: "baianran_v3.1", label: "白安然（女·低沉气声）" },
-        { value: "yezhiqing_v3.1", label: "叶知晴（女·轻快自然）" },
-        { value: "longcheng_v3.1", label: "龙橙（男）" },
-        { value: "longshu_v3.1", label: "龙书（男）" },
-        { value: "longze_v3.1", label: "龙泽（男）" },
-        { value: "longxiaocheng_v3.1", label: "龙小诚（男·磁性低音）" },
-        { value: "longke_v3.1", label: "龙可（童声）" },
-        { value: "loongbella_v3.1", label: "Bella（女·中英）" },
-    ],
-    "qwen-audio-3.0-tts-plus": [
-        { value: "longanlingxin", label: "龙安灵心（女）" },
-        { value: "longanlufeng", label: "龙安鲁风（男）" },
-    ],
-    "qwen-audio-3.0-tts-flash": [
-        { value: "longanhuan_v3.6", label: "龙安欢（女）" },
-        { value: "longanfengyue", label: "龙安风悦（女）" },
-        { value: "longanyuanfei", label: "龙安元妃（女）" },
-        { value: "longanlingxi", label: "龙安灵希（女）" },
-        { value: "longanxiaoxin", label: "龙安小昕（女）" },
-        { value: "longjielidou_v3.6", label: "龙杰力豆（男童）" },
-        { value: "longpaopao_v3.6", label: "龙泡泡（女童）" },
-        { value: "longhuohuo_v3.6", label: "龙火火（少年）" },
-        { value: "longchuanshu_v3.6", label: "龙川叔（男）" },
-    ],
+// 音色必须属于所选模型，跨模型返回 InvalidParameter；目录见 qwen-voice-catalog.json。
+const QWEN_DEFAULT_MODEL = "qwen-audio-3.1-tts-flash";
+const QWEN_DEFAULT_VOICES: Record<string, string> = {
+    "qwen-audio-3.1-tts-plus": "longanhuan_v3.1",
+    "qwen-audio-3.1-tts-flash": "longanhuan_v3.1",
+    "qwen-audio-3.0-tts-plus": "longanlingxin",
+    "qwen-audio-3.0-tts-flash": "longanhuan_v3.6",
 };
+const qwenVoiceCache = new Map<string, Option[]>();
+
+function qwenCatalogModel(model: string | undefined) {
+    const name = (model || "").toLowerCase();
+    return qwenCatalogModels.find((id) => name.endsWith(id)) || QWEN_DEFAULT_MODEL;
+}
 
 export function qwenVoiceOptions(model: string | undefined): Option[] {
-    const name = (model || "").toLowerCase();
-    const key = Object.keys(qwenVoiceOptionsByModel).find((id) => name.endsWith(id));
-    return qwenVoiceOptionsByModel[key || "qwen-audio-3.1-tts-flash"];
+    const key = qwenCatalogModel(model);
+    let options = qwenVoiceCache.get(key);
+    if (!options) {
+        options = qwenCatalogVoices(key);
+        qwenVoiceCache.set(key, options);
+    }
+    return options;
 }
 
 function qwenFields(model: string | undefined): AudioParamField[] {
     const voices = qwenVoiceOptions(model);
     return [
-        { key: "voiceId", label: "音色", group: "音色", type: "select", options: voices, defaultValue: voices[0].value },
+        { key: "voiceId", label: "音色", group: "音色", type: "select", options: voices, defaultValue: QWEN_DEFAULT_VOICES[qwenCatalogModel(model)] || voices[0].value },
         { key: "rate", label: "语速", group: "基础调节", type: "slider", min: 0.5, max: 2, step: 0.01, defaultValue: 1 },
         { key: "pitch", label: "音调", group: "基础调节", type: "slider", min: 0.5, max: 2, step: 0.01, defaultValue: 1 },
         { key: "volume", label: "音量", group: "基础调节", type: "slider", min: 0, max: 100, step: 1, defaultValue: 50 },
