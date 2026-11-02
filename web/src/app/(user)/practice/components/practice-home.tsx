@@ -148,6 +148,8 @@ export default function PracticeHome() {
     const projectCards = PRACTICE_PROJECT_CARDS.filter((card) => visibleProjects[card.kind]);
     const moduleCards = PRACTICE_MODULES.filter((card) => visibleModules.includes(card.module));
     const twoUp = projectCards.length === 2;
+    // 模块卡片按剩余数量自适应列数：1 张占满整行、2 张各半、3 张及以上三列，避免关掉模块后网格留空洞。
+    const moduleGridClass = moduleCards.length <= 1 ? undefined : moduleCards.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3";
 
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]" data-practice-home>
@@ -198,7 +200,7 @@ export default function PracticeHome() {
                 {/* 练习模块 */}
                 <section className="mt-10" aria-labelledby="practice-modules-heading">
                     <SectionHeading id="practice-modules-heading" title="练习模块" hint="单块技能专项训练，每个模块独立，互不串联" />
-                    <GammaStagger className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <GammaStagger className={cn("mt-4 grid gap-4", moduleGridClass)}>
                         {moduleCards.map((card) => (
                             <GammaStaggerItem key={card.module} className="h-full">
                                 <ModuleCard card={card} onClick={() => router.push(practiceModulePath(card.module, ipReference ? { reference: ipReference } : undefined))} />
