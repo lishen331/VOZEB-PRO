@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-10-30。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **432** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-11-02。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **436** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**432**
-- 方法出现次数：DELETE 65、GET 216、HEAD 6、PATCH 61、POST 244、PUT 18
-- 一级域：`admin` 134、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**436**
+- 方法出现次数：DELETE 65、GET 219、HEAD 6、PATCH 61、POST 245、PUT 18
+- 一级域：`admin` 134、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -590,7 +590,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/referrals` | 用户 | [route.ts](web/src/app/api/referrals/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 邀请返利：查询 |
 
-### `school`（28）
+### `school`（32）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -601,6 +601,10 @@
 | GET | `/api/school/compute` | 用户 | [route.ts](web/src/app/api/school/compute/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / compute：查询 |
 | GET | `/api/school/compute/ledger` | 用户 | [route.ts](web/src/app/api/school/compute/ledger/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / compute / ledger：查询 |
 | GET | `/api/school/context` | 用户 | [route.ts](web/src/app/api/school/context/route.ts) | [school-access-service](web/src/lib/server/school-access-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / context：查询 |
+| GET | `/api/school/course-catalog` | 用户 | [route.ts](web/src/app/api/school/course-catalog/route.ts) | [school-course-catalog-service](web/src/lib/server/school-course-catalog-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / course-catalog：查询 |
+| GET | `/api/school/course-catalog/[courseId]` | 用户 | [route.ts](web/src/app/api/school/course-catalog/[courseId]/route.ts) | [school-course-catalog-service](web/src/lib/server/school-course-catalog-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / course-catalog / [courseId]：查询 |
+| GET | `/api/school/course-catalog/[courseId]/cover` | 混合 | [route.ts](web/src/app/api/school/course-catalog/[courseId]/cover/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[school-course-catalog-service](web/src/lib/server/school-course-catalog-service.ts)<br>[local-media-registry](web/src/lib/server/local-media-registry.ts) | PostgreSQL | school / course-catalog / [courseId] / cover：查询 |
+| POST | `/api/school/course-catalog/[courseId]/unlock` | 混合 | [route.ts](web/src/app/api/school/course-catalog/[courseId]/unlock/route.ts) | [school-course-catalog-service](web/src/lib/server/school-course-catalog-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / course-catalog / [courseId] / unlock：提交/执行 |
 | DELETE, PUT | `/api/school/course-material-uploads` | 混合 | [route.ts](web/src/app/api/school/course-material-uploads/route.ts) | [course-attachment-service](web/src/lib/server/course-attachment-service.ts)<br>[school-access-service](web/src/lib/server/school-access-service.ts) | PostgreSQL | school / course-material-uploads：删除、替换 |
 | DELETE, PATCH | `/api/school/course-materials/[id]` | 混合 | [route.ts](web/src/app/api/school/course-materials/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / course-materials / 单项：更新、删除 |
 | GET | `/api/school/courses` | 用户 | [route.ts](web/src/app/api/school/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses：查询 |
