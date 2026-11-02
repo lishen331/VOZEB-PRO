@@ -51,8 +51,13 @@ export type WorkGovernanceCasePage = { items: WorkGovernanceCase[]; total: numbe
 
 export type PublicGalleryPage = { items: PublicGalleryItem[]; nextCursor?: string };
 
-export function listPublicGallery(input: { category?: string; limit?: number; sort?: "random" | "featured" | "latest" | "popular"; keyword?: string; cursor?: string } = {}) {
+export function listPublicGallery(input: { category?: string; limit?: number; sort?: "random" | "featured" | "latest" | "popular"; keyword?: string; tag?: string; cursor?: string } = {}) {
     return request<PublicGalleryPage>(`/api/public/gallery?${searchParams(input)}`);
+}
+
+/** 本周 / 本月热榜走独立排行榜端点，游标与普通广场不通用 */
+export function listPublicGalleryRanking(input: { window: "weekly" | "monthly"; limit?: number; cursor?: string }) {
+    return request<PublicGalleryPage>(`/api/public/gallery/ranking?${searchParams(input)}`);
 }
 
 export function submitWorkReport(slug: string, input: { category: string; description: string }) {
