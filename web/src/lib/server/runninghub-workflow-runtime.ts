@@ -80,13 +80,26 @@ export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "syste
     });
 }
 
-function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels">, capability: LogicalModelCapability, requestedModel = ""): ResolvedLogicalModel[] {
+function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = ""): ResolvedLogicalModel[] {
     const requested = rawModelName(requestedModel).toLowerCase();
+    const poolConfig = settings.practiceModelPool?.models;
+
     return settings.systemChannels
         .filter((channel) => channel.enabled && channel.purpose === "open-source-practice" && channelConnectionReady(channel))
         .flatMap((channel) =>
             channel.models
-                .filter((model) => channelModelCapability(channel, model) === capability && (!requested || channelSupportsModel([model], requestedModel)))
+                .filter((model) => {
+                    const modelName = rawModelName(model).toLowerCase();
+
+                    // If pool config exists, check if model is explicitly included
+                    if (poolConfig && typeof poolConfig[modelName] === 'boolean') {
+                        if (!poolConfig[modelName]) return false; // Explicitly excluded
+                    }
+
+                    // Capability match + requested model match
+                    return channelModelCapability(channel, model) === capability &&
+                           (!requested || channelSupportsModel([model], requestedModel));
+                })
                 .map((model) => ({
                     logicalModelId: rawModelName(model),
                     upstreamModel: rawModelName(model),

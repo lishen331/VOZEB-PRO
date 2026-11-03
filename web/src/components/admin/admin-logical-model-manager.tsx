@@ -15,6 +15,7 @@ import { normalizeModelId } from "@/lib/model-capability";
 import { BindingHttp1Control } from "./binding-http1-control";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import { AdminModelConnectionTest } from "@/components/admin/admin-model-connection-test";
+import { PracticeModelPoolManager } from "@/components/admin/practice-model-pool-manager";
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
 
 import { capabilityLabel, isLogicalModelResolvable, logicalModelSupportsImageInput, normalizeDefaultModelsConfig, resolveLogicalModelConfig, resolveVisionModelConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
@@ -226,6 +227,9 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                         />
                     </div>
                     <p className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。</p>
+
+                    {defaultPool === "open-source-practice" && <PracticeModelPoolManager />}
+
                     <div className="mt-4 space-y-4">
                         {availableDefaultFields.map(({ capability, key, label }) => {
                             const options = logicalModels
