@@ -24,6 +24,7 @@ import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutM
 import { recordGenerationTaskLogResult } from "@/lib/server/generation-log-task-service";
 import { getGenerationLogForUser } from "@/lib/server/generation-log-store";
 import { audioUpstreamFields } from "@/lib/audio-model-params";
+import { getCustomVoice, updateCustomVoice } from "@/lib/server/custom-voice-store";
 
 export type AudioUpstreamStep =
     | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
@@ -66,12 +67,38 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
         }
 
         try {
+            // Handle custom voice if specified
+            let voiceId = config.voice;
+            if (config.customVoiceId) {
+                const customVoice = await getCustomVoice(config.customVoiceId);
+                if (!customVoice) {
+                    throw new GenerationSubmissionSafeFailure("自定义音色不存在");
+                }
+                if (customVoice.status !== "ready") {
+                    throw new GenerationSubmissionSafeFailure("自定义音色尚未就绪");
+                }
+                if (customVoice.ownerUserId !== task.userId && !customVoice.shared) {
+                    throw new GenerationSubmissionSafeFailure("无权使用此自定义音色");
+                }
+                if (customVoice.ttsModel !== config.model) {
+                    throw new GenerationSubmissionSafeFailure("自定义音色与当前模型不匹配");
+                }
+                if (customVoice.channelId !== config.channelId) {
+                    throw new GenerationSubmissionSafeFailure("自定义音色与当前渠道不匹配");
+                }
+                voiceId = customVoice.upstreamVoiceId || voiceId;
+                // Update lastUsedAt to prevent MiniMax expiration
+                await updateCustomVoice(config.customVoiceId, { lastUsedAt: new Date().toISOString() }).catch(() => {
+                    // Non-critical: continue even if update fails
+                });
+            }
+
             const defaults = {
                 model: config.model,
                 input: candidate.prompt,
                 prompt: candidate.prompt,
                 text: candidate.prompt,
-                voice: config.voice,
+                voice: voiceId,
                 response_format: config.format,
                 format: config.format,
                 speed: Number(config.speed) || 1,
