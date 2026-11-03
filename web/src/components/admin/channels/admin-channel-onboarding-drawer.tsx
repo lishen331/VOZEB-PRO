@@ -18,7 +18,7 @@ import { inferModelCapability, normalizeModelId } from "@/lib/model-capability";
 import { capabilityLabel, channelModelCapability, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
 
 import { defaultModelField, removeChannelFromWorkspace, type ChannelWorkspaceSettings } from "./admin-channel-workspace-model";
-import { ChannelPurposeControl, RunningHubChannelFields } from "./runninghub-channel-fields";
+import { ChannelEnableControls, RunningHubChannelFields } from "./runninghub-channel-fields";
 
 type Props = {
     open: boolean;
@@ -269,7 +269,7 @@ function ConnectionStep({ channel, onChange }: { channel: SystemModelChannel; on
                 <LabeledControl label="Base URL">
                     <Input value={channel.baseUrl} placeholder="https://api.example.com" onChange={(event) => onChange({ baseUrl: event.target.value })} />
                 </LabeledControl>
-                <ChannelPurposeControl channel={channel} onChange={onChange} />
+                <ChannelEnableControls channel={channel} onChange={onChange} />
                 {custom ? (
                     <LabeledControl label="鉴权方式">
                         <Select className="w-full" value={authMode} options={authModeOptions} onChange={(value: SystemChannelAuthMode) => updateAuth({ authMode: value, ...(value !== "custom-header" ? { authHeader: "", authPrefix: "" } : {}) })} />

@@ -750,6 +750,7 @@ export function normalizeSystemChannel(channel: Partial<SystemModelChannel>): Sy
         apiFormat: channel.apiFormat === "gemini" ? "gemini" : "openai",
         models: Array.from(new Set((channel.models || []).map((model) => model.trim()).filter(Boolean))),
         enabled: channel.enabled !== false,
+        practiceEnabled: typeof channel.practiceEnabled === "boolean" ? channel.practiceEnabled : undefined,
         purpose: normalizeChannelPurpose(channel.purpose),
         advancedConfig: normalizeSystemChannelAdvancedConfig(channel.advancedConfig),
     };

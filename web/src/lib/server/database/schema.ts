@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS system_model_channels (
 );
 ALTER TABLE system_model_channels ADD COLUMN IF NOT EXISTS webhook_secret_ciphertext text NOT NULL DEFAULT '';
 ALTER TABLE system_model_channels ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'shared';
+ALTER TABLE system_model_channels ADD COLUMN IF NOT EXISTS practice_enabled boolean;
 ALTER TABLE system_model_channels DROP CONSTRAINT IF EXISTS system_model_channels_purpose;
 ALTER TABLE system_model_channels ADD CONSTRAINT system_model_channels_purpose CHECK (purpose IN ('production', 'open-source-practice', 'shared'));
 

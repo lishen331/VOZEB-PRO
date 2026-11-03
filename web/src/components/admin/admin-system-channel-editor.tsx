@@ -17,6 +17,8 @@ import { normalizeModelId } from "@/lib/model-capability";
 import { revealAdminChannelApiKey } from "@/services/api/admin-settings";
 import { AdminChannelProtocolSetup } from "@/components/admin/admin-channel-protocol-setup";
 import { applyModelProtocol, channelProtocolDefinition, channelProtocolOptions, channelRequiresApiKey, channelSupportsModelCatalog, emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
+import { VoiceCustomizationEditor } from "@/components/admin/voice-customization-editor";
+import { normalizeVoiceCustomization, VOICE_CUSTOMIZATION_TEMPLATES } from "@/lib/custom-voice-config";
 
 const protocolOptions = channelProtocolOptions().map(({ value, label }) => ({ value, label }));
 const ALL_GLOBAL_AIOPC_PRESETS = "__all_globalaiopc_presets__";
@@ -452,6 +454,7 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
                         ) : (
                             <div className="md:col-span-2 text-xs leading-5 text-[var(--gm-text-3)]">当前协议的路径、请求字段、结果字段和参考素材能力由协议注册表固定；如需非标准字段，请在模型级路由中选择“自定义协议”。</div>
                         )}
+                        {detectedCapabilities.has("audio") ? <VoiceCustomizationEditor advanced={advanced} updateAdvanced={updateAdvanced} /> : null}
                         {canSyncModels ? (
                             <div className="flex flex-wrap gap-2 md:col-span-2">
                                 <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={fetching} onClick={onFetchModels}>

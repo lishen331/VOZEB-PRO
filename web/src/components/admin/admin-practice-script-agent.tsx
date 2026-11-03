@@ -13,7 +13,7 @@ export function AdminPracticeScriptAgent({ settings }: { settings: AuthSettings 
             (model) =>
                 model.enabled &&
                 model.capability === "text" &&
-                model.bindings.some((binding) => binding.enabled && settings.systemChannels.some((channel) => channel.id === binding.channelId && channel.enabled && channel.purpose === "open-source-practice")),
+                model.bindings.some((binding) => binding.enabled && settings.systemChannels.some((channel) => channel.id === binding.channelId && (channel.practiceEnabled ?? channel.enabled) && channel.purpose === "open-source-practice")),
         )
         .map((model) => ({ value: model.id, label: model.name || model.id }));
     useEffect(() => {

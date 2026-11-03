@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
 import { rawModelName } from "@/lib/server/generation-channel";
-import { channelModelCapability } from "@/lib/model-routing-config";
+import { channelModelCapability, channelUsableForSurface } from "@/lib/model-routing-config";
 import type { LogicalModelCapability } from "@/lib/auth/store-types";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +40,11 @@ export async function GET(request: NextRequest) {
     const settings = await getAuthSettings();
     const poolConfig = settings.practiceModelPool?.models || {};
 
-    // Collect all models from open-source-practice channels
+    // Collect all models from channels usable in the practice surface. Purpose still limits
+    // visibility (production-only channels never appear), but the practice switch is what
+    // decides whether the channel is on for 无限练习.
     const candidates: PracticePoolCandidate[] = settings.systemChannels
-        .filter((channel) => channel.enabled && channel.purpose === "open-source-practice")
+        .filter((channel) => channelUsableForSurface(channel, "open-source-practice"))
         .flatMap((channel) =>
             channel.models.map((model) => {
                 const modelName = rawModelName(model);

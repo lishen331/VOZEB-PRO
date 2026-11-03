@@ -295,6 +295,7 @@ export type SystemModelChannelRecord = {
     apiFormat: "openai" | "gemini";
     models: JsonValue;
     enabled: boolean;
+    practiceEnabled?: boolean;
     purpose?: SystemChannelPurpose;
     advancedConfig?: JsonValue;
     sortOrder: number;

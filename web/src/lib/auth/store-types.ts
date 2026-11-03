@@ -248,7 +248,10 @@ export type SystemModelChannel = {
     webhookSecret?: string;
     apiFormat: ApiCallFormat;
     models: string[];
+    /** 正式生产启用。 */
     enabled: boolean;
+    /** 无限练习启用。未设置时回落 enabled，保持存量渠道行为不变。 */
+    practiceEnabled?: boolean;
     purpose?: SystemChannelPurpose;
     advancedConfig?: SystemChannelAdvancedConfig;
     hasApiKey?: boolean;
