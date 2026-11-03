@@ -28,9 +28,12 @@ export interface PdfPreviewProps {
     title: string;
     downloadHref?: string;
     className?: string;
+    /** panel=备课页内嵌（带工具条）；stage=全屏放映（隐藏工具条，按高度自适应，左右玻璃翻页） */
+    variant?: "panel" | "stage";
 }
 
-export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewProps) {
+export function PdfPreview({ src, title, downloadHref, className, variant = "panel" }: PdfPreviewProps) {
+    const stage = variant === "stage";
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const docRef = useRef<PdfDocumentProxy | null>(null);
@@ -78,7 +81,7 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
         };
     }, [src]);
 
-    // 渲染当前页：适应宽度时按容器宽度算缩放
+    // 渲染当前页：面板模式按宽度适应；放映模式同时受宽、高约束，整页必须完整可见
     const render = useCallback(async () => {
         const doc = docRef.current;
         const canvas = canvasRef.current;
@@ -86,8 +89,16 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
         try {
             const pdfPage = await doc.getPage(Math.min(Math.max(1, page), pages));
             const containerWidth = scrollRef.current?.clientWidth ?? 0;
+            const containerHeight = scrollRef.current?.clientHeight ?? 0;
             const base = pdfPage.getViewport({ scale: 1 });
-            const effective = fitWidth && containerWidth ? Math.min(MAX_SCALE, Math.max(MIN_SCALE, (containerWidth - 48) / base.width)) : scale;
+            let effective = scale;
+            if (stage) {
+                const byWidth = containerWidth ? (containerWidth - 32) / base.width : Number.POSITIVE_INFINITY;
+                const byHeight = containerHeight ? (containerHeight - 24) / base.height : Number.POSITIVE_INFINITY;
+                effective = Math.min(MAX_SCALE, Math.max(0.1, Math.min(byWidth, byHeight)));
+            } else if (fitWidth && containerWidth) {
+                effective = Math.min(MAX_SCALE, Math.max(MIN_SCALE, (containerWidth - 48) / base.width));
+            }
             const viewport = pdfPage.getViewport({ scale: effective });
             const ratio = Math.min(window.devicePixelRatio || 1, 2);
             canvas.width = Math.floor(viewport.width * ratio);
@@ -103,11 +114,27 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
         } catch {
             // 快速翻页时上一张渲染会被取消，属正常
         }
-    }, [fitWidth, page, pages, scale]);
+    }, [fitWidth, page, pages, scale, stage]);
 
     useEffect(() => {
         if (status !== "ready") return;
         void render();
+    }, [render, status]);
+
+    // 容器尺寸变化要重渲染：窗口缩放、侧栏收起、进出放映都会改变可用空间
+    useEffect(() => {
+        const node = scrollRef.current;
+        if (!node || status !== "ready") return;
+        let frame = 0;
+        const observer = new ResizeObserver(() => {
+            window.cancelAnimationFrame(frame);
+            frame = window.requestAnimationFrame(() => void render());
+        });
+        observer.observe(node);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            observer.disconnect();
+        };
     }, [render, status]);
 
     const go = useCallback(
@@ -134,8 +161,8 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
     }, [go, page]);
 
     return (
-        <div className={cn("flex min-h-0 flex-col overflow-hidden rounded-[var(--gm-radius-lg)] bg-[var(--gm-bg-elevated)] ring-1 ring-[var(--gm-border)]", className)}>
-            <header className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-[var(--gm-border)] px-2 py-1.5 text-[var(--gm-text-2)]">
+        <div className={cn("flex min-h-0 flex-col overflow-hidden rounded-[var(--gm-radius-lg)] bg-[var(--gm-bg-elevated)] ring-1 ring-[var(--gm-border)]", stage && "rounded-none bg-transparent ring-0", className)}>
+            <header className={cn("flex shrink-0 flex-wrap items-center gap-1.5 border-b border-[var(--gm-border)] px-2 py-1.5 text-[var(--gm-text-2)]", stage && "hidden")}>
                 <span className="inline-flex items-center gap-1 rounded-full bg-[var(--gm-wash)] px-2 py-1 text-[11px] tabular-nums">
                     <input
                         aria-label="页码"
@@ -193,7 +220,7 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
                 ) : null}
             </header>
 
-            <div ref={scrollRef} className="gm-scroll relative flex min-h-0 flex-1 items-start justify-center overflow-auto bg-[#0b0f18] p-3">
+            <div ref={scrollRef} className={cn("gm-scroll relative flex min-h-0 flex-1 items-start justify-center overflow-auto bg-[#0b0f18] p-3", stage && "items-center overflow-hidden p-3")}>
                 {status === "loading" ? (
                     <span className="absolute inset-0 grid place-items-center text-[var(--gm-text-3)]">
                         <Loader2 className="size-5 animate-spin" />
@@ -211,6 +238,30 @@ export function PdfPreview({ src, title, downloadHref, className }: PdfPreviewPr
                     </div>
                 ) : null}
                 <canvas ref={canvasRef} aria-label={title} className={cn("block h-auto max-w-none rounded-[6px] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.45)]", status !== "ready" && "invisible")} />
+
+                {/* 左右玻璃翻页：面板与放映都用同一套，翻的是课件页码而不是资料 */}
+                {status === "ready" && pages > 1 ? (
+                    <>
+                        <button
+                            type="button"
+                            aria-label="上一页"
+                            disabled={page <= 1}
+                            onClick={() => go(page - 1)}
+                            className="gm-glass absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full text-white shadow-lg transition-opacity disabled:pointer-events-none disabled:opacity-0"
+                        >
+                            <ChevronLeft className="size-5" />
+                        </button>
+                        <button
+                            type="button"
+                            aria-label="下一页"
+                            disabled={page >= pages}
+                            onClick={() => go(page + 1)}
+                            className="gm-glass absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full text-white shadow-lg transition-opacity disabled:pointer-events-none disabled:opacity-0"
+                        >
+                            <ChevronRight className="size-5" />
+                        </button>
+                    </>
+                ) : null}
             </div>
         </div>
     );

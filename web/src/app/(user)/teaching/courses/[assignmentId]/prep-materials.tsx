@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { ChevronLeft, ChevronRight, Download, FileArchive, FileSpreadsheet, FileText, Film, ImageIcon, Presentation, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileArchive, FileSpreadsheet, FileText, Film, ImageIcon, Presentation, X } from "lucide-react";
 
 import { PdfPreview } from "@/components/gamma-ui/gamma-pdf-preview";
 import type { CourseMaterial } from "@/lib/school-domain";
@@ -54,7 +54,7 @@ export function formatBytes(bytes: number) {
 export const materialDownloadHref = (material: CourseMaterial) => `${material.url}?download=original`;
 
 /** 单份资料的大预览：图片 / 视频直接展示，其他文件显示下载卡 */
-export function MaterialStage({ material }: { material: CourseMaterial }) {
+export function MaterialStage({ material, variant = "panel" }: { material: CourseMaterial; variant?: "panel" | "stage" }) {
     const kind = materialKind(material);
     if (kind === "image") {
         // eslint-disable-next-line @next/next/no-img-element -- 课程资料走鉴权地址，尺寸未知
@@ -62,7 +62,7 @@ export function MaterialStage({ material }: { material: CourseMaterial }) {
     }
     if (kind === "video") return <video key={material.id} src={material.url} controls preload="metadata" className="mx-auto block h-full max-h-full max-w-full" />;
     // PDF 用项目自己的渲染器（pdfjs），不要浏览器阅读器的灰框和双滚动条
-    if (kind === "pdf") return <PdfPreview src={materialPreviewHref(material)} title={material.title} className="size-full" />;
+    if (kind === "pdf") return <PdfPreview src={materialPreviewHref(material)} title={material.title} className="size-full" variant={variant} />;
     return (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <span className="grid size-16 place-items-center rounded-2xl bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[var(--gm-accent-ring)]">
@@ -100,8 +100,10 @@ export function MaterialViewer({ materials, index, onIndex, onPresent }: { mater
     if (!current) return null;
     return (
         <div className="flex min-w-0 flex-col gap-3">
-            <div className="group relative aspect-video overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-bg-elevated)] shadow-[var(--gm-shadow)] ring-1 ring-[var(--gm-border-strong)]">
-                <MaterialStage material={current} />
+            <div className="relative flex min-h-[clamp(320px,58vh,760px)] flex-col overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-bg-elevated)] shadow-[var(--gm-shadow)] ring-1 ring-[var(--gm-border-strong)]">
+                <div className="flex min-h-0 flex-1 flex-col">
+                    <MaterialStage material={current} />
+                </div>
                 {[
                     { side: "left-3", icon: ChevronLeft, label: "上一份资料", to: index - 1 },
                     { side: "right-3", icon: ChevronRight, label: "下一份资料", to: index + 1 },
@@ -112,17 +114,13 @@ export function MaterialViewer({ materials, index, onIndex, onPresent }: { mater
                             type="button"
                             aria-label={item.label}
                             onClick={() => onIndex(item.to)}
-                            className={cn("gm-glass absolute top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full text-[var(--gm-text)] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100", item.side)}
+                            className={cn("gm-glass absolute top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full text-[var(--gm-text)] shadow-lg", item.side)}
                         >
                             <item.icon className="size-5" />
                         </button>
                     ) : null,
                 )}
-                <button
-                    type="button"
-                    onClick={onPresent}
-                    className="gm-glass absolute top-3 right-3 inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                >
+                <button type="button" onClick={onPresent} className="gm-glass absolute top-3 right-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium">
                     <Presentation className="size-3.5" />
                     放映
                 </button>
@@ -172,10 +170,24 @@ export function MaterialPresent({ materials, index, caption, onIndex, onClose }:
     if (!current) return null;
     return createPortal(
         <motion.div role="dialog" aria-modal aria-label="资料放映" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="gm fixed inset-0 z-[1200] flex flex-col bg-black text-white">
-            <div className="flex min-h-0 flex-1 items-center justify-center px-16 py-8">
-                <div className="h-full w-full">
-                    <MaterialStage material={current} />
-                </div>
+            <div className="relative flex min-h-0 flex-1 items-center justify-center p-3">
+                <MaterialStage material={current} variant="stage" />
+                {[
+                    { side: "left-4", icon: ChevronLeft, label: "上一份资料", to: index - 1 },
+                    { side: "right-4", icon: ChevronRight, label: "下一份资料", to: index + 1 },
+                ].map((item) =>
+                    item.to >= 0 && item.to < total ? (
+                        <button
+                            key={item.label}
+                            type="button"
+                            aria-label={item.label}
+                            onClick={() => onIndex(item.to)}
+                            className={cn("gm-glass absolute top-1/2 z-10 grid size-12 -translate-y-1/2 place-items-center rounded-full text-white shadow-xl", item.side)}
+                        >
+                            <item.icon className="size-6" />
+                        </button>
+                    ) : null,
+                )}
             </div>
             <div className="flex items-center gap-4 border-t border-white/10 px-6 py-3 text-sm">
                 <span className="font-mono text-white/50">
