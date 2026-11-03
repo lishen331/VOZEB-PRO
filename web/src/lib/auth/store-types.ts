@@ -81,18 +81,22 @@ export type RunningHubGenerationSizeOption = {
 export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
 
 /**
- * 练习模型池配置。记录哪些上游模型被管理员显式加入练习池。
- * 如果该字段为 undefined 或空对象,则回退到旧行为(渠道级别过滤)。
- * 键为上游模型名(小写),值为包含/排除状态。
+ * 练习模型池按能力分成五个池子，与「默认模型」的五个字段一一对应。
+ * vision 是 text 的子集：只收支持图片输入的文本模型。
  */
+export type PracticePoolKind = "text" | "vision" | "image" | "video" | "audio";
+
 export type PracticeModelPoolConfig = {
     /**
-     * 模型的包含状态。
+     * 旧的平面池，保留用于向后兼容。pools 里没有配置某个池时回退到这里。
      * - true: 显式加入池子
      * - false: 显式排除
-     * - undefined: 未配置(回退到渠道级别判断)
+     * - undefined: 未配置(回退到默认包含)
      */
     models?: Record<string, boolean>;
+
+    /** 五个能力池，各自独立勾选，键为上游模型名(小写)。 */
+    pools?: Partial<Record<PracticePoolKind, Record<string, boolean>>>;
 
     /**
      * 配置版本,用于未来迁移。

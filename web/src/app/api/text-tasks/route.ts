@@ -82,7 +82,9 @@ export async function POST(request: Request) {
             if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "text");
             const billingContext = await resolveSchoolComputeBillingContext(currentUser.id, { ...clientContext, executionProfile });
             const practiceModelTest = await resolvePracticeModelTestAccess(currentUser, { ...clientContext, executionProfile });
-            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
+            // 与正式生产一致：请求里带图时走 vision 池（文本模型里支持图片输入的那部分）。
+            const requiresImageInput = (body.messages || []).some((item) => Array.isArray(item.content) && item.content.some((part) => part.type === "image_url"));
+            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}), ...(requiresImageInput ? { requiresImageInput } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;

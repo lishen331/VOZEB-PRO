@@ -1,4 +1,4 @@
-import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { AuthSettings, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
@@ -29,6 +29,11 @@ export type PracticeWorkflowContext = {
      * 为真时，练习画布允许请求练习池里的真实上游模型，而不是只能用虚拟模型名。
      */
     practiceModelTest?: boolean;
+    /**
+     * 本次请求是否携带了图片/视频参考。由服务端从已净化的消息内容判定，
+     * 与正式生产一致：带图的文本请求走 vision 池（文本模型里支持图片输入的那部分）。
+     */
+    requiresImageInput?: boolean;
 };
 
 /**
@@ -59,8 +64,8 @@ export function practiceCanvasVirtualCapability(model: string): LogicalModelCapa
  * 直接按渠道 purpose 与模型能力展开，并用随机顺序让每次请求命中不同渠道。
  * 返回全部候选而不是只返回一个，让调用方沿用现有的健康检查与故障转移。
  */
-export function resolvePracticeCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels">, capability: LogicalModelCapability, requestedModel = ""): ResolvedLogicalModel[] {
-    const candidates = practiceCanvasPoolCandidates(settings, capability, requestedModel);
+export function resolvePracticeCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
+    const candidates = practiceCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput);
     for (let index = candidates.length - 1; index > 0; index -= 1) {
         const swap = Math.floor(Math.random() * (index + 1));
         [candidates[index], candidates[swap]] = [candidates[swap], candidates[index]];
@@ -80,9 +85,18 @@ export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "syste
     });
 }
 
-function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = ""): ResolvedLogicalModel[] {
+/** 池子里某个模型是否被勾选：优先查该能力的池，没有配置该池则回退旧的平面表，最后默认包含。 */
+export function practicePoolIncludes(pool: PracticeModelPoolConfig | undefined, kind: PracticePoolKind, modelKey: string): boolean {
+    const scoped = pool?.pools?.[kind];
+    if (scoped && typeof scoped[modelKey] === "boolean") return scoped[modelKey];
+    if (pool?.models && typeof pool.models[modelKey] === "boolean") return pool.models[modelKey];
+    return true;
+}
+
+function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
     const requested = rawModelName(requestedModel).toLowerCase();
-    const poolConfig = settings.practiceModelPool?.models;
+    // 文本请求按是否带图选池：带图的走 vision（文本模型里支持图片输入的那部分），否则走 text。
+    const kind: PracticePoolKind = capability === "text" && requiresImageInput ? "vision" : (capability as PracticePoolKind);
 
     return settings.systemChannels
         .filter((channel) => channelUsableForSurface(channel, "open-source-practice"))
@@ -90,14 +104,13 @@ function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChanne
             channel.models
                 .filter((model) => {
                     const modelName = rawModelName(model).toLowerCase();
-
-                    // If pool config exists, check if model is explicitly included
-                    if (poolConfig && typeof poolConfig[modelName] === "boolean") {
-                        if (!poolConfig[modelName]) return false; // Explicitly excluded
+                    if (!practicePoolIncludes(settings.practiceModelPool, kind, modelName)) return false;
+                    if (channelModelCapability(channel, model) !== capability) return false;
+                    if (!requested || channelSupportsModel([model], requestedModel)) {
+                        if (kind === "vision" && resolveLogicalModelCapabilityProfile({}, "text", channel, rawModelName(model))?.supportsImageInput !== true) return false;
+                        return true;
                     }
-
-                    // Capability match + requested model match
-                    return channelModelCapability(channel, model) === capability && (!requested || channelSupportsModel([model], requestedModel));
+                    return false;
                 })
                 .map((model) => ({
                     logicalModelId: rawModelName(model),
@@ -232,13 +245,19 @@ export function resolvePracticeWorkflowCandidates(settings: Pick<AuthSettings, "
  * - 练习画布：请求虚拟模型名时从练习池随机选渠道；持有测试权限时允许指定池内真实模型。
  *   其余请求保持原样，避免影响短剧练习的工作流路由。
  */
-export function resolvePracticeGenerationCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, capability: LogicalModelCapability, requestedModel: string, context: PracticeWorkflowContext | undefined): ResolvedLogicalModel[] {
+export function resolvePracticeGenerationCandidates(
+    settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">,
+    capability: LogicalModelCapability,
+    requestedModel: string,
+    context: PracticeWorkflowContext | undefined,
+): ResolvedLogicalModel[] {
     const executionProfile: PracticeExecutionProfile = context?.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
     if (executionProfile !== "open-source-practice") return resolveLogicalModelCandidates(settings, capability, requestedModel, "", executionProfile);
+    const requiresImageInput = context?.requiresImageInput === true;
     const virtualCapability = practiceCanvasVirtualCapability(requestedModel);
-    if (virtualCapability) return virtualCapability === capability ? resolvePracticeCanvasPoolCandidates(settings, capability) : [];
+    if (virtualCapability) return virtualCapability === capability ? resolvePracticeCanvasPoolCandidates(settings, capability, "", requiresImageInput) : [];
     if (context?.practiceModelTest && rawModelName(requestedModel)) {
-        return resolvePracticeCanvasPoolCandidates(settings, capability, requestedModel);
+        return resolvePracticeCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput);
     }
     if (capability === "text" && !context?.workflowKey && !context?.workflowCode) return resolveLogicalModelCandidates(settings, capability, requestedModel, "", executionProfile);
     return resolvePracticeWorkflowCandidates(settings, capability, context?.businessCode || "", context?.workflowCode);
