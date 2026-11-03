@@ -13,7 +13,8 @@ describe("admin schools section", () => {
         expect(source).toContain("md:hidden");
         expect(source).toContain("hidden md:block");
         expect(source).toContain("size={Math.min(560");
-        expect(source).toContain("forceRender");
+        // 不再用 forceRender：关闭态预挂载会让点击打开的同一次事件被当成点击外部而立即关闭
+        expect(source).not.toContain("forceRender");
         expect(source).toContain("currentUser");
         expect(source).toContain("hasAdminPermission");
         expect(source).toContain("canManageEducation");
