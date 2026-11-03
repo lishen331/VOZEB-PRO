@@ -598,7 +598,20 @@ export async function upsertPostgresSystemChannels(db: QueryExecutor, channels: 
                 sort_order = EXCLUDED.sort_order,
                 updated_at = now()
             `,
-            [channel.id, channel.name, channel.baseUrl, channel.apiKey, channel.webhookSecret || "", channel.apiFormat, dbJsonParam(channel.models), channel.enabled, dbJsonParam(channel.advancedConfig), index, channel.purpose || "shared", channel.practiceEnabled ?? null],
+            [
+                channel.id,
+                channel.name,
+                channel.baseUrl,
+                channel.apiKey,
+                channel.webhookSecret || "",
+                channel.apiFormat,
+                dbJsonParam(channel.models),
+                channel.enabled,
+                dbJsonParam(channel.advancedConfig),
+                index,
+                channel.purpose || "shared",
+                channel.practiceEnabled ?? null,
+            ],
         );
     }
 }

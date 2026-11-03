@@ -406,13 +406,7 @@ function ChannelEnableCell({ channel, onChange }: { channel: SystemModelChannel;
         <div className="flex flex-col items-start gap-1.5">
             <div className="flex items-center gap-1.5">
                 <span className="w-7 text-xs text-[var(--gm-text-3)]">生产</span>
-                <Switch
-                    size="small"
-                    checked={channel.enabled}
-                    disabled={runningHub}
-                    aria-label={`${channel.name}正式生产启用状态`}
-                    onChange={(enabled) => onChange({ enabled })}
-                />
+                <Switch size="small" checked={channel.enabled} disabled={runningHub} aria-label={`${channel.name}正式生产启用状态`} onChange={(enabled) => onChange({ enabled })} />
             </div>
             <div className="flex items-center gap-1.5">
                 <span className="w-7 text-xs text-[var(--gm-text-3)]">练习</span>

@@ -17,19 +17,8 @@ export function ChannelEnableControls({ channel, onChange }: { channel: SystemMo
     return (
         <LabeledControl label="启用">
             <div className="space-y-2">
-                <ToggleRow
-                    label="正式生产"
-                    description="打开后，逻辑模型的“正式生产”里能看到这个渠道的模型，并可设为生产默认模型。"
-                    checked={channel.enabled}
-                    disabled={runningHub}
-                    onChange={(enabled) => onChange({ enabled })}
-                />
-                <ToggleRow
-                    label="无限练习"
-                    description="打开后，逻辑模型的“无限练习”里能看到这个渠道的模型，并可在练习模型池中逐个勾选。"
-                    checked={practiceOn}
-                    onChange={(practiceEnabled) => onChange({ practiceEnabled })}
-                />
+                <ToggleRow label="正式生产" description="打开后，逻辑模型的“正式生产”里能看到这个渠道的模型，并可设为生产默认模型。" checked={channel.enabled} disabled={runningHub} onChange={(enabled) => onChange({ enabled })} />
+                <ToggleRow label="无限练习" description="打开后，逻辑模型的“无限练习”里能看到这个渠道的模型，并可在练习模型池中逐个勾选。" checked={practiceOn} onChange={(practiceEnabled) => onChange({ practiceEnabled })} />
                 {runningHub ? <p className="text-xs text-[var(--gm-text-3)]">RunningHub 渠道只用于无限练习，生产开关不参与。</p> : null}
             </div>
         </LabeledControl>

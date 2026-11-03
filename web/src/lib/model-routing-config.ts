@@ -146,9 +146,7 @@ export function logicalModelSupportsImageInput(logicalModels: LogicalModel[], ch
     return logical.bindings
         .filter((binding) => binding.enabled)
         .some((binding) => {
-            const channel = channels.find(
-                (item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item, binding.upstreamModel),
-            );
+            const channel = channels.find((item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item, binding.upstreamModel));
             return Boolean(channel && resolveLogicalModelCapabilityProfile(binding, "text", channel, binding.upstreamModel)?.supportsImageInput);
         });
 }

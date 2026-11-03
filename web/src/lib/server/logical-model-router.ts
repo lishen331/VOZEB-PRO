@@ -43,9 +43,7 @@ export function resolveLogicalModelCandidates(
         const preferred = preferredChannelId ? bindings.find((binding) => binding.channelId === preferredChannelId) : undefined;
         const resolved: ResolvedLogicalModel[] = [];
         for (const binding of preferred ? [preferred, ...bindings.filter((item) => item !== preferred)] : bindings) {
-            const channel = settings.systemChannels.find(
-                (item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item.models, binding.upstreamModel),
-            );
+            const channel = settings.systemChannels.find((item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item.models, binding.upstreamModel));
             if (channel) resolved.push({ logicalModelId: logical.id, upstreamModel: binding.upstreamModel, channelId: channel.id, channel, capabilityProfile: resolveLogicalModelCapabilityProfile(binding, capability, channel, binding.upstreamModel) });
         }
         // Text planning tracks health per channel + upstream model in
@@ -85,9 +83,7 @@ function imageOverflowCandidates(settings: Pick<AuthSettings, "logicalModels" | 
         if (!other.enabled || other.capability !== "image" || other.id === requestedLogicalId) continue;
         for (const binding of other.bindings) {
             if (!binding.enabled) continue;
-            const channel = settings.systemChannels.find(
-                (item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item.models, binding.upstreamModel),
-            );
+            const channel = settings.systemChannels.find((item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item.models, binding.upstreamModel));
             if (!channel) continue;
             const candidate: ResolvedLogicalModel = {
                 logicalModelId: requestedLogicalId,
