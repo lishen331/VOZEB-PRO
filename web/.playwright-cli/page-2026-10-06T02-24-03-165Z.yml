@@ -1,0 +1,408 @@
+- generic [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - complementary [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]:
+            - link "BLUEGAMMA 管理控制台" [ref=e695] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e10]:
+                - generic [ref=e11]: BLUEGAMMA
+                - generic [ref=e12]: 管理控制台
+            - button "收起后台侧边栏" [expanded] [ref=e13]:
+              - img [ref=e14]
+          - generic [ref=e17]:
+            - generic [ref=e18]:
+              - button "经营分析" [expanded] [ref=e19]:
+                - generic [ref=e20]: 经营分析
+                - img [ref=e21]
+              - generic [ref=e23]:
+                - button "经营看板" [ref=e24]:
+                  - img [ref=e26]
+                  - generic [ref=e30]: 经营看板
+                - button "用户运营" [ref=e31]:
+                  - img [ref=e33]
+                  - generic [ref=e37]: 用户运营
+                - button "调用记录" [ref=e38]:
+                  - img [ref=e40]
+                  - generic [ref=e42]: 调用记录
+                - button "生成运维" [ref=e43]:
+                  - img [ref=e45]
+                  - generic [ref=e47]: 生成运维
+                - button "短剧管理" [ref=e48]:
+                  - img [ref=e50]
+                  - generic [ref=e55]: 短剧管理
+            - generic [ref=e56]:
+              - button "产教运营" [expanded] [ref=e57]:
+                - generic [ref=e58]: 产教运营
+                - img [ref=e59]
+              - generic [ref=e61]:
+                - button "学校管理" [ref=e62]:
+                  - img [ref=e64]
+                  - generic [ref=e69]: 学校管理
+                - button "学校算力池" [ref=e70]:
+                  - img [ref=e72]
+                  - generic [ref=e77]: 学校算力池
+                - button "课程管理" [ref=e78]:
+                  - img [ref=e80]
+                  - generic [ref=e82]: 课程管理
+                - button "商单管理" [ref=e83]:
+                  - img [ref=e85]
+                  - generic [ref=e90]: 商单管理
+            - generic [ref=e91]:
+              - button "商品运营" [expanded] [ref=e92]:
+                - generic [ref=e93]: 商品运营
+                - img [ref=e94]
+              - generic [ref=e96]:
+                - button "套餐管理" [ref=e97]:
+                  - img [ref=e99]
+                  - generic [ref=e101]: 套餐管理
+                - button "订单管理" [ref=e102]:
+                  - img [ref=e104]
+                  - generic [ref=e106]: 订单管理
+            - generic [ref=e107]:
+              - button "营销推广" [expanded] [ref=e108]:
+                - generic [ref=e109]: 营销推广
+                - img [ref=e110]
+              - generic [ref=e112]:
+                - button "促销活动" [ref=e113]:
+                  - img [ref=e115]
+                  - generic [ref=e118]: 促销活动
+                - button "优惠券" [ref=e119]:
+                  - img [ref=e121]
+                  - generic [ref=e124]: 优惠券
+                - button "邀请奖励" [ref=e125]:
+                  - img [ref=e127]
+                  - generic [ref=e130]: 邀请奖励
+            - generic [ref=e131]:
+              - button "财务管理" [expanded] [ref=e132]:
+                - generic [ref=e133]: 财务管理
+                - img [ref=e134]
+              - generic [ref=e136]:
+                - button "积分规则" [ref=e137]:
+                  - img [ref=e139]
+                  - generic [ref=e142]: 积分规则
+                - button "支付渠道" [ref=e143]:
+                  - img [ref=e145]
+                  - generic [ref=e151]: 支付渠道
+                - button "CDK 兑换" [ref=e152]:
+                  - img [ref=e154]
+                  - generic [ref=e158]: CDK 兑换
+                - button "财务流水" [ref=e159]:
+                  - img [ref=e161]
+                  - generic [ref=e164]: 财务流水
+            - generic [ref=e165]:
+              - button "上游配置" [expanded] [ref=e166]:
+                - generic [ref=e167]: 上游配置
+                - img [ref=e168]
+              - generic [ref=e170]:
+                - button "模型渠道" [ref=e171]:
+                  - img [ref=e173]
+                  - generic [ref=e179]: 模型渠道
+                - button "无限练习" [ref=e180]:
+                  - img [ref=e182]
+                  - generic [ref=e185]: 无限练习
+                - button "Agent Skills" [ref=e186]:
+                  - img [ref=e188]
+                  - generic [ref=e191]: Agent Skills
+                - button "插件市场" [ref=e192]:
+                  - img [ref=e194]
+                  - generic [ref=e196]: 插件市场
+            - generic [ref=e197]:
+              - button "创作工坊配置" [expanded] [ref=e198]:
+                - generic [ref=e199]: 创作工坊配置
+                - img [ref=e200]
+              - generic [ref=e202]:
+                - button "兼容 AI 配置" [ref=e203]:
+                  - img [ref=e205]
+                  - generic [ref=e208]: 兼容 AI 配置
+                - button "提示词模板" [ref=e209]:
+                  - img [ref=e211]
+                  - generic [ref=e214]: 提示词模板
+                - button "兼容业务场景" [ref=e215]:
+                  - img [ref=e217]
+                  - generic [ref=e218]: 兼容业务场景
+                - button "兼容生成设置" [ref=e219]:
+                  - img [ref=e221]
+                  - generic [ref=e223]: 兼容生成设置
+                - button "兼容 SD2 资产" [ref=e224]:
+                  - img [ref=e226]
+                  - generic [ref=e228]: 兼容 SD2 资产
+            - generic [ref=e229]:
+              - button "系统管理" [expanded] [ref=e230]:
+                - generic [ref=e231]: 系统管理
+                - img [ref=e232]
+              - generic [ref=e234]:
+                - button "站点资料" [ref=e235]:
+                  - img [ref=e237]
+                  - generic [ref=e242]: 站点资料
+                - button "基础设置" [ref=e243]:
+                  - img [ref=e245]
+                  - generic [ref=e246]: 基础设置
+                - button "角色功能" [ref=e247]:
+                  - img [ref=e249]
+                  - generic [ref=e253]: 角色功能
+                - button "注销申请" [ref=e254]:
+                  - img [ref=e256]
+                  - generic [ref=e261]: 注销申请
+            - generic [ref=e262]:
+              - button "存储与备份" [expanded] [ref=e263]:
+                - generic [ref=e264]: 存储与备份
+                - img [ref=e265]
+              - generic [ref=e267]:
+                - button "本地媒体" [ref=e268]:
+                  - img [ref=e270]
+                  - generic [ref=e272]: 本地媒体
+                - button "外部存储" [ref=e273]:
+                  - img [ref=e275]
+                  - generic [ref=e277]: 外部存储
+                - button "数据备份" [ref=e278]:
+                  - img [ref=e280]
+                  - generic [ref=e286]: 数据备份
+            - generic [ref=e287]:
+              - button "内容运营" [expanded] [ref=e288]:
+                - generic [ref=e289]: 内容运营
+                - img [ref=e290]
+              - generic [ref=e292]:
+                - button "IP 库" [ref=e293]:
+                  - img [ref=e295]
+                  - generic [ref=e297]: IP 库
+                - button "作品管理" [ref=e298]:
+                  - img [ref=e300]
+                  - generic [ref=e302]: 作品管理
+                - button "公告通知" [ref=e303]:
+                  - img [ref=e305]
+                  - generic [ref=e308]: 公告通知
+                - button "提示词运营" [ref=e309]:
+                  - img [ref=e311]
+                  - generic [ref=e314]: 提示词运营
+            - generic [ref=e315]:
+              - button "帮助与支持" [expanded] [ref=e316]:
+                - generic [ref=e317]: 帮助与支持
+                - img [ref=e318]
+              - generic [ref=e320]:
+                - button "版本更新" [ref=e321]:
+                  - img [ref=e323]
+                  - generic [ref=e327]: 版本更新
+                - button "使用文档" [ref=e328]:
+                  - img [ref=e330]
+                  - generic [ref=e332]: 使用文档
+      - generic [ref=e333]:
+        - generic [ref=e335]:
+          - generic [ref=e337]:
+            - generic [ref=e338]: 后台
+            - generic [ref=e339]: /
+            - strong [ref=e340]: 模型渠道
+          - generic [ref=e341]:
+            - link "初始化 50%" [ref=e342] [cursor=pointer]:
+              - /url: /admin/setup
+              - img [ref=e344]
+              - generic [ref=e348]:
+                - text: 初始化 50%
+                - img [ref=e349]
+            - generic [ref=e353]:
+              - button "返回 Agent 创作" [ref=e354]:
+                - img [ref=e355]
+                - generic [ref=e357]: 返回 Agent 创作
+              - generic [ref=e358]:
+                - button "999,983" [ref=e359]:
+                  - img [ref=e361]
+                  - text: 999,983
+                - button "通知中心" [ref=e364]:
+                  - img [ref=e365]
+                - button "切换到深色主题" [ref=e368]:
+                  - img [ref=e369]
+                  - generic [ref=e371]: 切换到深色主题
+                - button "账户菜单" [ref=e372]:
+                  - generic [ref=e373]: BL
+        - generic [ref=e374]:
+          - generic [ref=e375]:
+            - heading "模型渠道" [level=1] [ref=e703]
+            - generic [ref=e377]: 添加上游接口，维护模型目录、逻辑绑定和各能力默认模型。
+          - generic [ref=e704]:
+            - generic [ref=e705]:
+              - generic [ref=e706]:
+                - heading "模型渠道" [level=2] [ref=e707]
+                - generic [ref=e708]: 管理上游渠道、协议、模型能力与站内逻辑模型路由。
+              - button "保存模型渠道配置" [ref=e710] [cursor=pointer]:
+                - img [ref=e712]
+                - generic [ref=e716]: 保存更改
+            - generic [ref=e718]:
+              - generic [ref=e719]:
+                - generic [ref=e720]:
+                  - generic [ref=e721]: 启用渠道
+                  - generic [ref=e722]: 5/5
+                - generic [ref=e723]:
+                  - generic [ref=e724]: 已同步模型
+                  - generic [ref=e725]: "5"
+                - generic [ref=e726]:
+                  - generic [ref=e727]: 使用协议
+                  - generic [ref=e728]: "2"
+                - generic [ref=e729]:
+                  - generic [ref=e730]: 默认能力
+                  - generic [ref=e731]: 3/4
+              - generic [ref=e732]:
+                - tablist [ref=e733]:
+                  - generic [ref=e735]:
+                    - tab "渠道管理" [ref=e737] [cursor=pointer]:
+                      - generic [ref=e738]:
+                        - img [ref=e740]
+                        - text: 渠道管理
+                    - tab "协议中心" [ref=e744] [cursor=pointer]:
+                      - generic [ref=e745]:
+                        - img [ref=e747]
+                        - text: 协议中心
+                    - tab "逻辑模型" [selected] [ref=e751] [cursor=pointer]:
+                      - generic [ref=e752]:
+                        - img [ref=e754]
+                        - text: 逻辑模型
+                  - generic [ref=e759]:
+                    - button "同步全部模型" [ref=e760] [cursor=pointer]:
+                      - img [ref=e762]
+                      - generic [ref=e767]: 同步全部模型
+                    - button "接入新渠道" [ref=e768] [cursor=pointer]:
+                      - img [ref=e770]
+                      - generic [ref=e771]: 接入新渠道
+                - tabpanel "逻辑模型" [ref=e989]:
+                  - generic [ref=e990]:
+                    - generic [ref=e991]:
+                      - generic [ref=e992]:
+                        - generic [ref=e993]:
+                          - generic [ref=e994]:
+                            - img [ref=e996]
+                            - generic [ref=e1000]: 逻辑模型路由
+                          - generic [ref=e1001]: 默认能力 4/4 可用
+                        - paragraph [ref=e1002]: 逻辑模型由渠道模型目录自动生成；同名上游模型跨渠道合并，前端昵称可独立设置。
+                      - button "重新同步" [ref=e1003] [cursor=pointer]:
+                        - img [ref=e1005]
+                        - generic [ref=e1010]: 重新同步
+                    - generic [ref=e1011]:
+                      - generic [ref=e1012]:
+                        - generic [ref=e1013]:
+                          - generic [ref=e1014]:
+                            - img [ref=e1016]
+                            - textbox "搜索模型昵称、ID 或上游模型" [ref=e1019]: gpt-5.6-sol
+                            - button "close-circle" [ref=e18594] [cursor=pointer]:
+                              - img "close-circle" [ref=e18595]:
+                                - img [ref=e18596]
+                          - generic [ref=e1021] [cursor=pointer]:
+                            - generic "全部能力" [ref=e1022]:
+                              - text: 全部能力
+                              - combobox [ref=e1023]
+                            - img "down" [ref=e1025]:
+                              - img [ref=e1026]
+                        - generic [ref=e2194]:
+                          - generic [ref=e2195]:
+                            - generic [ref=e2196]:
+                              - generic [ref=e2197]: gpt-5.6-sol
+                              - generic [ref=e2198]: 文本
+                              - generic [ref=e2199]: 启用
+                            - generic [ref=e2200]:
+                              - generic [ref=e2201]: ID：gpt-5.6-sol
+                              - generic [ref=e2202]: 3 个同名渠道绑定
+                              - generic [ref=e2203]: 模汇x中漫 API gpt文本 / gpt-5.6-sol
+                          - generic [ref=e2204]:
+                            - button "loading 不可用" [ref=e18627]:
+                              - img "loading" [ref=e18629]:
+                                - img [ref=e18630]
+                              - generic [ref=e2213]: 不可用
+                            - button "路由设置" [ref=e2215] [cursor=pointer]:
+                              - img [ref=e2217]
+                              - generic [ref=e2220]: 路由设置
+                      - generic [ref=e18502]:
+                        - generic [ref=e18503]:
+                          - generic [ref=e18504]:
+                            - img [ref=e18506]
+                            - generic [ref=e18510]: 默认模型
+                          - button "连接测试" [ref=e18511] [cursor=pointer]:
+                            - img [ref=e18513]
+                            - generic [ref=e18518]: 连接测试
+                          - radiogroup "segmented control" [ref=e18519]:
+                            - generic [ref=e18520]:
+                              - generic [ref=e18521] [cursor=pointer]:
+                                - radio "正式生产" [checked]
+                                - generic "正式生产" [ref=e18522]
+                              - generic [ref=e18523] [cursor=pointer]:
+                                - radio "无限练习"
+                                - generic "无限练习" [ref=e18524]
+                        - paragraph [ref=e18525]: 练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。
+                        - generic [ref=e18526]:
+                          - generic [ref=e18527]:
+                            - generic [ref=e18528]: 默认文本模型
+                            - generic [ref=e18529]:
+                              - generic "gpt-5.6-luna" [ref=e18530]:
+                                - text: gpt-5.6-luna
+                                - combobox "默认文本模型 gpt-5.6-luna down close-circle 实际路由：模汇x中漫 API gpt文本 / gpt-5.6-luna" [ref=e18531]
+                              - img "down" [ref=e18533]:
+                                - img [ref=e18534]
+                              - img "close-circle" [ref=e18537] [cursor=pointer]:
+                                - img [ref=e18538]
+                            - generic [ref=e18541]: 实际路由：模汇x中漫 API gpt文本 / gpt-5.6-luna
+                          - generic [ref=e18542]:
+                            - generic [ref=e18543]: Canvas 图片理解模型
+                            - generic [ref=e18544]:
+                              - generic "gpt-5-mini" [ref=e18545]:
+                                - text: gpt-5-mini
+                                - combobox "Canvas 图片理解模型 gpt-5-mini down close-circle 实际路由：模汇x中漫 API gpt文本 / gpt-5-mini info-circle Canvas 可选择任意已连通的文本模型；能力档案中的图片输入标记仅作提示，最终以上游实际能力为准。" [ref=e18546]
+                              - img "down" [ref=e18548]:
+                                - img [ref=e18549]
+                              - img "close-circle" [ref=e18552] [cursor=pointer]:
+                                - img [ref=e18553]
+                            - generic [ref=e18556]: 实际路由：模汇x中漫 API gpt文本 / gpt-5-mini
+                            - alert [ref=e18557]:
+                              - img "info-circle" [ref=e18559]:
+                                - img [ref=e18560]
+                              - generic [ref=e18563]: Canvas 可选择任意已连通的文本模型；能力档案中的图片输入标记仅作提示，最终以上游实际能力为准。
+                          - generic [ref=e18564]:
+                            - generic [ref=e18565]: 默认图片模型
+                            - generic [ref=e18566]:
+                              - generic "gpt-image-2.5-sunburst" [ref=e18567]:
+                                - text: gpt-image-2.5-sunburst
+                                - combobox "默认图片模型 gpt-image-2.5-sunburst down close-circle 实际路由：模汇x中漫 API / gpt-image-2.5-sunburst" [ref=e18568]
+                              - img "down" [ref=e18570]:
+                                - img [ref=e18571]
+                              - img "close-circle" [ref=e18574] [cursor=pointer]:
+                                - img [ref=e18575]
+                            - generic [ref=e18578]: 实际路由：模汇x中漫 API / gpt-image-2.5-sunburst
+                          - generic [ref=e18579]:
+                            - generic [ref=e18580]: 默认视频模型
+                            - generic [ref=e18581]:
+                              - generic "doubao-seedance-2-0" [ref=e18582]:
+                                - text: doubao-seedance-2-0
+                                - combobox "默认视频模型 doubao-seedance-2-0 down close-circle 实际路由：模汇x中漫 API / doubao-seedance-2-0" [ref=e18583]
+                              - img "down" [ref=e18585]:
+                                - img [ref=e18586]
+                              - img "close-circle" [ref=e18589] [cursor=pointer]:
+                                - img [ref=e18590]
+                            - generic [ref=e18593]: 实际路由：模汇x中漫 API / doubao-seedance-2-0
+  - alert [ref=e694]
+  - generic [ref=e18603]:
+    - dialog "连接测试结果":
+      - generic [ref=e18604]:
+        - button "Close" [ref=e18605] [cursor=pointer]:
+          - generic "关闭" [ref=e18606]:
+            - img "close" [ref=e18607]:
+              - img [ref=e18608]
+        - generic [ref=e18611]: 连接测试结果
+        - generic [ref=e18632]:
+          - generic [ref=e18633]:
+            - generic [ref=e18634]: gpt-5.6-sol
+            - generic [ref=e18635]: 部分可用
+          - generic [ref=e18636]:
+            - generic [ref=e18637]:
+              - img [ref=e18638]
+              - text: 模汇x中漫 API gpt文本 · 579ms
+            - generic [ref=e18641]: 请求 ID：ec37ec79-a98a-40ff-b952-ca73496c54f2
+          - generic [ref=e18642]:
+            - generic [ref=e18643]:
+              - img [ref=e18644]
+              - text: 昱梦渠道 gpt · 11082ms
+            - generic [ref=e18648]: 请求 ID：a4354721-8dfe-4903-88ce-73b965f9a7b5
+            - generic [ref=e18649]: fetch failed
+        - generic [ref=e18616]:
+          - button "关 闭" [ref=e18618] [cursor=pointer]:
+            - generic [ref=e18619]: 关 闭
+          - button "loading 重新测试" [active] [ref=e18621]:
+            - img "loading" [ref=e18651]:
+              - img [ref=e18652]
+            - generic [ref=e18626]: 重新测试

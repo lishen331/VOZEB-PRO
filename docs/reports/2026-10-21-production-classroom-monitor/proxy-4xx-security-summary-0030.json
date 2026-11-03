@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-21T16:30:36.992289+00:00",
+  "windowStart": "2026-10-21T16:00:00Z",
+  "observedErrorRows": 181,
+  "classes": {
+    "other": 31,
+    "secret-file-probe": 87,
+    "git-metadata-probe": 13,
+    "stack-and-config-probe": 49,
+    "unauthenticated-model-catalog": 1
+  },
+  "readOnly": true,
+  "notAuthoritativeTotal": true,
+  "correlationToGenerationTasks": "none in this access-tail slice",
+  "securityConclusion": "All observed probe paths returned 404; model catalog 401 is auth boundary; no evidence of file disclosure.",
+  "noProductionWrites": true
+}

@@ -1,0 +1,191 @@
+{
+  "at": "2026-10-21T15:34:58.808813+00:00",
+  "windowStart": "2026-10-21T14:30:00+08:00",
+  "windowEnd": "2026-10-21T20:51:47+08:00",
+  "firstCapturedSample": "2026-10-21T06:47:07.263497+00:00",
+  "lastCapturedSample": "2026-10-21T12:51:15.912976+00:00",
+  "sampleCount": 632,
+  "initialUnobservedSeconds": 1027.263497,
+  "lastSampleToWindowEndSeconds": 31.087024,
+  "maxInterSampleGap": {
+    "seconds": 35.41983,
+    "from": "2026-10-21T08:59:16.355483+00:00",
+    "to": "2026-10-21T08:59:51.775313+00:00"
+  },
+  "tenLargestGaps": [
+    {
+      "seconds": 35.41983,
+      "from": "2026-10-21T08:59:16.355483+00:00",
+      "to": "2026-10-21T08:59:51.775313+00:00"
+    },
+    {
+      "seconds": 35.407775,
+      "from": "2026-10-21T08:39:02.113510+00:00",
+      "to": "2026-10-21T08:39:37.521285+00:00"
+    },
+    {
+      "seconds": 35.34335,
+      "from": "2026-10-21T09:36:19.550318+00:00",
+      "to": "2026-10-21T09:36:54.893668+00:00"
+    },
+    {
+      "seconds": 35.269032,
+      "from": "2026-10-21T08:03:04.550246+00:00",
+      "to": "2026-10-21T08:03:39.819278+00:00"
+    },
+    {
+      "seconds": 35.250878,
+      "from": "2026-10-21T08:45:23.787718+00:00",
+      "to": "2026-10-21T08:45:59.038596+00:00"
+    },
+    {
+      "seconds": 35.20173,
+      "from": "2026-10-21T12:04:25.215808+00:00",
+      "to": "2026-10-21T12:05:00.417538+00:00"
+    },
+    {
+      "seconds": 35.173985,
+      "from": "2026-10-21T09:29:21.986806+00:00",
+      "to": "2026-10-21T09:29:57.160791+00:00"
+    },
+    {
+      "seconds": 35.171552,
+      "from": "2026-10-21T07:59:00.828257+00:00",
+      "to": "2026-10-21T07:59:35.999809+00:00"
+    },
+    {
+      "seconds": 35.122386,
+      "from": "2026-10-21T10:34:11.930985+00:00",
+      "to": "2026-10-21T10:34:47.053371+00:00"
+    },
+    {
+      "seconds": 35.101362,
+      "from": "2026-10-21T08:00:10.532498+00:00",
+      "to": "2026-10-21T08:00:45.633860+00:00"
+    }
+  ],
+  "extrema": {
+    "cpuPct": {
+      "min": 0,
+      "minAt": "2026-10-21T09:34:00.217325+00:00",
+      "max": 40.81,
+      "maxAt": "2026-10-21T09:29:57.160791+00:00",
+      "observations": 632
+    },
+    "memAvailableMiB": {
+      "min": 5439.98828125,
+      "minAt": "2026-10-21T08:34:23.935874+00:00",
+      "max": 6164.33984375,
+      "maxAt": "2026-10-21T06:47:41.978395+00:00",
+      "observations": 632
+    },
+    "diskUsedPct": {
+      "min": 47.47,
+      "minAt": "2026-10-21T06:47:07.263497+00:00",
+      "max": 47.8,
+      "maxAt": "2026-10-21T12:44:19.440867+00:00",
+      "observations": 632
+    },
+    "diskFreeGiB": {
+      "min": 23.296371459960938,
+      "minAt": "2026-10-21T12:51:15.912976+00:00",
+      "max": 23.455799102783203,
+      "maxAt": "2026-10-21T06:47:07.263497+00:00",
+      "observations": 632
+    },
+    "dbBlocked": {
+      "min": 0,
+      "minAt": "2026-10-21T06:47:07.263497+00:00",
+      "max": 0,
+      "maxAt": "2026-10-21T06:47:07.263497+00:00",
+      "observations": 632
+    },
+    "network.eth0.rxMiBPerSec": {
+      "min": 0.001,
+      "minAt": "2026-10-21T07:08:22.703286+00:00",
+      "max": 4.639,
+      "maxAt": "2026-10-21T07:03:12.187608+00:00",
+      "observations": 631
+    },
+    "network.eth0.txMiBPerSec": {
+      "min": 0.009,
+      "minAt": "2026-10-21T07:08:22.703286+00:00",
+      "max": 2.31,
+      "maxAt": "2026-10-21T08:23:18.059543+00:00",
+      "observations": 631
+    },
+    "network.eth0.rxDropDelta": {
+      "min": 0,
+      "minAt": "2026-10-21T06:47:41.978395+00:00",
+      "max": 0,
+      "maxAt": "2026-10-21T06:47:41.978395+00:00",
+      "observations": 631
+    },
+    "network.eth0.txDropDelta": {
+      "min": 0,
+      "minAt": "2026-10-21T06:47:41.978395+00:00",
+      "max": 0,
+      "maxAt": "2026-10-21T06:47:41.978395+00:00",
+      "observations": 631
+    },
+    "disk.vda.readMiBPerSec": {
+      "min": 0,
+      "minAt": "2026-10-21T06:47:41.978395+00:00",
+      "max": 3.296,
+      "maxAt": "2026-10-21T06:48:50.714992+00:00",
+      "observations": 631
+    },
+    "disk.vda.writeMiBPerSec": {
+      "min": 0.157,
+      "minAt": "2026-10-21T10:31:52.941832+00:00",
+      "max": 1.158,
+      "maxAt": "2026-10-21T08:31:30.401767+00:00",
+      "observations": 631
+    },
+    "disk.vda.ioBusyPct": {
+      "min": 0.22,
+      "minAt": "2026-10-21T10:49:14.111604+00:00",
+      "max": 2.44,
+      "maxAt": "2026-10-21T06:48:50.714992+00:00",
+      "observations": 631
+    }
+  },
+  "missingMetricSamples": {},
+  "healthUnconfirmedSamples": 0,
+  "problems": [],
+  "containers": {
+    "/vozeb-pro": {
+      "restartCounts": [
+        0
+      ],
+      "oomTrueSamples": 0,
+      "nonRunningSamples": 0,
+      "images": [
+        "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402"
+      ]
+    },
+    "/vozeb-pro-generation-worker": {
+      "restartCounts": [
+        0
+      ],
+      "oomTrueSamples": 0,
+      "nonRunningSamples": 0,
+      "images": [
+        "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402"
+      ]
+    },
+    "/vozeb-pro-postgres": {
+      "restartCounts": [
+        0
+      ],
+      "oomTrueSamples": 0,
+      "nonRunningSamples": 0,
+      "images": [
+        "postgres:16.6-alpine"
+      ]
+    }
+  },
+  "incompleteTailEncountered": false,
+  "source": "Existing local snapshots.jsonl streamed one line at a time; no remote requests",
+  "limits": "Samples are not continuous measurements. CPU and I/O utilization windows differ; no extrapolation of instantaneous extremes or zero packet loss between samples. Existing delayed/failed report publication is independent of this source."
+}

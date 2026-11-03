@@ -1,0 +1,48 @@
+[
+  {
+    "at": "2026-10-22T09:43:51.209513+00:00",
+    "status": "success",
+    "taskId": "241e815d-d927-4ddb-85a9-1f0407d0c587",
+    "readOnly": true,
+    "logSummary": {
+      "status": "success",
+      "assetsCount": 1
+    },
+    "taskHasResultURL": true,
+    "assetRegistrations": [
+      {
+        "type": "image",
+        "bytes": 3496353,
+        "scope": "generation",
+        "mimeType": "image/png",
+        "provider": "object",
+        "createdAt": "2026-10-22T08:51:41.14+00:00",
+        "expiresAt": null,
+        "externalObjectKeyPresent": true
+      }
+    ]
+  },
+  {
+    "at": "2026-10-22T09:43:51.209513+00:00",
+    "miniParameters": [
+      {
+        "id": "1f46c273-f94b-471c-8c49-0656a83e7575",
+        "log_size": null,
+        "log_vquality": null,
+        "snapshot_keys": [],
+        "log_resolution": null,
+        "saved_vquality": null,
+        "saved_resolution": null
+      },
+      {
+        "id": "13426261-5f1d-4184-a007-5123bb0688bc",
+        "log_size": null,
+        "log_vquality": null,
+        "snapshot_keys": [],
+        "log_resolution": null,
+        "saved_vquality": null,
+        "saved_resolution": null
+      }
+    ]
+  }
+]

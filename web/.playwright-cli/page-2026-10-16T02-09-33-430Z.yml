@@ -1,0 +1,166 @@
+- generic [active] [ref=e1]:
+  - main [ref=e205]:
+    - generic [ref=e206]:
+      - generic:
+        - generic [ref=e207]:
+          - button "打开画布菜单" [ref=e208]:
+            - img [ref=e209]
+          - button "BLUEGAMMA 画布 2" [ref=e211]
+          - button "打开资产面板" [ref=e213]:
+            - img [ref=e214]
+            - generic [ref=e217]: 资产
+        - generic [ref=e218]:
+          - generic [ref=e219]:
+            - button "999,935" [ref=e220]:
+              - img [ref=e222]
+              - text: 999,935
+            - button "通知中心" [ref=e225]:
+              - img [ref=e226]
+            - button "切换到浅色主题" [ref=e229]:
+              - img [ref=e230]
+              - generic [ref=e236]: 切换到浅色主题
+            - button "账户菜单" [ref=e237]:
+              - generic [ref=e238]: BL
+            - button "快捷键" [ref=e239]:
+              - img [ref=e240]
+          - button "Agent（敬请期待）" [disabled] [ref=e242]:
+            - img [ref=e243]
+            - generic [ref=e246]: Agent
+      - generic [ref=e247]:
+        - generic:
+          - generic:
+            - img
+            - generic [ref=e270]:
+              - generic [ref=e271]:
+                - generic [ref=e272]:
+                  - generic [ref=e275]:
+                    - img "ig_5bc74c9a.png"
+                  - generic: 图片32
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e280]:
+                - generic [ref=e281]:
+                  - generic [ref=e283]:
+                    - generic [ref=e284]: 网络异常，请点击重试
+                    - button "重试" [ref=e285]:
+                      - img [ref=e286]
+                      - text: 重试
+                  - generic: 图片17
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e295]:
+                - generic [ref=e296]:
+                  - generic [ref=e299]:
+                    - img "image.png · 背景"
+                  - generic: 图片18
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e304]:
+                - generic [ref=e305]:
+                  - generic [ref=e308]:
+                    - img "20261013T095148_d1e336bf-a71a-43fd-aed7-8f840e168ed4.jpg"
+                  - generic: 图片33
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e313]:
+                - generic [ref=e314]:
+                  - generic: 视频10
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e322]:
+                - generic [ref=e323]:
+                  - generic [ref=e326]:
+                    - img "ig_b67becbc.png"
+                  - generic: 图片35
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e331]:
+                - generic [ref=e332]:
+                  - generic: 视频11
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e340]:
+                - generic [ref=e341]:
+                  - generic [ref=e344]:
+                    - img "e8b39d955b46bd1fccd0408417ae1b1d.jpg"
+                  - generic: 图片37
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e349]:
+                - generic [ref=e350]:
+                  - generic [ref=e353]:
+                    - img "优化细节、光影、特效、质感"
+                  - generic: 图片38
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e358]:
+                - generic [ref=e359]:
+                  - generic [ref=e362]:
+                    - img "ig_e79270d0.png"
+                  - generic: 图片34
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e367]:
+                - generic [ref=e368]:
+                  - generic [ref=e371]:
+                    - img "ig_9585f7c7.png"
+                  - generic: 图片36
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e376]:
+                - generic [ref=e377]:
+                  - generic [ref=e381]: 正在拆解画面结构…
+                  - generic: 视频12
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e387]:
+                - generic [ref=e388]:
+                  - generic [ref=e390]:
+                    - generic [ref=e391]: 网络异常，请点击重试
+                    - button "重试" [ref=e392]:
+                      - img [ref=e393]
+                      - text: 重试
+                  - generic: 视频13
+                - generic "输入连接点"
+                - generic "输出连接点"
+      - generic [ref=e402]:
+        - button "切换到框选模式" [ref=e403] [cursor=pointer]:
+          - img [ref=e405]
+        - button "撤销" [disabled] [ref=e410]:
+          - generic:
+            - img
+        - button "重做" [disabled] [ref=e411]:
+          - generic:
+            - img
+        - button "文本" [ref=e413] [cursor=pointer]:
+          - img [ref=e415]
+        - button "图片" [ref=e417] [cursor=pointer]:
+          - img [ref=e419]
+        - button "全景图" [ref=e423] [cursor=pointer]:
+          - img [ref=e425]
+        - button "视频" [ref=e430] [cursor=pointer]:
+          - img [ref=e432]
+        - button "音频" [ref=e435] [cursor=pointer]:
+          - img [ref=e437]
+        - button "生成配置" [ref=e440] [cursor=pointer]:
+          - img [ref=e442]
+        - button "上传素材" [ref=e445] [cursor=pointer]:
+          - img [ref=e447]
+        - button "资产" [ref=e451] [cursor=pointer]:
+          - img [ref=e453]
+        - button "一键整理画布" [ref=e455] [cursor=pointer]:
+          - img [ref=e457]
+        - button "画布外观" [ref=e461] [cursor=pointer]:
+          - img [ref=e463]
+        - button "清空画布" [ref=e470] [cursor=pointer]:
+          - img [ref=e472]
+      - generic [ref=e475]:
+        - button "打开小地图" [ref=e476] [cursor=pointer]:
+          - img [ref=e478]
+        - button "重置视图" [ref=e481] [cursor=pointer]:
+          - img [ref=e483]
+        - slider "放大/缩小画布" [ref=e489]: "56"
+        - generic [ref=e490]: 56%
+        - button "快捷键" [ref=e491] [cursor=pointer]:
+          - img [ref=e493]
+  - alert [ref=e203]

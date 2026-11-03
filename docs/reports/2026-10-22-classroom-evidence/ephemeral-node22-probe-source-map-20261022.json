@@ -1,0 +1,55 @@
+{
+  "commit": "bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+  "functions": [
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "findImageResults",
+      "line": 456
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "collectImageResults",
+      "line": 462
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "imageTaskResultFromMedia",
+      "line": 493
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "resolveImageUrlLike",
+      "line": 497
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "resolveImageBase64Like",
+      "line": 509
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "rawImageBase64DataUrl",
+      "line": 519
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "isLikelyImageUrl",
+      "line": 525
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "resolveTaskMediaUrl",
+      "line": 653
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "stringField",
+      "line": 779
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "name": "isRemoteMediaUrl",
+      "line": 960
+    }
+  ]
+}

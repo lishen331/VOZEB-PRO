@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-21T11:46:38.875767+00:00",
+  "id": "3fb020a5-9a7c-4aba-a79a-90c357435b76",
+  "events": [
+    {
+      "at": 1792582580184,
+      "model": "gpt-image-2",
+      "phase": "upstream_response",
+      "status": 200,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "requestId": "202610211135292921424558268d9d6eNG6tVOB",
+      "durationMs": 59868,
+      "contentType": "application/json"
+    },
+    {
+      "at": 1792582580187,
+      "model": "gpt-image-2",
+      "phase": "upstream_body_first_byte",
+      "idleMs": 0,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "durationMs": 0,
+      "contentType": "application/json",
+      "firstByteMs": 0,
+      "contentLength": -1,
+      "responseBytes": 13155
+    },
+    {
+      "at": 1792583006272,
+      "model": "gpt-image-2",
+      "phase": "upstream_body_complete",
+      "idleMs": 0,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "durationMs": 426084,
+      "contentType": "application/json",
+      "firstByteMs": 0,
+      "contentLength": -1,
+      "responseBytes": 1814898
+    },
+    {
+      "at": 1792583006276,
+      "model": "gpt-image-2",
+      "phase": "transport_response",
+      "status": 200,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "durationMs": 486072,
+      "contentType": "application/json"
+    }
+  ],
+  "status": "success",
+  "createdAt": "2026-10-21T11:35:20.136+00:00",
+  "updatedAt": "2026-10-21T11:43:26.751+00:00",
+  "currentConfigTimeoutMs": null,
+  "currentConfigLogicalModel": "gpt-image-2",
+  "currentConfigUpstreamModel": "gpt-image-2"
+}

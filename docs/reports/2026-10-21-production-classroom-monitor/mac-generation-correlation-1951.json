@@ -1,0 +1,200 @@
+{
+  "at": "2026-10-21T11:52:57.390Z",
+  "accessAt": "2026-10-21T11:51:45.496567+00:00",
+  "metricsAt": "2026-10-21T11:52:49.167035+00:00",
+  "clientAlias": "MAC-a0e42d5a58a9",
+  "matchingBasis": "same project and creation second, unique candidate",
+  "notVerifiedPhysicalDeviceOrScreenshotIdentity": true,
+  "generalEventTruncated": true,
+  "generationEventTruncated": false,
+  "summary": {
+    "total": 7,
+    "success": 6,
+    "failure": 1,
+    "pending": 0
+  },
+  "rows": [
+    {
+      "access": {
+        "at": "2026-10-21T18:40:20+08:00",
+        "epochMs": 1792579220000,
+        "clientAlias": "MAC-a0e42d5a58a9",
+        "browser": "Chrome/Chromium",
+        "browserVersion": "130.0.0.0",
+        "method": "POST",
+        "path": "/api/image-tasks",
+        "status": 200,
+        "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+      },
+      "candidates": [
+        {
+          "id": "7ddedb9e-4a31-40cc-856f-48d8a39df316",
+          "status": "success",
+          "logicalModel": "gpt-image-2-c",
+          "kind": "generation",
+          "references": 0,
+          "createdAt": "2026-10-21T10:40:20.088+00:00",
+          "completedAt": "2026-10-21T10:41:52.367+00:00",
+          "elapsedSeconds": 92.279,
+          "error": null
+        }
+      ]
+    },
+    {
+      "access": {
+        "at": "2026-10-21T18:46:37+08:00",
+        "epochMs": 1792579597000,
+        "clientAlias": "MAC-a0e42d5a58a9",
+        "browser": "Chrome/Chromium",
+        "browserVersion": "130.0.0.0",
+        "method": "POST",
+        "path": "/api/image-tasks",
+        "status": 200,
+        "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+      },
+      "candidates": [
+        {
+          "id": "8ebfe9dc-41c2-41d1-8a7b-61f68cd0b2cc",
+          "status": "error",
+          "logicalModel": "gpt-image-2",
+          "kind": "generation",
+          "references": 0,
+          "createdAt": "2026-10-21T10:46:37.902+00:00",
+          "completedAt": "2026-10-21T10:46:49.173+00:00",
+          "elapsedSeconds": 11.271,
+          "error": "图片生成失败，状态码 403"
+        }
+      ]
+    },
+    {
+      "access": {
+        "at": "2026-10-21T18:47:06+08:00",
+        "epochMs": 1792579626000,
+        "clientAlias": "MAC-a0e42d5a58a9",
+        "browser": "Chrome/Chromium",
+        "browserVersion": "130.0.0.0",
+        "method": "POST",
+        "path": "/api/image-tasks",
+        "status": 200,
+        "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+      },
+      "candidates": [
+        {
+          "id": "f8c0c7f4-c21b-451e-a6b3-0abe7c96e163",
+          "status": "success",
+          "logicalModel": "gpt-image-2",
+          "kind": "generation",
+          "references": 0,
+          "createdAt": "2026-10-21T10:47:06.674+00:00",
+          "completedAt": "2026-10-21T10:47:30.671+00:00",
+          "elapsedSeconds": 23.997,
+          "error": null
+        }
+      ]
+    },
+    {
+      "access": {
+        "at": "2026-10-21T18:58:26+08:00",
+        "epochMs": 1792580306000,
+        "clientAlias": "MAC-a0e42d5a58a9",
+        "browser": "Chrome/Chromium",
+        "browserVersion": "130.0.0.0",
+        "method": "POST",
+        "path": "/api/image-tasks",
+        "status": 200,
+        "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+      },
+      "candidates": [
+        {
+          "id": "ae9c318b-6ec4-4450-8e65-1068b470429a",
+          "status": "success",
+          "logicalModel": "gpt-image-2",
+          "kind": "generation",
+          "references": 0,
+          "createdAt": "2026-10-21T10:58:26.966+00:00",
+          "completedAt": "2026-10-21T11:04:28.66+00:00",
+          "elapsedSeconds": 361.694,
+          "error": null
+        }
+      ]
+    },
+    {
+      "access": {
+        "at": "2026-10-21T19:24:24+08:00",
+        "epochMs": 1792581864000,
+        "clientAlias": "MAC-a0e42d5a58a9",
+        "browser": "Chrome/Chromium",
+        "browserVersion": "130.0.0.0",
+        "method": "POST",
+        "path": "/api/image-tasks",
+        "status": 200,
+        "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+      },
+      "candidates": [
+        {
+          "id": "a28d993f-5c91-4e45-af31-eaf03dac756c",
+          "status": "success",
+          "logicalModel": "gpt-image-2",
+          "kind": "edit",
+          "references": 1,
+          "createdAt": "2026-10-21T11:24:24.358+00:00",
+          "completedAt": "2026-10-21T11:25:47.509+00:00",
+          "elapsedSeconds": 83.151,
+          "error": null
+        }
+      ]
+    },
+    {
+      "access": {
+        "at": "2026-10-21T19:35:20+08:00",
+        "epochMs": 1792582520000,
+        "clientAlias": "MAC-a0e42d5a58a9",
+        "browser": "Chrome/Chromium",
+        "browserVersion": "130.0.0.0",
+        "method": "POST",
+        "path": "/api/image-tasks",
+        "status": 200,
+        "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+      },
+      "candidates": [
+        {
+          "id": "3fb020a5-9a7c-4aba-a79a-90c357435b76",
+          "status": "success",
+          "logicalModel": "gpt-image-2",
+          "kind": "edit",
+          "references": 2,
+          "createdAt": "2026-10-21T11:35:20.136+00:00",
+          "completedAt": "2026-10-21T11:43:26.744+00:00",
+          "elapsedSeconds": 486.608,
+          "error": null
+        }
+      ]
+    },
+    {
+      "access": {
+        "at": "2026-10-21T19:44:36+08:00",
+        "epochMs": 1792583076000,
+        "clientAlias": "MAC-a0e42d5a58a9",
+        "browser": "Chrome/Chromium",
+        "browserVersion": "130.0.0.0",
+        "method": "POST",
+        "path": "/api/image-tasks",
+        "status": 200,
+        "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+      },
+      "candidates": [
+        {
+          "id": "059bb1b8-9215-4295-9b1f-61235372c049",
+          "status": "success",
+          "logicalModel": "gpt-image-2",
+          "kind": "edit",
+          "references": 2,
+          "createdAt": "2026-10-21T11:44:36.561+00:00",
+          "completedAt": "2026-10-21T11:45:37.429+00:00",
+          "elapsedSeconds": 60.868,
+          "error": null
+        }
+      ]
+    }
+  ]
+}

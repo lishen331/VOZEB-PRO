@@ -1,0 +1,53 @@
+/* AntD reskin inside .vzl only. Popups mount inside the .vzl root via getPopupContainer. */
+.vzl .ant-select-dropdown,
+.vzl .ant-popover .ant-popover-inner,
+.vzl .ant-modal .ant-modal-container,
+.vzl .ant-modal .ant-modal-content,
+.vzl .ant-drawer .ant-drawer-section,
+.vzl .ant-drawer .ant-drawer-content,
+.vzl .ant-message-notice .ant-message-notice-content {
+    background: var(--vzl-glass-strong) !important;
+    -webkit-backdrop-filter: var(--vzl-blur);
+    backdrop-filter: var(--vzl-blur);
+    border: 1px solid var(--vzl-border);
+    box-shadow: var(--vzl-shadow-3) !important;
+}
+.vzl .ant-tooltip .ant-tooltip-inner {
+    font-size: 12px;
+    box-shadow: var(--vzl-shadow-2);
+}
+.vzl .ant-modal-mask,
+.vzl .ant-drawer-mask {
+    background: rgba(4, 6, 10, 0.5) !important;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+.vzl .ant-drawer-left .ant-drawer-section,
+.vzl .ant-drawer-left .ant-drawer-content {
+    border-radius: 0 var(--vzl-r-xl) var(--vzl-r-xl) 0;
+}
+.vzl .ant-drawer-right .ant-drawer-section,
+.vzl .ant-drawer-right .ant-drawer-content {
+    border-radius: var(--vzl-r-xl) 0 0 var(--vzl-r-xl);
+}
+.vzl .ant-segmented {
+    padding: 3px;
+    border: 1px solid var(--vzl-border);
+}
+.vzl .ant-segmented .ant-segmented-item-selected {
+    box-shadow:
+        var(--vzl-highlight),
+        0 2px 8px rgba(0, 0, 0, 0.22);
+}
+.vzl .ant-switch.ant-switch-checked,
+.vzl .ant-switch.ant-switch-checked:hover:not(.ant-switch-disabled) {
+    background: var(--vzl-gradient);
+}
+.vzl .ant-tabs-ink-bar {
+    height: 3px !important;
+    border-radius: 3px;
+    background: var(--vzl-gradient-glow);
+}
+.vzl .ant-slider-track {
+    background: var(--vzl-gradient-glow) !important;
+}

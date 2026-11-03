@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-21T16:03:33.974Z",
+  "stagingObservedImageSha": "13030fb9f7ae665ba0ab41cdff089bd487ffd110",
+  "ownStagingRepairSha": "d2a4b5957a0a8c7103273f1403b5c76482c70f81",
+  "comparisonStatus": "diverged",
+  "aheadBy": 1,
+  "behindBy": 9,
+  "mergeBase": "3f317ca14d872adf2bd00a242a61c434d07767cf",
+  "ownRepairIsAncestor": false,
+  "readOnly": true
+}

@@ -1,0 +1,102 @@
+/* Generate button: conic border spins only while running. */
+.vzl .vzl-gen {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 48px;
+    min-width: 172px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: var(--vzl-r-lg);
+    color: #fff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    isolation: isolate;
+    background: var(--vzl-gradient);
+    box-shadow: var(--vzl-highlight), var(--vzl-glow);
+    transition:
+        transform var(--vzl-d1) var(--vzl-ease),
+        box-shadow var(--vzl-d2),
+        filter var(--vzl-d2);
+}
+.vzl .vzl-gen svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}
+.vzl .vzl-gen:hover:not(:disabled) {
+    filter: brightness(1.08);
+    box-shadow:
+        var(--vzl-highlight),
+        0 16px 40px -10px rgba(110, 92, 255, 0.9);
+}
+.vzl .vzl-gen:active:not(:disabled) {
+    transform: scale(0.97);
+}
+.vzl .vzl-gen:focus-visible {
+    box-shadow: var(--vzl-ring), var(--vzl-glow);
+}
+.vzl .vzl-gen:disabled:not([data-status="running"]) {
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+    opacity: 0.45;
+}
+.vzl .vzl-gen__pill {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.vzl .vzl-gen[data-status="running"] {
+    color: var(--vzl-text-1);
+    background: transparent;
+    cursor: progress;
+    box-shadow: none;
+}
+.vzl .vzl-gen[data-status="running"]::before {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    z-index: -2;
+    border-radius: calc(var(--vzl-r-lg) + 1.5px);
+    background: conic-gradient(from var(--vzl-angle), transparent 0 55%, #7c6cff 75%, #34d3ff 90%, transparent 100%);
+    animation: vzl-rotate 1.8s linear infinite;
+}
+.vzl .vzl-gen[data-status="running"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--vzl-surface-3);
+}
+.vzl .vzl-gen[data-status="success"] {
+    background: linear-gradient(135deg, #059669, #10b981);
+    box-shadow: 0 10px 30px -12px rgba(16, 185, 129, 0.8);
+}
+.vzl .vzl-gen[data-status="error"] {
+    background: linear-gradient(135deg, #be123c, #e11d48);
+    box-shadow: 0 10px 30px -12px rgba(225, 29, 72, 0.7);
+    animation: vzl-shake 0.36s var(--vzl-ease);
+}
+@keyframes vzl-rotate {
+    to {
+        --vzl-angle: 360deg;
+    }
+}
+@keyframes vzl-shake {
+    20%,
+    60% {
+        transform: translateX(-3px);
+    }
+    40%,
+    80% {
+        transform: translateX(3px);
+    }
+}

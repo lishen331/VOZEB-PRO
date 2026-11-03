@@ -1,0 +1,104 @@
+/* Generate button — the one "show-off" control. Conic border only spins while running. */
+.vz-ds .vz-gen {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 48px;
+    min-width: 168px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: var(--vz-r-lg);
+    color: var(--vz-text-on-brand);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    isolation: isolate;
+    background: var(--vz-gradient);
+    box-shadow: var(--vz-highlight), var(--vz-glow-brand);
+    transition:
+        transform var(--vz-dur-1) var(--vz-ease),
+        box-shadow var(--vz-dur-2) var(--vz-ease),
+        filter var(--vz-dur-2);
+}
+.vz-ds .vz-gen svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}
+.vz-ds .vz-gen:hover:not(:disabled) {
+    filter: brightness(1.04);
+    box-shadow:
+        var(--vz-highlight),
+        0 16px 40px -10px rgba(110, 92, 255, 0.9);
+}
+.vz-ds .vz-gen:active:not(:disabled) {
+    transform: scale(0.97);
+}
+.vz-ds .vz-gen:focus-visible {
+    box-shadow: var(--vz-ring), var(--vz-glow-brand);
+}
+.vz-ds .vz-gen:disabled {
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+    opacity: 0.45;
+}
+.vz-ds .vz-gen__cost {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.16);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.vz-ds .vz-gen[data-status="running"] {
+    background: var(--vz-surface-3);
+    color: var(--vz-text-1);
+    cursor: progress;
+    box-shadow: none;
+    opacity: 1;
+    filter: none;
+}
+.vz-ds .vz-gen[data-status="running"]::before {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    z-index: -2;
+    border-radius: calc(var(--vz-r-lg) + 1.5px);
+    background: conic-gradient(from var(--vz-angle), transparent 0 55%, #7c6cff 75%, #34d3ff 90%, transparent 100%);
+    animation: vz-rotate 1.8s linear infinite;
+}
+.vz-ds .vz-gen[data-status="running"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--vz-surface-3);
+}
+.vz-ds .vz-gen[data-status="success"] {
+    background: var(--vz-gradient-success);
+    box-shadow: 0 10px 30px -12px rgba(16, 185, 129, 0.8);
+}
+.vz-ds .vz-gen[data-status="error"] {
+    background: var(--vz-gradient-danger);
+    box-shadow: 0 10px 30px -12px rgba(225, 29, 72, 0.7);
+    animation: vz-shake 0.36s var(--vz-ease);
+}
+@keyframes vz-rotate {
+    to {
+        --vz-angle: 360deg;
+    }
+}
+@keyframes vz-shake {
+    20%,
+    60% {
+        transform: translateX(-3px);
+    }
+    40%,
+    80% {
+        transform: translateX(3px);
+    }
+}

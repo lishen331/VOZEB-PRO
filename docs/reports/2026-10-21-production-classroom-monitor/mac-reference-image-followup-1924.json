@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-21T11:28:12.941Z",
+  "accessAt": "2026-10-21T11:28:11.673559+00:00",
+  "metricsAt": "2026-10-21T11:27:59.968321+00:00",
+  "eventCount": 341,
+  "eventCap": 600,
+  "matchingBasis": "same project and creation second",
+  "matches": [
+    {
+      "at": "2026-10-21T19:24:24+08:00",
+      "epochMs": 1792581864000,
+      "clientAlias": "MAC-a0e42d5a58a9",
+      "browser": "Chrome/Chromium",
+      "browserVersion": "130.0.0.0",
+      "method": "POST",
+      "path": "/api/image-tasks",
+      "status": 200,
+      "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+    }
+  ],
+  "task": {
+    "id": "a28d993f-5c91-4e45-af31-eaf03dac756c",
+    "status": "success",
+    "kind": "edit",
+    "references": 1,
+    "logicalModel": "gpt-image-2",
+    "createdAt": "2026-10-21T11:24:24.358+00:00",
+    "completedAt": "2026-10-21T11:25:47.509+00:00",
+    "elapsedSeconds": 83.151
+  }
+}

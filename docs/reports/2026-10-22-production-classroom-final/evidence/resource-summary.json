@@ -1,0 +1,362 @@
+{
+  "freezeAt": "2026-10-22T10:57:09.428849+00:00",
+  "sourceBytesScanned": 2227305348,
+  "firstSample": "2026-10-21T16:00:01.723225+00:00",
+  "lastSample": "2026-10-22T10:56:55.559126+00:00",
+  "counts": {
+    "samples": 1961,
+    "readySamples": 1961,
+    "notReadySamples": 2
+  },
+  "malformedLines": 0,
+  "metrics": {
+    "hostCpuPct": {
+      "min": 0,
+      "max": 48.49,
+      "minAt": "2026-10-21T16:01:45.839890+00:00",
+      "maxAt": "2026-10-22T08:15:40.143768+00:00",
+      "n": 1961,
+      "mean": 4.369556348801659
+    },
+    "loadavg1": {
+      "min": 0,
+      "max": 1.2490234375,
+      "minAt": "2026-10-21T17:36:38.212222+00:00",
+      "maxAt": "2026-10-22T08:40:50.754660+00:00",
+      "n": 1961,
+      "mean": 0.2190353494709332
+    },
+    "loadavg2": {
+      "min": 0.0263671875,
+      "max": 0.60888671875,
+      "minAt": "2026-10-21T17:37:12.797167+00:00",
+      "maxAt": "2026-10-22T08:42:00.923684+00:00",
+      "n": 1961,
+      "mean": 0.20711267170767467
+    },
+    "loadavg3": {
+      "min": 0.02099609375,
+      "max": 0.47509765625,
+      "minAt": "2026-10-21T17:51:41.401818+00:00",
+      "maxAt": "2026-10-22T08:43:46.343879+00:00",
+      "n": 1961,
+      "mean": 0.1886279520971443
+    },
+    "hostMemAvailableMiB": {
+      "min": 5299.82421875,
+      "max": 6541.72265625,
+      "minAt": "2026-10-22T06:54:56.926142+00:00",
+      "maxAt": "2026-10-21T20:58:29.294318+00:00",
+      "n": 1961,
+      "mean": 5991.636967746048
+    },
+    "hostMemUsedPct": {
+      "min": 12.270760429981353,
+      "max": 28.9255180940008,
+      "minAt": "2026-10-21T20:58:29.294318+00:00",
+      "maxAt": "2026-10-22T06:54:56.926142+00:00",
+      "n": 1961,
+      "mean": 19.647807988653874
+    },
+    "diskUsedPct": {
+      "min": 47.93,
+      "max": 53.7,
+      "minAt": "2026-10-21T16:00:01.723225+00:00",
+      "maxAt": "2026-10-22T10:49:19.680646+00:00",
+      "n": 1961,
+      "mean": 52.224645588984906
+    },
+    "diskFreeGiB": {
+      "min": 20.41216278076172,
+      "max": 23.229381561279297,
+      "minAt": "2026-10-22T10:56:55.559126+00:00",
+      "maxAt": "2026-10-21T16:00:01.723225+00:00",
+      "n": 1961,
+      "mean": 21.133657631492323
+    },
+    "dbBlocked": {
+      "min": 0,
+      "max": 0,
+      "minAt": "2026-10-21T16:00:01.723225+00:00",
+      "maxAt": "2026-10-21T16:00:01.723225+00:00",
+      "n": 1961,
+      "mean": 0.0
+    },
+    "activeTasks": {
+      "min": 0,
+      "max": 14,
+      "minAt": "2026-10-21T16:00:01.723225+00:00",
+      "maxAt": "2026-10-22T06:49:41.302054+00:00",
+      "n": 1961,
+      "mean": 1.964813870474248
+    },
+    "vozeb-pro.cpuPct": {
+      "min": 0.0,
+      "max": 130.36,
+      "minAt": "2026-10-21T16:02:55.161132+00:00",
+      "maxAt": "2026-10-21T22:20:36.721900+00:00",
+      "n": 1959,
+      "mean": 6.371715160796346
+    },
+    "vozeb-pro.memoryMiB": {
+      "min": 0.0,
+      "max": 1160.192,
+      "minAt": "2026-10-21T18:36:45.105245+00:00",
+      "maxAt": "2026-10-22T06:54:21.763240+00:00",
+      "n": 1959,
+      "mean": 528.4831322103106
+    },
+    "vozeb-pro-generation-worker.cpuPct": {
+      "min": 0.0,
+      "max": 3.87,
+      "minAt": "2026-10-21T16:00:01.723225+00:00",
+      "maxAt": "2026-10-22T00:09:26.206074+00:00",
+      "n": 1959,
+      "mean": 0.0725523226135783
+    },
+    "vozeb-pro-generation-worker.memoryMiB": {
+      "min": 0.0,
+      "max": 43.13,
+      "minAt": "2026-10-22T03:41:41.033684+00:00",
+      "maxAt": "2026-10-21T17:48:13.140129+00:00",
+      "n": 1959,
+      "mean": 37.92777437468108
+    },
+    "vozeb-pro-postgres.cpuPct": {
+      "min": 0.0,
+      "max": 113.86,
+      "minAt": "2026-10-21T16:00:01.723225+00:00",
+      "maxAt": "2026-10-22T05:56:38.768417+00:00",
+      "n": 1959,
+      "mean": 4.865742725880551
+    },
+    "vozeb-pro-postgres.memoryMiB": {
+      "min": 226.6,
+      "max": 301.1,
+      "minAt": "2026-10-21T16:09:16.966106+00:00",
+      "maxAt": "2026-10-22T09:05:23.349701+00:00",
+      "n": 1959,
+      "mean": 242.86268504339034
+    },
+    "network.eth0.rxMiBPerSec": {
+      "min": 0.001,
+      "max": 5.788,
+      "minAt": "2026-10-21T16:00:01.723225+00:00",
+      "maxAt": "2026-10-21T20:56:45.390168+00:00",
+      "n": 1961,
+      "mean": 0.1784594594594587
+    },
+    "network.eth0.txMiBPerSec": {
+      "min": 0.014,
+      "max": 3.227,
+      "minAt": "2026-10-21T22:42:29.808016+00:00",
+      "maxAt": "2026-10-22T08:29:10.152536+00:00",
+      "n": 1961,
+      "mean": 0.17941713411524754
+    },
+    "network.eth0.rxDropDelta": {
+      "min": 0,
+      "max": 0,
+      "minAt": "2026-10-21T16:00:01.723225+00:00",
+      "maxAt": "2026-10-21T16:00:01.723225+00:00",
+      "n": 1961,
+      "mean": 0.0
+    },
+    "network.eth0.txDropDelta": {
+      "min": 0,
+      "max": 0,
+      "minAt": "2026-10-21T16:00:01.723225+00:00",
+      "maxAt": "2026-10-21T16:00:01.723225+00:00",
+      "n": 1961,
+      "mean": 0.0
+    },
+    "disk.vda.readMiBPerSec": {
+      "min": 0,
+      "max": 0.749,
+      "minAt": "2026-10-21T16:00:36.502442+00:00",
+      "maxAt": "2026-10-22T08:31:29.465292+00:00",
+      "n": 1961,
+      "mean": 0.0028674145843957145
+    },
+    "disk.vda.writeMiBPerSec": {
+      "min": 0.165,
+      "max": 32.691,
+      "minAt": "2026-10-21T23:44:40.400962+00:00",
+      "maxAt": "2026-10-21T20:57:20.055859+00:00",
+      "n": 1961,
+      "mean": 0.54879092299847
+    },
+    "disk.vda.ioBusyPct": {
+      "min": 0.19,
+      "max": 19.5,
+      "minAt": "2026-10-21T18:40:47.968854+00:00",
+      "maxAt": "2026-10-21T20:57:20.055859+00:00",
+      "n": 1961,
+      "mean": 0.6302957674655781
+    }
+  },
+  "containerTransitions": [
+    {
+      "observedAt": "2026-10-21T16:00:01.723225+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "2026-10-21T02:17:44.699059552Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-21T16:00:01.723225+00:00",
+      "name": "/vozeb-pro-generation-worker",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "2026-10-21T02:18:00.355794927Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-21T16:00:01.723225+00:00",
+      "name": "/vozeb-pro-postgres",
+      "image": "postgres:16.6-alpine",
+      "startedAt": "2026-10-21T01:07:34.815789757Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-21T18:37:19.851846+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "startedAt": "2026-10-21T18:36:57.00102904Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-21T18:37:19.851846+00:00",
+      "name": "/vozeb-pro-generation-worker",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "startedAt": "2026-10-21T18:37:12.656762206Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-21T20:59:03.443089+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-0127c014bae1dc13c2ee1365dda698ca2e55ec12",
+      "startedAt": "2026-10-21T20:58:38.714939073Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-21T20:59:03.443089+00:00",
+      "name": "/vozeb-pro-generation-worker",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-0127c014bae1dc13c2ee1365dda698ca2e55ec12",
+      "startedAt": "2026-10-21T20:58:54.379346414Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T03:06:50.021191+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "startedAt": "2026-10-22T03:06:30.053449966Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T03:06:50.021191+00:00",
+      "name": "/vozeb-pro-generation-worker",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "startedAt": "2026-10-22T03:06:45.718420133Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T03:41:41.033684+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "2026-10-22T03:41:27.988434522Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T03:41:41.033684+00:00",
+      "name": "/vozeb-pro-generation-worker",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "0001-01-01T00:00:00Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T03:42:15.977673+00:00",
+      "name": "/vozeb-pro-generation-worker",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "2026-10-22T03:41:43.644683684Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T06:20:31.168843+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "2026-10-22T06:20:28.358381468Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T06:55:31.938447+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "2026-10-22T06:55:20.707482853Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T07:15:58.086638+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "2026-10-22T07:15:56.287884591Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T07:28:48.280279+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-2b99976ffff6f6060fd06c07767e56d62eb5a402",
+      "startedAt": "2026-10-22T07:28:48.256763046Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T08:37:55.385107+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "startedAt": "0001-01-01T00:00:00Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T08:38:31.037011+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "startedAt": "2026-10-22T08:37:58.124818134Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T08:38:31.037011+00:00",
+      "name": "/vozeb-pro-generation-worker",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "startedAt": "2026-10-22T08:38:13.782810585Z",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "observedAt": "2026-10-22T10:47:34.416246+00:00",
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "startedAt": "2026-10-22T10:47:32.73406548Z",
+      "oomKilled": false,
+      "restartCount": 0
+    }
+  ],
+  "gapsOver90Seconds": [],
+  "limits": "Sampled observations, not continuous maxima. Log tails overlap and are not authoritative request/error totals."
+}

@@ -1,0 +1,140 @@
+{
+  "capturedAt": "2026-10-21T09:13:39.952Z",
+  "sampleAt": "2026-10-21T09:13:09.835748+00:00",
+  "revision": 95,
+  "readOnly": true,
+  "notAControlledExperiment": true,
+  "tasks": [
+    {
+      "id": "cfee7374-f96e-4a60-957a-1c39030a5d1d",
+      "status": "success",
+      "createdAt": "2026-10-21T09:09:07.677+00:00",
+      "logicalModel": "gpt-image-2-all",
+      "events": [
+        {
+          "at": 1792573870860,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 122363,
+          "contentType": "application/json"
+        },
+        {
+          "at": 1792573870725,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "df25cbd3-e2ab-40f6-9aa8-647e2253b552",
+          "durationMs": 122088,
+          "contentType": "application/json"
+        },
+        {
+          "at": 1792573748637,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "method": "POST",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1024x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":893983,\"type\":\"image/jpeg\"},{\"size\":1598715,\"type\":\"image/jpeg\"},{\"size\":10397384,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792573748496,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "method": "POST",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1024x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":893983,\"type\":\"image/jpeg\"},{\"size\":1598715,\"type\":\"image/jpeg\"},{\"size\":10397384,\"type\":\"image/png\"}]}"
+        }
+      ]
+    },
+    {
+      "id": "ca5e6da3-a539-4c12-aadb-f082b707b4e5",
+      "status": "success",
+      "createdAt": "2026-10-21T09:08:27.084+00:00",
+      "logicalModel": "gpt-image-2-all",
+      "events": [
+        {
+          "at": 1792573811718,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 104135,
+          "contentType": "application/json"
+        },
+        {
+          "at": 1792573809764,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "e4c40cb7-2e41-4636-bf5d-59ba77152ac5",
+          "durationMs": 102074,
+          "contentType": "application/json"
+        },
+        {
+          "at": 1792573707690,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "method": "POST",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5071904,\"type\":\"image/png\"},{\"size\":3253173,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792573707584,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "method": "POST",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5071904,\"type\":\"image/png\"},{\"size\":3253173,\"type\":\"image/png\"}]}"
+        }
+      ]
+    },
+    {
+      "id": "42d1fc04-845f-497b-a446-c8f0a67be0c8",
+      "status": "error",
+      "createdAt": "2026-10-21T08:46:39.472+00:00",
+      "logicalModel": "gpt-image-2-all",
+      "events": [
+        {
+          "at": 1792572516711,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 117138,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "image async only supports response_format=url; use the synchronous endpoint for b64_json"
+        },
+        {
+          "at": 1792572516688,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261021084639664163598RGbRorvJ3G6BMfNG",
+          "durationMs": 117048,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "image async only supports response_format=url; use the synchronous endpoint for b64_json"
+        },
+        {
+          "at": 1792572399640,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "method": "POST",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":158543,\"type\":\"image/png\"},{\"size\":106929,\"type\":\"image/jpeg\"},{\"size\":226990,\"type\":\"image/png\"},{\"size\":38254,\"type\":\"image/jpeg\"},{\"size\":179889,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792572399575,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "method": "POST",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":158543,\"type\":\"image/png\"},{\"size\":106929,\"type\":\"image/jpeg\"},{\"size\":226990,\"type\":\"image/png\"},{\"size\":38254,\"type\":\"image/jpeg\"},{\"size\":179889,\"type\":\"image/jpeg\"}]}"
+        }
+      ]
+    }
+  ]
+}

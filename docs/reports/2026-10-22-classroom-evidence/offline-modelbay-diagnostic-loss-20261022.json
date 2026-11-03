@@ -1,0 +1,45 @@
+{
+  "at": "2026-10-22T08:58:21.178Z",
+  "offline": true,
+  "sourceCommit": "bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+  "synthetic": true,
+  "notUpstreamRootCauseEvidence": true,
+  "sources": {
+    "service": {
+      "file": "web/src/lib/server/modelbay-asset-service.ts",
+      "sha256": "d2221f00fc7fc9fc20381030a29260e8f4f947caf5e46bd5281350bb941cf2e5"
+    },
+    "route": {
+      "file": "web/src/app/api/video-generation-tasks/video-generation-route.ts",
+      "sha256": "507c3ed6b5b09419092df3fe00335b73c59fdb7e51923d2054b8355462fe6146"
+    },
+    "trace": {
+      "file": "web/src/lib/server/media-task-trace.ts",
+      "sha256": "eeafcb5c290769c829348639332b4ed6b31fdba0955ed86e7d7347f6402c1f47"
+    }
+  },
+  "extracted": [
+    {
+      "name": "prepareModelBayReferences",
+      "line": 902
+    },
+    {
+      "name": "SafeCandidateFailure",
+      "line": 987
+    }
+  ],
+  "before": {
+    "name": "ModelBayAssetError",
+    "message": "ModelBay 素材接口返回 HTTP 403",
+    "status": 403,
+    "hasResponse": true
+  },
+  "after": {
+    "name": "Error",
+    "message": "ModelBay 素材接口返回 HTTP 403",
+    "hasDetails": false,
+    "hasCause": false,
+    "hasStatus": false
+  },
+  "verified": true
+}

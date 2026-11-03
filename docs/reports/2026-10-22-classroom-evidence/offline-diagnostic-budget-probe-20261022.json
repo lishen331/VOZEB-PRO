@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-22T09:45:17.331Z",
+  "offline": true,
+  "sourceCommit": "bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+  "file": "web/src/lib/server/media-task-diagnostics.ts",
+  "sourceSha256": "643d6caedf1c10032731c73b3c9e76e4bbe0080cd1afcdcec59e6286ac3386f4",
+  "budgetBytes": 20480,
+  "finalBytes": 20357,
+  "finalEvents": 139,
+  "retainedTaskCreated": true,
+  "retainedCreateRequest": false,
+  "retainedSubmitTaskId": false,
+  "bodyEventCount": 138,
+  "verified": true
+}

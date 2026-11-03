@@ -1,0 +1,5410 @@
+{
+  "auditedAt": "2026-10-22T08:15:19.062194+00:00",
+  "readOnly": true,
+  "todayWindow": "2026-10-22T08:30:00+08:00 (Canvas only, includes any tests in this interval)",
+  "active_detail": [
+    {
+      "id": "87a13d2a-0c49-4ed8-bc3d-d965106d43c4",
+      "error": null,
+      "model": "official/seedance-2",
+      "events": [
+        {
+          "at": 1792656894276,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 3,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656894273,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656869008,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656869004,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656843554,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 769,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656843548,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 762,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656817561,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656817557,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656807231,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 5,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656807227,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 1,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656796907,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656796904,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656786485,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 3,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656786482,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656776034,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 3,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656776031,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656764745,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656764741,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656752764,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656752760,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656742424,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 3,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656742421,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656731386,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 3,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656731383,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656725602,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656725598,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656720147,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 3,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656720144,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656714714,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656714711,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 46
+        }
+      ],
+      "status": "running",
+      "task_type": "video",
+      "worker_id": null,
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:09:39.889+00:00",
+      "updated_at": "2026-10-22T08:11:36.451+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:14:54.279+00:00",
+      "next_poll_at": "2026-10-22T08:15:19.279+00:00",
+      "submitted_at": "2026-10-22T08:11:36.456+00:00",
+      "logical_model": "official/seedance-2",
+      "execution_phase": "polling",
+      "upstream_task_id": "task_shk1VwzHFqR6I6VxQStFGOTmQgqJSDZm",
+      "last_heartbeat_at": "2026-10-22T08:14:54.026+00:00"
+    },
+    {
+      "id": "70b585e7-c26f-472b-a7fe-416f87bcc75b",
+      "error": null,
+      "model": "official/seedance-2",
+      "events": [
+        {
+          "at": 1792656908281,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656908277,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656897485,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656897481,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656887127,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 5,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656887123,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656876308,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 6,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656876300,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656865794,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 2002,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656865790,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 1998,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656852672,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656852669,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656841839,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656841836,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656830288,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 6,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656830284,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 2,
+          "responseBytes": 279
+        },
+        {
+          "at": 1792656819971,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 1166,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656819968,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 1162,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656812520,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656812518,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 1,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656806621,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656806615,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656801293,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656801290,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 1,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656795873,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656795871,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 1,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656789845,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656789842,
+          "model": "official/seedance-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 0,
+          "responseBytes": 46
+        },
+        {
+          "at": 1792656789416,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_KFsS3SmtFOnOXMeeWwWDAUvJmYgFe4gZ"
+        },
+        {
+          "at": 1792656789406,
+          "model": "official/seedance-2",
+          "phase": "submit_end",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 202861,
+          "upstreamTaskId": "task_KFsS3SmtFOnOXMeeWwWDAUvJmYgFe4gZ"
+        }
+      ],
+      "status": "running",
+      "task_type": "video",
+      "worker_id": "generation-worker:31c83d305e39:1:e2af99d0-57c8-483f-8287-7461186098cd:lane-1",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:09:46.533+00:00",
+      "updated_at": "2026-10-22T08:13:09.408+00:00",
+      "lease_until": "2026-10-22T08:16:48.287+00:00",
+      "last_poll_at": "2026-10-22T08:15:08.284+00:00",
+      "next_poll_at": "2026-10-22T08:15:18.284+00:00",
+      "submitted_at": "2026-10-22T08:13:09.413+00:00",
+      "logical_model": "official/seedance-2",
+      "execution_phase": "polling",
+      "upstream_task_id": "task_KFsS3SmtFOnOXMeeWwWDAUvJmYgFe4gZ",
+      "last_heartbeat_at": "2026-10-22T08:15:18.287+00:00"
+    },
+    {
+      "id": "8a27def2-84df-476c-981e-ed1965522325",
+      "error": null,
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792656901894,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656901890,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656876763,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 6,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656876758,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 1,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656851714,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656851710,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656826510,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656826507,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656801343,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656801340,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656791301,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656791297,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656781240,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 18,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656781225,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656770713,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 5,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656770709,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656760558,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656760554,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656750390,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656750387,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656740236,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656740232,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656730075,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656730071,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656720023,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656720020,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656709965,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656709963,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656704924,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656704921,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        }
+      ],
+      "status": "running",
+      "task_type": "video",
+      "worker_id": null,
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:11:17.795+00:00",
+      "updated_at": "2026-10-22T08:11:18.934+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:15:01.897+00:00",
+      "next_poll_at": "2026-10-22T08:15:26.897+00:00",
+      "submitted_at": "2026-10-22T08:11:18.938+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "polling",
+      "upstream_task_id": "task_vaXqnSWWL4wAL3ePJUC2MAdWZF7Gx7lV",
+      "last_heartbeat_at": "2026-10-22T08:15:01.77+00:00"
+    },
+    {
+      "id": "9d5960d4-3f52-4bf2-9926-28d212602b6c",
+      "error": null,
+      "model": "gpt-image-2-c",
+      "events": [
+        {
+          "at": 1792656713441,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656713325,
+          "model": "gpt-image-2-c",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656712648,
+          "model": "gpt-image-2-c",
+          "phase": "provider_start",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656712646,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656712639,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656712629,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792656712624,
+          "model": "gpt-image-2-c",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "status": "running",
+      "task_type": "image",
+      "worker_id": "generation-worker:8:ae26c1d7-bcc1-4058-bc47-654aa6fb3c71",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:11:52.62+00:00",
+      "updated_at": "2026-10-22T08:11:52.641+00:00",
+      "lease_until": "2026-10-22T08:16:42.635+00:00",
+      "last_poll_at": null,
+      "next_poll_at": "2026-10-22T08:14:52.644+00:00",
+      "submitted_at": "2026-10-22T08:11:52.644+00:00",
+      "logical_model": "gpt-image-2-c",
+      "execution_phase": "submitting",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:15:12.635+00:00"
+    },
+    {
+      "id": "91d825ee-3793-463e-a9b1-807c9dda90d6",
+      "error": null,
+      "model": "gpt-image-2-all",
+      "events": [
+        {
+          "at": 1792656740722,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656740630,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656740347,
+          "model": "gpt-image-2-all",
+          "phase": "provider_start",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656740345,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656740336,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656740325,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792656740320,
+          "model": "gpt-image-2-all",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "status": "running",
+      "task_type": "image",
+      "worker_id": "generation-worker:8:9639ed17-7b94-4106-a488-d781d9724665",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:12:20.317+00:00",
+      "updated_at": "2026-10-22T08:12:20.341+00:00",
+      "lease_until": "2026-10-22T08:16:45.399+00:00",
+      "last_poll_at": null,
+      "next_poll_at": "2026-10-22T08:15:20.343+00:00",
+      "submitted_at": "2026-10-22T08:12:20.343+00:00",
+      "logical_model": "gpt-image-2-all",
+      "execution_phase": "submitting",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:15:15.399+00:00"
+    },
+    {
+      "id": "26f10669-ba56-4f2f-9ddb-d4585b5db8ae",
+      "error": null,
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792656914784,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656914780,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656904613,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656904610,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656894466,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656894463,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656884192,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656884189,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656872773,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656872769,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656862639,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656862635,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656852478,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656852475,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656842000,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656841997,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 1,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656831826,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 5,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656831822,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656821747,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656821744,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656816580,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656816577,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656811396,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 5,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656811392,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 1,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656806206,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656806203,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656801049,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656801046,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656795962,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656795959,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_first_byte",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 0,
+          "responseBytes": 142
+        }
+      ],
+      "status": "running",
+      "task_type": "video",
+      "worker_id": null,
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:13:09.661+00:00",
+      "updated_at": "2026-10-22T08:13:10.728+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:15:14.787+00:00",
+      "next_poll_at": "2026-10-22T08:15:39.787+00:00",
+      "submitted_at": "2026-10-22T08:13:10.732+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "polling",
+      "upstream_task_id": "task_t99Apc7SuElWnI6kXopBbquFFSYjFoUi",
+      "last_heartbeat_at": "2026-10-22T08:15:14.619+00:00"
+    },
+    {
+      "id": "cc574f05-abe2-4e46-8ebb-f9b3c7cab49e",
+      "error": null,
+      "model": "official/seedance-2",
+      "events": [
+        {
+          "at": 1792656820067,
+          "model": "official/seedance-2",
+          "phase": "submit_start",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792656820065,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656820059,
+          "model": "official/seedance-2",
+          "phase": "task_created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        }
+      ],
+      "status": "running",
+      "task_type": "video",
+      "worker_id": null,
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:13:40.055+00:00",
+      "updated_at": "2026-10-22T08:13:40.055+00:00",
+      "lease_until": null,
+      "last_poll_at": null,
+      "next_poll_at": "2026-10-22T08:43:40.063+00:00",
+      "submitted_at": null,
+      "logical_model": "official/seedance-2",
+      "execution_phase": "submitting",
+      "upstream_task_id": null,
+      "last_heartbeat_at": null
+    },
+    {
+      "id": "49cd0560-8c62-4074-93c0-9f420e07dd0f",
+      "error": null,
+      "model": "gpt-image-2-all",
+      "events": [
+        {
+          "at": 1792656831934,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656831912,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656831883,
+          "model": "gpt-image-2-all",
+          "phase": "provider_start",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656831881,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656831857,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656831842,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792656831835,
+          "model": "gpt-image-2-all",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "status": "running",
+      "task_type": "image",
+      "worker_id": "generation-worker:8:9dabb413-8980-403d-8081-5630710fe46f",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:13:51.831+00:00",
+      "updated_at": "2026-10-22T08:13:51.872+00:00",
+      "lease_until": "2026-10-22T08:16:36.851+00:00",
+      "last_poll_at": null,
+      "next_poll_at": "2026-10-22T08:16:51.876+00:00",
+      "submitted_at": "2026-10-22T08:13:51.876+00:00",
+      "logical_model": "gpt-image-2-all",
+      "execution_phase": "submitting",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:15:06.851+00:00"
+    },
+    {
+      "id": "1cc2de08-b9a9-45fd-bc9f-0d94ee9d6914",
+      "error": null,
+      "model": "gpt-image-2",
+      "events": [
+        {
+          "at": 1792656859747,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656859666,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656859566,
+          "model": "gpt-image-2",
+          "phase": "provider_start",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656859564,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656859558,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656859547,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792656859542,
+          "model": "gpt-image-2",
+          "phase": "task_created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        }
+      ],
+      "status": "running",
+      "task_type": "image",
+      "worker_id": "generation-worker:8:c4e24e1f-dba1-4ae4-bc97-006eda4e70f1",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:14:19.54+00:00",
+      "updated_at": "2026-10-22T08:14:19.56+00:00",
+      "lease_until": "2026-10-22T08:16:39.553+00:00",
+      "last_poll_at": null,
+      "next_poll_at": "2026-10-22T08:17:19.562+00:00",
+      "submitted_at": "2026-10-22T08:14:19.562+00:00",
+      "logical_model": "gpt-image-2",
+      "execution_phase": "submitting",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:15:09.553+00:00"
+    },
+    {
+      "id": "3be2bf08-fdab-46a4-864b-5b6b8b4d13f7",
+      "error": null,
+      "model": "gpt-image-2",
+      "events": [
+        {
+          "at": 1792656877710,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656877396,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656874190,
+          "model": "gpt-image-2",
+          "phase": "provider_start",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656874180,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656874154,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656874126,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792656874106,
+          "model": "gpt-image-2",
+          "phase": "task_created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        }
+      ],
+      "status": "running",
+      "task_type": "image",
+      "worker_id": "generation-worker:8:8f0f170d-defe-4bce-9749-01b9b05eca5f",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:14:34.087+00:00",
+      "updated_at": "2026-10-22T08:14:34.16+00:00",
+      "lease_until": "2026-10-22T08:16:29.142+00:00",
+      "last_poll_at": null,
+      "next_poll_at": "2026-10-22T08:17:34.165+00:00",
+      "submitted_at": "2026-10-22T08:14:34.165+00:00",
+      "logical_model": "gpt-image-2",
+      "execution_phase": "submitting",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:14:59.142+00:00"
+    }
+  ],
+  "recent_failure_evidence": [
+    {
+      "id": "e970391e-87a8-4b4a-b8ff-70807aab629d",
+      "error": "自定义图片接口调用失败，状态码 403",
+      "model": "gpt-image-2.5-sunburst",
+      "events": [
+        {
+          "at": 1792656892276,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656892265,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "自定义图片接口调用失败，状态码 403"
+        },
+        {
+          "at": 1792656892254,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 172,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792656892025,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656890688,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792656890680,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792656890516,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 111754
+        },
+        {
+          "at": 1792656890510,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 3186,
+          "responseBytes": 5163223
+        },
+        {
+          "at": 1792656887321,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220813018878865038268d9d6hJmsXMC2",
+          "durationMs": 108435
+        },
+        {
+          "at": 1792656778886,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656778708,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656778695,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656778683,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "Maximum call stack size exceeded",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792656778701,
+          "completedAt": 1792656890683
+        },
+        {
+          "error": "自定义图片接口调用失败，状态码 403",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792656892020,
+          "completedAt": 1792656892261
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:12:58.674+00:00",
+      "updated_at": "2026-10-22T08:14:52.267+00:00",
+      "logical_model": "gpt-image-2",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "83b4ed43-f4bc-404a-ac39-55a60d8d301f",
+      "error": "Height must be between 300px and 6000px.",
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792656863389,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656863356,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 237
+        },
+        {
+          "at": 1792656857942,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656852899,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656847372,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656842242,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656837184,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656832057,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656832018,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792656832005,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 165
+        },
+        {
+          "at": 1792656832003,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 198
+        },
+        {
+          "at": 1792656831998,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220813518924259112l2yefu6GCD1V1zD",
+          "durationMs": 115
+        },
+        {
+          "at": 1792656831882,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656831836,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "Height must be between 300px and 6000px.",
+          "model": "doubao-seedance-2-0",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792656831819,
+          "completedAt": 1792656863359
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:13:51.819+00:00",
+      "updated_at": "2026-10-22T08:14:23.381+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_KtCV0pIgiHxLNFnt1nFxlXwq004G47Vh"
+    },
+    {
+      "id": "13426261-5f1d-4184-a007-5123bb0688bc",
+      "error": "当前模型不支持所选分辨率，请调整分辨率后重试。 the parameter resolution specified in the request is not valid for model doubao-seedance-2-0-mini in r2v",
+      "model": "cdance2.0-mini-0807",
+      "events": [
+        {
+          "at": 1792656863050,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656863019,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 427
+        },
+        {
+          "at": 1792656857538,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792656851949,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792656851228,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792656851214,
+          "model": "cdance2.0-mini-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 975
+        },
+        {
+          "at": 1792656851211,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 144,
+          "responseBytes": 118
+        },
+        {
+          "at": 1792656851065,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "080f6ad9c5d20a7a80818220503bcbf5",
+          "durationMs": 561
+        },
+        {
+          "at": 1792656850504,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28"
+        },
+        {
+          "at": 1792656850235,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "当前模型不支持所选分辨率，请调整分辨率后重试。 the parameter resolution specified in the request is not valid for model doubao-seedance-2-0-mini in r2v",
+          "model": "cdance2.0-mini-0807",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "startedAt": 1792656850227,
+          "completedAt": 1792656863022
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T08:14:10.227+00:00",
+      "updated_at": "2026-10-22T08:14:23.041+00:00",
+      "logical_model": "cdance2.0-mini-0807",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_dCNsQJAtDaGVoiDRLzTXKBd6DXLvsMvk"
+    },
+    {
+      "id": "709a433e-9265-4d0f-80ae-7d2e97cd682e",
+      "error": "图片生成失败，状态码 403",
+      "model": "gpt-image-2-5-sunburst",
+      "events": [
+        {
+          "at": 1792656725603,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656725590,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656725581,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656725577,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 52,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792656725112,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656724659,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792656724646,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792656724452,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 291028
+        },
+        {
+          "at": 1792656724425,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 19158,
+          "responseBytes": 6473601
+        },
+        {
+          "at": 1792656705260,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220807136819746332l2yefu6JTyG2mfR",
+          "durationMs": 271593
+        },
+        {
+          "at": 1792656433667,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656430089,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656430077,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656430067,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "Maximum call stack size exceeded",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792656430081,
+          "completedAt": 1792656724649
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792656725105,
+          "completedAt": 1792656725586
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:07:10.057+00:00",
+      "updated_at": "2026-10-22T08:12:05.592+00:00",
+      "logical_model": "gpt-image-2-c",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "9768df78-2b43-43ed-98b9-4349fb98ecd1",
+      "error": "图片生成失败，状态码 403",
+      "model": "gpt-image-2-all",
+      "events": [
+        {
+          "at": 1792656702194,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656702180,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656702155,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656702150,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 43,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792656702011,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656700420,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792656700412,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792656700357,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 217684
+        },
+        {
+          "at": 1792656700351,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 27380,
+          "responseBytes": 4607010
+        },
+        {
+          "at": 1792656672968,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220808035483557532l2yefu6khZPkkR2",
+          "durationMs": 190058
+        },
+        {
+          "at": 1792656482910,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656478952,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656478943,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656478932,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "Maximum call stack size exceeded",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792656478947,
+          "completedAt": 1792656700414
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792656701898,
+          "completedAt": 1792656702162
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:07:58.923+00:00",
+      "updated_at": "2026-10-22T08:11:42.183+00:00",
+      "logical_model": "gpt-image-2-c",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "c0320ccf-21e4-42cf-9875-2fbb09c7f49b",
+      "error": "自定义图片接口调用失败，状态码 403",
+      "model": "gpt-image-2.5-sunburst",
+      "events": [
+        {
+          "at": 1792656649585,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656649574,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "自定义图片接口调用失败，状态码 403"
+        },
+        {
+          "at": 1792656649565,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 7,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792656649533,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656648962,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792656648953,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792656648725,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 86158
+        },
+        {
+          "at": 1792656648713,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 7405,
+          "responseBytes": 10598917
+        },
+        {
+          "at": 1792656641305,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220809241149999958268d9d60GMqqB1w",
+          "durationMs": 78651
+        },
+        {
+          "at": 1792656562654,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656562541,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656562532,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792656562521,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "Maximum call stack size exceeded",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792656562534,
+          "completedAt": 1792656648956
+        },
+        {
+          "error": "自定义图片接口调用失败，状态码 403",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792656649527,
+          "completedAt": 1792656649571
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:09:22.513+00:00",
+      "updated_at": "2026-10-22T08:10:49.575+00:00",
+      "logical_model": "gpt-image-2",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "fc86a323-afb5-4bc7-8e8d-15fee1ea330c",
+      "error": "Height must be between 300px and 6000px.",
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792656633391,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656633358,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 237
+        },
+        {
+          "at": 1792656623146,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656617880,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 5,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656612843,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656607683,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792656602533,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656597403,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656592250,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656592199,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792656592189,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 341
+        },
+        {
+          "at": 1792656592185,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 198
+        },
+        {
+          "at": 1792656592178,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022080951888011864RI2ypSq2mZYWNHvO",
+          "durationMs": 308
+        },
+        {
+          "at": 1792656591872,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656591843,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "Height must be between 300px and 6000px.",
+          "model": "doubao-seedance-2-0",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792656591834,
+          "completedAt": 1792656633360
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:09:51.834+00:00",
+      "updated_at": "2026-10-22T08:10:33.383+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_Se8hvZoDOyRrIQLkUwvcUVwktKdG3PE6"
+    },
+    {
+      "id": "6259b232-debb-4667-910a-caefc35d48e5",
+      "error": "Height must be between 300px and 6000px.",
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792656251913,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656251874,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 6,
+          "responseBytes": 237
+        },
+        {
+          "at": 1792656243324,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656238123,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 14,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656223206,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 5,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792656223111,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792656223100,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 295
+        },
+        {
+          "at": 1792656223097,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 198
+        },
+        {
+          "at": 1792656223092,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022080342937003490RI2ypSq2th7sHzb6",
+          "durationMs": 160
+        },
+        {
+          "at": 1792656222931,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656222800,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "Height must be between 300px and 6000px.",
+          "model": "doubao-seedance-2-0",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792656222786,
+          "completedAt": 1792656251877
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:03:42.786+00:00",
+      "updated_at": "2026-10-22T08:04:11.906+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_AlIbRmwrpocs0RPokx4WMT85EftH5WLB"
+    },
+    {
+      "id": "74c47cb5-0186-4dae-9adb-f37af0e76452",
+      "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[1] 素材处理失败 [素材 as_01M5H9Z49HN0ZQWWTQPNX84RMA 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+      "model": "cdance2.0-0807",
+      "events": [
+        {
+          "at": 1792655998182,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655998147,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 10,
+          "responseBytes": 480
+        },
+        {
+          "at": 1792655987480,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792655986580,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792655986571,
+          "model": "cdance2.0-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 959
+        },
+        {
+          "at": 1792655986569,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 42,
+          "responseBytes": 113
+        },
+        {
+          "at": 1792655986524,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "04116ad9c2720a7a5ea39c8db710235b",
+          "durationMs": 739
+        },
+        {
+          "at": 1792655985786,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28"
+        },
+        {
+          "at": 1792655985608,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[1] 素材处理失败 [素材 as_01M5H9Z49HN0ZQWWTQPNX84RMA 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+          "model": "cdance2.0-0807",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "startedAt": 1792655985597,
+          "completedAt": 1792655998150
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T07:59:45.597+00:00",
+      "updated_at": "2026-10-22T07:59:58.175+00:00",
+      "logical_model": "cdance2.0-0807",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_OCtmBlnt18Q5pAxahMCOekNstw9e1SJG"
+    },
+    {
+      "id": "cac3f537-0b6b-419a-bbb2-9e1f3588a139",
+      "error": "视频任务在提交阶段中断，未取得上游任务 ID",
+      "model": "official/seedance-2",
+      "events": [
+        {
+          "at": 1792655903371,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submission_interrupted_without_upstream_id"
+        },
+        {
+          "at": 1792654103347,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "视频任务在提交阶段中断，未取得上游任务 ID",
+          "model": "official/seedance-2",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792654103333,
+          "completedAt": 1792655903353
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:28:23.333+00:00",
+      "updated_at": "2026-10-22T07:58:23.358+00:00",
+      "logical_model": "official/seedance-2",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "b6899866-6d2d-446d-9c74-400c06de84d1",
+      "error": "ModelBay 素材接口返回 HTTP 400",
+      "model": "official/seedance-2-5",
+      "events": [
+        {
+          "at": 1792655821333,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655821329,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655821317,
+          "model": "official/seedance-2-5",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655819345,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "ModelBay 素材接口返回 HTTP 400",
+          "model": "official/seedance-2-5",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792655819335,
+          "completedAt": 1792655821318
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:56:59.335+00:00",
+      "updated_at": "2026-10-22T07:57:01.326+00:00",
+      "logical_model": "official/seedance-2-5",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "9632172f-2028-4e38-973e-57b6ae08617b",
+      "error": "ModelBay 素材接口返回 HTTP 400",
+      "model": "official/seedance-2",
+      "events": [
+        {
+          "at": 1792655813371,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655813366,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655813351,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655810940,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "ModelBay 素材接口返回 HTTP 400",
+          "model": "official/seedance-2",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792655810926,
+          "completedAt": 1792655813352
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:56:50.926+00:00",
+      "updated_at": "2026-10-22T07:56:53.361+00:00",
+      "logical_model": "official/seedance-2",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "bf3cf2db-4a9b-4a6d-b8fe-bf69dabf9531",
+      "error": "The request failed because the input image 'content[1]' may contain real person. Request id: 0217926557766592d417bd9da6e7dfe27ae15305eaa9a4fd4454a",
+      "model": "doubao-seedance-2-0-260128",
+      "events": [
+        {
+          "at": 1792655786699,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655786675,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "The request failed because the input image 'content[1]' may contain real person. Request id: 0217926557766592d417bd9da6e7dfe27ae15305eaa9a4fd4454a"
+        },
+        {
+          "at": 1792655786628,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "submit_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "Error",
+          "errorMessage": "The request failed because the input image 'content[1]' may contain real person. Request id: 0217926557766592d417bd9da6e7dfe27ae15305eaa9a4fd4454a"
+        },
+        {
+          "at": 1792655786626,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 20994,
+          "errorMessage": "The request failed because the input image 'content[1]' may contain real person. Request id: 0217926557766592d417bd9da6e7dfe27ae15305eaa9a4fd4454a"
+        },
+        {
+          "at": 1792655786623,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 2,
+          "responseBytes": 235
+        },
+        {
+          "at": 1792655786604,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220756058603229198268d9d6eChgSBIp",
+          "durationMs": 20827,
+          "errorMessage": "The request failed because the input image 'content[1]' may contain real person. Request id: 0217926557766592d417bd9da6e7dfe27ae15305eaa9a4fd4454a"
+        },
+        {
+          "at": 1792655765777,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792655760581,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "The request failed because the input image 'content[1]' may contain real person. Request id: 0217926557766592d417bd9da6e7dfe27ae15305eaa9a4fd4454a",
+          "model": "doubao-seedance-2-0-260128",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792655760551,
+          "completedAt": 1792655786630
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T07:56:00.551+00:00",
+      "updated_at": "2026-10-22T07:56:26.663+00:00",
+      "logical_model": "doubao-seedance-2-0-260128",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "d7d6eaaf-b9f9-465d-968e-78cbf194bc86",
+      "error": "The request failed because the input image 'content[1]' 'content[2]' 'content[4]' may contain real person. Request id: 0217926557534441f68012d5e32197dcd13836e1ef8c154ca568e",
+      "model": "doubao-seedance-2-0-260128",
+      "events": [
+        {
+          "at": 1792655770075,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655770066,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "The request failed because the input image 'content[1]' 'content[2]' 'content[4]' may contain real person. Request id: 0217926557534441f68012d5e32197dcd13836e1ef8c154ca568e"
+        },
+        {
+          "at": 1792655770028,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "submit_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "Error",
+          "errorMessage": "The request failed because the input image 'content[1]' 'content[2]' 'content[4]' may contain real person. Request id: 0217926557534441f68012d5e32197dcd13836e1ef8c154ca568e"
+        },
+        {
+          "at": 1792655770025,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 26880,
+          "errorMessage": "The request failed because the input image 'content[1]' 'content[2]' 'content[4]' may contain real person. Request id: 0217926557534441f68012d5e32197dcd13836e1ef8c154ca568e"
+        },
+        {
+          "at": 1792655770022,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 2,
+          "responseBytes": 261
+        },
+        {
+          "at": 1792655770004,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220755434126509148268d9d6U3ZAMafv",
+          "durationMs": 26735,
+          "errorMessage": "The request failed because the input image 'content[1]' 'content[2]' 'content[4]' may contain real person. Request id: 0217926557534441f68012d5e32197dcd13836e1ef8c154ca568e"
+        },
+        {
+          "at": 1792655743268,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792655727720,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "The request failed because the input image 'content[1]' 'content[2]' 'content[4]' may contain real person. Request id: 0217926557534441f68012d5e32197dcd13836e1ef8c154ca568e",
+          "model": "doubao-seedance-2-0-260128",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792655727685,
+          "completedAt": 1792655770029
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T07:55:27.685+00:00",
+      "updated_at": "2026-10-22T07:56:10.051+00:00",
+      "logical_model": "doubao-seedance-2-0-260128",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "b7751136-4963-48a5-8971-522f591a71e8",
+      "error": "素材 content[3].image_url.url（重试已耗尽） 素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 素材 content[3].image_url.url 准备失败（已重试 5 次）: InvalidParameter.HeightTooSmall: Height must be between 300px and 6000px.",
+      "model": "cdance2.0-mini-0807",
+      "events": [
+        {
+          "at": 1792655722432,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655722400,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 529
+        },
+        {
+          "at": 1792655696711,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655671008,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655645681,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655620006,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655594428,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655569159,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655543901,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655518275,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 6,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655492771,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655463652,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655438326,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655412819,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655387041,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655361588,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655336113,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792655310649,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "素材 content[3].image_url.url（重试已耗尽） 素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 素材 content[3].image_url.url 准备失败（已重试 5 次）: InvalidParameter.HeightTooSmall: Height must be between 300px and 6000px.",
+          "model": "cdance2.0-mini-0807",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "startedAt": 1792655106426,
+          "completedAt": 1792655722404
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T07:45:06.426+00:00",
+      "updated_at": "2026-10-22T07:55:22.425+00:00",
+      "logical_model": "cdance2.0-mini-0807",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_Ii6PPsr5LJhU8ae93XqzYPQ0JM8SF40T"
+    },
+    {
+      "id": "91c6da3d-c0ad-4074-b205-9b110ea9bd26",
+      "error": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410",
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792655722330,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655722325,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410"
+        },
+        {
+          "at": 1792655722305,
+          "model": "doubao-seedance-2-0",
+          "phase": "submit_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "Error",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410"
+        },
+        {
+          "at": 1792655722303,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 287,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410"
+        },
+        {
+          "at": 1792655722300,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 147
+        },
+        {
+          "at": 1792655722282,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022075522223157596RI2ypSq2AGwlhX07",
+          "durationMs": 77,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410"
+        },
+        {
+          "at": 1792655722205,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655722010,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410",
+          "model": "doubao-seedance-2-0",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792655721995,
+          "completedAt": 1792655722307
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:55:21.995+00:00",
+      "updated_at": "2026-10-22T07:55:22.319+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "a7817246-1e72-4dfd-979b-76e518d4135a",
+      "error": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)",
+      "model": "gpt-image-2-c",
+      "events": [
+        {
+          "at": 1792655711322,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655711309,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)"
+        },
+        {
+          "at": 1792655711297,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)"
+        },
+        {
+          "at": 1792655711294,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 22373,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)"
+        },
+        {
+          "at": 1792655711291,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 233
+        },
+        {
+          "at": 1792655711271,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022075449674786248RI2ypSq2l7VyZeaj",
+          "durationMs": 22249,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)"
+        },
+        {
+          "at": 1792655689022,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655688054,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792655688045,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655688035,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792655688049,
+          "completedAt": 1792655711305
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:54:48.026+00:00",
+      "updated_at": "2026-10-22T07:55:11.311+00:00",
+      "logical_model": "gpt-image-2-c",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "74052714-27b7-422e-b22f-7b19a24e19c8",
+      "error": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥5.970294",
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792655654417,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655654410,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655654394,
+          "model": "doubao-seedance-2-0",
+          "phase": "submit_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "Error",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655654392,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 150,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655654389,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 147
+        },
+        {
+          "at": 1792655654374,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022075414313506078RI2ypSq2iAndNTD1",
+          "durationMs": 76,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655654298,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655654237,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥5.970294",
+          "model": "doubao-seedance-2-0",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792655654224,
+          "completedAt": 1792655654396
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:54:14.224+00:00",
+      "updated_at": "2026-10-22T07:54:14.404+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "6ec2a7a7-3f90-4b20-aef0-3b9ad607498a",
+      "error": "ModelBay 素材接口返回 HTTP 400",
+      "model": "official/seedance-2",
+      "events": [
+        {
+          "at": 1792655587357,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655587353,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655587340,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655521126,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "ModelBay 素材接口返回 HTTP 400",
+          "model": "official/seedance-2",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792655521115,
+          "completedAt": 1792655587342
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:52:01.115+00:00",
+      "updated_at": "2026-10-22T07:53:07.349+00:00",
+      "logical_model": "official/seedance-2",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "a84bf819-8911-4975-b0c6-7c532fad837f",
+      "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[1] 素材处理失败 [素材 as_01M5H9J451QFJ4TPHDT41D7GYG 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+      "model": "cdance2.0-0807",
+      "events": [
+        {
+          "at": 1792655568771,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655568740,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 480
+        },
+        {
+          "at": 1792655561131,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792655560504,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792655560494,
+          "model": "cdance2.0-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 686
+        },
+        {
+          "at": 1792655560491,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 75,
+          "responseBytes": 113
+        },
+        {
+          "at": 1792655560414,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "020f6ad9c0c70a7aa53ec73519351ccd",
+          "durationMs": 463
+        },
+        {
+          "at": 1792655559950,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28"
+        },
+        {
+          "at": 1792655559801,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[1] 素材处理失败 [素材 as_01M5H9J451QFJ4TPHDT41D7GYG 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+          "model": "cdance2.0-0807",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "startedAt": 1792655559793,
+          "completedAt": 1792655568743
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T07:52:39.793+00:00",
+      "updated_at": "2026-10-22T07:52:48.766+00:00",
+      "logical_model": "cdance2.0-0807",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_MK2VqrlFjpD6xctOtIuijlo9C2otPxMR"
+    },
+    {
+      "id": "b7a79845-bf63-40be-95c8-e1da61101a23",
+      "error": "ModelBay 素材接口返回 HTTP 400",
+      "model": "official/seedance-2-5",
+      "events": [
+        {
+          "at": 1792655528441,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655528436,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655528414,
+          "model": "official/seedance-2-5",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655467666,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "ModelBay 素材接口返回 HTTP 400",
+          "model": "official/seedance-2-5",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792655467652,
+          "completedAt": 1792655528417
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:51:07.652+00:00",
+      "updated_at": "2026-10-22T07:52:08.431+00:00",
+      "logical_model": "official/seedance-2-5",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "a586b011-6541-44b9-99f7-26d2cf6e317b",
+      "error": "ModelBay 素材接口返回 HTTP 400",
+      "model": "official/seedance-2-5",
+      "events": [
+        {
+          "at": 1792655500519,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655500511,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655500486,
+          "model": "official/seedance-2-5",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 400"
+        },
+        {
+          "at": 1792655448881,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "ModelBay 素材接口返回 HTTP 400",
+          "model": "official/seedance-2-5",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792655448871,
+          "completedAt": 1792655500488
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:50:48.871+00:00",
+      "updated_at": "2026-10-22T07:51:40.503+00:00",
+      "logical_model": "official/seedance-2-5",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "b79315d3-f756-41d3-b1af-c0bb3d5752c8",
+      "error": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294",
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792655461695,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655461691,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655461678,
+          "model": "doubao-seedance-2-0",
+          "phase": "submit_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "Error",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655461676,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 101,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655461672,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 147
+        },
+        {
+          "at": 1792655461652,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220751016330125772l2yefu6TO27su7Q",
+          "durationMs": 37,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655461615,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655461569,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294",
+          "model": "doubao-seedance-2-0",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792655461556,
+          "completedAt": 1792655461680
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:51:01.556+00:00",
+      "updated_at": "2026-10-22T07:51:01.687+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "fc214fba-0af7-4ba4-ad60-a35d16163d23",
+      "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[3] 素材处理失败 [素材 as_01M5H9E8BTKQ5W25WVPMNE0VGW 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+      "model": "cdance2.0-0807",
+      "events": [
+        {
+          "at": 1792655438913,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655438877,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 480
+        },
+        {
+          "at": 1792655433468,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792655432934,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792655432925,
+          "model": "cdance2.0-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 1144
+        },
+        {
+          "at": 1792655432922,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 49,
+          "responseBytes": 113
+        },
+        {
+          "at": 1792655432870,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "081b6ad9c0480a7a513ed2c4b805e9e5",
+          "durationMs": 933
+        },
+        {
+          "at": 1792655431937,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28"
+        },
+        {
+          "at": 1792655431778,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[3] 素材处理失败 [素材 as_01M5H9E8BTKQ5W25WVPMNE0VGW 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+          "model": "cdance2.0-0807",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "startedAt": 1792655431767,
+          "completedAt": 1792655438880
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T07:50:31.767+00:00",
+      "updated_at": "2026-10-22T07:50:38.907+00:00",
+      "logical_model": "cdance2.0-0807",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_gWOE4oCgnshlAeZhTMh53I25SMpaoqju"
+    },
+    {
+      "id": "55963ab3-a1aa-410a-a4c5-df7ca0c946d0",
+      "error": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294",
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792655401039,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655401034,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655401020,
+          "model": "doubao-seedance-2-0",
+          "phase": "submit_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "Error",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655401018,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 631,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655401015,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 147
+        },
+        {
+          "at": 1792655400997,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022075000929524870RI2ypSq2I2Jus2bQ",
+          "durationMs": 551,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294"
+        },
+        {
+          "at": 1792655400446,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655400383,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "token quota is not enough, token remain quota: ¥0.276632, need quota: ¥5.970294",
+          "model": "doubao-seedance-2-0",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792655400369,
+          "completedAt": 1792655401022
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:50:00.369+00:00",
+      "updated_at": "2026-10-22T07:50:01.03+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "0a2c96d7-6a1a-4934-a25d-ec45ee5b38da",
+      "error": "图片生成失败，状态码 403",
+      "model": "gpt-image-2-5-sunburst",
+      "events": [
+        {
+          "at": 1792655151534,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655151521,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792655151511,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792655151507,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 34,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792655151431,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792655151331,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792655151319,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792655151225,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 140801
+        },
+        {
+          "at": 1792655151214,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 17072,
+          "responseBytes": 7394742
+        },
+        {
+          "at": 1792655134139,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220743304680252052l2yefu6oaVYWB4P",
+          "durationMs": 123678
+        },
+        {
+          "at": 1792655010461,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655010370,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792655010354,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655010308,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "Maximum call stack size exceeded",
+          "model": "gpt-image-2-all",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792655010360,
+          "completedAt": 1792655151325
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2-all",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792655151426,
+          "completedAt": 1792655151517
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:43:30.259+00:00",
+      "updated_at": "2026-10-22T07:45:51.524+00:00",
+      "logical_model": "gpt-image-2-all",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "a6a6b9a0-f022-48bc-9457-af10fb2d449c",
+      "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[3] 素材处理失败 [素材 as_01M5H9339NKXQZB4MYGJGMN8NW 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+      "model": "cdance2.0-0807",
+      "events": [
+        {
+          "at": 1792655073386,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655073350,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 480
+        },
+        {
+          "at": 1792655067890,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792655067662,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792655067653,
+          "model": "cdance2.0-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 484
+        },
+        {
+          "at": 1792655067650,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 97,
+          "responseBytes": 113
+        },
+        {
+          "at": 1792655067551,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "04136ad9bedb0a7aef40350fda71090c",
+          "durationMs": 332
+        },
+        {
+          "at": 1792655067219,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28"
+        },
+        {
+          "at": 1792655067166,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[3] 素材处理失败 [素材 as_01M5H9339NKXQZB4MYGJGMN8NW 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+          "model": "cdance2.0-0807",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "startedAt": 1792655067158,
+          "completedAt": 1792655073355
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T07:44:27.158+00:00",
+      "updated_at": "2026-10-22T07:44:33.379+00:00",
+      "logical_model": "cdance2.0-0807",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_UkxBV85TNsexSHdY9IZuBce8WlDNtvmO"
+    },
+    {
+      "id": "722292bb-a03c-4844-a5af-5ed5af848326",
+      "error": "素材 content[3].image_url.url（重试已耗尽） 素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 素材 content[3].image_url.url 准备失败（已重试 5 次）: InvalidParameter.HeightTooSmall: Height must be between 300px and 6000px.",
+      "model": "cdance2.0-0807",
+      "events": [
+        {
+          "at": 1792655044458,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655044431,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 524
+        },
+        {
+          "at": 1792655019034,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654993234,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654966264,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 6,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654938098,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654908658,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654883135,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654857424,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654832086,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654801871,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654775979,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 7,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654749202,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654723553,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654698185,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 8,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654672562,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654646993,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792654621532,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 187
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "素材 content[3].image_url.url（重试已耗尽） 素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 素材 content[3].image_url.url 准备失败（已重试 5 次）: InvalidParameter.HeightTooSmall: Height must be between 300px and 6000px.",
+          "model": "cdance2.0-0807",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "startedAt": 1792654493478,
+          "completedAt": 1792655044434
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T07:34:53.478+00:00",
+      "updated_at": "2026-10-22T07:44:04.452+00:00",
+      "logical_model": "cdance2.0-0807",
+      "execution_phase": "completed",
+      "upstream_task_id": "task_FCuimpdX8CoqIikFonL1nW4JXVRuZdEH"
+    },
+    {
+      "id": "59415936-5b9c-44f4-a40d-7ebbf3a6e322",
+      "error": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥0.237500 (request id: 20261022074359559634180RI2ypSq23Zt6xYJ0)",
+      "model": "gpt-image-2-c",
+      "events": [
+        {
+          "at": 1792655040628,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655040619,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥0.237500 (request id: 20261022074359559634180RI2ypSq23Zt6xYJ0)"
+        },
+        {
+          "at": 1792655040611,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥0.237500 (request id: 20261022074359559634180RI2ypSq23Zt6xYJ0)"
+        },
+        {
+          "at": 1792655040608,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 1139,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥0.237500 (request id: 20261022074359559634180RI2ypSq23Zt6xYJ0)"
+        },
+        {
+          "at": 1792655040604,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 233
+        },
+        {
+          "at": 1792655040587,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022074359559634180RI2ypSq23Zt6xYJ0",
+          "durationMs": 1035,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥0.237500 (request id: 20261022074359559634180RI2ypSq23Zt6xYJ0)"
+        },
+        {
+          "at": 1792655039552,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655039430,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792655039421,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655039409,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥0.237500 (request id: 20261022074359559634180RI2ypSq23Zt6xYJ0)",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792655039425,
+          "completedAt": 1792655040616
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:43:59.4+00:00",
+      "updated_at": "2026-10-22T07:44:00.621+00:00",
+      "logical_model": "gpt-image-2-c",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    },
+    {
+      "id": "8c23dcdf-fe54-4b77-9deb-c24d6157d163",
+      "error": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥24.179690",
+      "model": "doubao-seedance-2-0",
+      "events": [
+        {
+          "at": 1792655024297,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655024291,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥24.179690"
+        },
+        {
+          "at": 1792655024277,
+          "model": "doubao-seedance-2-0",
+          "phase": "submit_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "Error",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥24.179690"
+        },
+        {
+          "at": 1792655024274,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 92,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥24.179690"
+        },
+        {
+          "at": 1792655024271,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 148
+        },
+        {
+          "at": 1792655024251,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220743442322788772l2yefu6Emi4uswZ",
+          "durationMs": 28,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥24.179690"
+        },
+        {
+          "at": 1792655024222,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792655024177,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "attempts": [
+        {
+          "error": "token quota is not enough, token remain quota: ¥0.014428, need quota: ¥24.179690",
+          "model": "doubao-seedance-2-0",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792655024157,
+          "completedAt": 1792655024279
+        }
+      ],
+      "task_type": "video",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:43:44.157+00:00",
+      "updated_at": "2026-10-22T07:43:44.287+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    }
+  ],
+  "today_counts": [
+    {
+      "count": 153,
+      "status": "error",
+      "task_type": "video"
+    },
+    {
+      "count": 136,
+      "status": "success",
+      "task_type": "video"
+    },
+    {
+      "count": 112,
+      "status": "error",
+      "task_type": "image"
+    },
+    {
+      "count": 5,
+      "status": "running",
+      "task_type": "video"
+    },
+    {
+      "count": 111,
+      "status": "success",
+      "task_type": "image"
+    },
+    {
+      "count": 5,
+      "status": "running",
+      "task_type": "image"
+    }
+  ],
+  "channels": [
+    {
+      "id": "X9te4qOV0ZaPsJpErRRWS",
+      "name": "modelbay API 渠道",
+      "enabled": true
+    },
+    {
+      "id": "hr5VKuKJKirZ1-sdRZPY5",
+      "name": "兔子 API 渠道",
+      "enabled": true
+    },
+    {
+      "id": "jKjmH5G1HlrzOyDfuohV0",
+      "name": "昱梦渠道 gpt",
+      "enabled": true
+    },
+    {
+      "id": "9vdLZl4cJtS-re_mfLZxp",
+      "name": "模汇x中漫 API gpt文本",
+      "enabled": true
+    },
+    {
+      "id": "5R3WceROiaUsZf75tT9Sh",
+      "name": "RunningHub 渠道",
+      "enabled": true
+    },
+    {
+      "id": "wD0cO6S6cyhbyvYIRDE28",
+      "name": "天翼云星辰 TokenHub 视频渠道",
+      "enabled": true
+    },
+    {
+      "id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "name": "模汇X中漫 API 渠道",
+      "enabled": true
+    }
+  ],
+  "terminal_verification": [
+    {
+      "id": "0a2c96d7-6a1a-4934-a25d-ec45ee5b38da",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792655153253,
+          "phase": "poll",
+          "state": "api_response:completed"
+        },
+        {
+          "at": 1792655151536,
+          "phase": "recovery_end",
+          "state": "failed"
+        },
+        {
+          "at": 1792655151534,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655151521,
+          "phase": "state",
+          "state": "error",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792655151511,
+          "phase": "provider_exception",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792655151507,
+          "phase": "transport_response",
+          "status": 403,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792655151474,
+          "phase": "transport_request"
+        },
+        {
+          "at": 1792655151434,
+          "phase": "provider_start"
+        },
+        {
+          "at": 1792655151431,
+          "phase": "state",
+          "state": "submitting",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792655151415,
+          "phase": "poll",
+          "state": "api_response:created"
+        },
+        {
+          "at": 1792655151334,
+          "phase": "poll",
+          "state": "pending"
+        },
+        {
+          "at": 1792655151331,
+          "phase": "state",
+          "state": "created",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        }
+      ],
+      "status": "error",
+      "task_type": "image",
+      "worker_id": null,
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:43:30.259+00:00",
+      "updated_at": "2026-10-22T07:45:51.524+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T07:45:51.516+00:00",
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 141268,
+        "completedAt": "2026-10-22T07:45:51.528+00:00",
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T07:45:51.292+00:00",
+          "idempotencyKey": "generation-refund:image-task:0a2c96d7-6a1a-4934-a25d-ec45ee5b38da:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T07:45:51.418+00:00"
+    },
+    {
+      "id": "fc86a323-afb5-4bc7-8e8d-15fee1ea330c",
+      "error": "Height must be between 300px and 6000px.",
+      "events": [
+        {
+          "at": 1792656635599,
+          "phase": "poll",
+          "state": "api_response:completed"
+        },
+        {
+          "at": 1792656633394,
+          "phase": "recovery_end",
+          "state": "failed"
+        },
+        {
+          "at": 1792656633391,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656633358,
+          "phase": "upstream_body_complete"
+        },
+        {
+          "at": 1792656633355,
+          "phase": "upstream_body_first_byte"
+        },
+        {
+          "at": 1792656633332,
+          "phase": "transport_policy"
+        },
+        {
+          "at": 1792656623146,
+          "phase": "upstream_body_complete"
+        },
+        {
+          "at": 1792656623142,
+          "phase": "upstream_body_first_byte"
+        },
+        {
+          "at": 1792656623116,
+          "phase": "transport_policy"
+        },
+        {
+          "at": 1792656617880,
+          "phase": "upstream_body_complete"
+        },
+        {
+          "at": 1792656617872,
+          "phase": "upstream_body_first_byte"
+        },
+        {
+          "at": 1792656617864,
+          "phase": "transport_policy"
+        }
+      ],
+      "status": "error",
+      "task_type": "video",
+      "worker_id": null,
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:09:51.834+00:00",
+      "updated_at": "2026-10-22T08:10:33.383+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:10:33.36+00:00",
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 41534,
+        "completedAt": "2026-10-22T08:10:33.368+00:00",
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:10:33.373+00:00",
+          "idempotencyKey": "generation-refund:video-task:fc86a323-afb5-4bc7-8e8d-15fee1ea330c:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_Se8hvZoDOyRrIQLkUwvcUVwktKdG3PE6",
+      "last_heartbeat_at": "2026-10-22T08:10:33.154+00:00"
+    },
+    {
+      "id": "c0320ccf-21e4-42cf-9875-2fbb09c7f49b",
+      "error": "自定义图片接口调用失败，状态码 403",
+      "events": [
+        {
+          "at": 1792656650422,
+          "phase": "poll",
+          "state": "api_response:completed"
+        },
+        {
+          "at": 1792656649588,
+          "phase": "recovery_end",
+          "state": "failed"
+        },
+        {
+          "at": 1792656649585,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656649574,
+          "phase": "state",
+          "state": "error",
+          "errorMessage": "自定义图片接口调用失败，状态码 403"
+        },
+        {
+          "at": 1792656649565,
+          "phase": "transport_response",
+          "status": 403,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792656649558,
+          "phase": "transport_request"
+        },
+        {
+          "at": 1792656649533,
+          "phase": "state",
+          "state": "submitting",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656648965,
+          "phase": "poll",
+          "state": "pending"
+        },
+        {
+          "at": 1792656648962,
+          "phase": "state",
+          "state": "created",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792656648953,
+          "phase": "provider_exception",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792656648725,
+          "phase": "transport_response",
+          "status": 200
+        },
+        {
+          "at": 1792656648713,
+          "phase": "upstream_body_complete"
+        }
+      ],
+      "status": "error",
+      "task_type": "image",
+      "worker_id": null,
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:09:22.513+00:00",
+      "updated_at": "2026-10-22T08:10:49.575+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:10:49.57+00:00",
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 87065,
+        "completedAt": "2026-10-22T08:10:49.578+00:00",
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:10:48.935+00:00",
+          "idempotencyKey": "generation-refund:image-task:c0320ccf-21e4-42cf-9875-2fbb09c7f49b:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:10:49.515+00:00"
+    },
+    {
+      "id": "9768df78-2b43-43ed-98b9-4349fb98ecd1",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792656729762,
+          "phase": "poll",
+          "state": "api_response:completed"
+        },
+        {
+          "at": 1792656702196,
+          "phase": "recovery_end",
+          "state": "failed"
+        },
+        {
+          "at": 1792656702194,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656702180,
+          "phase": "state",
+          "state": "error",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656702155,
+          "phase": "provider_exception",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656702150,
+          "phase": "transport_response",
+          "status": 403,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792656702105,
+          "phase": "transport_request"
+        },
+        {
+          "at": 1792656702015,
+          "phase": "provider_start"
+        },
+        {
+          "at": 1792656702011,
+          "phase": "state",
+          "state": "submitting",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656700422,
+          "phase": "poll",
+          "state": "pending"
+        },
+        {
+          "at": 1792656700420,
+          "phase": "state",
+          "state": "created",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792656700412,
+          "phase": "provider_exception",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        }
+      ],
+      "status": "error",
+      "task_type": "image",
+      "worker_id": null,
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:07:58.923+00:00",
+      "updated_at": "2026-10-22T08:11:42.183+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:11:42.162+00:00",
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 223264,
+        "completedAt": "2026-10-22T08:11:42.188+00:00",
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:11:40.399+00:00",
+          "idempotencyKey": "generation-refund:image-task:9768df78-2b43-43ed-98b9-4349fb98ecd1:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:11:41.874+00:00"
+    },
+    {
+      "id": "709a433e-9265-4d0f-80ae-7d2e97cd682e",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792656726923,
+          "phase": "poll",
+          "state": "api_response:completed"
+        },
+        {
+          "at": 1792656725606,
+          "phase": "recovery_end",
+          "state": "failed"
+        },
+        {
+          "at": 1792656725603,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656725590,
+          "phase": "state",
+          "state": "error",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656725581,
+          "phase": "provider_exception",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656725577,
+          "phase": "transport_response",
+          "status": 403,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792656725525,
+          "phase": "transport_request"
+        },
+        {
+          "at": 1792656725114,
+          "phase": "provider_start"
+        },
+        {
+          "at": 1792656725112,
+          "phase": "state",
+          "state": "submitting",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656725089,
+          "phase": "poll",
+          "state": "api_response:created"
+        },
+        {
+          "at": 1792656724662,
+          "phase": "poll",
+          "state": "pending"
+        },
+        {
+          "at": 1792656724659,
+          "phase": "state",
+          "state": "created",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        }
+      ],
+      "status": "error",
+      "task_type": "image",
+      "worker_id": null,
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:07:10.057+00:00",
+      "updated_at": "2026-10-22T08:12:05.592+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:12:05.586+00:00",
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 295537,
+        "completedAt": "2026-10-22T08:12:05.594+00:00",
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:12:04.536+00:00",
+          "idempotencyKey": "generation-refund:image-task:709a433e-9265-4d0f-80ae-7d2e97cd682e:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:12:05.091+00:00"
+    },
+    {
+      "id": "a7817246-1e72-4dfd-979b-76e518d4135a",
+      "error": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)",
+      "events": [
+        {
+          "at": 1792655711892,
+          "phase": "poll",
+          "state": "api_response:completed"
+        },
+        {
+          "at": 1792655711325,
+          "phase": "recovery_end",
+          "state": "failed"
+        },
+        {
+          "at": 1792655711322,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792655711309,
+          "phase": "state",
+          "state": "error",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)"
+        },
+        {
+          "at": 1792655711297,
+          "phase": "provider_exception",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)"
+        },
+        {
+          "at": 1792655711294,
+          "phase": "transport_response",
+          "status": 403,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)"
+        },
+        {
+          "at": 1792655711291,
+          "phase": "upstream_body_complete"
+        },
+        {
+          "at": 1792655711289,
+          "phase": "upstream_body_first_byte"
+        },
+        {
+          "at": 1792655711271,
+          "phase": "upstream_response",
+          "status": 403,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥0.237500 (request id: 20261022075449674786248RI2ypSq2l7VyZeaj)"
+        },
+        {
+          "at": 1792655689022,
+          "phase": "upstream_request"
+        },
+        {
+          "at": 1792655689020,
+          "phase": "transport_policy"
+        },
+        {
+          "at": 1792655688923,
+          "phase": "transport_request"
+        }
+      ],
+      "status": "error",
+      "task_type": "image",
+      "worker_id": null,
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:54:48.026+00:00",
+      "updated_at": "2026-10-22T07:55:11.311+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T07:55:11.304+00:00",
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 23288,
+        "completedAt": "2026-10-22T07:55:11.314+00:00",
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T07:54:48.037+00:00"
+    },
+    {
+      "id": "91c6da3d-c0ad-4074-b205-9b110ea9bd26",
+      "error": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410",
+      "events": [
+        {
+          "at": 1792655722330,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792655722325,
+          "phase": "state",
+          "state": "error",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410"
+        },
+        {
+          "at": 1792655722305,
+          "phase": "submit_exception",
+          "errorName": "Error",
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410"
+        },
+        {
+          "at": 1792655722303,
+          "phase": "transport_response",
+          "status": 403,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410"
+        },
+        {
+          "at": 1792655722300,
+          "phase": "upstream_body_complete"
+        },
+        {
+          "at": 1792655722298,
+          "phase": "upstream_body_first_byte"
+        },
+        {
+          "at": 1792655722282,
+          "phase": "upstream_response",
+          "status": 403,
+          "errorMessage": "token quota is not enough, token remain quota: ¥0.039132, need quota: ¥8.358410"
+        },
+        {
+          "at": 1792655722205,
+          "phase": "upstream_request"
+        },
+        {
+          "at": 1792655722202,
+          "phase": "transport_policy"
+        },
+        {
+          "at": 1792655722015,
+          "phase": "transport_request"
+        },
+        {
+          "at": 1792655722012,
+          "phase": "submit_start"
+        },
+        {
+          "at": 1792655722010,
+          "phase": "state",
+          "state": "submitting",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "task_type": "video",
+      "worker_id": null,
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T07:55:21.995+00:00",
+      "updated_at": "2026-10-22T07:55:22.319+00:00",
+      "lease_until": null,
+      "last_poll_at": null,
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 316,
+        "completedAt": "2026-10-22T07:55:22.311+00:00",
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "last_heartbeat_at": null
+    },
+    {
+      "id": "92681295-7e45-4eea-82ba-08987488bedc",
+      "error": null,
+      "events": [
+        {
+          "at": 1792655761971,
+          "phase": "poll",
+          "state": "api_response:completed"
+        },
+        {
+          "at": 1792655759785,
+          "phase": "recovery_end",
+          "state": "completed"
+        },
+        {
+          "at": 1792655759780,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "persisted"
+        },
+        {
+          "at": 1792655756923,
+          "phase": "poll",
+          "state": "api_response:persisting"
+        },
+        {
+          "at": 1792655755923,
+          "phase": "state",
+          "state": "persisting",
+          "errorCode": "succeeded"
+        },
+        {
+          "at": 1792655755651,
+          "phase": "recovery_end",
+          "state": "result_ready"
+        },
+        {
+          "at": 1792655755648,
+          "phase": "state",
+          "state": "result_ready",
+          "errorCode": "succeeded"
+        },
+        {
+          "at": 1792655755642,
+          "phase": "upstream_body_complete"
+        },
+        {
+          "at": 1792655755638,
+          "phase": "upstream_body_first_byte"
+        },
+        {
+          "at": 1792655754730,
+          "phase": "transport_policy"
+        },
+        {
+          "at": 1792655729602,
+          "phase": "upstream_body_complete"
+        },
+        {
+          "at": 1792655729598,
+          "phase": "upstream_body_first_byte"
+        }
+      ],
+      "status": "success",
+      "task_type": "video",
+      "worker_id": null,
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:45:32.744+00:00",
+      "updated_at": "2026-10-22T07:55:59.762+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T07:55:55.645+00:00",
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 627025,
+        "completedAt": "2026-10-22T07:55:59.769+00:00",
+        "successCount": 1
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_lof7NieDnvzOgjyVmrXtEuPuDE3A5ygo",
+      "last_heartbeat_at": "2026-10-22T07:55:55.911+00:00"
+    },
+    {
+      "id": "cac3f537-0b6b-419a-bbb2-9e1f3588a139",
+      "error": "视频任务在提交阶段中断，未取得上游任务 ID",
+      "events": [
+        {
+          "at": 1792655903373,
+          "phase": "recovery_end",
+          "state": "failed"
+        },
+        {
+          "at": 1792655903371,
+          "phase": "state",
+          "state": "completed",
+          "errorCode": "submission_interrupted_without_upstream_id"
+        },
+        {
+          "at": 1792654103349,
+          "phase": "submit_start"
+        },
+        {
+          "at": 1792654103347,
+          "phase": "state",
+          "state": "submitting",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792654103340,
+          "phase": "task_created"
+        }
+      ],
+      "status": "error",
+      "task_type": "video",
+      "worker_id": null,
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T07:28:23.333+00:00",
+      "updated_at": "2026-10-22T07:58:23.358+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T07:58:23.367+00:00",
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 1800030,
+        "completedAt": "2026-10-22T07:58:23.363+00:00",
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T07:58:23.347+00:00"
+    }
+  ]
+}

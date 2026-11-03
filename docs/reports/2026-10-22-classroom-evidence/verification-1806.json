@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-22T10:05:55.032074+00:00",
+  "readOnly": true,
+  "files": [
+    {
+      "name": "nginx-quiet-window-20261022-180454.json",
+      "sha256": "fbcfe0fc50cfba9a1480c0855360d64597bc1858655650c046b6dc504fdc72f3"
+    },
+    {
+      "name": "redirect-route-verification-20261022-1806.json",
+      "sha256": "a2788bad6ab24aede3caffa7daa3cdd5b9edd9bf5f2b93522307b2f0b10503d0"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "at": "2026-10-21T08:16:40.690153+00:00",
+  "windowFirst": "2026-10-21T14:30:10+08:00",
+  "windowLast": "2026-10-21T16:16:39+08:00",
+  "uaMacRequests": 250,
+  "clientGroups": [
+    {
+      "alias": "MAC-e5c5d24865f0",
+      "browser": "Chrome/Chromium",
+      "version": "144.0.0.0",
+      "webView": true,
+      "first": "2026-10-21T14:31:43+08:00",
+      "last": "2026-10-21T14:38:17+08:00",
+      "requests": 71,
+      "imageSubmitEvents": 0
+    },
+    {
+      "alias": "MAC-246b1140e3e9",
+      "browser": "Safari",
+      "version": "15.4",
+      "webView": false,
+      "first": "2026-10-21T16:01:45+08:00",
+      "last": "2026-10-21T16:07:07+08:00",
+      "requests": 27,
+      "imageSubmitEvents": 0
+    },
+    {
+      "alias": "MAC-230fa776ae77",
+      "browser": "Safari",
+      "version": "18.6",
+      "webView": false,
+      "first": "2026-10-21T16:09:22+08:00",
+      "last": "2026-10-21T16:10:25+08:00",
+      "requests": 103,
+      "imageSubmitEvents": 0
+    },
+    {
+      "alias": "MAC-4c1ac60d2eac",
+      "browser": "Chrome/Chromium",
+      "version": "130.0.0.0",
+      "webView": false,
+      "first": "2026-10-21T16:13:58+08:00",
+      "last": "2026-10-21T16:14:05+08:00",
+      "requests": 49,
+      "imageSubmitEvents": 0
+    }
+  ],
+  "observedGenerationSubmissions": 0,
+  "runtimeNextVersion": "16.3.4",
+  "bundledOfficialDefaultSafariBaseline": "16.4+",
+  "productionActions": "read-only; no generation requests submitted",
+  "verifiedAffectedUser": false,
+  "rootCauseConfirmed": false
+}

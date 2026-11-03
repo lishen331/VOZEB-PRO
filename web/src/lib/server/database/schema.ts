@@ -120,6 +120,7 @@ ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_workflow_models jsonb
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_script_settings jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_module_visibility jsonb NOT NULL DEFAULT '{"canvas":false,"drama":false,"character":true,"scene":true,"prop":true,"storyboard-image":true,"storyboard-video":true,"dubbing":true}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS voice_pricing jsonb NOT NULL DEFAULT '{"usdToCny":7.1,"pointsPerYuan":0}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS system_model_channels (
     id text PRIMARY KEY,

@@ -1,0 +1,126 @@
+{
+  "sampleAt": "2026-10-22T08:47:16.661135+00:00",
+  "identity": {
+    "hostname": "iZ7xv3m126dvh9imua5dz2Z",
+    "expectedIp": "8.163.33.161",
+    "expectedDomain": "gammatv.gammablue-x.com"
+  },
+  "containers": [
+    {
+      "name": "/vozeb-pro",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "status": "running",
+      "oomKilled": false,
+      "restarts": 0,
+      "startedAt": "2026-10-22T08:37:58.124818134Z"
+    },
+    {
+      "name": "/vozeb-pro-generation-worker",
+      "image": "ghcr.io/lishen331/vozeb-pro:sha-bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+      "status": "running",
+      "oomKilled": false,
+      "restarts": 0,
+      "startedAt": "2026-10-22T08:38:13.782810585Z"
+    },
+    {
+      "name": "/vozeb-pro-postgres",
+      "image": "postgres:16.6-alpine",
+      "status": "running",
+      "oomKilled": false,
+      "restarts": 0,
+      "startedAt": "2026-10-21T01:07:34.815789757Z"
+    }
+  ],
+  "hostCpuPct": 6.53,
+  "loadavg": [
+    0.5029296875,
+    0.50146484375,
+    0.45556640625
+  ],
+  "memoryKiB": {
+    "MemTotal": 7635680,
+    "MemAvailable": 5926540,
+    "SwapTotal": 0,
+    "SwapFree": 0,
+    "Dirty": 14628,
+    "Writeback": 0
+  },
+  "disk": {
+    "total": 52448063488,
+    "used": 28093657088,
+    "free": 21989183488,
+    "usedPct": 53.56
+  },
+  "networkRates": {
+    "eth0": {
+      "rxMiBPerSec": 0.239,
+      "txMiBPerSec": 0.305,
+      "rxDropDelta": 0,
+      "txDropDelta": 0
+    }
+  },
+  "diskRates": {
+    "vda": {
+      "readMiBPerSec": 0,
+      "writeMiBPerSec": 0.517,
+      "ioBusyPct": 0.84
+    }
+  },
+  "ready": {
+    "code": 0,
+    "data": {
+      "ready": true,
+      "provider": "postgres",
+      "database": {
+        "healthy": true,
+        "schemaReady": true
+      },
+      "encryptionReady": true,
+      "firstAdminRequired": false,
+      "generationWorker": {
+        "required": true,
+        "healthy": true,
+        "lastHeartbeatAt": "2026-10-22T08:47:13.943Z",
+        "staleAfterMs": 90000
+      }
+    },
+    "msg": "服务已就绪"
+  },
+  "logSignals": {
+    "vozeb-pro": {
+      "counts": {
+        "bodyRead": 1
+      },
+      "examples": [
+        {
+          "at": "2026-10-22T08:46:56.821280480Z",
+          "signals": [
+            "bodyRead"
+          ],
+          "taskOrRequestIds": [],
+          "codes": []
+        }
+      ],
+      "linesScanned": 5,
+      "truncatedReadChunks": 0,
+      "tailLimit": 1600,
+      "rawMessagesRetained": false
+    },
+    "vozeb-pro-generation-worker": {
+      "counts": {},
+      "examples": [],
+      "linesScanned": 0,
+      "truncatedReadChunks": 0,
+      "tailLimit": 1600,
+      "rawMessagesRetained": false
+    }
+  },
+  "watchdog": {
+    "at": "2026-10-22T08:47:17.562Z",
+    "lastSample": "2026-10-22T08:46:41.492938+00:00",
+    "sampleLagSeconds": 36,
+    "samplerAlive": true,
+    "issues": [],
+    "readOnly": true
+  }
+}

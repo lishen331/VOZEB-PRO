@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-21T14:51:28.734Z",
+  "taskId": "74b3bc58-d8e2-4402-b1f2-4657cd385eaa",
+  "requestedModel": "gpt-image-2",
+  "status": "error",
+  "finalError": "图片生成失败，状态码 403",
+  "chain": [
+    {
+      "attemptNo": 1,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "model": "gpt-image-2",
+      "upstreamResponseStatus": 200,
+      "requestId": "202610211440121110042618268d9d6oZnm8Y6m",
+      "upstreamResponseDurationMs": 84789,
+      "bodyReadException": "request_signal_aborted",
+      "bodyReadDurationMs": 515121,
+      "bodyBytes": 2733905,
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "attemptNo": 2,
+      "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+      "model": "gpt-image-2",
+      "transportStatus": 403,
+      "errorMessage": "该上游模型未绑定可用逻辑模型",
+      "error": "图片生成失败，状态码 403"
+    }
+  ],
+  "classification": "rabbit upstream returned HTTP200 but body read timed out at platform 600s; fallback Mohui rejected logical-model binding with 403",
+  "productionWrites": false
+}

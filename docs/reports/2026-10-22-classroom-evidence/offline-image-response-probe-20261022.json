@@ -1,0 +1,327 @@
+{
+  "at": "2026-10-22T08:40:37.381Z",
+  "offline": true,
+  "productionCommit": "2b99976ffff6f6060fd06c07767e56d62eb5a402",
+  "localNode": "v24.16.0",
+  "limitations": [
+    "No captured production response body or production stack trace.",
+    "External imports stubbed; excludes transport, billing, storage and result normalization.",
+    "Synthetic fixtures do not prove arbitrary provider response shapes."
+  ],
+  "sources": {
+    "support": {
+      "file": "web/src/app/api/image-tasks/image-task-support.ts",
+      "sha256": "8434f0ed3f8366b4f105878ce50e868ecd5607852b659a2b8e1908d794743611"
+    },
+    "dedupe": {
+      "file": "web/src/lib/image-result-dedupe.ts",
+      "sha256": "95394a7e73105f1322971a9aeb3deefb9311ad1e4d904c84c821a69c98554ea7"
+    },
+    "urls": {
+      "file": "web/src/lib/media-url.ts",
+      "sha256": "f8f8a9d774b7ed328afe8fdb1fb27b1cb720116bf2d78ada21a00d0719c615c8"
+    },
+    "provider": {
+      "file": "web/src/lib/server/provider-task-config.ts",
+      "sha256": "c03ad0ab6107e2501bf2054d38605bc8e38e8671c29a7c3f3a1682deccdf8eb4"
+    },
+    "types": {
+      "file": "web/src/app/api/image-tasks/image-task-types.ts",
+      "sha256": "51db5c0ea9419ca74577f2d7d71eb856c2f8e8e915ab4eeee1644b35a8b4dfe9"
+    },
+    "custom": {
+      "file": "web/src/app/api/image-tasks/image-task-custom.ts",
+      "sha256": "bab2303072af86d838e0568d55428a876e9dbff10d53bd05c783822f2318b3fd"
+    }
+  },
+  "rows": [
+    {
+      "base64Chars": 1024,
+      "shape": "openai-b64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 1.05
+    },
+    {
+      "base64Chars": 1024,
+      "shape": "nested-base64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 0.15
+    },
+    {
+      "base64Chars": 1024,
+      "shape": "inline-dataurl",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 0.08
+    },
+    {
+      "base64Chars": 1024,
+      "shape": "string-container",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 0.06
+    },
+    {
+      "base64Chars": 3000000,
+      "shape": "openai-b64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 14.14
+    },
+    {
+      "base64Chars": 3000000,
+      "shape": "nested-base64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 16.88
+    },
+    {
+      "base64Chars": 3000000,
+      "shape": "inline-dataurl",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 5.9
+    },
+    {
+      "base64Chars": 3000000,
+      "shape": "string-container",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 11.97
+    },
+    {
+      "base64Chars": 4500000,
+      "shape": "openai-b64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 21.3
+    },
+    {
+      "base64Chars": 4500000,
+      "shape": "nested-base64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 21.26
+    },
+    {
+      "base64Chars": 4500000,
+      "shape": "inline-dataurl",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 10.85
+    },
+    {
+      "base64Chars": 4500000,
+      "shape": "string-container",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 21.98
+    },
+    {
+      "base64Chars": 6500000,
+      "shape": "openai-b64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 37.72
+    },
+    {
+      "base64Chars": 6500000,
+      "shape": "nested-base64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 37.53
+    },
+    {
+      "base64Chars": 6500000,
+      "shape": "inline-dataurl",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 13.64
+    },
+    {
+      "base64Chars": 6500000,
+      "shape": "string-container",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 27.76
+    },
+    {
+      "base64Chars": 9000000,
+      "shape": "openai-b64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 40.29
+    },
+    {
+      "base64Chars": 9000000,
+      "shape": "nested-base64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 41.64
+    },
+    {
+      "base64Chars": 9000000,
+      "shape": "inline-dataurl",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 20.73
+    },
+    {
+      "base64Chars": 9000000,
+      "shape": "string-container",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 64.12
+    },
+    {
+      "base64Chars": 12000000,
+      "shape": "openai-b64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 62.02
+    },
+    {
+      "base64Chars": 12000000,
+      "shape": "nested-base64",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 65.15
+    },
+    {
+      "base64Chars": 12000000,
+      "shape": "inline-dataurl",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 32.36
+    },
+    {
+      "base64Chars": 12000000,
+      "shape": "string-container",
+      "fixture": "synthetic non-user ASCII base64; image pixels not decoded",
+      "stage": "parseImagePayloadOrPoll",
+      "businessError": false,
+      "imageCount": 1,
+      "configuredCount": 1,
+      "parsedCount": 1,
+      "ok": true,
+      "durationMs": 69.71
+    }
+  ]
+}

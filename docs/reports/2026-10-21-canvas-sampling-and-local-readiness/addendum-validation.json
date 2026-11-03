@@ -1,0 +1,28 @@
+{
+  "createdAt": "2026-10-21T04:07:17.376Z",
+  "modelRows": 31,
+  "channelModelRows": 34,
+  "requestCount": 387,
+  "actualAttempts": 336,
+  "allModelSubmissionQuotasMet": true,
+  "lowExposureChannelModelRows": 20,
+  "paidRequestsAdded": 0,
+  "standardGeneratedTypecheckPassed": false,
+  "sourceTypecheckPassed": true,
+  "scopedE2ETypecheckPassed": true,
+  "actualCanvasLightAndDarkAsserted": true,
+  "themeRegressionRedThenGreen": true,
+  "fullHistoricalBrowserMatrixPassed": false,
+  "pushAuthorized": false,
+  "deployed": false,
+  "sourceHashes": {
+    "model-summary.json": "2fae6aed81ef690212531ee1da5b32b5c4e741c362231ac595ddd49756becb1b",
+    "channel-attempt-summary.json": "9122dc150b7fbf9edf0bc9e1c89804987b5a80cfc17e6a0efce5ff4cf11b7099",
+    "samples.json": "2f3a5514417b092892e87e92d5a28d55bd18332bdd0187df3276c057f58f5431"
+  },
+  "artifactHashes": {
+    "statistical-intervals.json": "fc4688a0adf4991c064e0ec29f110bcc15c8c0708abcde66f9ba1683846ea744",
+    "statistical-intervals.csv": "9363e27be9650118ef648b1334e1aedd11775ddd49287cbb2ff02190cdd4e108",
+    "sampling-and-local-readiness.zh-CN.md": "5e7a64b8884cdd51279eb81dc526a61e0f792eae6ed95f057f0327e0187a15f1"
+  }
+}

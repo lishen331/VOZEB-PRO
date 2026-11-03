@@ -1,0 +1,27 @@
+{
+  "at": "2026-10-21T14:01:16.903Z",
+  "readOnly": true,
+  "productionWrites": false,
+  "dependencyChanges": false,
+  "versions": [
+    {
+      "environment": "production",
+      "node": "22.23.3",
+      "platform": "linux",
+      "arch": "x64",
+      "next": "16.3.4",
+      "sharp": null,
+      "undici": null
+    },
+    {
+      "environment": "staging",
+      "node": "22.23.3",
+      "platform": "linux",
+      "arch": "x64",
+      "next": "16.3.4",
+      "sharp": null,
+      "undici": null
+    }
+  ],
+  "note": "Versions resolved from the Dockerfile-defined /app/web/server.js entry. A null package version is not proof of absence from the full image."
+}

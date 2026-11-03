@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>VOZEB PRO 宣传片</title>
+<style>
+:root{
+  --bg:#0b0f17;--ink:#f3f1ea;--muted:#9aa3b2;--faint:#5c6575;
+  --amber:#f2b544;--teal:#3fc7b0;--line:#222a38;--panel:#121826;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden}
+#glow{position:absolute;inset:-20%;background:
+  radial-gradient(40% 40% at 30% 40%,rgba(242,181,68,.10),transparent 70%),
+  radial-gradient(35% 35% at 75% 65%,rgba(63,199,176,.09),transparent 70%)}
+.bar{position:absolute;left:0;right:0;height:1px;background:var(--line)}
+.scene{position:absolute;inset:0;opacity:0}
+.c{position:absolute;left:0;right:0;text-align:center}
+.h1{font-size:88px;font-weight:700;letter-spacing:4px}
+.h2{font-size:64px;font-weight:700;letter-spacing:2px}
+.sub{font-size:34px;color:var(--muted);letter-spacing:2px}
+.eyebrow{font-size:24px;color:var(--amber);letter-spacing:8px}
+.big{font-size:220px;font-weight:800;color:var(--amber);letter-spacing:-4px;
+  font-variant-numeric:tabular-nums}
+.pain{font-size:52px;font-weight:600;color:var(--ink)}
+.pain s{color:var(--faint);text-decoration-color:var(--amber);text-decoration-thickness:4px}
+.chips{position:absolute;top:470px;left:120px;right:120px;display:flex;gap:18px;justify-content:center}
+.chip{width:190px;height:150px;border-radius:14px;background:var(--panel);border:2px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.chip .n{font-size:20px;color:var(--faint);font-variant-numeric:tabular-nums}
+.chip .t{font-size:34px;font-weight:600;color:var(--muted)}
+.chip.on{border-color:var(--amber);background:#1c1a14}
+.chip.on .t{color:var(--ink)}
+.chip.on .n{color:var(--amber)}
+#rail{position:absolute;top:660px;left:120px;height:4px;background:var(--amber);border-radius:2px}
+#bracket{position:absolute;top:650px;height:40px;border:3px solid var(--teal);border-top:none;
+  border-radius:0 0 14px 14px}
+#bracketTxt{position:absolute;top:715px;font-size:34px;color:var(--teal);text-align:center}
+#counter{position:absolute;top:800px;left:0;right:0;text-align:center;font-size:30px;color:var(--muted)}
+#counter b{color:var(--amber);font-size:44px;font-variant-numeric:tabular-nums}
+.node{position:absolute;width:220px;height:96px;border-radius:14px;background:var(--panel);
+  border:2px solid #2d3647;display:flex;align-items:center;justify-content:center;
+  font-size:34px;font-weight:600}
+.node.final{border-color:var(--amber);color:var(--amber);width:260px;height:120px;font-size:42px}
+.panel{position:absolute;background:var(--panel);border:2px solid var(--line);border-radius:18px}
+.row{display:flex;align-items:center;justify-content:space-between;height:78px;padding:0 32px;
+  border-bottom:1px solid var(--line);font-size:30px}
+.pill{font-size:24px;padding:6px 18px;border-radius:999px}
+.p-done{background:rgba(63,199,176,.15);color:var(--teal)}
+.p-run{background:rgba(242,181,68,.15);color:var(--amber)}
+.p-wait{background:rgba(154,163,178,.15);color:var(--muted)}
+.tile{position:absolute;width:500px;height:300px;border-radius:18px;background:var(--panel);
+  border:2px solid var(--line);padding:44px}
+.tile .k{font-size:24px;color:var(--amber);letter-spacing:4px}
+.tile .v{font-size:44px;font-weight:700;margin-top:20px}
+.tile .d{font-size:26px;color:var(--muted);margin-top:16px;line-height:1.5}
+#logo{position:absolute;left:50%;top:300px;width:200px;height:200px;margin-left:-100px;filter:invert(1)}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="stage">
+<div id="glow"></div>
+<div class="bar" style="top:60px"></div>
+<div class="bar" style="bottom:60px"></div>
+<section class="scene" id="s1">
+  <div class="c eyebrow" style="top:250px" data-a="0.3">AI 影视创作课</div>
+  <div class="c big" style="top:310px" id="num" data-a="0.6">0</div>
+  <div class="c sub" style="top:600px" data-a="1.6">名学生 · 同一堂课 · 同时开工</div>
+</section>
+<section class="scene" id="s2">
+  <div class="c pain" style="top:300px" data-a="0.2">会用 AI 工具 <s>≠</s> 会做片子</div>
+  <div class="c pain" style="top:460px" data-a="1.8">一次生成，结果全靠运气</div>
+  <div class="c pain" style="top:620px" data-a="3.4">老师看不到，每个人卡在哪一步</div>
+</section>
+<section class="scene" id="s3">
+  <div class="c eyebrow" style="top:250px" id="s3eye">VOZEB PRO</div>
+  <div class="c h2" style="top:310px" id="s3title">从一句话，到一部短片</div>
+  <div class="chips" id="chips"></div>
+  <div id="rail" style="top:640px;left:137px;width:0"></div>
+  <div id="bracket" style="top:660px;left:345px;width:1230px"></div>
+  <div id="bracketTxt" style="left:345px;width:1230px">六个环节，每一步都能单独练</div>
+  <div id="counter">不满意就重来 · 第 <b id="cnt">1</b> 次练习</div>
+</section>
+<section class="scene" id="s5">
+  <div class="c h2" style="top:130px" data-a="0.2">画布：把练好的素材，连成作品</div>
+  <svg id="edges" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div id="nodes"></div>
+</section>
+<section class="scene" id="s6">
+  <div class="c h2" style="top:130px" data-a="0.2">老师布置 · 学生提交 · 当堂反馈</div>
+  <div class="panel" style="left:160px;top:280px;width:880px;height:560px" data-a="0.6">
+    <div class="row" style="color:var(--muted);font-size:26px"><span>第 2 组 · 作业进度</span><span>6 人</span></div>
+    <div id="rows"></div>
+  </div>
+  <div class="panel" style="left:1100px;top:280px;width:660px;height:560px;padding:40px" data-a="1.0">
+    <div style="font-size:24px;color:var(--amber);letter-spacing:4px">作业</div>
+    <div style="font-size:40px;font-weight:700;margin-top:14px">30 秒产品种草短片</div>
+    <div style="margin-top:48px;font-size:24px;color:var(--muted)">老师点评 · 学生 03</div>
+    <div style="margin-top:16px;background:#1a2232;border-radius:16px;padding:28px;font-size:32px;line-height:1.6;min-height:220px" id="fb"></div>
+  </div>
+</section>
+<section class="scene" id="s7">
+  <div class="c h2" style="top:170px" data-a="0.2">为学校准备好的，不只是工具</div>
+  <div class="tile" style="left:150px;top:400px" data-a="0.8"><div class="k">班级</div><div class="v">账号统一管理</div><div class="d">老师建班、分组、布置作业</div></div>
+  <div class="tile" style="left:710px;top:400px" data-a="1.3"><div class="k">算力</div><div class="v">按学校统一结算</div><div class="d">学生不用各自充值</div></div>
+  <div class="tile" style="left:1270px;top:400px" data-a="1.8"><div class="k">课程</div><div class="v">学习中心</div><div class="d">课程卡片 · 课时 · 作业一处看</div></div>
+</section>
+<section class="scene" id="s8">
+  <img id="logo" src="../../web/public/logo.svg" alt="">
+  <div class="c" style="top:540px;font-size:96px;font-weight:800;letter-spacing:10px" data-a="0.8">VOZEB PRO</div>
+  <div class="c h2" style="top:700px;font-size:52px" data-a="1.6">让每个学生，都做出自己的第一部片子</div>
+  <div class="c sub" style="top:800px;font-size:28px" data-a="2.4">AI 影视创作 · 教学一体化平台</div>
+</section>
+<div id="fade"></div>
+</div>
+<script>
+const SCENES = [["s1",0,5],["s2",5,11],["s3",11,31],["s5",31,39],["s6",39,48],["s7",48,53],["s8",53,58]];
+const STEPS = ["剧本","角色","场景","道具","分镜图","分镜视频","配音","成片"];
+const clamp = (v,a=0,b=1) => Math.min(b,Math.max(a,v));
+const ease = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const prog = (t,start,dur) => ease((t - start) / dur);
+
+const chips = document.getElementById("chips");
+STEPS.forEach((s,i) => {
+  const el = document.createElement("div");
+  el.className = "chip";
+  el.innerHTML = `<div class="n">${String(i + 1).padStart(2,"0")}</div><div class="t">${s}</div>`;
+  chips.appendChild(el);
+});
+
+const NODES = [
+  ["剧本",130,480],["角色",470,300],["场景",470,480],["道具",470,660],
+  ["分镜图",810,480],["分镜视频",1150,380],["配音",1150,600],["成片",1500,470,true],
+];
+const EDGES = [[0,1],[0,2],[0,3],[1,4],[2,4],[3,4],[4,5],[4,6],[5,7],[6,7]];
+const nodesEl = document.getElementById("nodes");
+const nodeEls = NODES.map(([label,x,y,final]) => {
+  const el = document.createElement("div");
+  el.className = "node" + (final ? " final" : "");
+  el.style.left = x + "px"; el.style.top = y + "px"; el.textContent = label;
+  nodesEl.appendChild(el);
+  return el;
+});
+const size = (i) => NODES[i][3] ? [260,120] : [220,96];
+const svg = document.getElementById("edges");
+const edgeEls = EDGES.map(([a,b]) => {
+  const [,ax,ay] = NODES[a], [,bx,by] = NODES[b];
+  const [aw,ah] = size(a), [,bh] = size(b);
+  const x1 = ax + aw, y1 = ay + ah / 2, x2 = bx, y2 = by + bh / 2, mx = (x1 + x2) / 2;
+  const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+  p.setAttribute("d",`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+  p.setAttribute("fill","none"); p.setAttribute("stroke","#3fc7b0");
+  p.setAttribute("stroke-width","3");
+  svg.appendChild(p);
+  const len = p.getTotalLength();
+  p.setAttribute("stroke-dasharray", `${len} ${len}`);
+  p.dataset.len = String(len);
+  return p;
+});
+
+const ROWS = [["学生 01","已提交","p-done"],["学生 02","已提交","p-done"],["学生 03","待反馈","p-wait"],
+  ["学生 04","进行中 · 分镜图","p-run"],["学生 05","进行中 · 配音","p-run"],["学生 06","已提交","p-done"]];
+const rowsEl = document.getElementById("rows");
+const rowEls = ROWS.map(([n,s,c]) => {
+  const el = document.createElement("div");
+  el.className = "row";
+  el.innerHTML = `<span>${n}</span><span class="pill ${c}">${s}</span>`;
+  rowsEl.appendChild(el);
+  return el;
+});
+const FEEDBACK = "第 3 镜节奏偏慢，试试把特写提前，再重新生成一版分镜视频。";
+
+function reveal(el, p) {
+  el.style.opacity = p;
+  el.style.transform = `translateY(${(1 - p) * 30}px)`;
+}
+
+window.render = function (t) {
+  document.getElementById("glow").style.transform = `translate(${Math.sin(t / 9) * 40}px,${Math.cos(t / 11) * 30}px)`;
+  for (const [id,start,end] of SCENES) {
+    const el = document.getElementById(id);
+    const local = t - start;
+    const visible = local >= 0 && t < end;
+    el.style.opacity = visible ? Math.min(clamp(local / 0.5), clamp((end - t) / 0.5)) : 0;
+    if (!visible) continue;
+    el.querySelectorAll("[data-a]").forEach((c) => reveal(c, prog(local, Number(c.dataset.a), 0.7)));
+  }
+
+  document.getElementById("num").textContent = Math.round(80 * prog(t, 0.6, 1.6));
+
+  const l3 = t - 11;
+  reveal(document.getElementById("s3eye"), prog(l3, 0.2, 0.7));
+  reveal(document.getElementById("s3title"), prog(l3, 0.5, 0.7));
+  [...chips.children].forEach((el,i) => {
+    reveal(el, prog(l3, 1.4 + i * 0.12, 0.6));
+    const lit = l3 >= 3.2 + i * 0.75;
+    el.classList.toggle("on", lit);
+    const dim = (i === 0 || i === 7) && l3 >= 11;
+    el.style.opacity = dim ? 0.35 : el.style.opacity;
+  });
+  document.getElementById("rail").style.width = (1646 * prog(l3, 3.2, 6)) + "px";
+  document.getElementById("rail").style.opacity = l3 < 11 ? 1 : 1 - prog(l3, 11, 0.5);
+  const bracketP = prog(l3, 11.3, 0.8);
+  document.getElementById("bracket").style.opacity = bracketP;
+  reveal(document.getElementById("bracketTxt"), prog(l3, 11.8, 0.7));
+  reveal(document.getElementById("counter"), prog(l3, 13.5, 0.7));
+  document.getElementById("cnt").textContent = Math.max(1, Math.min(12, Math.floor(1 + (l3 - 14) * 2.2)));
+
+  const l5 = t - 31;
+  nodeEls.forEach((el,i) => reveal(el, prog(l5, 0.6 + i * 0.35, 0.5)));
+  edgeEls.forEach((p,i) => p.setAttribute("stroke-dashoffset", String(Number(p.dataset.len) * (1 - prog(l5, 1.0 + i * 0.32, 0.6)))));
+
+  const l6 = t - 39;
+  rowEls.forEach((el,i) => reveal(el, prog(l6, 1.2 + i * 0.25, 0.5)));
+  const chars = Math.floor(clamp((l6 - 3.5) / 3.5) * FEEDBACK.length);
+  document.getElementById("fb").textContent = FEEDBACK.slice(0, chars);
+
+  const l8 = t - 53;
+  const logoP = prog(l8, 0.2, 0.9);
+  const logo = document.getElementById("logo");
+  logo.style.opacity = logoP;
+  logo.style.transform = `scale(${0.85 + 0.15 * logoP})`;
+  document.getElementById("fade").style.opacity = prog(t, 57.2, 0.8);
+};
+window.render(Number(new URLSearchParams(location.search).get("t") || 0));
+</script>
+</body>
+</html>

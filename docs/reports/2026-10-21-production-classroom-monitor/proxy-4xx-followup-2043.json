@@ -1,0 +1,37 @@
+{
+  "at": "2026-10-21T12:43:28.653615+00:00",
+  "windowStart": "2026-10-21T12:33:00Z",
+  "readOnly": true,
+  "tailLimit": 3000,
+  "notAuthoritativeTotal": true,
+  "errors": [
+    {
+      "at": "2026-10-21T20:35:25+08:00",
+      "method": "GET",
+      "path": "/autodiscover/autodiscover.json",
+      "status": 404,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-21T20:36:22+08:00",
+      "method": "GET",
+      "path": "/api/model-catalog",
+      "status": 401,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-21T20:36:26+08:00",
+      "method": "GET",
+      "path": "/api/model-catalog",
+      "status": 401,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-21T20:36:31+08:00",
+      "method": "GET",
+      "path": "/api/model-catalog",
+      "status": 401,
+      "browserFamily": "other"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "at": "2026-10-21T09:42:37.104664+00:00",
+  "id": "da3a25fa-ee9b-48c9-b8d3-34c4a0e1677d",
+  "events": [
+    {
+      "at": 1792574931638,
+      "model": "gpt-image-2",
+      "phase": "upstream_response",
+      "status": 200,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "requestId": "4d6f6eac",
+      "durationMs": 51805,
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "at": 1792574931644,
+      "model": "gpt-image-2",
+      "phase": "upstream_body_first_byte",
+      "idleMs": 0,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "durationMs": 0,
+      "contentType": "application/json; charset=utf-8",
+      "firstByteMs": 0,
+      "contentLength": -1,
+      "responseBytes": 10071
+    },
+    {
+      "at": 1792575479555,
+      "model": "gpt-image-2",
+      "phase": "transport_exception",
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "errorName": "TimeoutError",
+      "durationMs": 599995,
+      "errorMessage": "The operation was aborted due to timeout"
+    },
+    {
+      "at": 1792575479570,
+      "model": "gpt-image-2",
+      "phase": "upstream_body_exception",
+      "state": "request_signal_aborted",
+      "idleMs": 4657,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "errorName": "ResponseAborted",
+      "durationMs": 547908,
+      "contentType": "application/json; charset=utf-8",
+      "firstByteMs": 0,
+      "errorMessage": "",
+      "contentLength": -1,
+      "responseBytes": 5362317
+    },
+    {
+      "at": 1792575482139,
+      "model": "gpt-image-2-all",
+      "phase": "transport_response",
+      "status": 403,
+      "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+      "durationMs": 234,
+      "contentType": "application/json",
+      "errorMessage": "该上游模型未绑定可用逻辑模型"
+    }
+  ],
+  "status": "error",
+  "createdAt": "2026-10-21T09:27:58.675+00:00",
+  "updatedAt": "2026-10-21T09:38:02.165+00:00",
+  "currentConfigTimeoutMs": null,
+  "currentConfigLogicalModel": "gpt-image-2",
+  "currentConfigUpstreamModel": "gpt-image-2-all"
+}

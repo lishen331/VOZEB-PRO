@@ -1,0 +1,49 @@
+IMAGE_LABELS
+"com.docker.compose.version":"2.26.1"}
+APP_SAFE_ENV
+VOZEB_PRO_DRAMA_WORKFLOW_LAB=1
+VOZEB_PRO_TRUSTED_PROXY_HOPS=1
+VOZEB_PRO_IMAGE=ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe
+VOZEB_PRO_DATA_DIR=/app/web/.data
+VOZEB_PRO_DATABASE_PROVIDER=postgres
+NODE_ENV=production
+PORT=3000
+NODE_OPTIONS=--max-old-space-size=384
+WORKER_SAFE_ENV
+NODE_ENV=production
+PORT=3000
+VOZEB_PRO_DATA_DIR=/app/web/.data
+NODE_OPTIONS=--max-old-space-size=384
+PG_SAFE_ENV
+POSTGRES_DB=vozeb_staging
+POSTGRES_USER=vozeb_staging
+PG_QUERY
+user=vozeb_staging db=vozeb_staging
+vozeb_staging|vozeb_staging|PostgreSQL 16.6 on x86_64-pc-linux-musl, compiled by gcc (Alpine 14.2.0) 14.2.0, 64-bit
+max_connections|100
+shared_buffers|16384
+8
+0
+PG_TABLES
+public.vozeb_pro_binding_verifications
+public.vozeb_pro_channel_concurrency_reservations
+public.vozeb_pro_generation_tasks
+public.vozeb_pro_rbac_user_role_bindings
+PG_ACTIVITY
+active|1
+idle|2
+|5
+NGINX_CONFIG
+LISTEN
+LISTEN 0      4096         0.0.0.0:3001       0.0.0.0:*                                              
+LISTEN 0      511          0.0.0.0:80         0.0.0.0:*                                              
+LISTEN 0      511          0.0.0.0:443        0.0.0.0:*                                              
+LISTEN 0      511             [::]:80            [::]:*                                              
+LISTEN 0      511             [::]:443           [::]:*                                              
+DISK_INODES
+Filesystem     Inodes IUsed IFree IUse% Mounted on
+/dev/vda3        9.4M  870K  8.5M   10% /
+APP_LOG_ERRORS
+Error: The Server Reference ID did not match the expected format. Received "x".
+WORKER_LOG
+Generation worker started: generation-worker:bc71e71ca500:1:84ba92b5-38b5-469d-bbc5-718e148f81ba

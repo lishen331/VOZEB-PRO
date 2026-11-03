@@ -1,0 +1,35 @@
+{
+  "verifiedAt": "2026-10-22T09:03:38.250402+00:00",
+  "files": [
+    {
+      "name": "offline-modelbay-diagnostic-loss-20261022.cjs",
+      "bytes": 3556,
+      "sha256": "2b7005871ff26085233e167e2ffa0497bc6f5cea45a478270ac3c44894801167"
+    },
+    {
+      "name": "offline-modelbay-diagnostic-loss-20261022.json",
+      "bytes": 1216,
+      "sha256": "76bb320ae809f65b546675938c7f9e650666c0011b32649a27fb05a6042e1f4a"
+    },
+    {
+      "name": "runtime-and-exception-phase-verification-20261022-1657.json",
+      "bytes": 3012,
+      "sha256": "395f6bd54fb13d4b7d161f5bbecd43e414aeb9489e4d902d0c4dbc953fcbd6d1"
+    },
+    {
+      "name": "readonly-incident-audit-20261022-165902.json",
+      "bytes": 300603,
+      "sha256": "d58fbc4a73acdcfb9bec102d478d3fff4c34e9268e8f5d64018e398833216876"
+    },
+    {
+      "name": "readonly-delta-20261022-165954.json",
+      "bytes": 152784,
+      "sha256": "77e2e47ce3a8397e647a70df681765d5fec3e4ced4d02e79a1ccacd30d3397b7"
+    },
+    {
+      "name": "build-today-classroom-report-20261022.py",
+      "bytes": 10673,
+      "sha256": "3fdcee44dfce2110fb3eace433e92b169ead2ae4ba7d651298419c88a884f25c"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "at": "2026-10-22T10:04:53.450049+00:00",
+  "readOnly": true,
+  "windowStart": "2026-10-22T18:00:00+08:00",
+  "tailLimit": 8000,
+  "validLinesScanned": 7999,
+  "requestsMatched": 208,
+  "earliest": "2026-10-22T18:00:00+08:00",
+  "latest": "2026-10-22T18:04:52+08:00",
+  "notAuthoritativeTotal": true,
+  "groups": [
+    {
+      "method": "GET",
+      "routeClass": "/api/other",
+      "status": 307,
+      "count": 106
+    },
+    {
+      "method": "PATCH",
+      "routeClass": "/api/canvas/projects/:id",
+      "status": 200,
+      "count": 35
+    },
+    {
+      "method": "GET",
+      "routeClass": "/_next/*",
+      "status": 200,
+      "count": 34
+    },
+    {
+      "method": "GET",
+      "routeClass": "/page-other",
+      "status": 200,
+      "count": 22
+    },
+    {
+      "method": "GET",
+      "routeClass": "/api/other",
+      "status": 200,
+      "count": 4
+    },
+    {
+      "method": "GET",
+      "routeClass": "/canvas/:id",
+      "status": 200,
+      "count": 3
+    },
+    {
+      "method": "POST",
+      "routeClass": "/api/canvas/projects/:id",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "routeClass": "/page-other",
+      "status": 304,
+      "count": 1
+    },
+    {
+      "method": "GET",
+      "routeClass": "/api/auth/*",
+      "status": 200,
+      "count": 1
+    }
+  ]
+}

@@ -1,0 +1,456 @@
+{
+  "at": "2026-10-21T09:04:48.724743+00:00",
+  "tasks": [
+    {
+      "id": "1af10e67-93dc-465e-a7bf-737cd17b4469",
+      "error": "非常抱歉，该提示可能违反了关于自残、自杀或相关内容防护限制。如果你认为此判断有误，请重试或修改提示语。 (request id: 202610210840543520812958268d9d6LlgHjqp2)",
+      "phase": "completed",
+      "events": [
+        {
+          "at": 1792572071271,
+          "model": "gpt-image-2",
+          "phase": "recovery_end",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 21636
+        },
+        {
+          "at": 1792572071269,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792572071260,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "非常抱歉，该提示可能违反了关于自残、自杀或相关内容防护限制。如果你认为此判断有误，请重试或修改提示语。 (request id: 202610210840543520812958268d9d6LlgHjqp2)"
+        },
+        {
+          "at": 1792572071252,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "非常抱歉，该提示可能违反了关于自残、自杀或相关内容防护限制。如果你认为此判断有误，请重试或修改提示语。 (request id: 202610210840543520812958268d9d6LlgHjqp2)"
+        },
+        {
+          "at": 1792572071250,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 21530,
+          "errorMessage": "非常抱歉，该提示可能违反了关于自残、自杀或相关内容防护限制。如果你认为此判断有误，请重试或修改提示语。 (request id: 202610210840543520812958268d9d6LlgHjqp2)"
+        },
+        {
+          "at": 1792572071246,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 3
+        },
+        {
+          "at": 1792572071244,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 0
+        },
+        {
+          "at": 1792572071229,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610210840543520812958268d9d6LlgHjqp2",
+          "durationMs": 21457,
+          "errorMessage": "非常抱歉，该提示可能违反了关于自残、自杀或相关内容防护限制。如果你认为此判断有误，请重试或修改提示语。 (request id: 202610210840543520812958268d9d6LlgHjqp2)"
+        },
+        {
+          "at": 1792572049771,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792572049720,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792572049655,
+          "model": "gpt-image-2",
+          "phase": "provider_start",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792572049653,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792572049641,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792572049598,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792572049553,
+          "model": "gpt-image-2",
+          "phase": "task_created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        }
+      ],
+      "status": "error",
+      "created": "2026-10-21T08:40:49.543+00:00",
+      "updated": "2026-10-21T08:41:11.262+00:00",
+      "attempts": [
+        {
+          "error": "非常抱歉，该提示可能违反了关于自残、自杀或相关内容防护限制。如果你认为此判断有误，请重试或修改提示语。 (request id: 202610210840543520812958268d9d6LlgHjqp2)",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792572049647,
+          "completedAt": 1792572071257
+        }
+      ],
+      "accountAlias": "ACC-3e25979637",
+      "logicalModel": "gpt-image-2"
+    },
+    {
+      "id": "cc9e3334-3fde-44cc-9a4a-fd369a72ff52",
+      "error": "图片生成失败，状态码 403",
+      "phase": "completed",
+      "events": [
+        {
+          "at": 1792568883273,
+          "model": "gpt-image-2",
+          "phase": "recovery_end",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 232
+        },
+        {
+          "at": 1792568883269,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792568883256,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792568883247,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792568883244,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 15,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792568883229,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792568883056,
+          "model": "gpt-image-2",
+          "phase": "provider_start",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792568883053,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792568882531,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792568882523,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 502"
+        },
+        {
+          "at": 1792568882521,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 502,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 10408,
+          "errorMessage": "生成渠道暂时无法连接，请稍后重试或联系管理员。"
+        },
+        {
+          "at": 1792568882504,
+          "cause": "UND_ERR_CONNECT_TIMEOUT Connect Timeout Error (attempted address: api.easyart.cc:443, timeout: 10000ms)",
+          "model": "gpt-image-2-all",
+          "phase": "upstream_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 10363,
+          "errorMessage": "fetch failed"
+        },
+        {
+          "at": 1792568872140,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792568872113,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792568872059,
+          "model": "gpt-image-2-all",
+          "phase": "provider_start",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792568872057,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792568872046,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792568872037,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792568872032,
+          "model": "gpt-image-2-all",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "status": "error",
+      "created": "2026-10-21T07:47:52.028+00:00",
+      "updated": "2026-10-21T07:48:03.258+00:00",
+      "attempts": [
+        {
+          "error": "图片生成失败，状态码 502",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792568872051,
+          "completedAt": 1792568882526
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792568883046,
+          "completedAt": 1792568883253
+        }
+      ],
+      "accountAlias": "ACC-54877f92c5",
+      "logicalModel": "gpt-image-2-all"
+    },
+    {
+      "id": "37777856-193e-47f8-a6f3-03b9449bea07",
+      "error": "图片生成失败，状态码 403",
+      "phase": "completed",
+      "events": [
+        {
+          "at": 1792568878319,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "recovery_end",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 208
+        },
+        {
+          "at": 1792568878316,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792568878304,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792568878295,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792568878293,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 12,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792568878281,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792568878122,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "provider_start",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792568878120,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792568877041,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792568877033,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 502"
+        },
+        {
+          "at": 1792568877031,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 502,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 10424,
+          "errorMessage": "生成渠道暂时无法连接，请稍后重试或联系管理员。"
+        },
+        {
+          "at": 1792568877015,
+          "cause": "UND_ERR_CONNECT_TIMEOUT Connect Timeout Error (attempted address: api.easyart.cc:443, timeout: 10000ms)",
+          "model": "gpt-image-2-all",
+          "phase": "upstream_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 10248,
+          "errorMessage": "fetch failed"
+        },
+        {
+          "at": 1792568866767,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792568866723,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792568866546,
+          "model": "gpt-image-2-all",
+          "phase": "provider_start",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792568866544,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792568866529,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792568866518,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792568866513,
+          "model": "gpt-image-2-all",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "status": "error",
+      "created": "2026-10-21T07:47:46.509+00:00",
+      "updated": "2026-10-21T07:47:58.306+00:00",
+      "attempts": [
+        {
+          "error": "图片生成失败，状态码 502",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792568866537,
+          "completedAt": 1792568877035
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792568878113,
+          "completedAt": 1792568878301
+        }
+      ],
+      "accountAlias": "ACC-54877f92c5",
+      "logicalModel": "gpt-image-2-all"
+    }
+  ]
+}

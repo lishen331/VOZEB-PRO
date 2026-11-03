@@ -1,0 +1,15 @@
+{
+  "observedAt": "2026-10-21T15:52:33.380534+00:00",
+  "classroomCutoff": "2026-10-21T20:51:47+08:00",
+  "wholeWindowTaskCount": 472,
+  "frozenClassroomTaskCount": 434,
+  "postClassOnlyTaskCount": 38,
+  "postClassOnlyCounts": {
+    "video/error": 14,
+    "image/error": 12,
+    "video/success": 5,
+    "image/success": 7
+  },
+  "directProviderPortraitRequestsIncluded": false,
+  "note": "Whole-window rolling totals must not be labelled post-class-only totals; direct provider edits are separate."
+}

@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-21T14:18:15.853Z",
+  "taskId": "a2876b1e-00e2-42b1-8eea-61f4af1994f3",
+  "model": "gpt-image-2-5-sunburst",
+  "channelId": "X9te4qOV0ZaPsJpErRRWS",
+  "phase": "upstream",
+  "status": 400,
+  "error": "Unknown parameter: 'response_format'.",
+  "outbound": {
+    "response_format": "b64_json",
+    "size": "2160x3840",
+    "quality": "high",
+    "n": 1,
+    "output_format": "png/jpeg",
+    "referenceFileCount": 1
+  },
+  "upstreamRequests": 1,
+  "attempts": 1,
+  "upstreamTaskId": null,
+  "classification": "ModelBay rejects response_format parameter; confirmed upstream 400, not frontend-only or local validation",
+  "evidenceSource": "latest.json and task-changes/alerts captured by read-only sampler",
+  "productionWrites": false
+}

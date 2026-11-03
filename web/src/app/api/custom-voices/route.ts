@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
         const ttsModel = body.ttsModel?.trim().slice(0, 100);
         if (!ttsModel) throw new AuthInputError("ttsModel is required");
         const settings = await getAuthSettings();
+        const usdToCny = settings.voicePricing?.usdToCny ?? 7.1;
+        const pointsPerYuan = settings.voicePricing?.pointsPerYuan ?? 0;
+        if (pointsPerYuan <= 0) {
+            return NextResponse.json({ error: "Voice pricing not configured" }, { status: 503 });
+        }
         const channel = settings.systemChannels.find((ch): ch is SystemModelChannel => ch.models.includes(ttsModel) && ch.advancedConfig?.voiceCustomization !== undefined);
         if (!channel || !channel.advancedConfig?.voiceCustomization) {
             return NextResponse.json({ error: "Channel not found or voice customization not enabled" }, { status: 404 });
@@ -44,8 +49,6 @@ export async function POST(request: NextRequest) {
         if (!voiceConfig) {
             return NextResponse.json({ error: "Invalid voice customization config" }, { status: 500 });
         }
-        const usdToCny = 7.1;
-        const pointsPerYuan = 1;
         const points = customVoiceCreatePoints(voiceConfig, kind, usdToCny, pointsPerYuan);
         const idempotencyKey = `custom-voice-${randomUUID()}`;
         const receipt = await chargeGeneration({

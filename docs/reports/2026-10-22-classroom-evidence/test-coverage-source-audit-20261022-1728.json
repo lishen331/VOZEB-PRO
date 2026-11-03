@@ -1,0 +1,101 @@
+{
+  "at": "2026-10-22T09:28:44.026411+00:00",
+  "commit": "bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+  "kind": "static test source inspection; no test execution claimed",
+  "files": [
+    {
+      "file": "web/src/lib/server/image-task-runtime.test.ts",
+      "sha256": "4015542c6aa73b88dc6de51c4e968a087f539237e7da6091dbcc0e69ad084e3a",
+      "anchors": [
+        {
+          "pattern": "mediaHeaders: vi.fn",
+          "lines": [
+            19
+          ]
+        },
+        {
+          "pattern": "vi.mock(\"@/lib/server/generation-media-authorization\"",
+          "lines": [
+            54
+          ]
+        },
+        {
+          "pattern": "downloads system-proxied image results",
+          "lines": [
+            416
+          ]
+        },
+        {
+          "pattern": "upstreamModel: \"image-one\"",
+          "lines": [
+            430
+          ]
+        }
+      ]
+    },
+    {
+      "file": "web/src/lib/server/generation-media-access.test.ts",
+      "sha256": "503634612c2dac5f640610e17b2742ccae632d451f50e2d3c7528875b4da376a",
+      "anchors": [
+        {
+          "pattern": "accepts only a server-signed",
+          "lines": [
+            15
+          ]
+        },
+        {
+          "pattern": "vendor-video",
+          "lines": [
+            12,
+            17,
+            26,
+            27,
+            29
+          ]
+        },
+        {
+          "pattern": "rejects unsigned",
+          "lines": [
+            22
+          ]
+        }
+      ]
+    },
+    {
+      "file": "web/src/lib/server/modelbay-asset-service.test.ts",
+      "sha256": "a50af6d4781ecda7f41d12a2520726aeb2b1200dac351f42eab98c70d7d5b5f5",
+      "anchors": [
+        {
+          "pattern": "returns actionable errors",
+          "lines": [
+            54
+          ]
+        },
+        {
+          "pattern": "details: { code:",
+          "lines": [
+            58
+          ]
+        }
+      ]
+    },
+    {
+      "file": "web/src/app/api/image-tasks/image-task-support.test.ts",
+      "sha256": "6c5e1c59682e502fe110239b58d70e7cfd93c0a56440ad32583f4d252056b613",
+      "anchors": [
+        {
+          "pattern": "raw JPEG base64",
+          "lines": [
+            122
+          ]
+        },
+        {
+          "pattern": "\"A\".repeat(96)",
+          "lines": [
+            123
+          ]
+        }
+      ]
+    }
+  ]
+}

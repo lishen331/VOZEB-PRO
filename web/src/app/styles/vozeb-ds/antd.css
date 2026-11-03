@@ -1,0 +1,108 @@
+/* AntD reskin inside .vz-ds only. Popups are mounted inside the .vz-ds root via getPopupContainer. */
+.vz-ds .ant-select-dropdown,
+.vz-ds .ant-popover .ant-popover-container,
+.vz-ds .ant-popover .ant-popover-inner,
+.vz-ds .ant-dropdown .ant-dropdown-menu {
+    background: var(--vz-glass-strong);
+    -webkit-backdrop-filter: var(--vz-blur);
+    backdrop-filter: var(--vz-blur);
+    border: 1px solid var(--vz-border);
+    box-shadow: var(--vz-shadow-3);
+}
+.vz-ds .ant-tooltip .ant-tooltip-container,
+.vz-ds .ant-tooltip .ant-tooltip-inner {
+    border: 1px solid var(--vz-border);
+    font-size: 12px;
+    box-shadow: var(--vz-shadow-2);
+}
+
+.vz-ds .ant-modal .ant-modal-container,
+.vz-ds .ant-modal .ant-modal-content {
+    background: var(--vz-glass-strong);
+    -webkit-backdrop-filter: var(--vz-blur);
+    backdrop-filter: var(--vz-blur);
+    border: 1px solid var(--vz-border);
+    box-shadow: var(--vz-shadow-3);
+}
+.vz-ds .ant-modal-mask,
+.vz-ds .ant-drawer-mask {
+    background: rgba(4, 6, 10, 0.5) !important;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+.vz-ds .ant-drawer .ant-drawer-section,
+.vz-ds .ant-drawer .ant-drawer-content {
+    background: var(--vz-glass-strong);
+    -webkit-backdrop-filter: var(--vz-blur);
+    backdrop-filter: var(--vz-blur);
+}
+.vz-ds .ant-drawer-left .ant-drawer-section,
+.vz-ds .ant-drawer-left .ant-drawer-content {
+    border-radius: 0 var(--vz-r-xl) var(--vz-r-xl) 0;
+}
+.vz-ds .ant-drawer-right .ant-drawer-section,
+.vz-ds .ant-drawer-right .ant-drawer-content {
+    border-radius: var(--vz-r-xl) 0 0 var(--vz-r-xl);
+}
+.vz-ds .ant-drawer-bottom .ant-drawer-section,
+.vz-ds .ant-drawer-bottom .ant-drawer-content {
+    border-radius: var(--vz-r-xl) var(--vz-r-xl) 0 0;
+}
+
+.vz-ds .ant-segmented {
+    padding: 3px;
+    border: 1px solid var(--vz-border);
+}
+.vz-ds .ant-segmented .ant-segmented-item-selected {
+    box-shadow:
+        inset 0 0 0 1px var(--vz-control-border),
+        var(--vz-highlight),
+        0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.vz-ds .ant-switch.ant-switch-checked {
+    background: var(--vz-gradient);
+}
+.vz-ds .ant-switch.ant-switch-checked:hover:not(.ant-switch-disabled) {
+    background: var(--vz-gradient);
+    filter: brightness(1.1);
+}
+.vz-ds .ant-tabs-ink-bar {
+    background: var(--vz-gradient-glow);
+    height: 3px !important;
+    border-radius: 3px;
+}
+.vz-ds .ant-select-selector,
+.vz-ds .ant-select {
+    transition:
+        box-shadow var(--vz-dur-2),
+        border-color var(--vz-dur-2);
+}
+
+.vz-ds .ant-message .ant-message-notice,
+.vz-ds .ant-message-notice .ant-message-notice-content,
+.vz-ds .ant-notification-notice {
+    background: var(--vz-glass-strong) !important;
+    -webkit-backdrop-filter: var(--vz-blur);
+    backdrop-filter: var(--vz-blur);
+    border: 1px solid var(--vz-border);
+    box-shadow: var(--vz-shadow-3) !important;
+}
+
+/* Explicit local text defeats the legacy html.dark message color. */
+
+.vz-ds .ant-message .ant-message-notice-content,
+.vz-ds .ant-notification-notice {
+    color: var(--vz-text-1);
+}
+
+.vz-ds .ant-select:focus-within,
+.vz-ds .ant-segmented:has(:focus-visible),
+.vz-ds .ant-checkbox-wrapper:has(:focus-visible),
+.vz-ds .vz-ratio:has(input:focus-visible) {
+    outline: 2px solid var(--vz-focus-color);
+    outline-offset: 3px;
+}
+
+.vz-ds .ant-switch:not(.ant-switch-checked) {
+    box-shadow: inset 0 0 0 1px var(--vz-control-border);
+}

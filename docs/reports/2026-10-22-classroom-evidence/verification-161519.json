@@ -1,0 +1,45 @@
+{
+  "verifiedAt": "2026-10-22T08:18:05.728286+00:00",
+  "source": "readonly-incident-audit-20261022-161519.json",
+  "imageIncidents": [
+    {
+      "taskId": "c0320ccf-21e4-42cf-9875-2fbb09c7f49b",
+      "logicalModel": "gpt-image-2",
+      "requestId": "202610220809241149999958268d9d60GMqqB1w",
+      "responseBytes": 10598917,
+      "http200ThenRangeError": true,
+      "fallbackBinding403": true
+    },
+    {
+      "taskId": "9768df78-2b43-43ed-98b9-4349fb98ecd1",
+      "logicalModel": "gpt-image-2-c",
+      "requestId": "202610220808035483557532l2yefu6khZPkkR2",
+      "responseBytes": 4607010,
+      "http200ThenRangeError": true,
+      "fallbackBinding403": true
+    },
+    {
+      "taskId": "709a433e-9265-4d0f-80ae-7d2e97cd682e",
+      "logicalModel": "gpt-image-2-c",
+      "requestId": "202610220807136819746332l2yefu6JTyG2mfR",
+      "responseBytes": 6473601,
+      "http200ThenRangeError": true,
+      "fallbackBinding403": true
+    },
+    {
+      "taskId": "e970391e-87a8-4b4a-b8ff-70807aab629d",
+      "logicalModel": "gpt-image-2",
+      "requestId": "202610220813018878865038268d9d6hJmsXMC2",
+      "responseBytes": 5163223,
+      "http200ThenRangeError": true,
+      "fallbackBinding403": true
+    }
+  ],
+  "miniR2vFailureVerified": true,
+  "counts": {
+    "success": 247,
+    "error": 265,
+    "active": 10,
+    "terminalSuccessPct": 48.24
+  }
+}

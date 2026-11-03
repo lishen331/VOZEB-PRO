@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-22T09:22:22.446123+00:00",
+  "files": [
+    {
+      "name": "offline-image-fallback-media-auth-20261022.cjs",
+      "bytes": 4577,
+      "sha256": "8562d60257a507929f07ebc1fe3ee87f6ec6b09725de5faf20646bf3af86bf32"
+    },
+    {
+      "name": "offline-image-fallback-media-auth-20261022.json",
+      "bytes": 1150,
+      "sha256": "cff8011d9a6b9009dc3b1577f78b45705471b59cd47f48ccbd426aeebbbc35b1"
+    },
+    {
+      "name": "fallback-media-auth-production-evidence-20261022-171816.json",
+      "bytes": 5264,
+      "sha256": "c3b0795874650a7bc7946e2223e1054e73f66503f696c132205278a1d9cb94e7"
+    },
+    {
+      "name": "readonly-incident-audit-20261022-171517.json",
+      "bytes": 320855,
+      "sha256": "942ecb961d02387c13dfeacef6ffb20188d4cdc03a2daac344400d1ac2a5aab6"
+    },
+    {
+      "name": "post-release-node-persistence-20261022-171324.json",
+      "bytes": 25334,
+      "sha256": "7efa30963932103e72f75b38059a8b54c04c6f4a06f60f46df62e8987c6382f9"
+    },
+    {
+      "name": "node-persistence-binding-followup-20261022-171408.json",
+      "bytes": 4014,
+      "sha256": "dafc9ca4a1b1955b2e566605b97b2b78ba69c93e06fd23f8944c6d1c560aa667"
+    },
+    {
+      "name": "readonly-node-persistence-20261022.py",
+      "bytes": 2791,
+      "sha256": "ace99c6f86290dd3769fad6931ec8a93efb901bf2cbad71018a27f79fccb2fc2"
+    },
+    {
+      "name": "ephemeral-node22-probe-result-20261022.json",
+      "bytes": 797,
+      "sha256": "f00f2005367a38036d0d2f119d6049479f30a7e507bf32271106da1347961b4e"
+    },
+    {
+      "name": "ephemeral-node22-probe-source-map-20261022.json",
+      "bytes": 1422,
+      "sha256": "b2b8f30bdda21a6de330953d4116727c3e376cc8f749fea41b21c87dff34e1a9"
+    },
+    {
+      "name": "ephemeral-node22-probe-20261022.js",
+      "bytes": 9370,
+      "sha256": "db859fa531c97172083f7d2075256facd1739205a58c099486cc69c7e3b4f643"
+    }
+  ]
+}

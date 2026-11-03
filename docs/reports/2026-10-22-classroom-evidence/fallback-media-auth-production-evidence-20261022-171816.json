@@ -1,0 +1,158 @@
+{
+  "at": "2026-10-22T09:18:16.094501+00:00",
+  "tasks": [
+    {
+      "id": "d311a845-f23b-45a4-aaca-3152a9f67580",
+      "error": "上游图片无法通过授权媒体路径读取",
+      "events": [
+        {
+          "at": 1792660346337,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220912153684375148268d9d60UZuzfUy",
+          "mediaProxyPath": false
+        },
+        {
+          "at": 1792660346351,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "mediaProxyPath": false
+        },
+        {
+          "at": 1792660423947,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "媒体路径未获任务授权",
+          "mediaProxyPath": true
+        }
+      ],
+      "status": "error",
+      "refunds": [
+        {
+          "at": "2026-10-22T09:13:43.961+00:00",
+          "key": "generation-refund:image-task:d311a845-f23b-45a4-aaca-3152a9f67580:attempt:2:refund",
+          "type": "refund",
+          "amount": 1.0
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T09:07:03.233+00:00",
+      "has_result": false,
+      "updated_at": "2026-10-22T09:13:43.971+00:00",
+      "actual_model": "gpt-image-2.5-sunburst",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 400741,
+        "successCount": 0
+      },
+      "upstream_task_id": "task_o2EsnlbHBhrYSEVJro9WXeI4Plz2YRSn",
+      "route_logical_model": "gpt-image-2.5-sunburst"
+    },
+    {
+      "id": "0ddccffb-02a8-4cd5-b519-df6900aebf16",
+      "error": "上游图片无法通过授权媒体路径读取",
+      "events": [
+        {
+          "at": 1792660357254,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220911352310161418268d9d6Z2JcqGoQ",
+          "mediaProxyPath": false
+        },
+        {
+          "at": 1792660383139,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 4782435,
+          "mediaProxyPath": false
+        },
+        {
+          "at": 1792660383145,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "mediaProxyPath": false
+        },
+        {
+          "at": 1792660383307,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded",
+          "mediaProxyPath": false
+        },
+        {
+          "at": 1792660389260,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220913051123062158268d9d69CDHr4mV",
+          "mediaProxyPath": false
+        },
+        {
+          "at": 1792660389269,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "mediaProxyPath": false
+        },
+        {
+          "at": 1792660411006,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "媒体路径未获任务授权",
+          "mediaProxyPath": true
+        }
+      ],
+      "status": "error",
+      "refunds": [
+        {
+          "at": "2026-10-22T09:13:03.29+00:00",
+          "key": "generation-refund:image-task:0ddccffb-02a8-4cd5-b519-df6900aebf16:attempt:1:response-refund",
+          "type": "refund",
+          "amount": 1.0
+        },
+        {
+          "at": "2026-10-22T09:13:31.02+00:00",
+          "key": "generation-refund:image-task:0ddccffb-02a8-4cd5-b519-df6900aebf16:attempt:2:refund",
+          "type": "refund",
+          "amount": 1.0
+        }
+      ],
+      "task_type": "image",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T09:11:24.873+00:00",
+      "has_result": false,
+      "updated_at": "2026-10-22T09:13:31.031+00:00",
+      "actual_model": "gpt-image-2.5-sunburst",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 126161,
+        "successCount": 0
+      },
+      "upstream_task_id": "task_B2DIim4pV5iPrPtJEcSkRY1W1TXqkH3e",
+      "route_logical_model": "gpt-image-2.5-sunburst"
+    }
+  ],
+  "readOnly": true
+}

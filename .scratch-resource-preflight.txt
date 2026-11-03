@@ -1,0 +1,95 @@
+HOST
+iZ7xv3ko20me5wi7nv0n5dZ
+2026-10-06T16:42:46+08:00
+DOCKER_PS
+vozeb-staging-generation-worker-1|ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe|Up 3 hours|3000/tcp
+vozeb-staging-app-1|ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe|Up 3 hours (healthy)|0.0.0.0:3001->3000/tcp
+vozeb-staging-postgres-1|5c773214aed7|Up 2 weeks (healthy)|5432/tcp
+CONTAINER_INSPECT
+--vozeb-staging-app-1
+name=/vozeb-staging-app-1 image=ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe id=bb8d284411314b56dfc505f04317c4b2d4720d4386376ad951fc2c161d556ec4 started=2026-10-06T05:48:54.023033828Z status=running health=healthy restart=0
+--vozeb-staging-generation-worker-1
+
+--vozeb-staging-postgres-1
+name=/vozeb-staging-postgres-1 image=postgres:16.6-alpine id=ef74fa2290a6f486543531f48c1d5513f6675da85e75d7b3d8a30ce611d8315c started=2026-09-22T01:11:09.570868461Z status=running health=healthy restart=0
+APP_ENV_REDACTED
+DATABASE_URL=REDACTED
+HOSTNAME=REDACTED
+NEXT_PUBLIC_SITE_URL=REDACTED
+NODE_ENV=REDACTED
+NODE_OPTIONS=REDACTED
+PORT=REDACTED
+POSTGRES_DB=REDACTED
+POSTGRES_PASSWORD=REDACTED
+POSTGRES_USER=REDACTED
+VOZEB_PRO_COOKIE_SECURE=REDACTED
+VOZEB_PRO_DATABASE_PROVIDER=REDACTED
+VOZEB_PRO_DATABASE_SSL=REDACTED
+VOZEB_PRO_DATA_DIR=REDACTED
+VOZEB_PRO_DRAMA_WORKFLOW_LAB=REDACTED
+VOZEB_PRO_ENCRYPTION_KEY=REDACTED
+VOZEB_PRO_IMAGE=REDACTED
+VOZEB_PRO_INSTALL_TOKEN=REDACTED
+VOZEB_PRO_INTERNAL_ORIGIN=REDACTED
+VOZEB_PRO_MAINTENANCE_TOKEN=REDACTED
+VOZEB_PRO_TRUSTED_PROXY_HOPS=REDACTED
+VOZEB_PRO_WORKER_TOKEN=REDACTED
+WORKER_ENV_REDACTED
+HOSTNAME=REDACTED
+NODE_ENV=REDACTED
+NODE_OPTIONS=REDACTED
+PORT=REDACTED
+VOZEB_PRO_DATA_DIR=REDACTED
+VOZEB_PRO_INTERNAL_ORIGIN=REDACTED
+VOZEB_PRO_WORKER_API_ORIGIN=REDACTED
+VOZEB_PRO_WORKER_TOKEN=REDACTED
+MOUNTS
+volume   /var/lib/docker/volumes/vozeb-staging_app-data/_data  ->  /app/web/.data
+
+HEALTH_LOCAL
+3001 /api/health/live 200 {"code":0,"data":{"status":"live"},"msg":"服务运行中"}
+3001 /api/health/ready 200 {"code":0,"data":{"ready":true,"provider":"postgres","database":{"healthy":true,"schemaReady":true},"encryptionReady":true,"firstAdminRequired":false,"generationWorker":{"required":true,"healthy":true,"lastHeartbeatAt":"2026-10-06T08:42:40.882Z","staleAfterMs":90000}},"msg":"服务已就绪"}
+80 /api/health/live 502 <html>
+ <head><title>502 Bad Gateway</title></head>
+ <body>
+ <center><h1>502 Bad Gateway</h1></center>
+ <hr><center>nginx/1.30.2</center>
+ </body>
+ </html>
+ 
+80 /api/health/ready 502 <html>
+ <head><title>502 Bad Gateway</title></head>
+ <body>
+ <center><h1>502 Bad Gateway</h1></center>
+ <hr><center>nginx/1.30.2</center>
+ </body>
+ </html>
+ 
+RESOURCES
+               total        used        free      shared  buff/cache   available
+Mem:            7456        1327         883          95        5638        6129
+Swap:              0           0           0
+Filesystem     Type      Size  Used Avail Use% Mounted on
+/dev/vda3      ext4      148G   69G   73G  49% /
+devtmpfs       devtmpfs  4.0M     0  4.0M   0% /dev
+tmpfs          tmpfs     3.7G     0  3.7G   0% /dev/shm
+efivarfs       efivarfs  256K  6.3K  245K   3% /sys/firmware/efi/efivars
+tmpfs          tmpfs     1.5G  816K  1.5G   1% /run
+tmpfs          tmpfs     3.7G  4.0K  3.7G   1% /tmp
+/dev/vda2      vfat      200M  6.3M  194M   4% /boot/efi
+tmpfs          tmpfs     746M   16K  746M   1% /run/user/1000
+4
+ 16:42:46 up 14 days,  7:32,  1 user,  load average: 0.00, 0.00, 0.00
+DOCKER_STATS
+vozeb-staging-generation-worker-1|0.17%|36.66MiB / 7.282GiB|0.49%|5.23MB / 2.81MB|16.4kB / 0B|9
+vozeb-staging-app-1|0.34%|203.7MiB / 7.282GiB|2.73%|38.3MB / 190MB|3.87MB / 6.15MB|10
+vozeb-staging-postgres-1|1.01%|114.6MiB / 7.282GiB|1.54%|1.27GB / 4.86GB|149MB / 2.04GB|7
+POSTGRES_STATS
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "postgres" does not exist
+
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "postgres" does not exist
+TABLES
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "postgres" does not exist
+LOCKS
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "postgres" does not exist
+WORKER_LOG_TAIL

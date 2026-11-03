@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>VOZEB PRO 宣传片 v2</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#07090e;color:#f4f2ec;
+  font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:#07090e}
+.layer{position:absolute;inset:0;opacity:0;overflow:hidden}
+.shot{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+.shotc{position:absolute;inset:0;width:1920px;height:1080px;transform-origin:50% 50%}
+.shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,9,14,.94) 0%,rgba(7,9,14,.72) 34%,rgba(7,9,14,.1) 62%,transparent 75%)}
+.dim{position:absolute;inset:0;background:rgba(7,9,14,.45)}
+.cap{position:absolute;left:140px;top:360px;max-width:760px}
+.cap .k{font-size:26px;letter-spacing:12px;color:#f2b544;font-weight:700}
+.cap .h{font-size:92px;font-weight:800;line-height:1.18;margin-top:20px;letter-spacing:2px;white-space:pre-line}
+.cap .s{font-size:32px;color:#b9c0cc;margin-top:26px;line-height:1.5}
+.mega{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-weight:900;letter-spacing:8px;text-align:center}
+#aWord{font-size:160px}
+#aSub{position:absolute;left:0;right:0;top:720px;text-align:center;font-size:36px;color:#8f98a8;letter-spacing:6px}
+#cWord{font-size:230px;color:#fff;text-shadow:0 8px 60px rgba(0,0,0,.75)}
+#cTag{position:absolute;left:0;right:0;top:820px;text-align:center;font-size:30px;letter-spacing:12px;color:#f2b544}
+#fCap{position:absolute;left:0;right:0;top:170px;text-align:center}
+#fCap .k{font-size:28px;letter-spacing:14px;color:#f2b544;font-weight:700}
+#fCap .h{font-size:84px;font-weight:800;margin-top:22px;letter-spacing:3px}
+.grid6{position:absolute;left:150px;right:150px;top:470px;display:grid;grid-template-columns:repeat(6,1fr);gap:24px}
+.mod{height:180px;border-radius:18px;border:2px solid #2a3142;background:#0f131b;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;opacity:.25}
+.mod b{font-size:42px;font-weight:700}
+.mod i{font-style:normal;font-size:20px;color:#6f7888;letter-spacing:4px;font-variant-numeric:tabular-nums}
+.mod.on{border-color:#f2b544;background:#1b1810;opacity:1}
+.mod.on i{color:#f2b544}
+#fCount{position:absolute;left:0;right:0;top:760px;text-align:center;font-size:44px;color:#b9c0cc;letter-spacing:4px}
+#fCount b{font-size:96px;color:#f2b544;font-variant-numeric:tabular-nums;margin:0 18px;display:inline-block;min-width:200px}
+#G .logo{position:absolute;left:50%;top:330px;width:150px;height:150px;margin-left:-75px;filter:invert(1)}
+#G .t{position:absolute;left:0;right:0;top:520px;text-align:center;font-size:110px;font-weight:900;letter-spacing:14px}
+#G .s{position:absolute;left:0;right:0;top:680px;text-align:center;font-size:40px;color:#b9c0cc;letter-spacing:10px}
+#G .m{position:absolute;left:0;right:0;top:770px;text-align:center;font-size:30px;color:#f2b544;letter-spacing:8px}
+#G .credit{position:absolute;left:0;right:0;bottom:46px;text-align:center;font-size:20px;color:#5f6878;letter-spacing:1px}
+.vig{position:absolute;inset:0;background:radial-gradient(120% 95% at 50% 50%,transparent 58%,rgba(0,0,0,.6));pointer-events:none}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.bar{position:absolute;left:0;bottom:0;height:6px;background:#f2b544;width:0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <section class="layer" id="A">
+    <div class="mega"><span id="aWord"></span></div>
+    <div id="aSub">VOZEB PRO · AI 影像创作课堂</div>
+  </section>
+  <section class="layer" id="B">
+    <img class="shotc" id="bImg" alt="">
+    <div class="shade"></div>
+    <div class="cap" id="bCap"><div class="k">画 布</div><div class="h">一张画布
+从想法到成片</div><div class="s">图片、文本、视频、配音节点<br>在同一张画布上连起来</div></div>
+  </section>
+  <section class="layer" id="C">
+    <img class="shot" id="cImg" alt="">
+    <div class="dim"></div>
+    <div class="mega"><span id="cWord"></span></div>
+    <div id="cTag">全部来自学生画布的真实生成</div>
+  </section>
+  <section class="layer" id="D">
+    <img class="shot" id="dImg" alt="">
+    <div class="shade"></div>
+    <div class="cap" id="dCap"><div class="k">画 布 助 手</div><div class="h">说一句话
+它帮你搭好画布</div><div class="s">规划节点、写文案、生成图像<br>学生专注创意本身</div></div>
+  </section>
+  <section class="layer" id="E">
+    <img class="shotc" id="eImg" alt="">
+    <div class="shade"></div>
+    <div class="cap" id="eCap"><div class="k">灵 感 发 现</div><div class="h">全班作品
+一屏看完</div><div class="s">老师随时浏览、点评<br>好作品一眼挑出来</div></div>
+  </section>
+  <section class="layer" id="F">
+    <div id="fCap"><div class="k">无 限 练 习</div><div class="h">剧本源源不断，六个环节反复练</div></div>
+    <div class="grid6" id="mods"></div>
+    <div id="fCount">第<b id="fNum">1</b>个练习剧本</div>
+  </section>
+  <section class="layer" id="G">
+    <img class="logo" src="../../web/public/logo.svg" alt="">
+    <div class="t">VOZEB PRO</div>
+    <div class="s">AI 影像创作教学平台</div>
+    <div class="m">一个课堂 · 一起创作</div>
+    <div class="credit">Music: "Voxel Revolution" by Kevin MacLeod (incompetech.com) · Licensed under CC BY 4.0</div>
+  </section>
+  <div class="vig"></div>
+  <div class="bar" id="bar"></div>
+  <div id="flash"></div>
+  <div id="fade"></div>
+</div>
+<script>
+const BEAT = 60 / 122, BAR = BEAT * 4, B = (n) => n * BAR;
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const ease = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const seg = (t, a, d) => clamp((t - a) / d);
+const frame = (dir, n, p) => `footage/${dir}/${String(Math.min(n - 1, Math.floor(p * n))).padStart(3, "0")}.jpg`;
+const SCENES = { A: [0, B(4)], B: [B(4), B(8)], C: [B(8), B(12)], D: [B(12), B(16)], E: [B(16), B(20)], F: [B(20), B(26)], G: [B(26), 59] };
+const A_WORDS = ["80 个学生", "一节课", "同时开工", "人人有作品"];
+const C_CUTS = [
+  ["生图", "gallery-scroll", 0, 1.9, 0, 0], ["生文", "works-scroll", 0, 1.7, -500, -200],
+  ["生视频", "gallery-scroll", 40, 2.1, -900, -150], ["配音", "canvas-zoom", 74, 1.8, -700, -250],
+  ["改稿", "gallery-scroll", 74, 1.9, -1600, -300], ["分镜", "works-scroll", 59, 1.7, -300, -400],
+  ["成片", "gallery-scroll", 20, 2.2, -1200, -600], ["全班", "canvas-zoom", 30, 1.5, -400, -150]];
+const MODS = ["角色", "场景", "道具", "分镜图", "分镜视频", "配音"];
+$("mods").innerHTML = MODS.map((m, i) => `<div class="mod" id="m${i}"><b>${m}</b><i>0${i + 1}</i></div>`).join("");
+const COUNTS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233];
+
+function setSrc(img, src) { if (img.getAttribute("src") !== src) img.setAttribute("src", src); }
+function show(id, t) {
+  const [a, b] = SCENES[id];
+  const on = t >= a && t < b;
+  $(id).style.opacity = on ? String(Math.min(ease(seg(t, a, 0.18)), id === "G" ? 1 : 1)) : "0";
+  return on ? t - a : null;
+}
+function pop(el, local, start, dur = 0.25) {
+  const p = seg(local, start, dur);
+  el.style.opacity = String(p);
+  el.style.transform = `scale(${1.25 - 0.25 * ease(p)})`;
+}
+
+window.render = async function (t) {
+  let l;
+  if ((l = show("A", t)) !== null) {
+    const i = Math.min(3, Math.floor(l / BAR));
+    $("aWord").textContent = A_WORDS[i];
+    pop($("aWord"), l - i * BAR, 0, 0.22);
+    $("aWord").style.color = i === 3 ? "#f2b544" : "#f4f2ec";
+    $("aSub").style.opacity = String(ease(seg(l, BAR * 0.5, 0.6)) * 0.9);
+  }
+  if ((l = show("B", t)) !== null) {
+    const p = l / (SCENES.B[1] - SCENES.B[0]);
+    setSrc($("bImg"), frame("canvas-zoom", 75, p));
+    $("bImg").style.transform = `scale(${1.04 + 0.06 * p})`;
+    pop($("bCap"), l, 0.3, 0.4);
+  }
+  if ((l = show("C", t)) !== null) {
+    const i = Math.min(7, Math.floor(l / (BEAT * 2)));
+    const [word, dir, fr, sc, x, y] = C_CUTS[i];
+    const n = dir === "works-scroll" ? 60 : 75;
+    setSrc($("cImg"), frame(dir, n, fr / n));
+    const k = l - i * BEAT * 2;
+    $("cImg").style.transform = `translate(${x + k * -40}px,${y}px) scale(${sc + k * 0.05})`;
+    $("cWord").textContent = word;
+    pop($("cWord"), k, 0, 0.16);
+  }
+  if ((l = show("D", t)) !== null) {
+    const p = ease(l / (SCENES.D[1] - SCENES.D[0]));
+    setSrc($("dImg"), frame("canvas-zoom", 75, 0));
+    const s = 1 + 0.5 * p;
+    $("dImg").style.transform = `translate(${-1500 * (s - 1) * 0.9}px,${-200 * (s - 1)}px) scale(${s})`;
+    pop($("dCap"), l, 0.3, 0.4);
+  }
+  if ((l = show("E", t)) !== null) {
+    const p = l / (SCENES.E[1] - SCENES.E[0]);
+    setSrc($("eImg"), frame("gallery-scroll", 75, p));
+    $("eImg").style.transform = `scale(${1.02 + 0.08 * p})`;
+    pop($("eCap"), l, 0.3, 0.4);
+  }
+  if ((l = show("F", t)) !== null) {
+    pop($("fCap"), l, 0, 0.35);
+    for (let i = 0; i < 6; i++) $("m" + i).classList.toggle("on", l >= BAR + i * BEAT);
+    const beats = Math.floor(Math.max(0, l - BAR * 3) / BEAT);
+    $("fCount").style.opacity = String(ease(seg(l, BAR * 2.6, 0.4)));
+    $("fNum").textContent = beats >= COUNTS.length ? "∞" : String(COUNTS[beats]);
+    $("fNum").style.transform = `scale(${1.15 - 0.15 * ease(seg((l - BAR * 3) % BEAT, 0, 0.18))})`;
+  }
+  if ((l = show("G", t)) !== null) {
+    $("G").querySelector(".logo").style.transform = `scale(${0.7 + 0.3 * ease(seg(l, 0, 0.6))})`;
+    for (const [sel, d] of [[".t", 0.3], [".s", 0.9], [".m", 1.6], [".credit", 2.2]]) $("G").querySelector(sel).style.opacity = String(ease(seg(l, d, 0.6)));
+  }
+  let flash = 0;
+  for (const [bar, amt] of [[4, 0.35], [8, 0.9], [12, 0.5], [16, 0.45], [20, 0.55], [26, 0.6]]) {
+    const d = t - B(bar);
+    if (d >= 0 && d < 0.5) flash = Math.max(flash, amt * (1 - d / 0.5));
+  }
+  $("flash").style.opacity = String(flash);
+  $("fade").style.opacity = String(seg(t, 57.2, 1.6) + (1 - seg(t, 0, 0.6)) * 0.8);
+  $("bar").style.width = `${(t / 59) * 100}%`;
+  const imgs = [...document.querySelectorAll("img")].filter((i) => i.closest(".layer").style.opacity !== "0" && i.getAttribute("src"));
+  await Promise.all(imgs.map((i) => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))));
+};
+window.render(Number(new URLSearchParams(location.search).get("t") || 0));
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-22T09:39:01.896619+00:00",
+  "files": [
+    {
+      "name": "failure-first-versus-final-20261022-173619.json",
+      "sha256": "91b23ced35e23711188c11a5664802dd88dcf57e122d4612b63cf368fcf4a468",
+      "bytes": 213391
+    },
+    {
+      "name": "bounded-classroom-watch-20261022-173518.jsonl",
+      "sha256": "b82c5704e68f05d4639f3d26a1966855d3e2dc38e143499d24be130f83355672",
+      "bytes": 3432
+    }
+  ],
+  "failureIndex": {
+    "tasks": 316,
+    "uniqueTaskIDs": true,
+    "firstFinalCategoryDifferences": 87
+  },
+  "boundedObservation": {
+    "samples": 6,
+    "errorsStart": 518,
+    "errorsEnd": 518,
+    "successDelta": 4
+  }
+}

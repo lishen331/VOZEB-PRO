@@ -1,0 +1,85 @@
+{
+  "observedAt": "2026-10-21T15:32:15.556391+00:00",
+  "readOnly": true,
+  "tasks": [
+    {
+      "id": "838c7117-6de3-41d9-8b45-a464c8fa5433",
+      "status": "success",
+      "originalModel": "gpt-image-2",
+      "channel": "hr5VKuKJKirZ1-sdRZPY5",
+      "createdAt": "2026-10-21T15:22:55.07+00:00",
+      "completedAt": "2026-10-21T15:28:34.833+00:00",
+      "elapsedSeconds": 339.763,
+      "generationLogStatus": "success",
+      "attemptCount": 1,
+      "stages": [
+        {
+          "at": 1792596514424,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 339292
+        },
+        {
+          "at": 1792596514417,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 291063,
+          "responseBytes": 7814548
+        },
+        {
+          "at": 1792596223351,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "20261021152257197953888268d9d6f7xniOOC",
+          "durationMs": 48128
+        }
+      ]
+    },
+    {
+      "id": "d40d97c7-3113-4a2d-a75d-45dd5907fc99",
+      "status": "success",
+      "originalModel": "gpt-image-2",
+      "channel": "hr5VKuKJKirZ1-sdRZPY5",
+      "createdAt": "2026-10-21T15:19:49.208+00:00",
+      "completedAt": "2026-10-21T15:21:19.732+00:00",
+      "elapsedSeconds": 90.524,
+      "generationLogStatus": "success",
+      "attemptCount": 1,
+      "stages": [
+        {
+          "at": 1792596078487,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 89223
+        },
+        {
+          "at": 1792596078477,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 31396,
+          "responseBytes": 7697268
+        },
+        {
+          "at": 1792596047078,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610211519536974133018268d9d6ZMQsHipm",
+          "durationMs": 57727
+        }
+      ]
+    }
+  ],
+  "browserPlaybackOrImageDisplayVerified": false,
+  "excludedFromFrozenClassroom": true,
+  "directPortraitAPICallsExcluded": true
+}

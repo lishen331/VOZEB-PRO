@@ -1,0 +1,4485 @@
+{
+  "auditedAt": "2026-10-22T08:59:54.551966+00:00",
+  "readOnly": true,
+  "transactionIsolation": "repeatable read",
+  "todayWindow": "2026-10-22 08:30+08 Canvas; may include tests",
+  "deltaSince": "2026-10-22 16:15:19+08",
+  "snapshot_time": "2026-10-22T08:59:53.723679+00:00",
+  "today_counts": [
+    {
+      "count": 173,
+      "status": "error",
+      "task_type": "video"
+    },
+    {
+      "count": 156,
+      "status": "success",
+      "task_type": "video"
+    },
+    {
+      "count": 131,
+      "status": "error",
+      "task_type": "image"
+    },
+    {
+      "count": 3,
+      "status": "running",
+      "task_type": "video"
+    },
+    {
+      "count": 134,
+      "status": "success",
+      "task_type": "image"
+    },
+    {
+      "count": 2,
+      "status": "running",
+      "task_type": "image"
+    }
+  ],
+  "failed_delta": [
+    {
+      "id": "1f46c273-f94b-471c-8c49-0656a83e7575",
+      "error": "当前模型不支持所选分辨率，请调整分辨率后重试。 the parameter resolution specified in the request is not valid for model doubao-seedance-2-0-mini in r2v",
+      "events": [
+        {
+          "at": 1792659535597,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_BoUFWb1jh1ggNMmCP0rjKmCO00iVGlTI"
+        },
+        {
+          "at": 1792659535570,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 427
+        },
+        {
+          "at": 1792659530299,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 5,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659525062,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659519924,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659519570,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_BoUFWb1jh1ggNMmCP0rjKmCO00iVGlTI"
+        },
+        {
+          "at": 1792659519559,
+          "model": "cdance2.0-mini-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 1216
+        },
+        {
+          "at": 1792659519556,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 90,
+          "responseBytes": 118
+        },
+        {
+          "at": 1792659519463,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "041b6ad9d03e0a7a002aa4da2dad3762",
+          "durationMs": 1005
+        },
+        {
+          "at": 1792659518455,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "parameters": "{\"model\":\"cdance2.0-mini-0807\",\"duration\":12}"
+        },
+        {
+          "at": 1792659518339,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T08:58:38.33+00:00",
+      "updated_at": "2026-10-22T08:58:55.591+00:00",
+      "logical_model": "cdance2.0-mini-0807",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 17248,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:58:55.582+00:00",
+          "idempotencyKey": "generation-refund:video-task:1f46c273-f94b-471c-8c49-0656a83e7575:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_BoUFWb1jh1ggNMmCP0rjKmCO00iVGlTI",
+      "current_upstream_model": "cdance2.0-mini-0807"
+    },
+    {
+      "id": "c98de1dc-b1d8-4493-8935-f29a09c7a6da",
+      "error": "预扣费额度失败, 用户剩余额度: ＄0.019762, 需要预扣费额度: ＄0.104000",
+      "events": [
+        {
+          "at": 1792659523191,
+          "model": "gpt-image-2-image-to-image",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792659523180,
+          "model": "gpt-image-2-image-to-image",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "预扣费额度失败, 用户剩余额度: ＄0.019762, 需要预扣费额度: ＄0.104000"
+        },
+        {
+          "at": 1792659523171,
+          "model": "gpt-image-2-image-to-image",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 990,
+          "errorMessage": "预扣费额度失败, 用户剩余额度: ＄0.019762, 需要预扣费额度: ＄0.104000"
+        },
+        {
+          "at": 1792659523168,
+          "model": "gpt-image-2-image-to-image",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 5,
+          "responseBytes": 149
+        },
+        {
+          "at": 1792659523149,
+          "model": "gpt-image-2-image-to-image",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 879,
+          "errorMessage": "预扣费额度失败, 用户剩余额度: ＄0.019762, 需要预扣费额度: ＄0.104000"
+        },
+        {
+          "at": 1792659522270,
+          "model": "gpt-image-2-image-to-image",
+          "phase": "upstream_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "parameters": "{\"model\":\"gpt-image-2-image-to-image\"}"
+        },
+        {
+          "at": 1792659522177,
+          "model": "gpt-image-2-image-to-image",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792659521396,
+          "model": "gpt-image-2-image-to-image",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792659521386,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792659521224,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 91009
+        },
+        {
+          "at": 1792659521218,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 2835,
+          "responseBytes": 4592415
+        },
+        {
+          "at": 1792659518381,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220857158412430178268d9d60p1PotF2",
+          "durationMs": 88036
+        },
+        {
+          "at": 1792659430343,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792659430163,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792659430153,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792659430141,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-image-task",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:57:10.131+00:00",
+      "updated_at": "2026-10-22T08:58:43.182+00:00",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 93053,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:58:41.37+00:00",
+          "idempotencyKey": "generation-refund:image-task:c98de1dc-b1d8-4493-8935-f29a09c7a6da:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-image-to-image"
+    },
+    {
+      "id": "c97030e1-2c82-44cf-a9e5-b28de8064880",
+      "error": "上游服务暂时不可用，请稍后重试。 Policy control service unavailable",
+      "events": [
+        {
+          "at": 1792659515262,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_MBYz4gLA0gIaAe6mAoJdoxm7dv3Z9Zq8"
+        },
+        {
+          "at": 1792659515230,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 337
+        },
+        {
+          "at": 1792659504849,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659494531,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659484203,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659478885,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659473531,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659467708,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659462323,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659456562,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 4,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659451286,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 192
+        },
+        {
+          "at": 1792659451000,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_MBYz4gLA0gIaAe6mAoJdoxm7dv3Z9Zq8"
+        },
+        {
+          "at": 1792659450990,
+          "model": "cdance2.0-mini-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 765
+        },
+        {
+          "at": 1792659450987,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 58,
+          "responseBytes": 118
+        },
+        {
+          "at": 1792659450926,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "020d6ad9cffa0a7a982b22999ffbddce",
+          "durationMs": 559
+        },
+        {
+          "at": 1792659450363,
+          "model": "cdance2.0-mini-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "parameters": "{\"model\":\"cdance2.0-mini-0807\",\"duration\":12}"
+        },
+        {
+          "at": 1792659450217,
+          "model": "cdance2.0-mini-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T08:57:30.209+00:00",
+      "updated_at": "2026-10-22T08:58:35.256+00:00",
+      "logical_model": "cdance2.0-mini-0807",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 65029,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:58:35.245+00:00",
+          "idempotencyKey": "generation-refund:video-task:c97030e1-2c82-44cf-a9e5-b28de8064880:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_MBYz4gLA0gIaAe6mAoJdoxm7dv3Z9Zq8",
+      "current_upstream_model": "cdance2.0-mini-0807"
+    },
+    {
+      "id": "5d500728-b9b1-432f-8a4a-631037e1a958",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792659440644,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792659440639,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792659440624,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792659440319,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:57:20.309+00:00",
+      "updated_at": "2026-10-22T08:57:20.635+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 323,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "ca32d163-9b19-47b0-b1a7-e35e5fc26838",
+      "error": "预扣费额度失败, 用户剩余额度: ＄0.019762, 需要预扣费额度: ＄0.104000",
+      "events": [
+        {
+          "at": 1792659433435,
+          "model": "gpt-image-2-text-to-image",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792659433420,
+          "model": "gpt-image-2-text-to-image",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "预扣费额度失败, 用户剩余额度: ＄0.019762, 需要预扣费额度: ＄0.104000"
+        },
+        {
+          "at": 1792659433411,
+          "model": "gpt-image-2-text-to-image",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 2909,
+          "errorMessage": "预扣费额度失败, 用户剩余额度: ＄0.019762, 需要预扣费额度: ＄0.104000"
+        },
+        {
+          "at": 1792659433406,
+          "model": "gpt-image-2-text-to-image",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 3,
+          "responseBytes": 149
+        },
+        {
+          "at": 1792659433386,
+          "model": "gpt-image-2-text-to-image",
+          "phase": "upstream_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 2799,
+          "errorMessage": "预扣费额度失败, 用户剩余额度: ＄0.019762, 需要预扣费额度: ＄0.104000"
+        },
+        {
+          "at": 1792659430587,
+          "model": "gpt-image-2-text-to-image",
+          "phase": "upstream_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "parameters": "{\"model\":\"gpt-image-2-text-to-image\"}"
+        },
+        {
+          "at": 1792659430498,
+          "model": "gpt-image-2-text-to-image",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792659430396,
+          "model": "gpt-image-2-text-to-image",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792659430387,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "GenerationSubmissionUncertainError",
+          "errorMessage": "图片生成失败，上游返回了网页错误（HTTP 504，地址 [URL] text/html），请检查接口路径、鉴权、参考图提交方式或网关状态"
+        },
+        {
+          "at": 1792659430385,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 504,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 315273,
+          "errorMessage": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx/1.31.1</center>\r\n</body>\r\n</html>\r\n"
+        },
+        {
+          "at": 1792659430365,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 504,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 314958,
+          "errorMessage": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx/1.31.1</center>\r\n</body>\r\n</html>\r\n"
+        },
+        {
+          "at": 1792659115407,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5310007,\"type\":\"image/png\"},{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792659113970,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792659113957,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792659113943,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-image-task",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:51:53.934+00:00",
+      "updated_at": "2026-10-22T08:57:13.423+00:00",
+      "logical_model": "gpt-image-2-all",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 319491,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-text-to-image"
+    },
+    {
+      "id": "6d59c8bb-7d50-486d-93df-76e59a0256d0",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792659349484,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792659349478,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792659349459,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792659346739,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:55:46.725+00:00",
+      "updated_at": "2026-10-22T08:55:49.472+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 2741,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "60d08e23-f36f-4b94-89af-12b3c68b7b7d",
+      "error": "图片任务在提交阶段中断，未取得上游任务 ID",
+      "events": [
+        {
+          "at": 1792658402950,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submission_interrupted_without_upstream_id"
+        },
+        {
+          "at": 1792658402933,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片任务在提交阶段中断，未取得上游任务 ID"
+        },
+        {
+          "at": 1792658223025,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":1670392,\"type\":\"image/jpeg\"},{\"size\":166060,\"type\":\"image/jpeg\"},{\"size\":78470,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792658222916,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658222902,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658222890,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:37:02.881+00:00",
+      "updated_at": "2026-10-22T08:40:02.937+00:00",
+      "logical_model": "gpt-image-2-all",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 180060,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-all"
+    },
+    {
+      "id": "14878a5f-18ef-44c3-a830-c891414ba556",
+      "error": "图片任务在提交阶段中断，未取得上游任务 ID",
+      "events": [
+        {
+          "at": 1792658399041,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submission_interrupted_without_upstream_id"
+        },
+        {
+          "at": 1792658399029,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片任务在提交阶段中断，未取得上游任务 ID"
+        },
+        {
+          "at": 1792658220626,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-c\",\"size\":\"1024x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":1218497,\"type\":\"image/jpeg\"},{\"size\":5264091,\"type\":\"image/png\"},{\"size\":3356375,\"type\":\"image/jpeg\"},{\"size\":4880522,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792658219016,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658219007,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658218995,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:36:58.986+00:00",
+      "updated_at": "2026-10-22T08:39:59.03+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 180046,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-c"
+    },
+    {
+      "id": "685fca7c-bc66-4459-a918-42acc20c8e02",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792658259163,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792658259154,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792658259146,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792658259143,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 38,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792658258952,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658257743,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792658257731,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792658257535,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 133684
+        },
+        {
+          "at": 1792658257529,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 13011,
+          "responseBytes": 4635972
+        },
+        {
+          "at": 1792658244515,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022083523907575008RI2ypSq2Nkypg0Ou",
+          "durationMs": 120616
+        },
+        {
+          "at": 1792658123898,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-c\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792658123803,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658123794,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658123783,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:35:23.774+00:00",
+      "updated_at": "2026-10-22T08:37:39.156+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 135384,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:37:37.719+00:00",
+          "idempotencyKey": "generation-refund:image-task:685fca7c-bc66-4459-a918-42acc20c8e02:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-all"
+    },
+    {
+      "id": "f41da877-a2ef-4c2e-b968-4e76dfbba8d3",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792658182278,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792658182252,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792658182240,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792658182235,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 29,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792658182067,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658181083,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792658181075,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792658180981,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 147306
+        },
+        {
+          "at": 1792658180973,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 26968,
+          "responseBytes": 11015283
+        },
+        {
+          "at": 1792658154001,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220833581278879738268d9d6kCp4Ef0m",
+          "durationMs": 120220
+        },
+        {
+          "at": 1792658033781,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":1670392,\"type\":\"image/jpeg\"},{\"size\":166060,\"type\":\"image/jpeg\"},{\"size\":78470,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792658033616,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658033599,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792658033589,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:33:53.58+00:00",
+      "updated_at": "2026-10-22T08:36:22.255+00:00",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 148689,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:36:21.059+00:00",
+          "idempotencyKey": "generation-refund:image-task:f41da877-a2ef-4c2e-b968-4e76dfbba8d3:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-5-sunburst"
+    },
+    {
+      "id": "5dd09f0a-f74c-410b-befe-ab5c890ee5a1",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792658112012,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792658112002,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792658111993,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792658111989,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 60,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792658111870,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658111731,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792658111724,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792658111674,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 292649
+        },
+        {
+          "at": 1792658111667,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 37618,
+          "responseBytes": 4759094
+        },
+        {
+          "at": 1792658074046,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220830191397120342l2yefu6sx9eXqKm",
+          "durationMs": 254916
+        },
+        {
+          "at": 1792657819131,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792657818978,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657818967,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792657818954,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:30:18.943+00:00",
+      "updated_at": "2026-10-22T08:35:12.004+00:00",
+      "logical_model": "gpt-image-2-all",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 293064,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:35:11.711+00:00",
+          "idempotencyKey": "generation-refund:image-task:5dd09f0a-f74c-410b-befe-ab5c890ee5a1:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-5-sunburst"
+    },
+    {
+      "id": "00305c17-8e5b-4aaa-aa30-7b09db4bced6",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792657986452,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657986448,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657986429,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657985284,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:33:05.271+00:00",
+      "updated_at": "2026-10-22T08:33:06.444+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 1168,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "641dd96b-049d-4761-9518-58e3ca253020",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657783962,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657783950,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657783942,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657783939,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 34,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657783846,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657783326,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657783319,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657783272,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 134618
+        },
+        {
+          "at": 1792657783267,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 1764,
+          "responseBytes": 4880035
+        },
+        {
+          "at": 1792657781500,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220827326371370198268d9d6UKGMFktH",
+          "durationMs": 132699
+        },
+        {
+          "at": 1792657648802,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792657648613,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657648605,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792657648593,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:27:28.585+00:00",
+      "updated_at": "2026-10-22T08:29:43.952+00:00",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 135369,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:29:43.309+00:00",
+          "idempotencyKey": "generation-refund:image-task:641dd96b-049d-4761-9518-58e3ca253020:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-all"
+    },
+    {
+      "id": "7141b4ea-ebb1-4c46-8cc1-18aa63ee6f02",
+      "error": "自定义图片接口调用失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657774845,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657774833,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "自定义图片接口调用失败，状态码 403"
+        },
+        {
+          "at": 1792657774821,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 143,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657774644,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657774494,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657774484,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657774351,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 56784
+        },
+        {
+          "at": 1792657774342,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 20702,
+          "responseBytes": 9020708
+        },
+        {
+          "at": 1792657753637,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "b2b3d9c0",
+          "durationMs": 36046
+        },
+        {
+          "at": 1792657717591,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":78470,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792657717512,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657717495,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792657717427,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "tuzi-image-task",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:28:37.363+00:00",
+      "updated_at": "2026-10-22T08:29:34.835+00:00",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 57474,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:29:34.473+00:00",
+          "idempotencyKey": "generation-refund:image-task:7141b4ea-ebb1-4c46-8cc1-18aa63ee6f02:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2.5-sunburst"
+    },
+    {
+      "id": "8d50f9b4-2e19-4d40-a2cb-7a9f92f95673",
+      "error": "Height must be between 300px and 6000px.",
+      "events": [
+        {
+          "at": 1792657766198,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_wtI0Y4UewwIJLQhgXkryTLDU10YK1yAu"
+        },
+        {
+          "at": 1792657766164,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 237
+        },
+        {
+          "at": 1792657760988,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 7,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657755819,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657750677,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657745446,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657745395,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_wtI0Y4UewwIJLQhgXkryTLDU10YK1yAu"
+        },
+        {
+          "at": 1792657745384,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 292
+        },
+        {
+          "at": 1792657745381,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 198
+        },
+        {
+          "at": 1792657745377,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022082905125052667RI2ypSq21YDvH45S",
+          "durationMs": 260
+        },
+        {
+          "at": 1792657745117,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"doubao-seedance-2-0\",\"duration\":4}"
+        },
+        {
+          "at": 1792657745087,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "mohui-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:29:05.077+00:00",
+      "updated_at": "2026-10-22T08:29:26.191+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 21096,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:29:26.18+00:00",
+          "idempotencyKey": "generation-refund:video-task:8d50f9b4-2e19-4d40-a2cb-7a9f92f95673:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_wtI0Y4UewwIJLQhgXkryTLDU10YK1yAu",
+      "current_upstream_model": "doubao-seedance-2-0"
+    },
+    {
+      "id": "c0b3eb47-013a-4dd3-91f5-f5598b6672ae",
+      "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[3] 素材处理失败 [素材 as_01M5HBN0X4T890YXQEJTK7925F 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+      "events": [
+        {
+          "at": 1792657757858,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_5LxNLv2Zu0N0DhlZvWtIY8rUXhvcRTod"
+        },
+        {
+          "at": 1792657757822,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 47,
+          "responseBytes": 480
+        },
+        {
+          "at": 1792657752237,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792657751688,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_5LxNLv2Zu0N0DhlZvWtIY8rUXhvcRTod"
+        },
+        {
+          "at": 1792657751679,
+          "model": "cdance2.0-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 828
+        },
+        {
+          "at": 1792657751676,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 50,
+          "responseBytes": 113
+        },
+        {
+          "at": 1792657751623,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "020d6ad9c9570a7a3884510709ce0525",
+          "durationMs": 626
+        },
+        {
+          "at": 1792657750997,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "parameters": "{\"model\":\"cdance2.0-0807\",\"duration\":5}"
+        },
+        {
+          "at": 1792657750841,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T08:29:10.831+00:00",
+      "updated_at": "2026-10-22T08:29:17.852+00:00",
+      "logical_model": "cdance2.0-0807",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 7002,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:29:17.84+00:00",
+          "idempotencyKey": "generation-refund:video-task:c0b3eb47-013a-4dd3-91f5-f5598b6672ae:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_5LxNLv2Zu0N0DhlZvWtIY8rUXhvcRTod",
+      "current_upstream_model": "cdance2.0-0807"
+    },
+    {
+      "id": "e0b6e641-a813-46aa-9870-15e57eb1e9bf",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792657576534,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657576530,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657576516,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657571858,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:26:11.846+00:00",
+      "updated_at": "2026-10-22T08:26:16.525+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 4677,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "8c1a128c-216a-4287-ac64-e2f609b90907",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657545456,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657545444,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657545433,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657545428,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 68,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657545159,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657543801,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657543794,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657543618,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 60382
+        },
+        {
+          "at": 1792657543613,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 5212,
+          "responseBytes": 4667955
+        },
+        {
+          "at": 1792657538399,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220824543750060638268d9d6yV2K46jn",
+          "durationMs": 55004
+        },
+        {
+          "at": 1792657483395,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792657483204,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657483198,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792657483188,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:24:43.181+00:00",
+      "updated_at": "2026-10-22T08:25:45.446+00:00",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 62267,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:25:43.781+00:00",
+          "idempotencyKey": "generation-refund:image-task:8c1a128c-216a-4287-ac64-e2f609b90907:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-all"
+    },
+    {
+      "id": "5d26538a-f733-4d64-acaa-0a0b64afdb0b",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792657527263,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657527259,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657527247,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657526737,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:25:26.727+00:00",
+      "updated_at": "2026-10-22T08:25:27.256+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 526,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "67221dde-d61b-41fd-8dd3-b89ae9e89835",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792657523531,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657523527,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657523514,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657521198,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:25:21.187+00:00",
+      "updated_at": "2026-10-22T08:25:23.523+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 2333,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "a2bf76f6-0351-4935-9d9c-7a9a98c90a7e",
+      "error": "Height must be between 300px and 6000px.",
+      "events": [
+        {
+          "at": 1792657518740,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_LwY3mgpPfj7cMkITYNezDj14THNhquZT"
+        },
+        {
+          "at": 1792657518705,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 237
+        },
+        {
+          "at": 1792657508576,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657503420,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657498272,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657493130,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 14,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657488035,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657482994,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657477953,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 7,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657477919,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_LwY3mgpPfj7cMkITYNezDj14THNhquZT"
+        },
+        {
+          "at": 1792657477908,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 219
+        },
+        {
+          "at": 1792657477905,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 198
+        },
+        {
+          "at": 1792657477900,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022082437721704720RI2ypSq2gRWRftnd",
+          "durationMs": 183
+        },
+        {
+          "at": 1792657477716,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"doubao-seedance-2-0\",\"duration\":5}"
+        },
+        {
+          "at": 1792657477685,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "mohui-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:24:37.672+00:00",
+      "updated_at": "2026-10-22T08:25:18.732+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 41048,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:25:18.723+00:00",
+          "idempotencyKey": "generation-refund:video-task:a2bf76f6-0351-4935-9d9c-7a9a98c90a7e:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_LwY3mgpPfj7cMkITYNezDj14THNhquZT",
+      "current_upstream_model": "doubao-seedance-2-0"
+    },
+    {
+      "id": "6d4c99e9-c018-48b1-b9d3-d740dc3670de",
+      "error": "Height must be between 300px and 6000px.",
+      "events": [
+        {
+          "at": 1792657515441,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_LroNO1cliPzzNKRrbSjjQQ2KiCliT1Ho"
+        },
+        {
+          "at": 1792657515405,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 237
+        },
+        {
+          "at": 1792657510270,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657505140,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657500012,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657494982,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657489808,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657484668,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657484629,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_LroNO1cliPzzNKRrbSjjQQ2KiCliT1Ho"
+        },
+        {
+          "at": 1792657484619,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 234
+        },
+        {
+          "at": 1792657484617,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 198
+        },
+        {
+          "at": 1792657484612,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220824445136915142l2yefu6aaK0UA2P",
+          "durationMs": 102
+        },
+        {
+          "at": 1792657484509,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"doubao-seedance-2-0\",\"duration\":4}"
+        },
+        {
+          "at": 1792657484382,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "mohui-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:24:44.372+00:00",
+      "updated_at": "2026-10-22T08:25:15.433+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 31044,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:25:15.421+00:00",
+          "idempotencyKey": "generation-refund:video-task:6d4c99e9-c018-48b1-b9d3-d740dc3670de:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_LroNO1cliPzzNKRrbSjjQQ2KiCliT1Ho",
+      "current_upstream_model": "doubao-seedance-2-0"
+    },
+    {
+      "id": "926bf84b-8771-40b1-9672-c2a4208f6ec3",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792657495026,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657495022,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657495009,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657493106,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:24:53.069+00:00",
+      "updated_at": "2026-10-22T08:24:55.018+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 1946,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "1eb652cc-4d5f-4809-84ff-a8583575738d",
+      "error": "自定义图片接口调用失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657481878,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657481869,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "自定义图片接口调用失败，状态码 403"
+        },
+        {
+          "at": 1792657481862,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 8,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657481833,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657481002,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657480994,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657480819,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 145413
+        },
+        {
+          "at": 1792657480812,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 32608,
+          "responseBytes": 8509442
+        },
+        {
+          "at": 1792657448202,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022082215435697351RI2ypSq2j9fvnJky",
+          "durationMs": 112771
+        },
+        {
+          "at": 1792657335430,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-c\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":78470,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792657335377,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657335360,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792657335341,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "tuzi-image-task",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:22:15.333+00:00",
+      "updated_at": "2026-10-22T08:24:41.871+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 146540,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:24:40.983+00:00",
+          "idempotencyKey": "generation-refund:image-task:1eb652cc-4d5f-4809-84ff-a8583575738d:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2.5-sunburst"
+    },
+    {
+      "id": "35e2aafb-b1ff-4311-9f84-00578eafa809",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657481144,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657481120,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657481109,
+          "model": "gpt-image-2-5-flare",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657481103,
+          "model": "gpt-image-2-5-flare",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 60,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657480326,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657480085,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657480072,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657480004,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 264994
+        },
+        {
+          "at": 1792657479997,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 41918,
+          "responseBytes": 6158062
+        },
+        {
+          "at": 1792657438076,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022082015169915980RI2ypSq2CRDvC43h",
+          "durationMs": 222920
+        },
+        {
+          "at": 1792657215157,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-c\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":2735496,\"type\":\"image/png\"},{\"size\":4988042,\"type\":\"image/jpeg\"},{\"size\":237403,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792657212938,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657212927,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792657212913,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:20:12.903+00:00",
+      "updated_at": "2026-10-22T08:24:41.13+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 268232,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:24:40.054+00:00",
+          "idempotencyKey": "generation-refund:image-task:35e2aafb-b1ff-4311-9f84-00578eafa809:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-5-flare"
+    },
+    {
+      "id": "263d1853-a1bf-4322-b849-a8d3f45d541c",
+      "error": "The request failed because the input image 'content[1]' 'content[2]' may contain real person. Request id: 021792657461531689dd86c635c9e312c9248b59ca51b20cfdfbc",
+      "events": [
+        {
+          "at": 1792657472884,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657472873,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "The request failed because the input image 'content[1]' 'content[2]' may contain real person. Request id: 021792657461531689dd86c635c9e312c9248b59ca51b20cfdfbc"
+        },
+        {
+          "at": 1792657472837,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "submit_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "Error",
+          "errorMessage": "The request failed because the input image 'content[1]' 'content[2]' may contain real person. Request id: 021792657461531689dd86c635c9e312c9248b59ca51b20cfdfbc"
+        },
+        {
+          "at": 1792657472834,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 26135,
+          "errorMessage": "The request failed because the input image 'content[1]' 'content[2]' may contain real person. Request id: 021792657461531689dd86c635c9e312c9248b59ca51b20cfdfbc"
+        },
+        {
+          "at": 1792657472832,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 2,
+          "responseBytes": 248
+        },
+        {
+          "at": 1792657472817,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220824071022444698268d9d6drNPyUwx",
+          "durationMs": 25920,
+          "errorMessage": "The request failed because the input image 'content[1]' 'content[2]' may contain real person. Request id: 021792657461531689dd86c635c9e312c9248b59ca51b20cfdfbc"
+        },
+        {
+          "at": 1792657446896,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "parameters": "{\"model\":\"doubao-seedance-2-0-260128\",\"duration\":5}"
+        },
+        {
+          "at": 1792657435078,
+          "model": "doubao-seedance-2-0-260128",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "tuzi-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:23:55.047+00:00",
+      "updated_at": "2026-10-22T08:24:32.861+00:00",
+      "logical_model": "doubao-seedance-2-0-260128",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 37811,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "doubao-seedance-2-0-260128"
+    },
+    {
+      "id": "5b646668-62e6-4e2f-9f99-881c7e97d5a1",
+      "error": "Unknown parameter: 'response_format'.",
+      "events": [
+        {
+          "at": 1792657446017,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657446005,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792657445991,
+          "model": "gpt-image-2-5-flare",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792657445987,
+          "model": "gpt-image-2-5-flare",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 10390,
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792657445982,
+          "model": "gpt-image-2-5-flare",
+          "phase": "upstream_body_complete",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 3,
+          "responseBytes": 139
+        },
+        {
+          "at": 1792657445962,
+          "model": "gpt-image-2-5-flare",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 10298,
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792657435664,
+          "model": "gpt-image-2-5-flare",
+          "phase": "upstream_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "parameters": "{\"model\":\"gpt-image-2-5-flare\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"jpeg\",\"files\":[{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792657435552,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657435546,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "running",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792657435533,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:23:55.525+00:00",
+      "updated_at": "2026-10-22T08:24:06.007+00:00",
+      "logical_model": "gpt-image-2-5-flare",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 10484,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-5-flare"
+    },
+    {
+      "id": "0d60e672-7d03-4837-863c-3597d51d98c7",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657422056,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657422047,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657422024,
+          "model": "gpt-image-2-5-flare",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657422020,
+          "model": "gpt-image-2-5-flare",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 50,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657421821,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657420424,
+          "model": "gpt-image-2-5-flare",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657420416,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657420243,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 123945
+        },
+        {
+          "at": 1792657420238,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 30468,
+          "responseBytes": 4490500
+        },
+        {
+          "at": 1792657389768,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220821363924612412l2yefu6lQ5Pv8x4",
+          "durationMs": 93383
+        },
+        {
+          "at": 1792657296384,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792657296054,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657296045,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792657296034,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:21:36.026+00:00",
+      "updated_at": "2026-10-22T08:23:42.049+00:00",
+      "logical_model": "gpt-image-2-all",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 126025,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:23:40.4+00:00",
+          "idempotencyKey": "generation-refund:image-task:0d60e672-7d03-4837-863c-3597d51d98c7:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-5-flare"
+    },
+    {
+      "id": "5a971f48-0004-4d75-8849-64a442eb3d76",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792657414530,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657414522,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657414494,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657368058,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:22:48.046+00:00",
+      "updated_at": "2026-10-22T08:23:34.517+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 46458,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "835bc1ab-e703-460c-a824-084dcf39350a",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792657400748,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657400745,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657400730,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657400422,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:23:20.408+00:00",
+      "updated_at": "2026-10-22T08:23:20.741+00:00",
+      "logical_model": "official/seedance-2",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 329,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2"
+    },
+    {
+      "id": "c141d684-0f60-4805-becb-966894d5c51b",
+      "error": "ModelBay 素材接口返回 HTTP 403",
+      "events": [
+        {
+          "at": 1792657394492,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        },
+        {
+          "at": 1792657394488,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657394473,
+          "model": "official/seedance-2-5",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "Error",
+          "errorMessage": "ModelBay 素材接口返回 HTTP 403"
+        },
+        {
+          "at": 1792657392160,
+          "model": "official/seedance-2-5",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "modelbay-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:23:12.144+00:00",
+      "updated_at": "2026-10-22T08:23:14.484+00:00",
+      "logical_model": "official/seedance-2-5",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 2336,
+        "successCount": 0
+      },
+      "refund_records": [],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "official/seedance-2-5"
+    },
+    {
+      "id": "da4e8820-35cc-4579-9975-f9d92b39ca19",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657325745,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657325734,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657325727,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "provider_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657325724,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 13,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657325684,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657325044,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657325036,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657324861,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 127336
+        },
+        {
+          "at": 1792657324854,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 40226,
+          "responseBytes": 8146195
+        },
+        {
+          "at": 1792657284626,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022082001360225505RI2ypSq2GnKsjJqg",
+          "durationMs": 87060
+        },
+        {
+          "at": 1792657197568,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-c\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":78470,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792657197501,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657197491,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792657197480,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "X9te4qOV0ZaPsJpErRRWS",
+      "created_at": "2026-10-22T08:19:57.469+00:00",
+      "updated_at": "2026-10-22T08:22:05.736+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 128269,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:22:05.025+00:00",
+          "idempotencyKey": "generation-refund:image-task:da4e8820-35cc-4579-9975-f9d92b39ca19:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-5-sunburst"
+    },
+    {
+      "id": "e2307a7a-c59b-45cd-a00b-7a5bd58c4b1b",
+      "error": "自定义图片接口调用失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657243968,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657243956,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "自定义图片接口调用失败，状态码 403"
+        },
+        {
+          "at": 1792657243946,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 145,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657241528,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657241216,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657241208,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657241000,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 187037
+        },
+        {
+          "at": 1792657240994,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 8895,
+          "responseBytes": 6479745
+        },
+        {
+          "at": 1792657232097,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022081734094497441RI2ypSq2vLheg7S0",
+          "durationMs": 178017
+        },
+        {
+          "at": 1792657054080,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-c\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":2735496,\"type\":\"image/png\"},{\"size\":4988042,\"type\":\"image/jpeg\"},{\"size\":237403,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792657053769,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657053755,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792657053744,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "tuzi-image-task",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:17:33.736+00:00",
+      "updated_at": "2026-10-22T08:20:43.957+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 190224,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:20:41.196+00:00",
+          "idempotencyKey": "generation-refund:image-task:e2307a7a-c59b-45cd-a00b-7a5bd58c4b1b:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2.5-sunburst"
+    },
+    {
+      "id": "f0bbc560-0acf-4cea-a564-bb84cde045f8",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657227530,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657227518,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657227505,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792657227500,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 44,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657225240,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657224096,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657224089,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657223881,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 200587
+        },
+        {
+          "at": 1792657223872,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4928,
+          "responseBytes": 4542176
+        },
+        {
+          "at": 1792657218942,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022081703596707166RI2ypSq2ctlWqVJa",
+          "durationMs": 195357
+        },
+        {
+          "at": 1792657023585,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-c\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":5194984,\"type\":\"image/png\"}]}"
+        },
+        {
+          "at": 1792657019459,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657019451,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792657019439,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:16:59.431+00:00",
+      "updated_at": "2026-10-22T08:20:27.521+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 208092,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:20:24.078+00:00",
+          "idempotencyKey": "generation-refund:image-task:f0bbc560-0acf-4cea-a564-bb84cde045f8:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2-all"
+    },
+    {
+      "id": "0f40657d-89a2-4e4d-91bf-406f7f975893",
+      "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[3] 素材处理失败 [素材 as_01M5HB3YJRDWY5ZVP7V68D76QG 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+      "events": [
+        {
+          "at": 1792657210525,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_XsxBy09c9nnWxbiauOg5vy9pOoOaahfF"
+        },
+        {
+          "at": 1792657210494,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 480
+        },
+        {
+          "at": 1792657198008,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792657192546,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 3,
+          "responseBytes": 187
+        },
+        {
+          "at": 1792657192068,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_XsxBy09c9nnWxbiauOg5vy9pOoOaahfF"
+        },
+        {
+          "at": 1792657192058,
+          "model": "cdance2.0-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 1335
+        },
+        {
+          "at": 1792657192055,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 32,
+          "responseBytes": 113
+        },
+        {
+          "at": 1792657192020,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "02176ad9c7270a7a1f4f907feed58ade",
+          "durationMs": 1099
+        },
+        {
+          "at": 1792657190920,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "parameters": "{\"model\":\"cdance2.0-0807\",\"duration\":5}"
+        },
+        {
+          "at": 1792657190719,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T08:19:50.711+00:00",
+      "updated_at": "2026-10-22T08:20:10.52+00:00",
+      "logical_model": "cdance2.0-0807",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 19790,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:20:10.508+00:00",
+          "idempotencyKey": "generation-refund:video-task:0f40657d-89a2-4e4d-91bf-406f7f975893:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_XsxBy09c9nnWxbiauOg5vy9pOoOaahfF",
+      "current_upstream_model": "cdance2.0-0807"
+    },
+    {
+      "id": "ddd49370-7628-4396-8616-a0150348d753",
+      "error": "素材尺寸不符合要求，宽度和高度需在 300 至 6000 像素之间。 content[4] 素材处理失败 [素材 as_01M5HB3Z3SY0Y3MX34JF22DX4D 状态为 Failed: AssetProcessingFailed Height must be between 300px and 6000px.]",
+      "events": [
+        {
+          "at": 1792657210450,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_itD8m4Qg9u3qifyB6AfECljwKtwa0iYq"
+        },
+        {
+          "at": 1792657210403,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 8,
+          "responseBytes": 480
+        },
+        {
+          "at": 1792657202485,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_itD8m4Qg9u3qifyB6AfECljwKtwa0iYq"
+        },
+        {
+          "at": 1792657202477,
+          "model": "cdance2.0-0807",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 553
+        },
+        {
+          "at": 1792657202473,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_body_complete",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "durationMs": 30,
+          "responseBytes": 113
+        },
+        {
+          "at": 1792657202442,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "requestId": "02176ad9c7320a7af2c2a6a6fd4bda8c",
+          "durationMs": 489
+        },
+        {
+          "at": 1792657201953,
+          "model": "cdance2.0-0807",
+          "phase": "upstream_request",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "parameters": "{\"model\":\"cdance2.0-0807\",\"duration\":5}"
+        },
+        {
+          "at": 1792657201920,
+          "model": "cdance2.0-0807",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "wD0cO6S6cyhbyvYIRDE28",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "wD0cO6S6cyhbyvYIRDE28",
+      "created_at": "2026-10-22T08:20:01.908+00:00",
+      "updated_at": "2026-10-22T08:20:10.444+00:00",
+      "logical_model": "cdance2.0-0807",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 8508,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:20:10.433+00:00",
+          "idempotencyKey": "generation-refund:video-task:ddd49370-7628-4396-8616-a0150348d753:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_itD8m4Qg9u3qifyB6AfECljwKtwa0iYq",
+      "current_upstream_model": "cdance2.0-0807"
+    },
+    {
+      "id": "b20c6637-ec78-45f1-a932-f5f00ccbde84",
+      "error": "Height must be between 300px and 6000px.",
+      "events": [
+        {
+          "at": 1792657171608,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed",
+          "upstreamTaskId": "task_6HdWVyqtxofygmpWDXGi9w7pJkszhQdr"
+        },
+        {
+          "at": 1792657171524,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 237
+        },
+        {
+          "at": 1792657156334,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 6,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792657142837,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 4,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792657132664,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792657127609,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792657122565,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792657117436,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 143
+        },
+        {
+          "at": 1792657112294,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657107164,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657102015,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 8,
+          "responseBytes": 142
+        },
+        {
+          "at": 1792657101975,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitted",
+          "upstreamTaskId": "task_6HdWVyqtxofygmpWDXGi9w7pJkszhQdr"
+        },
+        {
+          "at": 1792657101965,
+          "model": "doubao-seedance-2-0",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 866
+        },
+        {
+          "at": 1792657101962,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 3,
+          "responseBytes": 198
+        },
+        {
+          "at": 1792657101958,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022081821791307557RI2ypSq27DNTfVSN",
+          "durationMs": 181
+        },
+        {
+          "at": 1792657101777,
+          "model": "doubao-seedance-2-0",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"doubao-seedance-2-0\",\"duration\":5}"
+        },
+        {
+          "at": 1792657101094,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "protocol": "mohui-seedance",
+      "task_type": "video",
+      "api_format": "openai",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:18:21.085+00:00",
+      "updated_at": "2026-10-22T08:19:31.597+00:00",
+      "logical_model": "doubao-seedance-2-0",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 70473,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:19:31.572+00:00",
+          "idempotencyKey": "generation-refund:video-task:b20c6637-ec78-45f1-a932-f5f00ccbde84:refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": "task_6HdWVyqtxofygmpWDXGi9w7pJkszhQdr",
+      "current_upstream_model": "doubao-seedance-2-0"
+    },
+    {
+      "id": "49cd0560-8c62-4074-93c0-9f420e07dd0f",
+      "error": "自定义图片接口调用失败，状态码 403",
+      "events": [
+        {
+          "at": 1792657081484,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792657081471,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "自定义图片接口调用失败，状态码 403"
+        },
+        {
+          "at": 1792657081462,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 11,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792657081426,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792657080935,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792657080923,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792657080691,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 248780
+        },
+        {
+          "at": 1792657080685,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 20134,
+          "responseBytes": 7702346
+        },
+        {
+          "at": 1792657060548,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022081351950265652RI2ypSq2sH9bindU",
+          "durationMs": 228610
+        },
+        {
+          "at": 1792656831934,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":78470,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792656831881,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656831857,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656831842,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "tuzi-image-task",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:13:51.831+00:00",
+      "updated_at": "2026-10-22T08:18:01.473+00:00",
+      "logical_model": "gpt-image-2-all",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 249645,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:18:00.906+00:00",
+          "idempotencyKey": "generation-refund:image-task:49cd0560-8c62-4074-93c0-9f420e07dd0f:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2.5-sunburst"
+    },
+    {
+      "id": "91d825ee-3793-463e-a9b1-807c9dda90d6",
+      "error": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792656953042,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792656953000,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656952968,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorName": "GenerationSubmissionSafeFailure",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792656952945,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 148,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792656949184,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656948999,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792656948991,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorName": "RangeError",
+          "errorMessage": "Maximum call stack size exceeded"
+        },
+        {
+          "at": 1792656948716,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 208081
+        },
+        {
+          "at": 1792656948697,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 12942,
+          "responseBytes": 6270209
+        },
+        {
+          "at": 1792656935752,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220812207332783652l2yefu6gXyB98tX",
+          "durationMs": 195029
+        },
+        {
+          "at": 1792656740722,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":2735496,\"type\":\"image/png\"},{\"size\":4988042,\"type\":\"image/jpeg\"},{\"size\":237403,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792656740345,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792656740336,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792656740325,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        }
+      ],
+      "status": "error",
+      "protocol": "newapi",
+      "task_type": "image",
+      "api_format": "openai",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:12:20.317+00:00",
+      "updated_at": "2026-10-22T08:15:53.003+00:00",
+      "logical_model": "gpt-image-2-all",
+      "generation_log": {
+        "status": "failed",
+        "failCount": 1,
+        "durationMs": 212693,
+        "successCount": 0
+      },
+      "refund_records": [
+        {
+          "type": "refund",
+          "amount": 1.0,
+          "createdAt": "2026-10-22T08:15:48.979+00:00",
+          "idempotencyKey": "generation-refund:image-task:91d825ee-3793-463e-a9b1-807c9dda90d6:attempt:1:response-refund"
+        }
+      ],
+      "execution_phase": "completed",
+      "upstream_task_id": null,
+      "current_upstream_model": "gpt-image-2"
+    }
+  ],
+  "earlier_active_status": [
+    {
+      "id": "cc574f05-abe2-4e46-8ebb-f9b3c7cab49e",
+      "error": null,
+      "status": "success",
+      "task_type": "video",
+      "created_at": "2026-10-22T08:13:40.055+00:00",
+      "updated_at": "2026-10-22T08:22:43.474+00:00",
+      "lease_until": null,
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "success",
+        "durationMs": 543424,
+        "completedAt": "2026-10-22T08:22:43.479+00:00"
+      },
+      "execution_phase": "completed",
+      "upstream_task_id": "task_ImyhZBxrTObp7ldIhgkh29BjPDGC4EYw",
+      "last_heartbeat_at": "2026-10-22T08:22:35.081+00:00"
+    },
+    {
+      "id": "f88741ae-d78e-4225-8dcd-3afdb9ecd25b",
+      "error": null,
+      "status": "success",
+      "task_type": "video",
+      "created_at": "2026-10-22T08:16:27.004+00:00",
+      "updated_at": "2026-10-22T08:23:51.626+00:00",
+      "lease_until": null,
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "success",
+        "durationMs": 444627,
+        "completedAt": "2026-10-22T08:23:51.631+00:00"
+      },
+      "execution_phase": "completed",
+      "upstream_task_id": "task_aIWwVaiMYcc8yiey4uNDT9h9xaBZJ2Kz",
+      "last_heartbeat_at": "2026-10-22T08:23:49.316+00:00"
+    },
+    {
+      "id": "8a27def2-84df-476c-981e-ed1965522325",
+      "error": null,
+      "status": "success",
+      "task_type": "video",
+      "created_at": "2026-10-22T08:11:17.795+00:00",
+      "updated_at": "2026-10-22T08:25:46.575+00:00",
+      "lease_until": null,
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "success",
+        "durationMs": 868784,
+        "completedAt": "2026-10-22T08:25:46.579+00:00"
+      },
+      "execution_phase": "completed",
+      "upstream_task_id": "task_vaXqnSWWL4wAL3ePJUC2MAdWZF7Gx7lV",
+      "last_heartbeat_at": "2026-10-22T08:25:45.72+00:00"
+    },
+    {
+      "id": "888d3de5-de5d-4ddb-af7c-4ffa82383ff9",
+      "error": null,
+      "status": "success",
+      "task_type": "video",
+      "created_at": "2026-10-22T08:15:23.408+00:00",
+      "updated_at": "2026-10-22T08:31:41.975+00:00",
+      "lease_until": null,
+      "next_poll_at": null,
+      "generation_log": {
+        "status": "success",
+        "durationMs": 978571,
+        "completedAt": "2026-10-22T08:31:41.979+00:00"
+      },
+      "execution_phase": "completed",
+      "upstream_task_id": "task_BOgL4NJwlziFJ4w8kK16DY2Zbts86CWq",
+      "last_heartbeat_at": "2026-10-22T08:31:39.415+00:00"
+    }
+  ]
+}

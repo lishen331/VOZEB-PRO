@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-21T11:07:09.810592+00:00",
+  "id": "ae9c318b-6ec4-4450-8e65-1068b470429a",
+  "events": [
+    {
+      "at": 1792580350152,
+      "model": "gpt-image-2",
+      "phase": "upstream_response",
+      "status": 200,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "requestId": "202610211058293860471028268d9d6zlyuRGo0",
+      "durationMs": 43040,
+      "contentType": "application/json"
+    },
+    {
+      "at": 1792580350155,
+      "model": "gpt-image-2",
+      "phase": "upstream_body_first_byte",
+      "idleMs": 0,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "durationMs": 0,
+      "contentType": "application/json",
+      "firstByteMs": 0,
+      "contentLength": -1,
+      "responseBytes": 19621
+    },
+    {
+      "at": 1792580668179,
+      "model": "gpt-image-2",
+      "phase": "upstream_body_complete",
+      "idleMs": 0,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "durationMs": 318023,
+      "contentType": "application/json",
+      "firstByteMs": 0,
+      "contentLength": -1,
+      "responseBytes": 3831548
+    },
+    {
+      "at": 1792580668186,
+      "model": "gpt-image-2",
+      "phase": "transport_response",
+      "status": 200,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "durationMs": 361181,
+      "contentType": "application/json"
+    }
+  ],
+  "status": "success",
+  "createdAt": "2026-10-21T10:58:26.966+00:00",
+  "updatedAt": "2026-10-21T11:04:28.668+00:00",
+  "currentConfigTimeoutMs": null,
+  "currentConfigLogicalModel": "gpt-image-2",
+  "currentConfigUpstreamModel": "gpt-image-2"
+}

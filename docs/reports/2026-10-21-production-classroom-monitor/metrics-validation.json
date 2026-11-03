@@ -1,0 +1,17 @@
+{
+  "verifiedAt": "2026-10-21T16:06:14.710Z",
+  "metricsAt": "2026-10-21T16:05:33.622027+00:00",
+  "metricsReadAttempts": 1,
+  "metricsLagSeconds": 41,
+  "overall": 472,
+  "accounts": 15,
+  "models": 10,
+  "channels": 14,
+  "allStatusTotalsReconciled": true,
+  "successRateFormulasChecked": true,
+  "timingRecomputedFromTimestamps": true,
+  "actualModelAttributionChecked": true,
+  "publicUtf8AndCredentialPatternScanPassed": true,
+  "allTablesRendered": true,
+  "readOnlyMonitoringFresh": true
+}

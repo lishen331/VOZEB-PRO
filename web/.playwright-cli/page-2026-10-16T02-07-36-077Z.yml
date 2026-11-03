@@ -1,0 +1,37 @@
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - img [ref=e5]
+    - generic [ref=e7]:
+      - generic [ref=e10]:
+        - img "中国动漫集团与 BLUEGAMMA 广东 AIGC 培训产教融合基地联合品牌" [ref=e11]
+        - generic [ref=e12]:
+          - paragraph [ref=e13]: 以热爱，燃未来
+          - heading "AIGC 智能影像教学平台" [level=1] [ref=e14]
+        - generic [ref=e15]:
+          - generic [ref=e16]: 用户名或邮箱
+          - generic [ref=e17]:
+            - img [ref=e19]
+            - textbox "用户名或邮箱" [ref=e22]:
+              - /placeholder: 请输入用户名或邮箱
+        - generic [ref=e23]:
+          - generic [ref=e24]: 密码
+          - generic [ref=e25]:
+            - img [ref=e27]
+            - textbox "密码 显示" [ref=e31]:
+              - /placeholder: 请输入密码
+            - button "显示" [ref=e33] [cursor=pointer]:
+              - img "eye-invisible" [ref=e34]:
+                - img [ref=e35]
+        - button "登 录" [disabled] [ref=e38]:
+          - generic: 登 录
+        - generic [ref=e39] [cursor=pointer]:
+          - checkbox "我已阅读并同意服务条款和隐私政策" [ref=e41]
+          - generic [ref=e43]:
+            - text: 我已阅读并同意
+            - link "服务条款" [ref=e44]:
+              - /url: /terms
+            - text: 和
+            - link "隐私政策" [ref=e45]:
+              - /url: /privacy
+      - paragraph [ref=e47]: © 2026 BLUEGAMMA. All rights reserved.
+  - alert [ref=e48]

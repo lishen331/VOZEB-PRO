@@ -1,0 +1,2859 @@
+[
+  {
+    "kind": "text",
+    "model": "gpt-5.6-luna",
+    "originalRequestedModel": "gpt-5.6-luna",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "postWithoutReturnedTaskId": 2,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 2,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 87.5,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 14,
+    "initialAttemptSamples": 14,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 3.134,
+      "median": 2.293,
+      "p95": 8.607,
+      "min": 1.519,
+      "max": 8.607
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 14,
+    "successNativeRefreshed": 14,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.216,
+      "median": 0.014,
+      "p95": 0.419,
+      "min": 0.014,
+      "max": 0.419
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 3.116,
+      "median": 2.288,
+      "p95": 8.601,
+      "min": 1.514,
+      "max": 8.601
+    },
+    "actualAttemptSuccess": 14,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 14/14成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 14/16；服务器无task拒绝 2；任务失败 0；成功刷新 14/14"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5",
+    "originalRequestedModel": "gpt-5",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "postWithoutReturnedTaskId": 2,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 2,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 87.5,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 14,
+    "initialAttemptSamples": 14,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 20.57,
+      "median": 10.797,
+      "p95": 50.001,
+      "min": 5.616,
+      "max": 50.001
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 14,
+    "successNativeRefreshed": 14,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.166,
+      "median": 0.159,
+      "p95": 0.174,
+      "min": 0.159,
+      "max": 0.174
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 20.564,
+      "median": 10.791,
+      "p95": 49.995,
+      "min": 5.611,
+      "max": 49.995
+    },
+    "actualAttemptSuccess": 14,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 14/14成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 14/16；服务器无task拒绝 2；任务失败 0；成功刷新 14/14"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5-mini",
+    "originalRequestedModel": "gpt-5-mini",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "postWithoutReturnedTaskId": 2,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 2,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 87.5,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 14,
+    "initialAttemptSamples": 14,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 14.472,
+      "median": 10.113,
+      "p95": 44.026,
+      "min": 4.642,
+      "max": 44.026
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 14,
+    "successNativeRefreshed": 14,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.204,
+      "median": 0.175,
+      "p95": 0.232,
+      "min": 0.175,
+      "max": 0.232
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 14.452,
+      "median": 10.108,
+      "p95": 44.021,
+      "min": 4.634,
+      "max": 44.021
+    },
+    "actualAttemptSuccess": 14,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 14/14成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 14/16；服务器无task拒绝 2；任务失败 0；成功刷新 14/14"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5-pro",
+    "originalRequestedModel": "gpt-5-pro",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "postWithoutReturnedTaskId": 2,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 2,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "finalSuccessRatePct": 0,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 0,
+    "initialAttemptSamples": 14,
+    "initialAttemptSuccessRatePct": 0,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 14,
+      "mean": 2.994,
+      "median": 1.848,
+      "p95": 9.181,
+      "min": 1.367,
+      "max": 9.181
+    },
+    "successNativeVisible": 0,
+    "successNativeRefreshed": 0,
+    "failedNativeDisplayed": 16,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "当前暂不开放该模型的失败绑定；修复明确原因后重测，不永久禁用整渠道",
+    "errorExamples": [
+      "The request rate limit has been reached. Please try again later.",
+      "Current group upstream load is saturated, please try again later",
+      "The model service is temporarily unavailable. Please try again later.",
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 14,
+      "mean": 2.994,
+      "median": 1.848,
+      "p95": 9.181,
+      "min": 1.367,
+      "max": 9.181
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.135,
+      "median": 0.077,
+      "p95": 0.193,
+      "min": 0.077,
+      "max": 0.193
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "actualAttemptSuccess": 0,
+    "actualAttemptFailure": 14,
+    "actualAttemptSuccessRatePct": 0,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "当前配置未取得成功；已建任务的明确错误：The request rate limit has been reached. Please try again later.；Current group upstream load is saturated, please try again later；The model service is temporarily unavailable. Please try again later.",
+    "platformClassroomReliability": "端到端 0/16；服务器无task拒绝 2；任务失败 14；成功刷新 0/0"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.1",
+    "originalRequestedModel": "gpt-5.1",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "postWithoutReturnedTaskId": 2,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 2,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 87.5,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 14,
+    "initialAttemptSamples": 14,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.408,
+      "median": 2.002,
+      "p95": 6.052,
+      "min": 1.206,
+      "max": 6.052
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 14,
+    "successNativeRefreshed": 14,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.07,
+      "median": 0.049,
+      "p95": 0.091,
+      "min": 0.049,
+      "max": 0.091
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 2.401,
+      "median": 1.997,
+      "p95": 6.048,
+      "min": 1.199,
+      "max": 6.048
+    },
+    "actualAttemptSuccess": 14,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 14/14成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 14/16；服务器无task拒绝 2；任务失败 0；成功刷新 14/14"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.2",
+    "originalRequestedModel": "gpt-5.2",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 13,
+    "postWithoutReturnedTaskId": 3,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 3,
+    "success": 13,
+    "failure": 3,
+    "pending": 0,
+    "finalSuccessRatePct": 81.25,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 13,
+    "initialAttemptSamples": 13,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 13,
+    "successLatencySeconds": {
+      "n": 13,
+      "mean": 5.747,
+      "median": 3.002,
+      "p95": 31.323,
+      "min": 1.672,
+      "max": 31.323
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 13,
+    "successNativeRefreshed": 13,
+    "failedNativeDisplayed": 3,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 13,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 3,
+      "mean": 0.121,
+      "median": 0.086,
+      "p95": 0.254,
+      "min": 0.022,
+      "max": 0.254
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 13,
+      "mean": 5.728,
+      "median": 2.985,
+      "p95": 31.302,
+      "min": 1.667,
+      "max": 31.302
+    },
+    "actualAttemptSuccess": 13,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 13/13成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 13/16；服务器无task拒绝 3；任务失败 0；成功刷新 13/13"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.4",
+    "originalRequestedModel": "gpt-5.4",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 13,
+    "postWithoutReturnedTaskId": 3,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 3,
+    "success": 13,
+    "failure": 3,
+    "pending": 0,
+    "finalSuccessRatePct": 81.25,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 13,
+    "initialAttemptSamples": 13,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 13,
+    "successLatencySeconds": {
+      "n": 13,
+      "mean": 2.483,
+      "median": 2.099,
+      "p95": 5.227,
+      "min": 1.363,
+      "max": 5.227
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 13,
+    "successNativeRefreshed": 13,
+    "failedNativeDisplayed": 3,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 13,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 3,
+      "mean": 0.153,
+      "median": 0.13,
+      "p95": 0.2,
+      "min": 0.129,
+      "max": 0.2
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 13,
+      "mean": 2.438,
+      "median": 2.094,
+      "p95": 5.223,
+      "min": 1.303,
+      "max": 5.223
+    },
+    "actualAttemptSuccess": 13,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 13/13成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 13/16；服务器无task拒绝 3；任务失败 0；成功刷新 13/13"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.4-mini",
+    "originalRequestedModel": "gpt-5.4-mini",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "postWithoutReturnedTaskId": 2,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 2,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 87.5,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 14,
+    "initialAttemptSamples": 14,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.593,
+      "median": 2.54,
+      "p95": 5.506,
+      "min": 1.136,
+      "max": 5.506
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 14,
+    "successNativeRefreshed": 14,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.163,
+      "median": 0.128,
+      "p95": 0.197,
+      "min": 0.128,
+      "max": 0.197
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 2.587,
+      "median": 2.534,
+      "p95": 5.501,
+      "min": 1.131,
+      "max": 5.501
+    },
+    "actualAttemptSuccess": 14,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 14/14成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 14/16；服务器无task拒绝 2；任务失败 0；成功刷新 14/14"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.4-pro",
+    "originalRequestedModel": "gpt-5.4-pro",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 15,
+    "postWithoutReturnedTaskId": 1,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 1,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "finalSuccessRatePct": 0,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 0,
+    "initialAttemptSamples": 15,
+    "initialAttemptSuccessRatePct": 0,
+    "allAttemptSamples": 15,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 15,
+      "mean": 6.771,
+      "median": 5.239,
+      "p95": 18.787,
+      "min": 3.555,
+      "max": 18.787
+    },
+    "successNativeVisible": 0,
+    "successNativeRefreshed": 0,
+    "failedNativeDisplayed": 16,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "当前暂不开放该模型的失败绑定；修复明确原因后重测，不永久禁用整渠道",
+    "errorExamples": [
+      "The model service is temporarily unavailable. Please try again later.",
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 15,
+      "mean": 6.771,
+      "median": 5.239,
+      "p95": 18.787,
+      "min": 3.555,
+      "max": 18.787
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 1,
+      "mean": 0.138,
+      "median": 0.138,
+      "p95": 0.138,
+      "min": 0.138,
+      "max": 0.138
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "actualAttemptSuccess": 0,
+    "actualAttemptFailure": 15,
+    "actualAttemptSuccessRatePct": 0,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "当前配置未取得成功；已建任务的明确错误：The model service is temporarily unavailable. Please try again later.",
+    "platformClassroomReliability": "端到端 0/16；服务器无task拒绝 1；任务失败 15；成功刷新 0/0"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.5",
+    "originalRequestedModel": "gpt-5.5",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 15,
+    "postWithoutReturnedTaskId": 1,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 1,
+    "success": 15,
+    "failure": 1,
+    "pending": 0,
+    "finalSuccessRatePct": 93.75,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 15,
+    "initialAttemptSamples": 15,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 15,
+    "successLatencySeconds": {
+      "n": 15,
+      "mean": 3.53,
+      "median": 3.074,
+      "p95": 6.763,
+      "min": 2.031,
+      "max": 6.763
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 15,
+    "successNativeRefreshed": 15,
+    "failedNativeDisplayed": 1,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 15,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 1,
+      "mean": 0.067,
+      "median": 0.067,
+      "p95": 0.067,
+      "min": 0.067,
+      "max": 0.067
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 15,
+      "mean": 3.522,
+      "median": 3.059,
+      "p95": 6.757,
+      "min": 2.025,
+      "max": 6.757
+    },
+    "actualAttemptSuccess": 15,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 15/15成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 15/16；服务器无task拒绝 1；任务失败 0；成功刷新 15/15"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.5-pro",
+    "originalRequestedModel": "gpt-5.5-pro",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 15,
+    "postWithoutReturnedTaskId": 1,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 1,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "finalSuccessRatePct": 0,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 0,
+    "initialAttemptSamples": 15,
+    "initialAttemptSuccessRatePct": 0,
+    "allAttemptSamples": 15,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 15,
+      "mean": 1.412,
+      "median": 1.215,
+      "p95": 4.073,
+      "min": 0.639,
+      "max": 4.073
+    },
+    "successNativeVisible": 0,
+    "successNativeRefreshed": 0,
+    "failedNativeDisplayed": 16,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "当前暂不开放该模型的失败绑定；修复明确原因后重测，不永久禁用整渠道",
+    "errorExamples": [
+      "The model service is temporarily unavailable. Please try again later.",
+      "Current group upstream load is saturated, please try again later",
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 15,
+      "mean": 1.412,
+      "median": 1.215,
+      "p95": 4.073,
+      "min": 0.639,
+      "max": 4.073
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 1,
+      "mean": 0.084,
+      "median": 0.084,
+      "p95": 0.084,
+      "min": 0.084,
+      "max": 0.084
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "actualAttemptSuccess": 0,
+    "actualAttemptFailure": 15,
+    "actualAttemptSuccessRatePct": 0,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "当前配置未取得成功；已建任务的明确错误：The model service is temporarily unavailable. Please try again later.；Current group upstream load is saturated, please try again later",
+    "platformClassroomReliability": "端到端 0/16；服务器无task拒绝 1；任务失败 15；成功刷新 0/0"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.6-sol",
+    "originalRequestedModel": "gpt-5.6-sol",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "postWithoutReturnedTaskId": 2,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 2,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 87.5,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 14,
+    "initialAttemptSamples": 14,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 4.715,
+      "median": 3.307,
+      "p95": 11.819,
+      "min": 2.106,
+      "max": 11.819
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 14,
+    "successNativeRefreshed": 14,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.108,
+      "median": 0.088,
+      "p95": 0.129,
+      "min": 0.088,
+      "max": 0.129
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 4.7,
+      "median": 3.302,
+      "p95": 11.814,
+      "min": 2.1,
+      "max": 11.814
+    },
+    "actualAttemptSuccess": 14,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 14/14成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 14/16；服务器无task拒绝 2；任务失败 0；成功刷新 14/14"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-5.6-terra",
+    "originalRequestedModel": "gpt-5.6-terra",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "postWithoutReturnedTaskId": 2,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 2,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 87.5,
+    "configuredPrimaryChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "initialActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "finalActualChannels": [
+      "模汇x中漫 API gpt文本"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 14,
+    "initialAttemptSamples": 14,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.877,
+      "median": 2.252,
+      "p95": 6.589,
+      "min": 1.546,
+      "max": 6.589
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 14,
+    "successNativeRefreshed": 14,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；先定位并修复/复测平台准入拒绝，再确认课堂开放",
+    "errorExamples": [
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.072,
+      "median": 0.039,
+      "p95": 0.106,
+      "min": 0.039,
+      "max": 0.106
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 2.868,
+      "median": 2.243,
+      "p95": 6.584,
+      "min": 1.528,
+      "max": 6.584
+    },
+    "actualAttemptSuccess": 14,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "实际执行attempt 14/14成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 14/16；服务器无task拒绝 2；任务失败 0；成功刷新 14/14"
+  },
+  {
+    "kind": "text",
+    "model": "codex-auto-review",
+    "originalRequestedModel": "codex-auto-review",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 5,
+    "postWithoutReturnedTaskId": 11,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 11,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "finalSuccessRatePct": 0,
+    "configuredPrimaryChannels": [
+      "昱梦渠道 gpt"
+    ],
+    "initialActualChannels": [
+      "昱梦渠道 gpt"
+    ],
+    "finalActualChannels": [
+      "昱梦渠道 gpt"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 0,
+    "initialAttemptSamples": 5,
+    "initialAttemptSuccessRatePct": 0,
+    "allAttemptSamples": 5,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 5,
+      "mean": 3.152,
+      "median": 1.444,
+      "p95": 10.653,
+      "min": 0.967,
+      "max": 10.653
+    },
+    "successNativeVisible": 0,
+    "successNativeRefreshed": 0,
+    "failedNativeDisplayed": 16,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "当前暂不开放该模型的失败绑定；修复明确原因后重测，不永久禁用整渠道",
+    "errorExamples": [
+      "无权访问 企业专供oai 分组",
+      "当前文本模型暂不可用，请切换模型或稍后重试",
+      "文本生成失败，状态码 502"
+    ],
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 5,
+      "mean": 3.152,
+      "median": 1.444,
+      "p95": 10.653,
+      "min": 0.967,
+      "max": 10.653
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 11,
+      "mean": 0.271,
+      "median": 0.278,
+      "p95": 0.635,
+      "min": 0.018,
+      "max": 0.635
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "actualAttemptSuccess": 0,
+    "actualAttemptFailure": 5,
+    "actualAttemptSuccessRatePct": 0,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "当前配置未取得成功；已建任务的明确错误：无权访问 企业专供oai 分组；文本生成失败，状态码 502",
+    "platformClassroomReliability": "端到端 0/16；服务器无task拒绝 11；任务失败 5；成功刷新 0/0"
+  },
+  {
+    "kind": "text",
+    "model": "gpt-6-astra",
+    "originalRequestedModel": "gpt-6-astra",
+    "target": 16,
+    "submittedSamples": 16,
+    "taskSamples": 3,
+    "postWithoutReturnedTaskId": 13,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 13,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "finalSuccessRatePct": 0,
+    "configuredPrimaryChannels": [
+      "昱梦渠道 gpt"
+    ],
+    "initialActualChannels": [
+      "昱梦渠道 gpt"
+    ],
+    "finalActualChannels": [
+      "昱梦渠道 gpt"
+    ],
+    "actualOriginalChannels": [],
+    "initialAttemptSuccess": 0,
+    "initialAttemptSamples": 3,
+    "initialAttemptSuccessRatePct": 0,
+    "allAttemptSamples": 3,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 3,
+      "mean": 2.183,
+      "median": 1.602,
+      "p95": 3.578,
+      "min": 1.37,
+      "max": 3.578
+    },
+    "successNativeVisible": 0,
+    "successNativeRefreshed": 0,
+    "failedNativeDisplayed": 16,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-text"
+    ],
+    "distinctAccounts": 15,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "当前暂不开放该模型的失败绑定；修复明确原因后重测，不永久禁用整渠道",
+    "errorExamples": [
+      "无权访问 企业专供oai 分组",
+      "当前文本模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 3,
+      "mean": 2.183,
+      "median": 1.602,
+      "p95": 3.578,
+      "min": 1.37,
+      "max": 3.578
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 13,
+      "mean": 0.331,
+      "median": 0.227,
+      "p95": 1.627,
+      "min": 0.01,
+      "max": 1.627
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "actualAttemptSuccess": 0,
+    "actualAttemptFailure": 3,
+    "actualAttemptSuccessRatePct": 0,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "当前配置未取得成功；已建任务的明确错误：无权访问 企业专供oai 分组",
+    "platformClassroomReliability": "端到端 0/16；服务器无task拒绝 13；任务失败 3；成功刷新 0/0"
+  },
+  {
+    "kind": "image",
+    "model": "gpt-image-2-all",
+    "originalRequestedModel": "gpt-image-2-all",
+    "target": 11,
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 9,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 81.82,
+    "configuredPrimaryChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "initialActualChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "finalActualChannels": [
+      "模汇X中漫 API 渠道",
+      "兔子 API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "initialAttemptSuccess": 9,
+    "initialAttemptSamples": 11,
+    "initialAttemptSuccessRatePct": 81.82,
+    "allAttemptSamples": 13,
+    "successLatencySeconds": {
+      "n": 9,
+      "mean": 60.513,
+      "median": 53.35,
+      "p95": 102.363,
+      "min": 36.534,
+      "max": 102.363
+    },
+    "failureLatencySeconds": {
+      "n": 2,
+      "mean": 300.571,
+      "median": 300.473,
+      "p95": 300.669,
+      "min": 300.473,
+      "max": 300.669
+    },
+    "successNativeVisible": 9,
+    "successNativeRefreshed": 9,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-image"
+    ],
+    "distinctAccounts": 10,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留成功绑定候选；对失败绑定/余额/服务定向处理并复测后再确定课堂开放",
+    "errorExamples": [
+      "图片生成失败，状态码 403"
+    ],
+    "successLatencySamplesFromLogs": 9,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 2,
+      "mean": 300.571,
+      "median": 300.473,
+      "p95": 300.669,
+      "min": 300.473,
+      "max": 300.669
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 9,
+      "mean": 60.529,
+      "median": 53.453,
+      "p95": 102.368,
+      "min": 36.555,
+      "max": 102.368
+    },
+    "actualAttemptSuccess": 9,
+    "actualAttemptFailure": 4,
+    "actualAttemptSuccessRatePct": 69.23,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "已有成功输出，失败来自具体绑定/上游余额/服务/超时等；不据此永久否定模型或整渠道",
+    "platformClassroomReliability": "端到端 9/11；服务器无task拒绝 0；任务失败 2；成功刷新 9/9"
+  },
+  {
+    "kind": "image",
+    "model": "gpt-image-2",
+    "originalRequestedModel": "gpt-image-2",
+    "target": 11,
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 9,
+    "failure": 2,
+    "pending": 0,
+    "finalSuccessRatePct": 81.82,
+    "configuredPrimaryChannels": [
+      "兔子 API 渠道"
+    ],
+    "initialActualChannels": [
+      "兔子 API 渠道"
+    ],
+    "finalActualChannels": [
+      "兔子 API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "兔子 API 渠道"
+    ],
+    "initialAttemptSuccess": 9,
+    "initialAttemptSamples": 11,
+    "initialAttemptSuccessRatePct": 81.82,
+    "allAttemptSamples": 11,
+    "successLatencySeconds": {
+      "n": 9,
+      "mean": 35.604,
+      "median": 28.744,
+      "p95": 86.232,
+      "min": 25.444,
+      "max": 86.232
+    },
+    "failureLatencySeconds": {
+      "n": 2,
+      "mean": 0.788,
+      "median": 0.727,
+      "p95": 0.85,
+      "min": 0.727,
+      "max": 0.85
+    },
+    "successNativeVisible": 9,
+    "successNativeRefreshed": 9,
+    "failedNativeDisplayed": 2,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-image"
+    ],
+    "distinctAccounts": 10,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留成功绑定候选；对失败绑定/余额/服务定向处理并复测后再确定课堂开放",
+    "errorExamples": [
+      "预扣费额度失败, 用户剩余额度: ＄0.022200, 需要预扣费额度: ＄0.040000"
+    ],
+    "successLatencySamplesFromLogs": 9,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 2,
+      "mean": 0.788,
+      "median": 0.727,
+      "p95": 0.85,
+      "min": 0.727,
+      "max": 0.85
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 9,
+      "mean": 35.609,
+      "median": 28.746,
+      "p95": 86.235,
+      "min": 25.448,
+      "max": 86.235
+    },
+    "actualAttemptSuccess": 9,
+    "actualAttemptFailure": 2,
+    "actualAttemptSuccessRatePct": 81.82,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "已有成功输出，失败来自具体绑定/上游余额/服务/超时等；不据此永久否定模型或整渠道",
+    "platformClassroomReliability": "端到端 9/11；服务器无task拒绝 0；任务失败 2；成功刷新 9/9"
+  },
+  {
+    "kind": "image",
+    "model": "gpt-image-2-c",
+    "originalRequestedModel": "gpt-image-2-c",
+    "target": 11,
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "finalSuccessRatePct": 100,
+    "configuredPrimaryChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "initialActualChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "finalActualChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "initialAttemptSuccess": 11,
+    "initialAttemptSamples": 11,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 11,
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 111.184,
+      "median": 80.631,
+      "p95": 298.155,
+      "min": 43.361,
+      "max": 298.155
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 11,
+    "successNativeRefreshed": 11,
+    "failedNativeDisplayed": 0,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-image"
+    ],
+    "distinctAccounts": 10,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "可有限开放本轮已测输入模式；继续观察，不外推全部能力",
+    "errorExamples": [],
+    "successLatencySamplesFromLogs": 11,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 11,
+      "mean": 111.19,
+      "median": 80.636,
+      "p95": 298.16,
+      "min": 43.366,
+      "max": 298.16
+    },
+    "actualAttemptSuccess": 11,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "实际执行attempt 11/11成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 11/11；服务器无task拒绝 0；任务失败 0；成功刷新 11/11"
+  },
+  {
+    "kind": "image",
+    "model": "gpt-image-2.5-sunburst",
+    "originalRequestedModel": "gpt-image-2.5-sunburst",
+    "target": 11,
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 4,
+    "failure": 7,
+    "pending": 0,
+    "finalSuccessRatePct": 36.36,
+    "configuredPrimaryChannels": [
+      "兔子 API 渠道"
+    ],
+    "initialActualChannels": [
+      "兔子 API 渠道"
+    ],
+    "finalActualChannels": [
+      "兔子 API 渠道",
+      "modelbay API 渠道",
+      "模汇X中漫 API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "兔子 API 渠道"
+    ],
+    "initialAttemptSuccess": 4,
+    "initialAttemptSamples": 11,
+    "initialAttemptSuccessRatePct": 36.36,
+    "allAttemptSamples": 14,
+    "successLatencySeconds": {
+      "n": 4,
+      "mean": 29.872,
+      "median": 29.736,
+      "p95": 33.661,
+      "min": 26.103,
+      "max": 33.661
+    },
+    "failureLatencySeconds": {
+      "n": 7,
+      "mean": 3.853,
+      "median": 1.208,
+      "p95": 9.62,
+      "min": 0.347,
+      "max": 9.62
+    },
+    "successNativeVisible": 4,
+    "successNativeRefreshed": 4,
+    "failedNativeDisplayed": 7,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-image"
+    ],
+    "distinctAccounts": 10,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留成功绑定候选；对失败绑定/余额/服务定向处理并复测后再确定课堂开放",
+    "errorExamples": [
+      "图片生成失败，状态码 403",
+      "预扣费额度失败, 用户剩余额度: ＄0.062200, 需要预扣费额度: ＄0.171428",
+      "预扣费额度失败, 用户剩余额度: ＄0.022200, 需要预扣费额度: ＄0.171428"
+    ],
+    "successLatencySamplesFromLogs": 4,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 7,
+      "mean": 3.853,
+      "median": 1.208,
+      "p95": 9.62,
+      "min": 0.347,
+      "max": 9.62
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 4,
+      "mean": 33.577,
+      "median": 33.236,
+      "p95": 37.521,
+      "min": 29.105,
+      "max": 37.521
+    },
+    "actualAttemptSuccess": 4,
+    "actualAttemptFailure": 10,
+    "actualAttemptSuccessRatePct": 28.57,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "已有成功输出，失败来自具体绑定/上游余额/服务/超时等；不据此永久否定模型或整渠道",
+    "platformClassroomReliability": "端到端 4/11；服务器无task拒绝 0；任务失败 7；成功刷新 4/4"
+  },
+  {
+    "kind": "image",
+    "model": "gpt-image-2-5-flare",
+    "originalRequestedModel": "gpt-image-2-5-flare",
+    "target": 11,
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "finalSuccessRatePct": 100,
+    "configuredPrimaryChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "finalActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialAttemptSuccess": 11,
+    "initialAttemptSamples": 11,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 11,
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 35.447,
+      "median": 37.357,
+      "p95": 63.214,
+      "min": 19.833,
+      "max": 63.214
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 11,
+    "successNativeRefreshed": 11,
+    "failedNativeDisplayed": 0,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-image"
+    ],
+    "distinctAccounts": 10,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "可有限开放本轮已测输入模式；继续观察，不外推全部能力",
+    "errorExamples": [],
+    "successLatencySamplesFromLogs": 11,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 11,
+      "mean": 35.452,
+      "median": 37.36,
+      "p95": 63.217,
+      "min": 19.839,
+      "max": 63.217
+    },
+    "actualAttemptSuccess": 11,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "实际执行attempt 11/11成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 11/11；服务器无task拒绝 0；任务失败 0；成功刷新 11/11"
+  },
+  {
+    "kind": "image",
+    "model": "gpt-image-2-5-sunburst",
+    "originalRequestedModel": "gpt-image-2-5-sunburst",
+    "target": 11,
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "finalSuccessRatePct": 100,
+    "configuredPrimaryChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "finalActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialAttemptSuccess": 11,
+    "initialAttemptSamples": 11,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 11,
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 31.166,
+      "median": 31.014,
+      "p95": 57.696,
+      "min": 16.224,
+      "max": 57.696
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 11,
+    "successNativeRefreshed": 11,
+    "failedNativeDisplayed": 0,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-image"
+    ],
+    "distinctAccounts": 10,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "可有限开放本轮已测输入模式；继续观察，不外推全部能力",
+    "errorExamples": [],
+    "successLatencySamplesFromLogs": 11,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 11,
+      "mean": 31.172,
+      "median": 31.018,
+      "p95": 57.7,
+      "min": 16.228,
+      "max": 57.7
+    },
+    "actualAttemptSuccess": 11,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "实际执行attempt 11/11成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 11/11；服务器无task拒绝 0；任务失败 0；成功刷新 11/11"
+  },
+  {
+    "kind": "image",
+    "model": "gpt-image-2-image-to-image",
+    "originalRequestedModel": "gpt-image-2-image-to-image",
+    "target": 11,
+    "submittedSamples": 22,
+    "taskSamples": 22,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 16,
+    "failure": 6,
+    "pending": 0,
+    "finalSuccessRatePct": 72.73,
+    "configuredPrimaryChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "finalActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialAttemptSuccess": 16,
+    "initialAttemptSamples": 22,
+    "initialAttemptSuccessRatePct": 72.73,
+    "allAttemptSamples": 22,
+    "successLatencySeconds": {
+      "n": 16,
+      "mean": 92.056,
+      "median": 90.079,
+      "p95": 127.411,
+      "min": 67.397,
+      "max": 127.411
+    },
+    "failureLatencySeconds": {
+      "n": 6,
+      "mean": 125.561,
+      "median": 129.656,
+      "p95": 151.597,
+      "min": 90.552,
+      "max": 151.597
+    },
+    "successNativeVisible": 16,
+    "successNativeRefreshed": 16,
+    "failedNativeDisplayed": 6,
+    "referenceSamples": 11,
+    "inputModes": [
+      "text-to-image",
+      "image+text-to-image"
+    ],
+    "distinctAccounts": 13,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；授权媒体读取链路需修复/复测，暂不承诺课堂稳定",
+    "errorExamples": [
+      "上游图片无法通过授权媒体路径读取"
+    ],
+    "successLatencySamplesFromLogs": 16,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 6,
+      "mean": 125.561,
+      "median": 129.656,
+      "p95": 151.597,
+      "min": 90.552,
+      "max": 151.597
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 16,
+      "mean": 93.15,
+      "median": 92.042,
+      "p95": 128.283,
+      "min": 68.111,
+      "max": 128.283
+    },
+    "actualAttemptSuccess": 16,
+    "actualAttemptFailure": 6,
+    "actualAttemptSuccessRatePct": 72.73,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "已证实可产生可读输出；部分任务失败在结果媒体读取，不能据此判模型不支持该输入",
+    "platformClassroomReliability": "端到端 16/22；服务器无task拒绝 0；任务失败 6；成功刷新 16/16"
+  },
+  {
+    "kind": "image",
+    "model": "gpt-image-2-text-to-image",
+    "originalRequestedModel": "gpt-image-2-text-to-image",
+    "target": 11,
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 7,
+    "failure": 4,
+    "pending": 0,
+    "finalSuccessRatePct": 63.64,
+    "configuredPrimaryChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "finalActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialAttemptSuccess": 7,
+    "initialAttemptSamples": 11,
+    "initialAttemptSuccessRatePct": 63.64,
+    "allAttemptSamples": 11,
+    "successLatencySeconds": {
+      "n": 5,
+      "mean": 86.131,
+      "median": 89.062,
+      "p95": 95.328,
+      "min": 69.364,
+      "max": 95.328
+    },
+    "failureLatencySeconds": {
+      "n": 4,
+      "mean": 114.766,
+      "median": 112.498,
+      "p95": 126.798,
+      "min": 103.013,
+      "max": 126.798
+    },
+    "successNativeVisible": 7,
+    "successNativeRefreshed": 7,
+    "failedNativeDisplayed": 4,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-image"
+    ],
+    "distinctAccounts": 10,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留模型候选；授权媒体读取链路需修复/复测，暂不承诺课堂稳定",
+    "errorExamples": [
+      "上游图片无法通过授权媒体路径读取"
+    ],
+    "successLatencySamplesFromLogs": 5,
+    "successMissingCompletionLog": 2,
+    "failureTaskLatencySeconds": {
+      "n": 4,
+      "mean": 114.766,
+      "median": 112.498,
+      "p95": 126.798,
+      "min": 103.013,
+      "max": 126.798
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 7,
+      "mean": 94.29,
+      "median": 94.831,
+      "p95": 116.829,
+      "min": 71.71,
+      "max": 116.829
+    },
+    "actualAttemptSuccess": 7,
+    "actualAttemptFailure": 4,
+    "actualAttemptSuccessRatePct": 63.64,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "已证实可产生可读输出；部分任务失败在结果媒体读取，不能据此判模型不支持该输入",
+    "platformClassroomReliability": "端到端 7/11；服务器无task拒绝 0；任务失败 4；成功刷新 7/7"
+  },
+  {
+    "kind": "video",
+    "model": "doubao-seedance-2-0-260128",
+    "originalRequestedModel": "doubao-seedance-2-0-260128",
+    "target": 6,
+    "submittedSamples": 6,
+    "taskSamples": 4,
+    "postWithoutReturnedTaskId": 6,
+    "mappedAfterNoReturnedId": 4,
+    "noDbTask": 2,
+    "success": 0,
+    "failure": 6,
+    "pending": 0,
+    "finalSuccessRatePct": 0,
+    "configuredPrimaryChannels": [
+      "兔子 API 渠道"
+    ],
+    "initialActualChannels": [
+      "兔子 API 渠道"
+    ],
+    "finalActualChannels": [
+      "兔子 API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "兔子 API 渠道"
+    ],
+    "initialAttemptSuccess": 0,
+    "initialAttemptSamples": 4,
+    "initialAttemptSuccessRatePct": 0,
+    "allAttemptSamples": 4,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 4,
+      "mean": 1.255,
+      "median": 0.988,
+      "p95": 1.966,
+      "min": 0.948,
+      "max": 1.966
+    },
+    "successNativeVisible": 0,
+    "successNativeRefreshed": 0,
+    "failedNativeDisplayed": 6,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-video"
+    ],
+    "distinctAccounts": 6,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "当前暂不开放该模型的失败绑定；修复明确原因后重测，不永久禁用整渠道",
+    "errorExamples": [
+      "预扣费额度失败, 用户剩余额度: ＄0.856484, 需要预扣费额度: ＄3.146400",
+      "预扣费额度失败, 用户剩余额度: ＄0.645056, 需要预扣费额度: ＄3.146400",
+      "预扣费额度失败, 用户剩余额度: ＄0.565056, 需要预扣费额度: ＄3.146400",
+      "当前视频模型暂不可用，请切换模型或稍后重试",
+      "预扣费额度失败, 用户剩余额度: ＄0.102200, 需要预扣费额度: ＄3.146400"
+    ],
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 4,
+      "mean": 1.255,
+      "median": 0.988,
+      "p95": 1.966,
+      "min": 0.948,
+      "max": 1.966
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.23,
+      "median": 0.145,
+      "p95": 0.316,
+      "min": 0.145,
+      "max": 0.316
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "actualAttemptSuccess": 0,
+    "actualAttemptFailure": 4,
+    "actualAttemptSuccessRatePct": 0,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "当前配置未取得成功；已建任务的明确错误：预扣费额度失败, 用户剩余额度: ＄0.856484, 需要预扣费额度: ＄3.146400；预扣费额度失败, 用户剩余额度: ＄0.645056, 需要预扣费额度: ＄3.146400；预扣费额度失败, 用户剩余额度: ＄0.565056, 需要预扣费额度: ＄3.146400",
+    "platformClassroomReliability": "端到端 0/6；服务器无task拒绝 2；任务失败 4；成功刷新 0/0"
+  },
+  {
+    "kind": "video",
+    "model": "doubao-seedance-2-0",
+    "originalRequestedModel": "doubao-seedance-2-0",
+    "target": 6,
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "finalSuccessRatePct": 100,
+    "configuredPrimaryChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "initialActualChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "finalActualChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "模汇X中漫 API 渠道"
+    ],
+    "initialAttemptSuccess": 6,
+    "initialAttemptSamples": 6,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 6,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 272.062,
+      "median": 260.154,
+      "p95": 300.673,
+      "min": 251.221,
+      "max": 300.673
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 6,
+    "successNativeRefreshed": 6,
+    "failedNativeDisplayed": 0,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-video"
+    ],
+    "distinctAccounts": 6,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "可有限开放本轮已测输入模式；继续观察，不外推全部能力",
+    "errorExamples": [],
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 271.055,
+      "median": 258.68,
+      "p95": 299.876,
+      "min": 250.517,
+      "max": 299.876
+    },
+    "actualAttemptSuccess": 6,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "实际执行attempt 6/6成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 6/6；服务器无task拒绝 0；任务失败 0；成功刷新 6/6"
+  },
+  {
+    "kind": "video",
+    "model": "doubao-seedance-2-5-260628",
+    "originalRequestedModel": "doubao-seedance-2-5-260628",
+    "target": 6,
+    "submittedSamples": 6,
+    "taskSamples": 1,
+    "postWithoutReturnedTaskId": 6,
+    "mappedAfterNoReturnedId": 1,
+    "noDbTask": 5,
+    "success": 0,
+    "failure": 6,
+    "pending": 0,
+    "finalSuccessRatePct": 0,
+    "configuredPrimaryChannels": [
+      "兔子 API 渠道"
+    ],
+    "initialActualChannels": [
+      "兔子 API 渠道"
+    ],
+    "finalActualChannels": [
+      "兔子 API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "兔子 API 渠道"
+    ],
+    "initialAttemptSuccess": 0,
+    "initialAttemptSamples": 1,
+    "initialAttemptSuccessRatePct": 0,
+    "allAttemptSamples": 1,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 1,
+      "mean": 0.781,
+      "median": 0.781,
+      "p95": 0.781,
+      "min": 0.781,
+      "max": 0.781
+    },
+    "successNativeVisible": 0,
+    "successNativeRefreshed": 0,
+    "failedNativeDisplayed": 6,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-video"
+    ],
+    "distinctAccounts": 6,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "当前暂不开放该模型的失败绑定；修复明确原因后重测，不永久禁用整渠道",
+    "errorExamples": [
+      "预扣费额度失败, 用户剩余额度: ＄0.856484, 需要预扣费额度: ＄5.040000",
+      "当前视频模型暂不可用，请切换模型或稍后重试"
+    ],
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 1,
+      "mean": 0.781,
+      "median": 0.781,
+      "p95": 0.781,
+      "min": 0.781,
+      "max": 0.781
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 5,
+      "mean": 0.374,
+      "median": 0.31,
+      "p95": 0.618,
+      "min": 0.214,
+      "max": 0.618
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "actualAttemptSuccess": 0,
+    "actualAttemptFailure": 1,
+    "actualAttemptSuccessRatePct": 0,
+    "serverRejectionRootCause": "服务端安全文案仅表示暂不可用；具体准入/候选/冷却原因尚未完全定位，不能统一归因429",
+    "modelUpstreamAvailability": "当前配置未取得成功；已建任务的明确错误：预扣费额度失败, 用户剩余额度: ＄0.856484, 需要预扣费额度: ＄5.040000",
+    "platformClassroomReliability": "端到端 0/6；服务器无task拒绝 5；任务失败 1；成功刷新 0/0"
+  },
+  {
+    "kind": "video",
+    "model": "official/seedance-2",
+    "originalRequestedModel": "official/seedance-2",
+    "target": 6,
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "finalSuccessRatePct": 100,
+    "configuredPrimaryChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "finalActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialAttemptSuccess": 6,
+    "initialAttemptSamples": 6,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 6,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 203.905,
+      "median": 186.082,
+      "p95": 263.459,
+      "min": 179.422,
+      "max": 263.459
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 6,
+    "successNativeRefreshed": 6,
+    "failedNativeDisplayed": 0,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-video"
+    ],
+    "distinctAccounts": 6,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "可有限开放本轮已测输入模式；继续观察，不外推全部能力",
+    "errorExamples": [],
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 203.247,
+      "median": 185.424,
+      "p95": 262.917,
+      "min": 178.832,
+      "max": 262.917
+    },
+    "actualAttemptSuccess": 6,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "实际执行attempt 6/6成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 6/6；服务器无task拒绝 0；任务失败 0；成功刷新 6/6"
+  },
+  {
+    "kind": "video",
+    "model": "official/seedance-2-5",
+    "originalRequestedModel": "official/seedance-2-5",
+    "target": 6,
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "finalSuccessRatePct": 100,
+    "configuredPrimaryChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "finalActualChannels": [
+      "modelbay API 渠道"
+    ],
+    "actualOriginalChannels": [
+      "modelbay API 渠道"
+    ],
+    "initialAttemptSuccess": 6,
+    "initialAttemptSamples": 6,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 6,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 159.917,
+      "median": 155.804,
+      "p95": 181.654,
+      "min": 151.416,
+      "max": 181.654
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 6,
+    "successNativeRefreshed": 6,
+    "failedNativeDisplayed": 0,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-video"
+    ],
+    "distinctAccounts": 6,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "可有限开放本轮已测输入模式；继续观察，不外推全部能力",
+    "errorExamples": [],
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 159.251,
+      "median": 155.016,
+      "p95": 180.988,
+      "min": 150.832,
+      "max": 180.988
+    },
+    "actualAttemptSuccess": 6,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "实际执行attempt 6/6成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 6/6；服务器无task拒绝 0；任务失败 0；成功刷新 6/6"
+  },
+  {
+    "kind": "video",
+    "model": "天翼云 Seedance 2.0",
+    "originalRequestedModel": "cdance2.0-0807",
+    "target": 6,
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "finalSuccessRatePct": 100,
+    "configuredPrimaryChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "initialActualChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "finalActualChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "actualOriginalChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "initialAttemptSuccess": 6,
+    "initialAttemptSamples": 6,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 6,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 240.864,
+      "median": 232.458,
+      "p95": 277.301,
+      "min": 208.205,
+      "max": 277.301
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 6,
+    "successNativeRefreshed": 6,
+    "failedNativeDisplayed": 0,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-video"
+    ],
+    "distinctAccounts": 6,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "可有限开放本轮已测输入模式；继续观察，不外推全部能力",
+    "errorExamples": [],
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 240.319,
+      "median": 231.891,
+      "p95": 276.465,
+      "min": 207.749,
+      "max": 276.465
+    },
+    "actualAttemptSuccess": 6,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "实际执行attempt 6/6成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 6/6；服务器无task拒绝 0；任务失败 0；成功刷新 6/6"
+  },
+  {
+    "kind": "video",
+    "model": "天翼云 Seedance 2.0 Fast",
+    "originalRequestedModel": "cdance2.0-fast-0807",
+    "target": 6,
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "finalSuccessRatePct": 100,
+    "configuredPrimaryChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "initialActualChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "finalActualChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "actualOriginalChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "initialAttemptSuccess": 6,
+    "initialAttemptSamples": 6,
+    "initialAttemptSuccessRatePct": 100,
+    "allAttemptSamples": 6,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 104.953,
+      "median": 107.905,
+      "p95": 122.089,
+      "min": 74.788,
+      "max": 122.089
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successNativeVisible": 6,
+    "successNativeRefreshed": 6,
+    "failedNativeDisplayed": 0,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-video"
+    ],
+    "distinctAccounts": 6,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "可有限开放本轮已测输入模式；继续观察，不外推全部能力",
+    "errorExamples": [],
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 104.341,
+      "median": 107.153,
+      "p95": 121.452,
+      "min": 74.217,
+      "max": 121.452
+    },
+    "actualAttemptSuccess": 6,
+    "actualAttemptFailure": 0,
+    "actualAttemptSuccessRatePct": 100,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "实际执行attempt 6/6成功；模型/上游可用候选",
+    "platformClassroomReliability": "端到端 6/6；服务器无task拒绝 0；任务失败 0；成功刷新 6/6"
+  },
+  {
+    "kind": "video",
+    "model": "天翼云 Seedance 2.0 Mini",
+    "originalRequestedModel": "cdance2.0-mini-0807",
+    "target": 6,
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "postWithoutReturnedTaskId": 0,
+    "mappedAfterNoReturnedId": 0,
+    "noDbTask": 0,
+    "success": 5,
+    "failure": 1,
+    "pending": 0,
+    "finalSuccessRatePct": 83.33,
+    "configuredPrimaryChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "initialActualChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "finalActualChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "actualOriginalChannels": [
+      "天翼云星辰 TokenHub 视频渠道"
+    ],
+    "initialAttemptSuccess": 5,
+    "initialAttemptSamples": 6,
+    "initialAttemptSuccessRatePct": 83.33,
+    "allAttemptSamples": 6,
+    "successLatencySeconds": {
+      "n": 5,
+      "mean": 88.661,
+      "median": 90.155,
+      "p95": 96.512,
+      "min": 75.905,
+      "max": 96.512
+    },
+    "failureLatencySeconds": {
+      "n": 1,
+      "mean": 7.02,
+      "median": 7.02,
+      "p95": 7.02,
+      "min": 7.02,
+      "max": 7.02
+    },
+    "successNativeVisible": 5,
+    "successNativeRefreshed": 5,
+    "failedNativeDisplayed": 1,
+    "referenceSamples": 0,
+    "inputModes": [
+      "text-to-video"
+    ],
+    "distinctAccounts": 6,
+    "quotaMet": true,
+    "allTerminal": true,
+    "recommendation": "保留成功绑定候选；对失败绑定/余额/服务定向处理并复测后再确定课堂开放",
+    "errorExamples": [
+      "上游服务暂时不可用，请稍后重试。 Authentication service unavailable"
+    ],
+    "successLatencySamplesFromLogs": 5,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 1,
+      "mean": 7.02,
+      "median": 7.02,
+      "p95": 7.02,
+      "min": 7.02,
+      "max": 7.02
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 5,
+      "mean": 88.095,
+      "median": 89.655,
+      "p95": 96.035,
+      "min": 75.404,
+      "max": 96.035
+    },
+    "actualAttemptSuccess": 5,
+    "actualAttemptFailure": 1,
+    "actualAttemptSuccessRatePct": 83.33,
+    "serverRejectionRootCause": null,
+    "modelUpstreamAvailability": "已有成功输出，失败来自具体绑定/上游余额/服务/超时等；不据此永久否定模型或整渠道",
+    "platformClassroomReliability": "端到端 5/6；服务器无task拒绝 0；任务失败 1；成功刷新 5/5"
+  }
+]

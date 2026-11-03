@@ -1,0 +1,290 @@
+.vzl .vzl-picker,
+.vzl .vzl-opt {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--vzl-border-strong);
+    border-radius: var(--vzl-r-md);
+    background: var(--vzl-surface-2);
+    color: var(--vzl-text-1);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color var(--vzl-d2),
+        background var(--vzl-d2),
+        box-shadow var(--vzl-d2);
+}
+.vzl .vzl-picker:hover {
+    border-color: color-mix(in srgb, var(--vzl-text-1) 28%, transparent);
+}
+.vzl .vzl-picker:focus-visible,
+.vzl .vzl-opt:focus-visible {
+    box-shadow: var(--vzl-ring);
+}
+.vzl .vzl-picker[aria-expanded="true"] {
+    border-color: color-mix(in srgb, var(--vzl-brand) 70%, transparent);
+    box-shadow: 0 0 0 4px var(--vzl-brand-soft);
+}
+.vzl .vzl-picker__chev {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    margin-left: auto;
+    color: var(--vzl-text-3);
+    transition: transform var(--vzl-d2) var(--vzl-ease);
+}
+.vzl .vzl-picker[aria-expanded="true"] .vzl-picker__chev {
+    transform: rotate(180deg);
+}
+.vzl .vzl-opt .vzl-logo,
+.vzl .vzl-picker .vzl-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    font-size: 13px;
+}
+.vzl .vzl-opt__body {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+.vzl .vzl-opt__name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-weight: 600;
+}
+.vzl .vzl-opt__name .vzl-tag {
+    height: 20px;
+    padding: 0 6px;
+    font-size: 11px;
+}
+.vzl .vzl-opt__meta {
+    display: grid;
+    justify-items: end;
+    gap: 4px;
+    flex: none;
+}
+.vzl .vzl-opt__meta svg {
+    width: 16px;
+    height: 16px;
+    color: var(--vzl-brand-text);
+}
+.vzl .vzl-opt-list {
+    display: grid;
+    gap: 4px;
+    width: min(380px, calc(100vw - 48px));
+    max-height: 360px;
+    overflow-y: auto;
+}
+.vzl .vzl-opt {
+    border-color: transparent;
+    background: transparent;
+}
+.vzl .vzl-opt:hover:not(:disabled) {
+    background: var(--vzl-hover);
+}
+.vzl .vzl-opt[aria-selected="true"] {
+    background: var(--vzl-brand-soft);
+    border-color: color-mix(in srgb, var(--vzl-brand) 35%, transparent);
+}
+.vzl .vzl-opt:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.vzl .vzl-params {
+    display: grid;
+    gap: 18px;
+}
+.vzl .vzl-param {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+.vzl .vzl-param--inline {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+.vzl .vzl-param__label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 560;
+}
+.vzl .vzl-ratios {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+}
+.vzl .vzl-ratio {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 6px;
+    height: 58px;
+    min-width: 0;
+    border: 1px solid var(--vzl-border-strong);
+    border-radius: var(--vzl-r-sm);
+    background: var(--vzl-surface-2);
+    color: var(--vzl-text-2);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition:
+        color var(--vzl-d2),
+        border-color var(--vzl-d2),
+        background var(--vzl-d2);
+}
+.vzl .vzl-ratio:hover:not(:disabled) {
+    color: var(--vzl-text-1);
+}
+.vzl .vzl-ratio:focus-visible {
+    box-shadow: var(--vzl-ring);
+}
+.vzl .vzl-ratio[aria-checked="true"] {
+    color: var(--vzl-text-1);
+    border-color: color-mix(in srgb, var(--vzl-brand) 75%, transparent);
+    background: var(--vzl-brand-soft);
+}
+.vzl .vzl-ratio:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+.vzl .vzl-ratio i {
+    display: block;
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+}
+.vzl .vzl-ratio[aria-checked="true"] i {
+    border-color: var(--vzl-brand-text);
+    background: color-mix(in srgb, var(--vzl-brand) 25%, transparent);
+}
+
+.vzl .vzl-prompt {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--vzl-border-strong);
+    border-radius: var(--vzl-r-lg);
+    background: var(--vzl-surface-2);
+    transition:
+        border-color var(--vzl-d2),
+        box-shadow var(--vzl-d2),
+        background var(--vzl-d2);
+}
+.vzl .vzl-prompt:focus-within {
+    border-color: color-mix(in srgb, var(--vzl-brand) 70%, transparent);
+    background: var(--vzl-surface-1);
+    box-shadow: 0 0 0 4px var(--vzl-brand-soft);
+}
+.vzl .vzl-prompt[data-status="error"] {
+    border-color: color-mix(in srgb, var(--vzl-danger) 65%, transparent);
+    box-shadow: 0 0 0 4px var(--vzl-danger-soft);
+}
+.vzl .vzl-prompt__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.vzl .vzl-prompt__head [data-over="true"] {
+    color: var(--vzl-warning);
+}
+.vzl .vzl-prompt textarea {
+    width: 100%;
+    min-height: 112px;
+    border: 0;
+    outline: 0;
+    resize: vertical;
+    background: transparent;
+    color: var(--vzl-text-1);
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.65;
+}
+.vzl .vzl-prompt textarea::placeholder {
+    color: var(--vzl-text-3);
+}
+.vzl .vzl-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.vzl .vzl-chip {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--vzl-border-strong);
+    border-radius: 999px;
+    background: var(--vzl-surface-3);
+    color: var(--vzl-text-2);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition:
+        color var(--vzl-d2),
+        border-color var(--vzl-d2),
+        background var(--vzl-d2);
+}
+.vzl .vzl-chip:hover:not(:disabled) {
+    color: var(--vzl-brand-text);
+    border-color: color-mix(in srgb, var(--vzl-brand) 50%, transparent);
+    background: var(--vzl-brand-soft);
+}
+.vzl .vzl-chip:focus-visible {
+    box-shadow: var(--vzl-ring);
+}
+.vzl .vzl-chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.vzl .vzl-prompt__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--vzl-divider);
+}
+.vzl .vzl-prompt__hint {
+    font-size: 12px;
+    color: var(--vzl-danger);
+}
+
+.vzl .vzl-audio {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+}
+.vzl .vzl-wave {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 44px;
+    min-width: 0;
+    overflow: hidden;
+    cursor: pointer;
+    border-radius: 6px;
+}
+.vzl .vzl-wave:focus-visible {
+    box-shadow: var(--vzl-ring);
+}
+.vzl .vzl-wave i {
+    flex: 1 1 0;
+    min-width: 1px;
+    max-width: 4px;
+    border-radius: 3px;
+    background: var(--vzl-surface-3);
+}
+.vzl .vzl-wave i[data-on="true"] {
+    background: var(--vzl-gradient-glow);
+}

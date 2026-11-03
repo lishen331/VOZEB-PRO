@@ -1,0 +1,114 @@
+/*
+ * 平台背景视频 + 玻璃面板。只作用于 html.gm-app 下的 .gm-ambient 作用域
+ * （AppWorkspaceShell 非全屏页、GammaHomeView），全屏画布 / 短剧编辑器 / 管理后台不挂。
+ *
+ * 一致性的关键：视频层整体模糊一次，页面面板只是半透明 surface。背后已经是模糊过的底，
+ * 所以侧栏、输入卡、作品卡看起来是同一种毛玻璃，不需要每张卡各自 backdrop-filter。
+ * 只有叠在滚动内容上面的吸顶元素才再加 backdrop-filter。
+ */
+
+/* ---------- 深色（默认） ---------- */
+html.gm-app .gm-ambient {
+    --gm-ambient-base: #04060c;
+    --gm-ambient-media-opacity: 0.62;
+    --gm-ambient-media-filter: blur(28px) saturate(1.15) brightness(0.72);
+    --gm-ambient-scrim: linear-gradient(180deg, rgba(4, 7, 15, 0.55) 0%, rgba(4, 7, 15, 0.2) 40%, rgba(4, 7, 15, 0.62) 100%), linear-gradient(100deg, rgba(4, 7, 15, 0.7) 0%, rgba(4, 7, 15, 0.28) 45%, rgba(4, 7, 15, 0.12) 100%);
+    --gm-ambient-aurora-1: rgba(0, 80, 245, 0.42);
+    --gm-ambient-aurora-2: rgba(40, 235, 250, 0.16);
+    --gm-ambient-aurora-blend: screen;
+
+    /* 面板改半透明；底色值与 gamma-tokens.css 同色，只加透明度 */
+    --gm-bg: transparent;
+    --gm-bg-elevated: rgba(8, 12, 22, 0.58);
+    --gm-surface: rgba(13, 18, 30, 0.62);
+    --gm-surface-2: rgba(19, 26, 41, 0.66);
+    --gm-surface-3: rgba(27, 35, 53, 0.72);
+    --gm-border: rgba(160, 190, 255, 0.12);
+    --gm-icon-bg: rgba(8, 12, 22, 0.9);
+}
+
+/* ---------- 浅色 ---------- */
+html.gm-app:not(.dark) .gm-ambient {
+    --gm-ambient-base: #f3f6fb;
+    --gm-ambient-media-opacity: 0.6;
+    --gm-ambient-media-filter: blur(28px) saturate(1.1) brightness(1.08);
+    --gm-ambient-scrim:
+        linear-gradient(180deg, rgba(244, 248, 255, 0.5) 0%, rgba(244, 248, 255, 0.16) 40%, rgba(240, 245, 253, 0.6) 100%), linear-gradient(100deg, rgba(246, 250, 255, 0.66) 0%, rgba(244, 248, 255, 0.24) 45%, rgba(240, 245, 253, 0.08) 100%);
+    --gm-ambient-aurora-1: rgba(0, 80, 245, 0.2);
+    --gm-ambient-aurora-2: rgba(40, 235, 250, 0.22);
+    --gm-ambient-aurora-blend: normal;
+
+    --gm-bg: transparent;
+    --gm-bg-elevated: rgba(255, 255, 255, 0.62);
+    --gm-surface: rgba(255, 255, 255, 0.7);
+    --gm-surface-2: rgba(238, 242, 249, 0.72);
+    --gm-surface-3: rgba(227, 234, 245, 0.78);
+    --gm-border: rgba(16, 38, 84, 0.1);
+    --gm-icon-bg: rgba(255, 255, 255, 0.92);
+}
+
+/* shadcn 语义变量在 html 上已按旧值算好，作用域内要重新指向半透明 token */
+html.gm-app .gm-ambient {
+    --background: var(--gm-bg);
+    --card: var(--gm-surface);
+    --muted: var(--gm-surface-2);
+    --secondary: var(--gm-surface-3);
+    --sidebar: var(--gm-bg-elevated);
+    --sidebar-border: var(--gm-border);
+}
+
+/* ---------- 背景层 ---------- */
+.gm-ambient-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    background: var(--gm-ambient-base);
+}
+.gm-ambient-media {
+    position: absolute;
+    /* 模糊会让边缘发暗，四周外扩一圈藏住 */
+    inset: -64px;
+    opacity: var(--gm-ambient-media-opacity);
+    filter: var(--gm-ambient-media-filter);
+}
+.gm-ambient-media > img,
+.gm-ambient-media > video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+/* 视频盖在海报上，能播了再淡入，海报始终在下面兜底 */
+.gm-ambient-media > video {
+    opacity: 0;
+    transition: opacity 900ms ease;
+}
+.gm-ambient-media > video.is-ready {
+    opacity: 1;
+}
+.gm-ambient-scrim {
+    position: absolute;
+    inset: 0;
+    background: var(--gm-ambient-scrim);
+}
+.gm-ambient-aurora {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(48% 44% at 12% 78%, var(--gm-ambient-aurora-1) 0%, transparent 70%), radial-gradient(40% 36% at 82% 6%, var(--gm-ambient-aurora-2) 0%, transparent 72%);
+    mix-blend-mode: var(--gm-ambient-aurora-blend);
+}
+
+/* ---------- 吸顶元素：背后是清晰的滚动内容，单独加模糊 ---------- */
+html.gm-app .gm-ambient .sticky[class*="bg-"] {
+    backdrop-filter: blur(var(--gm-glass-blur)) saturate(1.6);
+    -webkit-backdrop-filter: blur(var(--gm-glass-blur)) saturate(1.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gm-ambient-media > video {
+        display: none;
+    }
+}

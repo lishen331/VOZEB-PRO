@@ -1,0 +1,67 @@
+{
+  "at": "2026-10-21T12:42:57.186Z",
+  "requestedSince": "2026-10-21T12:33:00Z",
+  "firstSampleAt": "2026-10-21T12:33:20.698550+00:00",
+  "lastSampleAt": "2026-10-21T12:42:35.163770+00:00",
+  "sampleCount": 17,
+  "maxSampleGapSeconds": 34.873,
+  "localTailCoversRequestedStart": true,
+  "productionWrites": false,
+  "paidRequests": false,
+  "allApplicationReady": true,
+  "allWorkersHealthy": true,
+  "cpuPct": {
+    "min": 0,
+    "max": 10.05
+  },
+  "memAvailableMiB": {
+    "min": 5833.6328125,
+    "max": 5895.9140625
+  },
+  "diskUsedPct": {
+    "min": 47.78,
+    "max": 47.79
+  },
+  "revisionValues": [
+    95
+  ],
+  "finalTaskCounts": [
+    {
+      "count": 162,
+      "status": "error",
+      "task_type": "image"
+    },
+    {
+      "count": 4,
+      "status": "success",
+      "task_type": "video"
+    },
+    {
+      "count": 266,
+      "status": "success",
+      "task_type": "image"
+    }
+  ],
+  "containerFaultSamples": [],
+  "signalSamples": [
+    {
+      "sampleAt": "2026-10-21T12:35:39.471103+00:00",
+      "logSince": "2026-10-21T12:35:02.824Z",
+      "serverLogSignals": {},
+      "proxyErrorRoutes": {
+        "GET /non-api 404": 1
+      },
+      "dbBlocked": 0
+    },
+    {
+      "sampleAt": "2026-10-21T12:36:48.931615+00:00",
+      "logSince": "2026-10-21T12:36:12.275Z",
+      "serverLogSignals": {},
+      "proxyErrorRoutes": {
+        "GET /api/other 401": 3
+      },
+      "dbBlocked": 0
+    }
+  ],
+  "scope": "All locally captured samples within this interval; remote log sources use bounded tails and overlapping lookbacks, signal counts are not deduplicated requests nor guaranteed exhaustive logs."
+}

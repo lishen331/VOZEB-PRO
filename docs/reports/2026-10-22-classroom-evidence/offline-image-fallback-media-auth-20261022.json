@@ -1,0 +1,28 @@
+{
+  "at": "2026-10-22T09:17:31.729Z",
+  "offline": true,
+  "sourceCommit": "bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+  "sources": {
+    "web/src/lib/server/generation-media-authorization.ts": "2a413feca743149c06e44e95e84679ffb0205b78b523a17145e70f994828aa11",
+    "web/src/lib/server/generation-media-access.ts": "d4301834e07ae302b63a5cdf98c0c6a8ca5551ac2a2f0b6098b2c3a8ad515d9d",
+    "web/src/lib/server/generation-channel.ts": "9b17f74f63c74b50d7dc04d558689af5861f1d9e78915fb2a53f967b4739f423",
+    "web/src/lib/server/image-task-result-service.ts": "25543c91d7394dc5d7413d3953cbc22970bab3a4b8dd2cf15f2073b590314842"
+  },
+  "scenario": "original logical image model != actual fallback upstream model",
+  "original": {
+    "logicalModel": "gpt-image-2",
+    "storedUpstreamModel": "gpt-image-2.5-sunburst",
+    "signedUpstreamModel": "gpt-image-2",
+    "authorizationAllowed": false,
+    "thrown": {
+      "name": "Error",
+      "message": "上游图片无法通过授权媒体路径读取"
+    }
+  },
+  "comparison": {
+    "actualUpstreamSignedAllowed": true,
+    "cancelledAllowed": false,
+    "crossUserAllowed": false
+  },
+  "verified": true
+}

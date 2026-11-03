@@ -1,0 +1,446 @@
+{
+  "at": "2026-10-21T12:09:51.971688+00:00",
+  "tasks": [
+    {
+      "id": "846d5467-57ed-4f53-9186-c2269e0d9619",
+      "kind": "edit",
+      "error": "图片比例必须是正数，例如 9:16",
+      "events": [
+        {
+          "at": 1792584147404,
+          "model": "gpt-image-2-c",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584147410,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792584147421,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584147431,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792584147433,
+          "model": "gpt-image-2-c",
+          "phase": "provider_start",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584147435,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片比例必须是正数，例如 9:16"
+        },
+        {
+          "at": 1792584147445,
+          "model": "gpt-image-2-c",
+          "phase": "poll",
+          "state": "api_response:submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584147450,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片比例必须是正数，例如 9:16"
+        },
+        {
+          "at": 1792584147458,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792584147461,
+          "model": "gpt-image-2-c",
+          "phase": "recovery_end",
+          "state": "failed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584149285,
+          "model": "gpt-image-2-c",
+          "phase": "poll",
+          "state": "api_response:completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "status": "error",
+      "geometry": {
+        "size": "00:00"
+      },
+      "createdAt": "2026-10-21T12:02:27.399+00:00",
+      "updatedAt": "2026-10-21T12:02:27.452+00:00",
+      "configKeys": [
+        "size",
+        "model",
+        "apiKey",
+        "baseUrl",
+        "quality",
+        "apiFormat",
+        "apiSource",
+        "channelId",
+        "logicalModel",
+        "systemPrompt",
+        "advancedConfig",
+        "executionProfile",
+        "capabilityProfile"
+      ],
+      "logicalModel": "gpt-image-2-c",
+      "referenceCount": 2,
+      "generationLogPresent": false,
+      "upstreamRequestCount": 0,
+      "transportRequestCount": 0
+    },
+    {
+      "id": "58ce7c95-baf6-4e2d-a98c-621a2bee0834",
+      "kind": "edit",
+      "error": "图片比例必须是正数，例如 9:16",
+      "events": [
+        {
+          "at": 1792584154607,
+          "model": "gpt-image-2-c",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584154616,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792584154631,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584154645,
+          "model": "gpt-image-2-c",
+          "phase": "poll",
+          "state": "api_response:created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584154649,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792584154657,
+          "model": "gpt-image-2-c",
+          "phase": "provider_start",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584154659,
+          "model": "gpt-image-2-c",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片比例必须是正数，例如 9:16"
+        },
+        {
+          "at": 1792584154671,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片比例必须是正数，例如 9:16"
+        },
+        {
+          "at": 1792584154680,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792584154682,
+          "model": "gpt-image-2-c",
+          "phase": "recovery_end",
+          "state": "failed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584156477,
+          "model": "gpt-image-2-c",
+          "phase": "poll",
+          "state": "api_response:completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "status": "error",
+      "geometry": {
+        "size": "00:00"
+      },
+      "createdAt": "2026-10-21T12:02:34.603+00:00",
+      "updatedAt": "2026-10-21T12:02:34.673+00:00",
+      "configKeys": [
+        "size",
+        "model",
+        "apiKey",
+        "baseUrl",
+        "quality",
+        "apiFormat",
+        "apiSource",
+        "channelId",
+        "logicalModel",
+        "systemPrompt",
+        "advancedConfig",
+        "executionProfile",
+        "capabilityProfile"
+      ],
+      "logicalModel": "gpt-image-2-c",
+      "referenceCount": 2,
+      "generationLogPresent": false,
+      "upstreamRequestCount": 0,
+      "transportRequestCount": 0
+    },
+    {
+      "id": "4565b219-aeca-4e56-a4a3-e89f5a44251f",
+      "kind": "edit",
+      "error": "图片比例必须是正数，例如 9:16",
+      "events": [
+        {
+          "at": 1792584101248,
+          "model": "gpt-image-2",
+          "phase": "task_created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584101253,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792584101263,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584101271,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792584101273,
+          "model": "gpt-image-2",
+          "phase": "provider_start",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584101275,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "图片比例必须是正数，例如 9:16"
+        },
+        {
+          "at": 1792584101283,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "图片比例必须是正数，例如 9:16"
+        },
+        {
+          "at": 1792584101291,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792584101293,
+          "model": "gpt-image-2",
+          "phase": "recovery_end",
+          "state": "failed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584101322,
+          "model": "gpt-image-2",
+          "phase": "poll",
+          "state": "api_response:completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        }
+      ],
+      "status": "error",
+      "geometry": {
+        "size": "00:00"
+      },
+      "createdAt": "2026-10-21T12:01:41.245+00:00",
+      "updatedAt": "2026-10-21T12:01:41.284+00:00",
+      "configKeys": [
+        "size",
+        "model",
+        "apiKey",
+        "baseUrl",
+        "quality",
+        "apiFormat",
+        "apiSource",
+        "channelId",
+        "logicalModel",
+        "systemPrompt",
+        "advancedConfig",
+        "executionProfile",
+        "capabilityProfile"
+      ],
+      "logicalModel": "gpt-image-2",
+      "referenceCount": 2,
+      "generationLogPresent": false,
+      "upstreamRequestCount": 0,
+      "transportRequestCount": 0
+    },
+    {
+      "id": "af53f7fb-b90f-40e5-a3a5-5fbbfcd82e25",
+      "kind": "edit",
+      "error": "图片比例必须是正数，例如 9:16",
+      "events": [
+        {
+          "at": 1792584104121,
+          "model": "gpt-image-2",
+          "phase": "task_created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584104126,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792584104137,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584104146,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792584104148,
+          "model": "gpt-image-2",
+          "phase": "provider_start",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584104151,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "图片比例必须是正数，例如 9:16"
+        },
+        {
+          "at": 1792584104161,
+          "model": "gpt-image-2",
+          "phase": "poll",
+          "state": "api_response:submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584104166,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "图片比例必须是正数，例如 9:16"
+        },
+        {
+          "at": 1792584104174,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792584104177,
+          "model": "gpt-image-2",
+          "phase": "recovery_end",
+          "state": "failed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792584106027,
+          "model": "gpt-image-2",
+          "phase": "poll",
+          "state": "api_response:completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        }
+      ],
+      "status": "error",
+      "geometry": {
+        "size": "00:00"
+      },
+      "createdAt": "2026-10-21T12:01:44.118+00:00",
+      "updatedAt": "2026-10-21T12:01:44.168+00:00",
+      "configKeys": [
+        "size",
+        "model",
+        "apiKey",
+        "baseUrl",
+        "quality",
+        "apiFormat",
+        "apiSource",
+        "channelId",
+        "logicalModel",
+        "systemPrompt",
+        "advancedConfig",
+        "executionProfile",
+        "capabilityProfile"
+      ],
+      "logicalModel": "gpt-image-2",
+      "referenceCount": 2,
+      "generationLogPresent": false,
+      "upstreamRequestCount": 0,
+      "transportRequestCount": 0
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "verifiedAt": "2026-10-22T08:47:37.716652+00:00",
+  "readOnly": true,
+  "files": [
+    {
+      "name": "readonly-incident-audit-20261022-163001.json",
+      "bytes": 290199,
+      "sha256": "a21d96819d6a96a2860fd7d60dc50f49f3002113473083dd6f54d13acf4cbbdc"
+    },
+    {
+      "name": "readonly-delta-20261022-164145.json",
+      "bytes": 128110,
+      "sha256": "e3f363a375eab60e248776f837db19099e029cf8d8efda9ac3bd49e294c69385"
+    },
+    {
+      "name": "interrupted-submission-verification-20261022-1644.json",
+      "bytes": 8358,
+      "sha256": "78b7e17d219e97f879166e15b7697a097bdc134d07b89e580ea4c2e9ef1dc6aa"
+    },
+    {
+      "name": "post-release-image-verification-20261022-164516.json",
+      "bytes": 30297,
+      "sha256": "54847a272f2c3e60a7d2cd23912a990a50411088ecfef3cfd9e4a78af09f680e"
+    },
+    {
+      "name": "offline-image-response-probe-20261022.json",
+      "bytes": 9685,
+      "sha256": "62945fe516f9484c15070db613daf6e9c33ba05291a68c6769f8e4c3a39f1c37"
+    },
+    {
+      "name": "offline-image-response-probe-20261022.cjs",
+      "bytes": 4677,
+      "sha256": "bb5e053f237738ab44f3c2db0064c3042c47efee76591d7f9ad9ce6e770b00d9"
+    },
+    {
+      "name": "classroom_readonly_delta_20261022.py",
+      "bytes": 4963,
+      "sha256": "76508d24a6ad719c1093971f3bc0f20559158e829fc3bed55b8a12ce5cc16817"
+    },
+    {
+      "name": "resource-release-snapshot-20261022-1647.json",
+      "bytes": 3020,
+      "sha256": "30e2692f36186e2c52e61725622efe25bb990fc8d38e79cc176da2b7bd6b493a"
+    }
+  ]
+}

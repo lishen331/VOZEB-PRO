@@ -1,0 +1,203 @@
+{
+  "at": "2026-10-21T09:40:13.612Z",
+  "sampleAt": "2026-10-21T09:39:48.447755+00:00",
+  "readOnly": true,
+  "tasks": [
+    {
+      "id": "da3a25fa-ee9b-48c9-b8d3-34c4a0e1677d",
+      "error": "图片生成失败，状态码 403",
+      "model": "gpt-image-2-all",
+      "events": [
+        {
+          "at": 1792575482177,
+          "model": "gpt-image-2-all",
+          "phase": "recovery_end",
+          "state": "failed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2394
+        },
+        {
+          "at": 1792575482174,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "failed"
+        },
+        {
+          "at": 1792575482162,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "error",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792575482145,
+          "model": "gpt-image-2-all",
+          "phase": "provider_exception",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorMessage": "图片生成失败，状态码 403"
+        },
+        {
+          "at": 1792575482139,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 234,
+          "contentType": "application/json",
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792575481905,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "method": "POST",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "parameters": "{\"model\":\"gpt-image-2-all\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":1218497,\"type\":\"image/jpeg\"},{\"size\":5264091,\"type\":\"image/png\"},{\"size\":3356375,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792575479797,
+          "model": "gpt-image-2-all",
+          "phase": "provider_start",
+          "protocol": "newapi",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792575479794,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792575479582,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "automatic_retry_after_upstream_failure"
+        },
+        {
+          "at": 1792575479570,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_exception",
+          "state": "request_signal_aborted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 547908,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "",
+          "responseBytes": 5362317
+        },
+        {
+          "at": 1792575479558,
+          "model": "gpt-image-2",
+          "phase": "provider_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorMessage": "The operation was aborted due to timeout"
+        },
+        {
+          "at": 1792575479555,
+          "model": "gpt-image-2",
+          "phase": "transport_exception",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 599995,
+          "errorMessage": "The operation was aborted due to timeout"
+        },
+        {
+          "at": 1792574931644,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_first_byte",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 0,
+          "contentType": "application/json; charset=utf-8",
+          "responseBytes": 10071
+        },
+        {
+          "at": 1792574931638,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "4d6f6eac",
+          "durationMs": 51805,
+          "contentType": "application/json; charset=utf-8"
+        },
+        {
+          "at": 1792574879832,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "method": "POST",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":1218497,\"type\":\"image/jpeg\"},{\"size\":5264091,\"type\":\"image/png\"},{\"size\":3356375,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792574879555,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "method": "POST",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"2720x1536\",\"quality\":\"medium\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":1218497,\"type\":\"image/jpeg\"},{\"size\":5264091,\"type\":\"image/png\"},{\"size\":3356375,\"type\":\"image/jpeg\"}]}"
+        },
+        {
+          "at": 1792574878708,
+          "model": "gpt-image-2",
+          "phase": "provider_start",
+          "protocol": "newapi",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792574878705,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "error",
+      "surface": "canvas",
+      "attempts": [
+        {
+          "error": "The operation was aborted due to timeout",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792574878700,
+          "completedAt": 1792575479560,
+          "upstreamError": "The operation was aborted due to timeout"
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792575479789,
+          "completedAt": 1792575482158,
+          "upstreamError": "图片生成失败，状态码 403"
+        }
+      ],
+      "provider": "newapi",
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-21T09:27:58.675+00:00",
+      "project_id": "canvas-Yk-iMcWZ-qt-LjF7D53Ar",
+      "updated_at": "2026-10-21T09:38:02.165+00:00",
+      "submitted_at": "2026-10-21T09:37:59.791+00:00",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "id": "image-task:da3a25fa-ee9b-48c9-b8d3-34c4a0e1677d",
+        "error": "图片生成失败，状态码 403",
+        "status": "failed",
+        "durationMs": 603492,
+        "completedAt": "2026-10-21T09:38:02.167+00:00"
+      },
+      "execution_phase": "completed",
+      "upstream_task_id": null
+    }
+  ]
+}

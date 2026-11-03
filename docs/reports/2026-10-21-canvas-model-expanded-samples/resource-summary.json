@@ -1,0 +1,20 @@
+[
+  {
+    "name": "vozeb-pro",
+    "snapshots": 47,
+    "maxCpuPct": 125.75,
+    "maxMemoryMiB": 474.1
+  },
+  {
+    "name": "vozeb-pro-generation-worker",
+    "snapshots": 47,
+    "maxCpuPct": 0.64,
+    "maxMemoryMiB": 40.92
+  },
+  {
+    "name": "vozeb-pro-postgres",
+    "snapshots": 47,
+    "maxCpuPct": 21.85,
+    "maxMemoryMiB": 130.3
+  }
+]

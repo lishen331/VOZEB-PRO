@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-21T14:00:43.189Z",
+  "readOnly": true,
+  "containers": [
+    {
+      "container": "vozeb-pro",
+      "changedPathCount": 11,
+      "codeLikePaths": [],
+      "note": "Overlay path differences alone do not prove a manual patch; startup asset preparation may create native/runtime files."
+    },
+    {
+      "container": "vozeb-pro-generation-worker",
+      "changedPathCount": 0,
+      "codeLikePaths": [],
+      "note": "Overlay path differences alone do not prove a manual patch; startup asset preparation may create native/runtime files."
+    }
+  ]
+}

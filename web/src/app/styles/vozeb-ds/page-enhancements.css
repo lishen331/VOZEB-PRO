@@ -1,0 +1,208 @@
+/* Container examples and local-preview utilities, scoped to this design system. */
+.vz-ds .vz-device-selector {
+    width: min(100%, 420px);
+    min-width: 0;
+}
+.vz-ds .vz-device-selector .ant-segmented {
+    width: 100%;
+    min-width: 0;
+}
+.vz-ds .vz-device-selector .ant-segmented-item-label {
+    padding-inline: 10px;
+}
+.vz-ds .vz-device-frame {
+    max-width: 100%;
+    margin: 20px auto 0;
+    padding: 8px;
+    border: 1px solid var(--vz-border-strong);
+    border-radius: 28px;
+    background: var(--vz-surface-3);
+    box-shadow: var(--vz-shadow-2);
+}
+.vz-ds .vz-device-sketch {
+    container: vz-device / inline-size;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 21px;
+    background: var(--vz-bg);
+}
+.vz-ds .vz-device-note {
+    margin: 12px 0 0;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.vz-ds .vz-mini-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border-bottom: 1px solid var(--vz-divider);
+    background: var(--vz-glass-strong);
+    font-size: 13px;
+    font-weight: 600;
+}
+.vz-ds .vz-mini-top > svg {
+    width: 16px;
+    height: 16px;
+    color: var(--vz-text-2);
+}
+.vz-ds .vz-mini-top > .vz-tag {
+    margin-left: auto;
+}
+.vz-ds .vz-mini-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
+    min-width: 0;
+}
+.vz-ds .vz-mini-panel {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--vz-border);
+    border-radius: 18px;
+    background: var(--vz-surface-1);
+}
+.vz-ds .vz-mini-panel .vz-h3 {
+    margin: 0;
+}
+.vz-ds .vz-mini-model {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--vz-border);
+    border-radius: 12px;
+    background: var(--vz-surface-2);
+    font-size: 12px;
+}
+.vz-ds .vz-mini-model > svg {
+    width: 16px;
+    height: 16px;
+    color: var(--vz-brand-text);
+    flex: none;
+}
+.vz-ds .vz-mini-model > .vz-tag {
+    margin-left: auto;
+}
+.vz-ds .vz-mini-upload {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    padding: 16px 8px;
+    border: 1px dashed var(--vz-border-strong);
+    border-radius: 12px;
+    background: var(--vz-surface-2);
+    color: var(--vz-text-2);
+    font-size: 12px;
+}
+.vz-ds .vz-mini-upload svg {
+    width: 20px;
+    height: 20px;
+    color: var(--vz-brand-text);
+}
+.vz-ds .vz-mini-upload small {
+    font-size: 11px;
+    color: var(--vz-text-3);
+}
+.vz-ds .vz-mini-prompt,
+.vz-ds .vz-share-link {
+    width: 100%;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--vz-border);
+    border-radius: 12px;
+    resize: vertical;
+    background: var(--vz-surface-2);
+    color: var(--vz-text-1);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.7;
+}
+.vz-ds .vz-mini-prompt:focus-visible,
+.vz-ds .vz-share-link:focus-visible {
+    box-shadow: var(--vz-ring);
+}
+.vz-ds .vz-mini-params {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.vz-ds .vz-mini-generate {
+    width: 100%;
+}
+.vz-ds .vz-mini-result {
+    align-self: start;
+    min-width: 0;
+    border: 1px solid var(--vz-border);
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--vz-surface-1);
+}
+.vz-ds .vz-mini-result__head,
+.vz-ds .vz-mini-result__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+}
+.vz-ds .vz-mini-result__head {
+    font-size: 12px;
+    font-weight: 600;
+}
+.vz-ds .vz-mini-result__head > svg {
+    width: 15px;
+    height: 15px;
+    color: var(--vz-text-2);
+}
+.vz-ds .vz-mini-result__head > .vz-tag,
+.vz-ds .vz-mini-result__foot > .vz-tag {
+    margin-left: auto;
+}
+.vz-ds .vz-mini-result > img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+.vz-ds .vz-preview-note {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--vz-border);
+    border-radius: 12px;
+    background: var(--vz-surface-1);
+    color: var(--vz-text-2);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+.vz-ds .vz-preview-note__dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--vz-accent);
+}
+.vz-ds .vz-preview-note > .vz-tag {
+    margin-left: auto;
+    font-size: 10px;
+}
+@container vz-device (min-width: 620px) {
+    .vz-ds .vz-mini-workspace {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+        padding: 18px;
+    }
+}
+@media (max-width: 600px) {
+    .vz-ds .vz-preview-note > .vz-tag {
+        margin-left: 0;
+    }
+}

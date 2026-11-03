@@ -1,0 +1,154 @@
+{
+  "at": "2026-10-21T03:13:30.727Z",
+  "checks": {
+    "submissions387": true,
+    "task331": true,
+    "success252": true,
+    "taskFailures79": true,
+    "noTaskRejections56": true,
+    "textEach16": true,
+    "imageQuota": true,
+    "videoEach6": true,
+    "nativeReferenceExactly11": true,
+    "allTerminal": true,
+    "allSamplesIndependentRefresh": true,
+    "allSuccessReopenedRefreshed": true,
+    "allFailedReopenedShowFailure": true,
+    "refreshDidNotCreateTasks": true,
+    "fullSuccessCompletionLogs250": true,
+    "successMissingLogExplicitProxyOnly": true,
+    "allTwoDimensionalAdvice": true,
+    "noNegativeFullDurations": true,
+    "reportTextEncodingClean": true,
+    "noPrivateCredentialsOrUserIdsInReport": true
+  },
+  "allPassed": true,
+  "textQA": [
+    {
+      "file": "account-summary.csv",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "account-summary.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "attempts.csv",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "attempts.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "channel-attempt-summary.csv",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "channel-attempt-summary.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "duplicate-native-posts.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "final-qa.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "generation-logs-completion-audit.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "generation-task-completion-times.csv",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "generation-task-completion-times.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "input-mode-summary.csv",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "input-mode-summary.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "media-read-failure-chains.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "media-read-failure-chains.zh-CN.md",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "model-summary.csv",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "model-summary.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "production-live-model-report.zh-CN.md",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "resource-summary.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "samples.csv",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "samples.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "server-rejections-without-task.csv",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "server-rejections-without-task.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "sha256-manifest.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    },
+    {
+      "file": "validation.json",
+      "validUtf8": true,
+      "noReplacementOrMojibake": true
+    }
+  ],
+  "privateLeakMatches": 0
+}
