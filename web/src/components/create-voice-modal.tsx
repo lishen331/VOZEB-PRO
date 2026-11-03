@@ -21,7 +21,7 @@ export function CreateVoiceModal({ open, model, onClose, onSuccess }: CreateVoic
     const [loading, setLoading] = useState(false);
 
     const { data: settingsData } = useSWR<{
-        systemChannels: Array<{ id: string; models: string[]; advancedConfig?: { voiceCustomization?: any } }>;
+        systemChannels: Array<{ id: string; models: string[]; advancedConfig?: { voiceCustomization?: unknown } }>;
         voicePricing?: { usdToCny: number; pointsPerYuan: number };
     }>(open ? "/api/auth/settings" : null);
 
@@ -134,7 +134,7 @@ function CloneTab({ config, voicePricing, loading, onSubmit }: CloneTabProps) {
     };
 
     const points = customVoiceCreatePoints(config, "clone", voicePricing.usdToCny, voicePricing.pointsPerYuan);
-    const priceCny = priceInCny(config, "clone", voicePricing.usdToCny);
+    const priceCny = priceInCny(config.pricing.clone, config.pricing.currency, voicePricing.usdToCny);
 
     return (
         <div className="space-y-4 py-4">
@@ -205,7 +205,7 @@ function DesignTab({ config, voicePricing, loading, onSubmit }: DesignTabProps) 
     };
 
     const points = customVoiceCreatePoints(config, "design", voicePricing.usdToCny, voicePricing.pointsPerYuan);
-    const priceCny = priceInCny(config, "design", voicePricing.usdToCny);
+    const priceCny = priceInCny(config.pricing.design, config.pricing.currency, voicePricing.usdToCny);
 
     return (
         <div className="space-y-4 py-4">

@@ -69,7 +69,7 @@ export function VoiceCustomizationEditor({ advanced, updateAdvanced }: { advance
             />
             {jsonError ? <div className="text-xs text-red-500">{jsonError}</div> : null}
             <div className="text-[11px] leading-5 text-[var(--gm-text-3)]">
-                配置自定义音色功能的上游接口参数、定价和限制。点击模板按钮加载 MiniMax 或 Qwen 的默认配置，修改后点击"应用配置"保存。留空则禁用自定义音色功能。
+                配置自定义音色功能的上游接口参数、定价和限制。点击模板按钮加载 MiniMax 或 Qwen 的默认配置，修改后点击「应用配置」保存。留空则禁用自定义音色功能。
             </div>
         </div>
     );
