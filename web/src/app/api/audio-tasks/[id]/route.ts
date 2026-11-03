@@ -28,7 +28,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const shouldRefund = Boolean(task.billing?.billingReceiptId && !task.billing.refunded && task.status === "error");
     const settledTask = shouldRefund ? await refundAudioTask(task) : task;
     const refreshedUser = shouldRefund ? await getCurrentUser(request) : user;
-    return NextResponse.json({ task: { ...publicTask(settledTask), needsReview: task.executionPhase === "needs_review", reviewReason: task.reviewReason, executionPhase: task.executionPhase } }, { headers: pointsResponseHeaders(refreshedUser) });
+    return NextResponse.json(
+        {
+            task: {
+                ...publicTask(settledTask),
+                needsReview: task.executionPhase === "needs_review",
+                reviewReason: task.reviewReason,
+                executionPhase: task.executionPhase,
+                refundedPoints: shouldRefund && "refundedPoints" in settledTask ? settledTask.refundedPoints : undefined,
+            },
+        },
+        { headers: pointsResponseHeaders(refreshedUser) },
+    );
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

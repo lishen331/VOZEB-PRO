@@ -2,6 +2,7 @@ import { audioMimeType, normalizeAudioFormatValue, normalizeAudioSpeedValue, nor
 import { GenerationTaskNeedsReviewError, GenerationTaskTerminalError, type GenerationTaskExecutionState } from "@/services/api/generation-task-state";
 import { readStoredMediaFile, uploadGeneratedMediaFile, type UploadedFile } from "@/services/file-storage";
 import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
+import { withRefundNotice } from "@/services/api/refund-notice";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 import { resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 
@@ -22,7 +23,7 @@ type RequestOptions = {
 
 export type AudioGenerationTask = { id: string; status?: "pending" | "running" | "success" | "error" | "cancelled"; model: string };
 
-export type AudioGenerationTaskSnapshot = AudioGenerationTask & GenerationTaskExecutionState & { result?: { url: string; mimeType: string }; error?: string };
+export type AudioGenerationTaskSnapshot = AudioGenerationTask & GenerationTaskExecutionState & { result?: { url: string; mimeType: string }; error?: string; refundedPoints?: number };
 type AudioTaskPayload = { task?: AudioGenerationTaskSnapshot; error?: string };
 
 const AUDIO_TASK_POLL_INTERVAL_MS = 1800;
@@ -81,7 +82,7 @@ export async function recoverAudioGenerationTask(taskId: string, options?: Pick<
     if (!payload.task) throw new Error(payload.error || "重新检查音频任务失败");
     if (payload.task.needsReview) throw new GenerationTaskNeedsReviewError(payload.task.reviewReason);
     if (payload.task.status === "error" || payload.task.status === "cancelled") {
-        throw new GenerationTaskTerminalError(payload.task.error || (payload.task.status === "cancelled" ? "请求已取消" : "音频生成失败"));
+        throw new GenerationTaskTerminalError(withRefundNotice(payload.task.error || (payload.task.status === "cancelled" ? "请求已取消" : "音频生成失败"), payload.task.refundedPoints));
     }
     return payload.task;
 }
@@ -106,7 +107,7 @@ export async function waitForAudioGenerationTask(config: AiConfig, task: AudioGe
                 const audio = blob.type.startsWith("audio/") ? blob : new Blob([blob], { type: audioMimeType(format) });
                 return { blob: audio, url: current.result.url, mimeType: current.result.mimeType || audio.type };
             }
-            if (current.status === "error" || current.status === "cancelled") throw new GenerationTaskTerminalError(current.error || (current.status === "cancelled" ? "请求已取消" : "音频生成失败"));
+            if (current.status === "error" || current.status === "cancelled") throw new GenerationTaskTerminalError(withRefundNotice(current.error || (current.status === "cancelled" ? "请求已取消" : "音频生成失败"), current.refundedPoints));
             await delay(AUDIO_TASK_POLL_INTERVAL_MS, options?.signal);
         }
     } catch (error) {

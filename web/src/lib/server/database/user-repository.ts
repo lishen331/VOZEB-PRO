@@ -670,18 +670,20 @@ export class PointsRepository {
         return mapPointRecord(result.rows[0]);
     }
 
-    async listRecords(userId: string, input: PageInput & { direction?: "credit" | "debit" } = {}): Promise<PageResult<PointRecord>> {
+    async listRecords(userId: string, input: PageInput & { direction?: "credit" | "debit"; includeRefunds?: boolean } = {}): Promise<PageResult<PointRecord>> {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
         const direction = input.direction === "credit" || input.direction === "debit" ? input.direction : null;
+        // includeRefunds：消费记录页要把失败后退回的流水一起列出来，否则用户只看到扣分、看不到退回。
+        const includeRefunds = direction === "debit" && input.includeRefunds === true;
         const result = await this.db.query(
             `SELECT *, count(*) OVER() AS total_count
              FROM point_records
              WHERE user_id = $1
-               AND ($2::text IS NULL OR ($2 = 'credit' AND amount > 0) OR ($2 = 'debit' AND amount < 0))
+               AND ($2::text IS NULL OR ($2 = 'credit' AND amount > 0) OR ($2 = 'debit' AND (amount < 0 OR ($4::boolean AND type = 'refund'))))
              ORDER BY created_at DESC
-             LIMIT $3 OFFSET $4`,
-            [userId, direction, pageSize, (page - 1) * pageSize],
+             LIMIT $3 OFFSET $5`,
+            [userId, direction, pageSize, includeRefunds, (page - 1) * pageSize],
         );
         return pageResult(result.rows.map(mapPointRecord), Number(result.rows[0]?.total_count || 0), page, pageSize);
     }

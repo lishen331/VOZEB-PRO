@@ -4,6 +4,7 @@ import { GenerationTaskNeedsReviewError, type GenerationTaskExecutionState } fro
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { GenerationTaskRequestError, readGenerationRetryAfterMs } from "@/services/api/generation-task-request-error";
 import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
+import { withRefundNotice } from "@/services/api/refund-notice";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 import { imageToDataUrl } from "@/services/image-storage";
 import { serverMediaUrl } from "@/services/server-media-storage";
@@ -47,6 +48,7 @@ type ImageTaskPayload = {
             result?: ImageGenerationResult & { results?: ImageGenerationResult[] };
             error?: string;
             canRetry?: boolean;
+            refundedPoints?: number;
         };
     error?: string;
 };
@@ -140,7 +142,7 @@ export async function recoverImageGenerationTask(taskId: string, options?: Pick<
     if (!payload.task) throw new Error(payload.error || "重新检查图片任务失败");
     if (payload.task.needsReview) throw new GenerationTaskNeedsReviewError(payload.task.reviewReason);
     if (payload.task.status === "error" || payload.task.status === "cancelled") {
-        throw new ImageGenerationTaskTerminalError(payload.task.error || (payload.task.status === "cancelled" ? "图片任务已取消" : "图片生成失败"), payload.task.canRetry === true);
+        throw new ImageGenerationTaskTerminalError(withRefundNotice(payload.task.error || (payload.task.status === "cancelled" ? "图片任务已取消" : "图片生成失败"), payload.task.refundedPoints), payload.task.canRetry === true);
     }
     return payload.task;
 }
@@ -223,7 +225,7 @@ export async function waitForImageGenerationTask(config: AiConfig, task: ImageGe
         }
         if (current.status === "error") {
             await refreshUserPointsIfSystem(config.apiSource);
-            throw new ImageGenerationTaskTerminalError(current.error || "图片生成失败", current.canRetry === true);
+            throw new ImageGenerationTaskTerminalError(withRefundNotice(current.error || "图片生成失败", current.refundedPoints), current.canRetry === true);
         }
         if (current.status === "cancelled") {
             await refreshUserPointsIfSystem(config.apiSource);

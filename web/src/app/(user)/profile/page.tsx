@@ -269,7 +269,7 @@ export default function ProfilePage() {
                         ) : null}
 
                         {activeSection === "consume" ? (
-                            <AccountPanel title="消费记录" description="展示最近扣除积分的模型调用、生成任务和接口消费。">
+                            <AccountPanel title="消费记录" description="展示最近扣除积分的模型调用、生成任务和接口消费；生成失败退回的积分也会一并列出，显示为加分。">
                                 {consumption.loading ? (
                                     <LoadingBlock />
                                 ) : consumption.items.length ? (

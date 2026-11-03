@@ -44,6 +44,8 @@ export async function GET(request: Request, context: RouteContext) {
                 needsReview: executionPhase === "needs_review",
                 reviewReason: executionPhase === "needs_review" ? task.reviewReason : undefined,
                 executionPhase,
+                // 本次退款实际退回的积分；前端据此提示用户，避免"余额悄悄涨回去"。
+                refundedPoints: shouldRefund && "refundedPoints" in settledTask ? settledTask.refundedPoints : undefined,
             },
         },
         { headers: pointsResponseHeaders(refreshedUser) },

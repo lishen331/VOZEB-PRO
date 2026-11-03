@@ -12,6 +12,7 @@ import { parseServerMediaUrl, serverMediaUrl, type ServerMediaType } from "@/ser
 import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 import { boolConfig, buildSeedancePromptText, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceVideoReferenceError, SEEDANCE_REFERENCE_LIMITS } from "@/lib/seedance-video";
+import { withRefundNotice } from "@/services/api/refund-notice";
 import { buildApiUrl, modelOptionName, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
@@ -314,6 +315,7 @@ type ServerVideoTaskPayload = {
         result?: VideoGenerationResult;
         error?: string;
         canRetry?: boolean;
+        refundedPoints?: number;
     };
     error?: string;
 };
@@ -321,7 +323,7 @@ type ServerVideoTaskPayload = {
 function serverVideoTaskState(task?: ServerVideoTaskPayload["task"]): VideoGenerationTaskState {
     if (task?.needsReview) return { status: "failed", error: task.reviewReason || GENERATION_TASK_NEEDS_REVIEW_MESSAGE, needsReview: true };
     if (task?.status === "success") return { status: "completed", result: task.result || {} };
-    if (task?.status === "error" || task?.status === "cancelled") return { status: "failed", error: task.error || "视频生成失败", canRetry: task.canRetry === true };
+    if (task?.status === "error" || task?.status === "cancelled") return { status: "failed", error: withRefundNotice(task.error || "视频生成失败", task.refundedPoints), canRetry: task.canRetry === true };
     return { status: "pending" };
 }
 

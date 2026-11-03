@@ -262,13 +262,15 @@ export type PointRecordListResult = {
     pageSize: number;
 };
 
-export async function listPointRecordsPage(userId: string, input?: { page?: number; pageSize?: number; direction?: "credit" | "debit" }): Promise<PointRecordListResult> {
+export async function listPointRecordsPage(userId: string, input?: { page?: number; pageSize?: number; direction?: "credit" | "debit"; includeRefunds?: boolean }): Promise<PointRecordListResult> {
     const pageSize = Math.max(1, Math.min(50, Math.floor(Number(input?.pageSize) || 10)));
     const page = Math.max(1, Math.floor(Number(input?.page) || 1));
     const direction = input?.direction === "credit" || input?.direction === "debit" ? input.direction : undefined;
+    // 消费记录页需要连退款一起显示：用户要知道扣掉的积分有没有退回来。
+    const includeRefunds = direction === "debit" && input?.includeRefunds === true;
     if (isPostgresDatabaseEnabled()) {
         await ensurePostgresSchema();
-        const result = await createPostgresRepositories().points.listRecords(userId, { page, pageSize, direction });
+        const result = await createPostgresRepositories().points.listRecords(userId, { page, pageSize, direction, includeRefunds });
         return {
             records: result.items.map(toPublicPointRecord),
             total: result.total,
@@ -278,7 +280,7 @@ export async function listPointRecordsPage(userId: string, input?: { page?: numb
     }
     const db = await readAuthDb();
     const records = (db.pointRecords || [])
-        .filter((record) => record.userId === userId && (!direction || (direction === "credit" ? record.amount > 0 : record.amount < 0)))
+        .filter((record) => record.userId === userId && (!direction || (direction === "credit" ? record.amount > 0 : record.amount < 0 || (includeRefunds && record.type === "refund"))))
         .map(toPublicPointRecord)
         .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     const total = records.length;
@@ -756,7 +758,7 @@ export async function refundUserPoints(userId: string, model: string, amount: nu
         });
         const details = await createPostgresRepositories().users.getPublicDetails([userId], { now: clock.now.toISOString(), date: clock.date });
         const user = details[0];
-        return user ? { ...publicUserFromAuthenticatedRecord(user, result.snapshot.dailyExpiresAt), pointsBalance: result.snapshot.totalPoints } : null;
+        return user ? { ...publicUserFromAuthenticatedRecord(user, result.snapshot.dailyExpiresAt), pointsBalance: result.snapshot.totalPoints, refundedPoints: result.record.amount } : null;
     }
     const db = await readAuthDb();
     const user = db.users.find((item) => item.id === userId);
@@ -775,7 +777,8 @@ export async function refundUserPoints(userId: string, model: string, amount: nu
     });
     const nextDb = await readAuthDb();
     const nextUser = nextDb.users.find((item) => item.id === userId);
-    return nextUser ? { ...toPublicUser(nextUser, nextDb), pointsBalance: result.snapshot.totalPoints } : null;
+    // refundedPoints 是实际退回的积分（已扣除当日过期部分），供前端提示用。
+    return nextUser ? { ...toPublicUser(nextUser, nextDb), pointsBalance: result.snapshot.totalPoints, refundedPoints: result.record.amount } : null;
 }
 
 export { createSession, deleteSession, deleteUserByAdmin, getUserBySession, resetPasswordByEmail, updateOwnPassword, updateOwnProfile, updateUserByAdmin, verifyUserPasswordForSensitiveAction } from "./store-account-actions";
