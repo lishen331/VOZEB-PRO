@@ -1,5 +1,5 @@
 import type { LogicalModelCapability, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
-import { channelDetectedCapabilities, normalizeDefaultModelsConfig } from "@/lib/model-routing-config";
+import { channelDetectedCapabilities, deriveChannelPurpose, normalizeDefaultModelsConfig } from "@/lib/model-routing-config";
 import { channelProtocolDefinition } from "@/lib/channel-protocol-registry";
 
 export type ChannelWorkspaceSettings = {
@@ -49,7 +49,14 @@ export function removeChannelFromWorkspace(settings: ChannelWorkspaceSettings, c
 }
 
 export function updateChannelInWorkspace(settings: ChannelWorkspaceSettings, channelId: string, patch: Partial<SystemModelChannel>): ChannelWorkspaceSettings {
-    const systemChannels = settings.systemChannels.map((channel) => (channel.id === channelId ? { ...channel, ...patch } : channel));
+    const systemChannels = settings.systemChannels.map((channel) => {
+        if (channel.id !== channelId) return channel;
+        const next = { ...channel, ...patch };
+        // 改任一启用开关时同步推导用途，否则"打开练习开关"会被旧的「正式生产」用途挡住，
+        // 界面看起来像点了没反应。
+        if ("enabled" in patch || "practiceEnabled" in patch) next.purpose = deriveChannelPurpose(next);
+        return next;
+    });
     return {
         ...settings,
         systemChannels,
