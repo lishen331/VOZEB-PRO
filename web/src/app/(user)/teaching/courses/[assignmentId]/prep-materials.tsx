@@ -55,7 +55,7 @@ export function MaterialStage({ material }: { material: CourseMaterial }) {
     }
     if (kind === "video") return <video key={material.id} src={material.url} controls preload="metadata" className="mx-auto block h-full max-h-full max-w-full" />;
     // PDF 用项目自己的渲染器（pdfjs），不要浏览器阅读器的灰框和双滚动条
-    if (kind === "pdf") return <PdfPreview src={material.url} title={material.title} downloadHref={materialDownloadHref(material)} className="size-full" />;
+    if (kind === "pdf") return <PdfPreview src={material.url} title={material.title} className="size-full" />;
     return (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <span className="grid size-16 place-items-center rounded-2xl bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[var(--gm-accent-ring)]">
@@ -65,10 +65,7 @@ export function MaterialStage({ material }: { material: CourseMaterial }) {
             <p className="text-xs text-[var(--gm-text-3)]">
                 {material.fileName} · {formatBytes(material.bytes)}
             </p>
-            <a href={materialDownloadHref(material)} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[image:var(--gm-gradient)] px-4 text-xs font-medium text-white shadow-[var(--gm-glow-blue)] hover:brightness-110">
-                <Download className="size-3.5" />
-                下载查看
-            </a>
+            <p className="text-xs text-[var(--gm-text-3)]">标准课件仅支持平台内查看</p>
         </div>
     );
 }
