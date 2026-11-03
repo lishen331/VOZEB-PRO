@@ -15,8 +15,9 @@ import { normalizeModelId } from "@/lib/model-capability";
 import { BindingHttp1Control } from "./binding-http1-control";
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import { AdminModelConnectionTest } from "@/components/admin/admin-model-connection-test";
-import { PracticeModelPoolManager } from "@/components/admin/practice-model-pool-manager";
+import { PracticeModelPoolManager, type PracticePoolSelection } from "@/components/admin/practice-model-pool-manager";
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
+import type { PracticePoolKind } from "@/lib/auth/store-types";
 
 import { capabilityLabel, isLogicalModelResolvable, logicalModelSupportsImageInput, normalizeDefaultModelsConfig, resolveLogicalModelConfig, resolveVisionModelConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
 
@@ -36,12 +37,12 @@ const capabilityOptions: Array<{ label: string; value: LogicalModelCapability }>
     { label: "音频", value: "audio" },
 ];
 
-const defaultFields: Array<{ capability: LogicalModelCapability; key: keyof SystemDefaultModels; label: string }> = [
-    { capability: "text", key: "textModel", label: "默认文本模型" },
-    { capability: "text", key: "visionModel", label: "Canvas 图片理解模型" },
-    { capability: "image", key: "imageModel", label: "默认图片模型" },
-    { capability: "video", key: "videoModel", label: "默认视频模型" },
-    { capability: "audio", key: "audioModel", label: "默认音频模型" },
+const defaultFields: Array<{ capability: LogicalModelCapability; key: keyof SystemDefaultModels; label: string; pool?: PracticePoolKind }> = [
+    { capability: "text", key: "textModel", label: "默认文本模型", pool: "text" },
+    { capability: "text", key: "visionModel", label: "Canvas 图片理解模型", pool: "vision" },
+    { capability: "image", key: "imageModel", label: "默认图片模型", pool: "image" },
+    { capability: "video", key: "videoModel", label: "默认视频模型", pool: "video" },
+    { capability: "audio", key: "audioModel", label: "默认音频模型", pool: "audio" },
 ];
 
 export function resolvePracticeWorkflowModelOptions(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability) {
@@ -64,6 +65,8 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
     const [query, setQuery] = useState("");
     const [capabilityFilter, setCapabilityFilter] = useState<LogicalModelCapability | "all">("all");
     const [defaultPool, setDefaultPool] = useState<"production" | "open-source-practice">("production");
+    /** 练习池里每个能力池已勾选的模型键，用于把默认模型下拉限制在池内。 */
+    const [practicePoolSelection, setPracticePoolSelection] = useState<PracticePoolSelection | null>(null);
     const deferredQuery = useDeferredValue(query.trim().toLowerCase());
     const visibleModels = useMemo(
         () =>
@@ -74,11 +77,22 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
     );
     const activeDefaults = defaultPool === "production" ? defaultModels : practiceDefaultModels;
     const activeExecutionProfile = defaultPool === "production" ? "production" : "open-source-practice";
+    /**
+     * 练习侧：逻辑模型只要有一个绑定的上游模型被勾进对应能力池，才算可选项。
+     * 这样「池子」和「默认模型」是同一件事的两面，不会出现池里有但下拉里没有。
+     */
+    const isInPracticePool = (field: (typeof defaultFields)[number], model: LogicalModel) => {
+        if (defaultPool === "production" || !field.pool || !practicePoolSelection) return true;
+        const keys = practicePoolSelection[field.pool];
+        if (!keys) return true;
+        return model.bindings.some((binding) => binding.enabled && keys.has(normalizeModelId(binding.upstreamModel)));
+    };
     const isEligibleDefaultModel = (field: (typeof defaultFields)[number], model: LogicalModel) =>
         model.capability === field.capability &&
         // Canvas can be pointed at any reachable text model. The image-input
         // capability flag is advisory and does not hide otherwise usable routes.
-        isLogicalModelResolvable(logicalModels, channels, field.capability, model.id, activeExecutionProfile);
+        isLogicalModelResolvable(logicalModels, channels, field.capability, model.id, activeExecutionProfile) &&
+        isInPracticePool(field, model);
     const availableDefaultFields = defaultFields.filter((field) => field.key === "visionModel" || logicalModels.some((model) => isEligibleDefaultModel(field, model)));
     const availableCapabilityOptions = capabilityOptions.filter(({ value }) => availableDefaultFields.some(({ capability }) => capability === value));
     const readyCount = availableDefaultFields.filter((field) => {
@@ -228,7 +242,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     </div>
                     <p className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。</p>
 
-                    {defaultPool === "open-source-practice" && <PracticeModelPoolManager />}
+                    {defaultPool === "open-source-practice" && <PracticeModelPoolManager onSelectionChange={setPracticePoolSelection} />}
 
                     <div className="mt-4 space-y-4">
                         {availableDefaultFields.map(({ capability, key, label }) => {

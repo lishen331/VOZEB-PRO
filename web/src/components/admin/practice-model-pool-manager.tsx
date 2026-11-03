@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Checkbox, Spin } from "@/components/gamma-ui/gamma-ant";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
@@ -34,7 +34,10 @@ const POOLS: Array<{ kind: PracticePoolKind; label: string; hint: string; emptyH
     { kind: "audio", label: "音频", hint: "配音 / 音乐模块从这里取模型", emptyHint: "打开某个音频渠道的「无限练习」开关后即可出现" },
 ];
 
-export function PracticeModelPoolManager() {
+/** 每个池里已勾选的模型键，供「默认模型」下拉过滤使用。 */
+export type PracticePoolSelection = Record<PracticePoolKind, Set<string>>;
+
+export function PracticeModelPoolManager({ onSelectionChange }: { onSelectionChange?: (selection: PracticePoolSelection) => void } = {}) {
     const { message } = App.useApp();
     const [loading, setLoading] = useState(true);
     const [pools, setPools] = useState<CandidatesResponse["pools"]>({ text: [], vision: [], image: [], video: [], audio: [] });
@@ -46,6 +49,7 @@ export function PracticeModelPoolManager() {
         audio: { total: 0, inPool: 0 },
     });
     const [searchQuery, setSearchQuery] = useState("");
+    const [activeKind, setActiveKind] = useState<PracticePoolKind>("text");
     const [updating, setUpdating] = useState(false);
 
     const load = useCallback(async () => {
@@ -101,84 +105,104 @@ export function PracticeModelPoolManager() {
         ) as CandidatesResponse["pools"];
     }, [pools, searchQuery]);
 
+    // 把「每个池里勾了哪些模型」上报给父组件，供「默认模型」下拉过滤。
+    // 用 ref 持有回调，避免父组件传内联函数时反复触发。
+    const selectionCallbackRef = useRef(onSelectionChange);
+    selectionCallbackRef.current = onSelectionChange;
+    const selection = useMemo(() => Object.fromEntries(POOLS.map(({ kind }) => [kind, new Set(pools[kind].filter((candidate) => candidate.inPool).map((candidate) => candidate.modelKey))])) as PracticePoolSelection, [pools]);
+    useEffect(() => {
+        selectionCallbackRef.current?.(selection);
+    }, [selection]);
+
     if (loading) {
         return (
-            <div className="mt-6 flex items-center justify-center py-12">
+            <div className="mt-4 flex items-center justify-center py-8">
                 <Spin size="large" />
             </div>
         );
     }
 
-    return (
-        <div className="mt-6 space-y-4">
-            <Input
-                placeholder="搜索模型名称或渠道（同时过滤五个池）"
-                prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
-                value={searchQuery}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(event.target.value)}
-                allowClear
-            />
+    const active = POOLS.find((pool) => pool.kind === activeKind) ?? POOLS[0];
+    const activeRows = filtered[active.kind];
+    const activeStats = stats[active.kind];
+    const activeChecked = activeRows.filter((row) => row.inPool).length;
+    const activeAllChecked = activeRows.length > 0 && activeChecked === activeRows.length;
 
-            {POOLS.map(({ kind, label, hint, emptyHint }) => {
-                const rows = filtered[kind];
-                const poolStats = stats[kind];
-                const checkedCount = rows.filter((row) => row.inPool).length;
-                const allChecked = rows.length > 0 && checkedCount === rows.length;
-                return (
-                    <section key={kind} className="rounded-lg border border-[var(--gm-border)]">
-                        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--gm-border)] px-3 py-2.5">
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-[var(--gm-text)]">{label}</span>
-                                    <span className="rounded bg-[var(--gm-bg-2)] px-1.5 py-0.5 text-xs text-[var(--gm-text-3)]">
-                                        已选 {poolStats.inPool} / 共 {poolStats.total}
-                                    </span>
+    return (
+        <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+                {POOLS.map(({ kind, label }) => {
+                    const selected = kind === activeKind;
+                    const count = stats[kind];
+                    return (
+                        <button
+                            key={kind}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => setActiveKind(kind)}
+                            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                                selected ? "border-[var(--gm-accent)] bg-[var(--gm-accent)]/10 text-[var(--gm-accent)]" : "border-[var(--gm-border)] text-[var(--gm-text-2)] hover:bg-[var(--gm-bg-2)]"
+                            }`}
+                        >
+                            {label}
+                            <span className={`rounded px-1 text-[11px] ${selected ? "bg-[var(--gm-accent)]/15" : "bg-[var(--gm-bg-2)] text-[var(--gm-text-3)]"}`}>
+                                {count.inPool}/{count.total}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+                <Input
+                    className="min-w-0 flex-1"
+                    placeholder={`在「${active.label}」里搜索模型或渠道`}
+                    prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
+                    value={searchQuery}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(event.target.value)}
+                    allowClear
+                />
+                {activeRows.length > 0 ? (
+                    <Checkbox
+                        checked={activeAllChecked}
+                        indeterminate={activeChecked > 0 && !activeAllChecked}
+                        disabled={updating}
+                        onChange={(event) => {
+                            const target = event.target.checked;
+                            activeRows.filter((row) => row.inPool !== target).forEach((row) => void save(active.kind, row.modelKey, target));
+                        }}
+                    >
+                        全选
+                    </Checkbox>
+                ) : null}
+            </div>
+
+            <div className="text-xs text-[var(--gm-text-3)]">{active.hint}</div>
+
+            <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border border-[var(--gm-border)] p-2.5">
+                {activeRows.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-[var(--gm-text-3)]">{searchQuery ? "没有匹配的模型" : active.emptyHint}</div>
+                ) : (
+                    activeRows.map((candidate) => (
+                        <div key={`${candidate.channelId}-${candidate.modelKey}`} className="flex items-center gap-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-bg-1)] p-2.5 transition-colors hover:bg-[var(--gm-bg-2)]">
+                            <Checkbox checked={candidate.inPool} disabled={updating} onChange={() => void save(active.kind, candidate.modelKey, !candidate.inPool)} />
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="truncate text-sm font-medium text-[var(--gm-text)]">{candidate.upstreamModel}</span>
+                                    {active.kind === "vision" && candidate.supportsImageInput ? <span className="rounded bg-[rgba(147,51,234,0.1)] px-1.5 py-0.5 text-xs text-[rgb(147,51,234)]">可看图</span> : null}
                                 </div>
-                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">{hint}</div>
+                                <div className="mt-0.5 truncate text-xs text-[var(--gm-text-3)]">{candidate.channelName}</div>
                             </div>
-                            {rows.length > 0 ? (
-                                <Checkbox
-                                    checked={allChecked}
-                                    indeterminate={checkedCount > 0 && !allChecked}
-                                    disabled={updating}
-                                    onChange={(event) => {
-                                        const target = event.target.checked;
-                                        rows.filter((row) => row.inPool !== target).forEach((row) => void save(kind, row.modelKey, target));
-                                    }}
-                                >
-                                    全选
-                                </Checkbox>
-                            ) : null}
-                        </header>
-                        <div className="max-h-72 space-y-2 overflow-y-auto p-3">
-                            {rows.length === 0 ? (
-                                <div className="py-6 text-center text-xs text-[var(--gm-text-3)]">{searchQuery ? "没有匹配的模型" : emptyHint}</div>
-                            ) : (
-                                rows.map((candidate) => (
-                                    <div key={`${candidate.channelId}-${candidate.modelKey}`} className="flex items-center gap-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-bg-1)] p-2.5 transition-colors hover:bg-[var(--gm-bg-2)]">
-                                        <Checkbox checked={candidate.inPool} disabled={updating} onChange={() => void save(kind, candidate.modelKey, !candidate.inPool)} />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className="truncate text-sm font-medium text-[var(--gm-text)]">{candidate.upstreamModel}</span>
-                                                {kind === "vision" && candidate.supportsImageInput ? <span className="rounded bg-[rgba(147,51,234,0.1)] px-1.5 py-0.5 text-xs text-[rgb(147,51,234)]">可看图</span> : null}
-                                            </div>
-                                            <div className="mt-0.5 truncate text-xs text-[var(--gm-text-3)]">{candidate.channelName}</div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
                         </div>
-                    </section>
-                );
-            })}
+                    ))
+                )}
+            </div>
 
             <div className="rounded-lg bg-[var(--gm-bg-2)] p-3 text-xs text-[var(--gm-text-3)]">
-                <div className="font-medium text-[var(--gm-text-2)]">说明</div>
-                <ul className="mt-2 space-y-1 pl-4">
+                <ul className="space-y-1 pl-4">
                     <li>• 五个池子各自独立：取消某个池的勾选只影响该池，不影响渠道本身和其他池</li>
                     <li>• 「文本 · 图片理解」是文本池的子集，只收声明了图片输入的模型；带图的文本请求走这个池</li>
                     <li>• 练习画布请求 gamatext / gamaimage / gamavideo 时，从对应池里已勾选的模型中随机选择</li>
-                    <li>• 未显式配置的模型默认在池中（向后兼容旧配置）</li>
                 </ul>
             </div>
         </div>

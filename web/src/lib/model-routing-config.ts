@@ -1,4 +1,5 @@
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
+import type { SystemChannelPurpose } from "@/lib/practice-domain";
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { inferModelCapability, isCreativeGenerationModel, normalizeModelId } from "@/lib/model-capability";
 import { channelConnectionReady, protocolCatalogCapability, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
@@ -124,11 +125,30 @@ export type ChannelSurface = "production" | "open-source-practice";
  *
  * 两个场景各有一个开关：`enabled` 管正式生产，`practiceEnabled` 管无限练习。
  * `practiceEnabled` 未设置时回落 `enabled`，存量渠道行为不变。
- * 渠道用途（purpose）仍然决定渠道在哪个场景里"可见"，两处判定是"与"的关系。
+ *
+ * `purpose` 仍然决定渠道在哪个场景里可见（纯生产渠道不进练习池），
+ * 但它由两个开关推导（见 deriveChannelPurpose），不再由管理员单独选择。
  */
 export function channelEnabledForSurface(channel: Pick<SystemModelChannel, "enabled" | "practiceEnabled" | "purpose">, surface: ChannelSurface): boolean {
     if (!resolvePracticeModelAccess(surface, channel.purpose || "shared")) return false;
     return surface === "production" ? channel.enabled !== false : (channel.practiceEnabled ?? channel.enabled) !== false;
+}
+
+/**
+ * 由两个开关推导渠道用途，保持单一事实来源。
+ * 两个都开 = shared；只开练习 = open-source-practice；只开生产 = production。
+ *
+ * 只有显式设置过练习开关（practiceEnabled 是布尔值）时才推导；
+ * 存量渠道没有这个字段，沿用原 purpose，避免把"纯生产"误判成"共享"。
+ */
+export function deriveChannelPurpose(channel: Pick<SystemModelChannel, "enabled" | "practiceEnabled" | "purpose">): SystemChannelPurpose {
+    if (typeof channel.practiceEnabled !== "boolean") return channel.purpose || "shared";
+    const production = channel.enabled !== false;
+    const practice = channel.practiceEnabled;
+    if (production && practice) return "shared";
+    if (practice) return "open-source-practice";
+    if (production) return "production";
+    return channel.purpose || "shared";
 }
 
 export function channelUsableForSurface(channel: Pick<SystemModelChannel, "enabled" | "practiceEnabled" | "purpose" | "baseUrl" | "apiKey" | "hasApiKey"> & Partial<SystemModelChannel>, surface: ChannelSurface): boolean {
