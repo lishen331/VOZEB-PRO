@@ -15,9 +15,7 @@ for (const r of chan.rows) {
     console.log(`- ${r.name} | base=${r.base_url} | fmt=${r.api_format} | on=${r.enabled} | key=${mask(r.api_key_ciphertext)}`);
 }
 
-const cc = await client.query(
-    `select column_name, data_type from information_schema.columns where table_name='vozeb_pro_generation_concurrency_reservations' order by ordinal_position`,
-);
+const cc = await client.query(`select column_name, data_type from information_schema.columns where table_name='vozeb_pro_generation_concurrency_reservations' order by ordinal_position`);
 console.log("\nCONCURRENCY_RESERVATION_COLUMNS:");
 console.log(cc.rows.map((r) => `  ${r.column_name} ${r.data_type}`).join("\n") || "  (none)");
 

@@ -3,10 +3,12 @@
 ## 功能概述
 
 自定义音色功能允许用户通过两种方式创建专属音色：
+
 - **语音克隆 (clone)**: 上传音频文件，系统克隆出相似音色
 - **语音设计 (design)**: 通过文本描述生成符合要求的音色
 
 支持两个供应商：
+
 - **minimax**: 付费服务，每个音色 9.9 CNY（约 99 积分）
 - **qwen**: 免费服务
 
@@ -17,14 +19,17 @@
 确认以下文件已包含所有必需更改：
 
 ✅ **src/lib/auth/store-types.ts**
+
 - 第 10 行：`import type { VoiceCustomizationConfig } from "@/lib/custom-voice-config";`
 - 第 210 行：`voiceCustomization?: VoiceCustomizationConfig;` 添加到 `SystemChannelAdvancedConfig`
 
 ✅ **src/lib/server/database/schema.ts**
+
 - 第 9 行：`import { SCHEMA_CUSTOM_VOICES } from "./schema-custom-voices";`
 - 第 1179 行附近：`${SCHEMA_CUSTOM_VOICES}` 包含在 `POSTGRESQL_SCHEMA_SQL` 模板字符串中
 
 ✅ **新增文件**
+
 - `src/lib/custom-voice-config.ts` - 配置类型定义和工具函数
 - `src/lib/server/custom-voice-store.ts` - 数据库操作层
 - `src/lib/server/custom-voice-upstream.ts` - 上游供应商集成
@@ -61,46 +66,46 @@ DATABASE_URL=postgresql://user:password@host:port/database
 
 ```json
 {
-  "id": "minimax-tts-01",
-  "name": "Minimax TTS",
-  "baseUrl": "https://api.minimax.chat/v1",
-  "apiKey": "YOUR_MINIMAX_API_KEY",
-  "apiFormat": "openai",
-  "models": ["speech-01-turbo"],
-  "enabled": true,
-  "purpose": "audio",
-  "advancedConfig": {
-    "protocol": "compatible",
-    "voiceCustomization": {
-      "provider": "minimax",
-      "enabled": true,
-      "audioLimits": {
-        "minSeconds": 3,
-        "maxSeconds": 30,
-        "maxMB": 10,
-        "formats": ["mp3", "wav", "m4a"]
-      },
-      "cloneLimits": {
-        "maxVoicesPerUser": 10
-      },
-      "designLimits": {
-        "enabled": true,
-        "promptMin": 10,
-        "promptMax": 500,
-        "previewTextMin": 20,
-        "previewTextMax": 200
-      },
-      "pricing": {
-        "createVoiceUSD": 1.39,
-        "deleteVoiceUSD": 0
-      },
-      "apiPaths": {
-        "voiceClone": "/voice_clone",
-        "voiceDesign": "/voice_design",
-        "voiceDelete": "/voice/{voice_id}"
-      }
+    "id": "minimax-tts-01",
+    "name": "Minimax TTS",
+    "baseUrl": "https://api.minimax.chat/v1",
+    "apiKey": "YOUR_MINIMAX_API_KEY",
+    "apiFormat": "openai",
+    "models": ["speech-01-turbo"],
+    "enabled": true,
+    "purpose": "audio",
+    "advancedConfig": {
+        "protocol": "compatible",
+        "voiceCustomization": {
+            "provider": "minimax",
+            "enabled": true,
+            "audioLimits": {
+                "minSeconds": 3,
+                "maxSeconds": 30,
+                "maxMB": 10,
+                "formats": ["mp3", "wav", "m4a"]
+            },
+            "cloneLimits": {
+                "maxVoicesPerUser": 10
+            },
+            "designLimits": {
+                "enabled": true,
+                "promptMin": 10,
+                "promptMax": 500,
+                "previewTextMin": 20,
+                "previewTextMax": 200
+            },
+            "pricing": {
+                "createVoiceUSD": 1.39,
+                "deleteVoiceUSD": 0
+            },
+            "apiPaths": {
+                "voiceClone": "/voice_clone",
+                "voiceDesign": "/voice_design",
+                "voiceDelete": "/voice/{voice_id}"
+            }
+        }
     }
-  }
 }
 ```
 
@@ -108,49 +113,50 @@ DATABASE_URL=postgresql://user:password@host:port/database
 
 ```json
 {
-  "id": "qwen-tts-01",
-  "name": "Qwen TTS",
-  "baseUrl": "https://dashscope.aliyuncs.com/api/v1",
-  "apiKey": "YOUR_QWEN_API_KEY",
-  "apiFormat": "openai",
-  "models": ["cosyvoice-v1"],
-  "enabled": true,
-  "purpose": "audio",
-  "advancedConfig": {
-    "protocol": "qwen-tts",
-    "voiceCustomization": {
-      "provider": "qwen",
-      "enabled": true,
-      "audioLimits": {
-        "minSeconds": 3,
-        "maxSeconds": 30,
-        "maxMB": 10,
-        "formats": ["mp3", "wav"]
-      },
-      "cloneLimits": {
-        "maxVoicesPerUser": 20
-      },
-      "designLimits": {
-        "enabled": true,
-        "promptMin": 10,
-        "promptMax": 300,
-        "previewTextMin": 10,
-        "previewTextMax": 100
-      },
-      "pricing": {
-        "createVoiceUSD": 0,
-        "deleteVoiceUSD": 0
-      },
-      "apiPaths": {
-        "voiceClone": "/services/aigc/text2speech/create-personal-voice",
-        "voiceQuery": "/services/aigc/text2speech/query-personal-voice"
-      }
+    "id": "qwen-tts-01",
+    "name": "Qwen TTS",
+    "baseUrl": "https://dashscope.aliyuncs.com/api/v1",
+    "apiKey": "YOUR_QWEN_API_KEY",
+    "apiFormat": "openai",
+    "models": ["cosyvoice-v1"],
+    "enabled": true,
+    "purpose": "audio",
+    "advancedConfig": {
+        "protocol": "qwen-tts",
+        "voiceCustomization": {
+            "provider": "qwen",
+            "enabled": true,
+            "audioLimits": {
+                "minSeconds": 3,
+                "maxSeconds": 30,
+                "maxMB": 10,
+                "formats": ["mp3", "wav"]
+            },
+            "cloneLimits": {
+                "maxVoicesPerUser": 20
+            },
+            "designLimits": {
+                "enabled": true,
+                "promptMin": 10,
+                "promptMax": 300,
+                "previewTextMin": 10,
+                "previewTextMax": 100
+            },
+            "pricing": {
+                "createVoiceUSD": 0,
+                "deleteVoiceUSD": 0
+            },
+            "apiPaths": {
+                "voiceClone": "/services/aigc/text2speech/create-personal-voice",
+                "voiceQuery": "/services/aigc/text2speech/query-personal-voice"
+            }
+        }
     }
-  }
 }
 ```
 
 配置方式：
+
 1. 通过管理后台 `/admin/settings` → 系统渠道 → 添加/编辑渠道
 2. 或直接修改 `data/auth-db.json` 的 `settings.systemChannels` 数组
 
@@ -249,24 +255,24 @@ curl http://localhost:3000/
 ### 4.1 测试准备
 
 1. **创建测试用户**
-   - 注册或使用现有测试账号
-   - 确保账号有足够积分（至少 100 积分用于测试 minimax）
+    - 注册或使用现有测试账号
+    - 确保账号有足够积分（至少 100 积分用于测试 minimax）
 
 2. **准备测试音频**
-   - 准备一个 3-30 秒的音频文件（MP3/WAV/M4A）
-   - 文件大小 < 10MB
-   - 音质清晰，无背景噪音
+    - 准备一个 3-30 秒的音频文件（MP3/WAV/M4A）
+    - 文件大小 < 10MB
+    - 音质清晰，无背景噪音
 
 3. **获取认证 token**
-   ```bash
-   # 登录获取 session token
-   curl -X POST http://localhost:3000/api/auth/login \
-     -H "Content-Type: application/json" \
-     -d '{"username":"testuser","password":"testpass"}'
-   
-   # 保存返回的 token
-   export TOKEN="<session-token>"
-   ```
+    ```bash
+    # 登录获取 session token
+    curl -X POST http://localhost:3000/api/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"username":"testuser","password":"testpass"}'
+
+    # 保存返回的 token
+    export TOKEN="<session-token>"
+    ```
 
 ### 4.2 测试用例
 
@@ -322,6 +328,7 @@ export VOICE_ID="<uuid>"
 ```
 
 **验证点**：
+
 - ✅ 返回状态码 200
 - ✅ voice.status = "creating" 或 "ready"
 - ✅ 包含 chargeReceiptId（扣费凭证）
@@ -357,6 +364,7 @@ export VOICE_ID_DESIGN="<uuid>"
 ```
 
 **验证点**：
+
 - ✅ 返回状态码 200
 - ✅ 积分余额不变（免费）
 - ✅ status = "creating"
@@ -380,6 +388,7 @@ curl http://localhost:3000/api/custom-voices/$VOICE_ID \
 ```
 
 **验证点**：
+
 - ✅ 如果 status = "ready"，应包含 upstreamVoiceId
 - ✅ 如果提供商支持预览，应包含 previewUrl
 - ✅ 如果 status = "failed"，应包含 failureReason
@@ -611,6 +620,7 @@ curl http://localhost:3000/api/custom-voices/$VOICE_ID_USER1 \
 #### 测试 16：上游 API 失败后自动退款
 
 这个需要模拟上游 API 失败，可通过以下方式：
+
 1. 临时修改渠道配置，使用错误的 API Key
 2. 或使用网络拦截工具模拟 API 失败
 
@@ -653,13 +663,13 @@ curl http://localhost:3000/api/point-records \
 
 ```sql
 -- 查看所有音色记录
-SELECT 
-  id, 
-  owner_user_id, 
-  provider, 
-  kind, 
-  name, 
-  status, 
+SELECT
+  id,
+  owner_user_id,
+  provider,
+  kind,
+  name,
+  status,
   upstream_voice_id,
   created_at,
   updated_at
@@ -686,7 +696,7 @@ WHERE status = 'deleted';
 
 ```sql
 -- 查看自定义音色相关的积分记录
-SELECT 
+SELECT
   id,
   user_id,
   type,
@@ -712,13 +722,14 @@ ORDER BY created_at DESC;
 **原因**：schema 未正确集成或数据库未初始化
 
 **解决**：
+
 1. 确认 `schema.ts` 已导入 `SCHEMA_CUSTOM_VOICES`
 2. 确认 `POSTGRESQL_SCHEMA_SQL` 包含 `${SCHEMA_CUSTOM_VOICES}`
 3. 重启应用触发自动初始化
 4. 或手动执行 SQL：
-   ```bash
-   psql $DATABASE_URL < src/lib/server/database/schema-custom-voices.ts
-   ```
+    ```bash
+    psql $DATABASE_URL < src/lib/server/database/schema-custom-voices.ts
+    ```
 
 ### 6.2 TypeScript 类型错误
 
@@ -727,6 +738,7 @@ ORDER BY created_at DESC;
 **原因**：`store-types.ts` 未添加类型定义
 
 **解决**：
+
 1. 确认第 10 行有 `import type { VoiceCustomizationConfig } ...`
 2. 确认第 210 行有 `voiceCustomization?: VoiceCustomizationConfig;`
 3. 重新编译：`npm run build`
@@ -736,11 +748,13 @@ ORDER BY created_at DESC;
 **错误**：`Upstream API error: 401 Unauthorized` 或类似
 
 **原因**：
+
 - API Key 未配置或错误
 - API Key 权限不足
 - 渠道 baseUrl 错误
 
 **解决**：
+
 1. 检查渠道配置的 `apiKey` 是否正确
 2. 检查 `baseUrl` 是否正确（注意是否需要 `/v1` 后缀）
 3. 在上游服务商控制台确认 API Key 状态和权限
@@ -750,11 +764,13 @@ ORDER BY created_at DESC;
 **症状**：创建失败但积分已扣除，未退款
 
 **排查**：
+
 1. 检查 `point_records` 表是否有对应的 refund 记录
 2. 检查应用日志是否有 `refundGenerationCharge` 调用错误
 3. 检查 `idempotencyKey` 是否唯一（不应重复）
 
 **手动退款**（如需要）：
+
 ```bash
 # 通过管理后台或 API 手动调整积分
 curl -X POST http://localhost:3000/api/admin/points/adjust \
@@ -770,10 +786,12 @@ curl -X POST http://localhost:3000/api/admin/points/adjust \
 ### 6.5 音色创建一直停留在 "creating" 状态
 
 **原因**：
+
 - 上游 API 异步任务未完成
 - 缺少轮询或回调机制（当前版本尚未实现）
 
 **临时解决**：
+
 - 等待上游任务完成（通常 1-5 分钟）
 - 手动查询上游 API 状态
 - 未来版本将实现自动轮询和 webhook 回调
@@ -828,7 +846,7 @@ DELETE FROM custom_voices;
 -- 查询受影响的用户
 SELECT DISTINCT owner_user_id, COUNT(*)
 FROM custom_voices
-WHERE status = 'failed' 
+WHERE status = 'failed'
   AND charge_receipt_id IS NOT NULL
   AND created_at > '<deployment-time>'
 GROUP BY owner_user_id;
@@ -841,34 +859,35 @@ GROUP BY owner_user_id;
 部署后建议监控以下指标：
 
 1. **API 错误率**
-   - `/api/custom-voices` 的 4xx/5xx 错误率
-   - 应 < 5%
+    - `/api/custom-voices` 的 4xx/5xx 错误率
+    - 应 < 5%
 
 2. **上游 API 成功率**
-   - minimax/qwen API 调用成功率
-   - 应 > 95%
+    - minimax/qwen API 调用成功率
+    - 应 > 95%
 
 3. **平均响应时间**
-   - 创建音色接口响应时间
-   - 应 < 3 秒
+    - 创建音色接口响应时间
+    - 应 < 3 秒
 
 4. **音色创建成功率**
-   - `status = 'ready'` 的比例
-   - 应 > 90%
+    - `status = 'ready'` 的比例
+    - 应 > 90%
 
 5. **退款率**
-   - 自动退款记录数量
-   - 应 < 5%
+    - 自动退款记录数量
+    - 应 < 5%
 
 6. **用户使用量**
-   - 每日创建的音色数量
-   - 每日活跃用户数
+    - 每日创建的音色数量
+    - 每日活跃用户数
 
 ## 十、总结
 
 完成以上所有步骤后，自定义音色功能已在测试环境部署完毕并通过完整测试。
 
 **后续工作**：
+
 1. 在测试环境运行 1-2 天，收集真实用户反馈
 2. 修复发现的 bug（如有）
 3. 完善前端 UI（如需要）
@@ -876,6 +895,7 @@ GROUP BY owner_user_id;
 5. 编写用户使用文档
 
 **生产环境部署注意事项**：
+
 - 提前通知用户（可能需要短暂维护）
 - 在低峰时段部署
 - 准备回滚方案

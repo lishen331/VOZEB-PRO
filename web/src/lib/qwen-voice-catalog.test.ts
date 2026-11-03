@@ -30,7 +30,10 @@ describe("qwen voice catalog", () => {
             for (const voice of basic) expect(voice.value.startsWith(`${model}-`)).toBe(true);
         }
         // 3.1 models now have basic voices too, but use 3.0 prefixes
-        for (const [model31, model30] of [["qwen-audio-3.1-tts-flash", "qwen-audio-3.0-tts-flash"], ["qwen-audio-3.1-tts-plus", "qwen-audio-3.0-tts-plus"]]) {
+        for (const [model31, model30] of [
+            ["qwen-audio-3.1-tts-flash", "qwen-audio-3.0-tts-flash"],
+            ["qwen-audio-3.1-tts-plus", "qwen-audio-3.0-tts-plus"],
+        ]) {
             const basic = qwenCatalogVoices(model31).filter((voice) => voice.group === QWEN_BASIC_VOICE_GROUP);
             expect(basic).toHaveLength(597);
             for (const voice of basic) expect(voice.value.startsWith(`${model30}-`)).toBe(true);

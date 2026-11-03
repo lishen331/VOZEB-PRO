@@ -36,7 +36,10 @@ export function qwenCatalogVoices(model: string): QwenVoiceOption[] {
     );
     if (!catalog.basic.models.includes(model)) return voices;
     const voiceIdModel = BASIC_VOICE_ID_MODEL_MAP[model] || model;
-    return [...voices, ...catalog.basic.voices.map((voice) => option(`${voiceIdModel}-${voice.slug}`, voice.name, [voice.gender, voice.trait], QWEN_BASIC_VOICE_GROUP, `${QWEN_VOICE_PREVIEW_ROUTE}/${voice.slug}.wav`, [voice.scene, voice.lang, voice.slug]))];
+    return [
+        ...voices,
+        ...catalog.basic.voices.map((voice) => option(`${voiceIdModel}-${voice.slug}`, voice.name, [voice.gender, voice.trait], QWEN_BASIC_VOICE_GROUP, `${QWEN_VOICE_PREVIEW_ROUTE}/${voice.slug}.wav`, [voice.scene, voice.lang, voice.slug])),
+    ];
 }
 
 function option(value: string, name: string, detail: Array<string | undefined>, group: string, preview: string, extra: Array<string | undefined>): QwenVoiceOption {

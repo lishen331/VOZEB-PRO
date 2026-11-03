@@ -178,7 +178,7 @@ export function TeachingCoursePrep() {
                             dirty={plan.dirty}
                             saveState={plan.saveState}
                             href={teachingLessonPlanHref(assignmentId, lesson.id, { from: fromTab })}
-                            template={plan.doc?.lessonId === lesson.id ? plan.doc?.template ?? null : null}
+                            template={plan.doc?.lessonId === lesson.id ? (plan.doc?.template ?? null) : null}
                         />
                     ) : (
                         <p className="text-[13px] text-[var(--gm-text-3)]">教案只对任课老师开放。</p>
