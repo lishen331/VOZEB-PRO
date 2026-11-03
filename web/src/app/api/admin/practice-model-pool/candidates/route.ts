@@ -25,6 +25,17 @@ export type PracticePoolStats = {
     inPool: number;
 };
 
+/** 没能进入练习候选的渠道，附带原因，便于管理员自己定位。 */
+export type PracticePoolExclusion = {
+    channelId: string;
+    channelName: string;
+    modelCount: number;
+    /** 人类可读的原因。 */
+    reason: string;
+    /** 原因分类，便于界面分组。 */
+    code: "purpose" | "switch" | "connection" | "empty";
+};
+
 export const PRACTICE_POOL_KINDS: PracticePoolKind[] = ["text", "vision", "image", "video", "audio"];
 
 /**
@@ -45,8 +56,30 @@ export async function GET(request: NextRequest) {
 
     const pools = Object.fromEntries(PRACTICE_POOL_KINDS.map((kind) => [kind, [] as PracticePoolCandidate[]])) as Record<PracticePoolKind, PracticePoolCandidate[]>;
     const stats = Object.fromEntries(PRACTICE_POOL_KINDS.map((kind) => [kind, { total: 0, inPool: 0 }])) as Record<PracticePoolKind, PracticePoolStats>;
+    const excluded: PracticePoolExclusion[] = [];
 
-    for (const channel of settings.systemChannels.filter((item) => channelUsableForSurface(item, "open-source-practice"))) {
+    for (const channel of settings.systemChannels) {
+        const channelName = channel.name || channel.id;
+        const modelCount = channel.models.length;
+
+        if (!modelCount) {
+            excluded.push({ channelId: channel.id, channelName, modelCount, code: "empty", reason: "渠道还没有同步到任何模型" });
+            continue;
+        }
+        const purpose = channel.purpose || "shared";
+        if (purpose === "production") {
+            excluded.push({ channelId: channel.id, channelName, modelCount, code: "purpose", reason: "渠道用途仍是「正式生产」，练习侧看不到它" });
+            continue;
+        }
+        if ((channel.practiceEnabled ?? channel.enabled) === false) {
+            excluded.push({ channelId: channel.id, channelName, modelCount, code: "switch", reason: "「无限练习」开关是关闭的" });
+            continue;
+        }
+        if (!channelUsableForSurface(channel, "open-source-practice")) {
+            excluded.push({ channelId: channel.id, channelName, modelCount, code: "connection", reason: "渠道连接未就绪（缺少 Base URL 或 API Key）" });
+            continue;
+        }
+
         for (const model of channel.models) {
             const modelName = rawModelName(model);
             const modelKey = modelName.toLowerCase();
@@ -63,8 +96,8 @@ export async function GET(request: NextRequest) {
                     capability,
                     supportsImageInput,
                     channelId: channel.id,
-                    channelName: channel.name || channel.id,
-                    purpose: channel.purpose || "",
+                    channelName,
+                    purpose,
                     inPool: practicePoolIncludes(poolConfig, kind, modelKey),
                 });
                 stats[kind].total += 1;
@@ -73,5 +106,5 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    return NextResponse.json({ pools, stats });
+    return NextResponse.json({ pools, stats, excluded });
 }

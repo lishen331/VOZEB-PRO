@@ -155,6 +155,16 @@ export function channelUsableForSurface(channel: Pick<SystemModelChannel, "enabl
     return channelEnabledForSurface(channel, surface) && channelConnectionReady(channel);
 }
 
+/**
+ * 开关在界面上应该显示的状态。
+ * 直接看 channelEnabledForSurface，而不是 `practiceEnabled ?? enabled` ——
+ * 后者会让一个用途仍是「正式生产」、从未设置过练习开关的渠道显示成"练习已开"，
+ * 而实际上它在练习侧是被排除的，管理员会误以为已经配好。
+ */
+export function channelSwitchState(channel: Pick<SystemModelChannel, "enabled" | "practiceEnabled" | "purpose">, surface: ChannelSurface): boolean {
+    return channelEnabledForSurface(channel, surface);
+}
+
 export function isLogicalModelResolvable(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
     return Boolean(resolveLogicalModelConfig(logicalModels, channels, capability, modelId, executionProfile));
 }

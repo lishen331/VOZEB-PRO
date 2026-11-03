@@ -19,7 +19,8 @@ type PracticePoolCandidate = {
 };
 
 type PoolStats = { total: number; inPool: number };
-type CandidatesResponse = { pools: Record<PracticePoolKind, PracticePoolCandidate[]>; stats: Record<PracticePoolKind, PoolStats> };
+type PoolExclusion = { channelId: string; channelName: string; modelCount: number; reason: string; code: "purpose" | "switch" | "connection" | "empty" };
+type CandidatesResponse = { pools: Record<PracticePoolKind, PracticePoolCandidate[]>; stats: Record<PracticePoolKind, PoolStats>; excluded?: PoolExclusion[] };
 
 const POOLS: Array<{ kind: PracticePoolKind; label: string; hint: string; emptyHint: string }> = [
     { kind: "text", label: "文本", hint: "练习画布 gamatext 从这里随机选", emptyHint: "打开某个文本渠道的「无限练习」开关后即可出现" },
@@ -50,6 +51,7 @@ export function PracticeModelPoolManager({ onSelectionChange }: { onSelectionCha
     });
     const [searchQuery, setSearchQuery] = useState("");
     const [activeKind, setActiveKind] = useState<PracticePoolKind>("text");
+    const [excluded, setExcluded] = useState<PoolExclusion[]>([]);
     const [updating, setUpdating] = useState(false);
 
     const load = useCallback(async () => {
@@ -60,6 +62,7 @@ export function PracticeModelPoolManager({ onSelectionChange }: { onSelectionCha
             const data: CandidatesResponse = await response.json();
             setPools(data.pools);
             setStats(data.stats);
+            setExcluded(data.excluded ?? []);
         } catch (error) {
             message.error("加载练习模型池失败");
             console.error(error);
@@ -197,6 +200,22 @@ export function PracticeModelPoolManager({ onSelectionChange }: { onSelectionCha
                     ))
                 )}
             </div>
+
+            {excluded.length > 0 ? (
+                <div className="rounded-lg border border-[var(--gm-warning)]/40 bg-[var(--gm-warning)]/5 p-3 text-xs">
+                    <div className="font-medium text-[var(--gm-warning)]">以下渠道没有进入练习池</div>
+                    <ul className="mt-1.5 space-y-1">
+                        {excluded.map((item) => (
+                            <li key={item.channelId} className="flex flex-wrap items-baseline gap-x-2 text-[var(--gm-text-2)]">
+                                <span className="font-medium">{item.channelName}</span>
+                                <span className="text-[var(--gm-text-3)]">{item.modelCount} 个模型</span>
+                                <span>·</span>
+                                <span>{item.reason}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : null}
 
             <div className="rounded-lg bg-[var(--gm-bg-2)] p-3 text-xs text-[var(--gm-text-3)]">
                 <ul className="space-y-1 pl-4">

@@ -93,24 +93,18 @@ export function practicePoolIncludes(pool: PracticeModelPoolConfig | undefined, 
     return true;
 }
 
-function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
-    const requested = rawModelName(requestedModel).toLowerCase();
-    // 文本请求按是否带图选池：带图的走 vision（文本模型里支持图片输入的那部分），否则走 text。
-    const kind: PracticePoolKind = capability === "text" && requiresImageInput ? "vision" : (capability as PracticePoolKind);
-
+/** 按池收集候选；kind 与模型能力必须匹配，vision 额外要求声明了图片输入。 */
+function collectPracticePoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, kind: PracticePoolKind, requestedModel: string): ResolvedLogicalModel[] {
     return settings.systemChannels
         .filter((channel) => channelUsableForSurface(channel, "open-source-practice"))
         .flatMap((channel) =>
             channel.models
                 .filter((model) => {
                     const modelName = rawModelName(model).toLowerCase();
+                    if (kind === "vision" ? channelModelCapability(channel, model) !== "text" : channelModelCapability(channel, model) !== capability) return false;
+                    if (kind === "vision" && resolveLogicalModelCapabilityProfile({}, "text", channel, rawModelName(model))?.supportsImageInput !== true) return false;
                     if (!practicePoolIncludes(settings.practiceModelPool, kind, modelName)) return false;
-                    if (channelModelCapability(channel, model) !== capability) return false;
-                    if (!requested || channelSupportsModel([model], requestedModel)) {
-                        if (kind === "vision" && resolveLogicalModelCapabilityProfile({}, "text", channel, rawModelName(model))?.supportsImageInput !== true) return false;
-                        return true;
-                    }
-                    return false;
+                    return !requestedModel || channelSupportsModel([model], requestedModel);
                 })
                 .map((model) => ({
                     logicalModelId: rawModelName(model),
@@ -120,6 +114,16 @@ function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChanne
                     capabilityProfile: resolveLogicalModelCapabilityProfile({}, capability, channel, rawModelName(model)),
                 })),
         );
+}
+
+function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
+    // 文本请求按是否带图选池：带图的优先走 vision（文本模型里支持图片输入的那部分）。
+    // vision 池空时回落到文本池——否则「图片理解池没配」会让所有带参考图的练习请求直接失败。
+    if (capability === "text" && requiresImageInput) {
+        const visionCandidates = collectPracticePoolCandidates(settings, capability, "vision", requestedModel);
+        if (visionCandidates.length) return visionCandidates;
+    }
+    return collectPracticePoolCandidates(settings, capability, capability as PracticePoolKind, requestedModel);
 }
 
 /**

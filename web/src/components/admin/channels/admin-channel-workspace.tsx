@@ -13,7 +13,7 @@ import { Blocks, Plus, RefreshCw, Route, Search, Settings2, Trash2 } from "lucid
 import { AdminLogicalModelManager } from "@/components/admin/admin-logical-model-manager";
 import type { SystemChannelProtocol, SystemModelChannel } from "@/lib/auth/store";
 import { channelProtocolDefinitions, channelSupportsModelCatalog } from "@/lib/channel-protocol-registry";
-import { capabilityLabel, isLogicalModelResolvable } from "@/lib/model-routing-config";
+import { capabilityLabel, channelSwitchState, isLogicalModelResolvable } from "@/lib/model-routing-config";
 
 import { AdminChannelDetailDrawer } from "./admin-channel-detail-drawer";
 import { AdminChannelOnboardingDrawer } from "./admin-channel-onboarding-drawer";
@@ -401,7 +401,10 @@ function ChannelStatusTag({ channel }: { channel: SystemModelChannel }) {
 /** 渠道列表里的两个独立开关：上=正式生产，下=无限练习。RunningHub 渠道不参与生产。 */
 function ChannelEnableCell({ channel, onChange }: { channel: SystemModelChannel; onChange: (patch: Partial<SystemModelChannel>) => void }) {
     const runningHub = channel.advancedConfig?.protocol === "runninghub";
-    const practiceOn = channel.practiceEnabled ?? channel.enabled;
+    // 显示真实生效状态：用途仍是「正式生产」的渠道，练习开关应显示为关，
+    // 否则管理员会以为已经配置好，实际它在练习侧被排除。
+    const practiceOn = channelSwitchState(channel, "open-source-practice");
+    const practiceBlocked = !practiceOn && channel.purpose === "production";
     return (
         <div className="flex flex-col items-start gap-1.5">
             <div className="flex items-center gap-1.5">
@@ -411,6 +414,7 @@ function ChannelEnableCell({ channel, onChange }: { channel: SystemModelChannel;
             <div className="flex items-center gap-1.5">
                 <span className="w-7 text-xs text-[var(--gm-text-3)]">练习</span>
                 <Switch size="small" checked={practiceOn} aria-label={`${channel.name}无限练习启用状态`} onChange={(practiceEnabled) => onChange({ practiceEnabled })} />
+                {practiceBlocked ? <span className="text-[10px] text-[var(--gm-warning)]">用途限制</span> : null}
             </div>
         </div>
     );
