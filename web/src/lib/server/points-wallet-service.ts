@@ -435,6 +435,10 @@ async function refundPostgresPoints(input: RefundPointsInput & { idempotencyKey:
         const existing = await repos.points.getRecordByIdempotencyKey(input.idempotencyKey);
         const source = input.sourceRecordId?.trim() ? await repos.points.getRecordById(input.sourceRecordId.trim()) : await repos.points.getRecordByIdempotencyKey(input.sourceIdempotencyKey!.trim());
         if (!source || source.userId !== input.userId || source.type !== "consume") throw new AuthInputError("原消费记录不存在");
+        // 按原消费流水加锁：同一笔消费只允许退一次。唯一索引 point_records_refund_source_idx 是最后兜底，
+        // 但两个携带不同幂等键的并发退款会同时越过"查无退款"这一步，后提交的那个会撞索引抛错而不是安静返回成功。
+        // 加锁后重读 priorRefund，保证并发请求看到对方已提交的退款记录。
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [`points-refund-source:${source.id}`]);
         const priorRefund = await repos.points.getRefundRecordBySourceRecordId(source.id);
         const context = await settlePostgresWallet(client, user, walletClock(input));
         if (existing) return existingRefund(existing, context, input.userId);

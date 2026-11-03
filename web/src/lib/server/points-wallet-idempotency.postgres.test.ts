@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { createPostgresRepositories, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 
 import { cleanupExpiredStoredGenerationTasks } from "./generation-task-store";
-import { adjustPermanentPointsInPostgresTransaction, consumePoints } from "./points-wallet-service";
+import { adjustPermanentPointsInPostgresTransaction, consumePoints, refundPoints } from "./points-wallet-service";
 
 const postgresIt = process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION === "1" ? it : it.skip;
 
@@ -100,6 +100,56 @@ describe("PostgreSQL points wallet idempotency", () => {
             expect(replay.applied).toBe(false);
             expect(replay.record.id).toBe(first.record.id);
             expect(await repositories.points.getRecordByIdempotencyKey(idempotencyKey)).toMatchObject({ userId, requestFingerprint, amount: -5 });
+        } finally {
+            await repositories.users.delete(userId);
+        }
+    });
+
+    postgresIt("refunds one consumption once even when two requests race with different idempotency keys", async () => {
+        await ensurePostgresSchema();
+        const repositories = createPostgresRepositories();
+        const settings = await repositories.settings.getSettings();
+        const planId = settings.settings?.defaultPlanId || settings.plans[0]?.id;
+        if (!planId) throw new Error("No entitlement plan is available for the PostgreSQL integration test");
+
+        const suffix = randomUUID();
+        const userId = `test-points-refund-race-${suffix}`;
+        const now = new Date();
+        try {
+            await repositories.users.createWithNextAccountId({
+                id: userId,
+                username: `refund_${suffix.replaceAll("-", "").slice(0, 16)}`,
+                displayName: "退款并发测试用户",
+                bio: "",
+                role: "user",
+                adminPermissions: [],
+                status: "active",
+                planId,
+                pointsBalance: 100,
+                passwordHash: "integration-test-only",
+                createdAt: now.toISOString(),
+                updatedAt: now.toISOString(),
+            });
+            const consumption = await consumePoints({
+                userId,
+                amount: 5,
+                units: 1,
+                usageKind: "image",
+                model: "image-model",
+                description: "图片生成扣除",
+                idempotencyKey: `refund-race-consume-${suffix}`,
+                now,
+            });
+
+            const base = { userId, sourceRecordId: consumption.record.id, usageKind: "image" as const, units: 1, model: "image-model", description: "图片任务失败退回", now };
+            // 两个请求携带不同幂等键抢同一笔消费：唯一索引是兜底，advisory lock 保证第二个安静返回首条退款记录。
+            const settled = await Promise.allSettled([refundPoints({ ...base, idempotencyKey: `refund-race-a-${suffix}` }), refundPoints({ ...base, idempotencyKey: `refund-race-b-${suffix}` })]);
+
+            expect(settled.every((item) => item.status === "fulfilled")).toBe(true);
+            const applied = settled.flatMap((item) => (item.status === "fulfilled" ? [item.value] : [])).filter((item) => item.applied);
+            expect(applied).toHaveLength(1);
+            expect(await repositories.points.getRefundRecordBySourceRecordId(consumption.record.id)).not.toBeNull();
+            expect((await repositories.users.getById(userId))?.pointsBalance).toBe(100);
         } finally {
             await repositories.users.delete(userId);
         }
