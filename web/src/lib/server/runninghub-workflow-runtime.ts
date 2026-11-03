@@ -92,13 +92,12 @@ function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChanne
                     const modelName = rawModelName(model).toLowerCase();
 
                     // If pool config exists, check if model is explicitly included
-                    if (poolConfig && typeof poolConfig[modelName] === 'boolean') {
+                    if (poolConfig && typeof poolConfig[modelName] === "boolean") {
                         if (!poolConfig[modelName]) return false; // Explicitly excluded
                     }
 
                     // Capability match + requested model match
-                    return channelModelCapability(channel, model) === capability &&
-                           (!requested || channelSupportsModel([model], requestedModel));
+                    return channelModelCapability(channel, model) === capability && (!requested || channelSupportsModel([model], requestedModel));
                 })
                 .map((model) => ({
                     logicalModelId: rawModelName(model),

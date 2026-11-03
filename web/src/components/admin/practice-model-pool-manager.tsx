@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Input, Segmented, Checkbox, Spin, message } from "@gamma-app/ui";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { Checkbox, Segmented, Spin } from "@/components/gamma-ui/gamma-ant";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Search } from "lucide-react";
 import type { LogicalModelCapability } from "@/lib/auth/store-types";
 
@@ -43,6 +45,7 @@ const CAPABILITY_COLORS: Record<LogicalModelCapability, string> = {
 };
 
 export function PracticeModelPoolManager() {
+    const { message } = App.useApp();
     const [loading, setLoading] = useState(true);
     const [candidates, setCandidates] = useState<PracticePoolCandidate[]>([]);
     const [stats, setStats] = useState<PracticePoolStats>({ total: 0, inPool: 0, text: 0, image: 0, video: 0, audio: 0 });
@@ -51,24 +54,22 @@ export function PracticeModelPoolManager() {
     const [updating, setUpdating] = useState(false);
 
     useEffect(() => {
-        fetchCandidates();
-    }, []);
-
-    async function fetchCandidates() {
-        try {
-            setLoading(true);
-            const response = await fetch("/api/admin/practice-model-pool/candidates");
-            if (!response.ok) throw new Error("Failed to fetch candidates");
-            const data: CandidatesResponse = await response.json();
-            setCandidates(data.candidates);
-            setStats(data.stats);
-        } catch (error) {
-            message.error("加载练习模型池失败");
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    }
+        void (async () => {
+            try {
+                setLoading(true);
+                const response = await fetch("/api/admin/practice-model-pool/candidates");
+                if (!response.ok) throw new Error("Failed to fetch candidates");
+                const data: CandidatesResponse = await response.json();
+                setCandidates(data.candidates);
+                setStats(data.stats);
+            } catch (error) {
+                message.error("加载练习模型池失败");
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [message]);
 
     async function handleToggle(modelName: string, currentValue: boolean) {
         try {
@@ -81,12 +82,10 @@ export function PracticeModelPoolManager() {
             if (!response.ok) throw new Error("Failed to update pool");
 
             // Update local state
-            setCandidates(prev => prev.map(c =>
-                c.upstreamModel === modelName ? { ...c, inPool: !currentValue } : c
-            ));
+            setCandidates((prev) => prev.map((c) => (c.upstreamModel === modelName ? { ...c, inPool: !currentValue } : c)));
 
             // Update stats
-            setStats(prev => ({
+            setStats((prev) => ({
                 ...prev,
                 inPool: prev.inPool + (currentValue ? -1 : 1),
             }));
@@ -101,7 +100,7 @@ export function PracticeModelPoolManager() {
     }
 
     const filteredCandidates = useMemo(() => {
-        return candidates.filter(candidate => {
+        return candidates.filter((candidate) => {
             const matchesCapability = capabilityFilter === "all" || candidate.capability === capabilityFilter;
             const matchesSearch = !searchQuery || candidate.upstreamModel.toLowerCase().includes(searchQuery.toLowerCase());
             return matchesCapability && matchesSearch;
@@ -148,9 +147,9 @@ export function PracticeModelPoolManager() {
 
             {/* Filter Controls */}
             <div className="flex items-center gap-3">
-                <Segmented
+                <Segmented<"all" | LogicalModelCapability>
                     value={capabilityFilter}
-                    onChange={(value) => setCapabilityFilter(value as "all" | LogicalModelCapability)}
+                    onChange={setCapabilityFilter}
                     options={[
                         { label: "全部", value: "all" },
                         { label: "文本", value: "text" },
@@ -159,63 +158,38 @@ export function PracticeModelPoolManager() {
                         { label: "音频", value: "audio" },
                     ]}
                 />
-                <Input
-                    placeholder="搜索模型名称"
-                    prefix={<Search className="size-4 text-[var(--gm-text-3)]" />}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1"
-                    allowClear
-                />
+                <Input placeholder="搜索模型名称" prefix={<Search className="size-4 text-[var(--gm-text-3)]" />} value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)} className="flex-1" allowClear />
             </div>
 
             {/* Model List */}
             <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg border border-[var(--gm-border)] p-3">
                 {filteredCandidates.length === 0 ? (
-                    <div className="py-8 text-center text-sm text-[var(--gm-text-3)]">
-                        没有符合条件的模型
-                    </div>
+                    <div className="py-8 text-center text-sm text-[var(--gm-text-3)]">没有符合条件的模型</div>
                 ) : (
                     filteredCandidates.map((candidate) => (
-                        <div
-                            key={`${candidate.channelId}-${candidate.upstreamModel}`}
-                            className="flex items-center gap-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-bg-1)] p-3 transition-colors hover:bg-[var(--gm-bg-2)]"
-                        >
-                            <Checkbox
-                                checked={candidate.inPool}
-                                onChange={() => handleToggle(candidate.upstreamModel, candidate.inPool)}
-                                disabled={updating}
-                            />
+                        <div key={`${candidate.channelId}-${candidate.upstreamModel}`} className="flex items-center gap-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-bg-1)] p-3 transition-colors hover:bg-[var(--gm-bg-2)]">
+                            <Checkbox checked={candidate.inPool} onChange={() => handleToggle(candidate.upstreamModel, candidate.inPool)} disabled={updating} />
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium text-[var(--gm-text-1)]">
-                                        {candidate.upstreamModel}
-                                    </span>
+                                    <span className="font-medium text-[var(--gm-text-1)]">{candidate.upstreamModel}</span>
                                     <span
                                         className={`rounded px-1.5 py-0.5 text-xs font-medium capability-tag-${CAPABILITY_COLORS[candidate.capability]}`}
                                         style={{
-                                            background: candidate.capability === "text"
-                                                ? "rgba(59, 130, 246, 0.1)"
-                                                : candidate.capability === "image"
-                                                ? "rgba(147, 51, 234, 0.1)"
-                                                : candidate.capability === "video"
-                                                ? "rgba(236, 72, 153, 0.1)"
-                                                : "rgba(34, 197, 94, 0.1)",
-                                            color: candidate.capability === "text"
-                                                ? "rgb(59, 130, 246)"
-                                                : candidate.capability === "image"
-                                                ? "rgb(147, 51, 234)"
-                                                : candidate.capability === "video"
-                                                ? "rgb(236, 72, 153)"
-                                                : "rgb(34, 197, 94)",
+                                            background:
+                                                candidate.capability === "text"
+                                                    ? "rgba(59, 130, 246, 0.1)"
+                                                    : candidate.capability === "image"
+                                                      ? "rgba(147, 51, 234, 0.1)"
+                                                      : candidate.capability === "video"
+                                                        ? "rgba(236, 72, 153, 0.1)"
+                                                        : "rgba(34, 197, 94, 0.1)",
+                                            color: candidate.capability === "text" ? "rgb(59, 130, 246)" : candidate.capability === "image" ? "rgb(147, 51, 234)" : candidate.capability === "video" ? "rgb(236, 72, 153)" : "rgb(34, 197, 94)",
                                         }}
                                     >
                                         {CAPABILITY_LABELS[candidate.capability]}
                                     </span>
                                 </div>
-                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">
-                                    {candidate.channelName}
-                                </div>
+                                <div className="mt-1 text-xs text-[var(--gm-text-3)]">{candidate.channelName}</div>
                             </div>
                         </div>
                     ))
@@ -234,4 +208,3 @@ export function PracticeModelPoolManager() {
         </div>
     );
 }
-

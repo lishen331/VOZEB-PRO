@@ -233,7 +233,7 @@ export async function queryQwenVoiceStatus(channel: SystemModelChannel, upstream
 
         const upstreamStatus = data.output?.status;
         if (upstreamStatus === "OK") {
-            return { status: "ready", upstreamVoiceId, upstreamRequestId: data.request_id, previewUrl: data.output.resource_link, previewMimeType: "audio/wav" };
+            return { status: "ready", upstreamVoiceId, upstreamRequestId: data.request_id, previewUrl: data.output?.resource_link, previewMimeType: "audio/wav" };
         }
         if (upstreamStatus === "UNDEPLOYED") {
             return { status: "failed", failureReason: "音色审核未通过" };

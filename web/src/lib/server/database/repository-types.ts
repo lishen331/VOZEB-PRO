@@ -278,6 +278,7 @@ export type AppSettingsRecord = {
     practiceDefaultModels: JsonValue;
     practiceWorkflowModels: JsonValue;
     practiceModuleVisibility: JsonValue;
+    practiceModelPool: JsonValue;
     agentSkills: JsonValue;
     featureModules: JsonValue;
     createdAt: string;

@@ -271,6 +271,7 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         practiceWorkflowModels: {},
         practiceScriptSettings: normalizePracticeScriptSettings(settings.practiceScriptSettings),
         practiceModuleVisibility: normalizePracticeModuleVisibility(settings.practiceModuleVisibility),
+        practiceModelPool: settings.practiceModelPool,
         agentSkills: normalizeAgentSkills(settings.agentSkills),
         featureModules: normalizeFeatureModuleSettings(settings.featureModules),
         voicePricing: settings.voicePricing ?? { usdToCny: 7.2, pointsPerYuan: 100 },
