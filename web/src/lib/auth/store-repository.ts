@@ -354,6 +354,7 @@ export function mapPostgresSettings(settingsRow: Record<string, unknown> | undef
         defaultModels: dbJson(settingsRow?.default_models, fallback.defaultModels),
         practiceDefaultModels: dbJson(settingsRow?.practice_default_models, fallback.practiceDefaultModels),
         practiceWorkflowModels: dbJson(settingsRow?.practice_workflow_models, fallback.practiceWorkflowModels),
+        practiceModelPool: dbJson(settingsRow?.practice_model_pool, fallback.practiceModelPool),
         practiceScriptSettings: dbJson(settingsRow?.practice_script_settings, fallback.practiceScriptSettings),
         practiceModuleVisibility: dbJson(settingsRow?.practice_module_visibility, fallback.practiceModuleVisibility),
         agentSkills: dbJson(settingsRow?.agent_skills, fallback.agentSkills),

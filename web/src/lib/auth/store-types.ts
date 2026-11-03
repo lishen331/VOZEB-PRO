@@ -79,6 +79,26 @@ export type RunningHubGenerationSizeOption = {
     disabled?: boolean;
 };
 export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
+
+/**
+ * 练习模型池配置。记录哪些上游模型被管理员显式加入练习池。
+ * 如果该字段为 undefined 或空对象,则回退到旧行为(渠道级别过滤)。
+ * 键为上游模型名(小写),值为包含/排除状态。
+ */
+export type PracticeModelPoolConfig = {
+    /**
+     * 模型的包含状态。
+     * - true: 显式加入池子
+     * - false: 显式排除
+     * - undefined: 未配置(回退到渠道级别判断)
+     */
+    models?: Record<string, boolean>;
+
+    /**
+     * 配置版本,用于未来迁移。
+     */
+    version?: number;
+};
 export type PracticeModuleVisibility = {
     canvas: boolean;
     drama: boolean;
@@ -675,6 +695,7 @@ export type AuthSettings = {
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
     practiceWorkflowModels: PracticeWorkflowModelBindings;
+    practiceModelPool?: PracticeModelPoolConfig;
     practiceModuleVisibility?: PracticeModuleVisibility;
     practiceScriptSettings: PracticeScriptSettings;
     agentSkills: AgentSkill[];
