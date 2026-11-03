@@ -19,7 +19,7 @@ const STEP = 0.2;
 type PdfDocumentProxy = { numPages: number; getPage: (page: number) => Promise<PdfPageProxy>; destroy?: () => Promise<void> };
 type PdfPageProxy = {
     getViewport: (options: { scale: number }) => { width: number; height: number };
-    render: (options: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<void>; cancel: () => void };
+    render: (options: { canvasContext: CanvasRenderingContext2D; viewport: unknown; transform?: number[] }) => { promise: Promise<void>; cancel: () => void };
 };
 
 export interface PdfPreviewProps {
@@ -108,7 +108,9 @@ export function PdfPreview({ src, title, downloadHref, className, variant = "pan
             const context = canvas.getContext("2d");
             if (!context) return;
             renderTask.current?.cancel();
-            const task = pdfPage.render({ canvasContext: context, viewport });
+            // 缓冲区按 DPR 放大后，必须把同一倍率交给 pdf.js；否则内容只画在左上角
+            // 1/DPR 区域，CSS 再缩回原尺寸，整页看起来只剩一半（高分屏必现）。
+            const task = pdfPage.render({ canvasContext: context, viewport, transform: ratio === 1 ? undefined : [ratio, 0, 0, ratio, 0, 0] });
             renderTask.current = task;
             await task.promise;
         } catch {

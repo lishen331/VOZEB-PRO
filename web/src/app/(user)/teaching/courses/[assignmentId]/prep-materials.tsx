@@ -120,7 +120,8 @@ export function MaterialViewer({ materials, index, onIndex, onPresent }: { mater
                         </button>
                     ) : null,
                 )}
-                <button type="button" onClick={onPresent} className="gm-glass absolute top-3 right-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium">
+                {/* 放右下角：右上角是预览工具条的文件名，叠上去会压住文字 */}
+                <button type="button" onClick={onPresent} className="gm-glass absolute right-3 bottom-3 z-10 inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium shadow-lg">
                     <Presentation className="size-3.5" />
                     放映
                 </button>
