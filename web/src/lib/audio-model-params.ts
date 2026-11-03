@@ -182,7 +182,9 @@ export function normalizeAudioParams(model: string | undefined, input: unknown):
         } else if (field.type === "text") {
             result[field.key] = typeof raw === "string" ? raw.trim().slice(0, 200) : field.defaultValue;
         } else {
-            result[field.key] = field.options.some((option) => option.value === raw) ? (raw as string) : field.defaultValue;
+            // 自定义音色以 custom:<id> 形式出现在 voiceId 里，不在预置 options 中，需要保留。
+            const customVoice = field.key === "voiceId" && customVoiceId(raw);
+            result[field.key] = customVoice ? customVoice : field.options.some((option) => option.value === raw) ? (raw as string) : field.defaultValue;
         }
     }
     return result;
@@ -205,10 +207,27 @@ export function audioParamsSummary(model: string | undefined, input: unknown) {
 }
 
 /** Upstream fields merged over the channel's rendered request body. */
-export function audioUpstreamFields(model: string | undefined, prompt: string, input: unknown): Record<string, unknown> {
+const CUSTOM_VOICE_PREFIX = "custom:";
+
+/** 解析 params.voiceId 里的 custom:<id>，非自定义音色返回空串。 */
+export function parseCustomVoiceId(value: unknown): string {
+    return customVoiceId(value)?.slice(CUSTOM_VOICE_PREFIX.length) || "";
+}
+
+function customVoiceId(value: unknown): string | undefined {
+    if (typeof value !== "string") return undefined;
+    const trimmed = value.trim();
+    if (!trimmed.startsWith(CUSTOM_VOICE_PREFIX)) return undefined;
+    const id = trimmed.slice(CUSTOM_VOICE_PREFIX.length).trim();
+    return id && !id.includes(":") ? `${CUSTOM_VOICE_PREFIX}${id.slice(0, 100)}` : undefined;
+}
+
+export function audioUpstreamFields(model: string | undefined, prompt: string, input: unknown, voiceOverride?: string): Record<string, unknown> {
     const family = audioModelFamily(model);
     if (family === "openai") return {};
     const params = normalizeAudioParams(model, input);
+    // custom:<id> 是内部标识，上游只认 runtime 解析出的 upstreamVoiceId，不能原样发出去。
+    const voice = voiceOverride ?? (parseCustomVoiceId(params.voiceId) ? undefined : params.voiceId);
     if (family === "suno") {
         if (params.mode === "lyrics") return { prompt, title: params.title || undefined, tags: params.tags || undefined, make_instrumental: false };
         return { prompt: "", gpt_description_prompt: prompt, tags: params.tags || undefined, make_instrumental: Boolean(params.instrumental) };
@@ -216,16 +235,16 @@ export function audioUpstreamFields(model: string | undefined, prompt: string, i
     if (family === "qwen") {
         const instruction = String(params.instruction || "");
         return {
-            input: { text: prompt, voice: params.voiceId, format: params.format, rate: Number(params.rate), pitch: Number(params.pitch), volume: Math.round(Number(params.volume)), ...(instruction ? { instruction } : {}) },
+            input: { text: prompt, voice, format: params.format, rate: Number(params.rate), pitch: Number(params.pitch), volume: Math.round(Number(params.volume)), ...(instruction ? { instruction } : {}) },
         };
     }
     const speed = Number(params.speed);
     const format = String(params.format);
     return {
-        voice: params.voiceId,
+        voice,
         speed,
         response_format: format,
-        voice_setting: { voice_id: params.voiceId, speed, vol: Number(params.volume), pitch: Math.round(Number(params.pitch)), ...(params.emotion !== "auto" ? { emotion: params.emotion } : {}) },
+        voice_setting: { voice_id: voice, speed, vol: Number(params.volume), pitch: Math.round(Number(params.pitch)), ...(params.emotion !== "auto" ? { emotion: params.emotion } : {}) },
         voice_modify: { pitch: Number(params.modifyPitch), intensity: Number(params.intensity), timbre: Number(params.timbre), ...(params.soundEffect !== "none" ? { sound_effects: params.soundEffect } : {}) },
         audio_setting: { format },
     };

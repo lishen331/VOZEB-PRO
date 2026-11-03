@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     resolveSchoolComputeBillingContext: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(),
     scheduleGenerationTask: vi.fn(),
+    getCustomVoice: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -58,6 +59,7 @@ vi.mock("@/lib/server/audio-task-store", () => ({
     transitionAudioTask: vi.fn(),
     updateAudioTask: vi.fn(),
 }));
+vi.mock("@/lib/server/custom-voice-store", () => ({ getCustomVoice: mocks.getCustomVoice }));
 
 import { POST } from "./route";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
@@ -174,5 +176,71 @@ describe("audio task model routing", () => {
         );
         expect(response.status).toBe(409);
         expect(mocks.createAudioTask).not.toHaveBeenCalled();
+    });
+
+    describe("custom voices", () => {
+        const audioSettings = (channelIds: string[]) => ({
+            systemChannels: channelIds.map((id) => ({
+                id,
+                name: id,
+                enabled: true,
+                purpose: "shared",
+                baseUrl: `https://${id}.example`,
+                apiKey: "key",
+                apiFormat: "openai",
+                models: ["speech-2.8-hd"],
+            })),
+            logicalModels: [
+                {
+                    id: "speech-2.8-hd",
+                    name: "逻辑音频",
+                    capability: "audio",
+                    enabled: true,
+                    bindings: channelIds.map((channelId) => ({ id: `bind-${channelId}`, channelId, upstreamModel: "speech-2.8-hd", enabled: true, priority: 0, weight: 100 })),
+                },
+            ],
+            defaultModels: { audioModel: "speech-2.8-hd" },
+            generationConcurrency: { audio: 1 },
+            generationDefaults: { audioVoice: "female-shaonv", audioFormat: "mp3" },
+        });
+
+        const customVoice = { id: "voice-1", ownerUserId: "user", channelId: "channel-b", status: "ready", shared: false, ttsModel: "speech-2.8-hd", upstreamVoiceId: "upstream-1" };
+
+        it("narrows candidates to the channel that owns the custom voice", async () => {
+            const { getAuthSettings } = await import("@/lib/auth/store");
+            vi.mocked(getAuthSettings).mockResolvedValueOnce(audioSettings(["channel-a", "channel-b"]) as never);
+            mocks.getCustomVoice.mockResolvedValueOnce(customVoice);
+            mocks.createAudioTask.mockImplementation(async (input) => ({ ...input, id: "audio-custom", status: "pending", createdAt: 1, updatedAt: 1 }));
+
+            const response = await POST(
+                new Request("http://localhost/api/audio-tasks", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ prompt: "你好", config: { model: "speech-2.8-hd", params: { voiceId: "custom:voice-1" } } }),
+                }),
+            );
+
+            expect(response.status).toBe(200);
+            const created = mocks.createAudioTask.mock.calls[0][0];
+            expect(created.config).toMatchObject({ channelId: "channel-b", customVoiceId: "voice-1" });
+            expect(created.candidateConfigs).toEqual([]);
+        });
+
+        it("rejects a custom voice the caller does not own or cannot see", async () => {
+            const { getAuthSettings } = await import("@/lib/auth/store");
+            vi.mocked(getAuthSettings).mockResolvedValueOnce(audioSettings(["channel-b"]) as never);
+            mocks.getCustomVoice.mockResolvedValueOnce({ ...customVoice, ownerUserId: "someone-else", shared: false });
+
+            const response = await POST(
+                new Request("http://localhost/api/audio-tasks", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ prompt: "你好", config: { model: "speech-2.8-hd", params: { voiceId: "custom:voice-1" } } }),
+                }),
+            );
+
+            expect(response.status).toBe(403);
+            expect(mocks.createAudioTask).not.toHaveBeenCalled();
+        });
     });
 });

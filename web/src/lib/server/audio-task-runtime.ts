@@ -106,11 +106,13 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
                 ...(candidate.workflowInput || {}),
             };
             const workflow = workflowConfigForTask(candidate);
+            // 自定义音色：上游字段里的 voice 必须换成解析出的 upstreamVoiceId，
+            // 不能让 custom:<id> 漏到上游，也不能因为剔除它而丢掉 voice_setting.voice_id。
             let payload: Record<string, unknown>;
             try {
                 payload = workflow
                     ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: defaults, references: [] })
-                    : { ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults), ...withoutUndefined(audioUpstreamFields(config.model, candidate.prompt, config.params)) };
+                    : { ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults), ...withoutUndefined(audioUpstreamFields(config.model, candidate.prompt, config.params, config.customVoiceId ? voiceId : undefined)) };
             } catch (error) {
                 throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "音频请求模板无效");
             }
