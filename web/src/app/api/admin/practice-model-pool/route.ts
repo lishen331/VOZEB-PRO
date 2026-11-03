@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthSettings, setAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
+import { readJsonBody } from "@/lib/auth/request";
 import type { PracticeModelPoolConfig } from "@/lib/auth/store-types";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "权限不足" }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await readJsonBody<{ updates?: Record<string, unknown> }>(request);
     const { updates } = body;
 
     if (!updates || typeof updates !== "object") {
