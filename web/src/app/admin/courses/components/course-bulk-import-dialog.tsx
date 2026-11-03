@@ -270,6 +270,43 @@ function PlanPreview({ plan }: { plan: BulkImportPlan }) {
             ) : (
                 <p>将导入 {plan.rows.length} 份资料。</p>
             )}
+            {plan.preview.length ? (
+                <div className="flex flex-col gap-1">
+                    <p className="text-xs text-[var(--gm-text-3)]">解析结果（有问题的行标红）：</p>
+                    <div className="gm-scroll max-h-52 overflow-auto rounded-[10px] bg-[var(--gm-surface)] ring-1 ring-[var(--gm-border)]">
+                        <table className="w-full border-collapse text-left text-xs">
+                            <thead className="sticky top-0 bg-[var(--gm-wash-strong)] text-[var(--gm-text-3)]">
+                                <tr>
+                                    {["行", "章节名", "课时名", "文件名", "资料标题"].map((head) => (
+                                        <th key={head} className="whitespace-nowrap px-2 py-1.5 font-medium">
+                                            {head}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {plan.preview.map((row) => (
+                                    <tr key={row.line} className={row.problem ? "bg-[color-mix(in_oklab,var(--gm-danger)_12%,transparent)] text-[var(--gm-danger)]" : ""}>
+                                        <td className="whitespace-nowrap px-2 py-1 tabular-nums">{row.line}</td>
+                                        <td className="max-w-40 truncate px-2 py-1" title={row.chapterTitle}>
+                                            {row.chapterTitle || "—"}
+                                        </td>
+                                        <td className="max-w-40 truncate px-2 py-1" title={row.lessonTitle}>
+                                            {row.lessonTitle || "—"}
+                                        </td>
+                                        <td className="max-w-56 truncate px-2 py-1" title={row.fileName}>
+                                            {row.fileName || "—"}
+                                        </td>
+                                        <td className="max-w-40 truncate px-2 py-1" title={row.problem || row.title}>
+                                            {row.problem || row.title}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : null}
             <TagLine label="新建章节：" items={plan.newChapters} />
             <TagLine label="新建课时：" items={plan.newLessons} />
             {plan.unusedFiles.length ? <p className="text-xs text-[var(--gm-warning)]">表里没有用到的文件（关闭后会删除）：{plan.unusedFiles.join("、")}</p> : null}

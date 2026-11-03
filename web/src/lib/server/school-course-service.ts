@@ -41,6 +41,7 @@ import { resolveTeachingSubmissionReferences } from "./school-submission-referen
 import { requireActiveSchoolContext, requireSchoolManager, requireStudent, requireTeacher, SchoolServiceError } from "./school-access-service";
 import { getLocalMediaRegistrations } from "@/lib/server/local-media-registry";
 import { cleanupDeletedCourseMaterials } from "./course-attachment-service";
+import { canConvertToPdf } from "@/lib/server/office-document-converter";
 
 export async function listPlatformCourses(actorId: string, input: { page?: number; pageSize?: number; keyword?: string; status?: PlatformCourse["status"] } = {}) {
     await requireEducationAdmin(actorId);
@@ -785,6 +786,8 @@ async function materialRecord(
     const previewStorageKey = input.previewStorageKey ? text(input.previewStorageKey, 1000) : "";
     const previewRegistration = previewStorageKey ? (await getLocalMediaRegistrations([previewStorageKey], { ownerUserId }))[0] : undefined;
     const usablePreviewKey = previewRegistration && previewRegistration.storageClass === "permanent" && previewRegistration.type === "attachment" && previewRegistration.source === "course-attachment" ? previewStorageKey : "";
+    // 没有预览说明这次上传要么不需要转换、要么还在后台转：按扩展名判断状态，前端据此显示「正在生成预览」
+    const previewStatus: "none" | "pending" | "ready" = usablePreviewKey ? "ready" : canConvertToPdf(registration.originalName || storageKey) ? "pending" : "none";
     return {
         id: randomUUID(),
         courseId,
@@ -801,6 +804,7 @@ async function materialRecord(
             .split("/")
             .map((part) => encodeURIComponent(part))
             .join("/")}`,
+        previewStatus,
         ...(usablePreviewKey
             ? {
                   previewStorageKey: usablePreviewKey,

@@ -90,6 +90,8 @@ export type CourseAttachment = {
     previewStorageKey?: string;
     previewUrl?: string;
     previewBytes?: number;
+    /** none=不需要转换 / pending=后台转换中 / ready=可预览 / failed=转不出来 */
+    previewStatus?: "none" | "pending" | "ready" | "failed";
 };
 export type CourseMaterialSourceScope = "platform" | "school";
 export type CourseMaterialStatus = "active" | "disabled";
@@ -109,6 +111,8 @@ export type CourseMaterial = {
     /** 平台内预览用的 PDF（PPTX / DOCX / XLSX 上传时自动生成）；为空表示按 mimeType 原样预览 */
     previewStorageKey?: string;
     previewUrl?: string;
+    /** none=不需要转换 / pending=后台转换中 / ready=可预览 / failed=转不出来 */
+    previewStatus?: "none" | "pending" | "ready" | "failed";
     sortOrder: number;
     status: CourseMaterialStatus;
     createdByUserId?: string;

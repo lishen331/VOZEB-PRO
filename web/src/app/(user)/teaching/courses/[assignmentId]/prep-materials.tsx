@@ -72,9 +72,17 @@ export function MaterialStage({ material }: { material: CourseMaterial }) {
             <p className="text-xs text-[var(--gm-text-3)]">
                 {material.fileName} · {formatBytes(material.bytes)}
             </p>
-            <p className="text-xs text-[var(--gm-text-3)]">标准课件仅支持平台内查看</p>
+            <p className="text-xs text-[var(--gm-text-3)]">{previewStatusHint(material)}</p>
         </div>
     );
+}
+
+/** 未生成预览时告诉老师现在是什么情况，别让人干等 */
+export function previewStatusHint(material: Pick<CourseMaterial, "previewStatus" | "mimeType">) {
+    if (material.previewStatus === "pending") return "正在生成在线预览，稍后刷新即可翻页";
+    if (material.previewStatus === "failed") return "这份文件暂时无法在线预览，请联系管理员";
+    if (material.mimeType === "application/pdf") return "标准课件仅支持平台内查看";
+    return "标准课件仅支持平台内查看";
 }
 /** 中栏：当前资料大预览 + 左右翻 + 缩略条（←/→ 翻页） */
 export function MaterialViewer({ materials, index, onIndex, onPresent }: { materials: readonly CourseMaterial[]; index: number; onIndex: (index: number) => void; onPresent: () => void }) {

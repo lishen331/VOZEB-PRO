@@ -123,6 +123,8 @@ export type CourseMaterialRecord = {
     previewStorageKey?: string;
     /** 预览 PDF 的可访问地址（由 previewStorageKey 派生） */
     previewUrl?: string;
+    /** none=不需要转换 / pending=后台转换中 / ready=可以预览 / failed=转不出来 */
+    previewStatus?: "none" | "pending" | "ready" | "failed";
     sortOrder: number;
     status: CourseMaterialStatus;
     createdByUserId?: string;
@@ -248,6 +250,8 @@ export interface SchoolDomainRepository {
     getCourseMaterial(materialId: string, schoolId?: string): Promise<CourseMaterialRecord | null>;
     insertCourseMaterial(record: CourseMaterialRecord): Promise<CourseMaterialRecord>;
     updateCourseMaterial(materialId: string, patch: CourseMaterialUpdate): Promise<CourseMaterialRecord | null>;
+    /** 后台转换完成后按上传时的 storage_key 回填预览结果 */
+    updateCourseMaterialPreviewByStorageKey(storageKey: string, patch: { previewStorageKey?: string; previewStatus: "ready" | "failed" }): Promise<number>;
     deleteCourseMaterial(materialId: string): Promise<boolean>;
     getPlatformCourseDeletionImpact(courseId: string): Promise<CourseDeletionImpact>;
     disablePlatformCourse(courseId: string, patch: { deletedAt: string; deletedByUserId: string; updatedAt: string }): Promise<PlatformCourseRecord | null>;

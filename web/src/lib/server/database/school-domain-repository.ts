@@ -514,8 +514,8 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async insertCourseMaterial(record: CourseMaterialRecord) {
         const result = await this.db.query(
-            `INSERT INTO course_materials (id, course_id, chapter_id, lesson_id, source_scope, school_course_assignment_id, title, file_name, mime_type, bytes, storage_key, url, preview_storage_key, sort_order, status, created_by_user_id, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+            `INSERT INTO course_materials (id, course_id, chapter_id, lesson_id, source_scope, school_course_assignment_id, title, file_name, mime_type, bytes, storage_key, url, preview_storage_key, preview_status, sort_order, status, created_by_user_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
             [
                 record.id,
                 record.courseId,
@@ -530,6 +530,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
                 record.storageKey,
                 record.url,
                 record.previewStorageKey || null,
+                record.previewStatus || "none",
                 record.sortOrder,
                 record.status,
                 record.createdByUserId || null,
@@ -548,6 +549,17 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         addUpdate(assignments, values, "status", patch.status);
         const result = await this.db.query(`UPDATE course_materials SET ${assignments.join(", ")} WHERE id = $1 RETURNING *`, values);
         return result.rows[0] ? mapCourseMaterial(result.rows[0]) : null;
+    }
+
+    async updateCourseMaterialPreviewByStorageKey(storageKey: string, patch: { previewStorageKey?: string; previewStatus: "ready" | "failed" }) {
+        // 同一份附件可能被挂到多个课时，全部一起回填
+        const result = await this.db.query(
+            `UPDATE course_materials
+                SET preview_storage_key = COALESCE($2, preview_storage_key), preview_status = $3, updated_at = now()
+              WHERE storage_key = $1`,
+            [storageKey, patch.previewStorageKey || null, patch.previewStatus],
+        );
+        return result.rowCount || 0;
     }
 
     async deleteCourseMaterial(materialId: string) {
@@ -1344,6 +1356,7 @@ function mapCourseMaterial(row: Record<string, unknown>): CourseMaterialRecord {
         storageKey: stringValue(row.storage_key),
         url: stringValue(row.url),
         ...(optionalString(row.preview_storage_key) ? { previewStorageKey: optionalString(row.preview_storage_key)!, previewUrl: referenceAssetUrl(optionalString(row.preview_storage_key)!) } : {}),
+        previewStatus: row.preview_status === "pending" || row.preview_status === "ready" || row.preview_status === "failed" ? row.preview_status : "none",
         sortOrder: numberValue(row.sort_order),
         status: row.status === "disabled" ? "disabled" : "active",
         createdByUserId: optionalString(row.created_by_user_id),

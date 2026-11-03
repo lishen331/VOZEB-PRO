@@ -1,4 +1,4 @@
-import { createWriteStream, writeFileSync } from "node:fs";
+import { createWriteStream, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -8,7 +8,8 @@ import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
 import type { CourseAttachment } from "@/lib/school-domain";
 import { deleteLocalMediaAssetsByStorageKeys, deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
-import { canConvertToPdf, convertDocumentToPdf } from "@/lib/server/office-document-converter";
+import { canConvertToPdf, enqueuePdfConversion } from "@/lib/server/office-document-converter";
+import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
 import { writePersistentAttachmentFile } from "@/lib/server/reference-asset-store";
 
 const COURSE_ATTACHMENT_MIME_TYPES: Record<string, string> = {
@@ -48,34 +49,57 @@ export async function storeCourseAttachment(input: { ownerUserId: string; fileNa
             .split("/")
             .map((part) => encodeURIComponent(part))
             .join("/")}`;
-        // PPTX / DOCX / XLSX：另存一份 PDF 预览版，平台内预览器才翻得动页
-        const preview = await storePdfPreview({ temporaryPath, fileName, ownerUserId: input.ownerUserId, directory });
-        return { title: fileName, fileName, url, storageKey: stored.token, mimeType, bytes: stored.bytes, ...preview };
+        // PPTX / DOCX / XLSX：转换交给后台队列，上传立刻返回，不让用户等 6~20 秒。
+        // 后台转完会按 storage_key 把 preview_storage_key / preview_status 回填到资料行。
+        if (canConvertToPdf(fileName)) {
+            schedulePdfPreview({ sourcePath: temporaryPath, fileName, ownerUserId: input.ownerUserId, storageKey: stored.token });
+            return { title: fileName, fileName, url, storageKey: stored.token, mimeType, bytes: stored.bytes, previewStatus: "pending" };
+        }
+        return { title: fileName, fileName, url, storageKey: stored.token, mimeType, bytes: stored.bytes, previewStatus: "none" };
     } finally {
         await rm(directory, { recursive: true, force: true });
     }
 }
 
 /**
- * 生成 PDF 预览版并落盘。转不出来（服务器没装 LibreOffice / 文件本身有问题）时返回空对象，
- * 上传照常成功，预览由调用方降级成原来的文件卡片。
+ * 后台排一次 PDF 预览转换，转完按 storage_key 回填到资料行。
+ * 上传接口不等它：临时目录在请求结束时会删，所以先把字节读进内存再排队。
  */
-async function storePdfPreview(input: { temporaryPath: string; fileName: string; ownerUserId: string; directory: string }): Promise<{ previewStorageKey?: string; previewUrl?: string; previewBytes?: number }> {
-    if (!canConvertToPdf(input.fileName)) return {};
-    const bytes = convertDocumentToPdf(input.temporaryPath, input.directory);
-    if (!bytes) return {};
-    const previewFileName = `${input.fileName.replace(/\.[^.]+$/, "")}.pdf`;
-    const previewPath = join(input.directory, "preview.pdf");
+function schedulePdfPreview(input: { sourcePath: string; fileName: string; ownerUserId: string; storageKey: string }) {
+    let bytes: Buffer;
     try {
-        writeFileSync(previewPath, bytes);
-        const stored = await writePersistentAttachmentFile(previewPath, previewFileName, "application/pdf", { ownerUserId: input.ownerUserId, source: "course-attachment" });
-        const previewUrl = `/api/reference-assets/${stored.token
-            .split("/")
-            .map((part) => encodeURIComponent(part))
-            .join("/")}`;
-        return { previewStorageKey: stored.token, previewUrl, previewBytes: stored.bytes };
+        bytes = readFileSync(input.sourcePath);
     } catch {
-        return {};
+        return;
+    }
+    void (async () => {
+        const pdf = await enqueuePdfConversion({ bytes, fileName: input.fileName });
+        if (!pdf) {
+            await updateCourseMaterialPreview(input.storageKey, { previewStatus: "failed" });
+            return;
+        }
+        const directory = await mkdtemp(join(tmpdir(), "vozeb-course-preview-"));
+        try {
+            const previewPath = join(directory, "preview.pdf");
+            writeFileSync(previewPath, pdf);
+            const previewFileName = `${input.fileName.replace(/\.[^.]+$/, "")}.pdf`;
+            const stored = await writePersistentAttachmentFile(previewPath, previewFileName, "application/pdf", { ownerUserId: input.ownerUserId, source: "course-attachment" });
+            await updateCourseMaterialPreview(input.storageKey, { previewStorageKey: stored.token, previewStatus: "ready" });
+        } catch {
+            await updateCourseMaterialPreview(input.storageKey, { previewStatus: "failed" });
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    })().catch(() => undefined);
+}
+
+/** 把转换结果写回资料行；资料还没建（用户只上传没挂课时）时查不到行，忽略即可 */
+async function updateCourseMaterialPreview(storageKey: string, patch: { previewStorageKey?: string; previewStatus: "ready" | "failed" }) {
+    try {
+        const repository = createSchoolDomainRepository();
+        await repository.updateCourseMaterialPreviewByStorageKey(storageKey, patch);
+    } catch {
+        // 回填失败不影响上传，预览保持 pending / 降级成文件卡片
     }
 }
 
