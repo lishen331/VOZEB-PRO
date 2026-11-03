@@ -15,6 +15,12 @@ export const qwenCatalogModels = Object.keys(catalog.models);
 
 const basicPreviewFiles = new Set(catalog.basic.voices.map((voice) => `${voice.slug}.wav`));
 
+// 3.1 models must use 3.0-prefixed voice IDs for basic voices (confirmed by staging probe)
+const BASIC_VOICE_ID_MODEL_MAP: Record<string, string> = {
+    "qwen-audio-3.1-tts-flash": "qwen-audio-3.0-tts-flash",
+    "qwen-audio-3.1-tts-plus": "qwen-audio-3.0-tts-plus",
+};
+
 export function isQwenBasicPreviewFile(file: string) {
     return basicPreviewFiles.has(file);
 }
@@ -29,7 +35,8 @@ export function qwenCatalogVoices(model: string): QwenVoiceOption[] {
         }),
     );
     if (!catalog.basic.models.includes(model)) return voices;
-    return [...voices, ...catalog.basic.voices.map((voice) => option(`${model}-${voice.slug}`, voice.name, [voice.gender, voice.trait], QWEN_BASIC_VOICE_GROUP, `${QWEN_VOICE_PREVIEW_ROUTE}/${voice.slug}.wav`, [voice.scene, voice.lang, voice.slug]))];
+    const voiceIdModel = BASIC_VOICE_ID_MODEL_MAP[model] || model;
+    return [...voices, ...catalog.basic.voices.map((voice) => option(`${voiceIdModel}-${voice.slug}`, voice.name, [voice.gender, voice.trait], QWEN_BASIC_VOICE_GROUP, `${QWEN_VOICE_PREVIEW_ROUTE}/${voice.slug}.wav`, [voice.scene, voice.lang, voice.slug]))];
 }
 
 function option(value: string, name: string, detail: Array<string | undefined>, group: string, preview: string, extra: Array<string | undefined>): QwenVoiceOption {

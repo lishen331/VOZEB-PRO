@@ -4,8 +4,8 @@ import { normalizeAudioParams } from "./audio-model-params";
 import { isQwenBasicPreviewFile, QWEN_BASIC_VOICE_GROUP, qwenCatalogVoices } from "./qwen-voice-catalog";
 
 const counts: Record<string, number> = {
-    "qwen-audio-3.1-tts-plus": 4,
-    "qwen-audio-3.1-tts-flash": 139,
+    "qwen-audio-3.1-tts-plus": 601,
+    "qwen-audio-3.1-tts-flash": 736,
     "qwen-audio-3.0-tts-plus": 599,
     "qwen-audio-3.0-tts-flash": 609,
 };
@@ -29,7 +29,12 @@ describe("qwen voice catalog", () => {
             expect(basic).toHaveLength(597);
             for (const voice of basic) expect(voice.value.startsWith(`${model}-`)).toBe(true);
         }
-        expect(qwenCatalogVoices("qwen-audio-3.1-tts-flash").some((voice) => voice.group === QWEN_BASIC_VOICE_GROUP)).toBe(false);
+        // 3.1 models now have basic voices too, but use 3.0 prefixes
+        for (const [model31, model30] of [["qwen-audio-3.1-tts-flash", "qwen-audio-3.0-tts-flash"], ["qwen-audio-3.1-tts-plus", "qwen-audio-3.0-tts-plus"]]) {
+            const basic = qwenCatalogVoices(model31).filter((voice) => voice.group === QWEN_BASIC_VOICE_GROUP);
+            expect(basic).toHaveLength(597);
+            for (const voice of basic) expect(voice.value.startsWith(`${model30}-`)).toBe(true);
+        }
     });
 
     it("keeps voices scoped to their model and existing defaults valid", () => {

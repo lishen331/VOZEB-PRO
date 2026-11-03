@@ -294,7 +294,7 @@
         ]
     },
     "basic": {
-        "models": ["qwen-audio-3.0-tts-plus", "qwen-audio-3.0-tts-flash"],
+        "models": ["qwen-audio-3.0-tts-plus", "qwen-audio-3.0-tts-flash", "qwen-audio-3.1-tts-plus", "qwen-audio-3.1-tts-flash"],
         "voices": [
             { "slug": "longcanzhuyue", "name": "龙璨竹月", "gender": "女", "age": 26, "trait": "平实质朴音", "scene": "日常对话", "lang": "中文" },
             { "slug": "longrongzhihe", "name": "龙蓉芷荷", "gender": "女", "age": 24, "trait": "电台质感音", "scene": "日常对话", "lang": "中文" },
