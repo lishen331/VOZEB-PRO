@@ -3,7 +3,7 @@
 import { AutoComplete } from "@/components/gamma-ui/gamma-ant-autocomplete";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
-import { CircleGauge, SlidersHorizontal, Sparkles } from "lucide-react";
+import { CircleGauge, SlidersHorizontal, Sparkles, Mic } from "lucide-react";
 
 import type { AuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelConfig } from "@/lib/model-routing-config";
@@ -139,6 +139,25 @@ export function GenerationDefaultsPanel({ settings, onChange }: { settings: Auth
                 </LabeledControl>
             </div>
             <div className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">新建画布生图节点和配置节点默认使用，单个节点仍可单独覆盖。</div>
+        </div>
+    );
+}
+
+export function VoicePricingPanel({ settings, onChange }: { settings: AuthSettings; onChange: (key: keyof AuthSettings["voicePricing"], value: number) => void }) {
+    return (
+        <div className={settingsPanelSurfaceClass}>
+            <SectionTitle icon={<Mic className="size-4" />} title="自定义音色定价" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <LabeledControl label="美元汇率 (USD → CNY)">
+                    <InputNumber className="w-full" min={1} max={20} step={0.1} precision={2} value={settings.voicePricing.usdToCny} onChange={(value) => onChange("usdToCny", value || 7.2)} />
+                </LabeledControl>
+                <LabeledControl label="积分换算 (CNY → Points)">
+                    <InputNumber className="w-full" min={1} max={1000} precision={0} value={settings.voicePricing.pointsPerYuan} onChange={(value) => onChange("pointsPerYuan", value || 100)} />
+                </LabeledControl>
+            </div>
+            <div className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">
+                用于计算自定义音色创建的积分消耗。公式：人民币价格 = 上游价格 × 汇率（如 USD 定价）；扣除积分 = 人民币价格 × 积分换算。
+            </div>
         </div>
     );
 }
