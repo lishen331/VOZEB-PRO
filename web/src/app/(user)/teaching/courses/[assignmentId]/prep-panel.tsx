@@ -67,9 +67,6 @@ function MaterialList({ materials, actions }: { materials: readonly CourseMateri
                                 </span>
                             </span>
                         </button>
-                        <a href={materialDownloadHref(material)} aria-label={`下载 ${material.title}`} className={ROW_ICON_BTN}>
-                            <Download className="size-3.5" />
-                        </a>
                         {editable && actions ? (
                             <>
                                 <button type="button" aria-label={`重命名 ${material.title}`} onClick={() => actions.onRename(material)} className={ROW_ICON_BTN}>
