@@ -82,9 +82,9 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
         {
             title: "启用",
             key: "enabled",
-            width: 80,
+            width: 116,
             align: "center",
-            render: (_, channel) => <Switch size="small" checked={channel.enabled} aria-label={`${channel.name}启用状态`} onChange={(enabled) => updateChannel(channel.id, { enabled })} />,
+            render: (_, channel) => <ChannelEnableCell channel={channel} onChange={(patch) => updateChannel(channel.id, patch)} />,
         },
         {
             title: "操作",
@@ -144,6 +144,7 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
                                 onCreate={() => openWizard()}
                                 onFetchAll={() => void onFetchAll()}
                                 onFetch={(channel) => void onFetchModels(channel)}
+                                onUpdateChannel={updateChannel}
                             />
                         ),
                     },
@@ -232,6 +233,7 @@ function ChannelList({
     onCreate,
     onFetchAll,
     onFetch,
+    onUpdateChannel,
 }: {
     channels: SystemModelChannel[];
     allChannels: SystemModelChannel[];
@@ -248,6 +250,7 @@ function ChannelList({
     onCreate: () => void;
     onFetchAll: () => void;
     onFetch: (channel: SystemModelChannel) => void;
+    onUpdateChannel: (id: string, patch: Partial<SystemModelChannel>) => void;
 }) {
     return (
         <div>
@@ -294,7 +297,9 @@ function ChannelList({
                                 </div>
                                 <div className="mt-1 truncate text-xs text-[var(--gm-text-3)]">{channelProtocolLabel(channel)}</div>
                             </div>
-                            <Switch size="small" checked={channel.enabled} disabled aria-label={`${channel.name}当前启用状态`} />
+                            <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                <ChannelEnableCell channel={channel} onChange={(patch) => onUpdateChannel(channel.id, patch)} />
+                            </div>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
                             <span>{channel.models.length} 个模型</span>
@@ -391,6 +396,30 @@ function ProtocolCenter({ settings, onCreate, onOpenChannel }: { settings: Chann
 function ChannelStatusTag({ channel }: { channel: SystemModelChannel }) {
     const status = channelWorkspaceStatus(channel);
     return <ChannelStatusBadge status={status} />;
+}
+
+/** 渠道列表里的两个独立开关：上=正式生产，下=无限练习。RunningHub 渠道不参与生产。 */
+function ChannelEnableCell({ channel, onChange }: { channel: SystemModelChannel; onChange: (patch: Partial<SystemModelChannel>) => void }) {
+    const runningHub = channel.advancedConfig?.protocol === "runninghub";
+    const practiceOn = channel.practiceEnabled ?? channel.enabled;
+    return (
+        <div className="flex flex-col items-start gap-1.5">
+            <div className="flex items-center gap-1.5">
+                <span className="w-7 text-xs text-[var(--gm-text-3)]">生产</span>
+                <Switch
+                    size="small"
+                    checked={channel.enabled}
+                    disabled={runningHub}
+                    aria-label={`${channel.name}正式生产启用状态`}
+                    onChange={(enabled) => onChange({ enabled })}
+                />
+            </div>
+            <div className="flex items-center gap-1.5">
+                <span className="w-7 text-xs text-[var(--gm-text-3)]">练习</span>
+                <Switch size="small" checked={practiceOn} aria-label={`${channel.name}无限练习启用状态`} onChange={(practiceEnabled) => onChange({ practiceEnabled })} />
+            </div>
+        </div>
+    );
 }
 
 function ChannelEmpty({ hasChannels, onCreate }: { hasChannels: boolean; onCreate: () => void }) {

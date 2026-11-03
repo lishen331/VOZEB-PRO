@@ -4,7 +4,8 @@ import { channelSupportsModel, rawModelName } from "./generation-channel";
 import { filterHealthyRuntimeCandidates, hasHealthyRuntimeCandidate } from "./channel-runtime-health";
 import { channelHasCapacity } from "./channel-concurrency";
 import { channelConnectionReady } from "@/lib/channel-protocol-registry";
-import { resolvePracticeModelAccess, type PracticeExecutionProfile } from "@/lib/practice-domain";
+import { channelUsableForSurface } from "@/lib/model-routing-config";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 
 export type ResolvedLogicalModel = {
     logicalModelId: string;
@@ -43,7 +44,7 @@ export function resolveLogicalModelCandidates(
         const resolved: ResolvedLogicalModel[] = [];
         for (const binding of preferred ? [preferred, ...bindings.filter((item) => item !== preferred)] : bindings) {
             const channel = settings.systemChannels.find(
-                (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item.models, binding.upstreamModel),
+                (item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item.models, binding.upstreamModel),
             );
             if (channel) resolved.push({ logicalModelId: logical.id, upstreamModel: binding.upstreamModel, channelId: channel.id, channel, capabilityProfile: resolveLogicalModelCapabilityProfile(binding, capability, channel, binding.upstreamModel) });
         }
@@ -59,7 +60,7 @@ export function resolveLogicalModelCandidates(
     if (settings.logicalModels.length) return [];
     const ordered = preferredChannelId ? [...settings.systemChannels.filter((channel) => channel.id === preferredChannelId), ...settings.systemChannels.filter((channel) => channel.id !== preferredChannelId)] : settings.systemChannels;
     const resolved = ordered
-        .filter((item) => item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item.models, requested) && channelModelCapability(item, requested) === capability)
+        .filter((item) => channelUsableForSurface(item, executionProfile) && channelSupportsModel(item.models, requested) && channelModelCapability(item, requested) === capability)
         .map((channel) => ({ logicalModelId: requested, upstreamModel: requested, channelId: channel.id, channel, capabilityProfile: resolveLogicalModelCapabilityProfile({}, capability, channel, requested) }));
     const healthy = capability === "text" ? resolved : filterHealthyRuntimeCandidates(resolved, capability);
     return filterAvailableConcurrencyCandidates(healthy, capability);
@@ -85,7 +86,7 @@ function imageOverflowCandidates(settings: Pick<AuthSettings, "logicalModels" | 
         for (const binding of other.bindings) {
             if (!binding.enabled) continue;
             const channel = settings.systemChannels.find(
-                (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item.models, binding.upstreamModel),
+                (item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item.models, binding.upstreamModel),
             );
             if (!channel) continue;
             const candidate: ResolvedLogicalModel = {

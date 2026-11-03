@@ -56,6 +56,7 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>, e
                     apiFormat: channel.apiFormat,
                     models: asJson(channel.models),
                     enabled: channel.enabled,
+                    practiceEnabled: channel.practiceEnabled,
                     purpose: channel.purpose || "shared",
                     advancedConfig: channel.advancedConfig ? asJson(channel.advancedConfig) : undefined,
                     sortOrder,

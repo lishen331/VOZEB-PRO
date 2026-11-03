@@ -14,7 +14,8 @@ export type ChannelWorkspaceStatus = "enabled" | "draft" | "disabled";
 const capabilityLabels: Record<LogicalModelCapability, string> = { text: "文本", image: "图片", video: "视频", audio: "音频" };
 
 export function channelWorkspaceStatus(channel: SystemModelChannel): ChannelWorkspaceStatus {
-    if (channel.enabled) return "enabled";
+    // 任一启用开关打开都算"在用"：只开练习的渠道不应显示成已停用。
+    if (channel.enabled || channel.practiceEnabled) return "enabled";
     return channel.baseUrl.trim() ? "disabled" : "draft";
 }
 

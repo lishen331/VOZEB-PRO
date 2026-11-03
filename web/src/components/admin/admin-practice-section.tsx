@@ -42,7 +42,9 @@ export function practiceScriptChannelOptions(settings: Pick<AuthSettings, "logic
     const model = settings.logicalModels.find((item) => item.id === modelId && item.enabled && item.capability === "text");
     if (!model) return [];
     const channelIds = new Set(model.bindings.filter((binding) => binding.enabled).map((binding) => binding.channelId));
-    return settings.systemChannels.filter((channel) => channel.enabled && channel.purpose !== "production" && channelIds.has(channel.id)).map((channel) => ({ value: channel.id, label: channel.name || channel.id }));
+    return settings.systemChannels
+        .filter((channel) => (channel.practiceEnabled ?? channel.enabled) && channel.purpose !== "production" && channelIds.has(channel.id))
+        .map((channel) => ({ value: channel.id, label: channel.name || channel.id }));
 }
 
 export function AdminPracticeSection({ controller }: { controller: AdminDashboardController }) {

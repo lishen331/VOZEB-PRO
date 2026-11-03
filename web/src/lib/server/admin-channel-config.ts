@@ -81,7 +81,7 @@ export function runningHubChannelValidationErrors(channel: SystemModelChannel) {
             errors.push(`${label} 的 Base URL 无效`);
         }
     }
-    if (channel.purpose !== "open-source-practice") errors.push(`${label} 渠道用途必须固定为无限练习`);
+    if (channel.practiceEnabled === false) errors.push(`${label} 必须启用无限练习`);
     if (!isUsableAdminChannelApiKey(channel.apiKey)) errors.push(`${label} 必须填写 API Key`);
     return errors;
 }

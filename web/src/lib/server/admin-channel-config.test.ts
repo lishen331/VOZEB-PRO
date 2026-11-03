@@ -146,8 +146,8 @@ describe("admin channel config", () => {
         };
 
         expect(runningHubChannelValidationErrors(channel)).toEqual([]);
-        expect(runningHubChannelValidationErrors({ ...channel, purpose: "production" as const }).join(" ")).toContain("无限练习");
-        expect(runningHubChannelValidationErrors({ ...channel, purpose: "shared" as const }).join(" ")).toContain("无限练习");
+        expect(runningHubChannelValidationErrors({ ...channel, practiceEnabled: false }).join(" ")).toContain("无限练习");
+        expect(runningHubChannelValidationErrors({ ...channel, purpose: "shared" as const })).toEqual([]);
     });
 
     it("requires explicit RunningHub purpose, credentials, and per-model task paths", () => {
@@ -189,7 +189,8 @@ describe("admin channel config", () => {
             },
         };
         expect(runningHubChannelValidationErrors({ ...base, purpose: "open-source-practice" })).toEqual([]);
-        expect(runningHubChannelValidationErrors({ ...base, purpose: undefined }).join(" ")).toContain("渠道用途");
+        expect(runningHubChannelValidationErrors({ ...base, purpose: undefined })).toEqual([]);
+        expect(runningHubChannelValidationErrors({ ...base, practiceEnabled: false }).join(" ")).toContain("无限练习");
         expect(runningHubChannelValidationErrors({ ...base, apiKey: "" }).join(" ")).toContain("API Key");
         expect(runningHubChannelValidationErrors({ ...base, advancedConfig: { ...base.advancedConfig, modelConfigs: {} } }).join(" ")).not.toContain("workflow-image");
     });

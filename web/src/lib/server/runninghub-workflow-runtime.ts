@@ -2,7 +2,7 @@ import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from 
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
-import { channelModelCapability, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
+import { channelEnabledForSurface, channelModelCapability, channelUsableForSurface, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
 import { channelSupportsModel, rawModelName } from "./generation-channel";
 import { channelConnectionReady } from "@/lib/channel-protocol-registry";
 
@@ -85,7 +85,7 @@ function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChanne
     const poolConfig = settings.practiceModelPool?.models;
 
     return settings.systemChannels
-        .filter((channel) => channel.enabled && channel.purpose === "open-source-practice" && channelConnectionReady(channel))
+        .filter((channel) => channelUsableForSurface(channel, "open-source-practice"))
         .flatMap((channel) =>
             channel.models
                 .filter((model) => {
@@ -198,7 +198,7 @@ export function workflowReferenceSupport(workflow: Pick<RunningHubWorkflowConfig
 }
 
 function runningHubPracticeChannels(settings: Pick<AuthSettings, "systemChannels">) {
-    return settings.systemChannels.filter((channel) => channel.enabled && channel.purpose === "open-source-practice" && channel.advancedConfig?.protocol === "runninghub");
+    return settings.systemChannels.filter((channel) => channelEnabledForSurface(channel, "open-source-practice") && channel.advancedConfig?.protocol === "runninghub");
 }
 
 /**

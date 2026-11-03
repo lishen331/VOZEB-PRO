@@ -2,6 +2,7 @@ import type { AuthSettings } from "@/lib/auth/store";
 import { getAuthSettings } from "@/lib/auth/store";
 import type { PracticeModuleCapability, PracticeModuleInputField, PracticeModuleKind, PracticeModuleModelOption, PracticeSizeOption } from "@/lib/practice-domain";
 import type { LogicalModelCapability, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig, RunningHubWorkflowInputField } from "@/lib/auth/store-types";
+import { channelUsableForSurface } from "@/lib/model-routing-config";
 import { resolveEnabledWorkflow } from "./runninghub-workflow-domain";
 import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
 
@@ -153,7 +154,7 @@ function runningHubWorkflowsForModule(settings: AuthSettings, module: Exclude<Pr
     const code = WORKFLOW_CODE_BY_MODULE[module as keyof typeof WORKFLOW_CODE_BY_MODULE];
     const allowedCodes = module === "character" ? new Set(["character_main_view", "character_multi_view"]) : new Set(code ? [code] : []);
     return settings.systemChannels
-        .filter((channel) => channel.enabled && channel.purpose === "open-source-practice" && channel.advancedConfig?.protocol === "runninghub")
+        .filter((channel) => channelUsableForSurface(channel, "open-source-practice") && channel.advancedConfig?.protocol === "runninghub")
         .flatMap((channel) => Object.values(channel.advancedConfig?.workflowConfigs || {}).map(normalizeWorkflow))
         .filter((workflow) => workflow.enabled && workflow.channelId && workflow.workflowCode && allowedCodes.has(workflow.workflowCode))
         .sort((left, right) => right.version - left.version || (left.workflowCode || "").localeCompare(right.workflowCode || ""));
