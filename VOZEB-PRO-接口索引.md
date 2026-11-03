@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-11-02。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **438** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-11-03。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **442** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**438**
-- 方法出现次数：DELETE 66、GET 221、HEAD 6、PATCH 62、POST 246、PUT 18
-- 一级域：`admin` 134、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 2、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**442**
+- 方法出现次数：DELETE 66、GET 224、HEAD 6、PATCH 63、POST 246、PUT 18
+- 一级域：`admin` 136、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 2、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 26、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（134）
+### `admin`（136）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -119,6 +119,8 @@
 | POST | `/api/admin/object-storage/files/cleanup` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/files/cleanup/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 文件 / cleanup：提交/执行 |
 | GET | `/api/admin/object-storage/files/preview` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/files/preview/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 文件 / 预览：查询 |
 | POST | `/api/admin/object-storage/sync` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/sync/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 迁移同步：提交/执行 |
+| PATCH | `/api/admin/practice-model-pool` | 管理员 | [route.ts](web/src/app/api/admin/practice-model-pool/route.ts) | [store](web/src/lib/auth/store.ts)<br>[store-types](web/src/lib/auth/store-types.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-model-pool：更新 |
+| GET | `/api/admin/practice-model-pool/candidates` | 管理员 | [route.ts](web/src/app/api/admin/practice-model-pool/candidates/route.ts) | [generation-channel](web/src/lib/server/generation-channel.ts)<br>[store](web/src/lib/auth/store.ts)<br>[store-types](web/src/lib/auth/store-types.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-model-pool / candidates：查询 |
 | PATCH | `/api/admin/practice-script/agents/[agentKey]` | 管理员 | [route.ts](web/src/app/api/admin/practice-script/agents/[agentKey]/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-domain](web/src/lib/server/script-agent-domain.ts)<br>[script-agent-skills](web/src/lib/server/script-agent-skills.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-script / agents / [agentKey]：更新 |
 | GET | `/api/admin/practice-script/overview` | 管理员 | [route.ts](web/src/app/api/admin/practice-script/overview/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-repository](web/src/lib/server/database/script-agent-repository.ts)<br>[script-agent-skills](web/src/lib/server/script-agent-skills.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-script / 概览：查询 |
 | GET, POST | `/api/admin/prompts` | 管理员 | [route.ts](web/src/app/api/admin/prompts/route.ts) | [store](web/src/lib/auth/store.ts)<br>[store](web/src/lib/prompts/store.ts) | PostgreSQL、公开内容/站点设置 | 管理后台 / 提示词：查询、提交/执行 |
@@ -527,10 +529,11 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/points` | 用户 | [route.ts](web/src/app/api/points/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 积分：查询 |
 
-### `practice`（25）
+### `practice`（26）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/practice/available-models` | 混合 | [route.ts](web/src/app/api/practice/available-models/route.ts) | [runninghub-workflow-runtime](web/src/lib/server/runninghub-workflow-runtime.ts)<br>[user-navigation-permissions](web/src/lib/server/user-navigation-permissions.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL | practice / available-models：查询 |
 | GET | `/api/practice/modules` | 混合 | [route.ts](web/src/app/api/practice/modules/route.ts) | [practice-module-service](web/src/lib/server/practice-module-service.ts) | PostgreSQL | practice / modules：查询 |
 | GET, POST | `/api/practice/projects` | 混合 | [route.ts](web/src/app/api/practice/projects/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL | practice / 项目：查询、提交/执行 |
 | GET | `/api/practice/projects/[id]` | 混合 | [route.ts](web/src/app/api/practice/projects/[id]/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | PostgreSQL | practice / 项目 / 单项：查询 |
@@ -563,13 +566,14 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/prompts` | 公开 | [route.ts](web/src/app/api/prompts/route.ts) | [store](web/src/lib/prompts/store.ts) | PostgreSQL、公开内容/站点设置 | 提示词：查询 |
 
-### `public`（16）
+### `public`（17）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/public/gallery` | 公开 | [route.ts](web/src/app/api/public/gallery/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、作品与社区数据 | 公开访问 / 作品广场：查询 |
 | GET | `/api/public/gallery/ranking` | 公开 | [route.ts](web/src/app/api/public/gallery/ranking/route.ts) | [work-community-service](web/src/lib/server/work-community-service.ts) | PostgreSQL、作品与社区数据 | 公开访问 / 作品广场 / 排行：查询 |
 | GET | `/api/public/prompt-images` | 公开 | [route.ts](web/src/app/api/public/prompt-images/route.ts) | [public-prompt-image](web/src/lib/server/public-prompt-image.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 公开访问 / 提示词图片：查询 |
+| GET | `/api/public/qwen-voice-previews/[file]` | 公开 | [route.ts](web/src/app/api/public/qwen-voice-previews/[file]/route.ts) | [object-storage-client](web/src/lib/server/object-storage-client.ts)<br>[object-storage-config](web/src/lib/server/object-storage-config.ts)<br>[qwen-voice-catalog](web/src/lib/qwen-voice-catalog.ts) | PostgreSQL、作品与社区数据 | 公开访问 / qwen-voice-previews / [file]：查询 |
 | GET | `/api/public/users/[userId]` | 公开 | [route.ts](web/src/app/api/public/users/[userId]/route.ts) | [work-community-service](web/src/lib/server/work-community-service.ts) | PostgreSQL、作品与社区数据 | 公开访问 / 用户 / 指定用户：查询 |
 | GET, HEAD | `/api/public/users/[userId]/avatar` | 公开 | [route.ts](web/src/app/api/public/users/[userId]/avatar/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[reference-asset-store](web/src/lib/server/reference-asset-store.ts)<br>[data-dir](web/src/lib/server/data-dir.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 公开访问 / 用户 / 指定用户 / 头像：查询、读取元数据 |
 | POST | `/api/public/users/[userId]/block` | 用户 | [route.ts](web/src/app/api/public/users/[userId]/block/route.ts) | [work-community-service](web/src/lib/server/work-community-service.ts) | PostgreSQL、作品与社区数据 | 公开访问 / 用户 / 指定用户 / 屏蔽：提交/执行 |
