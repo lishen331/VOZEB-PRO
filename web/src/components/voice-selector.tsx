@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, Input, Tabs } from "antd";
+import { Button, Input, Select, Tabs } from "antd";
 import { Plus, Search } from "lucide-react";
 import useSWR from "swr";
 
@@ -9,6 +9,12 @@ import type { AudioParamOption } from "@/lib/audio-model-params";
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import type { CustomVoice } from "@/lib/server/custom-voice-store";
 import { CreateVoiceModal } from "@/components/create-voice-modal";
+
+/** 当前模型是否支持自定义音色，由 /api/custom-voices/capabilities 决定。 */
+export type VoiceCapabilities = {
+    enabled: boolean;
+    channelId?: string;
+};
 
 type VoiceSelectorProps = {
     value: string;
@@ -18,37 +24,47 @@ type VoiceSelectorProps = {
     onChange: (value: string) => void;
 };
 
+const ALL_GROUPS = "__all__";
+
 export function VoiceSelector({ value, presetVoices, model, theme, onChange }: VoiceSelectorProps) {
     const [activeTab, setActiveTab] = useState<"preset" | "mine" | "shared">("preset");
     const [searchText, setSearchText] = useState("");
+    const [group, setGroup] = useState(ALL_GROUPS);
     const [showCreateModal, setShowCreateModal] = useState(false);
 
-    const { data: customVoicesData, mutate } = useSWR<{ voices: CustomVoice[] }>(`/api/custom-voices?ttsModel=${encodeURIComponent(model)}`, (url) => fetch(url).then((res) => res.json()), { refreshInterval: 10000 });
+    const { data: customVoicesData, mutate } = useSWR<{ voices: CustomVoice[] }>(`/api/custom-voices?ttsModel=${encodeURIComponent(model)}`, (url: string) => fetch(url).then((res) => res.json()), { refreshInterval: 10000 });
+    const { data: capabilities } = useSWR<{ enabled: boolean }>(`/api/custom-voices/capabilities?ttsModel=${encodeURIComponent(model)}`, (url: string) => fetch(url).then((res) => res.json()));
 
     const customVoices = customVoicesData?.voices || [];
     const myVoices = customVoices.filter((v) => v.status === "ready" || v.status === "creating");
     const sharedVoices = customVoices.filter((v) => v.shared && v.status === "ready");
 
+    // 千问 600+ 音色按官方分类分组，分类来自 option.group；MiniMax 没有 group，此时不显示筛选框。
+    const groupOptions = useMemo(() => {
+        const names = [...new Set(presetVoices.map((voice) => voice.group).filter(Boolean))] as string[];
+        return names.length ? [{ value: ALL_GROUPS, label: "全部" }, ...names.map((name) => ({ value: name, label: name }))] : [];
+    }, [presetVoices]);
+    const activeGroup = groupOptions.some((option) => option.value === group) ? group : ALL_GROUPS;
+
+    const searchTerms = searchText.trim().toLowerCase();
+
     const filteredPresetVoices = useMemo(() => {
-        if (!searchText) return presetVoices;
-        const search = searchText.toLowerCase();
         return presetVoices.filter((voice) => {
-            const searchable = voice.search || voice.label;
-            return searchable.toLowerCase().includes(search);
+            if (activeGroup !== ALL_GROUPS && voice.group !== activeGroup) return false;
+            if (!searchTerms) return true;
+            return (voice.search || voice.label).toLowerCase().includes(searchTerms);
         });
-    }, [presetVoices, searchText]);
+    }, [presetVoices, activeGroup, searchTerms]);
 
     const filteredMyVoices = useMemo(() => {
-        if (!searchText) return myVoices;
-        const search = searchText.toLowerCase();
-        return myVoices.filter((voice) => voice.name.toLowerCase().includes(search));
-    }, [myVoices, searchText]);
+        if (!searchTerms) return myVoices;
+        return myVoices.filter((voice) => voice.name.toLowerCase().includes(searchTerms));
+    }, [myVoices, searchTerms]);
 
     const filteredSharedVoices = useMemo(() => {
-        if (!searchText) return sharedVoices;
-        const search = searchText.toLowerCase();
-        return sharedVoices.filter((voice) => voice.name.toLowerCase().includes(search));
-    }, [sharedVoices, searchText]);
+        if (!searchTerms) return sharedVoices;
+        return sharedVoices.filter((voice) => voice.name.toLowerCase().includes(searchTerms));
+    }, [sharedVoices, searchTerms]);
 
     const handleVoiceSelect = (voiceValue: string) => {
         onChange(voiceValue);
@@ -63,6 +79,9 @@ export function VoiceSelector({ value, presetVoices, model, theme, onChange }: V
     return (
         <div className="w-full space-y-3" style={{ color: theme.node.text }}>
             <div className="flex items-center justify-between gap-2">
+                {activeTab === "preset" && groupOptions.length > 1 ? (
+                    <Select size="small" value={activeGroup} options={groupOptions} popupMatchSelectWidth={false} styles={{ popup: { root: { zIndex: 1305 } } }} style={{ minWidth: 96, maxWidth: 150 }} onChange={(next) => setGroup(next)} />
+                ) : null}
                 <Input
                     prefix={<Search className="size-4" style={{ color: theme.node.muted }} />}
                     placeholder="搜索音色"
@@ -71,9 +90,11 @@ export function VoiceSelector({ value, presetVoices, model, theme, onChange }: V
                     style={{ borderColor: theme.node.stroke, background: theme.node.fill }}
                     className="flex-1"
                 />
-                <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setShowCreateModal(true)}>
-                    创建音色
-                </Button>
+                {capabilities?.enabled ? (
+                    <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setShowCreateModal(true)}>
+                        创建音色
+                    </Button>
+                ) : null}
             </div>
 
             <Tabs activeKey={activeTab} items={tabItems} onChange={(key) => setActiveTab(key as typeof activeTab)} />

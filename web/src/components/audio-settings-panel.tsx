@@ -3,10 +3,12 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Segmented, Select, Slider, Switch, Tooltip } from "antd";
 import { CircleHelp, Play, RotateCcw, Square } from "lucide-react";
+import useSWR from "swr";
 
 import { audioVisibleFields, normalizeAudioParams, type AudioParamField, type AudioParamOption, type AudioParams } from "@/lib/audio-model-params";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
+import { VoiceSelector } from "@/components/voice-selector";
 import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
@@ -106,7 +108,7 @@ export function AudioModelParamsPanel({ model, params, onChange, theme }: { mode
                         {fields
                             .filter((field) => field.group === group)
                             .map((field) => (
-                                <AudioParamControl key={field.key} field={field} hideLabel={field.label === group} value={values[field.key]} theme={theme} onChange={(value) => update(field.key, value)} />
+                                <AudioParamControl key={field.key} field={field} model={model} hideLabel={field.label === group} value={values[field.key]} theme={theme} onChange={(value) => update(field.key, value)} />
                             ))}
                     </section>
                 ))}
@@ -115,7 +117,7 @@ export function AudioModelParamsPanel({ model, params, onChange, theme }: { mode
     );
 }
 
-function AudioParamControl({ field, hideLabel, value, theme, onChange }: { field: AudioParamField; hideLabel?: boolean; value: AudioParams[string]; theme: CanvasTheme; onChange: (value: AudioParams[string]) => void }) {
+function AudioParamControl({ field, model, hideLabel, value, theme, onChange }: { field: AudioParamField; model: string; hideLabel?: boolean; value: AudioParams[string]; theme: CanvasTheme; onChange: (value: AudioParams[string]) => void }) {
     const label = (
         <span className="inline-flex shrink-0 items-center gap-1 text-sm">
             {field.label}
@@ -170,7 +172,35 @@ function AudioParamControl({ field, hideLabel, value, theme, onChange }: { field
             </div>
         );
     }
+    if (field.key === "voiceId") return <VoiceParamControl field={field} model={model} value={String(value)} theme={theme} onChange={onChange} />;
     return <AudioParamSelect label={label} options={field.options} value={String(value)} theme={theme} onChange={onChange} />;
+}
+
+/**
+ * 音色字段专用：「当前模型是否配置了自定义音色」由能力接口决定，
+ * 未启用时完全退回原来的下拉框，画布其它行为和改动前一致。
+ */
+function VoiceParamControl({ field, model, value, theme, onChange }: { field: AudioParamField & { options: SelectOption[] }; model: string; value: string; theme: CanvasTheme; onChange: (value: AudioParams[string]) => void }) {
+    const { data, isLoading } = useSWR<{ enabled: boolean }>(`/api/custom-voices/capabilities?ttsModel=${encodeURIComponent(model)}`, (url) => fetch(url).then((res) => res.json()), { revalidateOnFocus: false });
+    const label = (
+        <span className="inline-flex shrink-0 items-center gap-1 text-sm">
+            {field.label}
+            {field.hint ? (
+                <Tooltip title={field.hint} zIndex={1305}>
+                    <CircleHelp className="size-3.5" style={{ color: theme.node.muted }} />
+                </Tooltip>
+            ) : null}
+        </span>
+    );
+    if (isLoading || !data?.enabled) {
+        return <AudioParamSelect label={label} options={field.options} value={value} theme={theme} onChange={onChange} />;
+    }
+    return (
+        <div className="space-y-1.5">
+            {label}
+            <VoiceSelector value={value} presetVoices={field.options} model={model} theme={theme} onChange={(next) => onChange(next)} />
+        </div>
+    );
 }
 
 type SelectOption = AudioParamOption;

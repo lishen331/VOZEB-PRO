@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Modal, Tabs, Input, Checkbox, Button, Upload, message } from "antd";
 import { Upload as UploadIcon } from "lucide-react";
 import type { UploadFile } from "antd";
 import useSWR from "swr";
 
 import type { VoiceCustomizationConfig } from "@/lib/custom-voice-config";
-import { customVoiceCreatePoints, priceInCny, normalizeVoiceCustomization } from "@/lib/custom-voice-config";
+import { customVoiceCreatePoints, DEFAULT_VOICE_USD_TO_CNY, priceInCny, normalizeVoiceCustomization } from "@/lib/custom-voice-config";
+
+type VoiceCapabilities = {
+    enabled: boolean;
+    channelId?: string;
+    config?: VoiceCustomizationConfig;
+    pricing?: { usdToCny: number; pointsPerYuan: number };
+};
 
 type CreateVoiceModalProps = {
     open: boolean;
@@ -20,15 +27,10 @@ export function CreateVoiceModal({ open, model, onClose, onSuccess }: CreateVoic
     const [activeTab, setActiveTab] = useState<"clone" | "design">("clone");
     const [loading, setLoading] = useState(false);
 
-    const { data: settingsData } = useSWR<{
-        systemChannels: Array<{ id: string; models: string[]; advancedConfig?: { voiceCustomization?: unknown } }>;
-        voicePricing?: { usdToCny: number; pointsPerYuan: number };
-    }>(open ? "/api/auth/settings" : null);
+    const { data: capabilities } = useSWR<VoiceCapabilities>(open ? `/api/custom-voices/capabilities?ttsModel=${encodeURIComponent(model)}` : null);
 
-    const channel = settingsData?.systemChannels.find((ch) => ch.models.includes(model) && ch.advancedConfig?.voiceCustomization);
-    const rawConfig = channel?.advancedConfig?.voiceCustomization;
-    const config = rawConfig ? normalizeVoiceCustomization(rawConfig) : null;
-    const voicePricing = settingsData?.voicePricing || { usdToCny: 7.1, pointsPerYuan: 0 };
+    const config = useMemo(() => (capabilities?.config ? normalizeVoiceCustomization(capabilities.config) : null), [capabilities]);
+    const voicePricing = capabilities?.pricing || { usdToCny: DEFAULT_VOICE_USD_TO_CNY, pointsPerYuan: 0 };
 
     const handleCreate = async (data: { kind: "clone" | "design"; name: string; audioData?: string; audioFormat?: string; prompt?: string; previewText?: string }) => {
         setLoading(true);
@@ -57,7 +59,7 @@ export function CreateVoiceModal({ open, model, onClose, onSuccess }: CreateVoic
     if (!config) {
         return (
             <Modal title="创建自定义音色" open={open} onCancel={onClose} footer={null} width={600}>
-                <div className="py-8 text-center text-gray-500">{settingsData ? "当前模型不支持自定义音色" : "加载配置中..."}</div>
+                <div className="py-8 text-center text-gray-500">{capabilities ? "当前模型不支持自定义音色" : "加载配置中..."}</div>
             </Modal>
         );
     }
