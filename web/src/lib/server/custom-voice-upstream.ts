@@ -203,3 +203,44 @@ export async function submitQwenVoiceDesign(channel: SystemModelChannel, config:
         return { status: "failed", failureReason: error instanceof Error ? error.message : "音色设计请求异常" };
     }
 }
+
+export async function queryQwenVoiceStatus(channel: SystemModelChannel, upstreamVoiceId: string): Promise<CustomVoiceUpstreamResult> {
+    try {
+        const customizationPath = channel.advancedConfig?.voiceCustomization?.paths?.customization || "/api/v1/services/audio/tts/customization";
+        const request = {
+            model: "voice-enrollment",
+            input: {
+                action: "query_voice",
+                voice_id: upstreamVoiceId,
+            },
+        };
+
+        const response = await fetchSafeOutbound(`${channel.baseUrl}${customizationPath}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
+            body: JSON.stringify(request),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            return { status: "failed", failureReason: `查询音色状态失败: ${error}` };
+        }
+
+        const data = (await response.json()) as { output?: { status?: string; resource_link?: string }; code?: string; message?: string; request_id?: string };
+        if (data.code && data.code !== "Success") {
+            return { status: "failed", failureReason: data.message || "查询音色状态失败" };
+        }
+
+        const upstreamStatus = data.output?.status;
+        if (upstreamStatus === "OK") {
+            return { status: "ready", upstreamVoiceId, upstreamRequestId: data.request_id, previewUrl: data.output.resource_link, previewMimeType: "audio/wav" };
+        }
+        if (upstreamStatus === "UNDEPLOYED") {
+            return { status: "failed", failureReason: "音色审核未通过" };
+        }
+        // DEPLOYING or other status, keep as creating
+        return { status: "creating", upstreamVoiceId, upstreamRequestId: data.request_id };
+    } catch (error) {
+        return { status: "failed", failureReason: error instanceof Error ? error.message : "查询音色状态请求异常" };
+    }
+}
