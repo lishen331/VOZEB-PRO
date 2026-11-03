@@ -23,11 +23,7 @@ export function VoiceSelector({ value, presetVoices, model, theme, onChange }: V
     const [searchText, setSearchText] = useState("");
     const [showCreateModal, setShowCreateModal] = useState(false);
 
-    const { data: customVoicesData, mutate } = useSWR<{ voices: CustomVoice[] }>(
-        `/api/custom-voices?ttsModel=${encodeURIComponent(model)}`,
-        (url) => fetch(url).then((res) => res.json()),
-        { refreshInterval: 10000 },
-    );
+    const { data: customVoicesData, mutate } = useSWR<{ voices: CustomVoice[] }>(`/api/custom-voices?ttsModel=${encodeURIComponent(model)}`, (url) => fetch(url).then((res) => res.json()), { refreshInterval: 10000 });
 
     const customVoices = customVoicesData?.voices || [];
     const myVoices = customVoices.filter((v) => v.status === "ready" || v.status === "creating");
@@ -90,9 +86,7 @@ export function VoiceSelector({ value, presetVoices, model, theme, onChange }: V
                                 未找到匹配的音色
                             </div>
                         ) : (
-                            filteredPresetVoices.map((voice) => (
-                                <VoiceItem key={voice.value} name={voice.label} value={voice.value} preview={voice.preview} selected={value === voice.value} theme={theme} onClick={() => handleVoiceSelect(voice.value)} />
-                            ))
+                            filteredPresetVoices.map((voice) => <VoiceItem key={voice.value} name={voice.label} value={voice.value} preview={voice.preview} selected={value === voice.value} theme={theme} onClick={() => handleVoiceSelect(voice.value)} />)
                         )}
                     </>
                 )}

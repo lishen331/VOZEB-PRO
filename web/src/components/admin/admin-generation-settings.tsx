@@ -155,9 +155,7 @@ export function VoicePricingPanel({ settings, onChange }: { settings: AuthSettin
                     <InputNumber className="w-full" min={1} max={1000} precision={0} value={settings.voicePricing.pointsPerYuan} onChange={(value) => onChange("pointsPerYuan", value || 100)} />
                 </LabeledControl>
             </div>
-            <div className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">
-                用于计算自定义音色创建的积分消耗。公式：人民币价格 = 上游价格 × 汇率（如 USD 定价）；扣除积分 = 人民币价格 × 积分换算。
-            </div>
+            <div className="mt-2 text-xs leading-5 text-[var(--gm-text-3)]">用于计算自定义音色创建的积分消耗。公式：人民币价格 = 上游价格 × 汇率（如 USD 定价）；扣除积分 = 人民币价格 × 积分换算。</div>
         </div>
     );
 }
