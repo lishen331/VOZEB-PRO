@@ -5,6 +5,7 @@ import { ArrowRight, NotebookPen } from "lucide-react";
 
 import { lessonPlanTotalMinutes, type LessonPlanContent } from "@/lib/teaching-lesson-plan";
 import type { PlanDoc, PlanLoad, SaveState } from "./use-lesson-plan";
+import { LessonTemplatePanel } from "./prep-plan-template";
 
 /*
  * L2 右栏的「教案」标签：只放概要 + 入口。
@@ -28,7 +29,7 @@ function statOf(content: LessonPlanContent) {
     };
 }
 
-export function PlanSummaryCard({ doc, load, dirty, saveState, href }: { doc: PlanDoc | null; load: PlanLoad; dirty: boolean; saveState: SaveState; href: string }) {
+export function PlanSummaryCard({ doc, load, dirty, saveState, href, template }: { doc: PlanDoc | null; load: PlanLoad; dirty: boolean; saveState: SaveState; href: string; template: LessonPlanContent | null }) {
     if (load.phase === "error") {
         return (
             <div className="flex flex-col gap-2 text-xs">
@@ -87,6 +88,11 @@ export function PlanSummaryCard({ doc, load, dirty, saveState, href }: { doc: Pl
                     </p>
                 ) : null}
             </section>
+            {template ? (
+                <div className="mt-3">
+                    <LessonTemplatePanel content={template} />
+                </div>
+            ) : null}
             <Link
                 href={href}
                 className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[var(--gm-radius-sm)] bg-[image:var(--gm-gradient)] px-3.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent-ring)]"
