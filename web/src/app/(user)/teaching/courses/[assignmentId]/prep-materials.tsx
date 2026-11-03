@@ -16,11 +16,18 @@ import { cn } from "@/lib/utils";
 
 export const MATERIAL_ACCEPT = ".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
 
-export function materialKind(material: Pick<CourseMaterial, "mimeType">) {
+export function materialKind(material: Pick<CourseMaterial, "mimeType"> & { previewUrl?: string }) {
+    // PPTX / DOCX / XLSX 上传时会自动转出 PDF 预览版，优先按 PDF 渲染
+    if (material.previewUrl) return "pdf" as const;
     if (material.mimeType.startsWith("image/")) return "image" as const;
     if (material.mimeType.startsWith("video/")) return "video" as const;
     if (material.mimeType === "application/pdf") return "pdf" as const;
     return "file" as const;
+}
+
+/** 预览实际要打开的地址：有 PDF 预览版就用它，否则用原文件 */
+export function materialPreviewHref(material: Pick<CourseMaterial, "url"> & { previewUrl?: string }) {
+    return material.previewUrl || material.url;
 }
 
 export function MaterialIcon({ mimeType, className }: { mimeType: string; className?: string }) {
@@ -55,7 +62,7 @@ export function MaterialStage({ material }: { material: CourseMaterial }) {
     }
     if (kind === "video") return <video key={material.id} src={material.url} controls preload="metadata" className="mx-auto block h-full max-h-full max-w-full" />;
     // PDF 用项目自己的渲染器（pdfjs），不要浏览器阅读器的灰框和双滚动条
-    if (kind === "pdf") return <PdfPreview src={material.url} title={material.title} className="size-full" />;
+    if (kind === "pdf") return <PdfPreview src={materialPreviewHref(material)} title={material.title} className="size-full" />;
     return (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <span className="grid size-16 place-items-center rounded-2xl bg-[var(--gm-accent-soft)] text-[var(--gm-accent)] ring-1 ring-[var(--gm-accent-ring)]">

@@ -120,6 +120,7 @@ export function CourseTreeEditor({ course, open, onClose, onChanged }: { course:
                 ...(selected.kind === "chapter" ? { chapterId: selected.value.id } : { lessonId: selected.value.id }),
                 title: file.name,
                 storageKey: attachment.storageKey,
+                previewStorageKey: attachment.previewStorageKey,
                 sortOrder: selected.value.materials.length,
             });
             message.success("平台资料已上传");

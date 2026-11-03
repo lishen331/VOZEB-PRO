@@ -18,13 +18,13 @@ import { coursesApi } from "@/services/api/courses";
  * 章节 / 课时不存在会按名称新建。关闭时没挂到课时的已上传文件会被删除，不留孤儿文件。
  */
 
-type UploadedFile = { fileName: string; storageKey: string; status: "uploading" | "done" | "error"; error?: string };
+type UploadedFile = { fileName: string; storageKey: string; previewStorageKey?: string; status: "uploading" | "done" | "error"; error?: string };
 type Stage = "files" | "importing" | "finished";
 
 const errorText = (error: unknown, fallback: string) => (error instanceof Error && error.message ? error.message : fallback);
 
 /** 按计划逐行建章节 / 课时 / 资料；遇到第一处失败就停，返回已成功的行数和失败原因 */
-async function importPlan(tree: PlatformCourseDetail, plan: BulkImportPlan, onRow: (done: number, storageKey: string) => void) {
+async function importPlan(tree: PlatformCourseDetail, plan: BulkImportPlan, previewKeys: Map<string, string>, onRow: (done: number, storageKey: string) => void) {
     const chapterIds = new Map<string, string>();
     const lessonIds = new Map<string, string>();
     const lessonCounts = new Map<string, number>();
@@ -51,7 +51,7 @@ async function importPlan(tree: PlatformCourseDetail, plan: BulkImportPlan, onRo
                 lessonIds.set(lessonKey, lessonId);
             }
             const sortOrder = materialCounts.get(lessonId) ?? 0;
-            await coursesApi.createPlatformCourseMaterial(tree.id, { lessonId, title: row.title, storageKey: row.storageKey, sortOrder });
+            await coursesApi.createPlatformCourseMaterial(tree.id, { lessonId, title: row.title, storageKey: row.storageKey, previewStorageKey: previewKeys.get(row.storageKey), sortOrder });
             materialCounts.set(lessonId, sortOrder + 1);
             done += 1;
             onRow(done, row.storageKey);
@@ -69,6 +69,8 @@ export function CourseBulkImportDialog({ tree, open, accept, onClose, onImported
     const [stage, setStage] = useState<Stage>("files");
     const [result, setResult] = useState({ done: 0, failed: "" });
     const bound = useRef(new Set<string>());
+    // 上传返回的预览 PDF 存储键：建资料时按原文件键查回来一起提交
+    const previewKeys = useRef(new Map<string, string>());
     const uploading = files.some((file) => file.status === "uploading");
     const ready = files.filter((file) => file.status === "done");
 
@@ -95,7 +97,9 @@ export function CourseBulkImportDialog({ tree, open, accept, onClose, onImported
         setFiles((current) => [...current, { fileName: file.name, storageKey: "", status: "uploading" }]);
         const patch = (value: Partial<UploadedFile>) => setFiles((current) => current.map((item) => (item.fileName === file.name ? { ...item, ...value } : item)));
         try {
-            patch({ storageKey: (await coursesApi.uploadPlatformCourseAttachment(file)).storageKey, status: "done" });
+            const uploaded = await coursesApi.uploadPlatformCourseAttachment(file);
+            if (uploaded.previewStorageKey) previewKeys.current.set(uploaded.storageKey, uploaded.previewStorageKey);
+            patch({ storageKey: uploaded.storageKey, previewStorageKey: uploaded.previewStorageKey, status: "done" });
         } catch (error) {
             patch({ status: "error", error: errorText(error, "上传失败") });
         }
@@ -129,7 +133,7 @@ export function CourseBulkImportDialog({ tree, open, accept, onClose, onImported
     const runImport = async () => {
         if (!tree || !plan || plan.errors.length || !plan.rows.length) return;
         setStage("importing");
-        const outcome = await importPlan(tree, plan, (done, storageKey) => {
+        const outcome = await importPlan(tree, plan, previewKeys.current, (done, storageKey) => {
             bound.current.add(storageKey);
             setResult({ done, failed: "" });
         });

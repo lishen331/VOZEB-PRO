@@ -120,6 +120,9 @@ export type CourseMaterialRecord = {
     bytes: number;
     storageKey: string;
     url: string;
+    previewStorageKey?: string;
+    /** 预览 PDF 的可访问地址（由 previewStorageKey 派生） */
+    previewUrl?: string;
     sortOrder: number;
     status: CourseMaterialStatus;
     createdByUserId?: string;

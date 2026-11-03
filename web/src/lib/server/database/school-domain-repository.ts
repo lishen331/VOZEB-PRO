@@ -495,7 +495,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
             `SELECT 1 FROM course_materials m
              LEFT JOIN school_course_assignments a ON a.id = m.school_course_assignment_id
              LEFT JOIN school_memberships membership ON membership.school_id = a.school_id AND membership.user_id = $1 AND membership.status = 'active'
-             WHERE m.storage_key = $2 AND m.status = 'active' AND (m.source_scope = 'platform' OR membership.id IS NOT NULL)
+             WHERE (m.storage_key = $2 OR m.preview_storage_key = $2) AND m.status = 'active' AND (m.source_scope = 'platform' OR membership.id IS NOT NULL)
              LIMIT 1`,
             [userId, storageKey],
         );
@@ -514,8 +514,8 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async insertCourseMaterial(record: CourseMaterialRecord) {
         const result = await this.db.query(
-            `INSERT INTO course_materials (id, course_id, chapter_id, lesson_id, source_scope, school_course_assignment_id, title, file_name, mime_type, bytes, storage_key, url, sort_order, status, created_by_user_id, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+            `INSERT INTO course_materials (id, course_id, chapter_id, lesson_id, source_scope, school_course_assignment_id, title, file_name, mime_type, bytes, storage_key, url, preview_storage_key, sort_order, status, created_by_user_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
             [
                 record.id,
                 record.courseId,
@@ -529,6 +529,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
                 record.bytes,
                 record.storageKey,
                 record.url,
+                record.previewStorageKey || null,
                 record.sortOrder,
                 record.status,
                 record.createdByUserId || null,
@@ -618,7 +619,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async getReadableCourseMaterial(userId: string, storageKey: string) {
         const result = await this.db.query(
-            `SELECT m.* FROM course_materials m JOIN school_course_assignments assignment ON assignment.course_id = m.course_id AND assignment.status = 'active' AND (m.source_scope = 'platform' OR m.school_course_assignment_id = assignment.id) JOIN school_memberships membership ON membership.school_id = assignment.school_id AND membership.user_id = $1 AND membership.status = 'active' LEFT JOIN school_course_offerings offering ON offering.school_id = assignment.school_id AND offering.assignment_id = assignment.id AND offering.status = 'active' LEFT JOIN school_class_members class_member ON class_member.school_id = offering.school_id AND class_member.class_id = offering.class_id AND class_member.membership_id = membership.id JOIN platform_courses course ON course.id = m.course_id AND course.status = 'published' WHERE m.storage_key = $2 AND m.status = 'active' AND (membership.role = 'teacher' OR offering.teacher_membership_id = membership.id OR class_member.membership_id = membership.id) LIMIT 1`,
+            `SELECT m.* FROM course_materials m JOIN school_course_assignments assignment ON assignment.course_id = m.course_id AND assignment.status = 'active' AND (m.source_scope = 'platform' OR m.school_course_assignment_id = assignment.id) JOIN school_memberships membership ON membership.school_id = assignment.school_id AND membership.user_id = $1 AND membership.status = 'active' LEFT JOIN school_course_offerings offering ON offering.school_id = assignment.school_id AND offering.assignment_id = assignment.id AND offering.status = 'active' LEFT JOIN school_class_members class_member ON class_member.school_id = offering.school_id AND class_member.class_id = offering.class_id AND class_member.membership_id = membership.id JOIN platform_courses course ON course.id = m.course_id AND course.status = 'published' WHERE (m.storage_key = $2 OR m.preview_storage_key = $2) AND m.status = 'active' AND (membership.role = 'teacher' OR offering.teacher_membership_id = membership.id OR class_member.membership_id = membership.id) LIMIT 1`,
             [userId, storageKey],
         );
         return result.rows[0] ? mapCourseMaterial(result.rows[0]) : null;
@@ -1320,6 +1321,14 @@ function mapCourseLesson(row: Record<string, unknown>): CourseLessonRecord {
     };
 }
 
+/** 存储键 → 站内可访问地址（与上传接口返回的 url 同一规则） */
+function referenceAssetUrl(storageKey: string) {
+    return `/api/reference-assets/${storageKey
+        .split("/")
+        .map((part) => encodeURIComponent(part))
+        .join("/")}`;
+}
+
 function mapCourseMaterial(row: Record<string, unknown>): CourseMaterialRecord {
     return {
         id: stringValue(row.id),
@@ -1334,6 +1343,7 @@ function mapCourseMaterial(row: Record<string, unknown>): CourseMaterialRecord {
         bytes: numberValue(row.bytes),
         storageKey: stringValue(row.storage_key),
         url: stringValue(row.url),
+        ...(optionalString(row.preview_storage_key) ? { previewStorageKey: optionalString(row.preview_storage_key)!, previewUrl: referenceAssetUrl(optionalString(row.preview_storage_key)!) } : {}),
         sortOrder: numberValue(row.sort_order),
         status: row.status === "disabled" ? "disabled" : "active",
         createdByUserId: optionalString(row.created_by_user_id),

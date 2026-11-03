@@ -86,6 +86,10 @@ export type CourseAttachment = {
     fileName: string;
     mimeType: string;
     bytes: number;
+    /** PPTX / DOCX / XLSX 上传时自动转出的 PDF 预览版；没有转换能力时缺省 */
+    previewStorageKey?: string;
+    previewUrl?: string;
+    previewBytes?: number;
 };
 export type CourseMaterialSourceScope = "platform" | "school";
 export type CourseMaterialStatus = "active" | "disabled";
@@ -102,6 +106,9 @@ export type CourseMaterial = {
     bytes: number;
     storageKey: string;
     url: string;
+    /** 平台内预览用的 PDF（PPTX / DOCX / XLSX 上传时自动生成）；为空表示按 mimeType 原样预览 */
+    previewStorageKey?: string;
+    previewUrl?: string;
     sortOrder: number;
     status: CourseMaterialStatus;
     createdByUserId?: string;

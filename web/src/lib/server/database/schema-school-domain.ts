@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS course_materials (
     bytes bigint NOT NULL CHECK (bytes >= 0),
     storage_key text NOT NULL,
     url text NOT NULL,
+    preview_storage_key text,
     sort_order integer NOT NULL DEFAULT 0,
     status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
     created_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
@@ -179,6 +180,8 @@ CREATE TABLE IF NOT EXISTS course_materials (
 
 CREATE INDEX IF NOT EXISTS course_materials_course_target_sort_idx ON course_materials (course_id, chapter_id, lesson_id, sort_order, id);
 CREATE INDEX IF NOT EXISTS course_materials_assignment_status_updated_idx ON course_materials (school_course_assignment_id, status, updated_at DESC);
+-- 存量库升级：PPTX / DOCX / XLSX 资料另存的 PDF 预览版
+ALTER TABLE course_materials ADD COLUMN IF NOT EXISTS preview_storage_key text;
 
 CREATE TABLE IF NOT EXISTS school_course_offerings (
     id text PRIMARY KEY,

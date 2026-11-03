@@ -57,13 +57,21 @@ function CatalogCard({ item }: { item: SchoolCourseCatalogEntry }) {
             <Link
                 href={teachingCatalogCourseHref(item.id)}
                 onPointerMove={trackSpecular}
-                className="gm-glass gm-glass-sheen gm-glass-refract gm-glass-spec group relative isolate flex aspect-[4/3] w-full flex-col justify-end overflow-hidden rounded-[var(--gm-radius-lg)] text-[var(--gm-text)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_-24px_rgba(2,6,20,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                className="group relative isolate flex aspect-[4/3] w-full flex-col justify-end overflow-hidden rounded-[var(--gm-radius-lg)] text-[var(--gm-text)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_-24px_rgba(2,6,20,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
             >
-                {/* 封面铺满整张卡，下面压一层深色渐变保证文字可读 */}
-                <span aria-hidden className="pointer-events-none absolute inset-0 -z-[2] overflow-hidden [clip-path:inset(0_round_var(--gm-radius-lg))]">
+                {/* 封面在最底层，供上方的玻璃层透过去 */}
+                <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
                     <TeachingCourseCover seed={item.id} coverUrl={item.coverUrl} className="transition-transform duration-700 group-hover:scale-[1.05]" />
-                    <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,20,0.15)_0%,rgba(4,8,20,0)_34%,rgba(4,8,20,0.66)_74%,rgba(4,8,20,0.9)_100%)]" />
                 </span>
+
+                {/* 整卡液态玻璃：盖满整张卡，模糊下面的封面，高光 / 折射 / 跟随光都在这一层 */}
+                <span
+                    aria-hidden
+                    className="gm-glass gm-glass-sheen gm-glass-refract gm-glass-spec pointer-events-none absolute inset-0 rounded-[var(--gm-radius-lg)] [--gm-glass-bg:rgba(255,255,255,0.1)] [--gm-glass-bg-strong:rgba(255,255,255,0.16)] [--gm-glass-inner:rgba(255,255,255,0.45)] [--gm-glass-edge:rgba(255,255,255,0.6)]"
+                />
+
+                {/* 底部窄条深色遮罩：只压住标题区，保证白色标题在浅色封面上也读得清 */}
+                <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-[linear-gradient(180deg,rgba(4,8,20,0)_0%,rgba(4,8,20,0.10)_30%,rgba(4,8,20,0.38)_62%,rgba(4,8,20,0.72)_100%)]" />
 
                 {/* 顶部角标 */}
                 <span className="absolute inset-x-0 top-0 flex items-start gap-1.5 p-3">

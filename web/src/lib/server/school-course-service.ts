@@ -201,7 +201,7 @@ export async function deletePlatformLesson(actorId: string, lessonId: string) {
     return { deleted, cleanup: deleted ? await cleanupDeletedCourseMaterials(materialKeys) : { deletedFiles: 0, deletedBytes: 0, skippedShared: 0, failed: [] as string[] } };
 }
 
-export async function createPlatformMaterial(actorId: string, courseId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number }) {
+export async function createPlatformMaterial(actorId: string, courseId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; previewStorageKey?: string; sortOrder?: number }) {
     await requireEducationAdmin(actorId);
     const repository = createSchoolDomainRepository();
     await requireEditableCourse(repository, courseId);
@@ -209,7 +209,7 @@ export async function createPlatformMaterial(actorId: string, courseId: string, 
     return repository.insertCourseMaterial(await materialRecord(repository, actorId, courseId, input, "platform"));
 }
 
-export async function createSchoolMaterial(userId: string, assignmentId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number }) {
+export async function createSchoolMaterial(userId: string, assignmentId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; previewStorageKey?: string; sortOrder?: number }) {
     const context = await requireActiveSchoolContext(userId);
     const repository = createSchoolDomainRepository();
     const assignment = await repository.getSchoolCourseAssignment(context.school.id, assignmentId);
@@ -774,13 +774,17 @@ async function materialRecord(
     repository: SchoolDomainRepository,
     ownerUserId: string,
     courseId: string,
-    input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number },
+    input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; previewStorageKey?: string; sortOrder?: number },
     sourceScope: "platform" | "school",
     schoolCourseAssignmentId?: string,
 ): Promise<CourseMaterialRecord> {
     const storageKey = text(input.storageKey, 1000);
     const registration = (await getLocalMediaRegistrations([storageKey], { ownerUserId }))[0];
     if (!registration || registration.storageClass !== "permanent" || registration.type !== "attachment" || registration.source !== "course-attachment") throw new SchoolServiceError(400, "课程资料文件不存在或无权使用");
+    // 预览 PDF 是上传时自动生成的，同样要校验归属；取不到就当作没有预览，不阻塞建资料
+    const previewStorageKey = input.previewStorageKey ? text(input.previewStorageKey, 1000) : "";
+    const previewRegistration = previewStorageKey ? (await getLocalMediaRegistrations([previewStorageKey], { ownerUserId }))[0] : undefined;
+    const usablePreviewKey = previewRegistration && previewRegistration.storageClass === "permanent" && previewRegistration.type === "attachment" && previewRegistration.source === "course-attachment" ? previewStorageKey : "";
     return {
         id: randomUUID(),
         courseId,
@@ -797,6 +801,15 @@ async function materialRecord(
             .split("/")
             .map((part) => encodeURIComponent(part))
             .join("/")}`,
+        ...(usablePreviewKey
+            ? {
+                  previewStorageKey: usablePreviewKey,
+                  previewUrl: `/api/reference-assets/${usablePreviewKey
+                      .split("/")
+                      .map((part) => encodeURIComponent(part))
+                      .join("/")}`,
+              }
+            : {}),
         sortOrder: positiveOrder(input.sortOrder),
         status: "active",
         createdByUserId: ownerUserId,
