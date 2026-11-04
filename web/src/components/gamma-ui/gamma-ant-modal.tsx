@@ -49,9 +49,13 @@ function useAfterOpenChange(open: boolean, afterOpenChange?: (open: boolean) => 
 /**
  * 弹层里仍有 antd 的 Select / DatePicker / Dropdown 等，它们的下拉浮层 Portal 到 body，
  * 在 radix 看来是「外部」：点下拉选项会被当成点遮罩而关闭对话框。这些浮层不算外部。
+ *
+ * .gm-popup-layer 是 gamma-ui 自己浮层的统一标记：DatePicker 刻意不挂 ant-picker-dropdown
+ * （那批 .ant-picker-* 规则按 antd 的定位结构写死，匹配上会破版），只能靠这个类让它在弹窗里
+ * 也被认作「浮层内」，否则点日历面板会被对话框判成点外部而关闭。
  */
 const POPUP_LAYER =
-    ".ant-select-dropdown, .ant-picker-dropdown, .ant-dropdown, .ant-popover, .ant-tooltip, .ant-cascader-dropdown, .ant-image-preview-root, .ant-modal-root, .ant-message, .ant-notification, .gm-popconfirm, .gm-tooltip, [data-radix-popper-content-wrapper]";
+    ".gm-popup-layer, .ant-select-dropdown, .ant-picker-dropdown, .ant-dropdown, .ant-popover, .ant-tooltip, .ant-cascader-dropdown, .ant-image-preview-root, .ant-modal-root, .ant-message, .ant-notification, .gm-popconfirm, .gm-tooltip, [data-radix-popper-content-wrapper]";
 
 function isInsidePopupLayer(target: EventTarget | null) {
     return typeof Element !== "undefined" && target instanceof Element && Boolean(target.closest(POPUP_LAYER));
