@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
 
 export const MATERIAL_ACCEPT = ".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
 
+/** 缩略条上方的资料切换箭头：小、在流里、不压在预览画面上 */
+const STRIP_ARROW = "grid size-7 place-items-center rounded-full text-[var(--gm-text-2)] ring-1 ring-[var(--gm-border)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] disabled:opacity-30";
+
 export function materialKind(material: Pick<CourseMaterial, "mimeType"> & { previewUrl?: string }) {
     // PPTX / DOCX / XLSX 上传时会自动转出 PDF 预览版，优先按 PDF 渲染
     if (material.previewUrl) return "pdf" as const;
@@ -88,7 +91,10 @@ export function previewStatusHint(material: Pick<CourseMaterial, "previewStatus"
 export function MaterialViewer({ materials, index, onIndex, onPresent }: { materials: readonly CourseMaterial[]; index: number; onIndex: (index: number) => void; onPresent: () => void }) {
     const current = materials[index];
     const total = materials.length;
+    // PDF 自带 ←/→ 翻页，这里再监听一次会一次跳两下；只有图片 / 视频 / 文件才由资料切换接管方向键
+    const pagedInternally = current ? materialKind(current) === "pdf" : false;
     useEffect(() => {
+        if (pagedInternally) return;
         const handleKey = (event: KeyboardEvent) => {
             if ((event.target as HTMLElement).closest("input,textarea,video,[role=dialog]")) return;
             if (event.key === "ArrowRight") onIndex(Math.min(total - 1, index + 1));
@@ -96,36 +102,36 @@ export function MaterialViewer({ materials, index, onIndex, onPresent }: { mater
         };
         window.addEventListener("keydown", handleKey);
         return () => window.removeEventListener("keydown", handleKey);
-    }, [index, onIndex, total]);
+    }, [index, onIndex, pagedInternally, total]);
     if (!current) return null;
     return (
         <div className="flex min-w-0 flex-col gap-3">
-            <div className="relative flex min-h-[clamp(320px,58vh,760px)] flex-col overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-bg-elevated)] shadow-[var(--gm-shadow)] ring-1 ring-[var(--gm-border-strong)]">
+            {/* 高度用 h- 不用 min-h-：PdfPreview 靠 size-full 撑满，父级没有确定高度时它只长到内容高度，卡片下方会空出一条白 */}
+            <div className="relative flex h-[clamp(320px,58vh,760px)] flex-col overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-bg-elevated)] shadow-[var(--gm-shadow)] ring-1 ring-[var(--gm-border-strong)]">
                 <div className="flex min-h-0 flex-1 flex-col">
                     <MaterialStage material={current} />
                 </div>
-                {[
-                    { side: "left-3", icon: ChevronLeft, label: "上一份资料", to: index - 1 },
-                    { side: "right-3", icon: ChevronRight, label: "下一份资料", to: index + 1 },
-                ].map((item) =>
-                    item.to >= 0 && item.to < total ? (
-                        <button
-                            key={item.label}
-                            type="button"
-                            aria-label={item.label}
-                            onClick={() => onIndex(item.to)}
-                            className={cn("gm-glass absolute top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full text-[var(--gm-text)] shadow-lg", item.side)}
-                        >
-                            <item.icon className="size-5" />
-                        </button>
-                    ) : null,
-                )}
-                {/* 放右下角：右上角是预览工具条的文件名，叠上去会压住文字 */}
+                {/* 翻页箭头不放在卡片上：PDF 已有一套自己的，两者定位相同会叠成两个圆。资料切换见下方缩略条上方那一行 */}
                 <button type="button" onClick={onPresent} className="gm-glass absolute right-3 bottom-3 z-10 inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium shadow-lg">
                     <Presentation className="size-3.5" />
                     放映
                 </button>
             </div>
+            {total > 1 ? (
+                <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-[var(--gm-text-3)]">
+                        第 <span className="tabular-nums">{index + 1}</span> / <span className="tabular-nums">{total}</span> 份资料{pagedInternally ? " · ← / → 翻页" : ""}
+                    </p>
+                    <span className="flex items-center gap-1">
+                        <button type="button" aria-label="上一份资料" disabled={index <= 0} onClick={() => onIndex(index - 1)} className={STRIP_ARROW}>
+                            <ChevronLeft className="size-4" />
+                        </button>
+                        <button type="button" aria-label="下一份资料" disabled={index >= total - 1} onClick={() => onIndex(index + 1)} className={STRIP_ARROW}>
+                            <ChevronRight className="size-4" />
+                        </button>
+                    </span>
+                </div>
+            ) : null}
             {total > 1 ? (
                 <ol className="gm-scroll flex gap-2 overflow-x-auto pb-1" aria-label="本课时资料">
                     {materials.map((material, itemIndex) => (
