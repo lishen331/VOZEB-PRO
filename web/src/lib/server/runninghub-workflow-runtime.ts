@@ -90,10 +90,23 @@ export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "logic
  * 不满足时代理返回 403「未绑定可用逻辑模型」，所以池子展示和练习路由都要提前排除。
  */
 export function channelModelBoundForPractice(logicalModels: LogicalModel[] | undefined, channelId: string, upstreamModel: string) {
-    const normalized = upstreamModel.trim().replace(/^models\//i, "").toLowerCase();
+    const normalized = upstreamModel
+        .trim()
+        .replace(/^models\//i, "")
+        .toLowerCase();
     if (!normalized) return false;
     return (logicalModels || []).some(
-        (logical) => logical.enabled && logical.bindings.some((binding) => binding.enabled && binding.channelId === channelId && binding.upstreamModel.trim().replace(/^models\//i, "").toLowerCase() === normalized),
+        (logical) =>
+            logical.enabled &&
+            logical.bindings.some(
+                (binding) =>
+                    binding.enabled &&
+                    binding.channelId === channelId &&
+                    binding.upstreamModel
+                        .trim()
+                        .replace(/^models\//i, "")
+                        .toLowerCase() === normalized,
+            ),
     );
 }
 
