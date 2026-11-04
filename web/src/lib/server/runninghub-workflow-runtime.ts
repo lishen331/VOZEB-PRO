@@ -1,4 +1,4 @@
-import type { AuthSettings, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { AuthSettings, LogicalModel, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
@@ -64,7 +64,7 @@ export function practiceCanvasVirtualCapability(model: string): LogicalModelCapa
  * 直接按渠道 purpose 与模型能力展开，并用随机顺序让每次请求命中不同渠道。
  * 返回全部候选而不是只返回一个，让调用方沿用现有的健康检查与故障转移。
  */
-export function resolvePracticeCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
+export function resolvePracticeCanvasPoolCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
     const candidates = practiceCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput);
     for (let index = candidates.length - 1; index > 0; index -= 1) {
         const swap = Math.floor(Math.random() * (index + 1));
@@ -74,7 +74,7 @@ export function resolvePracticeCanvasPoolCandidates(settings: Pick<AuthSettings,
 }
 
 /** 练习池里某类能力的上游模型，按名字去重并保持渠道配置顺序，供测试权限的模型下拉使用。 */
-export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "systemChannels">, capability: LogicalModelCapability) {
+export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, capability: LogicalModelCapability) {
     const seen = new Set<string>();
     return practiceCanvasPoolCandidates(settings, capability).flatMap((candidate) => {
         const name = candidate.upstreamModel;
@@ -83,6 +83,18 @@ export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "syste
         seen.add(key);
         return [{ id: name, name }];
     });
+}
+
+/**
+ * 与系统代理同规则：存在启用的逻辑模型，且它对该渠道该上游模型的绑定启用。
+ * 不满足时代理返回 403「未绑定可用逻辑模型」，所以池子展示和练习路由都要提前排除。
+ */
+export function channelModelBoundForPractice(logicalModels: LogicalModel[] | undefined, channelId: string, upstreamModel: string) {
+    const normalized = upstreamModel.trim().replace(/^models\//i, "").toLowerCase();
+    if (!normalized) return false;
+    return (logicalModels || []).some(
+        (logical) => logical.enabled && logical.bindings.some((binding) => binding.enabled && binding.channelId === channelId && binding.upstreamModel.trim().replace(/^models\//i, "").toLowerCase() === normalized),
+    );
 }
 
 /** 池子里某个模型是否被勾选：优先查该能力的池，没有配置该池则回退旧的平面表，最后默认包含。 */
@@ -94,7 +106,7 @@ export function practicePoolIncludes(pool: PracticeModelPoolConfig | undefined, 
 }
 
 /** 按池收集候选；kind 与模型能力必须匹配，vision 额外要求声明了图片输入。 */
-function collectPracticePoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, kind: PracticePoolKind, requestedModel: string): ResolvedLogicalModel[] {
+function collectPracticePoolCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, kind: PracticePoolKind, requestedModel: string): ResolvedLogicalModel[] {
     return settings.systemChannels
         .filter((channel) => channelUsableForSurface(channel, "open-source-practice"))
         .flatMap((channel) =>
@@ -104,6 +116,8 @@ function collectPracticePoolCandidates(settings: Pick<AuthSettings, "systemChann
                     if (kind === "vision" ? channelModelCapability(channel, model) !== "text" : channelModelCapability(channel, model) !== capability) return false;
                     if (kind === "vision" && resolveLogicalModelCapabilityProfile({}, "text", channel, rawModelName(model))?.supportsImageInput !== true) return false;
                     if (!practicePoolIncludes(settings.practiceModelPool, kind, modelName)) return false;
+                    // 与系统代理同规则：逻辑模型停用、或该渠道的绑定没开，代理会 403，不能放进池子。
+                    if (!channelModelBoundForPractice(settings.logicalModels, channel.id, rawModelName(model))) return false;
                     return !requestedModel || channelSupportsModel([model], requestedModel);
                 })
                 .map((model) => ({
@@ -116,7 +130,7 @@ function collectPracticePoolCandidates(settings: Pick<AuthSettings, "systemChann
         );
 }
 
-function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
+function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
     // 文本请求按是否带图选池：带图的优先走 vision（文本模型里支持图片输入的那部分）。
     // vision 池空时回落到文本池——否则「图片理解池没配」会让所有带参考图的练习请求直接失败。
     if (capability === "text" && requiresImageInput) {

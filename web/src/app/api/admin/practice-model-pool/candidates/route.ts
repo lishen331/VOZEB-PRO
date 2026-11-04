@@ -3,7 +3,7 @@ import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
 import { rawModelName } from "@/lib/server/generation-channel";
 import { channelModelCapability, channelUsableForSurface, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
-import { practicePoolIncludes } from "@/lib/server/runninghub-workflow-runtime";
+import { practicePoolIncludes, channelModelBoundForPractice } from "@/lib/server/runninghub-workflow-runtime";
 import type { LogicalModelCapability, PracticePoolKind } from "@/lib/auth/store-types";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export type PracticePoolExclusion = {
     /** 人类可读的原因。 */
     reason: string;
     /** 原因分类，便于界面分组。 */
-    code: "purpose" | "switch" | "connection" | "empty";
+    code: "purpose" | "switch" | "connection" | "empty" | "logical";
 };
 
 export const PRACTICE_POOL_KINDS: PracticePoolKind[] = ["text", "vision", "image", "video", "audio"];
@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
     const pools = Object.fromEntries(PRACTICE_POOL_KINDS.map((kind) => [kind, [] as PracticePoolCandidate[]])) as Record<PracticePoolKind, PracticePoolCandidate[]>;
     const stats = Object.fromEntries(PRACTICE_POOL_KINDS.map((kind) => [kind, { total: 0, inPool: 0 }])) as Record<PracticePoolKind, PracticePoolStats>;
     const excluded: PracticePoolExclusion[] = [];
+    const unboundByChannel = new Map<string, { channelName: string; modelCount: number; unbound: number }>();
 
     for (const channel of settings.systemChannels) {
         const channelName = channel.name || channel.id;
@@ -83,6 +84,12 @@ export async function GET(request: NextRequest) {
         for (const model of channel.models) {
             const modelName = rawModelName(model);
             const modelKey = modelName.toLowerCase();
+            if (!channelModelBoundForPractice(settings.logicalModels, channel.id, modelName)) {
+                const entry = unboundByChannel.get(channel.id) || { channelName, modelCount, unbound: 0 };
+                entry.unbound += 1;
+                unboundByChannel.set(channel.id, entry);
+                continue;
+            }
             const capability = channelModelCapability(channel, model);
             const supportsImageInput = resolveLogicalModelCapabilityProfile({}, capability === "text" ? "text" : capability, channel, modelName)?.supportsImageInput === true;
 
@@ -104,6 +111,10 @@ export async function GET(request: NextRequest) {
                 if (practicePoolIncludes(poolConfig, kind, modelKey)) stats[kind].inPool += 1;
             }
         }
+    }
+
+    for (const [channelId, entry] of unboundByChannel) {
+        excluded.push({ channelId, channelName: entry.channelName, modelCount: entry.modelCount, code: "logical", reason: `${entry.unbound} 个模型的逻辑模型已停用，或渠道绑定未开启` });
     }
 
     return NextResponse.json({ pools, stats, excluded });
