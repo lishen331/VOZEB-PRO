@@ -203,7 +203,8 @@ export async function POST(request: Request) {
         let trustedContext: GenerationTaskContext;
         try {
             const clientContext = sanitizeGenerationContext(resolvedBody.context, trustedPractice);
-            if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "image", resolvedBody.config?.model || settings.defaultModels.imageModel || "");
+            if (executionProfile === "open-source-practice" && !clientContext.businessCode)
+                clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "image", resolvedBody.config?.model || settings.defaultModels.imageModel || "");
             const billingContext = await resolveSchoolComputeBillingContext(currentUser.id, { ...clientContext, executionProfile });
             const practiceModelTest = await resolvePracticeModelTestAccess(currentUser, { ...clientContext, executionProfile });
             trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
