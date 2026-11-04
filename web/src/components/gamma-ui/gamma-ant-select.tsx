@@ -338,7 +338,7 @@ function SelectImpl<V = string>(props: SelectProps<V>) {
                     onKeyDown={handleKey}
                     style={typeof popupMatchSelectWidth === "number" ? { width: popupMatchSelectWidth } : undefined}
                     className={cn(
-                        "gm-glass gm-glass-strong z-[140] min-w-[220px] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+                        "ant-select-dropdown gm-glass gm-glass-strong pointer-events-auto z-[1050] min-w-[220px] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
                         popupMatchSelectWidth === true ? "w-[var(--radix-popover-trigger-width)]" : "",
                     )}
                     tabIndex={-1}
@@ -387,7 +387,8 @@ function SelectImpl<V = string>(props: SelectProps<V>) {
                                             else pickSingle(option.value);
                                         }}
                                         className={cn(
-                                            "flex cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] transition-colors",
+                                            "ant-select-item-option flex cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] transition-colors",
+                                            isActive && "ant-select-item-option-active",
                                             option.disabled ? "cursor-not-allowed opacity-40" : isActive ? "bg-[var(--gm-wash-strong)]" : "",
                                             isSelected && "text-[var(--gm-accent)]",
                                         )}

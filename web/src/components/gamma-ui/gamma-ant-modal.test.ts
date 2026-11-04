@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { shouldBlockOutsideDismiss } from "./gamma-ant-modal";
@@ -38,5 +40,54 @@ describe("shouldBlockOutsideDismiss", () => {
     it("lets an already open layer close on a genuine outside click", () => {
         // 已经打开的弹窗点遮罩外：应当正常关闭
         expect(shouldBlockOutsideDismiss(true, true, false)).toBe(false);
+    });
+});
+
+/*
+ * 回归：弹窗里的「身份」下拉点不动。
+ *
+ * Select 与 DatePicker 的浮层 Portal 到 body，和 Modal 不在同一个层叠上下文里，
+ * 只能用 z-index 比较。Modal 遮罩与容器是 z-[1000]，浮层若低于它就整个被压在下面，
+ * 表现为「下拉被遮罩盖住、选不了」。另外 dialog 打开时 radix 给 body 设了
+ * pointer-events:none，浮层必须显式 pointer-events-auto 才可点。
+ */
+const DIALOG_Z = 1000;
+
+function zIndexesIn(source: string) {
+    return [...source.matchAll(/z-\[(\d+)\]/g)].map((match) => Number(match[1]));
+}
+
+describe("gamma-ui 浮层与弹窗的层级关系", () => {
+    it("keeps the Select popup above the dialog layer", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-select.tsx"), "utf8");
+        const popup = source.slice(source.indexOf("ant-select-dropdown"));
+        const popupZ = zIndexesIn(popup.slice(0, 400));
+        expect(popupZ.length, "Select 浮层缺少 z-index").toBeGreaterThan(0);
+        expect(Math.max(...popupZ), "Select 浮层必须高于 Modal/Drawer 的 z-[1000]").toBeGreaterThan(DIALOG_Z);
+    });
+
+    it("keeps the DatePicker popup above the dialog layer", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-datepicker.tsx"), "utf8");
+        const popupZ = zIndexesIn(source.slice(source.indexOf("const CONTENT_CLASS")));
+        expect(popupZ.length, "DatePicker 浮层缺少 z-index").toBeGreaterThan(0);
+        expect(Math.max(...popupZ), "DatePicker 浮层必须高于 Modal/Drawer 的 z-[1000]").toBeGreaterThan(DIALOG_Z);
+    });
+
+    it("lets both popups receive pointer events while a dialog disables body events", async () => {
+        for (const file of ["gamma-ant-select.tsx", "gamma-ant-datepicker.tsx"]) {
+            const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui", file), "utf8");
+            expect(source, `${file} 的浮层需要 pointer-events-auto`).toContain("pointer-events-auto");
+        }
+    });
+
+    it("marks the DatePicker popup as a popup layer so the dialog does not treat its clicks as outside", async () => {
+        const modal = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");
+        expect(modal).toContain(".gm-popup-layer");
+        const datepicker = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-datepicker.tsx"), "utf8");
+        // DatePicker 刻意不挂 ant-picker-dropdown（会破版），只能靠自己的标记类被识别。
+        // 注释里提到这个类名是解释原因，真正的类名只允许出现在 CONTENT_CLASS 之外的地方。
+        const classNameLines = datepicker.split("\n").filter((line) => !line.trim().startsWith("*") && !line.trim().startsWith("//"));
+        expect(classNameLines.some((line) => line.includes("ant-picker-dropdown"))).toBe(false);
+        expect(datepicker).toContain("gm-popup-layer");
     });
 });
