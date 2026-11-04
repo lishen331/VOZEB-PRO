@@ -680,6 +680,8 @@ export type AuthSettings = {
     agentSkills: AgentSkill[];
     /** Global enablement for built-in user-facing modules. */
     featureModules: FeatureModuleSettings;
+    /** Voice customization pricing: CNY/USD exchange rate and points per CNY. pointsPerYuan=0 disables custom voice creation. */
+    voicePricing: { usdToCny: number; pointsPerYuan: number };
 };
 
 export type AuthDatabase = {
