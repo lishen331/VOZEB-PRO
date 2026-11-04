@@ -12,13 +12,13 @@
 
 ## 文件与步骤
 
-- [ ] 在 `store-types.ts`、`store-normalizers-channel.ts`、`channel-protocol-registry.ts` 注册 `agnes`；后台沿用统一注册表，无专门 UI 重构。
-- [ ] 补 `agnes-protocol.test.ts`、`agnes-video-provider.test.ts` 与图片真实本地 HTTP fixture 的 RED；先跑失败证据再完善。
-- [ ] 复用文本引擎、图片 declarative parser/持久化；新增专用图片请求构造，保留图片顺序、原始提示词与实际分辨率。
-- [ ] 改造已有临时视频适配：显式协议、请求验证、队列与生产两条路径一致、video_id和查询正确。
-- [ ] 更新官方模型目录（包括2.5图片与已上线文本，移除废弃推荐但不删除管理员已有模型绑定）。应用协议时保留渠道ID、凭据、启用开关、练习池和现有模型列表。
-- [ ] 本地协议 fixture、专项 Vitest、tsc、eslint/prettier、全量检查与开发文档验证；所有失败准确报告。
-- [ ] 给出渠道切换步骤/配置预览；未部署支持agnes的新镜像前不得把运行中渠道直接切换。
+- [x] 在 `store-types.ts`、`store-normalizers-channel.ts`、`channel-protocol-registry.ts` 注册 `agnes`；后台沿用统一注册表，无专门 UI 重构。
+- [x] 补 `agnes-protocol.test.ts`、`agnes-video-provider.test.ts` 与图片真实本地 HTTP fixture 的 RED/GREEN。
+- [x] 复用文本引擎、图片 declarative parser/持久化；新增专用图片请求构造，保留图片顺序、原始提示词与实际分辨率。
+- [x] 改造已有临时视频适配：显式协议、请求验证、队列与生产两条路径一致、video_id和查询正确。
+- [x] 更新官方模型目录（包括2.5图片与已上线文本，移除废弃推荐但不删除管理员已有模型绑定）。应用协议时保留渠道ID、凭据、启用开关、练习池和现有模型列表。
+- [x] 本地协议 fixture、专项 Vitest、tsc、eslint/prettier、全量检查与开发文档验证；所有失败准确报告。
+- [x] 给出渠道切换步骤/配置预览；新镜像已部署后才切换运行中渠道。
 
 ## 当前实现结果
 
@@ -28,7 +28,7 @@
 - 已增加本地 TCP fixture，验证图片 JSON 请求和视频创建/查询完整链路。
 - 专项 62 项、文本/视频/图片相关回归 110 项通过；TypeScript、ESLint、Prettier 通过。
 
-尚未完成线上配置切换、真实 Agnes 余额/队列验收、commit、push、merge 或 deploy。
+线上配置已完成切换，真实测试已开始；commit、push、develop Actions 部署均已完成。真实 Agnes 视频仍受上游队列/余额状态影响，需按返回码记录。
 
 ## 文档依据
 
