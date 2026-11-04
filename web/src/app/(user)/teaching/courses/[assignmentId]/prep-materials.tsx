@@ -165,50 +165,44 @@ export function MaterialViewer({ materials, index, onIndex, onPresent }: { mater
 export function MaterialPresent({ materials, index, caption, onIndex, onClose }: { materials: readonly CourseMaterial[]; index: number; caption: string; onIndex: (index: number) => void; onClose: () => void }) {
     const total = materials.length;
     const current = materials[index];
+    // PDF 在放映里由自己那套箭头翻页，方向键也归它；资料切换只走底部那两个按钮，避免一次按键翻两下
+    const pagedInternally = current ? materialKind(current) === "pdf" : false;
     useEffect(() => {
         const handleKey = (event: KeyboardEvent) => {
             if (event.key === "Escape") onClose();
+            if (pagedInternally) return;
             if (event.key === "ArrowRight") onIndex(Math.min(total - 1, index + 1));
             if (event.key === "ArrowLeft") onIndex(Math.max(0, index - 1));
         };
         window.addEventListener("keydown", handleKey);
         return () => window.removeEventListener("keydown", handleKey);
-    }, [index, onClose, onIndex, total]);
+    }, [index, onClose, onIndex, pagedInternally, total]);
     if (!current) return null;
     return createPortal(
         <motion.div role="dialog" aria-modal aria-label="资料放映" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="gm fixed inset-0 z-[1200] flex flex-col bg-black text-white">
+            {/* 画面上只留 PDF 自己的翻页箭头；资料切换移到底部栏，两套控制不再抢同一个位置 */}
             <div className="relative flex min-h-0 flex-1 items-center justify-center p-3">
                 <MaterialStage material={current} variant="stage" />
-                {[
-                    { side: "left-4", icon: ChevronLeft, label: "上一份资料", to: index - 1 },
-                    { side: "right-4", icon: ChevronRight, label: "下一份资料", to: index + 1 },
-                ].map((item) =>
-                    item.to >= 0 && item.to < total ? (
-                        <button
-                            key={item.label}
-                            type="button"
-                            aria-label={item.label}
-                            onClick={() => onIndex(item.to)}
-                            className={cn("gm-glass absolute top-1/2 z-10 grid size-12 -translate-y-1/2 place-items-center rounded-full text-white shadow-xl", item.side)}
-                        >
-                            <item.icon className="size-6" />
-                        </button>
-                    ) : null,
-                )}
             </div>
-            <div className="flex items-center gap-4 border-t border-white/10 px-6 py-3 text-sm">
+            <div className="flex items-center gap-3 border-t border-white/10 px-6 py-3 text-sm">
                 <span className="font-mono text-white/50">
                     {index + 1} / {total}
                 </span>
                 <p className="min-w-0 flex-1 truncate text-white/70">
                     {caption} · {current.title}
                 </p>
-                <button type="button" aria-label="上一份" disabled={index === 0} onClick={() => onIndex(index - 1)} className="grid size-9 place-items-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30">
-                    <ChevronLeft className="size-4" />
-                </button>
-                <button type="button" aria-label="下一份" disabled={index === total - 1} onClick={() => onIndex(index + 1)} className="grid size-9 place-items-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30">
-                    <ChevronRight className="size-4" />
-                </button>
+                {pagedInternally && total > 1 ? <span className="hidden text-[11px] text-white/40 sm:inline">← / → 翻本份</span> : null}
+                {total > 1 ? (
+                    <span className="flex items-center gap-1.5">
+                        <span className="mr-0.5 hidden text-[11px] text-white/40 sm:inline">换资料</span>
+                        <button type="button" aria-label="上一份资料" disabled={index === 0} onClick={() => onIndex(index - 1)} className="grid size-9 place-items-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30">
+                            <ChevronLeft className="size-4" />
+                        </button>
+                        <button type="button" aria-label="下一份资料" disabled={index === total - 1} onClick={() => onIndex(index + 1)} className="grid size-9 place-items-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30">
+                            <ChevronRight className="size-4" />
+                        </button>
+                    </span>
+                ) : null}
                 <button type="button" aria-label="退出放映" onClick={onClose} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/10 px-3 hover:bg-white/20">
                     <X className="size-4" />
                     Esc
