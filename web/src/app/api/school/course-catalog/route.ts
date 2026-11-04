@@ -21,6 +21,6 @@ export async function GET(request: Request) {
             }),
         );
     } catch (error) {
-        return schoolApiFailure(error, "读取备课大厅失败");
+        return schoolApiFailure(error, "读取课程中心失败");
     }
 }

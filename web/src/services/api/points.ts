@@ -18,8 +18,9 @@ type HeaderLike = Headers | Record<string, unknown> | { get: (key: string) => un
 let pointsRefreshPromise: Promise<void> | null = null;
 let pointsRefreshQueued = false;
 
-export async function listPointRecords(input: { page?: number; pageSize?: number; direction?: "credit" | "debit" } = {}): Promise<PointRecordListResult> {
-    const params = serializeApiParams(input);
+export async function listPointRecords(input: { page?: number; pageSize?: number; direction?: "credit" | "debit"; includeRefunds?: boolean } = {}): Promise<PointRecordListResult> {
+    const { includeRefunds, ...rest } = input;
+    const params = serializeApiParams(includeRefunds === undefined ? rest : { ...rest, includeRefunds: includeRefunds ? "true" : "false" });
     const response = await fetch(`/api/points${params.size ? `?${params.toString()}` : ""}`, { cache: "no-store" });
     const payload = (await response.json().catch(() => null)) as (Partial<PointRecordListResult> & { error?: string }) | null;
     if (!response.ok || !payload) throw new Error(payload?.error || "积分记录加载失败");

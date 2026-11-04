@@ -14,10 +14,10 @@ import { AnimatePresence } from "motion/react";
 import { coursesApi } from "@/services/api/courses";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { AssignmentCreateModal } from "@/app/(user)/teaching/teaching-assignment-modal";
-import { flattenLessons, parseTeachingTab, prepBackHref, resolvePrepLesson, teachingCourseHref, teachingHref, TEACHING_TAB_LABELS } from "@/app/(user)/teaching/teaching-routes";
+import { flattenLessons, parseTeachingTab, prepBackHref, resolvePrepLesson, teachingCourseHref, teachingHref, teachingLessonPlanHref, TEACHING_TAB_LABELS } from "@/app/(user)/teaching/teaching-routes";
 import { usePreparedLessons } from "@/app/(user)/teaching/use-prepared-lessons";
 import { PrepBackLink, PrepLayout, PrepSkeleton } from "./prep-layout";
-import { PlanEditor } from "./prep-plan-editor";
+import { PlanSummaryCard } from "./prep-plan-summary";
 import { PrepRehearsal } from "./prep-rehearsal";
 import { useLessonPlan } from "./use-lesson-plan";
 
@@ -171,19 +171,14 @@ export function TeachingCoursePrep() {
                 canMarkPrepared={planReady}
                 canRehearse={planReady}
                 planEditor={
-                    isTeacher ? (
-                        <PlanEditor
-                            doc={plan.doc?.lessonId === lesson?.id ? plan.doc : null}
+                    isTeacher && lesson ? (
+                        <PlanSummaryCard
+                            doc={plan.doc?.lessonId === lesson.id ? plan.doc : null}
                             load={plan.load}
-                            materials={lesson?.materials ?? []}
-                            saveState={plan.saveState}
-                            saveError={plan.saveError}
-                            savedAt={plan.savedAt}
                             dirty={plan.dirty}
-                            onUpdate={plan.update}
-                            onRetrySave={() => void plan.save().catch(() => undefined)}
-                            onReload={plan.reload}
-                            onOverwrite={() => void plan.overwrite().catch((error: unknown) => message.error(errorMessage(error, "保存失败")))}
+                            saveState={plan.saveState}
+                            href={teachingLessonPlanHref(assignmentId, lesson.id, { from: fromTab })}
+                            template={plan.doc?.lessonId === lesson.id ? (plan.doc?.template ?? null) : null}
                         />
                     ) : (
                         <p className="text-[13px] text-[var(--gm-text-3)]">教案只对任课老师开放。</p>

@@ -7,6 +7,7 @@ import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import { Download, FileUp, Plus, Trash2, Workflow } from "lucide-react";
 
 import { CompactEmptyState } from "@/components/compact-empty-state";
+import { GuideLink } from "@/components/onboarding/guide-link";
 import { readZip } from "@/lib/zip";
 import { APP_EXPORT_ID } from "@/lib/storage-keys";
 import { uploadMediaFile } from "@/services/file-storage";
@@ -137,7 +138,7 @@ export default function CanvasPage() {
 
     return (
         <main className="h-full overflow-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-2 py-2 sm:gap-6 sm:px-6 sm:py-8">
+            <div className="gm-page flex flex-col gap-2 px-2 py-2 sm:gap-6 sm:px-6 sm:py-8">
                 <header className="flex flex-wrap items-end justify-between gap-2.5 border-b border-[var(--gm-border)] pb-3 sm:gap-4 sm:pb-5">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
@@ -187,7 +188,7 @@ export default function CanvasPage() {
                     </section>
                 ) : projects.length ? (
                     <>
-                        <div className="grid gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+                        <div className="gm-card-grid-wide">
                             {projects.map((project) => (
                                 <CanvasProjectCard key={project.id} project={project} />
                             ))}
@@ -205,9 +206,12 @@ export default function CanvasPage() {
                         icon={<Workflow className="size-4" />}
                         className="min-h-24 sm:min-h-40"
                         action={
-                            <Button type="primary" loading={creating} icon={<Plus className="size-4" />} onClick={() => void createAndEnter()}>
-                                新建画布
-                            </Button>
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                <Button type="primary" loading={creating} icon={<Plus className="size-4" />} onClick={() => void createAndEnter()}>
+                                    新建画布
+                                </Button>
+                                <GuideLink section="canvas" />
+                            </div>
                         }
                     />
                 )}

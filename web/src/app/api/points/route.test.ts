@@ -24,12 +24,18 @@ describe("GET /api/points", () => {
     it("forwards server-side debit filtering and pagination", async () => {
         await GET(new Request("http://localhost/api/points?page=3&pageSize=8&direction=debit"));
 
-        expect(mocks.listPointRecordsPage).toHaveBeenCalledWith("user-one", { page: 3, pageSize: 8, direction: "debit" });
+        expect(mocks.listPointRecordsPage).toHaveBeenCalledWith("user-one", { page: 3, pageSize: 8, direction: "debit", includeRefunds: false });
+    });
+
+    it("forwards includeRefunds so the consume page can show refunds", async () => {
+        await GET(new Request("http://localhost/api/points?page=1&pageSize=10&direction=debit&includeRefunds=true"));
+
+        expect(mocks.listPointRecordsPage).toHaveBeenCalledWith("user-one", { page: 1, pageSize: 10, direction: "debit", includeRefunds: true });
     });
 
     it("ignores unsupported direction values", async () => {
         await GET(new Request("http://localhost/api/points?direction=unknown"));
 
-        expect(mocks.listPointRecordsPage).toHaveBeenCalledWith("user-one", { page: 1, pageSize: 10, direction: undefined });
+        expect(mocks.listPointRecordsPage).toHaveBeenCalledWith("user-one", { page: 1, pageSize: 10, direction: undefined, includeRefunds: false });
     });
 });

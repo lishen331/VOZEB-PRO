@@ -62,7 +62,7 @@ export default function IpLibraryPage() {
 
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]" data-ip-library-page>
-            <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
+            <div className="gm-page px-3 py-4 sm:px-6 sm:py-8">
                 <header className="flex min-w-0 flex-col gap-3 border-b border-[var(--gm-border)] pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5 sm:pb-6">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
@@ -98,9 +98,9 @@ export default function IpLibraryPage() {
                 </div>
 
                 {loading ? (
-                    <GammaCardGridSkeleton count={10} media="aspect-[4/3]" className="mt-4 min-w-0 grid-cols-2 gap-2 sm:mt-6 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5" label="正在加载 IP 库" />
+                    <GammaCardGridSkeleton count={10} media="aspect-[4/3]" className="gm-card-grid mt-4 sm:mt-6" label="正在加载 IP 库" />
                 ) : items.length ? (
-                    <div className="mt-4 grid min-w-0 grid-cols-2 gap-2 sm:mt-6 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+                    <div className="gm-card-grid mt-4 sm:mt-6">
                         {items.map((item, index) => (
                             <GammaReveal key={item.id} index={index} animate={firstEntry} className="grid min-w-0">
                                 <IpLibraryCard item={item} />

@@ -81,7 +81,7 @@ export const coursesApi = {
     deletePlatformCourseLesson(id: string) {
         return request<{ deleted: boolean }>(`/api/admin/course-lessons/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
-    createPlatformCourseMaterial(courseId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number }) {
+    createPlatformCourseMaterial(courseId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; previewStorageKey?: string; sortOrder?: number }) {
         return request<CourseMaterial>(`/api/admin/courses/${encodeURIComponent(courseId)}/materials`, jsonRequest("POST", input));
     },
     updatePlatformCourseMaterial(id: string, input: Partial<Pick<CourseMaterial, "title" | "sortOrder" | "status">>) {
@@ -126,7 +126,7 @@ export const coursesApi = {
     getSchoolCourseTree(assignmentId: string, options: RequestOptions = {}) {
         return request<PlatformCourseDetail>(`/api/school/courses/${encodeURIComponent(assignmentId)}/tree`, options);
     },
-    createSchoolCourseMaterial(assignmentId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number }) {
+    createSchoolCourseMaterial(assignmentId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; previewStorageKey?: string; sortOrder?: number }) {
         return request<CourseMaterial>(`/api/school/courses/${encodeURIComponent(assignmentId)}/materials`, jsonRequest("POST", input));
     },
     updateSchoolCourseMaterial(id: string, input: Partial<Pick<CourseMaterial, "title" | "sortOrder" | "status">>) {

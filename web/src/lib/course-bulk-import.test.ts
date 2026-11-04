@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BULK_IMPORT_COLUMNS, courseBulkImportTemplateRows, planCourseBulkImport } from "./course-bulk-import";
+import { BULK_IMPORT_COLUMNS, courseBulkImportTemplateRows, inferBulkImportTarget, planCourseBulkImport } from "./course-bulk-import";
 
 const tree = { chapters: [{ id: "c1", title: "第一章 入门", lessons: [{ id: "l1", title: "第一课" }] }] };
 const files = [
@@ -30,7 +30,7 @@ describe("course bulk import plan", () => {
 
         const plan = planCourseBulkImport([header, ["第一章 入门", "第一课", "不存在.pdf"], ["第一章 入门", "", "第二课.pptx"], ["第一章 入门", "第一课", "补充.zip"], ["第一章 入门", "第一课", "补充.zip"]], tree, files);
 
-        expect(plan.errors).toEqual(["第 2 行：没有找到已上传的文件「不存在.pdf」", "第 3 行：章节名、课时名、文件名都要填", "第 5 行：文件「补充.zip」在表里出现了不止一次"]);
+        expect(plan.errors).toEqual(["第 2 行：「文件名」列的「不存在.pdf」不在已上传列表里，请核对文件名（含扩展名）或重新上传该文件", "第 3 行：缺少「课时名」", "第 5 行：文件「补充.zip」在表里出现了不止一次"]);
         expect(plan.unusedFiles).toEqual(["第一课-课件.pdf", "第二课.pptx"]);
     });
 
@@ -63,5 +63,34 @@ describe("course bulk import plan", () => {
 
     it("prefills the template with lessons and files whose names start with the lesson title", () => {
         expect(courseBulkImportTemplateRows(tree, files)).toEqual([header, ["第一章 入门", "第一课", "第一课-课件.pdf", ""], ["", "", "第二课.pptx", ""], ["", "", "补充.zip", ""]]);
+    });
+
+    it("infers chapter and lesson from an existing lesson prefix", () => {
+        expect(inferBulkImportTarget("第一课-课件.pdf", tree)).toEqual({ chapterTitle: "第一章 入门", lessonTitle: "第一课" });
+    });
+
+    it("infers chapter only when the file starts with a chapter title", () => {
+        expect(inferBulkImportTarget("第一章 入门 补充材料.pdf", tree)).toEqual({ chapterTitle: "第一章 入门", lessonTitle: "" });
+    });
+
+    it("falls back to the separator when nothing matches, and leaves unknown names empty", () => {
+        expect(inferBulkImportTarget("第二章-第三课-讲义.pdf", tree)).toEqual({ chapterTitle: "第二章", lessonTitle: "第三课" });
+        expect(inferBulkImportTarget("补充.zip", tree)).toEqual({ chapterTitle: "", lessonTitle: "" });
+    });
+
+    it("prefills the template so rows only need corrections", () => {
+        const rows = courseBulkImportTemplateRows(tree, [
+            { fileName: "第一课-课件.pdf", storageKey: "k1" },
+            { fileName: "第二章-第三课-讲义.pdf", storageKey: "k2" },
+        ]);
+        expect(rows).toEqual([[...BULK_IMPORT_COLUMNS], ["第一章 入门", "第一课", "第一课-课件.pdf", ""], ["第二章", "第三课", "第二章-第三课-讲义.pdf", ""]]);
+    });
+
+    it("exposes a preview row for every parsed line, flagging the broken one", () => {
+        const plan = planCourseBulkImport([header, ["第一章 入门", "第一课", "第一课-课件.pdf"], ["第一章 入门", "", "第二课.pptx"]], tree, files);
+        expect(plan.preview.map((row) => ({ line: row.line, problem: row.problem }))).toEqual([
+            { line: 2, problem: "" },
+            { line: 3, problem: "缺少「课时名」" },
+        ]);
     });
 });

@@ -54,8 +54,17 @@ export function normalizeVoiceCustomization(value: unknown): VoiceCustomizationC
         region: raw.region === "intl" ? "intl" : "cn",
         paths: Object.fromEntries((["upload", "clone", "design", "delete", "customization"] as const).flatMap((key) => (apiPath(paths[key]) ? [[key, apiPath(paths[key])]] : []))),
         ttsModels: ttsModels.length ? ttsModels : template.ttsModels,
-        audioLimits: { formats: formats.length ? formats : template.audioLimits.formats, minSec: positive(audio.minSec, template.audioLimits.minSec), maxSec: positive(audio.maxSec, template.audioLimits.maxSec), maxMB: Math.min(20, positive(audio.maxMB, template.audioLimits.maxMB)) },
-        designLimits: { promptMax: positive(design.promptMax, template.designLimits.promptMax), previewTextMin: positive(design.previewTextMin, template.designLimits.previewTextMin), previewTextMax: positive(design.previewTextMax, template.designLimits.previewTextMax) },
+        audioLimits: {
+            formats: formats.length ? formats : template.audioLimits.formats,
+            minSec: positive(audio.minSec, template.audioLimits.minSec),
+            maxSec: positive(audio.maxSec, template.audioLimits.maxSec),
+            maxMB: Math.min(20, positive(audio.maxMB, template.audioLimits.maxMB)),
+        },
+        designLimits: {
+            promptMax: positive(design.promptMax, template.designLimits.promptMax),
+            previewTextMin: positive(design.previewTextMin, template.designLimits.previewTextMin),
+            previewTextMax: positive(design.previewTextMax, template.designLimits.previewTextMax),
+        },
         ...(expireDays ? { inactiveExpireDays: expireDays } : {}),
         pricing: { clone: nonNegative(pricing.clone, template.pricing.clone), design: nonNegative(pricing.design, template.pricing.design), currency: pricing.currency === "USD" ? "USD" : "CNY" },
     };

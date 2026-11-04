@@ -236,6 +236,7 @@ export const DEFAULT_SETTINGS: AuthSettings = {
         ...DEFAULT_CREATIVE_SHORTCUT_SKILLS.map((skill) => ({ ...skill, keywords: [...skill.keywords], workspaces: [...skill.workspaces] })),
     ],
     featureModules: { ...DEFAULT_FEATURE_MODULE_SETTINGS, ...DEFAULT_DRAMA_LAB_UI_FEATURES },
+    voicePricing: { usdToCny: 7.2, pointsPerYuan: 100 },
 };
 export const AUTH_DATA_FILE = "auth.json";
 export const USERNAME_PATTERN = /^[a-zA-Z0-9_.-]{3,32}$/;

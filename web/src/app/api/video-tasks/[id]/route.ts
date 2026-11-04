@@ -34,7 +34,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const refreshedUser = shouldRefund ? await getCurrentUser(request) : user;
     await recordMediaTaskEvent("video", settledTask, { phase: "poll", state: `api_response:${executionPhase}`, upstreamTaskId: settledTask.upstream.id });
     return NextResponse.json(
-        { task: { ...publicTask(settledTask), needsReview: executionPhase === "needs_review", reviewReason: executionPhase === "needs_review" ? task.reviewReason : undefined, executionPhase } },
+        {
+            task: {
+                ...publicTask(settledTask),
+                needsReview: executionPhase === "needs_review",
+                reviewReason: executionPhase === "needs_review" ? task.reviewReason : undefined,
+                executionPhase,
+                refundedPoints: shouldRefund && "refundedPoints" in settledTask ? settledTask.refundedPoints : undefined,
+            },
+        },
         { headers: pointsResponseHeaders(refreshedUser) },
     );
 }

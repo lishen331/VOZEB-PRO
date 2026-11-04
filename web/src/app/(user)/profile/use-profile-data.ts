@@ -170,7 +170,7 @@ export function useProfileData(activeSection: ProfileSectionKey) {
             consumptionRequestPage.current = page;
             setConsumeRecordsLoading(true);
             try {
-                const payload = await listPointRecords({ page, pageSize: RECORD_PAGE_SIZE, direction: "debit" });
+                const payload = await listPointRecords({ page, pageSize: RECORD_PAGE_SIZE, direction: "debit", includeRefunds: true });
                 setConsumeRecords(payload.records);
                 setConsumeRecordsTotal(payload.total);
                 setConsumeRecordsLoadedPage(page);

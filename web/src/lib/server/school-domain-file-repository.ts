@@ -550,6 +550,24 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         });
     }
 
+    updateCourseMaterialPreviewByStorageKey(storageKey: string, patch: { previewStorageKey?: string; previewStatus: "ready" | "failed" }) {
+        return this.mutate((state) => {
+            let updated = 0;
+            const now = new Date().toISOString();
+            state.courseMaterials = state.courseMaterials.map((record) => {
+                if (record.storageKey !== storageKey) return record;
+                updated += 1;
+                return {
+                    ...record,
+                    ...(patch.previewStorageKey ? { previewStorageKey: patch.previewStorageKey } : {}),
+                    previewStatus: patch.previewStatus,
+                    updatedAt: now,
+                };
+            });
+            return updated;
+        });
+    }
+
     deleteCourseMaterial(materialId: string) {
         return this.mutate((state) => {
             const index = state.courseMaterials.findIndex((item) => item.id === materialId);

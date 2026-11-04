@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { mediaTaskSource } from "@/lib/media-management-contract";
 import { resolveAudioTaskOptions } from "@/lib/server/audio-task-config";
-import { normalizeAudioParams } from "@/lib/audio-model-params";
+import { normalizeAudioParams, parseCustomVoiceId } from "@/lib/audio-model-params";
+import { getCustomVoice } from "@/lib/server/custom-voice-store";
 import { createAudioTask, type AudioTask, type AudioTaskConfig } from "@/lib/server/audio-task-store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
@@ -88,11 +89,20 @@ export async function POST(request: Request) {
         const prompt = String(body.prompt || "").trim();
         const supportedChannels = channels.filter((channel): channel is typeof channel & { channelId: string } => channel.apiFormat !== "gemini" && typeof channel.channelId === "string");
         if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });
-        const hasHealthy = await hasHealthyRuntimeCandidate(supportedChannels, "audio");
+        // 自定义音色与创建它的渠道强绑定：这里提前收窄候选渠道，避免重试到别的渠道后必然失败。
+        const customVoiceId = parseCustomVoiceId(normalizeAudioParams(body.config?.model, body.config?.params).voiceId);
+        const customVoice = customVoiceId ? await getCustomVoice(customVoiceId) : undefined;
+        if (customVoiceId && (!customVoice || (customVoice.ownerUserId !== user.id && !customVoice.shared))) {
+            return NextResponse.json({ error: "自定义音色不存在或无权使用" }, { status: 403 });
+        }
+        const candidates = customVoice ? supportedChannels.filter((channel) => channel.channelId === customVoice.channelId) : supportedChannels;
+        if (!candidates.length) return NextResponse.json({ error: "自定义音色与当前模型渠道不匹配" }, { status: 400 });
+        const hasHealthy = await hasHealthyRuntimeCandidate(candidates, "audio");
         if (!hasHealthy) return NextResponse.json({ error: "当前音频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
-        const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({
+        const configs: AudioTaskConfig[] = candidates.map((channel) => ({
             ...channel,
             ...resolveAudioTaskOptions(body.config, settings.generationDefaults),
+            ...(customVoice ? { customVoiceId: customVoice.id } : {}),
             instructions: clean(body.config?.instructions, 2_000),
             params: normalizeAudioParams(channel.model, body.config?.params),
         }));

@@ -358,6 +358,7 @@ export function mapPostgresSettings(settingsRow: Record<string, unknown> | undef
         practiceModuleVisibility: dbJson(settingsRow?.practice_module_visibility, fallback.practiceModuleVisibility),
         agentSkills: dbJson(settingsRow?.agent_skills, fallback.agentSkills),
         featureModules: dbJson(settingsRow?.feature_modules, fallback.featureModules),
+        voicePricing: dbJson(settingsRow?.voice_pricing, fallback.voicePricing),
         settingsRevision: Number(settingsRow?.settings_revision ?? 1),
     });
 }

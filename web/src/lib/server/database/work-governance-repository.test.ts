@@ -70,6 +70,17 @@ describe("WorkGovernanceRepository", () => {
         expect(values[11]).toBe("0123456789abcdef0123456789abcdef");
     });
 
+    it("filters already normalized official categories without falling back to other", async () => {
+        const query = vi.fn().mockResolvedValue({ rows: [] });
+        const repository = new WorkGovernanceRepository({ query });
+
+        await repository.listGallery({ limit: 12, sort: "latest", category: "摄影" });
+        const [sql, values] = query.mock.calls[0] as [string, unknown[]];
+
+        expect(sql).toContain("WHEN version.category IN ('视觉设计', '插画', '摄影', '品牌内容', '视频', '短剧', '其他') THEN version.category");
+        expect(values[0]).toBe("摄影");
+    });
+
     it("only features active approved public versions", async () => {
         const query = vi.fn().mockResolvedValue({ rows: [] });
         const repository = new WorkGovernanceRepository({ query });

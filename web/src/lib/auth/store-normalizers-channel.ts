@@ -1,4 +1,5 @@
 import { safeProtocolDocumentationUrl } from "@/lib/channel-protocol-security";
+import { normalizeVoiceCustomization } from "@/lib/custom-voice-config";
 import { isGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { normalizeRunningHubWorkflowConfig } from "@/lib/server/runninghub-workflow-domain";
 
@@ -39,6 +40,7 @@ export function normalizeSystemChannelAdvancedConfig(config: Partial<SystemChann
     const operationConfigs = normalizeChannelOperationConfigs(config.operationConfigs);
     const workflowConfigs = normalizeWorkflowConfigs(config.workflowConfigs);
     const modelCatalogPaths = Array.from(new Set((Array.isArray(config.modelCatalogPaths) ? config.modelCatalogPaths : []).map(normalizeApiPath).filter(Boolean))).slice(0, 12);
+    const voiceCustomization = normalizeVoiceCustomization(config.voiceCustomization);
     return {
         protocol,
         ...(config.authMode === "none" || config.authMode === "bearer" || config.authMode === "x-api-key" || config.authMode === "custom-header" ? { authMode: config.authMode } : {}),
@@ -74,6 +76,8 @@ export function normalizeSystemChannelAdvancedConfig(config: Partial<SystemChann
         ...(Object.keys(modelCapabilities).length ? { modelCapabilities } : {}),
         ...(Object.keys(modelConfigs).length ? { modelConfigs } : {}),
         ...(Object.keys(operationConfigs).length ? { operationConfigs } : {}),
+        // 自定义音色是渠道级开关：未配置即关闭，写回时不能丢。
+        ...(voiceCustomization ? { voiceCustomization } : {}),
         workflowConfigs,
     };
 }

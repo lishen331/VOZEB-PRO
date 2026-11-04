@@ -23,5 +23,12 @@ public/mediapipe/vision_bundle.js
 public/mediapipe/wasm/vision_wasm_internal.js
 check.json
 
+# 过程产物：Playwright 快照、探针脚本、一次性导出脚本（非源码，不参与格式检查）
+.playwright-cli
+.scratch
+.scratch-*
+*.yml
+extract-production-accounts-*.mjs
+
 # 自托管字体：上游原样文件，不格式化
 public/fonts

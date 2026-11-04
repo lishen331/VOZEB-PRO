@@ -41,6 +41,7 @@ import { resolveTeachingSubmissionReferences } from "./school-submission-referen
 import { requireActiveSchoolContext, requireSchoolManager, requireStudent, requireTeacher, SchoolServiceError } from "./school-access-service";
 import { getLocalMediaRegistrations } from "@/lib/server/local-media-registry";
 import { cleanupDeletedCourseMaterials } from "./course-attachment-service";
+import { canConvertToPdf } from "@/lib/server/office-document-converter";
 
 export async function listPlatformCourses(actorId: string, input: { page?: number; pageSize?: number; keyword?: string; status?: PlatformCourse["status"] } = {}) {
     await requireEducationAdmin(actorId);
@@ -201,7 +202,7 @@ export async function deletePlatformLesson(actorId: string, lessonId: string) {
     return { deleted, cleanup: deleted ? await cleanupDeletedCourseMaterials(materialKeys) : { deletedFiles: 0, deletedBytes: 0, skippedShared: 0, failed: [] as string[] } };
 }
 
-export async function createPlatformMaterial(actorId: string, courseId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number }) {
+export async function createPlatformMaterial(actorId: string, courseId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; previewStorageKey?: string; sortOrder?: number }) {
     await requireEducationAdmin(actorId);
     const repository = createSchoolDomainRepository();
     await requireEditableCourse(repository, courseId);
@@ -209,7 +210,7 @@ export async function createPlatformMaterial(actorId: string, courseId: string, 
     return repository.insertCourseMaterial(await materialRecord(repository, actorId, courseId, input, "platform"));
 }
 
-export async function createSchoolMaterial(userId: string, assignmentId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number }) {
+export async function createSchoolMaterial(userId: string, assignmentId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; previewStorageKey?: string; sortOrder?: number }) {
     const context = await requireActiveSchoolContext(userId);
     const repository = createSchoolDomainRepository();
     const assignment = await repository.getSchoolCourseAssignment(context.school.id, assignmentId);
@@ -774,13 +775,19 @@ async function materialRecord(
     repository: SchoolDomainRepository,
     ownerUserId: string,
     courseId: string,
-    input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number },
+    input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; previewStorageKey?: string; sortOrder?: number },
     sourceScope: "platform" | "school",
     schoolCourseAssignmentId?: string,
 ): Promise<CourseMaterialRecord> {
     const storageKey = text(input.storageKey, 1000);
     const registration = (await getLocalMediaRegistrations([storageKey], { ownerUserId }))[0];
     if (!registration || registration.storageClass !== "permanent" || registration.type !== "attachment" || registration.source !== "course-attachment") throw new SchoolServiceError(400, "课程资料文件不存在或无权使用");
+    // 预览 PDF 是上传时自动生成的，同样要校验归属；取不到就当作没有预览，不阻塞建资料
+    const previewStorageKey = input.previewStorageKey ? text(input.previewStorageKey, 1000) : "";
+    const previewRegistration = previewStorageKey ? (await getLocalMediaRegistrations([previewStorageKey], { ownerUserId }))[0] : undefined;
+    const usablePreviewKey = previewRegistration && previewRegistration.storageClass === "permanent" && previewRegistration.type === "attachment" && previewRegistration.source === "course-attachment" ? previewStorageKey : "";
+    // 没有预览说明这次上传要么不需要转换、要么还在后台转：按扩展名判断状态，前端据此显示「正在生成预览」
+    const previewStatus: "none" | "pending" | "ready" = usablePreviewKey ? "ready" : canConvertToPdf(registration.originalName || storageKey) ? "pending" : "none";
     return {
         id: randomUUID(),
         courseId,
@@ -797,6 +804,16 @@ async function materialRecord(
             .split("/")
             .map((part) => encodeURIComponent(part))
             .join("/")}`,
+        previewStatus,
+        ...(usablePreviewKey
+            ? {
+                  previewStorageKey: usablePreviewKey,
+                  previewUrl: `/api/reference-assets/${usablePreviewKey
+                      .split("/")
+                      .map((part) => encodeURIComponent(part))
+                      .join("/")}`,
+              }
+            : {}),
         sortOrder: positiveOrder(input.sortOrder),
         status: "active",
         createdByUserId: ownerUserId,
@@ -807,7 +824,7 @@ async function materialRecord(
 
 /**
  * 本校资料的维护权限：学校管理员不限；普通老师只要是本校已解锁（active 授权）这门课即可。
- * 不要求排课 —— 备课大厅解锁后老师就能直接备课，offering 只决定作业与班级范围。
+ * 不要求排课 —— 课程中心解锁后老师就能直接备课，offering 只决定作业与班级范围。
  */
 async function assertSchoolMaterialManager(repository: SchoolDomainRepository, schoolId: string, membershipId: string, canManageSchool: boolean, assignmentId?: string) {
     if (canManageSchool) return;

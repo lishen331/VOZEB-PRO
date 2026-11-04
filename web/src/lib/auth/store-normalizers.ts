@@ -273,6 +273,7 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         practiceModuleVisibility: normalizePracticeModuleVisibility(settings.practiceModuleVisibility),
         agentSkills: normalizeAgentSkills(settings.agentSkills),
         featureModules: normalizeFeatureModuleSettings(settings.featureModules),
+        voicePricing: settings.voicePricing ?? { usdToCny: 7.2, pointsPerYuan: 100 },
     };
 }
 

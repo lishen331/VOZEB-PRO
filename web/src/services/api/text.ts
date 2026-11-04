@@ -2,6 +2,7 @@ import { resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-st
 import type { AiTextMessage } from "@/types/ai";
 import { GenerationTaskNeedsReviewError, GenerationTaskTerminalError, type GenerationTaskExecutionState } from "@/services/api/generation-task-state";
 import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
+import { withRefundNotice } from "@/services/api/refund-notice";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 
 type RequestOptions = {
@@ -21,6 +22,7 @@ type TextTaskPayload = {
         GenerationTaskExecutionState & {
             result?: { content?: string };
             error?: string;
+            refundedPoints?: number;
         };
     error?: string;
 };
@@ -55,7 +57,7 @@ export async function recoverTextGenerationTask(taskId: string, options?: Reques
     const payload = (await response.json().catch(() => ({}))) as TextTaskPayload;
     if (!response.ok || !payload.task) throw new Error(payload.error || "重新检查文本任务失败");
     if (payload.task.needsReview) throw new GenerationTaskNeedsReviewError(payload.task.reviewReason);
-    if (payload.task.status === "error") throw new GenerationTaskTerminalError(payload.task.error || "文本生成失败");
+    if (payload.task.status === "error") throw new GenerationTaskTerminalError(withRefundNotice(payload.task.error || "文本生成失败", payload.task.refundedPoints));
     return payload.task;
 }
 
@@ -76,7 +78,7 @@ export async function waitForTextGenerationTask(config: AiConfig, task: TextGene
         }
         if (payload.task.status === "error") {
             await refreshUserPointsIfSystem(resolveModelRequestConfig(config, task.model).apiSource);
-            throw new GenerationTaskTerminalError(payload.task.error || "文本生成失败");
+            throw new GenerationTaskTerminalError(withRefundNotice(payload.task.error || "文本生成失败", payload.task.refundedPoints));
         }
         const partial = payload.task.result?.content || "";
         if (options?.onPartial && partial && partial !== lastPartial) {

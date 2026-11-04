@@ -46,12 +46,17 @@ export async function chargeGeneration(input: ChargeInput): Promise<GenerationCh
     return result;
 }
 
-export async function refundGenerationCharge(input: RefundInput): Promise<{ refunded: boolean; personalPointsRemaining?: number }> {
+export async function refundGenerationCharge(input: RefundInput): Promise<{ refunded: boolean; personalPointsRemaining?: number; refundedPoints?: number }> {
     const receiptId = required(input.receiptId, "缺少生成扣费凭证");
     if (receiptId.startsWith("points:")) {
         const sourceId = receiptId.slice("points:".length);
         const user = await refundUserPoints(input.userId, input.model, 0, input.usageKind, input.units, `generation-refund:${input.idempotencyKey}`, sourceId);
-        return { refunded: true, ...(typeof user?.pointsBalance === "number" ? { personalPointsRemaining: user.pointsBalance } : {}) };
+        const refundedPoints = user && "refundedPoints" in user ? user.refundedPoints : undefined;
+        return {
+            refunded: true,
+            ...(typeof user?.pointsBalance === "number" ? { personalPointsRemaining: user.pointsBalance } : {}),
+            ...(typeof refundedPoints === "number" ? { refundedPoints } : {}),
+        };
     }
     if (!receiptId.startsWith("school:")) throw new Error("生成扣费凭证无效");
     const generationTaskId = receiptId.slice("school:".length);

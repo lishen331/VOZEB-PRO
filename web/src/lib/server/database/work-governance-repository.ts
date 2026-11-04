@@ -46,11 +46,12 @@ export class WorkGovernanceRepository {
                AND version.visibility = 'public'
                AND EXISTS (SELECT 1 FROM published_work_assets visible_asset WHERE visible_asset.version_id = version.id AND visible_asset.role = 'content' AND visible_asset.media_type IN ('image', 'video'))
                AND ($1 = '' OR lower(CASE
-                    WHEN work.publication_origin = 'official' AND (version.category LIKE '01\\_%' ESCAPE '\\' OR version.category ILIKE '%建筑%' OR version.category ILIKE '%室内%') THEN '视觉设计'
-                    WHEN work.publication_origin = 'official' AND (version.category LIKE '02\\_%' ESCAPE '\\' OR version.category ILIKE '%广告%' OR version.category ILIKE '%电商%') THEN '品牌内容'
-                    WHEN work.publication_origin = 'official' AND (version.category LIKE '03\\_%' ESCAPE '\\' OR version.category ILIKE '%电影%' OR version.category ILIKE '%影视%') THEN '视频'
-                    WHEN work.publication_origin = 'official' AND (version.category LIKE '04\\_%' ESCAPE '\\' OR version.category ILIKE '%动漫%' OR version.category ILIKE '%游戏%') THEN '插画'
-                    WHEN work.publication_origin = 'official' AND (version.category LIKE '05\\_%' ESCAPE '\\' OR version.category ILIKE '%短视频%' OR version.category ILIKE '%vlog%') THEN '视频'
+                    WHEN version.category IN ('视觉设计', '插画', '摄影', '品牌内容', '视频', '短剧', '其他') THEN version.category
+                    WHEN work.publication_origin = 'official' AND left(version.category, 3) = '05_' AND (version.category ILIKE '%短视频%' OR version.category ILIKE '%vlog%') THEN '视频'
+                    WHEN work.publication_origin = 'official' AND (left(version.category, 3) IN ('01_', '04_', '06_', '08_', '11_', '13_') OR version.category ILIKE '%建筑%' OR version.category ILIKE '%室内%') THEN '视觉设计'
+                    WHEN work.publication_origin = 'official' AND (left(version.category, 3) IN ('02_', '05_') OR version.category ILIKE '%人物肖像%' OR version.category ILIKE '%写实摄影%' OR version.category ILIKE '%生活时尚%') THEN '摄影'
+                    WHEN work.publication_origin = 'official' AND (left(version.category, 3) IN ('03_', '14_', '15_') OR version.category ILIKE '%广告%' OR version.category ILIKE '%电商%' OR version.category ILIKE '%社交媒体%') THEN '品牌内容'
+                    WHEN work.publication_origin = 'official' AND (left(version.category, 3) IN ('07_', '09_', '10_', '12_') OR version.category ILIKE '%分镜%' OR version.category ILIKE '%动漫%' OR version.category ILIKE '%游戏%') THEN '插画'
                     WHEN work.publication_origin = 'official' THEN '其他'
                     ELSE version.category
                END) = lower($1))

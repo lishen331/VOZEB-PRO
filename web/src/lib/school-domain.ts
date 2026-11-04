@@ -86,6 +86,12 @@ export type CourseAttachment = {
     fileName: string;
     mimeType: string;
     bytes: number;
+    /** PPTX / DOCX / XLSX 上传时自动转出的 PDF 预览版；没有转换能力时缺省 */
+    previewStorageKey?: string;
+    previewUrl?: string;
+    previewBytes?: number;
+    /** none=不需要转换 / pending=后台转换中 / ready=可预览 / failed=转不出来 */
+    previewStatus?: "none" | "pending" | "ready" | "failed";
 };
 export type CourseMaterialSourceScope = "platform" | "school";
 export type CourseMaterialStatus = "active" | "disabled";
@@ -102,6 +108,11 @@ export type CourseMaterial = {
     bytes: number;
     storageKey: string;
     url: string;
+    /** 平台内预览用的 PDF（PPTX / DOCX / XLSX 上传时自动生成）；为空表示按 mimeType 原样预览 */
+    previewStorageKey?: string;
+    previewUrl?: string;
+    /** none=不需要转换 / pending=后台转换中 / ready=可预览 / failed=转不出来 */
+    previewStatus?: "none" | "pending" | "ready" | "failed";
     sortOrder: number;
     status: CourseMaterialStatus;
     createdByUserId?: string;
@@ -156,9 +167,9 @@ export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "co
 export type PlatformCoursePatch = Partial<PlatformCourseInput> & { status?: PlatformCourseStatus };
 export type SchoolCourseAssignment = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string; course: PlatformCourse };
 
-/** 备课大厅里的课程条目：没解锁的只有课程信息，解锁后带上本校课程授权 id（可直接进备课） */
+/** 课程中心里的课程条目：没解锁的只有课程信息，解锁后带上本校课程授权 id（可直接进备课） */
 export type SchoolCourseCatalogEntry = PlatformCourse & { assignmentId?: string; unlocked: boolean; canUnlock: boolean };
-/** 备课大厅的章节目录预览：锁定状态只给标题和资料文件名，不给地址和详情 */
+/** 课程中心的章节目录预览：锁定状态只给标题和资料文件名，不给地址和详情 */
 export type SchoolCourseCatalogMaterial = Pick<CourseMaterial, "id" | "title" | "fileName" | "mimeType" | "bytes"> & {
     chapterId?: string;
     lessonId?: string;

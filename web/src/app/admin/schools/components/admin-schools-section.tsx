@@ -296,7 +296,6 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
 
             {canManageEducation ? (
                 <Modal
-                    forceRender
                     title={editing ? "编辑学校" : "新建学校"}
                     open={modalOpen}
                     okText={editing ? "保存修改" : "创建学校"}

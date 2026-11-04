@@ -1,12 +1,14 @@
 "use client";
 
-import { ArrowRight, ChevronLeft, GalleryVerticalEnd, Plus, RotateCw, Search, Sparkles, Tag } from "lucide-react";
+import { ChevronLeft, GalleryVerticalEnd, Plus, RotateCw, Search, Sparkles, Tag } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { GammaTabs, gammaChipClass } from "@/components/gamma-ui/gamma-controls";
 import { GammaEmptyState } from "@/components/gamma-ui/gamma-overlays";
+import { BackToTopButton, GalleryLoadMore, useBackToTopVisible } from "@/components/gallery/gallery-infinite-controls";
 
 import { PublicWorkPreviewModal } from "@/components/works/public-work-preview-modal";
 import { PublicWorkGalleryCard } from "@/components/works/public-work-gallery-card";
@@ -14,6 +16,7 @@ import { PublicCreatorModal } from "@/components/works/public-creator-modal";
 import { ResponsiveMasonryGrid } from "@/components/works/responsive-masonry-grid";
 import { WORK_CATEGORY_OPTIONS } from "@/lib/work-publication-options";
 import { cn } from "@/lib/utils";
+import { listPublicGallery, listPublicGalleryRanking, type PublicGalleryItem } from "@/services/api/work-governance";
 import type { GalleryFilters, GalleryResult } from "./gallery-data";
 import { GalleryPublishLink } from "./gallery-publish-link";
 
@@ -37,6 +40,18 @@ const searchFieldClass =
 const searchInputClass = "h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--gm-text)] outline-none placeholder:text-[var(--gm-text-3)]";
 const primaryLinkClass =
     "inline-flex h-8 items-center justify-center gap-1.5 rounded-[var(--gm-radius-sm)] bg-[image:var(--gm-gradient)] px-3 text-[13px] font-medium text-white shadow-[var(--gm-glow-blue)] transition-shadow hover:shadow-[0_10px_34px_rgba(0,80,245,0.6)]";
+/** 滚动续页的每页条数；首屏由服务端按 12 条渲染，第二页起用这个值 */
+const GALLERY_PAGE_LIMIT = 30;
+
+/** 随机排序翻页时按 slug 兜底去重，避免瀑布流出现重复卡片 */
+function uniqueBySlug(items: PublicGalleryItem[]) {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+        if (seen.has(item.slug)) return false;
+        seen.add(item.slug);
+        return true;
+    });
+}
 
 export function GalleryView({ filters, gallery, basePath, embedded = false }: { filters: GalleryFilters; gallery: GalleryResult; basePath: string; embedded?: boolean }) {
     const filtered = hasFilters(filters);
@@ -45,14 +60,45 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
     // 先在本地切过去，指示块立刻滑动，不用等页面跳转完成
     const [sort, setSort] = useState(filters.sort);
     const router = useRouter();
+    const anchorRef = useRef<HTMLDivElement | null>(null);
+    const scrollContainerRef = useRef<HTMLElement | null>(null);
+    const showBackToTop = useBackToTopVisible(anchorRef, scrollContainerRef);
 
     useEffect(() => setSort(filters.sort), [filters.sort]);
     const changeSort = (value: string) => {
         setSort(value);
         router.push(galleryFilterHref(basePath, filters, { sort: value }));
     };
+
+    /*
+     * 首屏数据由服务端渲染好直接作为第一页，后续页在客户端按 cursor 续取。
+     * 热榜（weekly / monthly）与普通广场是两套游标，分别走不同端点。
+     */
+    const query = useInfiniteQuery({
+        queryKey: ["public-gallery", basePath, filters.keyword, filters.category, filters.tag, filters.sort, filters.featured],
+        queryFn: ({ pageParam }) =>
+            filters.sort === "weekly" || filters.sort === "monthly"
+                ? listPublicGalleryRanking({ window: filters.sort, limit: GALLERY_PAGE_LIMIT, cursor: pageParam })
+                : listPublicGallery({
+                      keyword: filters.keyword || undefined,
+                      category: filters.category || undefined,
+                      tag: filters.tag || undefined,
+                      sort: filters.sort as "random" | "featured" | "latest" | "popular",
+                      limit: GALLERY_PAGE_LIMIT,
+                      cursor: pageParam,
+                  }),
+        initialPageParam: undefined as string | undefined,
+        initialData: gallery.error ? undefined : { pages: [{ items: gallery.items as PublicGalleryItem[], nextCursor: gallery.nextCursor }], pageParams: [undefined] },
+        getNextPageParam: (lastPage: { items: PublicGalleryItem[]; nextCursor?: string }) => lastPage.nextCursor,
+        staleTime: 30_000,
+    });
+
+    const items = useMemo(() => uniqueBySlug(query.data?.pages.flatMap((page) => page.items) || []), [query.data?.pages]);
+    const hasNextPage = Boolean(query.hasNextPage);
+    const showLoadMore = !gallery.error && items.length > 0;
+
     return (
-        <div className={cn("mx-auto flex w-full max-w-[1600px] flex-col gap-2.5", embedded ? "px-2 py-2 sm:px-6 sm:py-6" : "px-3 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-6")}>
+        <div ref={anchorRef} className={cn("mx-auto flex w-full max-w-[1600px] flex-col gap-2.5", embedded ? "px-2 py-2 sm:px-6 sm:py-6" : "px-3 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-6")}>
             <section className="flex min-w-0 items-center justify-between gap-3 pb-1">
                 <div className="flex min-w-0 items-center gap-2">
                     {!embedded ? (
@@ -65,7 +111,7 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
                             <ChevronLeft className="relative z-[1] size-5" aria-hidden />
                         </button>
                     ) : null}
-                    <h1 className="!m-0 min-w-0 text-xl leading-9 font-semibold text-[var(--gm-text)] sm:text-2xl sm:leading-9">灵感发现</h1>
+                    <h1 className="!m-0 min-w-0 text-xl leading-9 font-semibold text-[var(--gm-text)] sm:text-2xl sm:leading-9">作品广场</h1>
                 </div>
                 {embedded ? (
                     <Link href="/works" className={linkControlClass}>
@@ -132,9 +178,9 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
                         </GammaButton>
                     }
                 />
-            ) : gallery.items.length ? (
+            ) : items.length ? (
                 <ResponsiveMasonryGrid className="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6" ariaLabel="作品列表">
-                    {gallery.items.map((item) => (
+                    {items.map((item) => (
                         <PublicWorkGalleryCard key={item.slug} item={item} nextPath={basePath} onOpen={() => setPreviewSlug(item.slug)} onOpenAuthor={setCreatorUsername} />
                     ))}
                 </ResponsiveMasonryGrid>
@@ -161,16 +207,20 @@ export function GalleryView({ filters, gallery, basePath, embedded = false }: { 
                 />
             )}
 
-            {gallery.nextCursor ? (
-                <div className="flex justify-center pt-2 sm:pt-4">
-                    <Link href={nextPageHref(basePath, filters, gallery.nextCursor)} className={cn(linkControlClass, "h-10 px-4 ring-1 ring-[var(--gm-border-strong)]")}>
-                        查看更多
-                        <ArrowRight className="size-4" aria-hidden />
-                    </Link>
-                </div>
+            {showLoadMore ? (
+                <GalleryLoadMore
+                    query={{
+                        hasNextPage,
+                        isFetchingNextPage: query.isFetchingNextPage,
+                        isFetchNextPageError: query.isFetchNextPageError,
+                        fetchNextPage: () => void query.fetchNextPage(),
+                    }}
+                    loadedCount={items.length}
+                />
             ) : null}
             <PublicWorkPreviewModal slug={previewSlug || undefined} onClose={() => setPreviewSlug("")} onOpenCreator={setCreatorUsername} />
             <PublicCreatorModal username={creatorUsername || undefined} nextPath={basePath} onClose={() => setCreatorUsername("")} />
+            <BackToTopButton visible={showBackToTop} containerRef={scrollContainerRef} />
         </div>
     );
 }
@@ -187,12 +237,4 @@ function galleryFilterHref(basePath: string, filters: GalleryFilters, patch: Par
     });
     const query = params.toString();
     return query ? `${basePath}?${query}` : basePath;
-}
-
-function nextPageHref(basePath: string, filters: GalleryFilters, cursor: string) {
-    const params = new URLSearchParams();
-    Object.entries({ ...filters, cursor }).forEach(([key, value]) => {
-        if (value) params.set(key, value);
-    });
-    return `${basePath}?${params}`;
 }

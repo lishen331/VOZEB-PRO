@@ -49,4 +49,28 @@ describe("refundUserPoints idempotency", () => {
         expect(creditPage.records.every((record) => record.amount > 0)).toBe(true);
         expect(creditPage.records.some((record) => record.type === "refund")).toBe(true);
     });
+
+    it("returns the real refunded amount so the UI can tell the user", async () => {
+        const admin = await createFirstAdmin({ username: "admin", password: "password123", installToken: INSTALL_TOKEN });
+        const user = await createUserByAdmin({ actorId: admin.id, username: "tester", password: "password123", pointsBalance: 10 });
+        const consumption = await consumeUserPoints(user.id, "image-model", 3, "image", "image-task:one:consume");
+
+        const refunded = await refundUserPoints(user.id, "image-model", 0, "image", 3, "image-task:one:refund", consumption.recordId);
+
+        expect(refunded && "refundedPoints" in refunded ? refunded.refundedPoints : undefined).toBe(3);
+    });
+
+    it("shows refunds on the consume page only when asked, without hiding pure debits", async () => {
+        const admin = await createFirstAdmin({ username: "admin", password: "password123", installToken: INSTALL_TOKEN });
+        const user = await createUserByAdmin({ actorId: admin.id, username: "tester", password: "password123", pointsBalance: 20 });
+        const consumed = await consumeUserPoints(user.id, "image-model", 4, "image", "image-task:two:consume");
+        await refundUserPoints(user.id, "image-model", 0, "image", 4, "image-task:two:refund", consumed.recordId);
+
+        const plainDebits = await listPointRecordsPage(user.id, { direction: "debit", page: 1, pageSize: 10 });
+        expect(plainDebits.records.map((record) => record.type)).toEqual(["consume"]);
+
+        const withRefunds = await listPointRecordsPage(user.id, { direction: "debit", includeRefunds: true, page: 1, pageSize: 10 });
+        expect(withRefunds.records.map((record) => record.type).sort()).toEqual(["consume", "refund"]);
+        expect(withRefunds.total).toBe(2);
+    });
 });

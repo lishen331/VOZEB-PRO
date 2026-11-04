@@ -615,8 +615,34 @@ describe("split Postgres repositories", () => {
         const result = await createPostgresRepositories(executor).points.listRecords("user-one", { direction: "debit", page: 2, pageSize: 8 });
 
         expect(result).toMatchObject({ total: 17, page: 2, pageSize: 8, items: [{ id: "point-one", amount: -20 }] });
-        expect(queryArgs(query, 0)[0]).toContain("$2 = 'debit' AND amount < 0");
-        expect(queryArgs(query, 0)[1]).toEqual(["user-one", "debit", 8, 8]);
+        expect(queryArgs(query, 0)[0]).toContain("$2 = 'debit' AND (amount < 0 OR ($4::boolean AND type = 'refund'))");
+        expect(queryArgs(query, 0)[1]).toEqual(["user-one", "debit", 8, false, 8]);
+    });
+
+    it("includes refunds in debit listings when asked", async () => {
+        const timestamp = "2026-01-01T00:00:00.000Z";
+        const { executor, query } = mockExecutor([
+            [
+                {
+                    id: "point-one",
+                    user_id: "user-one",
+                    type: "refund",
+                    amount: 20,
+                    balance_after: 80,
+                    permanent_amount: 20,
+                    daily_amount: 0,
+                    permanent_balance_after: 80,
+                    daily_balance_after: 0,
+                    description: "生成退回",
+                    created_at: timestamp,
+                    total_count: "2",
+                },
+            ],
+        ]);
+
+        await createPostgresRepositories(executor).points.listRecords("user-one", { direction: "debit", includeRefunds: true, page: 1, pageSize: 8 });
+
+        expect(queryArgs(query, 0)[1]).toEqual(["user-one", "debit", 8, true, 0]);
     });
 
     it("creates one daily plan wallet and can lock the existing row", async () => {

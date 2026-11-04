@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowUp } from "lucide-react";
 
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { GammaBannerCarousel, GammaPromoCard, type GammaBannerSlide } from "@/components/gamma-ui/gamma-hero";
@@ -10,6 +11,7 @@ import { useGammaSidebarState } from "@/components/gamma-ui/gamma-sidebar";
 import { GAMMA_SUBJECTS, gammaSubjectBySlug } from "@/components/gamma-ui/gamma-subjects";
 import { GammaToolRow } from "@/components/gamma-ui/gamma-tool-row";
 import { GammaAppSidebar } from "@/components/layout/gamma-app-sidebar";
+import { WelcomeGuide } from "@/components/onboarding/welcome-guide";
 import type { FeatureModuleSettings, UserNavigationMenuPermission } from "@/lib/feature-modules";
 import type { SchoolContext } from "@/lib/school-domain";
 import { GammaHomeGallery } from "./gamma-home-gallery";
@@ -23,6 +25,8 @@ import { useHomeActions } from "./home-actions";
  */
 
 const FEATURED_SLUG = "film";
+/** 滚动超过这个距离才显示「回到顶部」，约等于首屏轮播完全滚出 */
+const BACK_TO_TOP_THRESHOLD = 420;
 
 export interface GammaHomeViewProps {
     featureModules?: FeatureModuleSettings;
@@ -33,8 +37,21 @@ export interface GammaHomeViewProps {
 export function GammaHomeView({ featureModules, menuPermissions, schoolContext }: GammaHomeViewProps) {
     const { site, openLogin, openBillingPlans, openProtectedPath } = useHomeActions();
     const sidebar = useGammaSidebarState();
+    const scrollRef = useRef<HTMLElement | null>(null);
+    const [showBackToTop, setShowBackToTop] = useState(false);
 
     const [showAnnouncement, setShowAnnouncement] = useState(true);
+
+    // 回到顶部：首屏（轮播 + 推广卡）滚出视野后再出现，避免一进页面就挡住内容。
+    // 滚动的是 <main> 而不是 window，所以监听的是元素自身的 scroll。
+    useEffect(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+        const onScroll = () => setShowBackToTop(container.scrollTop > BACK_TO_TOP_THRESHOLD);
+        onScroll();
+        container.addEventListener("scroll", onScroll, { passive: true });
+        return () => container.removeEventListener("scroll", onScroll);
+    }, []);
 
     // 专业方向暂不带示例提示词：画布自带的 Agent 对话面板目前关闭（CANVAS_AGENT_ENABLED），
     // 填进去的提示词没有地方承接，所以统一跳空画布。
@@ -110,7 +127,7 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
 
             <div className="flex min-h-0 flex-1">
                 <GammaAppSidebar collapsed={sidebar.collapsed} onToggle={sidebar.toggle} featureModules={featureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} onLogin={() => openLogin("/")} onPlans={openBillingPlans} showTheme />
-                <main className="gm-scroll relative min-w-0 flex-1 overflow-y-auto bg-transparent">
+                <main ref={scrollRef} className="gm-scroll relative min-w-0 flex-1 overflow-y-auto bg-transparent">
                     <div aria-hidden className="gm-aurora pointer-events-none absolute -top-40 left-1/4 h-96 w-1/2 rounded-full bg-[var(--gm-blue)] blur-[120px]" style={{ opacity: "var(--gm-aurora-opacity)" }} />
                     <h1 className="sr-only">{site.title} · 学生作品展示</h1>
 
@@ -140,8 +157,43 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
                         <HomeFooterLine />
                     </div>
                 </main>
+                <BackToTopButton visible={showBackToTop} containerRef={scrollRef} />
             </div>
+            {/* 首次使用引导：内容按当前可见模块生成，全部不可见时组件自身返回 null */}
+            <WelcomeGuide featureModules={featureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} />
         </div>
+    );
+}
+
+/**
+ * 回到首页顶部：玻璃胶囊 + 品牌描边，滚过首屏后从右下角弹入。
+ * 固定定位在视口右下（相对整个页面，不是滚动容器内），避免随内容一起滚走。
+ */
+function BackToTopButton({ visible, containerRef }: { visible: boolean; containerRef: RefObject<HTMLElement | null> }) {
+    const reduce = useReducedMotion();
+    const scrollToTop = () => {
+        containerRef.current?.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    };
+    return (
+        <AnimatePresence>
+            {visible ? (
+                <motion.button
+                    type="button"
+                    onClick={scrollToTop}
+                    aria-label="回到首页顶部"
+                    title="回到首页顶部"
+                    initial={{ opacity: 0, y: 12, scale: 0.92 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 12, scale: 0.92 }}
+                    transition={{ duration: reduce ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    className="fixed right-5 bottom-5 z-40 inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--gm-surface-2)_82%,transparent)] px-3.5 py-2 text-[13px] font-medium text-[var(--gm-text-2)] ring-1 ring-[var(--gm-border-strong)] backdrop-blur-xl transition-colors hover:text-[var(--gm-accent)] hover:ring-[var(--gm-accent)] focus-visible:text-[var(--gm-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] focus-visible:outline-none lg:right-8 lg:bottom-8"
+                    style={{ boxShadow: "var(--gm-shadow)" }}
+                >
+                    <ArrowUp className="size-3.5" />
+                    回到顶部
+                </motion.button>
+            ) : null}
+        </AnimatePresence>
     );
 }
 

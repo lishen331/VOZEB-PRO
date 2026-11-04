@@ -18,6 +18,7 @@ export type AudioTaskConfig = {
     capabilityProfile?: LogicalModelCapabilityProfile;
     advancedConfig?: SystemChannelAdvancedConfig;
     voice?: string;
+    customVoiceId?: string;
     format?: string;
     speed?: string;
     instructions?: string;

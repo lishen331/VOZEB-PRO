@@ -31,14 +31,7 @@ export type CustomVoiceUpstreamResult = {
     failureReason?: string;
 };
 
-export async function submitMinimaxVoiceClone(
-    channel: SystemModelChannel,
-    config: VoiceCustomizationConfig,
-    voiceId: string,
-    name: string,
-    audioBuffer: Buffer,
-    audioFormat: string,
-): Promise<CustomVoiceUpstreamResult> {
+export async function submitMinimaxVoiceClone(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, audioBuffer: Buffer, audioFormat: string): Promise<CustomVoiceUpstreamResult> {
     try {
         const uploadPath = config.paths.upload || "/v1/files/upload";
         const clonePath = config.paths.clone || "/v1/voice_clone";
@@ -88,14 +81,7 @@ export async function submitMinimaxVoiceClone(
     }
 }
 
-export async function submitMinimaxVoiceDesign(
-    channel: SystemModelChannel,
-    config: VoiceCustomizationConfig,
-    voiceId: string,
-    name: string,
-    description: string,
-    previewText?: string,
-): Promise<CustomVoiceUpstreamResult> {
+export async function submitMinimaxVoiceDesign(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, description: string, previewText?: string): Promise<CustomVoiceUpstreamResult> {
     try {
         const designPath = config.paths.design || "/v1/voice_design";
         const designRequest = { voice_id: voiceId, description, ...(previewText ? { preview_text: previewText } : {}) };
@@ -151,14 +137,7 @@ export async function deleteMinimaxVoice(channel: SystemModelChannel, config: Vo
     }
 }
 
-export async function submitQwenVoiceClone(
-    channel: SystemModelChannel,
-    config: VoiceCustomizationConfig,
-    voiceId: string,
-    name: string,
-    audioBuffer: Buffer,
-    audioFormat: string,
-): Promise<CustomVoiceUpstreamResult> {
+export async function submitQwenVoiceClone(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, audioBuffer: Buffer, audioFormat: string): Promise<CustomVoiceUpstreamResult> {
     try {
         const customizationPath = config.paths.customization || "/api/v1/services/audio/tts/customization";
         const audioBase64 = audioBuffer.toString("base64");
@@ -192,14 +171,7 @@ export async function submitQwenVoiceClone(
     }
 }
 
-export async function submitQwenVoiceDesign(
-    channel: SystemModelChannel,
-    config: VoiceCustomizationConfig,
-    voiceId: string,
-    name: string,
-    description: string,
-    previewText?: string,
-): Promise<CustomVoiceUpstreamResult> {
+export async function submitQwenVoiceDesign(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, description: string, previewText?: string): Promise<CustomVoiceUpstreamResult> {
     try {
         const customizationPath = config.paths.customization || "/api/v1/services/audio/tts/customization";
         const request = {
@@ -229,5 +201,46 @@ export async function submitQwenVoiceDesign(
         return { status: "ready", upstreamVoiceId: data.output.voice, upstreamRequestId: data.request_id, previewUrl, previewMimeType: previewUrl ? "audio/mpeg" : undefined };
     } catch (error) {
         return { status: "failed", failureReason: error instanceof Error ? error.message : "音色设计请求异常" };
+    }
+}
+
+export async function queryQwenVoiceStatus(channel: SystemModelChannel, upstreamVoiceId: string): Promise<CustomVoiceUpstreamResult> {
+    try {
+        const customizationPath = channel.advancedConfig?.voiceCustomization?.paths?.customization || "/api/v1/services/audio/tts/customization";
+        const request = {
+            model: "voice-enrollment",
+            input: {
+                action: "query_voice",
+                voice_id: upstreamVoiceId,
+            },
+        };
+
+        const response = await fetchSafeOutbound(`${channel.baseUrl}${customizationPath}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
+            body: JSON.stringify(request),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            return { status: "failed", failureReason: `查询音色状态失败: ${error}` };
+        }
+
+        const data = (await response.json()) as { output?: { status?: string; resource_link?: string }; code?: string; message?: string; request_id?: string };
+        if (data.code && data.code !== "Success") {
+            return { status: "failed", failureReason: data.message || "查询音色状态失败" };
+        }
+
+        const upstreamStatus = data.output?.status;
+        if (upstreamStatus === "OK") {
+            return { status: "ready", upstreamVoiceId, upstreamRequestId: data.request_id, previewUrl: data.output.resource_link, previewMimeType: "audio/wav" };
+        }
+        if (upstreamStatus === "UNDEPLOYED") {
+            return { status: "failed", failureReason: "音色审核未通过" };
+        }
+        // DEPLOYING or other status, keep as creating
+        return { status: "creating", upstreamVoiceId, upstreamRequestId: data.request_id };
+    } catch (error) {
+        return { status: "failed", failureReason: error instanceof Error ? error.message : "查询音色状态请求异常" };
     }
 }

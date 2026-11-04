@@ -321,7 +321,7 @@ export default function TeachingPage() {
 
     return (
         <main className="h-full min-h-0 overflow-y-auto px-3 py-3 sm:px-6 sm:py-6 lg:px-8">
-            <div className="mx-auto w-full max-w-7xl">
+            <div className="gm-page">
                 <header className="flex items-start justify-between gap-3 pb-2">
                     <div className="min-w-0">
                         <h1 className="flex items-center gap-2 truncate text-lg font-semibold text-[var(--gm-text)] sm:text-xl">

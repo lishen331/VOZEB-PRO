@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { audioModelFamily, audioModelFields, audioModelPlaceholder, audioParamsSummary, audioUpstreamFields, audioVisibleFields, isAudioLyricsMode, normalizeAudioParams } from "./audio-model-params";
+import { audioModelFamily, audioModelFields, audioModelPlaceholder, audioParamsSummary, audioUpstreamFields, audioVisibleFields, isAudioLyricsMode, normalizeAudioParams, parseCustomVoiceId } from "./audio-model-params";
 
 describe("audio model params", () => {
     it("routes models to their LibTV-style parameter family", () => {
@@ -69,5 +69,27 @@ describe("audio model params", () => {
     it("leaves OpenAI-style models untouched", () => {
         expect(audioUpstreamFields("tts-1", "hi", { speed: 2 })).toEqual({});
         expect(normalizeAudioParams("tts-1", { speed: 2 })).toEqual({});
+    });
+
+    it("keeps custom voice ids through normalization and never sends them upstream", () => {
+        const id = "6f1c2f1e-8a4b-4c9d-9f3e-2b7a5c1d0e11";
+        expect(parseCustomVoiceId(`custom:${id}`)).toBe(id);
+        expect(parseCustomVoiceId("custom:")).toBe("");
+        expect(parseCustomVoiceId("custom:a:b")).toBe("");
+        expect(parseCustomVoiceId("female-shaonv")).toBe("");
+
+        expect(normalizeAudioParams("speech-2.8-hd", { voiceId: `custom:${id}` }).voiceId).toBe(`custom:${id}`);
+        expect(normalizeAudioParams("qwen-audio-3.1-tts-flash", { voiceId: `custom:${id}` }).voiceId).toBe(`custom:${id}`);
+        expect(normalizeAudioParams("speech-2.8-hd", { voiceId: "custom:" }).voiceId).toBe("female-shaonv");
+        expect(normalizeAudioParams("speech-2.8-hd", { voiceId: "unknown-voice" }).voiceId).toBe("female-shaonv");
+
+        const minimax = audioUpstreamFields("speech-2.8-hd", "你好", { voiceId: `custom:${id}` });
+        // 没有 upstreamVoiceId 时 voice 为 undefined，由 runtime 的 withoutUndefined 剥离。
+        expect(minimax.voice).toBeUndefined();
+        expect(minimax.voice_setting).toMatchObject({ voice_id: undefined });
+
+        // runtime 解析出的 upstreamVoiceId 必须覆盖上去，自定义音色才能真的合成。
+        expect(audioUpstreamFields("speech-2.8-hd", "你好", { voiceId: `custom:${id}` }, "my-upstream-voice")).toMatchObject({ voice: "my-upstream-voice", voice_setting: { voice_id: "my-upstream-voice" } });
+        expect(audioUpstreamFields("qwen-audio-3.1-tts-flash", "你好", { voiceId: `custom:${id}` }, "qwen-upstream")).toMatchObject({ input: { voice: "qwen-upstream" } });
     });
 });
