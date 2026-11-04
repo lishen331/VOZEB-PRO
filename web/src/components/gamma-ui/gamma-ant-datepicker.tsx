@@ -145,7 +145,8 @@ const TRIGGER_CLASS =
  * Modal / Drawer 的 z-[1000]：面板挂在 body 下，和弹窗不在同一个层叠上下文，低一层就被遮罩压住。
  * pointer-events-auto：dialog 打开时 radix 给 body 设了 pointer-events:none，浮层不显式放开就点不动。
  */
-const CONTENT_CLASS = "gm-popup-layer gm-glass gm-glass-strong pointer-events-auto z-[1050] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95";
+const CONTENT_CLASS =
+    "gm-popup-layer gm-glass gm-glass-strong pointer-events-auto z-[1050] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95";
 
 export interface DatePickerProps {
     value?: Dayjs | null;
