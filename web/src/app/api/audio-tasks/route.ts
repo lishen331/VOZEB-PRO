@@ -82,7 +82,7 @@ export async function POST(request: Request) {
             throw error;
         }
         const channels = resolvePracticeGenerationCandidates(settings, "audio", body.config?.model || settings.defaultModels.audioModel, trustedContext).map((resolved) => ({
-            ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, trustedContext),
+            ...(resolved.channel.advancedConfig?.protocol === "runninghub" ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, trustedContext) : toSystemGenerationChannel(resolved)),
             channelId: resolved.channelId,
             executionProfile,
         }));

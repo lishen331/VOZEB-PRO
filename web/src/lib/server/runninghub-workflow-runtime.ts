@@ -163,9 +163,11 @@ export function workflowTimeoutMs(config: Pick<RunningHubWorkflowConfig, "timeou
     return config?.timeoutSeconds && Number.isFinite(config.timeoutSeconds) && config.timeoutSeconds > 0 ? config.timeoutSeconds * 1000 : fallbackMs;
 }
 
-export function generationBusinessCode(surface: string | undefined, capability: "text" | "image" | "video" | "audio") {
+export function generationBusinessCode(surface: string | undefined, capability: "text" | "image" | "video" | "audio", requestedModel = "") {
     if (surface === "drama") return capability === "text" ? "script" : capability === "image" ? "storyboard-image" : capability === "video" ? "storyboard-video" : "dubbing";
-    if (surface === "canvas" && capability === "image") return "canvas";
+    // 画布练习默认走练习模型池（gamaimage 等虚拟模型名），不补 RunningHub 业务码，
+    // 否则普通渠道会被判成「练习工作流渠道不可用」。只有请求明确点名工作流时才补。
+    if (surface === "canvas" && capability === "image" && rawModelName(requestedModel) && !practiceCanvasVirtualCapability(requestedModel)) return "canvas";
     return undefined;
 }
 
@@ -259,6 +261,8 @@ export function resolvePracticeGenerationCandidates(
     if (executionProfile !== "open-source-practice") return resolveLogicalModelCandidates(settings, capability, requestedModel, "", executionProfile);
     const requiresImageInput = context?.requiresImageInput === true;
     const virtualCapability = practiceCanvasVirtualCapability(requestedModel);
+    // 练习画布先于工作流路由判断：画布请求可能带着 "canvas" 业务码，但它选的是练习池里的
+    // 普通渠道，不是 RunningHub 工作流。短剧练习没有虚拟模型名，仍走下面的工作流分支。
     if (virtualCapability) return virtualCapability === capability ? resolvePracticeCanvasPoolCandidates(settings, capability, "", requiresImageInput) : [];
     if (context?.practiceModelTest && rawModelName(requestedModel)) {
         return resolvePracticeCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput);
