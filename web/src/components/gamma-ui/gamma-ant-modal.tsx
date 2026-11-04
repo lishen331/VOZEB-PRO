@@ -49,12 +49,45 @@ function useAfterOpenChange(open: boolean, afterOpenChange?: (open: boolean) => 
 /**
  * 弹层里仍有 antd 的 Select / DatePicker / Dropdown 等，它们的下拉浮层 Portal 到 body，
  * 在 radix 看来是「外部」：点下拉选项会被当成点遮罩而关闭对话框。这些浮层不算外部。
+ *
+ * .gm-popup-layer 是 gamma-ui 自己浮层的统一标记：DatePicker 刻意不挂 ant-picker-dropdown
+ * （那批 .ant-picker-* 规则按 antd 的定位结构写死，匹配上会破版），只能靠这个类让它在弹窗里
+ * 也被认作「浮层内」，否则点日历面板会被对话框判成点外部而关闭。
  */
 const POPUP_LAYER =
-    ".ant-select-dropdown, .ant-picker-dropdown, .ant-dropdown, .ant-popover, .ant-tooltip, .ant-cascader-dropdown, .ant-image-preview-root, .ant-modal-root, .ant-message, .ant-notification, .gm-popconfirm, .gm-tooltip, [data-radix-popper-content-wrapper]";
+    ".gm-popup-layer, .ant-select-dropdown, .ant-picker-dropdown, .ant-dropdown, .ant-popover, .ant-tooltip, .ant-cascader-dropdown, .ant-image-preview-root, .ant-modal-root, .ant-message, .ant-notification, .gm-popconfirm, .gm-tooltip, [data-radix-popper-content-wrapper]";
 
 function isInsidePopupLayer(target: EventTarget | null) {
-    return target instanceof Element && Boolean(target.closest(POPUP_LAYER));
+    return typeof Element !== "undefined" && target instanceof Element && Boolean(target.closest(POPUP_LAYER));
+}
+
+/**
+ * 关闭态的弹层仍留在 DOM 里时（antd 语义：首次打开后关闭只隐藏、不卸载），Radix 的
+ * DismissableLayer 依旧在 document 上监听 pointerdown。用户在页面上任意一次鼠标按下，
+ * 都会被它记成「按在弹层外」：Radix 随后（deferPointerDownOutside）等这一次的 click 才派发
+ * 外部点击。而 React 的 onClick 挂在根容器上，click 冒泡到容器时先把弹窗打开，等事件继续
+ * 冒泡到 document，Radix 的一次性 click 回调又把刚打开的弹窗关掉 —— 于是「鼠标点不开」。
+ * 键盘 Enter 不产生 pointerdown，Radix 不会挂 click 回调，所以能正常打开。
+ *
+ * 判据必须用「按下那一刻弹窗是否已打开」，不能用派发时读到的 open：那时它已经被这次点击改成 true。
+ */
+export function shouldBlockOutsideDismiss(openAtPointerDown: boolean, closeOnMask: boolean, insidePopupLayer: boolean) {
+    if (!openAtPointerDown) return true;
+    if (!closeOnMask) return true;
+    return insidePopupLayer;
+}
+
+/** 记录每次 pointerdown 发生时弹层是否已打开（document 捕获阶段，早于 React 的 onClick 与 Radix 的冒泡监听）。 */
+function useOpenAtPointerDown(open: boolean) {
+    const ref = useRef(false);
+    useEffect(() => {
+        const mark = () => {
+            ref.current = open;
+        };
+        document.addEventListener("pointerdown", mark, { capture: true });
+        return () => document.removeEventListener("pointerdown", mark, { capture: true });
+    }, [open]);
+    return ref;
 }
 
 /* ===== Modal ===== */
@@ -142,6 +175,7 @@ function ModalBase({
     );
     const resolvedFooter = footer === undefined ? defaultFooter : footer;
     const keepMounted = useKeepMounted(open, destroyOnHidden, forceRender);
+    const openAtPointerDown = useOpenAtPointerDown(open);
     return (
         <DialogPrimitive.Root open={open} onOpenChange={(next) => (next ? undefined : onCancel?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
@@ -162,10 +196,10 @@ function ModalBase({
                             if (!keyboard) event.preventDefault();
                         }}
                         onPointerDownOutside={(event) => {
-                            if (!closeOnMask || isInsidePopupLayer(event.target)) event.preventDefault();
+                            if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
                         }}
                         onInteractOutside={(event) => {
-                            if (!closeOnMask || isInsidePopupLayer(event.target)) event.preventDefault();
+                            if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
                         }}
                         onFocusOutside={(event) => {
                             if (isInsidePopupLayer(event.target)) event.preventDefault();
@@ -276,6 +310,7 @@ export function Drawer({
     const extent = preset ?? width ?? 378;
     const closeOnMask = typeof mask === "object" ? mask.closable !== false : true;
     const keepMounted = useKeepMounted(open, destroyOnHidden, false);
+    const openAtPointerDown = useOpenAtPointerDown(open);
     const sizeStyle: CSSProperties = horizontal ? { width: extent, maxWidth: "100vw" } : { height: extent, maxHeight: "100dvh" };
     return (
         <DialogPrimitive.Root open={open} onOpenChange={(next) => (next ? undefined : onClose?.())}>
@@ -292,10 +327,10 @@ export function Drawer({
                     aria-describedby={undefined}
                     aria-label={ariaLabel}
                     onPointerDownOutside={(event) => {
-                        if (!closeOnMask || isInsidePopupLayer(event.target)) event.preventDefault();
+                        if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
                     }}
                     onInteractOutside={(event) => {
-                        if (!closeOnMask || isInsidePopupLayer(event.target)) event.preventDefault();
+                        if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
                     }}
                     onFocusOutside={(event) => {
                         if (isInsidePopupLayer(event.target)) event.preventDefault();

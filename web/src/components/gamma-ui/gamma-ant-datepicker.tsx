@@ -140,7 +140,13 @@ const TRIGGER_CLASS =
  * 是按 antd 的绝对定位结构写的（移动端会 !important 把浮层拉到屏幕正中），
  * 本面板由 radix 定位、内部 DOM 也完全不同，匹配上只会破版。
  */
-const CONTENT_CLASS = "gm-glass gm-glass-strong z-[140] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95";
+/*
+ * z-[1050] 与 gamma-ui 其余浮层（Popover / Dropdown / Confirm / Select）保持一致，必须高于
+ * Modal / Drawer 的 z-[1000]：面板挂在 body 下，和弹窗不在同一个层叠上下文，低一层就被遮罩压住。
+ * pointer-events-auto：dialog 打开时 radix 给 body 设了 pointer-events:none，浮层不显式放开就点不动。
+ */
+const CONTENT_CLASS =
+    "gm-popup-layer gm-glass gm-glass-strong pointer-events-auto z-[1050] overflow-hidden rounded-[var(--gm-radius-lg)] p-1 shadow-[var(--gm-shadow)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95";
 
 export interface DatePickerProps {
     value?: Dayjs | null;
