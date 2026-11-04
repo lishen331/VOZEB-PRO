@@ -183,7 +183,7 @@ export async function POST(request: Request) {
         }
         const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
         const channels = resolvePracticeGenerationCandidates(settings, "video", requestedModel, trustedContext)
-            .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
+            .map((channel) => ({ ...(channel.channel.advancedConfig?.protocol === "runninghub" ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext) : toSystemGenerationChannel(channel)), executionProfile }))
             .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
         const prompt = String(body.prompt || "").trim();
         if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
@@ -295,7 +295,7 @@ export async function POST(request: Request) {
             }
             const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
             const allChannels = resolvePracticeGenerationCandidates(settings, "video", requestedModel, trustedContext)
-                .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
+                .map((channel) => ({ ...(channel.channel.advancedConfig?.protocol === "runninghub" ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext) : toSystemGenerationChannel(channel)), executionProfile }))
                 .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
             const prompt = String(body.prompt || "").trim();
             if (!allChannels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });

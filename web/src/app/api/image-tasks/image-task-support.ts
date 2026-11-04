@@ -78,7 +78,9 @@ export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: A
     const requestedModel = config?.model || settings.defaultModels.imageModel;
     const candidates = resolvePracticeGenerationCandidates(settings, "image", requestedModel, { ...(context || {}), executionProfile });
     return candidates.map((resolved) => {
-        const channel = attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {});
+        // 只有 RunningHub 工作流候选才挂工作流配置。练习池选出的普通渠道（OpenAI、模汇等）
+        // 挂上去会抛「练习工作流渠道不可用」，画布生图在建任务前就失败。
+        const channel = resolved.channel.advancedConfig?.protocol === "runninghub" ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {}) : toSystemGenerationChannel(resolved);
         return {
             ...channel,
             channelId: resolved.channelId,

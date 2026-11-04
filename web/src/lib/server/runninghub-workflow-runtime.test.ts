@@ -452,4 +452,19 @@ describe("practice canvas model pool", () => {
         ]);
         expect(resolvePracticeCanvasPoolCandidates(settings, "image")).toHaveLength(4);
     });
+
+    it("keeps a canvas image request on the practice pool even when it carries the canvas business code", () => {
+        const settings = {
+            logicalModels: [],
+            systemChannels: [
+                poolChannel({ id: "openai", purpose: "shared", models: ["gpt-image-1"] }),
+                { id: "runninghub", name: "RunningHub", baseUrl: "https://rh.example", apiKey: "k", apiFormat: "openai" as const, models: [], enabled: true, purpose: "open-source-practice" as const, advancedConfig: { protocol: "runninghub" } },
+            ],
+        };
+        const candidates = resolvePracticeGenerationCandidates(settings as never, "image", "gamaimage", { executionProfile: "open-source-practice", businessCode: "canvas" });
+        expect(candidates.map((candidate) => candidate.channelId)).toEqual(["openai"]);
+        expect(generationBusinessCode("canvas", "image", "gamaimage")).toBeUndefined();
+        expect(generationBusinessCode("canvas", "image", "image-workflow")).toBe("canvas");
+        expect(generationBusinessCode("drama", "image")).toBe("storyboard-image");
+    });
 });
