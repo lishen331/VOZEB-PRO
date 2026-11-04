@@ -20,6 +20,20 @@ describe("admin models route", () => {
         (globalThis as typeof globalThis & { __vozebProModelFetchCooldowns?: Map<string, number> }).__vozebProModelFetchCooldowns?.clear();
     });
 
+    it("loads the explicit Agnes official catalog without guessing an unsupported models endpoint", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const response = await POST(request({ channelId: "saved", baseUrl: "https://apihub.agnes-ai.com/v1", protocol: "agnes", configuredModels: ["agnes-image-2.1-flash"] }));
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({
+            provider: "agnes",
+            catalogSupported: false,
+            models: expect.arrayContaining(["agnes-image-2.1-flash", "agnes-image-2.5-flash", "agnes-2.5-flash"]),
+            modelConfigs: { "agnes-video-2.5-flash": { protocol: "agnes", taskIdField: "video_id" } },
+        });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it("uses the saved server-side API key when the client sends only channelId", async () => {
         const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [{ id: "gpt-test" }] }), { status: 200, headers: { "content-type": "application/json" } }));
         vi.stubGlobal("fetch", fetchMock);
@@ -102,11 +116,11 @@ describe("admin models route", () => {
         const response = await POST(request({ channelId: "saved", baseUrl: "https://apihub.agnes-ai.com/v1" }));
         const payload = await response.json();
 
-        expect(payload.models).toEqual(expect.arrayContaining(["agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-2.5-flash"]));
-        expect(payload.modelCapabilities).toMatchObject({ "agnes-2.0-flash": "text", "agnes-image-2.0-flash": "image", "agnes-image-2.1-flash": "image", "agnes-video-2.5-flash": "video" });
+        expect(payload.models).toEqual(expect.arrayContaining(["agnes-2.5-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-image-2.5-flash", "agnes-video-2.5-flash"]));
+        expect(payload.modelCapabilities).toMatchObject({ "agnes-2.5-flash": "text", "agnes-image-2.0-flash": "image", "agnes-image-2.1-flash": "image", "agnes-image-2.5-flash": "image", "agnes-video-2.5-flash": "video" });
         expect(payload).toMatchObject({
             provider: "agnes",
-            recommendedConfig: { textModel: "agnes-2.0-flash", imageModel: "agnes-image-2.1-flash", videoModel: "agnes-video-2.5-flash" },
+            recommendedConfig: { textModel: "agnes-2.5-flash", imageModel: "agnes-image-2.5-flash", videoModel: "agnes-video-2.5-flash" },
             modelConfigs: { "agnes-video-2.5-flash": { capability: "video", createPath: "/videos", queryPath: "/agnesapi?video_id=:task_id&model_name=agnes-video-2.5-flash" } },
         });
     });

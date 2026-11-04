@@ -32,6 +32,7 @@ describe("channel protocol registry", () => {
     it("exposes only active protocols and keeps SD2 separate from Stable Diffusion", () => {
         const protocols = channelProtocolOptions().map((item) => item.value);
         expect(protocols).toEqual([
+            "agnes",
             "openai",
             "yumeng",
             "gemini",

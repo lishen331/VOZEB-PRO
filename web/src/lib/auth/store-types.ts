@@ -12,6 +12,7 @@ import type { VoiceCustomizationConfig } from "@/lib/custom-voice-config";
 export type ApiCallFormat = "openai" | "gemini";
 export type SystemChannelProtocol =
     | "auto"
+    | "agnes"
     | "openai"
     | "yumeng"
     | "gemini"

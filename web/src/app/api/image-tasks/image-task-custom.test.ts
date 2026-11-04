@@ -9,7 +9,7 @@ vi.mock("@/lib/server/internal-origin", () => ({
     isInternalApiBaseUrl: (baseUrl: string) => baseUrl.startsWith("/"),
 }));
 
-import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
+import { emptyAdvancedConfig, protocolModelConfig } from "@/lib/channel-protocol-registry";
 import type { ImageTask } from "@/lib/server/image-task-store";
 import { readVerifiedSystemAiBusinessRequestId } from "@/lib/server/system-ai-billing";
 import { runCustomImageTask, pollCustomImageTask, resolveDeclarativeImageSize } from "./image-task-custom";
@@ -18,6 +18,33 @@ import { sanitizeAdvancedConfig } from "./image-task-support";
 
 describe("declarative image request size", () => {
     beforeEach(() => vi.clearAllMocks());
+    it("submits Agnes image edits as JSON image arrays on the generation endpoint without quality", async () => {
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ data: [{ url: "https://fixture.invalid/result.png" }] }));
+        const task = {
+            id: "agnes-edit",
+            userId: "fixture-user",
+            kind: "edit",
+            source: "canvas",
+            prompt: "图一的脸，图二的肤质",
+            upstreamPrompt: "图一的脸，图二的肤质",
+            references: [{ dataUrl: "data:image/png;base64,aGVsbG8=" }, { dataUrl: "data:image/png;base64,d29ybGQ=" }],
+            config: {
+                baseUrl: "/api/ai/system/agnes",
+                apiKey: "system",
+                model: "agnes-image-2.5-flash",
+                apiFormat: "openai",
+                quality: "high",
+                resolution: "2k",
+                size: "16:9",
+                advancedConfig: { ...emptyAdvancedConfig(), ...protocolModelConfig("agnes", "image") },
+            },
+        } as unknown as ImageTask;
+        await expect(runCustomImageTask(task, "http://fixture", "https://app.fixture", "", true)).resolves.toMatchObject({ remoteUrl: "https://fixture.invalid/result.png" });
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe("http://fixture/api/ai/system/agnes/images/generations");
+        expect(new Headers(init.headers).get("content-type")).toContain("application/json");
+        expect(JSON.parse(String(init.body))).toEqual({ model: task.config.model, prompt: task.prompt, size: "2K", ratio: "16:9", image: task.references.map((reference) => reference.dataUrl) });
+    });
     it("preserves the RunningHub task ID field through sanitization before submission", async () => {
         const advancedConfig = sanitizeAdvancedConfig({ ...emptyAdvancedConfig(), protocol: "runninghub", createPath: "/create", queryPath: "/query", taskIdField: "data.taskId", resultField: "data.results", statusField: "data.status" });
         expect(advancedConfig).toMatchObject({ taskIdField: "data.taskId" });

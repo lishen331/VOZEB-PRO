@@ -95,7 +95,7 @@ export async function createQueuedPracticeVideoTaskUpstreamStep(task: VideoTask,
  * 其余渠道沿用任务里已记录的创建路径。
  */
 async function submitQueuedPracticeVideo(task: VideoTask, origin: string, cookie: string, workerUserId: string): Promise<VideoUpstreamStep> {
-    const agnes = isAgnesVideoChannel(task.config.baseUrl, task.config.model);
+    const agnes = isAgnesVideoChannel(task.config.baseUrl, task.config.model, task.config.advancedConfig?.protocol);
     const path = agnes ? "/videos" : task.upstream.pollPath || task.config.advancedConfig?.createPath || "";
     if (!path) return { state: "failed", status: "unsupported", error: "排队视频任务缺少创建接口路径" };
     const reservationId = generationReservationId("video", task.id, nextGenerationAttemptNo(task.attempts));
@@ -116,7 +116,7 @@ async function submitQueuedPracticeVideo(task: VideoTask, origin: string, cookie
     }
     try {
         const payload = agnes
-            ? buildAgnesVideoRequest({ model: task.config.model, prompt: task.prompt || "", seconds: task.requestedDurationSeconds, references: task.references })
+            ? buildAgnesVideoRequest({ model: task.config.model, prompt: task.prompt || "", seconds: task.requestedDurationSeconds, aspectRatio: task.workflowInput?.size, resolution: task.workflowInput?.vquality, references: task.references })
             : { model: task.config.model, prompt: task.prompt || "", ...(task.workflowInput || {}) };
         const response = await fetchInternalApi(`${origin}${task.config.baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`, {
             method: "POST",
@@ -129,7 +129,7 @@ async function submitQueuedPracticeVideo(task: VideoTask, origin: string, cookie
         const data = parseVideoProviderJson(text);
         const providerError = readProviderError(data);
         if (isProviderBusinessError(data)) throw new Error(providerError || "视频接口请求失败");
-        const upstreamId = (agnes ? readAgnesVideoId(data) : "") || readVideoProviderId(data);
+        const upstreamId = agnes ? readAgnesVideoId(data) : readVideoProviderId(data);
         if (!upstreamId) throw new Error(providerError || "视频接口没有返回任务 ID");
         const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "succeeded" });
         const upstream = { ...task.upstream, id: upstreamId, ...(agnes ? { queryPath: agnesVideoQueryPath(task.config.model) } : {}) };
@@ -319,7 +319,7 @@ async function queryVideoUpstream(task: VideoTask, origin: string, cookie: strin
     const seedanceSpecial = task.config.advancedConfig?.protocol === "seedance-special";
     const paths = preset?.queryPath
         ? [preset.queryPath.replace(/:(?:task_id|taskId|id)\b/g, encodeURIComponent(task.upstream.id))]
-        : providerQueryPaths(task.config.advancedConfig, task.upstream.id, [
+        : providerQueryPaths(task.upstream.queryPath ? (task.config.advancedConfig ? { ...task.config.advancedConfig, queryPath: task.upstream.queryPath } : undefined) : task.config.advancedConfig, task.upstream.id, [
               `${createPath.replace(/\/+$/, "")}/${encodeURIComponent(task.upstream.id)}`,
               `/videos/${encodeURIComponent(task.upstream.id)}`,
               `/video/generations/${encodeURIComponent(task.upstream.id)}`,

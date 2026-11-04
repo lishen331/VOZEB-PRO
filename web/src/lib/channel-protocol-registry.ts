@@ -47,6 +47,31 @@ const openAiOperations: ChannelProtocolDefinition["operations"] = {
     audio: { capability: "audio", createPath: "/audio/speech", requestTemplate: '{"model":"{{model}}","input":"{{prompt}}","voice":"alloy","response_format":"mp3"}', resultField: "binary" },
 };
 
+const agnesOperations: ChannelProtocolDefinition["operations"] = {
+    text: { capability: "text", createPath: "/chat/completions", requestTemplate: '{"model":"{{model}}","messages":[{"role":"user","content":"{{prompt}}"}]}', resultField: "choices[0].message.content" },
+    image: {
+        capability: "image",
+        createPath: "/images/generations",
+        editPath: "/images/generations",
+        requestTemplate: '{"model":"{{model}}","prompt":"{{prompt}}","size":"{{resolution}}","ratio":"{{ratio}}","image":{{images}}}',
+        resultField: "data[0].url / data[0].b64_json",
+        referenceRule: "Agnes 图片协议使用 JSON；参考图写入 image URL 数组；不发送 OpenAI quality 字段。",
+        supportsReferenceImage: true,
+    },
+    video: {
+        capability: "video",
+        createPath: "/videos",
+        queryPath: "/agnesapi?video_id=:task_id&model_name={{model}}",
+        requestTemplate:
+            '{"model":"{{model}}","prompt":"{{prompt}}","seconds":"{{seconds}}","mode":"{{mode}}","size":"{{size}}","aspect_ratio":"{{aspect_ratio}}","first_frame":"{{first_frame}}","last_frame":"{{last_frame}}","images":{{images}},"audios":{{audios}}}',
+        resultField: "url",
+        statusField: "status",
+        referenceRule: "Agnes 视频协议使用 JSON；文生视频 mode=text，首尾帧 mode=keyframe，图片/音频参考 mode=reference。",
+        supportsReferenceImage: true,
+        supportsReferenceAudio: true,
+    },
+};
+
 // New API routes Doubao/Seedance through its task-compatible JSON endpoint.
 // This is a different contract from the OpenAI `/videos` multipart endpoint:
 // New API converts the request to `/api/v3/contents/generations/tasks`.
@@ -229,6 +254,18 @@ const stableDiffusionOperation: ProtocolOperation = {
 };
 
 export const registeredChannelProtocolDefinitions: ChannelProtocolDefinition[] = [
+    {
+        id: "agnes",
+        label: "Agnes AI",
+        description: "Agnes 官方协议：文本 Chat Completions、图片 JSON 生成/编辑、视频异步任务与 AgnesAPI 查询。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        defaultBaseUrl: "https://apihub.agnes-ai.com/v1",
+        modelCatalogPaths: [],
+        capabilities: ["text", "image", "video"],
+        operations: agnesOperations,
+        strict: true,
+    },
     {
         id: "openai",
         label: "OpenAI",
@@ -520,6 +557,18 @@ export function protocolCatalogCapability(protocol: SystemChannelProtocol): Logi
 
 export function protocolModelConfig(protocol: SystemChannelProtocol, capability: LogicalModelCapability, model?: string): SystemChannelModelConfig | undefined {
     const definition = channelProtocolDefinition(protocol);
+    if (protocol === "agnes" && capability === "video") {
+        return {
+            ...agnesOperations.video!,
+            capability,
+            source: "manual",
+            protocol,
+            apiFormat: "openai",
+            taskIdField: "video_id",
+            queryPath: `/agnesapi?video_id=:task_id${model ? `&model_name=${encodeURIComponent(model.trim())}` : ""}`,
+            supportsReferenceVideo: Boolean(model && !/flash$/i.test(model)),
+        };
+    }
     if (protocol === "newapi" && capability === "video" && model && isLegacyDoubaoSeedanceModel(model)) {
         return { ...newApiDoubaoVideoOperation, capability, source: "manual", protocol, apiFormat: definition.apiFormat };
     }

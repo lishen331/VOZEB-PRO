@@ -7,6 +7,7 @@ import type { LogicalModelCapability, SystemChannelAdvancedConfig, SystemChannel
 
 const CHANNEL_PROTOCOLS: SystemChannelProtocol[] = [
     "auto",
+    "agnes",
     "openai",
     "yumeng",
     "gemini",

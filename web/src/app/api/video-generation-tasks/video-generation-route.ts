@@ -552,7 +552,7 @@ export async function createUpstream(
     if (isGeminiVideoChannel(channel)) {
         return createGeminiVideoUpstream({ userId, origin, cookie, channel, prompt, raw, references, generateAudio, multipliers, billingRequestId, billingContext, executionProfile });
     }
-    if (isAgnesVideoChannel(channel.baseUrl, channel.model)) {
+    if (isAgnesVideoChannel(channel.baseUrl, channel.model, channel.advancedConfig?.protocol)) {
         return createAgnesVideoUpstream({ origin, cookie, channel, prompt, raw, references, multipliers, billingRequestId, billingContext, executionProfile });
     }
     const values = {
@@ -859,7 +859,7 @@ async function createAgnesVideoUpstream(input: {
     }
     const providerError = readProviderError(data);
     if (isProviderBusinessError(data)) throw new SafeCandidateFailure(providerError || "视频接口请求失败");
-    const id = readAgnesVideoId(data) || readVideoProviderId(data);
+    const id = readAgnesVideoId(data);
     if (!id) throw new VideoSubmissionUncertainError(providerError || "视频接口没有返回任务 ID", videoSubmissionBilling(response.headers, input.raw, input.multipliers));
     return {
         id,

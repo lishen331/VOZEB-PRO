@@ -872,6 +872,7 @@ function targetUrl(baseUrl: string, apiFormat: "openai" | "gemini", path: string
         protocol === "qwen-tts" ||
         protocol === "volcengine-video" ||
         protocol === "seedance-special" ||
+        protocol === "agnes" ||
         protocol === "stable-diffusion" ||
         protocol === "yumeng" ||
         protocol === "runninghub" ||

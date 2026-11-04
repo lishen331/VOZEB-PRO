@@ -757,7 +757,7 @@ export function normalizeSystemChannel(channel: Partial<SystemModelChannel>): Sy
         purpose: deriveChannelPurpose({ enabled, practiceEnabled, purpose: normalizeChannelPurpose(channel.purpose) }),
         advancedConfig: normalizeSystemChannelAdvancedConfig(channel.advancedConfig),
     };
-    return normalized.advancedConfig?.protocol === "yumeng" ? applyChannelProtocol(normalized, "yumeng") : normalized;
+    return normalized.advancedConfig?.protocol === "yumeng" || normalized.advancedConfig?.protocol === "agnes" ? applyChannelProtocol(normalized, normalized.advancedConfig.protocol) : normalized;
 }
 
 function normalizeChannelPurpose(value: unknown): SystemChannelPurpose {

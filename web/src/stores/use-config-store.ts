@@ -15,6 +15,7 @@ import type { LogicalModelCapabilityProfile } from "@/lib/auth/store-types";
 type ApiCallFormat = "openai" | "gemini";
 type SystemChannelProtocol =
     | "auto"
+    | "agnes"
     | "openai"
     | "yumeng"
     | "gemini"

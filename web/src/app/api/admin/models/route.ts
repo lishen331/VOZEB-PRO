@@ -97,6 +97,27 @@ export async function POST(request: Request) {
     const modelCatalogPaths = body.modelCatalogPaths ?? savedChannel?.advancedConfig?.modelCatalogPaths ?? protocolDefinition.modelCatalogPaths;
     const hasConfiguredCatalog = Array.isArray(modelCatalogPaths) && modelCatalogPaths.some((path) => typeof path === "string" && path.trim());
 
+    if (protocol === "agnes" && !hasConfiguredCatalog) {
+        const official = officialModelCatalog(baseUrl);
+        const merged = mergeModelCatalogEntries(configuredCatalog, official);
+        const configs = Object.fromEntries(
+            merged.flatMap((entry) => {
+                const config = protocolModelConfig("agnes", entry.capability, entry.id);
+                return config ? [[normalizeModelId(entry.id), config]] : [];
+            }),
+        );
+        return NextResponse.json({
+            models: merged.map((entry) => entry.id),
+            modelCapabilities: modelCapabilitiesRecord(merged, configs),
+            modelConfigs: configs,
+            discoveredCount: official.length,
+            totalCount: merged.length,
+            catalogSupported: false,
+            provider: "agnes",
+            recommendedConfig: AGNES_RECOMMENDED_CONFIG,
+        });
+    }
+
     if (protocolDefinition.builtInModels?.length && !hasConfiguredCatalog) {
         const builtInCatalog = protocolDefinition.builtInModels.map(({ id, capability }) => ({ id, capability, source: "official" as const }));
         const merged = mergeModelCatalogEntries(configuredCatalog, builtInCatalog);

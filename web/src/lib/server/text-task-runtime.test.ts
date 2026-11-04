@@ -67,7 +67,7 @@ describe("text task runtime recovery", () => {
         const address = fixture.server.address();
         if (!address || typeof address === "string") throw new Error("Protocol fixture did not bind a TCP port");
         const origin = `http://127.0.0.1:${address.port}`;
-        state = textTask(openAiConfig("fixture-text", `${origin}/v1`));
+        state = textTask({ ...openAiConfig("fixture-text", `${origin}/v1`), advancedConfig: { ...emptyAdvancedConfig(), protocol: "agnes" } });
 
         try {
             await expect(runTextTaskStep(state, "http://internal", "")).resolves.toEqual({ state: "completed" });

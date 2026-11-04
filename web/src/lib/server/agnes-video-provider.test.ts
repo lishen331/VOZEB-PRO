@@ -13,11 +13,11 @@ describe("agnes video provider", () => {
         });
     });
 
-    it("uses keyframe mode for first and last frames and clamps the duration", () => {
+    it("uses keyframe mode for first and last frames without rewriting the duration", () => {
         const request = buildAgnesVideoRequest({
             model: "agnes-video-2.5",
             prompt: "镜头推进",
-            seconds: 30,
+            seconds: 12,
             references: [
                 { type: "image", role: "first_frame", url: "https://cdn.example/first.png" },
                 { type: "image", role: "last_frame", url: "https://cdn.example/last.png" },
@@ -48,7 +48,7 @@ describe("agnes video provider", () => {
         expect(readAgnesVideoId({ id: "task_1", video_id: "vid_1" })).toBe("vid_1");
         expect(readAgnesVideoId({ id: "task_1" })).toBe("");
         expect(agnesVideoQueryPath("agnes-video-2.5-flash")).toBe("/agnesapi?video_id=:task_id&model_name=agnes-video-2.5-flash");
-        expect(agnesVideoQueryPath("agnes-video-2.5")).toBe("/agnesapi?video_id=:task_id");
+        expect(agnesVideoQueryPath("agnes-video-2.5")).toBe("/agnesapi?video_id=:task_id&model_name=agnes-video-2.5");
         expect(isAgnesVideoChannel("https://apihub.agnes-ai.com/v1", "agnes-video-2.5")).toBe(true);
         expect(isAgnesVideoChannel("https://api.openai.com/v1", "agnes-video-2.5")).toBe(false);
         expect(isAgnesVideoChannel("https://apihub.agnes-ai.com/v1", "agnes-image-2.1-flash")).toBe(false);
