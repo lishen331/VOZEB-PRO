@@ -55,6 +55,12 @@ if (executionProfile === "open-source-practice" && !clientContext.businessCode)
 3. 图片 / 视频 / 音频三个任务路由：只有候选渠道本身是 runninghub 协议时，
    才调用 `attachPracticeWorkflowToChannel`。练习池选出的普通渠道原样返回。
    文本路由已经是这个写法，照齐。
+4. 练习任务的学校范围取自项目本身，不采信客户端。
+   图片、文本、视频、音频四个路由建任务时，`schoolId` 一律来自
+   `resolveProjectExecutionContext` 读到的项目归属；项目没有学校归属时不补。
+   此前客户端从不发送 `schoolId`，练习任务在入库时被
+   `normalizeGenerationTaskContext` 以「练习任务缺少学校范围」拒绝，
+   画布统一显示成「网络异常，请点击重试」。图片、视频、文本节点都是这条路径。
 
 ## 不在本次范围
 

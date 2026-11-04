@@ -6,7 +6,7 @@ import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionContext } from "@/lib/server/generation-project-context";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
@@ -63,14 +63,15 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+    let projectContext: Awaited<ReturnType<typeof resolveProjectExecutionContext>>;
     try {
-        projectProfile = await resolveProjectExecutionProfile(currentUser.id, body.context || {});
+        projectContext = await resolveProjectExecutionContext(currentUser.id, body.context || {});
     } catch (error) {
         const known = projectExecutionProfileError(error);
         if (known) return NextResponse.json({ error: known.message }, { status: known.status });
         throw error;
     }
+    const projectProfile = projectContext?.executionProfile;
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
             const practiceModelTest = await resolvePracticeModelTestAccess(currentUser, { ...clientContext, executionProfile });
             // 与正式生产一致：请求里带图时走 vision 池（文本模型里支持图片输入的那部分）。
             const requiresImageInput = (body.messages || []).some((item) => Array.isArray(item.content) && item.content.some((part) => part.type === "image_url"));
-            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}), ...(requiresImageInput ? { requiresImageInput } : {}) };
+            trustedContext = { ...clientContext, executionProfile, ...(projectContext?.schoolId ? { schoolId: projectContext.schoolId } : {}), ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}), ...(requiresImageInput ? { requiresImageInput } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;

@@ -60,7 +60,7 @@ import {
     workflowTaskContextForChannel,
     workflowTimeoutMs,
 } from "@/lib/server/runninghub-workflow-runtime";
-import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionContext } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 // 与图片一致：默认每分钟 500 个、瞬间 10 个突发。单个渠道名额用完就溢出到下一个渠道，整列表都不行才等 200 毫秒重来一轮，最多 2 秒。
@@ -154,10 +154,10 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+    let projectContext: Awaited<ReturnType<typeof resolveProjectExecutionContext>>;
 
     try {
-        projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+        projectContext = await resolveProjectExecutionContext(user.id, body.context || {});
     } catch (error) {
         const known = projectExecutionProfileError(error);
 
@@ -165,6 +165,7 @@ export async function POST(request: Request) {
 
         throw error;
     }
+    const projectProfile = projectContext?.executionProfile;
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
@@ -176,7 +177,7 @@ export async function POST(request: Request) {
             if (!clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "video");
             const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
             const practiceModelTest = await resolvePracticeModelTestAccess(user, { ...clientContext, executionProfile });
-            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
+            trustedContext = { ...clientContext, executionProfile, ...(projectContext?.schoolId ? { schoolId: projectContext.schoolId } : {}), ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
@@ -288,7 +289,7 @@ export async function POST(request: Request) {
                 if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "video");
                 const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
                 const practiceModelTest = await resolvePracticeModelTestAccess(user, { ...clientContext, executionProfile });
-                trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
+                trustedContext = { ...clientContext, executionProfile, ...(projectContext?.schoolId ? { schoolId: projectContext.schoolId } : {}), ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
             } catch (error) {
                 if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
                 throw error;

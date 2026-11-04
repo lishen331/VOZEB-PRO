@@ -24,7 +24,7 @@ import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
 import { generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionContext } from "@/lib/server/generation-project-context";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
@@ -183,10 +183,10 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+    let projectContext: Awaited<ReturnType<typeof resolveProjectExecutionContext>>;
 
     try {
-        projectProfile = await resolveProjectExecutionProfile(currentUser.id, resolvedBody.context || {});
+        projectContext = await resolveProjectExecutionContext(currentUser.id, resolvedBody.context || {});
     } catch (error) {
         const known = projectExecutionProfileError(error);
 
@@ -194,6 +194,7 @@ export async function POST(request: Request) {
 
         throw error;
     }
+    const projectProfile = projectContext?.executionProfile;
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(resolvedBody) || hasUntrustedWorkflowContext(resolvedBody)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
@@ -207,7 +208,7 @@ export async function POST(request: Request) {
                 clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "image", resolvedBody.config?.model || settings.defaultModels.imageModel || "");
             const billingContext = await resolveSchoolComputeBillingContext(currentUser.id, { ...clientContext, executionProfile });
             const practiceModelTest = await resolvePracticeModelTestAccess(currentUser, { ...clientContext, executionProfile });
-            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
+            trustedContext = { ...clientContext, executionProfile, ...(projectContext?.schoolId ? { schoolId: projectContext.schoolId } : {}), ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;

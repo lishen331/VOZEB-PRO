@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-    resolveProjectExecutionProfile: vi.fn(),
+    resolveProjectExecutionContext: vi.fn(),
     createTextTask: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     getStoredGenerationTaskByRequest: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGeneration
 vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
 vi.mock("@/lib/server/generation-project-context", () => ({
-    resolveProjectExecutionProfile: mocks.resolveProjectExecutionProfile,
+    resolveProjectExecutionContext: mocks.resolveProjectExecutionContext,
     projectExecutionProfileError: (error: unknown) =>
         error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number"
             ? { status: (error as { status: number }).status, message: error instanceof Error ? error.message : "项目访问权限已失效" }
@@ -49,14 +49,14 @@ import { SchoolServiceError } from "@/lib/server/school-access-service";
 describe("text task IP authorization", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mocks.resolveProjectExecutionProfile.mockResolvedValue(undefined);
+        mocks.resolveProjectExecutionContext.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
         mocks.getAuthSettings.mockResolvedValue({ systemChannels: [], logicalModels: [], defaultModels: { textModel: "" }, generationConcurrency: { text: 1 } });
         mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
     });
 
     it("queues a practice text task without the production concurrency gate", async () => {
-        mocks.resolveProjectExecutionProfile.mockResolvedValueOnce("open-source-practice");
+        mocks.resolveProjectExecutionContext.mockResolvedValueOnce({ executionProfile: "open-source-practice", schoolId: "school-a" });
         mocks.getAuthSettings.mockResolvedValueOnce({
             systemChannels: [{ id: "text-channel", enabled: true, purpose: "open-source-practice", baseUrl: "https://text.example/v1", apiKey: "key", apiFormat: "openai", models: ["text-upstream"] }],
             logicalModels: [{ id: "practice-text", name: "练习文本", capability: "text", enabled: true, bindings: [{ id: "binding", channelId: "text-channel", upstreamModel: "text-upstream", enabled: true, priority: 1 }] }],
@@ -80,7 +80,7 @@ describe("text task IP authorization", () => {
     });
 
     it("returns the project access status before task creation", async () => {
-        mocks.resolveProjectExecutionProfile.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
+        mocks.resolveProjectExecutionContext.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
         const response = await POST(
             new Request("http://localhost/api/text-tasks", {
                 method: "POST",

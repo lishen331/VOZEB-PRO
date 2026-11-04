@@ -20,7 +20,7 @@ import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-r
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionContext } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
@@ -58,14 +58,15 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+    let projectContext: Awaited<ReturnType<typeof resolveProjectExecutionContext>>;
     try {
-        projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+        projectContext = await resolveProjectExecutionContext(user.id, body.context || {});
     } catch (error) {
         const known = projectExecutionProfileError(error);
         if (known) return NextResponse.json({ error: known.message }, { status: known.status });
         throw error;
     }
+    const projectProfile = projectContext?.executionProfile;
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
             const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
             if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "audio");
             const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
-            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+            trustedContext = { ...clientContext, executionProfile, ...(projectContext?.schoolId ? { schoolId: projectContext.schoolId } : {}), ...(billingContext ? { billingContext } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
