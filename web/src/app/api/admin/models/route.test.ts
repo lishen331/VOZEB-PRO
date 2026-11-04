@@ -96,18 +96,18 @@ describe("admin models route", () => {
     it("merges the complete Agnes official catalog when its models endpoint only returns video", async () => {
         vi.stubGlobal(
             "fetch",
-            vi.fn(async () => Response.json({ data: [{ id: "agnes-video-v2.0", type: "video" }] })),
+            vi.fn(async () => Response.json({ data: [{ id: "agnes-video-2.5-flash", type: "video" }] })),
         );
 
         const response = await POST(request({ channelId: "saved", baseUrl: "https://apihub.agnes-ai.com/v1" }));
         const payload = await response.json();
 
-        expect(payload.models).toEqual(expect.arrayContaining(["agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"]));
-        expect(payload.modelCapabilities).toMatchObject({ "agnes-2.0-flash": "text", "agnes-image-2.0-flash": "image", "agnes-image-2.1-flash": "image", "agnes-video-v2.0": "video" });
+        expect(payload.models).toEqual(expect.arrayContaining(["agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-2.5-flash"]));
+        expect(payload.modelCapabilities).toMatchObject({ "agnes-2.0-flash": "text", "agnes-image-2.0-flash": "image", "agnes-image-2.1-flash": "image", "agnes-video-2.5-flash": "video" });
         expect(payload).toMatchObject({
             provider: "agnes",
-            recommendedConfig: { textModel: "agnes-2.0-flash", imageModel: "agnes-image-2.1-flash", videoModel: "agnes-video-v2.0" },
-            modelConfigs: { "agnes-video-v2.0": { capability: "video", createPath: "/videos", queryPath: "/agnesapi?video_id=:task_id" } },
+            recommendedConfig: { textModel: "agnes-2.0-flash", imageModel: "agnes-image-2.1-flash", videoModel: "agnes-video-2.5-flash" },
+            modelConfigs: { "agnes-video-2.5-flash": { capability: "video", createPath: "/videos", queryPath: "/agnesapi?video_id=:task_id&model_name=agnes-video-2.5-flash" } },
         });
     });
 

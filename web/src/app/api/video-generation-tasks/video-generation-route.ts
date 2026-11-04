@@ -34,6 +34,7 @@ import { ingestTuziReferences } from "@/lib/server/tuzi-asset-service";
 import { buildTuziSeedanceVideoRequest } from "@/lib/tuzi-seedance-video";
 import { buildMohuiSeedanceVideoRequest } from "@/lib/mohui-seedance-video";
 import { assertVozebRecommendedVideoReferences, buildVozebRecommendedVideoRequest } from "@/lib/vozeb-recommended-video";
+import { agnesVideoQueryPath, buildAgnesVideoRequest, isAgnesVideoChannel, readAgnesVideoId } from "@/lib/server/agnes-video-provider";
 import { assertGeminiVideoReferences, buildGeminiVideoRequest, geminiVideoCreatePath, normalizeGeminiVideoDuration, parseGeminiVideoCreateResponse } from "@/lib/server/gemini-video-provider";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { maintenanceWorkerContextHeaders, requestRuntimeCredential } from "@/lib/server/maintenance-auth";
@@ -551,6 +552,9 @@ export async function createUpstream(
     if (isGeminiVideoChannel(channel)) {
         return createGeminiVideoUpstream({ userId, origin, cookie, channel, prompt, raw, references, generateAudio, multipliers, billingRequestId, billingContext, executionProfile });
     }
+    if (isAgnesVideoChannel(channel.baseUrl, channel.model)) {
+        return createAgnesVideoUpstream({ origin, cookie, channel, prompt, raw, references, multipliers, billingRequestId, billingContext, executionProfile });
+    }
     const values = {
         model: channel.model,
         prompt,
@@ -817,6 +821,59 @@ async function createGeminiVideoUpstream(input: {
     };
 }
 
+async function createAgnesVideoUpstream(input: {
+    origin: string;
+    cookie: string;
+    channel: NonNullable<ReturnType<typeof toSystemGenerationChannel>>;
+    prompt: string;
+    raw: Record<string, unknown>;
+    references: VideoGenerationReference[];
+    multipliers: Awaited<ReturnType<typeof getAuthSettings>>["generationPointMultipliers"];
+    billingRequestId: string;
+    billingContext?: SchoolComputeBillingContext;
+    executionProfile: PracticeExecutionProfile;
+}) {
+    const payload = buildAgnesVideoRequest({ model: input.channel.model, prompt: input.prompt, seconds: input.raw.videoSeconds, aspectRatio: input.raw.size, resolution: input.raw.vquality, references: input.references });
+    const response = await proxyFetch(input.origin, input.channel.baseUrl, "/videos", input.cookie, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": input.billingRequestId,
+            "X-Client-Request-Id": input.billingRequestId,
+            ...systemAiBillingHeaders(generationModelId(input.channel), `video-request:${input.billingRequestId}`, input.channel.model, input.executionProfile, input.billingContext),
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(input.channel, "video")),
+    });
+    const text = await response.text();
+    if (!response.ok) {
+        const message = readVideoProviderHttpError(text, response.status);
+        if (SAFE_CREATE_FAILURE_STATUSES.has(response.status)) throw new SafeCandidateFailure(message);
+        throw new Error(message);
+    }
+    let data: unknown;
+    try {
+        data = parseVideoProviderJson(text);
+    } catch (error) {
+        throw new VideoSubmissionUncertainError(error instanceof Error ? error.message : "Agnes 视频接口返回了无效 JSON", videoSubmissionBilling(response.headers, input.raw, input.multipliers));
+    }
+    const providerError = readProviderError(data);
+    if (isProviderBusinessError(data)) throw new SafeCandidateFailure(providerError || "视频接口请求失败");
+    const id = readAgnesVideoId(data) || readVideoProviderId(data);
+    if (!id) throw new VideoSubmissionUncertainError(providerError || "视频接口没有返回任务 ID", videoSubmissionBilling(response.headers, input.raw, input.multipliers));
+    return {
+        id,
+        provider: "generation" as const,
+        model: input.channel.model,
+        pollPath: "/videos",
+        queryPath: agnesVideoQueryPath(input.channel.model),
+        resultUrl: undefined,
+        pointsCost: billedPointsCost(response.headers.get("x-vozeb-pro-points-cost")),
+        pointsUnits: videoUnits(input.raw, input.multipliers),
+        billingReceiptId: response.headers.get("x-vozeb-pro-billing-receipt-id") || undefined,
+    };
+}
+
 function globalAiOpcVideoPreset(config: NonNullable<ReturnType<typeof toSystemGenerationChannel>>["advancedConfig"], model: string) {
     const preset = resolveGlobalAiOpcPreset(config, model);
     return preset?.capability === "video" ? preset : undefined;
@@ -987,7 +1044,7 @@ function normalizePublicOrigin(value: string) {
     }
 }
 const MEDIA_KEYS = VIDEO_PROVIDER_MEDIA_KEYS;
-const SAFE_CREATE_FAILURE_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429, 451]);
+const SAFE_CREATE_FAILURE_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429, 451, 503]);
 
 class SafeCandidateFailure extends Error {}
 class ContentPolicyFailure extends SafeCandidateFailure {}

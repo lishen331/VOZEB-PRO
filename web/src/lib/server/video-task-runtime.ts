@@ -15,6 +15,7 @@ import {
     isVideoProviderMediaUrl,
     parseVideoProviderJson,
     readVideoProviderHttpError,
+    readVideoProviderId,
     readVideoProviderStatus,
     readVideoProviderUrl,
     videoProviderContentPath,
@@ -25,6 +26,7 @@ import { writeVideoGenerationLog } from "@/lib/server/video-task-log";
 import { maintenanceWorkerHeaders } from "@/lib/server/maintenance-auth";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { refundVideoTask } from "@/lib/server/video-task-refund";
+import { agnesVideoQueryPath, buildAgnesVideoRequest, isAgnesVideoChannel, readAgnesVideoId } from "@/lib/server/agnes-video-provider";
 import { geminiVideoQueryPath, parseGeminiVideoOperation } from "@/lib/server/gemini-video-provider";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
@@ -40,7 +42,9 @@ export class VideoQueryAuthError extends Error {
 export async function createQueuedPracticeVideoTaskUpstreamStep(task: VideoTask, origin: string, cookie = "", workerUserId = ""): Promise<VideoUpstreamStep> {
     if (task.upstream.id) return queryVideoTaskUpstream(task, origin, cookie, workerUserId);
     const workflow = workflowConfigForTask(task);
-    if (task.executionProfile !== "open-source-practice" || !workflow || task.config.advancedConfig?.protocol !== "runninghub") return { state: "failed", status: "unsupported", error: "排队视频任务缺少可恢复的 RunningHub 工作流配置" };
+    if (task.executionProfile !== "open-source-practice") return { state: "failed", status: "unsupported", error: "排队视频任务不是练习任务" };
+    if (task.config.advancedConfig?.protocol !== "runninghub") return submitQueuedPracticeVideo(task, origin, cookie, workerUserId);
+    if (!workflow) return { state: "failed", status: "unsupported", error: "排队视频任务缺少可恢复的 RunningHub 工作流配置" };
     const reservationId = generationReservationId("video", task.id, nextGenerationAttemptNo(task.attempts));
     const reserved = await reserveGenerationAttemptSlot({
         capability: "video",
@@ -80,6 +84,59 @@ export async function createQueuedPracticeVideoTaskUpstreamStep(task: VideoTask,
         return { state: "pending", status: "submitted", upstreamTaskId: result.taskId };
     } catch (error) {
         const message = error instanceof Error ? error.message : "RunningHub 视频提交失败";
+        const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "failed", error: message });
+        await updateVideoTask(task.id, { attempts });
+        return { state: "failed", status: "submit_failed", error: message };
+    }
+}
+
+/**
+ * 非 RunningHub 的练习排队视频走普通提交：Agnes 视频必须带 mode 并按 video_id 查询，
+ * 其余渠道沿用任务里已记录的创建路径。
+ */
+async function submitQueuedPracticeVideo(task: VideoTask, origin: string, cookie: string, workerUserId: string): Promise<VideoUpstreamStep> {
+    const agnes = isAgnesVideoChannel(task.config.baseUrl, task.config.model);
+    const path = agnes ? "/videos" : task.upstream.pollPath || task.config.advancedConfig?.createPath || "";
+    if (!path) return { state: "failed", status: "unsupported", error: "排队视频任务缺少创建接口路径" };
+    const reservationId = generationReservationId("video", task.id, nextGenerationAttemptNo(task.attempts));
+    const reserved = await reserveGenerationAttemptSlot({
+        capability: "video",
+        channelId: task.config.channelId,
+        upstreamModel: task.config.model,
+        reservationId,
+        concurrencyLimit: task.config.capabilityProfile?.concurrencyLimit,
+    });
+    if (!reserved) return { state: "failed", error: CHANNEL_SATURATED_MESSAGE, status: "channel_saturated" };
+    const started = startGenerationAttempt(task.attempts, { channelId: task.config.channelId, model: generationModelId(task.config), capability: "video", reservationId });
+    try {
+        await updateVideoTask(task.id, { attempts: started.attempts });
+    } catch (error) {
+        await releaseGenerationReservations([reservationId]);
+        throw error;
+    }
+    try {
+        const payload = agnes
+            ? buildAgnesVideoRequest({ model: task.config.model, prompt: task.prompt || "", seconds: task.requestedDurationSeconds, references: task.references })
+            : { model: task.config.model, prompt: task.prompt || "", ...(task.workflowInput || {}) };
+        const response = await fetchInternalApi(`${origin}${task.config.baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`, {
+            method: "POST",
+            headers: { ...videoProxyHeaders(task, cookie, workerUserId), "content-type": "application/json" },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(task.config, "video")),
+        });
+        const text = await response.text();
+        if (!response.ok) throw new Error(readVideoProviderHttpError(text, response.status));
+        const data = parseVideoProviderJson(text);
+        const providerError = readProviderError(data);
+        if (isProviderBusinessError(data)) throw new Error(providerError || "视频接口请求失败");
+        const upstreamId = (agnes ? readAgnesVideoId(data) : "") || readVideoProviderId(data);
+        if (!upstreamId) throw new Error(providerError || "视频接口没有返回任务 ID");
+        const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "succeeded" });
+        const upstream = { ...task.upstream, id: upstreamId, ...(agnes ? { queryPath: agnesVideoQueryPath(task.config.model) } : {}) };
+        await updateVideoTask(task.id, { upstream, attempts });
+        return { state: "pending", status: "submitted", upstreamTaskId: upstreamId };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "视频提交失败";
         const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "failed", error: message });
         await updateVideoTask(task.id, { attempts });
         return { state: "failed", status: "submit_failed", error: message };
