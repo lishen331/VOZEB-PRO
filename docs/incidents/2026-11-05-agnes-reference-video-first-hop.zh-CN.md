@@ -78,3 +78,9 @@
 - 已备份测试环境 .env（服务器内、0600，不入库），将 NEXT_PUBLIC_SITE_URL 单行改为 https://reddetail.gammablue-x.com；compose 配置语法验证通过。待自动部署重建 app 后核对运行时生效。
 - worker 沿用既有架构，通过内部 origin 调用 app，不读取该公共地址；不为此改 compose 或给 worker 复制整份环境密钥。
 - 推送后仍须核对 Actions、app/worker 镜像、readiness，以及 HTTPS 有效签名的真实 GET 首跳返回原图。不发起付费视频生成。
+
+## 8. 共享 develop 的发布阻断处理
+
+本次修复已于 `3d9373c5` 推送 develop。后续管理员调用记录提交 `9dffd030` 包含本次修复，但其流水线 `41980564824` 唯一失败为 `admin-tablet-layout.test.ts` 的旧五列 class 断言：实际新增“执行环境”过滤项后已改为六列。该次 CI 为 6234 测试通过、1 失败、41 跳过。
+
+本轮仅同步该布局测试的六列断言，并增加执行环境 placeholder/value 断言，不改管理员组件、不删除测试或跳过门禁。新增 trace 路由的接口清单与开发地图也按脚本刷新，验证 444 Route、72 页面、147 表通过。

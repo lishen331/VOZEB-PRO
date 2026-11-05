@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-11-05。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **443** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-11-05。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **444** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**443**
-- 方法出现次数：DELETE 66、GET 225、HEAD 6、PATCH 63、POST 246、PUT 18
-- 一级域：`admin` 136、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 26、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**444**
+- 方法出现次数：DELETE 66、GET 226、HEAD 6、PATCH 63、POST 246、PUT 18
+- 一级域：`admin` 137、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 26、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（136）
+### `admin`（137）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -98,6 +98,7 @@
 | GET | `/api/admin/drama-projects/[id]/episodes` | 管理员 | [route.ts](web/src/app/api/admin/drama-projects/[id]/episodes/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[session](web/src/lib/auth/session.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-projects / 单项 / episodes：查询 |
 | DELETE, GET | `/api/admin/generation-assets` | 管理员 | [route.ts](web/src/app/api/admin/generation-assets/route.ts) | [local-media-storage](web/src/lib/server/local-media-storage.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 生成资产：查询、删除 |
 | DELETE, GET | `/api/admin/generation-logs` | 管理员 | [route.ts](web/src/app/api/admin/generation-logs/route.ts) | [generation-log-store](web/src/lib/server/generation-log-store.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成日志：查询、删除 |
+| GET | `/api/admin/generation-logs/[id]/trace` | 管理员 | [route.ts](web/src/app/api/admin/generation-logs/[id]/trace/route.ts) | [generation-log-trace](web/src/lib/server/generation-log-trace.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成日志 / 单项 / trace：查询 |
 | GET | `/api/admin/generation-operations` | 管理员 | [route.ts](web/src/app/api/admin/generation-operations/route.ts) | [generation-operations-service](web/src/lib/server/generation-operations-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成运维：查询 |
 | POST | `/api/admin/generation-operations/[type]/[id]/review` | 管理员 | [route.ts](web/src/app/api/admin/generation-operations/[type]/[id]/review/route.ts) | [generation-task-review-service](web/src/lib/server/generation-task-review-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成运维 / 指定任务类型 / 单项 / 审核：提交/执行 |
 | GET | `/api/admin/generation-overview` | 管理员 | [route.ts](web/src/app/api/admin/generation-overview/route.ts) | [generation-overview-service](web/src/lib/server/generation-overview-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成概览：查询 |
