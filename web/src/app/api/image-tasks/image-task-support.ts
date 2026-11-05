@@ -483,11 +483,17 @@ function collectImageResults(value: unknown, baseUrl: string, config: ImageTaskC
     }
     if (typeof value !== "object") return;
     const record = value as Record<string, unknown>;
+    let hasInlineImage = false;
     for (const key of IMAGE_BASE64_KEYS) {
         const dataUrl = resolveImageBase64Like(stringField(record, key));
-        if (dataUrl) images.push({ dataUrl });
+        if (dataUrl) {
+            images.push({ dataUrl });
+            hasInlineImage = true;
+        }
     }
-    for (const key of IMAGE_URL_KEYS) {
+    // Some providers return the same image twice, as base64 and as a URL on their own host.
+    // The inline copy is complete, so downloading the URL only adds a slow read that can time out the task.
+    for (const key of hasInlineImage ? [] : IMAGE_URL_KEYS) {
         const image = resolveImageUrlLike(stringField(record, key), baseUrl, config, true);
         if (image) images.push(image);
     }
