@@ -10,11 +10,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { BackButton } from "@/components/gallery/back-button";
 import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
 import type { IpDetail, IpPublicItem } from "@/lib/server/ip-library-service";
 import { ipLibraryApi } from "@/services/api/ip-library";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { IpLibrarySection } from "./ip-library-section";
+
+/** IP 库列表页：面包屑与「返回」的固定目标，避免退回到详情页自己 */
+const IP_LIBRARY_LIST_HREF = "/ip-library";
 
 export const IP_IMAGE_CATEGORIES = [
     { value: "character", label: "角色" },
@@ -92,20 +96,20 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
                 {showSubIpDetail ? (
                     <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                            <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} aria-label="返回 IP 详情" className="inline-flex items-center gap-1 hover:text-[var(--gm-text)]">
-                                <ChevronLeft className="size-3.5" />
+                            <BackButton fallbackHref={IP_LIBRARY_LIST_HREF} label="返回 IP 库" className="-ml-1.5 mr-1" />
+                            <span aria-hidden className="h-3.5 w-px bg-[var(--gm-border-strong)]" />
+                            <Link href={IP_LIBRARY_LIST_HREF} className="hover:text-[var(--gm-text)]">
                                 IP 库
                             </Link>
-                            <ChevronRight className="size-3.5" />
-                            <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} className="truncate hover:text-[var(--gm-text)]">
-                                {detail.title}
-                            </Link>
+                            <ChevronRight aria-hidden className="size-3.5" />
+                            {/* 只在子 IP 视图里，IP 名才是「上一级」；单子 IP 详情下它就是当前页，不能再指向自己 */}
                             {subIpId ? (
-                                <>
-                                    <ChevronRight className="size-3.5" />
-                                    <span className="truncate">{selected.title}</span>
-                                </>
-                            ) : null}
+                                <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} className="truncate hover:text-[var(--gm-text)]">
+                                    {detail.title}
+                                </Link>
+                            ) : (
+                                <span className="truncate text-[var(--gm-text-2)]">{detail.title}</span>
+                            )}
                         </div>
                         <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-[minmax(180px,300px)_minmax(0,1fr)] sm:gap-8">
                             <div className="mx-auto flex aspect-[4/3] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 shadow-sm">
@@ -205,11 +209,12 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
         <>
             <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                 <div className="flex items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                    <Link href="/ip-library" aria-label="返回 IP 库列表" className="inline-flex items-center gap-1 hover:text-[var(--gm-text)]">
-                        <ChevronLeft className="size-3.5" />
+                    <BackButton fallbackHref={IP_LIBRARY_LIST_HREF} label="返回 IP 库" className="-ml-1.5 mr-1" />
+                    <span aria-hidden className="h-3.5 w-px bg-[var(--gm-border-strong)]" />
+                    <Link href={IP_LIBRARY_LIST_HREF} className="hover:text-[var(--gm-text)]">
                         IP 库
                     </Link>
-                    <ChevronRight className="size-3.5" />
+                    <ChevronRight aria-hidden className="size-3.5" />
                     <span className="truncate">{detail.title}</span>
                 </div>
                 <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-[minmax(180px,300px)_minmax(0,1fr)] sm:gap-8">
