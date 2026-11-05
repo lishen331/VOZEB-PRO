@@ -180,7 +180,9 @@ export class PromptsRepository {
 export class GenerationLogsRepository {
     constructor(private readonly db: QueryExecutor) {}
 
-    async list(input: PageInput & { userId?: string; kind?: GenerationKind; source?: string; status?: GenerationStatus; keyword?: string; startAt?: string; endAt?: string; includeTaskContext?: boolean; executionProfile?: string } = {}): Promise<PageResult<GenerationLogRecord>> {
+    async list(
+        input: PageInput & { userId?: string; kind?: GenerationKind; source?: string; status?: GenerationStatus; keyword?: string; startAt?: string; endAt?: string; includeTaskContext?: boolean; executionProfile?: string } = {},
+    ): Promise<PageResult<GenerationLogRecord>> {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
         const keyword = input.keyword?.trim().toLowerCase() || "";
@@ -207,7 +209,19 @@ export class GenerationLogsRepository {
             ORDER BY log.created_at DESC, log.id ASC
             LIMIT $9 OFFSET $10
             `,
-            [input.userId || null, input.kind || null, input.source || null, input.status || null, keyword, `%${keyword}%`, input.startAt || null, input.endAt || null, pageSize, (page - 1) * pageSize, ...(input.includeTaskContext ? [input.executionProfile || null] : [])],
+            [
+                input.userId || null,
+                input.kind || null,
+                input.source || null,
+                input.status || null,
+                keyword,
+                `%${keyword}%`,
+                input.startAt || null,
+                input.endAt || null,
+                pageSize,
+                (page - 1) * pageSize,
+                ...(input.includeTaskContext ? [input.executionProfile || null] : []),
+            ],
         );
         const logs = await this.attachAssets(result.rows.map(mapGenerationLog));
         return pageResult(logs, Number(result.rows[0]?.total_count || 0), page, pageSize);
