@@ -31,12 +31,15 @@ export function resizeImageNodeToNaturalRatio(node: CanvasNodeData, naturalWidth
     const metadata = dimensionsChanged ? { ...node.metadata, naturalWidth, naturalHeight } : node.metadata;
     if (!Number.isFinite(naturalWidth) || naturalWidth <= 0 || !Number.isFinite(naturalHeight) || naturalHeight <= 0 || node.metadata?.freeResize) return dimensionsChanged ? { ...node, metadata } : node;
 
+    const requested = node.metadata?.model && !node.metadata.imageLayer && node.metadata.imageOutputMode !== "layers" ? nodeSizeFromRatio(node.metadata.size || "", naturalWidth, naturalHeight) : null;
+    const displayWidth = requested?.width || naturalWidth;
+    const displayHeight = requested?.height || naturalHeight;
     const currentRatio = node.width / Math.max(1, node.height);
-    const naturalRatio = naturalWidth / naturalHeight;
+    const naturalRatio = displayWidth / displayHeight;
     if (Math.abs(currentRatio - naturalRatio) / naturalRatio < 0.01) return dimensionsChanged ? { ...node, metadata } : node;
 
     const maxEdge = Math.max(node.width, node.height);
-    const size = fitNodeAspectRatio(naturalWidth, naturalHeight, maxEdge, maxEdge);
+    const size = fitNodeAspectRatio(displayWidth, displayHeight, maxEdge, maxEdge);
     const center = { x: node.position.x + node.width / 2, y: node.position.y + node.height / 2 };
     return {
         ...node,

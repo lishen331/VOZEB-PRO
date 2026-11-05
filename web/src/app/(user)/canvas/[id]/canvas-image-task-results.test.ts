@@ -4,6 +4,19 @@ import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { applyCanvasImageLayerTaskResults, applyCanvasImageTaskResults } from "./canvas-image-task-results";
 
 describe("canvas image task results", () => {
+    it("installs all generated results in requested-ratio frames without changing original dimensions", () => {
+        const node: CanvasNodeData = { id: "target", type: CanvasNodeType.Image, title: "图片", position: { x: 20, y: 30 }, width: 320, height: 180, metadata: { size: "16:9" } };
+        const images = [
+            { width: 2172, height: 724, metadata: { content: "/wide.png", naturalWidth: 2172, naturalHeight: 724 } },
+            { width: 1536, height: 1024, metadata: { content: "/tall.png", naturalWidth: 1536, naturalHeight: 1024 } },
+        ];
+        const result = applyCanvasImageTaskResults([node], { nodeId: node.id, taskId: "fixture", model: "image-model", size: "16:9", images });
+        expect(result).toHaveLength(2);
+        for (const [index, item] of result.entries()) {
+            expect(item.width / item.height).toBeCloseTo(16 / 9);
+            expect(item.metadata).toMatchObject(images[index].metadata);
+        }
+    });
     it("keeps every upstream image and replays the same task idempotently", () => {
         const target: CanvasNodeData = {
             id: "target",

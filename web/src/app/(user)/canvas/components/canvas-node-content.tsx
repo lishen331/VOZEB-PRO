@@ -692,7 +692,7 @@ export function ImageContent({
                     decoding="async"
                     onLoad={(event) => reportDimensions(event.currentTarget)}
                     onDragStart={(event) => event.preventDefault()}
-                    className={`pointer-events-none block h-full w-full select-none ${node.metadata?.freeResize ? "object-fill" : "object-contain"}`}
+                    className="pointer-events-none block h-full w-full select-none object-contain"
                 />
             </div>
             {isBatchRoot ? (
