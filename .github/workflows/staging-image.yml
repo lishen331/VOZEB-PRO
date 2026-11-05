@@ -132,9 +132,12 @@ jobs:
           pulled=""
           # Proxy first, one attempt. Layers it finishes stay cached and are reused
           # by the direct GHCR pull below if the proxy fails or stalls.
+          # 镜像站正常时秒级到一两分钟完成；卡住时不报错，只在某层上无限重试，
+          # 之前 900 秒超时每次都白等满 15 分钟才回退。180 秒足够一次正常拉取。
+          # 直连那段的 20 分钟长超时不能缩，原因见下方循环的说明。
           if [ -n "$PROXY_IMAGE" ]; then
             proxy_start=$(date +%s)
-            if timeout -k 30 900 docker pull "$PROXY_IMAGE"; then
+            if timeout -k 30 180 docker pull "$PROXY_IMAGE"; then
               docker tag "$PROXY_IMAGE" "$IMAGE"
               pulled="yes"
               printf 'Image pulled from proxy %s in %ss\n' "$PROXY_IMAGE" "$(( $(date +%s) - proxy_start ))"
