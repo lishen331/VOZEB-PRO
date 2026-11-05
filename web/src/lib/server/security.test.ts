@@ -139,7 +139,7 @@ describe("checkRateLimit", () => {
         }
     });
 
-    it("limits a trusted client IP across different public resources", async () => {
+    it("allows a shared classroom IP to load more than 240 distinct public images", async () => {
         const previous = process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
         process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS = "1";
         const clientIp = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
@@ -148,8 +148,8 @@ describe("checkRateLimit", () => {
                 const request = new Request("http://localhost", { headers: { "x-forwarded-for": clientIp } });
                 expect((await checkPublicMediaRateLimit(`public:${crypto.randomUUID()}`, request)).allowed).toBe(true);
             }
-            const blocked = await checkPublicMediaRateLimit(`public:${crypto.randomUUID()}`, new Request("http://localhost", { headers: { "x-forwarded-for": clientIp } }));
-            expect(blocked.allowed).toBe(false);
+            const next = await checkPublicMediaRateLimit(`public:${crypto.randomUUID()}`, new Request("http://localhost", { headers: { "x-forwarded-for": clientIp } }));
+            expect(next.allowed).toBe(true);
         } finally {
             if (previous === undefined) delete process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS;
             else process.env.VOZEB_PRO_TRUSTED_PROXY_HOPS = previous;

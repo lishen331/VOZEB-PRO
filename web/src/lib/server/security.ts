@@ -135,7 +135,8 @@ export async function checkPublicMediaRateLimit(resource: string, request: Reque
 
     const clientIp = getClientIp(request);
     if (clientIp === "unknown") return resourceLimit;
-    const ipLimit = await checkRateLimit(`public-media:ip:${clientIp}`, publicMediaIpRateLimit);
+    // Public gallery images load in parallel; school classrooms also share one egress IP.
+    const ipLimit = await checkRateLimit(`public-media:ip:${clientIp}`, { ...publicMediaIpRateLimit, maxRequests: publicMediaIpRateLimit.maxRequests * GENERATION_SHARED_IP_MULTIPLIER });
     return ipLimit.allowed ? resourceLimit : ipLimit;
 }
 
