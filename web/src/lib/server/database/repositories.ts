@@ -211,6 +211,7 @@ class SettingsRepository {
         if (input.defaultModels !== undefined) add("default_models", jsonParam(input.defaultModels));
         if (input.practiceDefaultModels !== undefined) add("practice_default_models", jsonParam(input.practiceDefaultModels));
         if (input.practiceWorkflowModels !== undefined) add("practice_workflow_models", jsonParam(input.practiceWorkflowModels));
+        if (input.practiceScriptSettings !== undefined) add("practice_script_settings", jsonParam(input.practiceScriptSettings));
         if (input.practiceModuleVisibility !== undefined) add("practice_module_visibility", jsonParam(input.practiceModuleVisibility));
         if (input.practiceModelPool !== undefined) add("practice_model_pool", jsonParam(input.practiceModelPool));
         if (input.agentSkills !== undefined) add("agent_skills", jsonParam(input.agentSkills));
@@ -333,6 +334,7 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
         defaultModels: jsonValue(row.default_models),
         practiceDefaultModels: jsonValue(row.practice_default_models),
         practiceWorkflowModels: jsonValue(row.practice_workflow_models),
+        practiceScriptSettings: jsonValue(row.practice_script_settings),
         practiceModuleVisibility: jsonValue(row.practice_module_visibility),
         practiceModelPool: jsonValue(row.practice_model_pool),
         agentSkills: jsonValue(row.agent_skills),
