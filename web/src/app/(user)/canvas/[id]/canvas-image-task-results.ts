@@ -1,7 +1,7 @@
 import { NODE_DEFAULT_SIZE } from "../constants";
 import { CanvasNodeType, type CanvasNodeData, type CanvasNodeMetadata } from "../types";
 import { findFreeNodePosition } from "../utils/canvas-agent-ops";
-import { fitNodeSize } from "../utils/canvas-node-size";
+import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
 import { PANORAMA_IMAGE_SIZE } from "../utils/canvas-panorama";
 
 export type CompletedCanvasImage = {
@@ -40,7 +40,10 @@ export function applyCanvasImageTaskResults(
         extraIds.push(id);
         if (next.some((node) => node.id === id)) return;
         const isPanorama = target.type === CanvasNodeType.Panorama;
-        const imageSize = isPanorama ? NODE_DEFAULT_SIZE[CanvasNodeType.Panorama] : fitNodeSize(image.width, image.height, target.width || NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, target.height || NODE_DEFAULT_SIZE[CanvasNodeType.Image].height);
+        const imageSize = isPanorama
+            ? NODE_DEFAULT_SIZE[CanvasNodeType.Panorama]
+            : nodeSizeFromRatio(input.size || target.metadata?.size || "", target.width || NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, target.height || NODE_DEFAULT_SIZE[CanvasNodeType.Image].height) ||
+              fitNodeSize(image.width, image.height, target.width || NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, target.height || NODE_DEFAULT_SIZE[CanvasNodeType.Image].height);
         const position = findFreeNodePosition(next, { x: target.position.x + target.width + 36, y: target.position.y }, imageSize.width, imageSize.height);
         next = [
             ...next,
@@ -128,7 +131,10 @@ export function canvasImageLayerResultNodeId(targetNodeId: string, taskId: strin
 
 function completedImageNode(node: CanvasNodeData, image: CompletedCanvasImage, input: { nodeId: string; prompt?: string; upstreamPrompt?: string; model: string; size?: string }, updateBatchRoot: boolean) {
     const isPanorama = node.type === CanvasNodeType.Panorama;
-    const imageSize = isPanorama ? NODE_DEFAULT_SIZE[CanvasNodeType.Panorama] : fitNodeSize(image.width, image.height, node.width || NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, node.height || NODE_DEFAULT_SIZE[CanvasNodeType.Image].height);
+    const imageSize = isPanorama
+        ? NODE_DEFAULT_SIZE[CanvasNodeType.Panorama]
+        : nodeSizeFromRatio(input.size || node.metadata?.size || "", node.width || NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, node.height || NODE_DEFAULT_SIZE[CanvasNodeType.Image].height) ||
+          fitNodeSize(image.width, image.height, node.width || NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, node.height || NODE_DEFAULT_SIZE[CanvasNodeType.Image].height);
     const center = { x: node.position.x + node.width / 2, y: node.position.y + node.height / 2 };
     return {
         ...node,

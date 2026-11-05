@@ -35,4 +35,18 @@ describe("Canvas image node sizing", () => {
 
         expect(resizeImageNodeToNaturalRatio(squareNode, 1024, 1024)).toBe(squareNode);
     });
+
+    it.each(["16:9", "1824x1024"])("keeps requested %s frame when the upstream image has another ratio", (size) => {
+        const node = { ...imageNode, width: 320, height: 180, metadata: { ...imageNode.metadata, model: "image-model", size } };
+        const resized = resizeImageNodeToNaturalRatio(node, 2172, 724);
+        expect(resized).toMatchObject({ width: 320, height: 180, position: node.position, metadata: { naturalWidth: 2172, naturalHeight: 724 } });
+        expect(resizeImageNodeToNaturalRatio(resized, 2172, 724)).toBe(resized);
+    });
+
+    it("keeps original geometry for auto, uploads and independent layers", () => {
+        for (const metadata of [{ size: "16:9" }, { model: "image-model", size: "auto" }, { model: "image-model", size: "16:9", imageOutputMode: "layers" as const }]) {
+            const resized = resizeImageNodeToNaturalRatio({ ...imageNode, metadata }, 2172, 724);
+            expect(resized.width / resized.height).toBeCloseTo(3);
+        }
+    });
 });
