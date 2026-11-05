@@ -128,6 +128,27 @@ describe("GlobalAiOpc image task paths", () => {
         });
     });
 
+    it("keeps only the inline image when one result carries both base64 and its own url", () => {
+        const pngBase64 = `iVBORw0KGgo${"A".repeat(96)}`;
+        const payload = { data: [{ b64_json: pngBase64, url: "http://slow-provider.example/images/one.png", revised_prompt: "x" }] };
+
+        const result = findImageResult(payload, "https://provider.example/v1/images/edits", config);
+
+        expect(result?.results).toHaveLength(1);
+        expect(result?.dataUrl).toMatch(/^data:image\/png;base64,/);
+        expect(result?.remoteUrl).toBeUndefined();
+    });
+
+    it("still downloads a url-only result and keeps every image of a multi-image response", () => {
+        const pngBase64 = `iVBORw0KGgo${"B".repeat(96)}`;
+        const urlOnly = findImageResult({ data: [{ url: "https://provider.example/images/only.png" }] }, "https://provider.example/v1/images/generations", config);
+        expect(urlOnly?.results).toHaveLength(1);
+        expect(urlOnly?.dataUrl).not.toMatch(/^data:/);
+
+        const mixed = findImageResult({ data: [{ b64_json: pngBase64 }, { url: "https://provider.example/images/second.png" }] }, "https://provider.example/v1/images/generations", config);
+        expect(mixed?.results).toHaveLength(2);
+    });
+
     it("routes standard OpenAI generations and edits to their matching endpoints", async () => {
         const openAiConfig = {
             baseUrl: "https://provider.example/v1",
