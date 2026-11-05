@@ -180,8 +180,10 @@ function ModalBase({
         <DialogPrimitive.Root open={open} onOpenChange={(next) => (next ? undefined : onCancel?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
                 {showMask ? (
+                    // 遮罩层刻意不 forceMount：radix 的 DialogOverlay 内部无条件套了 RemoveScroll，
+                    // 只要它仍然挂载着，body 就一直带 data-scroll-locked（overflow: hidden !important），
+                    // 弹窗关闭后整页滚不动、换页也跟着卡死，只能刷新恢复。交给 Presence 跟随 open 卸载。
                     <DialogPrimitive.Overlay
-                        forceMount={keepMounted ? true : undefined}
                         style={styles?.mask}
                         className="ant-modal-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
                     />
@@ -316,8 +318,8 @@ export function Drawer({
         <DialogPrimitive.Root open={open} onOpenChange={(next) => (next ? undefined : onClose?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
                 {mask !== false ? (
+                    // 同 Modal：遮罩不 forceMount，否则 RemoveScroll 常驻，body 的滚动锁永不释放
                     <DialogPrimitive.Overlay
-                        forceMount={keepMounted ? true : undefined}
                         style={styles?.mask}
                         className="ant-drawer-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
                     />
