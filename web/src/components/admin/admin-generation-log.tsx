@@ -10,6 +10,7 @@ import { AdminAccountId } from "@/components/admin/admin-user-identity";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import type { StoredGenerationLog } from "@/lib/server/generation-log-store";
 import type { GenerationLogTrace, GenerationLogTraceStep } from "@/lib/server/generation-log-trace";
+import { buildGenerationLogFlow, type GenerationLogFlowNode } from "./generation-log-flow";
 
 export function GenerationLogAssetPreview({ log }: { log: StoredGenerationLog }) {
     const asset = log.assets[0];
@@ -146,20 +147,77 @@ function GenerationLogTraceSection({ log }: { log: StoredGenerationLog }) {
             {failed ? <div className="text-sm text-[var(--gm-danger)]">调用链路读取失败</div> : null}
             {!loading && !failed && !trace?.steps.length ? <div className="text-sm text-[var(--gm-text-3)]">{trace?.diagnosticsExpired ? "诊断已过期，链路已清除。" : "这条记录没有采集到调用链路。"}</div> : null}
             {trace && trace.steps.length ? (
-                <ol className="space-y-2">
-                    {trace.steps.map((step, index) => (
-                        <li key={`${step.at}-${step.phase}-${index}`} className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-2">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
-                                <span className="font-medium text-[var(--gm-text)]">{generationTracePhaseLabel(step.phase)}</span>
-                                <span className="tabular-nums">{formatTraceTime(step.at)}</span>
-                                {typeof step.status === "number" ? <span className={step.status >= 400 ? "font-medium text-[var(--gm-danger)]" : ""}>状态 {step.status}</span> : null}
-                                {typeof step.durationMs === "number" ? <span className="tabular-nums">{formatAdminLogDuration(step.durationMs)}</span> : null}
-                            </div>
-                            <GenerationLogTraceStepDetail step={step} />
-                        </li>
-                    ))}
-                </ol>
+                <>
+                    <GenerationLogFlow steps={trace.steps} />
+                    <details className="mt-3">
+                        <summary className="cursor-pointer text-xs text-[var(--gm-text-3)]">查看原始事件（{trace.steps.length}）</summary>
+                        <ol className="mt-2 space-y-2">
+                            {trace.steps.map((step, index) => (
+                                <li key={`${step.at}-${step.phase}-${index}`} className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-2">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
+                                        <span className="font-medium text-[var(--gm-text)]">{generationTracePhaseLabel(step.phase)}</span>
+                                        <span className="tabular-nums">{formatTraceTime(step.at)}</span>
+                                        {typeof step.status === "number" ? <span className={step.status >= 400 ? "font-medium text-[var(--gm-danger)]" : ""}>状态 {step.status}</span> : null}
+                                        {typeof step.durationMs === "number" ? <span className="tabular-nums">{formatAdminLogDuration(step.durationMs)}</span> : null}
+                                    </div>
+                                    <GenerationLogTraceStepDetail step={step} />
+                                </li>
+                            ))}
+                        </ol>
+                    </details>
+                </>
             ) : null}
+        </div>
+    );
+}
+
+const FLOW_TONE = {
+    neutral: { dot: "bg-[var(--gm-text-3)]", border: "border-[var(--gm-border)]" },
+    success: { dot: "bg-[var(--gm-success)]", border: "border-[color-mix(in_srgb,var(--gm-success)_45%,transparent)]" },
+    danger: { dot: "bg-[var(--gm-danger)]", border: "border-[color-mix(in_srgb,var(--gm-danger)_45%,transparent)]" },
+} as const;
+
+function GenerationLogFlow({ steps }: { steps: GenerationLogTraceStep[] }) {
+    const nodes = buildGenerationLogFlow(steps);
+    if (!nodes.length) return null;
+    return (
+        <ol className="flex flex-wrap items-stretch gap-y-3">
+            {nodes.map((node, index) => (
+                <li key={node.key} className="flex items-stretch">
+                    <GenerationLogFlowNodeCard node={node} />
+                    {index < nodes.length - 1 ? <GenerationLogFlowConnector label={node.connector} /> : null}
+                </li>
+            ))}
+        </ol>
+    );
+}
+
+function GenerationLogFlowNodeCard({ node }: { node: GenerationLogFlowNode }) {
+    const tone = FLOW_TONE[node.tone];
+    const detail = [node.model, node.channel].filter(Boolean).join(" · ");
+    return (
+        <div className={`flex w-44 flex-col gap-1 rounded-md border ${tone.border} bg-[var(--gm-wash)] px-3 py-2`}>
+            <div className="flex items-center gap-1.5 text-xs">
+                <span className={`size-1.5 shrink-0 rounded-full ${tone.dot}`} />
+                <span className="font-medium text-[var(--gm-text)]">{node.label}</span>
+                {typeof node.status === "number" ? <span className={`ml-auto tabular-nums ${node.status >= 400 ? "font-medium text-[var(--gm-danger)]" : "text-[var(--gm-text-3)]"}`}>{node.status}</span> : null}
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-[var(--gm-text-3)]">
+                <span className="tabular-nums">{formatTraceTime(node.at)}</span>
+                {typeof node.durationMs === "number" && node.durationMs > 0 ? <span className="tabular-nums">{formatAdminLogDuration(node.durationMs)}</span> : null}
+                {node.state ? <span className="truncate">{node.state}</span> : null}
+            </div>
+            {detail ? <div className="truncate text-[11px] text-[var(--gm-text-2)]">{detail}</div> : null}
+            {node.errorMessage ? <div className="line-clamp-2 break-all text-[11px] leading-4 text-[var(--gm-danger)]">{node.errorMessage}</div> : null}
+        </div>
+    );
+}
+
+function GenerationLogFlowConnector({ label }: { label?: string }) {
+    return (
+        <div className="flex w-14 shrink-0 flex-col items-center justify-center px-1 text-[10px] text-[var(--gm-text-3)]">
+            {label ? <span className="mb-0.5 whitespace-nowrap font-medium text-[var(--gm-warning)]">{label}</span> : null}
+            <span aria-hidden="true">→</span>
         </div>
     );
 }
