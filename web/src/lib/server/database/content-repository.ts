@@ -180,25 +180,34 @@ export class PromptsRepository {
 export class GenerationLogsRepository {
     constructor(private readonly db: QueryExecutor) {}
 
-    async list(input: PageInput & { userId?: string; kind?: GenerationKind; source?: string; status?: GenerationStatus; keyword?: string; startAt?: string; endAt?: string } = {}): Promise<PageResult<GenerationLogRecord>> {
+    async list(input: PageInput & { userId?: string; kind?: GenerationKind; source?: string; status?: GenerationStatus; keyword?: string; startAt?: string; endAt?: string; includeTaskContext?: boolean; executionProfile?: string } = {}): Promise<PageResult<GenerationLogRecord>> {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
         const keyword = input.keyword?.trim().toLowerCase() || "";
+        // Channel names and execution profiles are admin-only. User-facing reads keep the plain select.
+        const taskContext = input.includeTaskContext
+            ? `LEFT JOIN generation_tasks task ON task.id = log.task_id
+               LEFT JOIN system_model_channels channel ON channel.id = task.channel_id`
+            : "";
+        const taskColumns = input.includeTaskContext ? ", task.execution_profile AS task_execution_profile, channel.name AS task_channel_name" : "";
+        const profileFilter = input.includeTaskContext ? "AND ($11::text IS NULL OR task.execution_profile = $11)" : "";
         const result = await this.db.query(
             `
-            SELECT *, count(*) OVER() AS total_count
-            FROM generation_logs
-            WHERE ($1::text IS NULL OR user_id = $1)
-              AND ($2::text IS NULL OR kind = $2)
-              AND ($3::text IS NULL OR source = $3)
-              AND ($4::text IS NULL OR status = $4)
-              AND ($5 = '' OR lower(title) LIKE $6 OR lower(prompt) LIKE $6 OR lower(model) LIKE $6 OR lower(username) LIKE $6 OR lower(display_name) LIKE $6 OR lower(summary) LIKE $6)
-              AND ($7::timestamptz IS NULL OR created_at >= $7)
-              AND ($8::timestamptz IS NULL OR created_at <= $8)
-            ORDER BY created_at DESC, id ASC
+            SELECT log.*, count(*) OVER() AS total_count${taskColumns}
+            FROM generation_logs log
+            ${taskContext}
+            WHERE ($1::text IS NULL OR log.user_id = $1)
+              AND ($2::text IS NULL OR log.kind = $2)
+              AND ($3::text IS NULL OR log.source = $3)
+              AND ($4::text IS NULL OR log.status = $4)
+              AND ($5 = '' OR lower(log.title) LIKE $6 OR lower(log.prompt) LIKE $6 OR lower(log.model) LIKE $6 OR lower(log.username) LIKE $6 OR lower(log.display_name) LIKE $6 OR lower(log.summary) LIKE $6)
+              AND ($7::timestamptz IS NULL OR log.created_at >= $7)
+              AND ($8::timestamptz IS NULL OR log.created_at <= $8)
+              ${profileFilter}
+            ORDER BY log.created_at DESC, log.id ASC
             LIMIT $9 OFFSET $10
             `,
-            [input.userId || null, input.kind || null, input.source || null, input.status || null, keyword, `%${keyword}%`, input.startAt || null, input.endAt || null, pageSize, (page - 1) * pageSize],
+            [input.userId || null, input.kind || null, input.source || null, input.status || null, keyword, `%${keyword}%`, input.startAt || null, input.endAt || null, pageSize, (page - 1) * pageSize, ...(input.includeTaskContext ? [input.executionProfile || null] : [])],
         );
         const logs = await this.attachAssets(result.rows.map(mapGenerationLog));
         return pageResult(logs, Number(result.rows[0]?.total_count || 0), page, pageSize);
@@ -341,6 +350,29 @@ export class GenerationLogsRepository {
                 })
                 .slice(0, CREATE_OVERVIEW_RECENT_ASSET_LIMIT),
         };
+    }
+
+    /** Admin trace only. Returns the task row even after diagnostic retention has cleared it. */
+    async getTaskTrace(taskId: string) {
+        const result = await this.db.query<{ execution_profile: string; channel_id: string | null; diagnostic_events: unknown; diagnostic_expires_at: string | Date | null }>(
+            "SELECT execution_profile, channel_id, diagnostic_events, diagnostic_expires_at FROM generation_tasks WHERE id = $1",
+            [taskId],
+        );
+        const row = result.rows[0];
+        if (!row) return null;
+        return {
+            executionProfile: row.execution_profile === "open-source-practice" ? ("open-source-practice" as const) : ("production" as const),
+            channelId: row.channel_id || undefined,
+            events: Array.isArray(row.diagnostic_events) ? row.diagnostic_events : [],
+            diagnosticsExpired: row.diagnostic_expires_at ? new Date(row.diagnostic_expires_at).getTime() <= Date.now() : false,
+        };
+    }
+
+    async getChannelNames(ids: string[]) {
+        const channelIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+        if (!channelIds.length) return new Map<string, string>();
+        const result = await this.db.query<{ id: string; name: string }>("SELECT id, name FROM system_model_channels WHERE id = ANY($1::text[])", [channelIds]);
+        return new Map(result.rows.map((row) => [row.id, row.name]));
     }
 
     async getById(id: string, forUpdate = false) {

@@ -1,6 +1,16 @@
 "use client";
 
-import { formatAdminLogDuration, formatAdminLogTime, formatGenerationLogModel, generationKindLabel, GenerationLogAssetPreview, generationSourceLabel, generationStatusClass, generationStatusLabel } from "@/components/admin/admin-generation-log";
+import {
+    formatAdminLogDuration,
+    formatAdminLogTime,
+    formatGenerationLogModel,
+    generationExecutionProfileLabel,
+    generationKindLabel,
+    GenerationLogAssetPreview,
+    generationSourceLabel,
+    generationStatusClass,
+    generationStatusLabel,
+} from "@/components/admin/admin-generation-log";
 import { adminSections } from "@/components/admin/admin-section-nav";
 import type { AdminSectionKey } from "@/components/admin/admin-sections";
 import { toNumberOrZero } from "@/components/admin/admin-values";
@@ -285,6 +295,25 @@ export function useAdminDashboardTableModel({ state, data, settingsActions }: { 
             dataIndex: "source",
             width: 120,
             render: (value) => <span className="text-sm text-[var(--gm-text-2)]">{generationSourceLabel(String(value))}</span>,
+        },
+        {
+            title: "执行环境",
+            dataIndex: "executionProfile",
+            width: 96,
+            render: (_, record) =>
+                record.executionProfile ? (
+                    <Tag className="m-0" color={record.executionProfile === "open-source-practice" ? "gold" : "default"}>
+                        {generationExecutionProfileLabel(record.executionProfile)}
+                    </Tag>
+                ) : (
+                    <span className="text-sm text-[var(--gm-text-3)]">-</span>
+                ),
+        },
+        {
+            title: "渠道",
+            dataIndex: "channelName",
+            width: 140,
+            render: (_, record) => <span className="line-clamp-1 text-sm text-[var(--gm-text-2)]">{record.channelName || "-"}</span>,
         },
         {
             title: "模型",

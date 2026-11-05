@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
         userId: params.get("userId") || "",
         start: params.get("start") || "",
         end: params.get("end") || "",
+        executionProfile: params.get("executionProfile") || "",
+        includeTaskContext: true,
     });
 
     const users = await getPublicUsersByIds(result.items.map((item) => item.userId));

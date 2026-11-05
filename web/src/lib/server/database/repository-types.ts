@@ -456,6 +456,10 @@ export type GenerationLogRecord = {
     assets: GenerationLogAssetRecord[];
     requestSnapshot?: JsonValue;
     taskId?: string;
+    /** Present only when the list was asked to join the task context. */
+    executionProfile?: "production" | "open-source-practice";
+    /** Present only when the list was asked to join the task context. */
+    channelName?: string;
     error?: string;
     createdAt: string;
     updatedAt: string;

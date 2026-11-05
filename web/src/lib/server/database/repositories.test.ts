@@ -1029,6 +1029,49 @@ describe("split Postgres repositories", () => {
         expect(queryArgs(query, 0)[1]).toEqual(["user", "user-one", "角色", "%角色%", "人物", ["角色"], 10, 10]);
     });
 
+    it("joins execution profile and channel name only when the admin list asks for task context", async () => {
+        const timestamp = "2026-01-01T00:00:00.000Z";
+        const { executor, query } = mockExecutor([
+            [{ id: "log-one", user_id: "user-one", kind: "image", status: "failed", created_at: timestamp, updated_at: timestamp, task_id: "task-one", task_execution_profile: "open-source-practice", task_channel_name: "练习渠道", total_count: "1" }],
+            [],
+            [{ id: "log-two", user_id: "user-one", kind: "image", status: "success", created_at: timestamp, updated_at: timestamp, total_count: "1" }],
+            [],
+        ]);
+        const repository = createPostgresRepositories(executor).generationLogs;
+
+        const practice = await repository.list({ includeTaskContext: true, executionProfile: "open-source-practice", page: 1, pageSize: 20 });
+        const plain = await repository.list({ page: 1, pageSize: 20 });
+
+        expect(practice.items[0]).toMatchObject({ id: "log-one", executionProfile: "open-source-practice", channelName: "练习渠道" });
+        expect(plain.items[0]).toMatchObject({ id: "log-two", executionProfile: undefined, channelName: undefined });
+        const adminStatement = String(queryArgs(query, 0)[0]);
+        expect(adminStatement).toContain("LEFT JOIN generation_tasks task ON task.id = log.task_id");
+        expect(adminStatement).toContain("LEFT JOIN system_model_channels channel ON channel.id = task.channel_id");
+        expect(adminStatement).toContain("AND ($11::text IS NULL OR task.execution_profile = $11)");
+        expect(queryArgs(query, 0)[1]).toEqual([null, null, null, null, "", "%%", null, null, 20, 0, "open-source-practice"]);
+        const userStatement = String(queryArgs(query, 2)[0]);
+        expect(userStatement).not.toContain("generation_tasks");
+        expect(userStatement).not.toContain("system_model_channels");
+        expect(queryArgs(query, 2)[1]).toHaveLength(10);
+    });
+
+    it("reads a task trace and channel names without exposing diagnostic retention as missing", async () => {
+        const { executor, query } = mockExecutor([
+            [{ execution_profile: "open-source-practice", channel_id: "channel-one", diagnostic_events: [{ phase: "upstream_response" }], diagnostic_expires_at: "2020-01-01T00:00:00.000Z" }],
+            [{ id: "channel-one", name: "练习渠道" }],
+        ]);
+        const repository = createPostgresRepositories(executor).generationLogs;
+
+        const trace = await repository.getTaskTrace("task-one");
+        const names = await repository.getChannelNames(["channel-one", "channel-one", " "]);
+
+        expect(trace).toMatchObject({ executionProfile: "open-source-practice", channelId: "channel-one", diagnosticsExpired: true });
+        expect(trace?.events).toHaveLength(1);
+        expect(names.get("channel-one")).toBe("练习渠道");
+        expect(String(queryArgs(query, 0)[0])).toContain("FROM generation_tasks WHERE id = $1");
+        expect(queryArgs(query, 1)).toEqual(["SELECT id, name FROM system_model_channels WHERE id = ANY($1::text[])", [["channel-one"]]]);
+    });
+
     it("requires an owner when listing user prompts", async () => {
         const { executor, query } = mockExecutor([[]]);
 

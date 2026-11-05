@@ -104,6 +104,7 @@ export function useAdminDashboardState({ initialUsers, initialUserSummary, initi
     const [generationLogKind, setGenerationLogKind] = useState("");
     const [generationLogSource, setGenerationLogSource] = useState("");
     const [generationLogStatus, setGenerationLogStatus] = useState("");
+    const [generationLogProfile, setGenerationLogProfile] = useState("");
     const [generationLogUserId, setGenerationLogUserId] = useState("");
     const [generationLogStart, setGenerationLogStart] = useState("");
     const [generationLogEnd, setGenerationLogEnd] = useState("");
@@ -266,6 +267,8 @@ export function useAdminDashboardState({ initialUsers, initialUserSummary, initi
         setGenerationLogSource,
         generationLogStatus,
         setGenerationLogStatus,
+        generationLogProfile,
+        setGenerationLogProfile,
         generationLogUserId,
         setGenerationLogUserId,
         generationLogStart,
