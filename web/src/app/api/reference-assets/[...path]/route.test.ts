@@ -71,6 +71,33 @@ describe("reference asset access", () => {
         vi.restoreAllMocks();
     });
 
+    it("returns uploaded object image bytes at the first hop for a verified provider read", async () => {
+        mocks.verify.mockReturnValue(true);
+        mocks.getCurrentUser.mockResolvedValue(null);
+        mocks.registration.mockResolvedValue({ ownerUserId: "owner", mimeType: "image/jpeg", storageProvider: "object", bytes: 3 });
+        mocks.readBytes.mockResolvedValue(Buffer.from([255, 216, 255]));
+        const response = await GET(new Request("https://app.example/api/reference-assets/permanent/2026/07/20/images/file.png?purpose=provider-read&expires=1&signature=test"), context);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+        expect(response.headers.get("content-type")).toBe("image/jpeg");
+        expect(response.headers.get("content-length")).toBe("3");
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([255, 216, 255]));
+        expect(mocks.readBytes).toHaveBeenCalledWith(expect.objectContaining({ storageProvider: "object" }), 20 * 1024 * 1024);
+        expect(mocks.externalRead).not.toHaveBeenCalled();
+        expect(mocks.getCurrentUser).not.toHaveBeenCalled();
+        expect(mocks.wrap).toHaveBeenCalled();
+    });
+
+    it("does not deliver provider image bytes for an invalid anonymous signature", async () => {
+        mocks.getCurrentUser.mockResolvedValue(null);
+        mocks.registration.mockResolvedValue({ ownerUserId: "owner", mimeType: "image/jpeg", storageProvider: "object" });
+        const response = await GET(new Request("https://app.example/api/reference-assets/permanent/2026/07/20/images/file.png?purpose=provider-read&expires=1&signature=invalid"), context);
+        expect(response.status).toBe(401);
+        expect(mocks.readBytes).not.toHaveBeenCalled();
+        expect(mocks.externalRead).not.toHaveBeenCalled();
+    });
+
     it("serves object images without a cross-origin redirect for canvas reads", async () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "owner", role: "user" });
         mocks.registration.mockResolvedValue({ ownerUserId: "owner", originalName: "file.png", mimeType: "image/png", storageProvider: "object", bytes: 4 });
@@ -343,11 +370,16 @@ describe("provider-read object video delivery", () => {
         expect(mocks.release).toHaveBeenCalled();
     });
 
-    it("keeps signed object image reads on the existing 307 path", async () => {
+    it("serves signed object image reads directly without the video fetch path", async () => {
         mocks.registration.mockResolvedValue({ ...video, mimeType: "image/png" });
+        mocks.readBytes.mockResolvedValue(Buffer.from([137, 80, 78, 71]));
         const response = await GET(new Request(signedUrl), videoContext);
-        expect(response.status).toBe(307);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+        expect((await response.arrayBuffer()).byteLength).toBe(4);
         expect(mocks.fetch).not.toHaveBeenCalled();
+        expect(mocks.externalRead).not.toHaveBeenCalled();
+        expect(mocks.release).toHaveBeenCalled();
     });
 
     it("answers a signed HEAD from registration metadata without fetching or consuming the signature", async () => {
