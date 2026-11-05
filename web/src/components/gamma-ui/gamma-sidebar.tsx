@@ -76,7 +76,9 @@ export function GammaSidebarRow({ collapsed, icon, label, active = false, onClic
     );
     if (href) {
         return (
-            <Link href={href} aria-label={collapsed ? label : undefined} aria-current={active ? "page" : undefined} className={className}>
+            // prefetch：侧栏是主要入口。进入页面时就把各目标的 RSC 预取回来，
+            // 点下去不必再等一次完整往返（此前每次点击都要等服务端渲染完才动）
+            <Link href={href} prefetch aria-label={collapsed ? label : undefined} aria-current={active ? "page" : undefined} className={className}>
                 {body}
             </Link>
         );
