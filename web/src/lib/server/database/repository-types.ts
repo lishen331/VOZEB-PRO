@@ -277,6 +277,7 @@ export type AppSettingsRecord = {
     defaultModels: JsonValue;
     practiceDefaultModels: JsonValue;
     practiceWorkflowModels: JsonValue;
+    practiceScriptSettings: JsonValue;
     practiceModuleVisibility: JsonValue;
     practiceModelPool: JsonValue;
     agentSkills: JsonValue;
