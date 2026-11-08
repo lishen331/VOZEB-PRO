@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
@@ -9,19 +10,15 @@ import type { AdminDashboardController } from "./use-admin-dashboard-controller"
 import { SCRIPT_AGENT_TOOL_NAMES } from "@/lib/server/script-practice-agent-tools";
 import { DEFAULT_PRACTICE_SCRIPT_SETTINGS } from "@/lib/server/practice-script-settings";
 import { AdminPracticeScriptAgent } from "./admin-practice-script-agent";
-import { applyPracticeVisibilityToggle, practiceVisibilityMerged } from "./admin-practice-visibility";
 
-/** 前台模块显隐：与插件市场同一组 8 个开关，两个页面共用一份默认值，避免互相重置。 */
-const PRACTICE_VISIBILITY_OPTIONS = [
-    ["canvas", "无限画布"],
-    ["drama", "无限短剧"],
-    ["character", "角色"],
-    ["scene", "场景"],
-    ["prop", "道具"],
-    ["storyboard-image", "分镜图"],
-    ["storyboard-video", "分镜视频"],
-    ["dubbing", "配音"],
-] as const;
+const DEFAULT_PRACTICE_MODULE_VISIBILITY = {
+    character: true,
+    scene: true,
+    prop: true,
+    "storyboard-image": true,
+    "storyboard-video": true,
+    dubbing: true,
+} as const;
 
 const SCRIPT_PRACTICE_SKILLS = [
     { value: "script-structure", label: "剧本结构" },
@@ -42,7 +39,7 @@ export function practiceScriptChannelOptions(settings: Pick<AuthSettings, "logic
     const model = settings.logicalModels.find((item) => item.id === modelId && item.enabled && item.capability === "text");
     if (!model) return [];
     const channelIds = new Set(model.bindings.filter((binding) => binding.enabled).map((binding) => binding.channelId));
-    return settings.systemChannels.filter((channel) => (channel.practiceEnabled ?? channel.enabled) && channel.purpose !== "production" && channelIds.has(channel.id)).map((channel) => ({ value: channel.id, label: channel.name || channel.id }));
+    return settings.systemChannels.filter((channel) => channel.enabled && channel.purpose !== "production" && channelIds.has(channel.id)).map((channel) => ({ value: channel.id, label: channel.name || channel.id }));
 }
 
 export function AdminPracticeSection({ controller }: { controller: AdminDashboardController }) {
@@ -76,10 +73,10 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                     <h3 className="font-medium">剧本模型</h3>
                     <div className="mt-3 grid gap-3">
-                        <Field label="剧本生成模型">
+                        <Form.Item label="剧本生成模型" className="mb-0">
                             <Select value={script.defaultModelId || undefined} placeholder="选择文本逻辑模型" options={modelOptions} onChange={(value) => updateScript({ defaultModelId: value, endpointId: "" })} />
-                        </Field>
-                        <Field label="备用剧本模型">
+                        </Form.Item>
+                        <Form.Item label="备用剧本模型" className="mb-0">
                             <Select
                                 allowClear
                                 value={script.fallbackModelId || undefined}
@@ -87,15 +84,15 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                                 options={modelOptions.filter((item) => item.value !== script.defaultModelId)}
                                 onChange={(value) => updateScript({ fallbackModelId: value || "" })}
                             />
-                        </Field>
-                        <Field label="使用渠道">
+                        </Form.Item>
+                        <Form.Item label="使用渠道" className="mb-0">
                             <Select allowClear value={script.endpointId || undefined} placeholder="自动选择可用渠道" options={channelOptions} onChange={(value) => updateScript({ endpointId: value || "" })} />
-                        </Field>
+                        </Form.Item>
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <Field label="默认语言">
+                            <Form.Item label="默认语言" className="mb-0">
                                 <Input value={script.defaultLanguage} onChange={(event) => updateScript({ defaultLanguage: event.target.value })} />
-                            </Field>
-                            <Field label="默认格式">
+                            </Form.Item>
+                            <Form.Item label="默认格式" className="mb-0">
                                 <Select
                                     value={script.defaultFormat}
                                     options={[
@@ -104,7 +101,7 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                                     ]}
                                     onChange={(value) => updateScript({ defaultFormat: value })}
                                 />
-                            </Field>
+                            </Form.Item>
                         </div>
                     </div>
                     {!script.defaultModelId ? (
@@ -133,17 +130,16 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 </div>
                 <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 lg:col-span-2">
                     <h3 className="font-medium">前台模块显隐</h3>
-                    <p className="mt-1 text-xs text-zinc-500">设置会在点击“保存无限练习配置”后生效；关闭剧本练习时，用户端入口和接口都会被拦截。</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        {PRACTICE_VISIBILITY_OPTIONS.map(([key, label]) => (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {(["character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing"] as const).map((key) => (
                             <label key={key} className="flex items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
-                                <span>{label}</span>
+                                <span>{{ character: "角色", scene: "场景", prop: "道具", "storyboard-image": "分镜图", "storyboard-video": "分镜视频", dubbing: "配音" }[key]}</span>
                                 <Switch
                                     size="small"
-                                    loading={settingsLoading}
-                                    aria-label={`${label}显示状态`}
-                                    checked={practiceVisibilityMerged(settings.practiceModuleVisibility)[key]}
-                                    onChange={(checked) => void saveSettings((current) => ({ practiceModuleVisibility: applyPracticeVisibilityToggle(current.practiceModuleVisibility, key, checked) }), `${label}${checked ? "已显示" : "已隐藏"}`)}
+                                    checked={settings.practiceModuleVisibility?.[key] !== false}
+                                    onChange={(checked) =>
+                                        setSettings((current) => ({ ...current, practiceModuleVisibility: { canvas: false, drama: false, ...DEFAULT_PRACTICE_MODULE_VISIBILITY, ...(current.practiceModuleVisibility || {}), [key]: checked } }))
+                                    }
                                 />
                             </label>
                         ))}
@@ -160,18 +156,5 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 </Button>
             </div>
         </section>
-    );
-}
-
-/**
- * 本页的控件值都由 settings 直接驱动，不经过 Form 的字段存储，
- * 所以用这个轻量标签容器代替 Form.Item（后者必须放在 <Form> 内，否则整页渲染报错）。
- */
-function Field({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <div className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-medium text-[var(--gm-text)]">{label}</span>
-            {children}
-        </div>
     );
 }
