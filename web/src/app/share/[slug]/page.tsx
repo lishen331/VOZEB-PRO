@@ -131,7 +131,7 @@ export default async function SharePage({ params }: SharePageProps) {
             <div className="mx-auto w-full max-w-[1600px] px-3 pb-10 pt-3 sm:px-6 sm:pb-16 sm:pt-4">
                 <section className="flex min-w-0 flex-col gap-3 border-b border-[var(--gm-border)] pb-3 sm:flex-row sm:items-center sm:justify-between sm:pb-4">
                     <div className="min-w-0">
-                        <BackButton fallbackHref="/gallery" className="mb-1 -ml-2.5" />
+                        <BackButton fallbackHref="/community" className="mb-1 -ml-2.5" />
                         <h1 className="break-words text-xl font-semibold leading-tight sm:text-2xl">{work.title}</h1>
                         <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-xs text-[var(--gm-text-3)]">
                             <span>{sourceTypeLabel(work.sourceType)}</span>

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("gallery surfaces", () => {
-    it("keeps the public and workspace routes on one shared gallery view", async () => {
+    it("redirects the old gallery path to the single public community page", async () => {
         const [publicPage, communityPage, sharedView, galleryCard, masonryGrid, themeToggle, publishLink, lazyImage] = await Promise.all([
             readFile(resolve(process.cwd(), "src/app/gallery/page.tsx"), "utf8"),
             readFile(resolve(process.cwd(), "src/app/(user)/community/page.tsx"), "utf8"),
@@ -15,11 +15,9 @@ describe("gallery surfaces", () => {
             readFile(resolve(process.cwd(), "src/components/media/lazy-media-image.tsx"), "utf8"),
         ]);
 
-        expect(publicPage).toContain('basePath="/gallery"');
-        expect(publicPage).toContain("<GalleryView");
-        expect(publicPage.match(/<GalleryPublishLink/g)).toHaveLength(1);
-        expect(publicPage).not.toContain('href="/works"');
-        expect(publicPage).not.toContain("WORK_CATEGORY_OPTIONS.map");
+        expect(publicPage).toContain("permanentRedirect(`/community");
+        expect(publicPage).not.toContain("GalleryView");
+        expect(publicPage).not.toContain("GalleryPublishLink");
         expect(communityPage).toContain('basePath="/community" embedded');
         expect(communityPage).toContain("h-full min-h-0 overflow-y-auto");
         expect(sharedView).toContain("WORK_CATEGORY_OPTIONS.map");

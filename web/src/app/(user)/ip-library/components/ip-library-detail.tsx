@@ -10,7 +10,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { BackButton } from "@/components/gallery/back-button";
 import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
 import type { IpDetail, IpPublicItem } from "@/lib/server/ip-library-service";
 import { ipLibraryApi } from "@/services/api/ip-library";
@@ -91,17 +90,19 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
     const showSubIpDetail = Boolean(subIpId) || detail.singleSubIp;
 
     return (
-        <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]" data-ip-library-detail>
+        <main className="relative z-0 h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]" data-ip-library-detail>
             <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
                 {showSubIpDetail ? (
                     <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                            <BackButton fallbackHref={IP_LIBRARY_LIST_HREF} label="返回 IP 库" className="-ml-1.5 mr-1" />
-                            <span aria-hidden className="h-3.5 w-px bg-[var(--gm-border-strong)]" />
-                            <Link href={IP_LIBRARY_LIST_HREF} className="hover:text-[var(--gm-text)]">
-                                IP 库
+                            <Link
+                                href={IP_LIBRARY_LIST_HREF}
+                                aria-label="返回 IP 库"
+                                className="-ml-1.5 mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] focus-visible:outline-none"
+                            >
+                                <ChevronLeft className="size-4" aria-hidden />
+                                返回 IP 库
                             </Link>
-                            <ChevronRight aria-hidden className="size-3.5" />
                             {/* 只在子 IP 视图里，IP 名才是「上一级」；单子 IP 详情下它就是当前页，不能再指向自己 */}
                             {subIpId ? (
                                 <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} className="truncate hover:text-[var(--gm-text)]">
@@ -209,7 +210,14 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
         <>
             <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                 <div className="flex items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                    <BackButton fallbackHref={IP_LIBRARY_LIST_HREF} label="返回 IP 库" className="-ml-1.5 mr-1" />
+                    <Link
+                        href={IP_LIBRARY_LIST_HREF}
+                        aria-label="返回 IP 库"
+                        className="-ml-1.5 mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] focus-visible:outline-none"
+                    >
+                        <ChevronLeft className="size-4" aria-hidden />
+                        返回 IP 库
+                    </Link>
                     <span aria-hidden className="h-3.5 w-px bg-[var(--gm-border-strong)]" />
                     <Link href={IP_LIBRARY_LIST_HREF} className="hover:text-[var(--gm-text)]">
                         IP 库

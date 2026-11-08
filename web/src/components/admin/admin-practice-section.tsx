@@ -133,7 +133,7 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 </div>
                 <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 lg:col-span-2">
                     <h3 className="font-medium">前台模块显隐</h3>
-                    <p className="mt-1 text-xs text-zinc-500">与插件市场是同一组开关，拨动即保存；只改当前这一项，不会重置其他模块。</p>
+                    <p className="mt-1 text-xs text-zinc-500">设置会在点击“保存无限练习配置”后生效；关闭剧本练习时，用户端入口和接口都会被拦截。</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         {PRACTICE_VISIBILITY_OPTIONS.map(([key, label]) => (
                             <label key={key} className="flex items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">

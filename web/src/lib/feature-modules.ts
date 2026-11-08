@@ -147,6 +147,8 @@ export function featureModuleForNavigationSlug(slug: string): FeatureModuleId | 
 }
 
 export function isUserNavigationPathAllowed(pathname: string, menuPermissions: readonly UserNavigationMenuPermission[], featureModules: FeatureModuleSettings, schoolContext?: SchoolContext | null) {
+    const root = pathname.split("/").filter(Boolean)[0];
+    if (root === "prompts") return (featureModules["my-prompts"] !== false && menuPermissions.includes("my-prompts")) || (featureModules["prompt-library"] !== false && menuPermissions.includes("prompt-library"));
     const moduleId = featureModuleForPathname(pathname);
     if (!moduleId) return true;
     if (featureModules[moduleId] === false || !menuPermissions.includes(moduleId as UserNavigationMenuPermission)) return false;

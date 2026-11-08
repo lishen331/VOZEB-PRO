@@ -35,7 +35,7 @@ describe("site metadata routes", () => {
     it("publishes only crawlable public pages and approved works", async () => {
         expect((await sitemap()).map((entry) => entry.url)).toEqual([
             "https://example.com/",
-            "https://example.com/gallery",
+            "https://example.com/community",
             "https://example.com/announcements",
             "https://example.com/terms",
             "https://example.com/privacy",

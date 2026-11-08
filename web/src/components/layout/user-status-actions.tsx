@@ -2,18 +2,18 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, CreditCard, Crown, Gift, Keyboard, LogOut, ShieldCheck, UserCircle } from "lucide-react";
+import { Keyboard, LogOut, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { App, Button, Input, Popover } from "antd";
+import { App, Popover } from "antd";
 import { Dropdown, type DropdownMenuItem } from "@/components/gamma-ui/gamma-ant-overlay";
 
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
-import { BillingPlansModal } from "@/components/billing/billing-plans-modal";
 import { AnnouncementNotificationCenter } from "@/components/layout/announcement-notification-center";
 import { CreditSymbol, formatCreditAmount } from "@/constant/credits";
 import { cn } from "@/lib/utils";
 import { userAvatarFallback } from "@/lib/user-avatar";
+import { planDisplayName } from "@/lib/plan-label";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasColorTheme, useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore, type LocalUser } from "@/stores/use-user-store";
@@ -31,7 +31,6 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
     const [pointsOpen, setPointsOpen] = useState(false);
     const [accountOpen, setAccountOpen] = useState(false);
     const [isCompactViewport, setIsCompactViewport] = useState(false);
-    const [plansOpen, setPlansOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     const storeUser = useUserStore((state) => state.user);
     const user = storeUser || initialUser || null;
@@ -70,7 +69,6 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
     const avatarFallback = userAvatarFallback(user?.displayName || user?.username || "用户");
     const accountName = user?.displayName || user?.username || "用户";
     const accountSecondary = user ? `ID：${user.accountId}` : "";
-    const planActionLabel = user?.hasActivePlan ? "续费套餐" : "升级套餐";
     const accountItems: DropdownMenuItem[] = [
         {
             type: "header",
@@ -95,22 +93,8 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="text-[11px] text-stone-400 dark:text-stone-500">当前套餐</div>
-                                <div className="mt-0.5 truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{user?.planName || user?.planId || "免费版"}</div>
+                                <div className="mt-0.5 truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{planDisplayName(user?.planName || user?.planId)}</div>
                             </div>
-                            <button
-                                type="button"
-                                className="account-upgrade-button inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md bg-stone-950 px-2.5 text-[11px] font-semibold transition hover:bg-black dark:bg-white dark:hover:bg-stone-100"
-                                aria-label={planActionLabel}
-                                title={planActionLabel}
-                                onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    setAccountOpen(false);
-                                    setPlansOpen(true);
-                                }}
-                            >
-                                <Crown className="size-3.5" /> {planActionLabel}
-                            </button>
                         </div>
                         <div className="mt-2 flex items-center justify-between gap-3 border-t border-stone-200 pt-2 text-xs dark:border-stone-800">
                             <span className="text-stone-500 dark:text-stone-400">积分余额</span>
@@ -133,29 +117,6 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
                 </Link>
             ),
         },
-        {
-            key: "billing",
-            icon: <CreditCard className="size-4" />,
-            label: (
-                <Link href="/profile?section=billing" prefetch onMouseEnter={() => router.prefetch("/profile?section=billing")} onFocus={() => router.prefetch("/profile?section=billing")}>
-                    套餐中心
-                </Link>
-            ),
-        },
-        ...(user?.role === "admin"
-            ? [
-                  { type: "divider" as const },
-                  {
-                      key: "admin",
-                      icon: <ShieldCheck className="size-4" />,
-                      label: (
-                          <Link href="/admin" prefetch onMouseEnter={() => router.prefetch("/admin")} onFocus={() => router.prefetch("/admin")}>
-                              管理员后台
-                          </Link>
-                      ),
-                  },
-              ]
-            : []),
         { type: "divider" },
         {
             key: "logout",
@@ -243,16 +204,7 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
                     }}
                     trigger="click"
                     placement="bottomRight"
-                    content={
-                        <PointsSummaryPanel
-                            user={user}
-                            onClose={() => setPointsOpen(false)}
-                            onUpgrade={() => {
-                                setPointsOpen(false);
-                                setPlansOpen(true);
-                            }}
-                        />
-                    }
+                    content={<PointsSummaryPanel user={user} onClose={() => setPointsOpen(false)} />}
                 >
                     {pointsButton}
                 </Popover>
@@ -321,22 +273,11 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
                     <Keyboard className="size-4" />
                 </button>
             ) : null}
-            <BillingPlansModal
-                open={plansOpen}
-                onClose={() => setPlansOpen(false)}
-                onSelect={(product) => {
-                    router.push(`/billing/checkout?product=${encodeURIComponent(product.id)}`);
-                }}
-            />
         </div>
     );
 }
 
-function PointsSummaryPanel({ user, onClose, onUpgrade }: { user: LocalUser; onClose: () => void; onUpgrade: () => void }) {
-    const { message } = App.useApp();
-    const setUser = useUserStore((state) => state.setUser);
-    const [code, setCode] = useState("");
-    const [redeeming, setRedeeming] = useState(false);
+function PointsSummaryPanel({ user, onClose }: { user: LocalUser; onClose: () => void }) {
     const [recordTotal, setRecordTotal] = useState<number>();
     useEffect(() => {
         let active = true;
@@ -350,28 +291,6 @@ function PointsSummaryPanel({ user, onClose, onUpgrade }: { user: LocalUser; onC
             active = false;
         };
     }, [user.id]);
-    const redeemCode = async () => {
-        const value = code.trim();
-        if (!value || redeeming) return;
-        setRedeeming(true);
-        try {
-            const response = await fetch("/api/cdk/redeem", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code: value }),
-            });
-            const payload = (await response.json()) as { user?: LocalUser; points?: number; error?: string };
-            if (!response.ok || !payload.user) throw new Error(payload.error || "兑换失败");
-            setUser(payload.user);
-            setCode("");
-            message.success(`兑换成功，获得 ${formatCreditAmount(payload.points || 0)} 积分`);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "兑换失败");
-        } finally {
-            setRedeeming(false);
-        }
-    };
-
     return (
         <div className="user-points-panel w-[min(19rem,calc(100vw-2rem))] text-stone-950 dark:text-stone-100">
             <div className="flex items-start justify-between gap-3 px-0.5 pb-2.5">
@@ -397,40 +316,6 @@ function PointsSummaryPanel({ user, onClose, onUpgrade }: { user: LocalUser; onC
                     </div>
                 </div>
             </div>
-            <div className="py-2.5">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-stone-800 dark:text-stone-100">
-                        <Gift className="size-4 text-sky-600 dark:text-sky-300" /> CDK 兑换
-                    </span>
-                    <span className="text-[11px] text-stone-400 dark:text-stone-500">兑换后自动刷新</span>
-                </div>
-                <Input.Search
-                    className="points-cdk-search"
-                    size="small"
-                    value={code}
-                    placeholder="输入兑换密钥"
-                    enterButton={
-                        <Button type="primary" size="small" loading={redeeming}>
-                            兑换
-                        </Button>
-                    }
-                    onChange={(event) => setCode(event.target.value)}
-                    onSearch={() => void redeemCode()}
-                />
-            </div>
-            <Button
-                block
-                type="primary"
-                icon={<CreditCard className="size-4" />}
-                onClick={onUpgrade}
-                className="points-summary-purchase !flex !h-9 !items-center !justify-center !gap-2 !rounded-lg !border-stone-950 !bg-stone-950 !px-3 !text-xs !font-semibold !text-white !shadow-none hover:!border-black hover:!bg-black hover:!text-white dark:!border-white dark:!bg-white dark:!text-stone-950 dark:hover:!border-stone-100 dark:hover:!bg-stone-100 dark:hover:!text-stone-950"
-            >
-                购买积分与套餐
-            </Button>
-            <Link href="/profile?section=consume" onClick={onClose} className="mt-1 flex min-h-9 items-center justify-between rounded-lg px-2 text-sm font-medium text-stone-800 transition hover:bg-stone-100 dark:text-stone-100 dark:hover:bg-stone-800/80">
-                使用详情
-                <ChevronRight className="size-4 text-stone-400" />
-            </Link>
         </div>
     );
 }

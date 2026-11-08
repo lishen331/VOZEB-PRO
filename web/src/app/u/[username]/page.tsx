@@ -70,7 +70,7 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
                         <span className="truncate text-sm font-semibold sm:text-base">{site.title}</span>
                     </Link>
                     <div className="flex shrink-0 items-center gap-2">
-                        <Link href="/gallery" className="inline-flex h-9 items-center rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 text-sm font-medium text-[var(--gm-text)] transition hover:bg-[var(--gm-wash)]">
+                        <Link href="/community" className="inline-flex h-9 items-center rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 text-sm font-medium text-[var(--gm-text)] transition hover:bg-[var(--gm-wash)]">
                             作品广场
                         </Link>
                         <GalleryThemeToggle />

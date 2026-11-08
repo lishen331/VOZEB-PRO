@@ -42,6 +42,7 @@ import { ProductionGroupsPanel } from "./components/production-groups-panel";
 import { SchoolIpAccessPanel } from "./components/school-ip-access-panel";
 import { SchoolCourseCovers } from "./school-course-covers";
 import { SchoolCourseTree } from "@/components/school/school-course-tree";
+import { VISIBLE_SCHOOL_ADMIN_TABS } from "./school-admin-tabs";
 
 const PAGE_SIZE = 12;
 const roleOptions = [
@@ -77,7 +78,7 @@ export function SchoolAdministration() {
                         { key: "commercial-orders", label: "商单", children: <CommercialOrdersPanel /> },
                         { key: "production-groups", label: "制作小组与算力", children: <ProductionGroupsPanel /> },
                         { key: "ip-access", label: "IP 开放", children: <SchoolIpAccessPanel /> },
-                    ]}
+                    ].filter((item) => (VISIBLE_SCHOOL_ADMIN_TABS as readonly string[]).includes(item.key))}
                 />
             </div>
         </main>
