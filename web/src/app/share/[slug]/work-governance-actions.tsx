@@ -30,7 +30,7 @@ export function WorkGovernanceActions({ slug, createHref }: { slug: string; crea
                     做同款
                 </Link>
             ) : null}
-            <Link href="/gallery" className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--gm-border-strong)] px-3 text-sm font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)]">
+            <Link href="/community" className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--gm-border-strong)] px-3 text-sm font-medium text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)]">
                 <GalleryVerticalEnd className="size-4" />
                 <span className="hidden sm:inline">作品广场</span>
             </Link>

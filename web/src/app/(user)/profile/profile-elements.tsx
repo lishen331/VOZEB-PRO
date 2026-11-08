@@ -24,13 +24,6 @@ export const COUPON_PAGE_SIZE = 8;
 export const profileSections: Array<{ key: ProfileSectionKey; label: string; description: string; shortDescription: string; icon: ReactNode }> = [
     { key: "overview", label: "账户概览", description: "查看当前套餐、积分余额、最近订单和最近积分流水。", shortDescription: "资产摘要", icon: <WalletCards className="size-4" /> },
     { key: "profile", label: "个人资料", description: "维护头像、显示昵称和个人简介。", shortDescription: "头像与资料", icon: <UserCircle className="size-4" /> },
-    { key: "billing", label: "套餐中心", description: "在个人中心内选择套餐，支付时进入独立安全结算页。", shortDescription: "购买套餐", icon: <CreditCard className="size-4" /> },
-    { key: "coupons", label: "我的优惠券", description: "领取优惠券并查看可用、锁定、已使用和过期状态。", shortDescription: "领取与状态", icon: <TicketPercent className="size-4" /> },
-    { key: "orders", label: "订单记录", description: "查看所有充值订单、支付状态和开通结果。", shortDescription: "收款状态", icon: <ReceiptText className="size-4" /> },
-    { key: "points", label: "积分记录", description: "查看每日积分、充值赠送、退款退回和管理员调整流水。", shortDescription: "余额流水", icon: <CreditSymbol className="text-sm" /> },
-    { key: "consume", label: "消费记录", description: "查看模型调用、生成任务和接口消费扣除。", shortDescription: "积分扣除", icon: <History className="size-4" /> },
-    { key: "referrals", label: "邀请有礼", description: "复制邀请码和邀请链接，查看注册、首单与奖励进度。", shortDescription: "拉新与奖励", icon: <UserPlus className="size-4" /> },
-    { key: "security", label: "账户与安全", description: "管理绑定邮箱、登录密码和个人数据。", shortDescription: "邮箱、密码与 MFA", icon: <ShieldCheck className="size-4" /> },
 ];
 
 export const profilePrimaryButtonClass = "profile-primary-button";
@@ -293,8 +286,11 @@ export function RecordList({ records }: { records: PointRecord[] }) {
     );
 }
 
+const PROFILE_SECTION_KEYS: readonly ProfileSectionKey[] = ["overview", "profile", "billing", "coupons", "referrals", "orders", "consume", "points", "security"];
+
 export function parseProfileSection(value: string | null): ProfileSectionKey {
-    return profileSections.some((section) => section.key === value) ? (value as ProfileSectionKey) : "overview";
+    if (value === "billing") return "overview";
+    return PROFILE_SECTION_KEYS.includes(value as ProfileSectionKey) ? (value as ProfileSectionKey) : "overview";
 }
 
 export function pointRecordTypeLabel(type: PointRecord["type"]) {

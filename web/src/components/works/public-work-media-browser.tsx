@@ -10,14 +10,24 @@ import type { PublicWorkPublication } from "@/services/api/work-publications";
 
 type PublicWorkAsset = PublicWorkPublication["assets"][number];
 
+export function filterPlayablePublicWorkAssets(assets: readonly PublicWorkAsset[], failedIds: ReadonlySet<string>) {
+    return assets.filter((asset) => (asset.mediaType === "image" || asset.mediaType === "video" || asset.mediaType === "audio") && !failedIds.has(asset.id));
+}
+
 export function PublicWorkMediaBrowser({ assets, title, compact = false }: { assets: PublicWorkAsset[]; title: string; compact?: boolean }) {
     const ordered = useMemo(() => assets.filter((asset) => asset.mediaType === "image" || asset.mediaType === "video" || asset.mediaType === "audio"), [assets]);
     const [activeId, setActiveId] = useState(ordered[0]?.id || "");
-    const active = ordered.find((asset) => asset.id === activeId) || ordered[0];
+    const [failedIds, setFailedIds] = useState<Set<string>>(() => new Set());
+    const visible = filterPlayablePublicWorkAssets(ordered, failedIds);
+    const active = visible.find((asset) => asset.id === activeId) || visible[0];
 
-    useEffect(() => setActiveId(ordered[0]?.id || ""), [ordered]);
+    useEffect(() => {
+        setFailedIds(new Set());
+        setActiveId(ordered[0]?.id || "");
+    }, [ordered]);
 
-    if (!active) return <div className="grid min-h-56 place-items-center border-y border-dashed border-[var(--gm-border)] text-sm text-[var(--gm-text-3)]">作品没有可展示的媒体</div>;
+    if (!active) return <div className="grid min-h-56 place-items-center border-y border-dashed border-[var(--gm-border)] px-4 text-center text-sm text-[var(--gm-text-3)]">作品媒体暂时无法读取，其他作品内容仍可查看。</div>;
+    const markFailed = (assetId: string) => setFailedIds((current) => new Set(current).add(assetId));
 
     return (
         <section className={cn("grid min-w-0 gap-3", compact ? "md:grid-cols-[64px_minmax(0,1fr)]" : "lg:grid-cols-[72px_minmax(0,1fr)]")} aria-label="作品媒体">
@@ -27,7 +37,7 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
                     compact ? "md:order-1 md:max-h-[min(68dvh,680px)] md:flex-col md:overflow-x-hidden md:overflow-y-auto md:pr-1" : "lg:order-1 lg:max-h-[min(74dvh,800px)] lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:pr-1",
                 )}
             >
-                {ordered.map((asset, index) => (
+                {visible.map((asset, index) => (
                     <button
                         key={asset.id}
                         type="button"
@@ -40,9 +50,9 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
                         aria-pressed={asset.id === active.id}
                     >
                         {asset.mediaType === "image" ? (
-                            <LazyMediaImage src={imagePreviewUrl(asset.url, 256)} alt="" containerClassName="size-full min-h-0" imageClassName="size-full object-cover" />
+                            <LazyMediaImage src={imagePreviewUrl(asset.url, 256)} alt="" containerClassName="size-full min-h-0" imageClassName="size-full object-cover" errorLabel="" onError={() => markFailed(asset.id)} />
                         ) : asset.mediaType === "video" ? (
-                            <video src={asset.url} muted playsInline preload="metadata" className="size-full object-cover" aria-hidden="true" />
+                            <video src={asset.url} muted playsInline preload="metadata" onError={() => markFailed(asset.id)} className="size-full object-cover" aria-hidden="true" />
                         ) : asset.mediaType === "audio" ? (
                             <Music2 className="size-7 text-[var(--gm-text-3)]" aria-hidden="true" />
                         ) : null}
@@ -60,13 +70,20 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
                 )}
             >
                 {active.mediaType === "image" ? (
-                    <LazyMediaImage src={imagePreviewUrl(active.url, 1920)} alt={title} containerClassName="flex size-full min-h-0 items-center justify-center bg-transparent" imageClassName="max-h-full max-w-full object-contain" />
+                    <LazyMediaImage
+                        src={imagePreviewUrl(active.url, 1920)}
+                        alt={title}
+                        containerClassName="flex size-full min-h-0 items-center justify-center bg-transparent"
+                        imageClassName="max-h-full max-w-full object-contain"
+                        errorLabel=""
+                        onError={() => markFailed(active.id)}
+                    />
                 ) : active.mediaType === "video" ? (
-                    <video key={active.id} src={active.url} controls playsInline preload="metadata" className="max-h-full max-w-full object-contain" aria-label={title} />
+                    <video key={active.id} src={active.url} controls playsInline preload="metadata" onError={() => markFailed(active.id)} className="max-h-full max-w-full object-contain" aria-label={title} />
                 ) : active.mediaType === "audio" ? (
                     <div className="flex w-full max-w-xl flex-col items-center gap-6 px-6">
                         <Music2 className="size-16 text-[var(--gm-text-3)]" aria-hidden="true" />
-                        <audio key={active.id} src={active.url} controls preload="metadata" className="w-full" aria-label={title} />
+                        <audio key={active.id} src={active.url} controls preload="metadata" onError={() => markFailed(active.id)} className="w-full" aria-label={title} />
                     </div>
                 ) : null}
             </div>

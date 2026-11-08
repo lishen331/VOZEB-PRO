@@ -19,6 +19,14 @@ describe("feature module registry", () => {
         expect(featureModuleForPathname("/profile")).toBeUndefined();
     });
 
+    it("allows the merged prompt hub when either legacy prompt module is authorized, but not when both are disabled", () => {
+        const settings = normalizeFeatureModuleSettings(undefined);
+        expect(isUserNavigationPathAllowed("/prompts", ["my-prompts"], settings)).toBe(true);
+        expect(isUserNavigationPathAllowed("/prompts", ["prompt-library"], settings)).toBe(true);
+        expect(isUserNavigationPathAllowed("/prompts", [], settings)).toBe(false);
+        expect(isUserNavigationPathAllowed("/prompts", ["my-prompts"], normalizeFeatureModuleSettings({ "my-prompts": false, "prompt-library": false }))).toBe(false);
+    });
+
     it("makes teaching and learning centers configurable menus with matching school identities", () => {
         const settings = normalizeFeatureModuleSettings(undefined);
         expect(DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS).toEqual(expect.arrayContaining(["teaching", "learning"]));

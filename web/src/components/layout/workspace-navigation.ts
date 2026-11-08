@@ -29,7 +29,7 @@ type Entry = { slug: string; label: string; icon: GammaNavIconName; group: Works
  * 展示顺序即侧栏顺序；slug 与 navigation-tools 一致。
  * 学校身份（老师 / 学生 / 学校管理员）才会出现，紧跟在首页后面单独成组；
  * 无限练习属于练习区，与学校板块之间用分隔线隔开。
- * 作品广场（/gallery、/community）不进侧栏，从首页作品区「全部作品」进入；两个页面本身仍可访问。
+ * 作品广场（/community）不进侧栏，旧 /gallery 保留永久重定向，从首页作品区「全部作品」进入；两个页面本身仍可访问。
  */
 const ENTRIES: readonly Entry[] = [
     { slug: "teaching", label: "教学中心", icon: "teaching", group: "school" },
@@ -42,9 +42,8 @@ const ENTRIES: readonly Entry[] = [
     { slug: "drama-lab", label: "创作工坊", icon: "workshop", group: "create" },
     { slug: "one-click-film", label: "一键成片", icon: "film", group: "create" },
     { slug: "works", label: "我的作品", icon: "works", group: "assets" },
-    { slug: "assets", label: "我的素材", icon: "assets", group: "assets" },
-    { slug: "my-prompts", label: "我的提示词", icon: "library", group: "assets" },
-    { slug: "prompts", label: "提示词库", icon: "prompts", group: "assets" },
+    { slug: "assets", label: "素材", icon: "assets", group: "assets" },
+    { slug: "prompts", label: "提示词", icon: "prompts", group: "assets" },
     { slug: "ip-library", label: "IP 库", icon: "ip", group: "community" },
     { slug: "me", label: "我的主页", icon: "profile", group: "community" },
 ];
@@ -58,7 +57,13 @@ export type WorkspaceNavOptions = {
 
 export function workspaceNavItems({ schoolContext = null, featureModules, menuPermissions }: WorkspaceNavOptions = {}): WorkspaceNavItem[] {
     const allowed = new Set<string>(navigationToolsForContext(schoolContext, { featureModules, menuPermissions }).map((tool) => tool.slug));
-    const visible = ENTRIES.filter((entry) => allowed.has(entry.slug)).map<WorkspaceNavItem>((entry) => ({ key: entry.slug, label: entry.label, icon: entry.icon, href: `/${entry.slug}`, group: entry.group }));
+    const visible = ENTRIES.filter((entry) => (entry.slug === "prompts" ? allowed.has("my-prompts") || allowed.has("prompts") : allowed.has(entry.slug))).map<WorkspaceNavItem>((entry) => ({
+        key: entry.slug,
+        label: entry.label,
+        icon: entry.icon,
+        href: `/${entry.slug}`,
+        group: entry.group,
+    }));
     const hasSchool = visible.some((item) => item.group === "school");
     // 没有学校入口时，首页并入创作组，免得顶上孤零零一条分隔线
     const home: WorkspaceNavItem = { key: "home", label: "首页", icon: "home", href: "/", group: hasSchool ? "home" : "create" };
@@ -66,13 +71,14 @@ export function workspaceNavItems({ schoolContext = null, featureModules, menuPe
 }
 
 /** 帮助中心不放在导航列表里，由侧栏底部操作区单独展示 */
-export function isHelpCenterVisible(featureModules?: FeatureModuleSettings, menuPermissions?: readonly UserNavigationMenuPermission[]) {
-    return featureModules?.["help-center"] !== false && (!menuPermissions || menuPermissions.includes("help-center"));
+export function isHelpCenterVisible(_featureModules?: FeatureModuleSettings, _menuPermissions?: readonly UserNavigationMenuPermission[]) {
+    return false;
 }
 
 /** 当前路径对应的侧栏选中项（没有对应入口时返回空字符串，例如 /profile、/billing） */
 export function workspaceNavActiveKey(pathname: string, items: readonly WorkspaceNavItem[]) {
     const root = pathname.split("/").filter(Boolean)[0];
     if (!root) return "home";
+    if (root === "my-prompts") return items.some((item) => item.key === "prompts") ? "prompts" : "";
     return items.find((item) => item.key === root)?.key ?? "";
 }

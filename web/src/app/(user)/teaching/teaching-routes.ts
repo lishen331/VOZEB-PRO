@@ -16,6 +16,7 @@ import type { CourseChapter, CourseLesson, PlatformCourseDetail } from "@/lib/sc
 export const TEACHING_TABS = ["prep", "catalog", "classes", "assignments", "submissions", "orders"] as const;
 export type TeachingTab = (typeof TEACHING_TABS)[number];
 export const DEFAULT_TEACHING_TAB: TeachingTab = "prep";
+export const VISIBLE_TEACHING_TABS: readonly TeachingTab[] = ["catalog", "prep", "classes"];
 
 export const TEACHING_TAB_LABELS: Record<TeachingTab, string> = {
     prep: "备课",
@@ -27,7 +28,7 @@ export const TEACHING_TAB_LABELS: Record<TeachingTab, string> = {
 };
 
 export function parseTeachingTab(value: string | null | undefined): TeachingTab {
-    return TEACHING_TABS.includes(value as TeachingTab) ? (value as TeachingTab) : DEFAULT_TEACHING_TAB;
+    return VISIBLE_TEACHING_TABS.includes(value as TeachingTab) ? (value as TeachingTab) : DEFAULT_TEACHING_TAB;
 }
 
 /** L1：教学中心某个标签页；默认标签不带参数，保持地址干净 */

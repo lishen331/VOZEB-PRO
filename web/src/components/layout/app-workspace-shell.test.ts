@@ -13,7 +13,8 @@ describe("workspace sidebar", () => {
         expect(shell).not.toContain("UserStatusActions");
         expect(shell).not.toContain("pageTitle");
         expect(sidebar).toContain("workspaceNavItems(");
-        expect(sidebar).toContain("isHelpCenterVisible(");
+        expect(sidebar).not.toContain("isHelpCenterVisible");
+        expect(sidebar).not.toContain("showHelp");
         expect(sidebar).not.toContain("window.location.host");
     });
 

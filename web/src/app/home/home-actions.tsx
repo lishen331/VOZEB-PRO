@@ -1,8 +1,7 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 
-import { BillingPlansModal } from "@/components/billing/billing-plans-modal";
 import { createAgentPromptHref, type CreateAgentMode } from "@/lib/create-agent-prompt";
 import { loginHref } from "@/lib/login-navigation";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
@@ -15,7 +14,6 @@ type HomeActions = {
     sessionReady: boolean;
     site: HomeSiteSettings;
     openLogin: (nextPath?: string) => void;
-    openBillingPlans: () => void;
     openProtectedPath: (path: string) => void;
     startCreating: (prompt?: string, mode?: CreateAgentMode) => void;
 };
@@ -23,7 +21,6 @@ type HomeActions = {
 const HomeActionsContext = createContext<HomeActions | null>(null);
 
 export function HomeActionsProvider({ initialSite, children }: { initialSite: HomeSiteSettings; children: ReactNode }) {
-    const [billingPlansOpen, setBillingPlansOpen] = useState(false);
     const user = useUserStore((state) => state.user);
     const session = usePublicSessionStore((state) => state.payload);
     const sessionReady = usePublicSessionStore((state) => state.ready);
@@ -51,12 +48,7 @@ export function HomeActionsProvider({ initialSite, children }: { initialSite: Ho
     };
     const startCreating = (prompt = "", mode: CreateAgentMode = "agent") => openProtectedPath(createAgentPromptHref(prompt, { source: "home", mode }));
 
-    return (
-        <HomeActionsContext.Provider value={{ authenticated, sessionReady, site, openLogin, openBillingPlans: () => setBillingPlansOpen(true), openProtectedPath, startCreating }}>
-            {children}
-            <BillingPlansModal open={billingPlansOpen} onClose={() => setBillingPlansOpen(false)} onSelect={(product) => openProtectedPath(`/billing/checkout?product=${encodeURIComponent(product.id)}`)} />
-        </HomeActionsContext.Provider>
-    );
+    return <HomeActionsContext.Provider value={{ authenticated, sessionReady, site, openLogin, openProtectedPath, startCreating }}>{children}</HomeActionsContext.Provider>;
 }
 
 export function useHomeActions() {

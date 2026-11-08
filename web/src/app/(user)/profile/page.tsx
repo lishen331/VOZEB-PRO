@@ -6,11 +6,12 @@ import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination } from "@/components/gamma-ui/gamma-ant";
 import { saveAs } from "file-saver";
-import { CreditCard, Download, History, ReceiptText, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
+import { Download, History, ReceiptText, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
 
 import { CreditSymbol, formatCreditAmount } from "@/constant/credits";
 import { CompactEmptyState } from "@/components/compact-empty-state";
 import { resetClientSessionState } from "@/lib/client-session-reset";
+import { planDisplayName } from "@/lib/plan-label";
 import { downloadUserDataExport } from "@/services/api/user-data-export";
 import { useUserStore, type LocalUser } from "@/stores/use-user-store";
 
@@ -23,7 +24,6 @@ import { ProfileReferralCenter } from "./profile-referral-center";
 import {
     ProfileSectionKey,
     RECORD_PAGE_SIZE,
-    profilePrimaryButtonClass,
     profileSecondaryButtonClass,
     profileDangerButtonClass,
     ProfileSectionNav,
@@ -181,16 +181,12 @@ export default function ProfilePage() {
                 <div className="mb-1 flex items-center justify-end gap-1.5 sm:mb-5 sm:justify-between sm:gap-3 sm:rounded-xl sm:border sm:border-[var(--gm-border)] sm:bg-[var(--gm-surface)] sm:p-6 sm:text-card-foreground">
                     <div className="hidden min-w-0 sm:block">
                         <h1 className="text-lg font-semibold text-[var(--gm-text)] sm:text-2xl">个人中心</h1>
-                        <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-[var(--gm-text-2)] sm:block">个人资料、套餐优惠、订单记录、消费记录和积分流水统一放在一个用户后台里。</p>
+                        <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-[var(--gm-text-2)] sm:block">管理账户概览和个人资料。</p>
                     </div>
                     <div className="flex shrink-0 gap-2">
                         <Button size="small" className={profileSecondaryButtonClass} icon={<RefreshCw className="size-3.5 sm:size-4" />} loading={accountLoading} onClick={() => void refreshAccount()}>
                             <span className="sm:hidden">刷新</span>
                             <span className="hidden sm:inline">刷新记录</span>
-                        </Button>
-                        <Button size="small" className={profilePrimaryButtonClass} type="primary" icon={<CreditCard className="size-3.5 sm:size-4" />} onClick={() => switchSection("billing")}>
-                            <span className="sm:hidden">套餐</span>
-                            <span className="hidden sm:inline">购买套餐</span>
                         </Button>
                     </div>
                 </div>
@@ -201,7 +197,7 @@ export default function ProfilePage() {
 
                 {activeSection === "overview" ? (
                     <section className="mb-2 grid grid-cols-2 gap-1 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-1 sm:mb-5 xl:grid-cols-4 xl:gap-3 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0">
-                        <AccountMetric label="当前套餐" value={user?.planName || user?.planId || "未加载"} icon={<WalletCards className="size-4" />} />
+                        <AccountMetric label="当前套餐" value={user ? planDisplayName(user.planName || user.planId) : "未加载"} icon={<WalletCards className="size-4" />} />
                         <AccountMetric
                             label="积分余额"
                             value={`${formatCreditAmount(user?.pointsBalance || 0)} 积分`}

@@ -14,6 +14,7 @@ export function LazyMediaImage({
     errorLabel = "图片不可用",
     placeholderSrc,
     loading = "lazy",
+    onError,
 }: {
     src: string;
     alt: string;
@@ -22,6 +23,7 @@ export function LazyMediaImage({
     errorLabel?: string;
     placeholderSrc?: string;
     loading?: "eager" | "lazy";
+    onError?: () => void;
 }) {
     const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
     const [placeholderReady, setPlaceholderReady] = useState(false);
@@ -64,7 +66,10 @@ export function LazyMediaImage({
                 decoding="async"
                 className={cn("transition-[opacity,transform] duration-300", hasPlaceholder && "col-start-1 row-start-1", status === "ready" ? "opacity-100" : "opacity-0", status === "error" && "invisible", imageClassName)}
                 onLoad={() => setStatus("ready")}
-                onError={() => setStatus("error")}
+                onError={() => {
+                    setStatus("error");
+                    onError?.();
+                }}
             />
         </span>
     );

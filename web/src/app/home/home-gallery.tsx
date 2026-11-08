@@ -72,7 +72,7 @@ export function HomeGallery() {
             </div>
 
             <div className={styles.galleryMore}>
-                <Link href="/gallery">
+                <Link href="/community">
                     查看更多作品 <ArrowRight aria-hidden="true" />
                 </Link>
             </div>
