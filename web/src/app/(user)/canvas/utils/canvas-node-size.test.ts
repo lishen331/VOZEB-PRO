@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
 
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { fitNodeAspectRatio, resizeImageNodeToNaturalRatio } from "./canvas-node-size";
@@ -14,6 +15,10 @@ const imageNode: CanvasNodeData = {
 };
 
 describe("Canvas image node sizing", () => {
+    it("keeps geometry utilities callable by server-side result recovery", async () => {
+        const source = await readFile(new URL("./canvas-node-size.ts", import.meta.url), "utf8");
+        expect(source).not.toMatch(/^\s*["']use client["']/);
+    });
     it("fits a square image to a square frame without side gutters", () => {
         expect(fitNodeAspectRatio(1024, 1024, 340, 340)).toEqual({ width: 340, height: 340 });
     });
