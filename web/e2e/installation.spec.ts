@@ -59,6 +59,11 @@ test("initialization rejects a wrong token and creates the first administrator o
     expect(await settings.json()).toMatchObject({ settings: { defaultModels: { textModel: "e2e-text", imageModel: "e2e-image", videoModel: "e2e-video", audioModel: "e2e-audio" } } });
 
     await page.goto("/install");
+    await expect(page).toHaveURL(/\/login\?next=%2F$/);
+
+    const adminState = await request.storageState();
+    await page.context().addCookies(adminState.cookies);
+    await page.goto("/install");
     await expect(page).toHaveURL(/\/(?:$|\?)/);
 
     const statePath = path.join(process.cwd(), ".e2e-data", "admin-state.json");
