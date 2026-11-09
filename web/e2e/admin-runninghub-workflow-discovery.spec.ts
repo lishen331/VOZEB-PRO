@@ -49,6 +49,10 @@ test("管理员可读取 RunningHub 工作流、测试并在当前指纹成功�
     const discovery = (await discovered.json()).data;
     expect(discovery.candidates).toEqual(expect.arrayContaining([expect.objectContaining({ nodeId: "138", role: "prompt" }), expect.objectContaining({ nodeId: "147", role: "image" }), expect.objectContaining({ nodeId: "92", role: "output" })]));
 
+    // Discovery returns editable mappings, not the full provider JSON. Supply the real fixture JSON required by enablement.
+    const jsonResponse = await page.request.post(`http://127.0.0.1:${fixturePort}/api/openapi/getJsonApiFormat`, { data: { workflowId: discovery.workflowId, apiKey: channel.apiKey } });
+    expect(jsonResponse.ok(), await jsonResponse.text()).toBe(true);
+    const workflowApiJson = (await jsonResponse.json()).data.prompt;
     const created = await page.request.post("/api/admin/runninghub/workflows", {
         data: {
             channelId: channel.id,
@@ -57,6 +61,7 @@ test("管理员可读取 RunningHub 工作流、测试并在当前指纹成功�
             capability: "video",
             workflowId: discovery.workflowId,
             workflowJsonFingerprint: discovery.workflowJsonFingerprint,
+            workflowApiJson,
             inputSchema: discovery.suggestedInputs,
             nodeMappings: discovery.suggestedNodeMappings,
             outputMappings: discovery.suggestedOutputs,

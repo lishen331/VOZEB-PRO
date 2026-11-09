@@ -58,12 +58,12 @@ test("平台管理员按学校管理成员个人永久积分", async ({ browser,
         await expectStatus(student.request.get(`/api/admin/schools/${schoolA.id}/members`), 403);
         await expectStatus(student.request.post(`/api/admin/schools/${schoolA.id}/members/${schoolMember!.id}/points-adjustments`, { data: { operation: "credit", amount: 1, reason: "越权", idempotencyKey: `${creditKey}:student` } }), 403);
 
-        await createAdmin(adminRequest, names.limitedAdmin, ["users.manage"]);
+        await createAdmin(adminRequest, names.limitedAdmin);
         const limitedContext = await createAuthenticatedE2EContext(browser, BASE_URL, { username: names.limitedAdmin, password: PASSWORD }, e2eProjectContextOptions(testInfo.project.name));
         contexts.push(limitedContext);
-        await expectStatus(limitedContext.request.get(`/api/admin/schools/${schoolA.id}/members?page=1&pageSize=20`), 200);
+        await expectStatus(limitedContext.request.get(`/api/admin/schools/${schoolA.id}/members?page=1&pageSize=20`), 403);
         await expectStatus(limitedContext.request.post("/api/admin/schools", { data: { name: "越权学校", administrator: { username: `forbidden_${suffix}`, password: PASSWORD } } }), 403);
-        await verifyLimitedAdminUi(limitedContext, names.schoolA);
+        await verifyLimitedAdminUi(limitedContext);
 
         const disabled = await adminRequest.patch(`/api/admin/users/${debit.member.userId}`, { data: { status: "disabled" } });
         expect(disabled.status(), await disabled.text()).toBe(200);
@@ -93,22 +93,26 @@ async function adjust(request: APIRequestContext, schoolId: string, membershipId
     return apiData<AdminSchoolMemberPointsAdjustmentResult>(await request.post(`/api/admin/schools/${encodeURIComponent(schoolId)}/members/${encodeURIComponent(membershipId)}/points-adjustments`, { data }));
 }
 
-async function createAdmin(request: APIRequestContext, username: string, adminPermissions: string[]) {
-    const response = await request.post("/api/admin/users", { data: { username, displayName: username, password: PASSWORD, role: "admin", adminPermissions } });
+async function createAdmin(request: APIRequestContext, username: string) {
+    const roleResponse = await request.post("/api/admin/rbac/roles", { data: { name: username, permissions: ["users"] } });
+    expect(roleResponse.ok(), await roleResponse.text()).toBe(true);
+    const { role } = (await roleResponse.json()) as { role: { key: string } };
+    const response = await request.post("/api/admin/rbac/administrators", { data: { username, displayName: username, password: PASSWORD, roleKey: role.key } });
     const body = await response.text();
     expect(response.ok(), body).toBe(true);
-    const payload = JSON.parse(body) as { user?: { id: string } };
-    expect(payload.user).toBeTruthy();
-    return payload.user!;
+    const payload = JSON.parse(body) as { administrator?: { id: string } };
+    expect(payload.administrator).toBeTruthy();
+    return payload.administrator!;
 }
 
-async function verifyLimitedAdminUi(context: BrowserContext, schoolName: string) {
+async function verifyLimitedAdminUi(context: BrowserContext) {
     const page = await context.newPage();
     try {
         await page.goto(`/admin?section=schools`, { waitUntil: "domcontentloaded" });
         await expect(page.locator("[data-hydrated='true']")).toBeVisible();
-        await page.getByPlaceholder("搜索学校名称").fill(schoolName);
-        await expect(page.getByRole("button", { name: "成员", exact: true }).first()).toBeVisible();
+        // User operations cannot read education operations; preserve the existing server-side permission boundary.
+        await expect(page.getByPlaceholder("搜索学校名称")).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "成员", exact: true })).toHaveCount(0);
         await expect(page.getByRole("button", { name: "新建学校", exact: true })).toHaveCount(0);
         await expect(page.getByRole("button", { name: "详情", exact: true })).toHaveCount(0);
         await expect(page.getByRole("button", { name: "编辑", exact: true })).toHaveCount(0);
