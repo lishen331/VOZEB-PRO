@@ -49,3 +49,10 @@
 - 练习配置页桌面/390px/430px Chromium 专项及安装依赖共 6 项通过，无页面异常或横向溢出。该专项明确 mock PostgreSQL 专属的 Agent overview 读取；不代表真实 Agent 持久化或完整 PostgreSQL 回归通过。
 - Web typecheck、全量 ESLint、Prettier、生产 build 均通过。全量 Vitest 默认高并发曾出现两处未修改用例超时，专项复核 9 项通过；降低本机测试并发后完整运行 1119 文件通过、8 文件环境跳过，6116 项通过、36 项环境跳过，未增加测试超时或跳过失败用例。
 - 本补充修复提交到原 PR 候选分支，并走测试镜像流程；正式生产镜像仍因上述跨模块完整回归问题未放行，不自动修改算力 SQL、权限或生成业务来绕过门禁。
+
+## 测试候选部署结果（页面表单补充修复后）
+
+- [Staging image 42557028676](https://github.com/lishen331/VOZEB-PRO/actions/runs/42557028676) 已成功，源码 SHA `e1a021505dcafefae9108fcca1f3f80ed2e05a63`。
+- 服务器再次核实 app 与 worker 均运行 `ghcr.io/lishen331/vozeb-pro:sha-e1a021505dcafefae9108fcca1f3f80ed2e05a63`，app healthy；readiness 的 database/schema/worker 均正常。
+- 该镜像包含后台练习页 Form 容器修复；本记录后续文档提交不会改变业务运行代码。
+- 生产复核仍为 `sha-d29e71ac70dc3ce2ed7847b0fc1252d82b3ed91f` 与临时 build `vyQcRypwunGhd4-IMN7kR`，readiness 正常，未被重建替换。PR #71 仍未合并；完整 Browser E2E/算力 SQL 等跨模块问题没有被视为已修复或已通过。
