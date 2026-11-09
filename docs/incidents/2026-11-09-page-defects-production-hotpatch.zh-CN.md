@@ -44,3 +44,7 @@
 - RunningHub 测试从本地 fixture 获取真实 API 格式 JSON，并在创建工作流时一并提交；保留服务端启用时的 JSON/指纹/成功测试证据校验。安装、官方作品与 RunningHub 专项共 6 项通过。
 - 学校积分测试的受限管理员改用现有 RBAC 角色/管理员 API 创建。用户运营角色不包含产教运营权限，读取学校成员期望 403，并验证对应学校管理控件不出现；未修改生产权限代码。该夹具需要 PostgreSQL，等待隔离 CI 数据库验证。
 - 后续用 `VOZEB-PRO-v*` 质量验证标签运行完整 CI（不匹配生产镜像的 `v*` 触发器），验证通过前不发布生产版本标签。
+
+### 完整质量验证结论
+
+`VOZEB-PRO-v0.8.28-rc.1` 的完整 Quality 运行未通过：Browser E2E 大量失败/超时后为诊断主动取消，PostgreSQL integration tests 未运行。未发布新的生产版本标签、未合并 PR。失败分组、隔离边界与证据见 [正式发布未放行记录](./2026-11-09-page-defects-release-gate.zh-CN.md)。不要沿用前文轻量 PR Quality 成功，将本次发布记为完成。

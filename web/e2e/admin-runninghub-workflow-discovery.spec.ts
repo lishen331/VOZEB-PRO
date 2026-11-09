@@ -5,7 +5,7 @@ test.describe.configure({ mode: "serial" });
 test("管理员可读取 RunningHub 工作流、测试并在当前指纹成功后启用", async ({ page }) => {
     const settingsResponse = await page.request.get("/api/admin/settings");
     expect(settingsResponse.ok(), await settingsResponse.text()).toBe(true);
-    const current = (await settingsResponse.json()).settings;
+    const { settings: current, settingsRevision } = await settingsResponse.json();
     const fixturePort = Number(process.env.VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT || 4030);
     const channel = {
         id: "e2e-runninghub-discovery",
@@ -36,6 +36,7 @@ test("管理员可读取 RunningHub 工作流、测试并在当前指纹成功�
     };
     const saved = await page.request.patch("/api/admin/settings", {
         data: {
+            settingsRevision,
             systemChannels: [...current.systemChannels.filter((item: { id: string }) => item.id !== channel.id), channel],
             logicalModels: current.logicalModels,
             defaultModels: current.defaultModels,

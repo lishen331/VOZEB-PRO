@@ -5,6 +5,7 @@ import { expect, test, type APIRequestContext, type APIResponse, type BrowserCon
 import type { AdminSchoolMemberPoints, AdminSchoolMemberPointsAdjustmentResult, CreateSchoolInput, PageResult, SchoolDetail, SchoolMember } from "../src/lib/school-domain";
 import { expectDialogWithinViewport, expectNoHorizontalOverflow, expectVisibleControlsWithinViewport } from "./responsive-helpers";
 import { createAuthenticatedE2EContext, e2eProjectContextOptions } from "./support";
+import { adminMenuPermission } from "../src/components/admin/admin-sections";
 
 const BASE_URL = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_E2E_PORT || 3100)}`;
 const PASSWORD = "SchoolMemberPointsE2E!2026";
@@ -94,7 +95,7 @@ async function adjust(request: APIRequestContext, schoolId: string, membershipId
 }
 
 async function createAdmin(request: APIRequestContext, username: string) {
-    const roleResponse = await request.post("/api/admin/rbac/roles", { data: { name: username, permissions: ["users"] } });
+    const roleResponse = await request.post("/api/admin/rbac/roles", { data: { name: username, permissions: [adminMenuPermission("users")] } });
     expect(roleResponse.ok(), await roleResponse.text()).toBe(true);
     const { role } = (await roleResponse.json()) as { role: { key: string } };
     const response = await request.post("/api/admin/rbac/administrators", { data: { username, displayName: username, password: PASSWORD, roleKey: role.key } });
