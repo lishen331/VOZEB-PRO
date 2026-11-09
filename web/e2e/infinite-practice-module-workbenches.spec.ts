@@ -182,6 +182,8 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
                 }
                 await rolePage.screenshot({ path: testInfo.outputPath(`${moduleKind}-layout.png`) });
             }
+            const mobileNavigation = (rolePage.viewportSize()?.width || 0) < 1024;
+            if (mobileNavigation) await rolePage.getByRole("button", { name: "打开导航菜单", exact: true }).click();
             await rolePage.getByRole("button", { name: /切换到(?:深色|黑夜)主题/ }).click();
             await expect(rolePage.getByRole("button", { name: /切换到(?:浅色|白昼|白色)主题/ })).toBeVisible();
             await rolePage.evaluate(async () => {
@@ -192,6 +194,10 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
                 });
                 await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => undefined)));
             });
+            if (mobileNavigation) {
+                await rolePage.keyboard.press("Escape");
+                await expect(rolePage.getByRole("dialog", { name: "导航菜单", exact: true })).toBeHidden();
+            }
             await rolePage.screenshot({ path: testInfo.outputPath("audio-dark.png") });
             await rolePage.close();
         } finally {

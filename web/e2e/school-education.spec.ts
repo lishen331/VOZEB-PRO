@@ -767,7 +767,16 @@ async function verifyExistingUserCapabilities(context: BrowserContext, role: str
             try {
                 expect(response?.status(), `${role} ${route.path}`).toBeLessThan(400);
                 await expect(page).not.toHaveURL(/\/(?:login|install)(?:\?|$)/);
-                await expect(page.getByRole("heading", { name: route.heading }).first()).toBeVisible();
+                if (route.path === "/profile?section=billing") {
+                    // The legacy billing section maps to overview; mobile replaces the page title with section navigation.
+                    const sectionSelect = page.getByRole("combobox", { name: "切换个人中心分区", exact: true });
+                    await expect(page.getByRole("heading", { name: "个人中心", exact: true }).or(sectionSelect).first()).toBeVisible();
+                    if (await sectionSelect.isVisible()) await expect(sectionSelect).toHaveText("账户概览");
+                    await expect(page.getByRole("heading", { name: "最近积分流水", exact: true })).toBeVisible();
+                    await expect(page.getByRole("heading", { name: "最近订单", exact: true })).toBeVisible();
+                } else {
+                    await expect(page.getByRole("heading", { name: route.heading }).first()).toBeVisible();
+                }
                 await expect(page.locator("main").first()).toBeVisible();
                 await expect(page.locator(".gm-spin-spinning").filter({ visible: true })).toHaveCount(0);
                 await expectNoHorizontalOverflow(page, `${role} ${route.path}`);

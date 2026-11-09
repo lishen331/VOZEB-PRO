@@ -294,7 +294,7 @@ test("canvas video warns about undersized reference images and asks before upsca
         await expect(dialog).toBeVisible();
         await expect(dialog).toContainText("444×283 → 471×300（放大）");
         await expect(dialog).toContainText("放大会降低参考图清晰度");
-        await dialog.getByRole("button", { name: "取消" }).click();
+        await dialog.getByRole("button", { name: /取\s*消/ }).click();
         await expect(dialog).toBeHidden();
         expect(submitted).toHaveLength(0);
         await expectCanvasSaved(page);

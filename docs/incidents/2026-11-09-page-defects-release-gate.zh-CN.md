@@ -113,3 +113,15 @@
 - 同版本本地 `--all --redact` 复扫 1661 个提交：先 27 条告警，补充逐项审核的精确指纹后 `no leaks found`。额外本地分支文档示例也与既有已审核示例逐字节相同。未把密钥、私钥正文或完整服务器环境写入报告。
 - 独立 QA PostgreSQL 集成中，旧课程迁移夹具只创建 id，却遗漏迁移依赖的既有账号列 username/role/admin_permissions/updated_at。补齐测试前置结构，不修改生产 Schema；真实迁移仍连续执行两次并核对旧 JSON 数据和新增列/索引。
 - 跨 SSH 网络诊断执行 5 files / 22 tests 全通过，管理员备份测试实测约 6 秒；该次仅诊断命令使用 60 秒测试时限，未修改 CI 默认时限。不能将此证据冒充 CI 默认时限下的 PostgreSQL 集成门禁已通过，仍需最终候选完整 CI 结果。
+
+
+### 审查后最终补充与移动验收（2026-11-09 18:43）
+
+- 两轮较旧完整 CI 的 Browser E2E 尚有失败且耗时较长，已取消取回日志；取消不是成功。第二轮 Docs、Gitleaks/CodeQL 及 Web audit/lint/typecheck/unit/format/build 通过，浏览器日志列出的实际手机溢出/旧控件契约已逐项处理，未放宽检查阈值。
+- 独立审查指出 `modal={open && ...}` 会替换 Radix Content 类型导致保留型表单状态丢失；修复为稳定业务 DOM host/createPortal，加仅 open 时存在的 Radix shell。没有 Activity 清理业务 effects、没有切换内容组件类型。真实 Chromium 回归脚本 `web/scripts/gamma-modal-browser-regression.mjs` 先复现重开输入丢失，再通过保留DOM、state、Gamma Form preserve true/false、touched/errors、forceRender、destroyOnHidden、背景滚动和点击、嵌套快速开关及焦点验证。默认保留 mounts=1/cleanups=0，销毁模式 mounts=2/cleanups=1。
+- 审查发现音频取消错误释放图片上传锁，已分离 imageUploading/audioUploading，并给自定义音频上传补齐 requestId 保护。新增可控 Promise 覆盖挂起图片替换时取消音频仍禁生成，完成后提交新图；取消旧音频不回写、不清理新锁。面板/工作台专项29项通过。
+- 手机实际溢出：IP学校授权工具栏与后台短剧筛选栏增加正常换行，搜索框手机占满一行；保留按钮及服务。后台学校搜索限定唯一可见控件；手机主题按钮按实际导航抽屉操作；个人中心按手机分区 combobox 及真实概览内容验证。
+- Canvas 视频小图确认框实际按钮为 Ant 的“取 消”，测试改为匹配空白，完整取消/继续路径真实 Chromium通过，不改尺寸检查或上游参数。
+- 最新 390/430 两项目目标回归：14 passed，8.2分钟，退出码0；包含两尺寸全部后台页、学校积分、六模块、IP编辑授权打包、创作页/短剧/Canvas布局、删除后刷新、学校课程作业及商单完整两轮闭环。
+- 主代理复跑独立Modal真实DOM脚本通过；8 files / 70 tests专项通过；Web全量ESLint、Prettier与生产构建（含类型检查）通过。此前6138项全量unit是较旧候选证据；最终候选需要新的完整CI，不冒用旧结果。
+- 管理员入口紧急修复已另行本地提交 `50f719a0` 并在测试/生产热更新，真实登录浏览器点击成功，细节见同目录管理员入口热补丁记录。本轮正式候选必须包含该提交，不得再次覆盖入口。

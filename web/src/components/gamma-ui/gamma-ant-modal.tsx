@@ -8,7 +8,8 @@
  */
 
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 import { Modal as AntModal } from "antd";
 import { Dialog as DialogPrimitive } from "radix-ui";
@@ -58,7 +59,9 @@ const POPUP_LAYER =
     ".gm-popup-layer, .ant-select-dropdown, .ant-picker-dropdown, .ant-dropdown, .ant-popover, .ant-tooltip, .ant-cascader-dropdown, .ant-image-preview-root, .ant-modal-root, .ant-message, .ant-notification, .gm-popconfirm, .gm-tooltip, [data-radix-popper-content-wrapper]";
 
 function isInsidePopupLayer(target: EventTarget | null) {
-    return typeof Element !== "undefined" && target instanceof Element && Boolean(target.closest(POPUP_LAYER));
+    if (typeof Element === "undefined" || !(target instanceof Element)) return false;
+    // The dialog root is a popup layer for nested dialogs, but its own mask is a dismiss surface.
+    return !target.closest(".ant-modal-mask, .ant-drawer-mask") && Boolean(target.closest(POPUP_LAYER));
 }
 
 /**
@@ -88,6 +91,72 @@ function useOpenAtPointerDown(open: boolean) {
         return () => document.removeEventListener("pointerdown", mark, { capture: true });
     }, [open]);
     return ref;
+}
+
+/** Preserve business effects/state separately from Radix's open-only isolation and focus shell. */
+function RetainedDialogContent({ open = false, children, ...props }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { open?: boolean }) {
+    const [host] = useState(() => document.createElement("div"));
+    const parking = useRef<HTMLDivElement>(null);
+    const shell = useRef<HTMLDivElement | null>(null);
+    const returnFocus = useRef<HTMLElement | null>(null);
+    const isOpen = useRef(open);
+    isOpen.current = open;
+    host.style.display = "contents";
+    const attach = useCallback(
+        (node: HTMLDivElement | null) => {
+            if (node) {
+                const active = document.activeElement;
+                if (active instanceof HTMLElement && active !== document.body && !host.contains(active)) returnFocus.current = active;
+                node.appendChild(host);
+            } else {
+                parking.current?.appendChild(host);
+            }
+            shell.current = node;
+        },
+        [host],
+    );
+    useLayoutEffect(() => {
+        if (!open) parking.current?.appendChild(host);
+    }, [open, host]);
+    return (
+        <>
+            <div ref={parking} hidden />
+            {open ? (
+                <DialogPrimitive.Content
+                    {...props}
+                    ref={attach}
+                    onCloseAutoFocus={(event) => {
+                        props.onCloseAutoFocus?.(event);
+                        if (event.defaultPrevented) return;
+                        event.preventDefault();
+                        if (!isOpen.current && returnFocus.current?.isConnected) returnFocus.current.focus({ preventScroll: true });
+                    }}
+                    onPointerDownOutside={(event) => {
+                        if (event.target instanceof Node && shell.current?.contains(event.target)) event.preventDefault();
+                        props.onPointerDownOutside?.(event);
+                    }}
+                    onInteractOutside={(event) => {
+                        if (event.target instanceof Node && shell.current?.contains(event.target)) event.preventDefault();
+                        props.onInteractOutside?.(event);
+                    }}
+                />
+            ) : null}
+            {createPortal(
+                <div
+                    style={{ display: "contents" }}
+                    onKeyDown={(event) => {
+                        // A portal keeps its React ancestry; forward Tab to the DOM shell's FocusScope.
+                        if (event.key !== "Tab" || !shell.current || event.defaultPrevented) return;
+                        const forwarded = new KeyboardEvent("keydown", { key: event.key, shiftKey: event.shiftKey, bubbles: true, cancelable: true });
+                        if (!shell.current.dispatchEvent(forwarded)) event.preventDefault();
+                    }}
+                >
+                    {children}
+                </div>,
+                host,
+            )}
+        </>
+    );
 }
 
 /* ===== Modal ===== */
@@ -176,13 +245,13 @@ function ModalBase({
     const resolvedFooter = footer === undefined ? defaultFooter : footer;
     const keepMounted = useKeepMounted(open, destroyOnHidden, forceRender);
     const openAtPointerDown = useOpenAtPointerDown(open);
+    const Content = destroyOnHidden ? DialogPrimitive.Content : RetainedDialogContent;
     return (
-        <DialogPrimitive.Root modal={open && showMask} open={open} onOpenChange={(next) => (next ? undefined : onCancel?.())}>
+        <DialogPrimitive.Root modal={showMask} open={open} onOpenChange={(next) => (next ? undefined : onCancel?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
                 <div className="ant-modal-root">
-                    {showMask ? (
+                    {showMask && (open || !keepMounted) ? (
                         <DialogPrimitive.Overlay
-                            forceMount={keepMounted ? true : undefined}
                             style={styles?.mask}
                             className="ant-modal-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
                         />
@@ -195,8 +264,8 @@ function ModalBase({
                             rootClassName,
                         )}
                     >
-                        <DialogPrimitive.Content
-                            forceMount={keepMounted ? true : undefined}
+                        <Content
+                            {...(!destroyOnHidden ? { open } : {})}
                             aria-describedby={undefined}
                             onEscapeKeyDown={(event) => {
                                 if (!keyboard) event.preventDefault();
@@ -236,7 +305,7 @@ function ModalBase({
                                     </div>
                                 ) : null}
                             </div>
-                        </DialogPrimitive.Content>
+                        </Content>
                     </div>
                 </div>
             </DialogPrimitive.Portal>
@@ -318,20 +387,20 @@ export function Drawer({
     const closeOnMask = typeof mask === "object" ? mask.closable !== false : true;
     const keepMounted = useKeepMounted(open, destroyOnHidden, false);
     const openAtPointerDown = useOpenAtPointerDown(open);
+    const Content = destroyOnHidden ? DialogPrimitive.Content : RetainedDialogContent;
     const sizeStyle: CSSProperties = horizontal ? { width: extent, maxWidth: "100vw" } : { height: extent, maxHeight: "100dvh" };
     return (
-        <DialogPrimitive.Root modal={open && mask !== false} open={open} onOpenChange={(next) => (next ? undefined : onClose?.())}>
+        <DialogPrimitive.Root modal={mask !== false} open={open} onOpenChange={(next) => (next ? undefined : onClose?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
                 <div className="ant-drawer-root">
-                    {mask !== false ? (
+                    {mask !== false && (open || !keepMounted) ? (
                         <DialogPrimitive.Overlay
-                            forceMount={keepMounted ? true : undefined}
                             style={styles?.mask}
                             className="ant-drawer-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
                         />
                     ) : null}
-                    <DialogPrimitive.Content
-                        forceMount={keepMounted ? true : undefined}
+                    <Content
+                        {...(!destroyOnHidden ? { open } : {})}
                         aria-describedby={undefined}
                         aria-label={ariaLabel}
                         onPointerDownOutside={(event) => {
@@ -378,7 +447,7 @@ export function Drawer({
                                 </div>
                             ) : null}
                         </div>
-                    </DialogPrimitive.Content>
+                    </Content>
                 </div>
             </DialogPrimitive.Portal>
         </DialogPrimitive.Root>

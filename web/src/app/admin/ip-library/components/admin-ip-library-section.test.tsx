@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 describe("admin IP library section", () => {
     it("keeps child content, grants, and usage in duty-aware workflows", async () => {
-        const source = await readFile(resolve(process.cwd(), "src/app/admin/ip-library/components/admin-ip-library-section.tsx"), "utf8");
+        const source = (await readFile(resolve(process.cwd(), "src/app/admin/ip-library/components/admin-ip-library-section.tsx"), "utf8")).replace(/\r\n/g, "\n");
         expect(source).toContain('key: "content"');
         expect(source).toContain('key: "grants"');
         expect(source).toContain('key: "usage"');
@@ -44,9 +44,17 @@ describe("admin IP library section", () => {
     });
 
     it("keeps authorization mode on each school grant instead of the IP profile form", async () => {
-        const source = await readFile(resolve(process.cwd(), "src/app/admin/ip-library/components/admin-ip-library-section.tsx"), "utf8");
+        const source = (await readFile(resolve(process.cwd(), "src/app/admin/ip-library/components/admin-ip-library-section.tsx"), "utf8")).replace(/\r\n/g, "\n");
         expect(source).toContain('name="mode" label="授权方式"');
         expect(source).not.toContain('name="authorizationMode"');
         expect(source).not.toContain('name="coverAssetId"');
+    });
+});
+
+describe("IP grant toolbar responsive layout", () => {
+    it("wraps the grant actions instead of clipping them on narrow screens", async () => {
+        const source = (await readFile(resolve(process.cwd(), "src/app/admin/ip-library/components/admin-ip-library-section.tsx"), "utf8")).replace(/\r\n/g, "\n");
+        const panel = source.slice(source.indexOf("function GrantPanel"), source.indexOf("function UsagePanel"));
+        expect(panel).toContain('className="flex flex-wrap items-center justify-between gap-3"');
     });
 });
