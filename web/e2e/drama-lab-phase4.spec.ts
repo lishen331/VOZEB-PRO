@@ -51,6 +51,7 @@ async function seedDramaProject(request: APIRequestContext): Promise<SeededDrama
         data: {
             title: `Phase 4 浏览器回归 ${suffix}`,
             summary: "验证短剧实验室入口、分集画布和分镜定位",
+            initialScript: "主角在雨夜推开旧门。",
             style: "电影感写实",
             ratio: "16:9",
         },
@@ -147,7 +148,7 @@ async function openStoryboardStage(page: Page) {
     const storyboardStep = page.getByRole("button", { name: "3 分镜工作台", exact: true });
     await expect(storyboardStep).toBeVisible({ timeout: 30_000 });
     await storyboardStep.click();
-    await expect(page.getByRole("heading", { name: "分镜工作台", exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: /^分镜生成/ })).toBeVisible({ timeout: 30_000 });
 }
 
 test("short drama lab opens the requested episode, locates a shot, and hands off to its episode Canvas", async ({ page, request }, testInfo) => {
@@ -171,15 +172,15 @@ test("short drama lab opens the requested episode, locates a shot, and hands off
         if (await shotLocator.isVisible()) await shotLocator.click();
         await expect(page.locator(`#storyboard-shot-${seeded.shotId}`)).toBeVisible();
 
-        const canvasLink = page.getByRole("link", { name: "在画布中打开此分镜" });
+        const canvasLink = page.getByRole("link", { name: "画布定位", exact: true });
         await expect(canvasLink).toHaveAttribute("href", new RegExp(`episodeId=${seeded.secondEpisodeId}.*shotId=${seeded.shotId}`));
         await canvasLink.click();
         await expect(page).toHaveURL(/\/drama-canvas\/[^?]+\?.*dramaProjectId=/, { timeout: 45_000 });
         await expect(page.locator("[data-canvas-surface]")).toBeVisible({ timeout: 45_000 });
-        await expect(page.getByRole("button", { name: "返回短剧分镜工作台" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "返回创作工坊分镜工作台" })).toBeVisible();
         await expect(page.getByRole("combobox", { name: "切换剧集" })).toBeVisible();
 
-        await page.getByRole("button", { name: "返回短剧分镜工作台" }).click();
+        await page.getByRole("button", { name: "返回创作工坊分镜工作台" }).click();
         await expect(page).toHaveURL(new RegExp(`/drama-lab/${seeded.id}/create\\?episode=${seeded.secondEpisodeId}.*stage=storyboard#storyboard-shot-${seeded.shotId}`), { timeout: 30_000 });
         await expect(page.locator(`#storyboard-shot-${seeded.shotId}`)).toBeVisible({ timeout: 30_000 });
     } finally {
@@ -204,7 +205,7 @@ test("short drama Canvas switches episodes without crossing project bindings", a
         await expect(episodePicker).toBeVisible();
         await expect(page.locator("[data-canvas-surface]")).toBeVisible();
 
-        await page.getByRole("button", { name: "返回短剧分镜工作台" }).click();
+        await page.getByRole("button", { name: "返回创作工坊分镜工作台" }).click();
         await expect(page).toHaveURL(new RegExp(`/drama-lab/${seeded.id}/create\\?episode=${seeded.secondEpisodeId}.*stage=storyboard`), { timeout: 30_000 });
         await expect(page.getByText("分镜 1 · 第二集线索", { exact: true })).toBeVisible({ timeout: 30_000 });
     } finally {
@@ -219,11 +220,11 @@ test("short drama lab remains usable at 390px and 430px", async ({ page, request
         await page.goto(`/drama-lab/${encodeURIComponent(seeded.id)}/create?episode=${encodeURIComponent(seeded.secondEpisodeId)}&stage=storyboard`, { waitUntil: "domcontentloaded" });
         await openStoryboardStage(page);
         await expectNoHorizontalOverflow(page);
-        await expect(page.getByRole("link", { name: "在画布中打开此分镜" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "画布定位", exact: true })).toBeVisible();
         await page.getByRole("link", { name: "打开本集画布" }).click();
         await expect(page.locator("[data-canvas-surface]")).toBeVisible({ timeout: 45_000 });
         await expectNoHorizontalOverflow(page);
-        await expect(page.getByRole("button", { name: "返回短剧分镜工作台" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "返回创作工坊分镜工作台" })).toBeVisible();
         expect(testInfo.project.name).toMatch(/^mobile-(390|430)$/);
     } finally {
         await deleteDramaProject(request, seeded.id);

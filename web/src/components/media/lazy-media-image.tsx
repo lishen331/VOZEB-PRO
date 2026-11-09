@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { SiteLogo } from "@/components/layout/site-logo";
 import { cn } from "@/lib/utils";
@@ -25,12 +25,17 @@ export function LazyMediaImage({
     loading?: "eager" | "lazy";
     onError?: () => void;
 }) {
+    const imageRef = useRef<HTMLImageElement>(null);
     const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
     const [placeholderReady, setPlaceholderReady] = useState(false);
     const logoUrl = usePublicSessionStore((state) => state.payload?.settings?.site?.logoUrl) || "/logo.svg";
     const hasPlaceholder = Boolean(placeholderSrc && placeholderSrc !== src);
 
-    useEffect(() => setStatus("loading"), [src]);
+    useEffect(() => {
+        // Cached images may finish before hydration or before this source-change effect runs.
+        const image = imageRef.current;
+        setStatus(image?.complete ? (image.naturalWidth > 0 ? "ready" : "error") : "loading");
+    }, [src]);
     useEffect(() => setPlaceholderReady(false), [placeholderSrc]);
 
     return (
@@ -60,6 +65,7 @@ export function LazyMediaImage({
                 />
             ) : null}
             <img
+                ref={imageRef}
                 src={src}
                 alt={alt}
                 loading={loading}

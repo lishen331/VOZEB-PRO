@@ -144,6 +144,11 @@ export function isUserNavigationPathAllowed(pathname: string, menuPermissions: r
     if (root === "prompts") return (featureModules["my-prompts"] !== false && menuPermissions.includes("my-prompts")) || (featureModules["prompt-library"] !== false && menuPermissions.includes("prompt-library"));
     const moduleId = featureModuleForPathname(pathname);
     if (!moduleId) return true;
+    if (moduleId === "school-management") {
+        if (featureModules[moduleId] === false) return false;
+        if (pathname === "/school/join") return true;
+        return hasActiveSchoolRole(schoolContext, "teacher") && schoolContext?.canManageSchool === true;
+    }
     if (featureModules[moduleId] === false || !menuPermissions.includes(moduleId as UserNavigationMenuPermission)) return false;
     if (moduleId === "teaching") return hasActiveSchoolRole(schoolContext, "teacher");
     if (moduleId === "learning") return hasActiveSchoolRole(schoolContext, "student");

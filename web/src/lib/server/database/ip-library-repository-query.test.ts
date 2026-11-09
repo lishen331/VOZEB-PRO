@@ -57,6 +57,8 @@ describe("IP library PostgreSQL repository", () => {
         });
         expect(query).toHaveBeenNthCalledWith(1, "SELECT COUNT(DISTINCT ip_id)::text AS count FROM ip_school_grants WHERE school_id = $1", ["school-a"]);
         expect(query).toHaveBeenNthCalledWith(2, expect.stringContaining("GROUP BY package.id"), ["school-a", 10, 10]);
+        expect(query.mock.calls[1][0]).toContain("ip_school_grants AS school_grant");
+        expect(query.mock.calls[1][0]).not.toMatch(/\bgrant\./);
     });
 
     it("replaces a package cover before deleting the child that owns it", async () => {
@@ -75,5 +77,20 @@ describe("IP library PostgreSQL repository", () => {
 
         expect(query).toHaveBeenCalledWith(expect.stringContaining("SET cover_file_id ="), ["ip-one", "child-one"]);
         expect(query).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM ip_sub_ips"), ["ip-one", "child-one"]);
+    });
+});
+
+describe("visible child IP cover mapping", () => {
+    it("keeps a null child cover separate from the parent package cover", async () => {
+        const now = "2026-11-09T00:00:00.000Z";
+        const parent = { id: "ip-one", title: "Parent", visibility: "public", status: "enabled", cover_file_id: "parent-cover", created_at: now, updated_at: now };
+        const query = vi
+            .fn()
+            .mockResolvedValueOnce({ rows: [parent] })
+            .mockResolvedValueOnce({ rows: [{ ...parent, sub_ip_id: "child-two", sub_ip_ip_id: "ip-one", sub_ip_title: "Child without cover", sub_ip_cover_file_id: null }] })
+            .mockResolvedValueOnce({ rows: [] });
+        const detail = await new IpLibraryRepository({ query }).getVisibleIp({ userId: "student", ipId: "ip-one" });
+        expect(detail?.coverFileId).toBe("parent-cover");
+        expect(detail?.subIps[0].coverFileId).toBeUndefined();
     });
 });

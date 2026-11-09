@@ -12,6 +12,32 @@ const html = (node: React.ReactElement) => renderToStaticMarkup(node);
  * validateFields 的抛出形状、错误显示时机。这些一旦变了，33 个表单页会静默坏掉。
  */
 describe("gamma-ant-form：FormStore 实例契约", () => {
+    it("preserves Form.List arrays when editing nested item fields", () => {
+        const store = new FormStore({
+            items: [
+                { title: "A", fileId: "file-a" },
+                { title: "B", fileId: "file-b" },
+            ],
+        });
+        store.setFieldValue(["items", 1, "title"], "B edited");
+        expect(store.getFieldsValue().items).toEqual([
+            { title: "A", fileId: "file-a" },
+            { title: "B edited", fileId: "file-b" },
+        ]);
+        expect(Array.isArray(store.getFieldsValue().items)).toBe(true);
+        store.setFieldValue(["items", 1, "fileId"], "new-file");
+        expect(store.getFieldsValue().items).toEqual([
+            { title: "A", fileId: "file-a" },
+            { title: "B edited", fileId: "new-file" },
+        ]);
+    });
+    it("uses the same nested path for Form.Item string writes and its subscribed reads", () => {
+        const store = new FormStore({ items: [{ title: "before", fileId: "file" }] });
+        store.setFieldValue("items.0.title", "edited");
+        expect(store.readValue("items.0.title")).toBe("edited");
+        expect(store.getFieldsValue()).toEqual({ items: [{ title: "edited", fileId: "file" }] });
+    });
+
     it("setFieldsValue 支持点号路径写入", () => {
         const store = new FormStore({ title: "旧标题", meta: { ratio: "9:16" } });
         store.setFieldsValue({ title: "新标题", "meta.ratio": "16:9" });

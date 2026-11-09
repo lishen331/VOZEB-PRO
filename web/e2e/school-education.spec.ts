@@ -137,7 +137,7 @@ test("two schools complete teaching and commercial-order workflows without cross
         await learningPage.goto("/learning", { waitUntil: "domcontentloaded" });
         await selectTab(learningPage, /^待交作业/, hasTouch);
         await expect(learningPage.getByText(names.assignment, { exact: true })).toHaveCount(0);
-        const teachingAssignment = await createAndPublishAssignmentInBrowser(teacherContext, names.assignment, offering.id, `${names.course} · 影视一班 ${suffix}`, hasTouch);
+        const teachingAssignment = await createAndPublishAssignmentViaApi(teacherContext.request, names.assignment, offering.id);
         let refreshNavigations = 0;
         const onRefreshNavigation = () => (refreshNavigations += 1);
         learningPage.on("framenavigated", onRefreshNavigation);
@@ -147,12 +147,12 @@ test("two schools complete teaching and commercial-order workflows without cross
         expect(refreshNavigations).toBe(0);
         await learningPage.close();
         const teachingSubmission = await submitAssignmentInBrowser(studentContext, names.assignment, studentCanvasTitle, "学生提交真实画布", hasTouch);
-        await reviewAssignmentInBrowser(teacherContext, names.assignment, `A 校学生 ${suffix}`, "结构完整，批改通过", hasTouch);
+        await reviewAssignmentViaApi(teacherContext.request, teachingSubmission, student.displayName, "结构完整，批改通过");
         const reviewedAssignment = await findTeachingAssignment(teacherContext.request, names.assignment);
         expect(reviewedAssignment?.status).toBe("published");
 
         const order = await createAndAssignCommercialOrderInBrowser(page.context(), names.order, schoolA.name);
-        const configured = await configureSchoolCommercialOrderInBrowser(managerAContext, names.order, `A 校老师 ${suffix}`, `影视一班 ${suffix}`, `A 校学生 ${suffix}`, hasTouch);
+        const configured = await configureSchoolCommercialOrderViaApi(managerAContext.request, order.id, teacher, schoolClass, student);
         expect(JSON.stringify(configured)).not.toContain("internalAmountCents");
         await createAndLinkProductionGroup(managerAContext, `品牌短片小组 ${suffix}`, teacher.id, student.id, order.id);
         const participantCandidates = await apiData<{ items: Array<{ membershipId: string }>; selectedMembershipIds: string[] }>(
@@ -160,8 +160,8 @@ test("two schools complete teaching and commercial-order workflows without cross
         );
         expect(participantCandidates.items).toContainEqual(expect.objectContaining({ membershipId: student.id }));
         expect(participantCandidates.selectedMembershipIds).toEqual([student.id]);
-        await arrangeParticipantsInBrowser(teacherContext, names.order, `A 校学生 ${suffix}`, hasTouch);
-        const started = await startCommercialOrderInBrowser(managerAContext, names.order, hasTouch);
+        await arrangeParticipantsViaApi(teacherContext.request, order.id, student);
+        const started = await startCommercialOrderViaApi(managerAContext.request, order.id);
         expect(JSON.stringify(started)).not.toContain("internalAmountCents");
         const teacherOrders = await apiData<PageResult<SchoolCommercialOrder>>(await teacherContext.request.get("/api/teaching/commercial-orders?page=1&pageSize=20"));
         const studentOrders = await apiData<PageResult<SchoolCommercialOrder>>(await studentContext.request.get("/api/teaching/commercial-orders?page=1&pageSize=20"));
@@ -170,14 +170,19 @@ test("two schools complete teaching and commercial-order workflows without cross
         const candidate = await submitCommercialCandidateInBrowser(studentContext, names.order, studentCanvasTitle, "学生候选成片", hasTouch);
         expect(candidate.status).toBe("submitted");
         const teacherCanvasTitle = `学校正式交付画布 ${suffix}`;
-        await createCanvas(teacherContext.request, teacherCanvasTitle);
-        const firstDelivery = await submitCommercialDeliveryInBrowser(teacherContext, names.order, teacherCanvasTitle, "学校首轮正式交付", hasTouch);
+        const teacherCanvasId = await createCanvas(teacherContext.request, teacherCanvasTitle);
+        const firstDelivery = await submitCommercialDeliveryViaApi(teacherContext.request, order.id, teacherCanvasId, "学校首轮正式交付");
         expect(firstDelivery.status).toBe("submitted");
         await reviewCommercialOrderInBrowser(page.context(), names.order, "revision_required", "请补充品牌落版");
-        const secondDelivery = await submitCommercialDeliveryInBrowser(teacherContext, names.order, teacherCanvasTitle, "已补充品牌落版", hasTouch);
+        const secondDelivery = await submitCommercialDeliveryViaApi(teacherContext.request, order.id, teacherCanvasId, "已补充品牌落版");
         expect(secondDelivery.id).not.toBe(firstDelivery.id);
         const accepted = await reviewCommercialOrderInBrowser(page.context(), names.order, "accepted", "验收通过");
         expect(accepted.status).toBe("accepted");
+        // Hidden school/teaching controls still have server-enforced terminal-state protection.
+        await expectApiStatus(managerAContext.request.patch(`/api/school/commercial-orders/${order.id}`, { data: { action: "configure", teacherMembershipId: teacher.id, classId: schoolClass.id, participantMembershipIds: [student.id] } }), 409);
+        await expectApiStatus(managerAContext.request.patch(`/api/school/commercial-orders/${order.id}`, { data: { action: "start" } }), 409);
+        await expectApiStatus(teacherContext.request.post(`/api/teaching/commercial-orders/${order.id}/submissions`, { data: { action: "participants", participantMembershipIds: [student.id] } }), 409);
+        await expectApiStatus(teacherContext.request.post(`/api/teaching/commercial-orders/${order.id}/submissions`, { data: { action: "delivery", references: [{ type: "canvas", id: teacherCanvasId }] } }), 409);
 
         await expectTenantNotFound(managerBContext.request, [
             `/api/school/classes/${schoolClass.id}`,
@@ -260,8 +265,7 @@ async function createSchoolMemberInBrowser(context: BrowserContext, username: st
         await fillField(modal.getByLabel("用户名"), username);
         await fillField(modal.getByLabel("显示姓名"), displayName);
         await fillField(modal.getByLabel("初始密码"), PASSWORD);
-        await modal.getByLabel("身份").click();
-        await selectVisibleOption(page, roleLabel);
+        await selectComboboxOption(page, modal.getByLabel("身份"), roleLabel);
         await expectElementWithinViewport(page, modal, "school member editor");
         await modal.getByRole("button", { name: /创\s*建/ }).click();
         await expect(modal).toBeHidden();
@@ -298,14 +302,10 @@ async function createClassWithMembersInBrowser(context: BrowserContext, classNam
         await expect(drawer).toBeVisible();
         await expectAnimationsFinished(drawer);
         const teacherSelect = drawer.getByLabel("负责老师");
-        await teacherSelect.fill(teacher.displayName);
-        await selectComboboxOption(page, teacherSelect, new RegExp(teacher.displayName));
-        await teacherSelect.press("Escape");
+        await selectComboboxOption(page, teacherSelect, new RegExp(teacher.displayName), teacher.displayName);
         await expect(teacherSelect).toHaveAttribute("aria-expanded", "false");
         const studentSelect = drawer.getByLabel("班级学生");
-        await studentSelect.fill(student.displayName);
-        await selectComboboxOption(page, studentSelect, new RegExp(student.displayName));
-        await studentSelect.press("Escape");
+        await selectComboboxOption(page, studentSelect, new RegExp(student.displayName), student.displayName);
         await drawer.getByRole("button", { name: /保\s*存/ }).click();
         await expect(drawer).toBeHidden();
         const classes = await apiData<PageResult<SchoolClass>>(await context.request.get(`/api/school/classes?page=1&pageSize=20&keyword=${encodeURIComponent(className)}`));
@@ -351,7 +351,7 @@ async function createPublishAndAssignCourseInBrowser(context: BrowserContext, ti
         const lessonDialog = page.getByRole("dialog", { name: "新建课时", exact: true });
         await fillField(lessonDialog.getByLabel("名称"), "镜头基础");
         await page.getByRole("button", { name: /保\s*存/ }).click();
-        await tree.locator(".ant-modal-close").click();
+        await tree.getByRole("button", { name: "关闭", exact: true }).click();
         await row.getByRole("button", { name: "发布", exact: true }).click();
         const publish = page.getByRole("dialog", { name: `发布“${title}”`, exact: true });
         await publish.getByRole("button", { name: "确认发布", exact: true }).click();
@@ -361,9 +361,7 @@ async function createPublishAndAssignCourseInBrowser(context: BrowserContext, ti
         await expect(assign).toBeVisible();
         await expectAnimationsFinished(assign);
         const schoolSelect = assign.getByRole("combobox");
-        await schoolSelect.fill(schoolName);
         await selectComboboxOption(page, schoolSelect, schoolName);
-        await schoolSelect.press("Escape");
         await assign.getByRole("button", { name: "确认分配", exact: true }).click();
         await expect(assign).toBeHidden();
         const courses = await apiData<PageResult<PlatformCourse>>(await context.request.get(`/api/admin/courses?page=1&pageSize=20&keyword=${encodeURIComponent(title)}`));
@@ -390,10 +388,8 @@ async function createCourseOfferingInBrowser(context: BrowserContext, courseTitl
         await expect(modal).toBeVisible();
         await expectAnimationsFinished(modal);
         const selects = modal.getByRole("combobox");
-        await selects.nth(0).fill(className);
-        await selectComboboxOption(page, selects.nth(0), className);
-        await selects.nth(1).fill(teacherName);
-        await selectComboboxOption(page, selects.nth(1), new RegExp(teacherName));
+        await selectComboboxOption(page, selects.nth(0), className, className);
+        await selectComboboxOption(page, selects.nth(1), new RegExp(teacherName), teacherName);
         await expectElementWithinViewport(page, modal, "course offering editor");
         await modal.getByRole("button", { name: /创\s*建/ }).click();
         await expect(modal).toBeHidden();
@@ -412,34 +408,18 @@ async function createCourseOfferingInBrowser(context: BrowserContext, courseTitl
     }
 }
 
-async function createAndPublishAssignmentInBrowser(context: BrowserContext, title: string, offeringId: string, offeringLabel: string, hasTouch: boolean) {
-    const page = await context.newPage();
-    const errors = watchPageErrors(page);
-    try {
-        await page.goto("/teaching", { waitUntil: "domcontentloaded" });
-        await selectTab(page, "作业", hasTouch);
-        await page.getByRole("button", { name: "创建作业", exact: true }).click();
-        const modal = page.getByRole("dialog", { name: "创建作业", exact: true });
-        await expect(modal).toBeVisible();
-        await expect(modal.getByText(offeringLabel, { exact: true })).toBeVisible();
-        await expect(modal.getByText("课后作业", { exact: true })).toBeVisible();
-        await fillField(modal.getByLabel("标题"), title);
-        await fillField(modal.getByLabel("要求"), "提交一个真实 Canvas 成果");
-        await modal.getByRole("button", { name: "保存草稿", exact: true }).click();
-        await expect(modal).toBeHidden();
-        const row = businessRow(page, title);
-        await expect(row).toBeVisible();
-        await row.getByRole("button", { name: "发布", exact: true }).click();
-        await expect(row.getByText("进行中", { exact: true })).toBeVisible();
-        const assignment = await findTeachingAssignment(context.request, title);
-        expect(assignment?.offeringId).toBe(offeringId);
-        expect(assignment?.status).toBe("published");
-        expect(await errors.values(), "teacher assignment creation browser errors").toEqual([]);
-        return assignment as TeachingAssignment;
-    } finally {
-        errors.stop();
-        await page.close();
-    }
+// These workflows remain supported by the API, but are intentionally absent from teaching navigation.
+async function createAndPublishAssignmentViaApi(request: APIRequestContext, title: string, offeringId: string) {
+    const draft = await apiData<TeachingAssignment>(
+        await request.post("/api/teaching/assignments", {
+            data: { offeringId, kind: "homework", title, instructions: "提交一个真实 Canvas 成果", status: "draft" },
+        }),
+    );
+    expect(draft).toMatchObject({ title, offeringId, kind: "homework", status: "draft" });
+    const published = await apiData<TeachingAssignment>(await request.patch(`/api/teaching/assignments/${draft.id}`, { data: { status: "published" } }));
+    expect(published).toMatchObject({ id: draft.id, offeringId, status: "published" });
+    expect(await findTeachingAssignment(request, title)).toMatchObject({ id: draft.id, offeringId, status: "published" });
+    return published;
 }
 
 async function createAndAssignCommercialOrderInBrowser(context: BrowserContext, title: string, schoolName: string) {
@@ -462,8 +442,7 @@ async function createAndAssignCommercialOrderInBrowser(context: BrowserContext, 
         await expect(row.getByText("草稿", { exact: true })).toBeVisible();
         await row.getByRole("button", { name: "分配学校", exact: true }).click();
         const assignModal = page.getByRole("dialog", { name: /^分配学校/ });
-        await assignModal.getByRole("combobox").click();
-        await selectVisibleOption(page, schoolName);
+        await selectComboboxOption(page, assignModal.getByRole("combobox"), schoolName, schoolName);
         await assignModal.getByRole("button", { name: "确认分配", exact: true }).click();
         await expect(assignModal).toBeHidden();
         await expect(row.getByText(/已分配(?:学校)?/)).toBeVisible();
@@ -478,36 +457,15 @@ async function createAndAssignCommercialOrderInBrowser(context: BrowserContext, 
     }
 }
 
-async function configureSchoolCommercialOrderInBrowser(context: BrowserContext, orderTitle: string, teacherDisplayName: string, className: string, studentDisplayName: string, hasTouch: boolean) {
-    const page = await context.newPage();
-    const errors = watchPageErrors(page);
-    try {
-        await page.goto("/school", { waitUntil: "domcontentloaded" });
-        await selectTab(page, "商单", hasTouch);
-        const row = businessRow(page, orderTitle);
-        await row.getByRole("button", { name: "配置团队", exact: true }).click();
-        const modal = page.getByRole("dialog", { name: /^配置制作团队/ });
-        const selects = modal.getByRole("combobox");
-        await selects.nth(0).click();
-        await selectVisibleOption(page, new RegExp(teacherDisplayName));
-        await selects.nth(1).click();
-        await selectVisibleOption(page, className);
-        await selects.nth(2).click();
-        await selectVisibleOption(page, new RegExp(studentDisplayName));
-        await selects.nth(2).press("Escape");
-        await expect(page.locator(".ant-select-dropdown").filter({ visible: true })).toHaveCount(0);
-        await modal.getByRole("button", { name: /保\s*存/ }).click();
-        await expect(modal).toBeHidden();
-        await expect(row.getByText(new RegExp(teacherDisplayName))).toBeVisible();
-        const order = await findSchoolCommercialOrder(context.request, orderTitle);
-        expect(order?.status).toBe("assigned");
-        expect(order?.teacher?.displayName).toBe(teacherDisplayName);
-        expect(await errors.values(), "school commercial configuration browser errors").toEqual([]);
-        return order as SchoolCommercialOrder;
-    } finally {
-        errors.stop();
-        await page.close();
-    }
+async function configureSchoolCommercialOrderViaApi(request: APIRequestContext, orderId: string, teacher: SchoolMember, schoolClass: SchoolClass, student: SchoolMember) {
+    const order = await apiData<SchoolCommercialOrder>(
+        await request.patch(`/api/school/commercial-orders/${orderId}`, {
+            data: { action: "configure", teacherMembershipId: teacher.id, classId: schoolClass.id, participantMembershipIds: [student.id] },
+        }),
+    );
+    expect(order).toMatchObject({ id: orderId, status: "assigned", teacherMembershipId: teacher.id, classId: schoolClass.id, teacher: { displayName: teacher.displayName } });
+    expect(await findSchoolCommercialOrder(request, order.title)).toMatchObject({ id: orderId, teacherMembershipId: teacher.id, classId: schoolClass.id });
+    return order;
 }
 
 async function createAndLinkProductionGroup(context: BrowserContext, name: string, leaderMembershipId: string, memberMembershipId: string, orderId: string) {
@@ -537,7 +495,9 @@ async function submitAssignmentInBrowser(context: BrowserContext, title: string,
         const drawer = page.getByRole("dialog", { name: title, exact: true });
         await expect(drawer).toBeVisible();
         await expect(drawer.getByText(canvasTitle, { exact: true })).toBeVisible();
-        await drawer.getByText(canvasTitle, { exact: true }).locator("xpath=ancestor::label[1]").getByRole("checkbox").check();
+        const referenceOption = drawer.getByText(canvasTitle, { exact: true }).locator("xpath=ancestor::label[1]");
+        await referenceOption.click();
+        await expect(referenceOption.getByRole("checkbox")).toBeChecked();
         await fillField(drawer.getByLabel("提交说明"), note);
         await drawer.getByRole("button", { name: "提交", exact: true }).click();
         await expect(drawer).toBeHidden();
@@ -554,81 +514,30 @@ async function submitAssignmentInBrowser(context: BrowserContext, title: string,
     }
 }
 
-async function reviewAssignmentInBrowser(context: BrowserContext, title: string, studentDisplayName: string, feedback: string, hasTouch: boolean) {
-    const page = await context.newPage();
-    const errors = watchPageErrors(page);
-    try {
-        await page.goto("/teaching", { waitUntil: "domcontentloaded" });
-        await selectTab(page, "作业", hasTouch);
-        const row = businessRow(page, title);
-        await row.getByRole("button", { name: "学生提交", exact: true }).click();
-        const drawer = page.getByRole("dialog", { name: "学生提交", exact: true });
-        await expect(drawer).toBeVisible();
-        await drawer.getByRole("button", { name: "批改通过", exact: true }).click();
-        const modal = page.getByRole("dialog", { name: "批改通过", exact: true });
-        await expect(modal).toBeVisible();
-        await fillField(modal.getByLabel("反馈"), feedback);
-        const confirmButton = modal.getByRole("button", { name: /确\s*认/ });
-        await expect(confirmButton).toBeVisible();
-        await confirmButton.click();
-        await expect(modal).toBeHidden();
-        await expect(drawer.getByText(feedback, { exact: true })).toBeVisible();
-        const assignment = await findTeachingAssignment(context.request, title);
-        expect(assignment).toBeTruthy();
-        const submissions = await apiData<PageResult<TeachingSubmission>>(await context.request.get(`/api/teaching/assignments/${assignment!.id}/submissions?page=1&pageSize=20`));
-        expect(submissions.items[0]?.status).toBe("reviewed");
-        expect(await errors.values(), "teacher review browser errors").toEqual([]);
-    } finally {
-        errors.stop();
-        await page.close();
-    }
+async function reviewAssignmentViaApi(request: APIRequestContext, submission: TeachingSubmission, studentDisplayName: string, feedback: string) {
+    const reviewed = await apiData<TeachingSubmission>(await request.post(`/api/teaching/submissions/${submission.id}/review`, { data: { status: "reviewed", feedback } }));
+    expect(reviewed).toMatchObject({ id: submission.id, status: "reviewed", feedback, student: { displayName: studentDisplayName } });
+    const submissions = await apiData<PageResult<TeachingSubmission>>(await request.get(`/api/teaching/assignments/${submission.assignmentId}/submissions?page=1&pageSize=20`));
+    expect(submissions.items).toContainEqual(expect.objectContaining({ id: submission.id, status: "reviewed", feedback }));
 }
 
-async function arrangeParticipantsInBrowser(context: BrowserContext, orderTitle: string, studentDisplayName: string, hasTouch: boolean) {
-    const page = await context.newPage();
-    const errors = watchPageErrors(page);
-    try {
-        await page.goto("/teaching", { waitUntil: "domcontentloaded" });
-        await selectTab(page, "商单任务", hasTouch);
-        const row = businessRow(page, orderTitle);
-        await row.getByRole("button", { name: "查看任务", exact: true }).click();
-        const drawer = page.getByRole("dialog", { name: orderTitle, exact: true });
-        await drawer.getByRole("button", { name: "安排参与学生", exact: true }).click();
-        const modal = page.getByRole("dialog", { name: "安排参与学生", exact: true });
-        await expect(modal.getByRole("combobox")).toBeVisible();
-        await expect(modal.getByText(new RegExp(studentDisplayName))).toBeVisible();
-        await modal.getByRole("button", { name: "保存安排", exact: true }).click();
-        await expect(modal).toBeHidden();
-        const order = await findTeachingCommercialOrder(context.request, orderTitle);
-        expect(order).toBeTruthy();
-        const details = await apiData<{ participants: PageResult<CommercialOrderParticipantSubmission>; deliveries: PageResult<CommercialOrderDelivery> }>(
-            await context.request.get(`/api/teaching/commercial-orders/${order!.id}/submissions?page=1&pageSize=20`),
-        );
-        expect(details.participants.items.some((item) => item.participant.displayName === studentDisplayName)).toBe(true);
-        expect(await errors.values(), "teacher participant arrangement browser errors").toEqual([]);
-    } finally {
-        errors.stop();
-        await page.close();
-    }
+async function arrangeParticipantsViaApi(request: APIRequestContext, orderId: string, student: SchoolMember) {
+    const participants = await apiData<PageResult<CommercialOrderParticipantSubmission>>(
+        await request.post(`/api/teaching/commercial-orders/${orderId}/submissions`, {
+            data: { action: "participants", participantMembershipIds: [student.id] },
+        }),
+    );
+    expect(participants.items).toContainEqual(expect.objectContaining({ membershipId: student.id, participant: expect.objectContaining({ displayName: student.displayName }) }));
+    const details = await apiData<{ participants: PageResult<CommercialOrderParticipantSubmission> }>(await request.get(`/api/teaching/commercial-orders/${orderId}/submissions?page=1&pageSize=20`));
+    expect(details.participants.items).toContainEqual(expect.objectContaining({ membershipId: student.id, participant: expect.objectContaining({ displayName: student.displayName }) }));
 }
 
-async function startCommercialOrderInBrowser(context: BrowserContext, orderTitle: string, hasTouch: boolean) {
-    const page = await context.newPage();
-    const errors = watchPageErrors(page);
-    try {
-        await page.goto("/school", { waitUntil: "domcontentloaded" });
-        await selectTab(page, "商单", hasTouch);
-        const row = businessRow(page, orderTitle);
-        await row.getByRole("button", { name: "开始制作", exact: true }).click();
-        await expect(row.getByText("制作中", { exact: true })).toBeVisible();
-        const order = await findSchoolCommercialOrder(context.request, orderTitle);
-        expect(order?.status).toBe("in_progress");
-        expect(await errors.values(), "school order start browser errors").toEqual([]);
-        return order as SchoolCommercialOrder;
-    } finally {
-        errors.stop();
-        await page.close();
-    }
+async function startCommercialOrderViaApi(request: APIRequestContext, orderId: string) {
+    const order = await apiData<SchoolCommercialOrder>(await request.patch(`/api/school/commercial-orders/${orderId}`, { data: { action: "start" } }));
+    expect(order).toMatchObject({ id: orderId, status: "in_progress" });
+    const persisted = await apiData<SchoolCommercialOrder>(await request.get(`/api/school/commercial-orders/${orderId}`));
+    expect(persisted.status).toBe("in_progress");
+    return persisted;
 }
 
 async function submitCommercialCandidateInBrowser(context: BrowserContext, orderTitle: string, canvasTitle: string, note: string, hasTouch: boolean) {
@@ -641,7 +550,9 @@ async function submitCommercialCandidateInBrowser(context: BrowserContext, order
         await row.getByRole("button", { name: "查看详情", exact: true }).click();
         const drawer = page.getByRole("dialog", { name: orderTitle, exact: true });
         await expect(drawer.getByText(canvasTitle, { exact: true })).toBeVisible();
-        await drawer.getByText(canvasTitle, { exact: true }).locator("xpath=ancestor::label[1]").getByRole("checkbox").check();
+        const referenceOption = drawer.getByText(canvasTitle, { exact: true }).locator("xpath=ancestor::label[1]");
+        await referenceOption.click();
+        await expect(referenceOption.getByRole("checkbox")).toBeChecked();
         await fillField(drawer.getByLabel("候选成果说明"), note);
         await drawer.getByRole("button", { name: "提交候选成果", exact: true }).click();
         await expect(drawer.getByText("已提交", { exact: true })).toBeVisible();
@@ -660,38 +571,17 @@ async function submitCommercialCandidateInBrowser(context: BrowserContext, order
     }
 }
 
-async function submitCommercialDeliveryInBrowser(context: BrowserContext, orderTitle: string, canvasTitle: string, note: string, hasTouch: boolean) {
-    const page = await context.newPage();
-    const errors = watchPageErrors(page);
-    try {
-        await page.goto("/teaching", { waitUntil: "domcontentloaded" });
-        await selectTab(page, "商单任务", hasTouch);
-        const row = businessRow(page, orderTitle);
-        const order = await findTeachingCommercialOrder(context.request, orderTitle);
-        const action = order?.status === "revision_required" ? "重新正式交付" : "正式交付";
-        await row.getByRole("button", { name: "查看任务", exact: true }).click();
-        const drawer = page.getByRole("dialog", { name: orderTitle, exact: true });
-        await expect(drawer).toBeVisible();
-        await drawer.getByRole("button", { name: action, exact: true }).click();
-        const modal = page.getByRole("dialog", { name: action, exact: true });
-        await expect(modal.getByText(canvasTitle, { exact: true })).toBeVisible();
-        await modal.getByText(canvasTitle, { exact: true }).locator("xpath=ancestor::label[1]").getByRole("checkbox").check();
-        await fillField(modal.getByLabel("交付说明"), note);
-        await modal.getByRole("button", { name: "提交交付", exact: true }).click();
-        await expect(modal).toBeHidden();
-        const updated = await findTeachingCommercialOrder(context.request, orderTitle);
-        expect(updated?.status).toBe("submitted");
-        const details = await apiData<{ participants: PageResult<CommercialOrderParticipantSubmission>; deliveries: PageResult<CommercialOrderDelivery> }>(
-            await context.request.get(`/api/teaching/commercial-orders/${updated!.id}/submissions?page=1&pageSize=20`),
-        );
-        const delivery = details.deliveries.items[0];
-        expect(delivery?.note).toBe(note);
-        expect(await errors.values(), "teacher delivery browser errors").toEqual([]);
-        return delivery as CommercialOrderDelivery;
-    } finally {
-        errors.stop();
-        await page.close();
-    }
+async function submitCommercialDeliveryViaApi(request: APIRequestContext, orderId: string, canvasId: string, note: string) {
+    const delivery = await apiData<CommercialOrderDelivery>(
+        await request.post(`/api/teaching/commercial-orders/${orderId}/submissions`, {
+            data: { action: "delivery", note, references: [{ type: "canvas", id: canvasId }] },
+        }),
+    );
+    expect(delivery).toMatchObject({ orderId, status: "submitted", note, contentReferences: [{ type: "canvas", id: canvasId }] });
+    const details = await apiData<{ order: SchoolCommercialOrder; deliveries: PageResult<CommercialOrderDelivery> }>(await request.get(`/api/teaching/commercial-orders/${orderId}/submissions?page=1&pageSize=20`));
+    expect(details.order.status).toBe("submitted");
+    expect(details.deliveries.items).toContainEqual(expect.objectContaining({ id: delivery.id, note, status: "submitted" }));
+    return delivery;
 }
 
 async function reviewCommercialOrderInBrowser(context: BrowserContext, orderTitle: string, decision: "revision_required" | "accepted", feedback: string) {
@@ -740,11 +630,12 @@ async function findPlatformCommercialOrder(request: APIRequestContext, title: st
 }
 
 function businessRow(page: Page, title: string) {
+    // Pick the deepest visible actionable row/card, not a bordered layout wrapper around the title.
     return page
-        .getByText(title, { exact: true })
-        .filter({ visible: true })
-        .first()
-        .locator("xpath=ancestor::*[self::tr or self::article or (self::div and (contains(concat(' ', normalize-space(@class), ' '), ' py-3 ') or contains(concat(' ', normalize-space(@class), ' '), ' p-3 ')))][1]");
+        .locator("tr, article, div.rounded-md.border")
+        .filter({ has: page.getByText(title, { exact: true }) })
+        .filter({ has: page.getByRole("button"), visible: true })
+        .last();
 }
 
 async function fillField(field: Locator, value: string) {
@@ -760,23 +651,26 @@ async function expectAnimationsFinished(surface: Locator) {
     await expect.poll(() => surface.evaluate((element) => [element, ...element.querySelectorAll("*")].every((node) => node.getAnimations().every((animation) => animation.playState === "finished" || animation.playState === "idle")))).toBe(true);
 }
 
-async function selectVisibleOption(page: Page, name: string | RegExp) {
-    const dropdown = page.locator(".ant-select-dropdown").filter({ visible: true }).last();
-    const option = dropdown.locator(".ant-select-item-option").filter({ hasText: name });
-    await expect(option).toHaveCount(1);
-    await option.click();
-}
-
-async function selectComboboxOption(page: Page, combobox: Locator, name: string | RegExp) {
+async function selectComboboxOption(page: Page, combobox: Locator, name: string | RegExp, search?: string) {
+    // Gamma Select uses a button trigger; searchable inputs live in its portaled popup.
+    await combobox.click();
     await expect(combobox).toHaveAttribute("aria-expanded", "true");
     const popupId = await combobox.getAttribute("aria-controls");
     expect(popupId).toBeTruthy();
-    const list = page.locator(`#${popupId}`);
-    const dropdown = page.locator(".ant-select-dropdown").filter({ has: list });
-    const option = dropdown.locator(".ant-select-item-option").filter({ hasText: name });
+    const list = page.locator(`[id=${JSON.stringify(popupId)}]`);
+    await expect(list).toBeVisible();
+    if (search !== undefined) await list.locator("..").getByRole("textbox", { name: "搜索选项", exact: true }).fill(search);
+    const option = list.getByRole("option", { name, exact: typeof name === "string" });
     await expect(option).toHaveCount(1);
-    await expect(option).toHaveClass(/ant-select-item-option-active/);
-    await combobox.press("Enter");
+    await expect(option).toBeVisible();
+    const multiple = (await list.getAttribute("aria-multiselectable")) === "true";
+    await option.click();
+    if (multiple) {
+        await expect(option).toHaveAttribute("aria-selected", "true");
+        await page.keyboard.press("Escape");
+    }
+    await expect(combobox).toHaveAttribute("aria-expanded", "false");
+    await expect(combobox).toContainText(name);
 }
 
 async function verifyRolePages(adminContext: BrowserContext, managerContext: BrowserContext, teacherContext: BrowserContext, studentContext: BrowserContext, orderTitle: string, hasTouch: boolean) {
@@ -800,40 +694,56 @@ async function openAndCheck(page: Page, path: string, orderTitle: string, role: 
     try {
         const response = await page.goto(path, { waitUntil: "domcontentloaded" });
         expect(response?.status(), `${role} ${path}`).toBeLessThan(400);
-        if (role === "platform") await expect(page.locator("[data-hydrated='true']")).toBeVisible();
-        if (role === "school") await selectTab(page, "商单", hasTouch);
-        if (role === "teacher") await selectTab(page, "商单任务", hasTouch);
-        if (role === "student") await selectTab(page, "商单实训", hasTouch);
-        const title = page.getByText(orderTitle, { exact: true }).filter({ visible: true }).first();
-        await expect(title).toBeVisible();
-        const row = title.locator("xpath=ancestor::*[self::tr or self::article][1]");
-        await expectElementWithinViewport(page, row, `${role} order row`);
-        const actionName = role === "platform" ? "查看" : role === "school" ? "详情" : role === "student" ? "查看详情" : "查看任务";
-        await row.getByRole("button", { name: actionName, exact: true }).click();
-        const dialog = page.getByRole("dialog").filter({ visible: true }).last();
-        await expect(dialog).toBeVisible();
-        await expect(dialog.getByText(orderTitle, { exact: true })).toBeVisible();
-        if (role === "platform") {
-            await expect(dialog.getByRole("button", { name: "退回修改", exact: true })).toHaveCount(0);
-            await expect(dialog.getByRole("button", { name: "验收通过", exact: true })).toHaveCount(0);
-            await expect(dialog.getByText("已验收", { exact: true })).toBeVisible();
-            await expect(dialog.getByText("请补充品牌落版", { exact: true })).toBeVisible();
-            await expect(dialog.getByText("学校首轮正式交付", { exact: true })).toBeVisible();
-            await expect(dialog.getByText("已补充品牌落版", { exact: true })).toBeVisible();
-        } else if (role === "school") {
-            await expect(dialog.getByRole("button", { name: "配置团队", exact: true })).toHaveCount(0);
-            await expect(dialog.getByRole("button", { name: "开始制作", exact: true })).toHaveCount(0);
-            await expect(dialog.getByText("内部金额", { exact: true })).toHaveCount(0);
-        } else if (role === "teacher") {
-            await expect(dialog.getByRole("button", { name: /正式交付/ })).toHaveCount(0);
-            await expect(dialog.getByRole("button", { name: "安排参与学生", exact: true })).toHaveCount(0);
+        if (role === "school" || role === "teacher") {
+            const visibleTabs = role === "school" ? ["学校资料", "成员管理", "班级管理", "课程安排"] : ["课程中心", "备课", "我的班级"];
+            await expect(page.getByRole("tablist").first().getByRole("tab")).toHaveText(visibleTabs);
+            for (const tab of visibleTabs) {
+                await selectTab(page, tab, hasTouch);
+                await expectNoHorizontalOverflow(page, `${role} ${tab}`);
+                await expectVisibleControlsWithinViewport(page, `${role} ${tab}`);
+            }
+            for (const hidden of role === "school" ? ["商单", "制作小组与算力", "IP 开放"] : ["作业", "学生提交", "商单任务"]) {
+                await expect(page.getByRole("tab", { name: hidden, exact: true })).toHaveCount(0);
+            }
+            // Navigation is intentionally hidden, not removed from the tenant-scoped API.
+            const order = role === "school" ? await findSchoolCommercialOrder(page.context().request, orderTitle) : await findTeachingCommercialOrder(page.context().request, orderTitle);
+            expect(order).toMatchObject({ title: orderTitle, status: "accepted" });
+            expect(JSON.stringify(order)).not.toContain("internalAmountCents");
+            if (role === "teacher") {
+                const details = await apiData<{ deliveries: PageResult<CommercialOrderDelivery> }>(await page.context().request.get(`/api/teaching/commercial-orders/${order!.id}/submissions?page=1&pageSize=20`));
+                expect(details.deliveries.items).toHaveLength(2);
+                expect(details.deliveries.items).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ note: "学校首轮正式交付", status: "revision_required", platformFeedback: "请补充品牌落版" }),
+                        expect.objectContaining({ note: "已补充品牌落版", status: "accepted", platformFeedback: "验收通过" }),
+                    ]),
+                );
+                expect(JSON.stringify(details)).not.toContain("internalAmountCents");
+            }
         } else {
-            await expect(dialog.getByRole("button", { name: "提交候选成果", exact: true })).toHaveCount(0);
-            await expect(dialog.getByText("内部金额", { exact: true })).toHaveCount(0);
+            if (role === "platform") await expect(page.locator("[data-hydrated='true']")).toBeVisible();
+            else await selectTab(page, "商单实训", hasTouch);
+            const row = businessRow(page, orderTitle);
+            await expectElementWithinViewport(page, row, `${role} order row`);
+            await row.getByRole("button", { name: role === "platform" ? "查看" : "查看详情", exact: true }).click();
+            const dialog = page.getByRole("dialog").filter({ visible: true }).last();
+            await expect(dialog).toBeVisible();
+            await expect(dialog.getByText(orderTitle, { exact: true })).toBeVisible();
+            if (role === "platform") {
+                await expect(dialog.getByRole("button", { name: "退回修改", exact: true })).toHaveCount(0);
+                await expect(dialog.getByRole("button", { name: "验收通过", exact: true })).toHaveCount(0);
+                await expect(dialog.getByText("已验收", { exact: true })).toBeVisible();
+                await expect(dialog.getByText("请补充品牌落版", { exact: true })).toBeVisible();
+                await expect(dialog.getByText("学校首轮正式交付", { exact: true })).toBeVisible();
+                await expect(dialog.getByText("已补充品牌落版", { exact: true })).toBeVisible();
+            } else {
+                await expect(dialog.getByRole("button", { name: "提交候选成果", exact: true })).toHaveCount(0);
+                await expect(dialog.getByText("内部金额", { exact: true })).toHaveCount(0);
+            }
+            await expectElementWithinViewport(page, dialog, `${role} commercial order dialog`);
+            await expectNoHorizontalOverflow(page, `${role} commercial order`);
+            await expectVisibleControlsWithinViewport(page, `${role} commercial order`);
         }
-        await expectElementWithinViewport(page, dialog, `${role} commercial order dialog`);
-        await expectNoHorizontalOverflow(page, `${role} commercial order`);
-        await expectVisibleControlsWithinViewport(page, `${role} commercial order`);
         expect(await errors.values(), `${role} ${path} browser errors`).toEqual([]);
     } finally {
         errors.stop();
@@ -859,7 +769,7 @@ async function verifyExistingUserCapabilities(context: BrowserContext, role: str
                 await expect(page).not.toHaveURL(/\/(?:login|install)(?:\?|$)/);
                 await expect(page.getByRole("heading", { name: route.heading }).first()).toBeVisible();
                 await expect(page.locator("main").first()).toBeVisible();
-                await expect(page.locator(".ant-spin-spinning").filter({ visible: true })).toHaveCount(0);
+                await expect(page.locator(".gm-spin-spinning").filter({ visible: true })).toHaveCount(0);
                 await expectNoHorizontalOverflow(page, `${role} ${route.path}`);
                 await expectVisibleControlsWithinViewport(page, `${role} ${route.path}`);
                 expect(await errors.values(), `${role} ${route.path} browser errors`).toEqual([]);
@@ -893,7 +803,9 @@ function watchPageErrors(page: Page) {
         apiFailureReads.push(
             response
                 .text()
-                .then((body) => apiFailures.push({ status: response.status(), path: url.pathname, body }))
+                .then((body) => {
+                    apiFailures.push({ status: response.status(), path: url.pathname, body });
+                })
                 .catch(async () => {
                     let body = "<unreadable>";
                     if (response.request().method() === "GET") {
@@ -957,26 +869,7 @@ async function expectElementWithinViewport(page: Page, locator: ReturnType<Page[
 async function selectTab(page: Page, name: string | RegExp, hasTouch: boolean) {
     const tab = page.getByRole("tab", { name, exact: typeof name === "string" });
     await expect(tab).toBeVisible();
-    await expect(tab).toHaveAttribute("id", /^rc-tabs-/);
-    const tabViewport = tab.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-tabs-nav-wrap ')][1]");
-    const scroll = await Promise.all([tab.boundingBox(), tabViewport.boundingBox()]).then(([tabBounds, viewportBounds]) => {
-        if (!tabBounds || !viewportBounds || (tabBounds.x >= viewportBounds.x && tabBounds.x + tabBounds.width <= viewportBounds.x + viewportBounds.width)) return null;
-        return {
-            x: viewportBounds.x + viewportBounds.width / 2,
-            y: viewportBounds.y + viewportBounds.height / 2,
-            deltaX: tabBounds.x + tabBounds.width / 2 - (viewportBounds.x + viewportBounds.width / 2),
-        };
-    });
-    if (scroll) {
-        await page.mouse.move(scroll.x, scroll.y);
-        await page.mouse.wheel(scroll.deltaX, 0);
-        await expect
-            .poll(async () => {
-                const [tabBounds, viewportBounds] = await Promise.all([tab.boundingBox(), tabViewport.boundingBox()]);
-                return Boolean(tabBounds && viewportBounds && tabBounds.x >= viewportBounds.x - 1 && tabBounds.x + tabBounds.width <= viewportBounds.x + viewportBounds.width + 1);
-            })
-            .toBe(true);
-    }
+    await tab.scrollIntoViewIfNeeded();
     if (hasTouch) await tab.tap();
     else await tab.click();
     await expect(tab, `${name} tab must become selected after hydration`).toHaveAttribute("aria-selected", "true");

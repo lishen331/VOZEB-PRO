@@ -121,8 +121,8 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             await rolePage.getByText("不使用音频", { exact: true }).click();
             await expect(rolePage.getByRole("switch", { name: "启用台词音频", exact: true })).not.toBeChecked();
             const videoWithAudioSubmit = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/sessions") && request.method() === "POST");
-            await rolePage.getByRole("combobox", { name: "配音音色", exact: true }).click();
-            await rolePage.getByText("默认台词音色", { exact: true }).click();
+            // The voice selector is hidden while audio is disabled. Re-enable through its visible switch.
+            await rolePage.getByRole("switch", { name: "启用台词音频", exact: true }).check();
             await expect(rolePage.locator("audio").first()).toBeVisible();
             await rolePage.getByRole("button", { name: "生成分镜视频", exact: true }).click();
             const videoWithAudioBody = (await videoWithAudioSubmit).postDataJSON();
@@ -135,7 +135,7 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             const happy = rolePage.getByRole("slider", { name: "台词 1 开心", exact: true });
             await happy.focus();
             await happy.press("ArrowRight");
-            await expect(happy).toHaveAttribute("aria-valuenow", "0.01");
+            await expect(happy).toHaveValue("0.01");
             await rolePage.getByText("六维情绪", { exact: true }).scrollIntoViewIfNeeded();
             await rolePage.screenshot({ path: testInfo.outputPath("emotion-sliders.png") });
             const audioSubmit = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/sessions") && request.method() === "POST");
@@ -175,15 +175,15 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
                     };
                     const [brief, prompt] = labels[moduleKind];
                     await rolePage.getByRole("textbox", { name: brief, exact: true }).fill("本模块需求");
-                    const optimized = rolePage.waitForRequest((request) => request.url().endsWith("/api/agent/prompt-optimization"));
+                    const optimized = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/prompt-optimization"));
                     await rolePage.getByRole("button", { name: "生成提示词", exact: true }).click();
                     expect((await optimized).postDataJSON().prompt).toContain(prompt);
                     await expect(rolePage.getByRole("textbox", { name: prompt, exact: true })).toHaveValue("可编辑的角色提示词");
                 }
                 await rolePage.screenshot({ path: testInfo.outputPath(`${moduleKind}-layout.png`) });
             }
-            await rolePage.getByRole("button", { name: "切换到深色主题", exact: true }).click();
-            await expect(rolePage.getByRole("button", { name: "切换到浅色主题", exact: true })).toBeVisible();
+            await rolePage.getByRole("button", { name: /切换到(?:深色|黑夜)主题/ }).click();
+            await expect(rolePage.getByRole("button", { name: /切换到(?:浅色|白昼|白色)主题/ })).toBeVisible();
             await rolePage.evaluate(async () => {
                 // 只等待有限次数的过渡动画；循环装饰动画没有 finished 终态，不能参与验收等待。
                 const finiteAnimations = document.getAnimations().filter((animation) => {

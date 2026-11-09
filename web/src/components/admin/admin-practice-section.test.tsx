@@ -39,6 +39,7 @@ describe("admin infinite practice configuration", () => {
         expect(html).toContain("剧本生成模型");
         expect(html).toContain("保存无限练习配置");
         expect(html).toContain("默认语言");
+        expect(html).toContain('aria-label="显示剧本练习模块"');
     });
     it("offers only text logical models and non-production endpoints", () => {
         expect(practiceScriptModelOptions(settings)).toEqual([{ value: "writer", label: "剧本写作" }]);

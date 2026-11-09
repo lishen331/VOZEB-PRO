@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import sharp from "sharp";
 
-import { createCanvasProject, deleteCanvasProject, expectCanvasSaved, expectNoHorizontalOverflow, node, readCanvasProject } from "./canvas-e2e-helpers";
+import { createCanvasProject, deleteCanvasProject, expectCanvasSaved, expectNoHorizontalOverflow, node, readCanvasProject, selectCanvasTheme } from "./canvas-e2e-helpers";
 import { E2E_PROTOCOL_ORIGIN } from "./support";
 
 test.describe.configure({ mode: "serial" });
@@ -15,7 +15,7 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
         nodes: [
             node("text-source", "text", 60, 100, 240, 170, { content: "创作方向" }),
             node("config-target", "config", 380, 100, 280, 210, { size: "1280x720", composerContent: "" }),
-            node("image-target", "image", 200, 360, 260, 200, { content: "/logo.svg", serverUrl: "/logo.svg" }),
+            node("image-target", "image", 720, 360, 260, 200, { content: "/logo.svg", serverUrl: "/logo.svg" }),
         ],
         connections: [],
     });
@@ -30,6 +30,7 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
         const surface = page.locator("[data-canvas-surface]");
         await expect(surface).toBeVisible({ timeout: 20_000 });
+        await selectCanvasTheme(page, "light");
         await expect(surface).toHaveCSS("background-color", "rgb(255, 255, 255)");
         await expect(surface.locator("[data-canvas-grid]")).toBeVisible();
         await expect(surface.locator("[data-canvas-grid]")).not.toHaveCSS("background-image", "none");
@@ -88,8 +89,8 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
         const expandedPrompt = promptDialog.getByRole("textbox", { name: "提示词编辑器" });
         await expect(promptDialog).toBeVisible();
         await expect(promptDialog.locator(".ant-modal-body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-        await expect(promptDialog.locator('[data-canvas-prompt-editor="expanded"]')).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-        await expect(expandedPrompt).toHaveCSS("background-color", "rgb(238, 246, 251)");
+        await expect(promptDialog.locator('[data-canvas-prompt-editor="expanded"]')).toHaveCSS("background-color", "rgb(238, 246, 251)");
+        await expect(expandedPrompt).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
         await expect(promptDialog.locator(".ant-modal-footer")).toHaveCount(0);
         await expect(expandedPrompt).toHaveValue("放大编辑后仍然同步");
         await expect.poll(() => expandedPrompt.evaluate((element) => document.activeElement === element)).toBe(true);
@@ -123,9 +124,12 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
 
         const sourceNode = page.locator('[data-node-id="text-source"]');
         await expect.poll(() => page.locator("[data-canvas-world-viewport]").evaluate((element) => element.scrollTop)).toBe(0);
-        await sourceNode.click();
+        // Clear the multi-selection so the selected image's prompt panel cannot cover the text node.
+        await surface.click({ position: { x: 20, y: 20 } });
+        await sourceNode.click({ position: { x: 120, y: 8 }, modifiers: ["Control"] });
+        await expectSelectedNodeCount(page, 1);
         await page.keyboard.down("Control");
-        await page.locator('[data-node-id="config-target"]').click({ position: { x: 36, y: 36 } });
+        await page.locator('[data-node-id="config-target"]').click({ position: { x: 140, y: 8 } });
         await page.keyboard.up("Control");
         await expectSelectedNodeCount(page, 2);
 
@@ -180,8 +184,10 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
         await expect.poll(() => patchRequests.length).toBeGreaterThan(1);
         await expectCanvasSaved(page);
 
+        await surface.click({ position: { x: 20, y: 20 } });
+        await sourceNode.click({ position: { x: 120, y: 8 }, modifiers: ["Control"] });
         await page.keyboard.down("Control");
-        await imageNode.click({ position: { x: 36, y: 36 } });
+        await imageNode.click({ position: { x: 130, y: 120 } });
         await page.keyboard.up("Control");
         await expectSelectedNodeCount(page, 2);
         await page.getByRole("button", { name: "切换到小手模式" }).click();
@@ -1150,5 +1156,5 @@ async function dragSelectionBox(page: Page, nodes: Locator) {
 }
 
 async function expectSelectedNodeCount(page: Page, count: number) {
-    await expect.poll(() => page.locator("[data-node-id] > div").evaluateAll((elements) => elements.filter((element) => getComputedStyle(element).borderColor === "rgb(47, 128, 255)").length)).toBe(count);
+    await expect.poll(() => page.locator("[data-node-id].z-50").count()).toBe(count);
 }

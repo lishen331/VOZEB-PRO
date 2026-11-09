@@ -382,10 +382,10 @@ export class IpLibraryRepository {
         const pageSize = normalizePageSize(input.pageSize);
         const count = await this.db.query<{ count: string }>("SELECT COUNT(DISTINCT ip_id)::text AS count FROM ip_school_grants WHERE school_id = $1", [input.schoolId]);
         const result = await this.db.query(
-            `SELECT package.*, MAX(grant.updated_at) AS latest_grant_at
-             FROM ip_school_grants AS grant JOIN ip_packages AS package ON package.id = grant.ip_id
-             WHERE grant.school_id = $1 GROUP BY package.id
-             ORDER BY MAX(grant.updated_at) DESC, package.id LIMIT $2 OFFSET $3`,
+            `SELECT package.*, MAX(school_grant.updated_at) AS latest_grant_at
+             FROM ip_school_grants AS school_grant JOIN ip_packages AS package ON package.id = school_grant.ip_id
+             WHERE school_grant.school_id = $1 GROUP BY package.id
+             ORDER BY MAX(school_grant.updated_at) DESC, package.id LIMIT $2 OFFSET $3`,
             [input.schoolId, pageSize, (page - 1) * pageSize],
         );
         const packageIds = result.rows.map((row) => stringValue(row.id));
@@ -560,7 +560,7 @@ function mapSubIp(row: Record<string, unknown>): IpSubIpRecord {
         ipId: stringValue(row.sub_ip_ip_id ?? row.ip_id),
         title: stringValue(row.sub_ip_title ?? row.title),
         summary: stringValue(row.sub_ip_summary ?? row.summary),
-        coverFileId: optionalString(row.sub_ip_cover_file_id ?? row.cover_file_id),
+        coverFileId: optionalString("sub_ip_cover_file_id" in row ? row.sub_ip_cover_file_id : row.cover_file_id),
         tags: Array.isArray(tags) ? tags.filter((item): item is string => typeof item === "string") : [],
         sortOrder: numberValue(row.sub_ip_sort_order ?? row.sort_order),
         createdByUserId: optionalString(row.sub_ip_created_by_user_id ?? row.created_by_user_id),

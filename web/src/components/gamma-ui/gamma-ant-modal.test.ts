@@ -91,3 +91,22 @@ describe("gamma-ui 浮层与弹窗的层级关系", () => {
         expect(datepicker).toContain("gm-popup-layer");
     });
 });
+
+describe("closed retained dialogs release modal side effects", () => {
+    it("only isolates the rest of the page while the modal or masked drawer is open", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");
+        expect(source).toContain("<DialogPrimitive.Root modal={open && showMask}");
+        expect(source).toContain("<DialogPrimitive.Root modal={open && mask !== false}");
+    });
+});
+
+describe("modal overlay composition", () => {
+    it("keeps mask and content in one stable stacking context across reopening", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");
+        const wrap = source.indexOf('className="ant-modal-root"');
+        const overlay = source.indexOf("<DialogPrimitive.Overlay");
+        const content = source.indexOf("<DialogPrimitive.Content");
+        expect(wrap).toBeLessThan(overlay);
+        expect(overlay).toBeLessThan(content);
+    });
+});

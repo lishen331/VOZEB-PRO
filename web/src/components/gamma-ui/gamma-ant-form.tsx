@@ -57,7 +57,7 @@ export class FormValidationError extends Error {
 }
 
 function toPath(name: NamePath): (string | number)[] {
-    return Array.isArray(name) ? name : [name];
+    return Array.isArray(name) ? name : typeof name === "string" ? name.split(".") : [name];
 }
 
 function getIn(source: Record<string, unknown>, path: (string | number)[]): unknown {
@@ -74,9 +74,14 @@ function setIn(source: Record<string, unknown>, path: (string | number)[], value
     if (!path.length) return source;
     const [head, ...rest] = path;
     const current = source[head];
-    if (!rest.length) return { ...source, [head]: value };
-    const base = current && typeof current === "object" ? (Array.isArray(current) ? ([...current] as unknown as Record<string, unknown>) : (current as Record<string, unknown>)) : {};
-    return { ...source, [head]: setIn(base, rest, value) };
+    const next = Array.isArray(source) ? ([...source] as unknown as Record<string, unknown>) : { ...source };
+    if (!rest.length) {
+        next[head] = value;
+        return next;
+    }
+    const base = current && typeof current === "object" ? (current as Record<string, unknown>) : {};
+    next[head] = setIn(base, rest, value);
+    return next;
 }
 
 function isEmptyValue(value: unknown, whitespace = false): boolean {

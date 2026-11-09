@@ -80,7 +80,7 @@ function toCatalogDetail(tree: PlatformCourseDetail, assignmentId: string | unde
     }));
     return {
         ...toCourseSummary(tree),
-        coverUrl: catalogCoverUrl(tree.id),
+        ...(hasCoverKey(tree) ? { coverUrl: catalogCoverUrl(tree.id) } : {}),
         chapters,
         ...(assignmentId ? { assignmentId } : {}),
         unlocked,
@@ -124,7 +124,8 @@ function toCourseSummary(record: Omit<PlatformCourseRecord, "content"> & { conte
 }
 
 function hasCoverKey(record: { content?: unknown }) {
-    return typeof (record.content as { coverStorageKey?: unknown })?.coverStorageKey === "string";
+    const key = (record.content as { coverStorageKey?: unknown })?.coverStorageKey;
+    return typeof key === "string" && key.length > 0;
 }
 
 function catalogCoverUrl(courseId: string) {

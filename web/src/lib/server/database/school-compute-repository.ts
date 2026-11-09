@@ -186,9 +186,8 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
                 if (!pool || !group) throw new Error("学校算力池或制作小组不存在");
                 return { pool, group };
             }
-            const poolResult = await repository.db.query("UPDATE school_compute_pools SET available_points = available_points - $3::numeric, updated_at = $4 WHERE school_id = $1 AND status = 'active' AND available_points >= $3::numeric RETURNING *", [
+            const poolResult = await repository.db.query("UPDATE school_compute_pools SET available_points = available_points - $2::numeric, updated_at = $3 WHERE school_id = $1 AND status = 'active' AND available_points >= $2::numeric RETURNING *", [
                 schoolId,
-                groupId,
                 amount,
                 entry.createdAt,
             ]);

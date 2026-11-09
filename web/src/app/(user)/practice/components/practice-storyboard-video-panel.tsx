@@ -155,6 +155,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
     const chooseAudioSource = (value: string) => {
         ++audioLoadRequest.current;
         audioPresetLoadKey.current = undefined;
+        setUploading(false);
         setSelectedAudioId(undefined);
         setAudio(undefined);
         if (value === "none") {
@@ -180,6 +181,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
         if (!enabled) {
             ++audioLoadRequest.current;
             audioPresetLoadKey.current = undefined;
+            setUploading(false);
             setAudio(undefined);
             setSelectedAudioId(undefined);
             return;

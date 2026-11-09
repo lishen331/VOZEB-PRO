@@ -13,7 +13,8 @@ import { AlertTriangle, Info } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
-import { GammaModal, GammaToastStack, type GammaToastItem, type GammaToastTone } from "@/components/gamma-ui/gamma-overlays";
+import { GammaToastStack, type GammaToastItem, type GammaToastTone } from "@/components/gamma-ui/gamma-overlays";
+import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 
 /** antd message 允许的调用形态：内容本身，或带 key/duration 的对象 */
 export type MessageContent = ReactNode;
@@ -235,10 +236,12 @@ export function GammaAntAppProvider({ children }: { children: ReactNode }) {
             {children}
             <GammaToastStack toasts={toasts} onDismiss={dismiss} />
             {dialog ? (
-                <GammaModal
+                <Modal
                     open
+                    centered
+                    width={dialog.width ?? 440}
                     title={typeof dialog.title === "string" ? dialog.title : ""}
-                    onClose={closeDialog}
+                    onCancel={closeDialog}
                     footer={
                         <>
                             <GammaButton variant="outline" onClick={closeDialog}>
@@ -255,7 +258,7 @@ export function GammaAntAppProvider({ children }: { children: ReactNode }) {
                         <div className="min-w-0">{dialog.title && typeof dialog.title !== "string" ? dialog.title : null}</div>
                         <div className="min-w-0">{dialog.content}</div>
                     </div>
-                </GammaModal>
+                </Modal>
             ) : null}
         </AppContext.Provider>
     );

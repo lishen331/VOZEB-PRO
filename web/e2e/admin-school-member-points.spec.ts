@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Client } from "pg";
 
 import { expect, test, type APIRequestContext, type APIResponse, type BrowserContext, type Page } from "@playwright/test";
 
@@ -67,7 +68,18 @@ test("平台管理员按学校管理成员个人永久积分", async ({ browser,
         await verifyLimitedAdminUi(limitedContext);
 
         const disabled = await adminRequest.patch(`/api/admin/users/${debit.member.userId}`, { data: { status: "disabled" } });
-        expect(disabled.status(), await disabled.text()).toBe(200);
+        expect(disabled.status(), await disabled.text()).toBe(400);
+        // Disabled-account coverage is a test fixture, not permission to change a school user through user operations.
+        const connectionString = process.env.VOZEB_PRO_E2E_DATABASE_URL;
+        if (!connectionString) throw new Error("Disabled-account RBAC fixture requires the dedicated E2E PostgreSQL database");
+        const fixture = new Client({ connectionString });
+        await fixture.connect();
+        try {
+            const seeded = await fixture.query("UPDATE vozeb_pro_users SET status = 'disabled' WHERE id = $1 RETURNING id", [debit.member.userId]);
+            expect(seeded.rowCount).toBe(1);
+        } finally {
+            await fixture.end();
+        }
         const disabledResult = await adjust(adminRequest, schoolA.id, schoolMember!.id, { operation: "credit", amount: 1, reason: "停用账号修正", idempotencyKey: `${creditKey}:disabled` });
         expect(disabledResult.member.accountStatus).toBe("disabled");
         expect(disabledResult.member.permanentPoints).toBe(debit.member.permanentPoints + 1);

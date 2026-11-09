@@ -67,7 +67,7 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                             <h3 className="font-medium">模块状态</h3>
                             <p className="mt-1 text-xs text-zinc-500">关闭后隐藏用户端入口，已有项目不删除。</p>
                         </div>
-                        <Switch checked={script.enabled} onChange={(enabled) => updateScript({ enabled })} />
+                        <Switch aria-label="显示剧本练习模块" checked={script.enabled} onChange={(enabled) => updateScript({ enabled })} />
                     </div>
                 </div>
                 <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">

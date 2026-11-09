@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from "node:crypto";
 
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
+import sharp from "sharp";
 import { createCanvasProject, deleteCanvasProject, expectCanvasSaved, readCanvasProject } from "./canvas-e2e-helpers";
 import { E2E_PAYMENT_WEBHOOK_SECRET, E2E_PROTOCOL_ORIGIN, pollTask, protocolFixtureState, resetProtocolFixture } from "./support";
 
@@ -86,6 +87,8 @@ test("admin site form persists social addresses, publishes them to the home foot
         await expect(instagramInput).toHaveValue("https://instagram.com/vozeb.pro");
 
         await page.goto("/", { waitUntil: "domcontentloaded" });
+        // Social links are retained on the classic site footer; the workspace homepage has a compact policy footer.
+        await page.goto("/classic", { waitUntil: "domcontentloaded" });
         await expect(page.locator('footer a[aria-label="Telegram"]')).toHaveAttribute("href", "https://t.me/vozeb_group");
         await expect(page.locator('footer a[aria-label="X"]')).toHaveAttribute("href", "https://x.com/vozeb_pro");
         await expect(page.locator('footer a[aria-label="Instagram"]')).toHaveAttribute("href", "https://instagram.com/vozeb.pro");
@@ -177,7 +180,10 @@ test("image task persists a real media result and reuses the same request identi
     expect(replay.ok()).toBe(true);
     expect((await replay.json()).task.id).toBe(firstTask.id);
     const completed = await pollTask(request, `/api/image-tasks/${firstTask.id}`);
-    expect(completed).toMatchObject({ status: "success", result: { width: 64, height: 64, mimeType: "image/png" } });
+    const fixtureImage = await request.get(`${E2E_PROTOCOL_ORIGIN}/media/fixture.png`);
+    expect(fixtureImage.ok()).toBe(true);
+    const original = await sharp(await fixtureImage.body()).metadata();
+    expect(completed).toMatchObject({ status: "success", result: { width: original.width, height: original.height, mimeType: "image/png" } });
     const mediaUrl = String((completed.result as { dataUrl?: string }).dataUrl || "");
     expect(mediaUrl).toMatch(/^\/api\/generation-log-assets\/permanent\/.+\.png$/);
     const media = await request.get(mediaUrl);
@@ -283,19 +289,19 @@ test("unified creative Agent reaches the local image and video protocols", async
     expect(state.requests.some((item) => item.method === "GET" && /\/videos\/fixture-video-/.test(item.path))).toBe(true);
 });
 
-test("Canvas Agent persists local image and video results while the canvas remains movable", async ({ page, request }) => {
+test("Canvas Agent API persists results while its unavailable UI entry stays disabled", async ({ page, request }) => {
     const project = await createCanvasProject(request, { title: `Canvas Agent 协议 ${randomUUID().slice(0, 8)}`, viewport: { x: 80, y: 100, k: 1 }, nodes: [], connections: [] });
     try {
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
-        const composer = page.getByPlaceholder("描述你想让 Agent 如何操作画布");
-        await expect(composer).toBeVisible({ timeout: 20_000 });
-        await composer.fill("生成一张图片和一段视频，验证画布协议与持久化");
-        const runCreated = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/agent/runs");
-        await page.getByRole("button", { name: "发送" }).click();
-        const runResponse = await runCreated;
+        await expect(page.getByRole("button", { name: "Agent（敬请期待）", exact: true })).toBeDisabled();
+        await expect(page.getByPlaceholder("描述你想让 Agent 如何操作画布")).toHaveCount(0);
+        // The current product has not exposed this UI. Keep server protocol/persistence coverage through its real API.
+        const runResponse = await request.post("/api/agent/runs", { data: { clientRequestId: randomUUID(), surface: "canvas", projectId: project.id, prompt: "生成一张图片和一段视频，验证画布协议与持久化", assetIds: [] } });
         expect(runResponse.ok(), await runResponse.text()).toBe(true);
         const runId = ((await runResponse.json()) as { data: { run: { id: string } } }).data.run.id;
         await waitForAgentRun(request, runId);
+        const recovery = await request.post(`/api/canvas/projects/${project.id}/recover-agent-results`);
+        expect(recovery.ok(), await recovery.text()).toBe(true);
 
         const projectPath = `/api/canvas/projects/${project.id}`;
         await expect
@@ -310,6 +316,7 @@ test("Canvas Agent persists local image and video results while the canvas remai
         const stored = await readCanvasProject(request, projectPath);
         const outputNodes = stored.nodes.filter((item) => item.metadata?.agentRunId === runId && ["image", "video"].includes(item.type));
         expect(outputNodes).toHaveLength(2);
+        await page.reload({ waitUntil: "domcontentloaded" });
         for (const item of outputNodes) await expect(page.locator(`[data-node-id="${item.id}"]`)).toBeVisible();
         await expect(page.locator(`[data-node-id="brief-${runId}"], [data-node-id="brand-${runId}"], [data-node-id^="task-${runId}-"]`)).toHaveCount(0);
         await expect(page.getByText(/内部协议(?:图片|视频)执行提示/)).toHaveCount(0);
@@ -352,6 +359,7 @@ test("Drama Agent persists and restores local image and video results", async ({
         data: {
             title: `短剧 Agent 协议 ${randomUUID().slice(0, 8)}`,
             summary: "验证项目 Agent 图片与视频完整链路",
+            initialScript: "主角在课堂完成图片和视频创作。",
             ratio: "16:9",
             sourceAssets: [
                 { id: "protocol-source-image", type: "image", title: "协议来源图片", serverUrl: `${E2E_PROTOCOL_ORIGIN}/media/fixture.png`, mimeType: "image/png", width: 640, height: 360 },

@@ -50,7 +50,7 @@ export function PromptCard({
                         </div>
                     </div>
                 </button>
-                <div className="flex items-center gap-1.5 border-t border-[var(--gm-border)] px-2 py-1">
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-[var(--gm-border)] px-2 py-1">
                     <Button block={actionType === "primary"} type={actionType} size="small" icon={actionIcon} onClick={onCopy}>
                         {actionLabel}
                     </Button>
@@ -88,7 +88,7 @@ export function PromptCard({
                         </div>
                     </div>
                 </button>
-                <div className="flex items-center gap-1.5 px-3 pb-3">
+                <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3">
                     <Button block={actionType === "primary"} type={actionType} size="small" icon={actionIcon} onClick={onCopy}>
                         {actionLabel}
                     </Button>

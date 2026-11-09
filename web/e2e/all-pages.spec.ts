@@ -4,7 +4,7 @@ import { expect, test, type APIRequestContext, type Page, type Response } from "
 
 import { ADMIN_SECTION_KEYS } from "../src/components/admin/admin-sections";
 import { expectNoHorizontalOverflow, expectVisibleControlsWithinViewport } from "./responsive-helpers";
-import { E2E_ADMIN } from "./support";
+import { E2E_ADMIN, E2E_PRACTICE_PASSWORD, createAuthenticatedE2EContext } from "./support";
 
 const PROFILE_SECTIONS = ["overview", "profile", "billing", "coupons", "orders", "points", "consume", "referrals", "security"] as const;
 const BASE_URL = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_E2E_PORT || 3100)}`;
@@ -36,17 +36,22 @@ const FILE_PROVIDER_LIMITATIONS = new Map([
     ["/api/admin/drama-lab/sd2-assets", 501],
 ]);
 
-type RouteCase = { path: string; expectedPath?: RegExp; expectedStatus?: number; readyHeading?: string; readyText?: string };
+type RouteCase = { path: string; expectedPath?: RegExp; expectedStatus?: number; readyHeading?: string; readyText?: string; allowAnonymousCatalog401?: boolean };
 type ApiFailure = { path: string; status: number; body: string };
+
+// Version availability on a third-party repository is not part of local page rendering.
+test.beforeEach(async ({ page }) => {
+    await page.route("https://raw.githubusercontent.com/csyqlz/VOZEB-PRO/main/VERSION", (route) => route.fulfill({ contentType: "text/plain", body: "0.8.27" }));
+});
 
 test("all authenticated pages reach their real routes and stay usable", async ({ page, request }, testInfo) => {
     test.setTimeout(360_000);
     const fixtures = await createPageFixtures(request, testInfo.project.use.viewport?.width || 1280);
     const routes: RouteCase[] = [
-        { path: "/", readyHeading: "一个入口 完成所有 AI 创作" },
-        { path: "/gallery", readyHeading: "灵感发现" },
-        { path: "/community", readyHeading: "灵感发现" },
-        { path: "/ip-library", readyHeading: "IP库" },
+        { path: "/", readyHeading: "画布创作案例" },
+        { path: "/gallery", expectedPath: /\/community$/, readyHeading: "作品广场" },
+        { path: "/community", readyHeading: "作品广场" },
+        { path: "/ip-library", readyHeading: "IP 库" },
         { path: "/announcements", readyHeading: "网站公告" },
         { path: "/create" },
         { path: "/image", expectedPath: /\/create$/ },
@@ -64,8 +69,8 @@ test("all authenticated pages reach their real routes and stay usable", async ({
         { path: "/help", readyHeading: "从操作到交付，按真实流程完成创作" },
         { path: "/me", readyHeading: "E2E 管理员" },
         USES_POSTGRES ? { path: `/u/${E2E_ADMIN.username}`, expectedStatus: 404, readyText: "404" } : { path: `/u/${E2E_ADMIN.username}`, readyHeading: "创作者主页暂不可用" },
-        { path: "/billing", expectedPath: /\/profile\?section=billing$/ },
-        { path: "/billing/checkout", readyText: "套餐不存在或已下架" },
+        { path: "/billing", expectedPath: /\/profile$/ },
+        { path: "/billing/checkout", expectedPath: /\/profile$/ },
         { path: "/billing/success", readyText: "支付结果缺少订单编号" },
         { path: "/billing/cancel", readyText: "支付结果缺少订单编号" },
         { path: "/admin/setup", readyHeading: "把站点配置到可以上线运营" },
@@ -104,19 +109,19 @@ test("signed-out, legal, installation and invalid public detail routes fail safe
         const theme = testInfo.project.name === "mobile-430" ? "dark" : "light";
         await page.addInitScript((nextTheme) => localStorage.setItem("vozeb-pro:theme_store", JSON.stringify({ state: { theme: nextTheme }, version: 0 })), theme);
         const routes: RouteCase[] = [
-            { path: "/", readyHeading: "一个入口 完成所有 AI 创作" },
-            { path: "/login", readyHeading: "AIGC 智能影像教学平台" },
-            { path: "/register", expectedPath: /\/login(?:\?.*)?$/, readyHeading: "AIGC 智能影像教学平台" },
+            { path: "/", expectedPath: /\/login\?next=%2F$/, readyHeading: "登录账号" },
+            { path: "/login", readyHeading: "登录账号" },
+            { path: "/register", expectedPath: /\/login(?:\?.*)?$/, readyHeading: "登录账号" },
             { path: "/forgot-password", readyHeading: "重置密码" },
             { path: "/privacy", readyHeading: "隐私政策" },
             { path: "/terms", readyHeading: "服务条款" },
-            { path: "/gallery", readyHeading: "灵感发现" },
+            { path: "/gallery", expectedPath: /\/login\?next=/, readyHeading: "登录账号" },
             { path: "/announcements", readyHeading: "网站公告" },
             USES_POSTGRES ? { path: `/u/${E2E_ADMIN.username}`, expectedStatus: 404, readyText: "404" } : { path: `/u/${E2E_ADMIN.username}`, readyHeading: "创作者主页暂不可用" },
             { path: "/share/not-a-real-public-work", expectedStatus: USES_POSTGRES ? 404 : 200, readyText: USES_POSTGRES ? "404" : "作品分享暂不可用" },
-            { path: "/install", expectedPath: /\/$/ },
+            { path: "/install", expectedPath: /\/login\?next=%2F$/ },
         ];
-        for (const route of routes) await verifyRoute(page, route, `${testInfo.project.name} signed-out`);
+        for (const route of routes) await verifyRoute(page, { ...route, allowAnonymousCatalog401: true }, `${testInfo.project.name} signed-out`);
     } finally {
         await context.close();
     }
@@ -140,7 +145,7 @@ async function createPageFixtures(request: APIRequestContext, viewportWidth: num
     expect(canvas.ok(), await canvas.text()).toBe(true);
     const canvasPayload = (await canvas.json()) as { data: { project: { id: string } } };
 
-    const drama = await request.post("/api/drama/projects", { data: { title: `全页面回归短剧 ${suffix}`, summary: "验证服务端项目读取与移动布局", ratio: "9:16" } });
+    const drama = await request.post("/api/drama/projects", { data: { title: `全页面回归短剧 ${suffix}`, summary: "验证服务端项目读取与移动布局", initialScript: "两名学生在课堂讨论分镜。", ratio: "9:16" } });
     expect(drama.ok(), await drama.text()).toBe(true);
     const dramaPayload = (await drama.json()) as { data: { project: { id: string } } };
     return { canvasId: canvasPayload.data.project.id, dramaId: dramaPayload.data.project.id };
@@ -201,8 +206,9 @@ async function verifyRoute(page: Page, route: RouteCase, label: string) {
         await expectNoHorizontalOverflow(page, `${label} ${route.path}`);
         await expectVisibleControlsWithinViewport(page, `${label} ${route.path}`);
         await Promise.all(apiFailureReads);
-        const expectedLimitations = apiFailures.filter(isExpectedFileProviderLimitation);
-        const unexpectedApiFailures = apiFailures.filter((failure) => !isExpectedFileProviderLimitation(failure));
+        const expectedFailure = (failure: ApiFailure) => isExpectedFileProviderLimitation(failure) || (route.allowAnonymousCatalog401 === true && failure.path === "/api/model-catalog" && failure.status === 401);
+        const expectedLimitations = apiFailures.filter(expectedFailure);
+        const unexpectedApiFailures = apiFailures.filter((failure) => !expectedFailure(failure));
         expect(pageErrors, `${label} ${route.path} page errors`).toEqual([]);
         expect(unexpectedApiFailures, `${label} ${route.path} API failures`).toEqual([]);
         expect(withoutExpectedResourceErrors(consoleErrors, expectedLimitations, route.expectedStatus), `${label} ${route.path} console errors; API responses: ${JSON.stringify(apiFailures)}`).toEqual([]);
@@ -245,4 +251,59 @@ test("practice configuration renders the sole script settings entry without form
     await expectNoHorizontalOverflow(page, `${testInfo.project.name} practice configuration`);
     expect(errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath("practice-configuration.png"), fullPage: true });
+});
+
+test("script practice visibility persists through admin UI and gates school access without changing other modules", async ({ page, request, browser }, testInfo) => {
+    const originalResponse = await request.get("/api/admin/settings");
+    expect(originalResponse.ok()).toBe(true);
+    const { settings: original } = await originalResponse.json();
+    const suffix = randomUUID().replaceAll("-", "").slice(0, 10);
+    const username = `script_switch_${suffix}`;
+    const school = await request.post("/api/admin/schools", { data: { name: `开关验收学校 ${suffix}`, administrator: { username, displayName: "开关验收老师", password: E2E_PRACTICE_PASSWORD } } });
+    expect(school.ok(), await school.text()).toBe(true);
+    const manager = await createAuthenticatedE2EContext(browser, BASE_URL, { username, password: E2E_PRACTICE_PASSWORD }, { viewport: testInfo.project.use.viewport });
+    const managerPage = await manager.newPage();
+    const modulesBefore = await manager.request.get("/api/practice/modules");
+    expect(modulesBefore.ok()).toBe(true);
+    const beforeIds = ((await modulesBefore.json()).data.modules as Array<{ module: string }>).map((item) => item.module).sort();
+    try {
+        await page.goto("/admin?section=practice");
+        const toggle = page.getByRole("switch", { name: "显示剧本练习模块", exact: true });
+        const save = async (enabled: boolean) => {
+            if (enabled) await toggle.check();
+            else await toggle.uncheck();
+            const saved = page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname === "/api/admin/settings");
+            await page.getByRole("button", { name: "保存无限练习配置", exact: true }).click();
+            const response = await saved;
+            expect(response.ok(), await response.text()).toBe(true);
+            const payload = await response.json();
+            expect(payload.settings.practiceScriptSettings).toEqual({ ...original.practiceScriptSettings, enabled });
+            expect(payload.settings.practiceModuleVisibility).toEqual(original.practiceModuleVisibility);
+            await page.reload();
+            await expect(toggle).toHaveAttribute("aria-checked", String(enabled));
+        };
+        await save(false);
+        const blocked = await manager.request.get("/api/practice/scripts");
+        expect(blocked.status()).toBe(404);
+        expect((await blocked.json()).msg).toBe("剧本练习已停用");
+        await managerPage.goto("/practice");
+        await expect(managerPage.getByRole("heading", { name: "剧本练习", exact: true })).toHaveCount(0);
+        await managerPage.goto("/practice/scripts");
+        await expect(managerPage).toHaveURL(/\/practice$/);
+        await save(true);
+        const allowed = await manager.request.get("/api/practice/scripts");
+        expect(allowed.ok(), await allowed.text()).toBe(true);
+        await managerPage.goto("/practice");
+        await expect(managerPage.getByRole("heading", { name: "剧本练习", exact: true })).toBeVisible();
+        const workspace = await managerPage.goto("/practice/scripts");
+        expect(workspace?.status()).toBe(200);
+        await expect(managerPage).toHaveURL(/\/practice\/scripts$/);
+        const modulesAfter = await manager.request.get("/api/practice/modules");
+        expect(modulesAfter.ok()).toBe(true);
+        expect(((await modulesAfter.json()).data.modules as Array<{ module: string }>).map((item) => item.module).sort()).toEqual(beforeIds);
+    } finally {
+        const restored = await request.patch("/api/admin/settings", { data: { practiceScriptSettings: original.practiceScriptSettings, practiceModuleVisibility: original.practiceModuleVisibility } });
+        expect(restored.ok(), await restored.text()).toBe(true);
+        await manager.close();
+    }
 });

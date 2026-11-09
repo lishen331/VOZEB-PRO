@@ -177,60 +177,67 @@ function ModalBase({
     const keepMounted = useKeepMounted(open, destroyOnHidden, forceRender);
     const openAtPointerDown = useOpenAtPointerDown(open);
     return (
-        <DialogPrimitive.Root open={open} onOpenChange={(next) => (next ? undefined : onCancel?.())}>
+        <DialogPrimitive.Root modal={open && showMask} open={open} onOpenChange={(next) => (next ? undefined : onCancel?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
-                {showMask ? (
-                    <DialogPrimitive.Overlay
-                        forceMount={keepMounted ? true : undefined}
-                        style={styles?.mask}
-                        className="ant-modal-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
-                    />
-                ) : null}
-                <div
-                    className={cn("ant-modal-wrap pointer-events-none fixed inset-0 z-[1000] flex justify-center overflow-y-auto p-3 sm:p-6", centered ? "items-center" : "items-start pt-[min(100px,8vh)]", !open && keepMounted && "hidden", rootClassName)}
-                >
-                    <DialogPrimitive.Content
-                        forceMount={keepMounted ? true : undefined}
-                        aria-describedby={undefined}
-                        onEscapeKeyDown={(event) => {
-                            if (!keyboard) event.preventDefault();
-                        }}
-                        onPointerDownOutside={(event) => {
-                            if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
-                        }}
-                        onInteractOutside={(event) => {
-                            if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
-                        }}
-                        onFocusOutside={(event) => {
-                            if (isInsidePopupLayer(event.target)) event.preventDefault();
-                        }}
-                        {...rest}
-                        style={{ width, maxWidth: "calc(100vw - 24px)", ...style, ...styles?.container }}
-                        className="ant-modal gm-modal pointer-events-auto relative isolate flex data-[state=closed]:hidden max-h-[calc(100dvh-24px)] flex-col overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] text-[var(--gm-text)] shadow-[var(--gm-shadow)] ring-1 ring-[var(--gm-border-strong)] outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.97] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97]"
+                <div className="ant-modal-root">
+                    {showMask ? (
+                        <DialogPrimitive.Overlay
+                            forceMount={keepMounted ? true : undefined}
+                            style={styles?.mask}
+                            className="ant-modal-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
+                        />
+                    ) : null}
+                    <div
+                        className={cn(
+                            "ant-modal-wrap pointer-events-none fixed inset-0 z-[1000] flex justify-center overflow-y-auto p-3 sm:p-6",
+                            centered ? "items-center" : "items-start pt-[min(100px,8vh)]",
+                            !open && keepMounted && "hidden",
+                            rootClassName,
+                        )}
                     >
-                        <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-40 w-3/4 -translate-x-1/2 rounded-full bg-[var(--gm-blue)] opacity-[var(--gm-aurora-opacity)] blur-3xl" />
-                        <div className="ant-modal-content flex min-h-0 flex-1 flex-col">
-                            <div className={cn("ant-modal-header flex shrink-0 items-start gap-3 px-5 pt-4", title ? "pb-3" : "pb-0")} style={styles?.header}>
-                                <DialogPrimitive.Title className={cn("ant-modal-title min-w-0 flex-1 text-base font-semibold", !title && "sr-only")}>{title || "对话框"}</DialogPrimitive.Title>
-                                {closable ? (
-                                    <DialogPrimitive.Close
-                                        aria-label={typeof closable === "object" ? closable["aria-label"] || "关闭" : "关闭"}
-                                        className="ant-modal-close -mt-0.5 -mr-1.5 grid size-8 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-3)] transition-colors hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
-                                    >
-                                        <X className="size-4" />
-                                    </DialogPrimitive.Close>
+                        <DialogPrimitive.Content
+                            forceMount={keepMounted ? true : undefined}
+                            aria-describedby={undefined}
+                            onEscapeKeyDown={(event) => {
+                                if (!keyboard) event.preventDefault();
+                            }}
+                            onPointerDownOutside={(event) => {
+                                if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
+                            }}
+                            onInteractOutside={(event) => {
+                                if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
+                            }}
+                            onFocusOutside={(event) => {
+                                if (isInsidePopupLayer(event.target)) event.preventDefault();
+                            }}
+                            {...rest}
+                            style={{ width, maxWidth: "calc(100vw - 24px)", ...style, ...styles?.container }}
+                            className="ant-modal gm-modal pointer-events-auto relative isolate flex data-[state=closed]:hidden max-h-[calc(100dvh-24px)] flex-col overflow-hidden rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] text-[var(--gm-text)] shadow-[var(--gm-shadow)] ring-1 ring-[var(--gm-border-strong)] outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.97] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97]"
+                        >
+                            <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-40 w-3/4 -translate-x-1/2 rounded-full bg-[var(--gm-blue)] opacity-[var(--gm-aurora-opacity)] blur-3xl" />
+                            <div className="ant-modal-content flex min-h-0 flex-1 flex-col">
+                                <div className={cn("ant-modal-header flex shrink-0 items-start gap-3 px-5 pt-4", title ? "pb-3" : "pb-0")} style={styles?.header}>
+                                    <DialogPrimitive.Title className={cn("ant-modal-title min-w-0 flex-1 text-base font-semibold", !title && "sr-only")}>{title || "对话框"}</DialogPrimitive.Title>
+                                    {closable ? (
+                                        <DialogPrimitive.Close
+                                            aria-label={typeof closable === "object" ? closable["aria-label"] || "关闭" : "关闭"}
+                                            className="ant-modal-close -mt-0.5 -mr-1.5 grid size-8 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-3)] transition-colors hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                                        >
+                                            <X className="size-4" />
+                                        </DialogPrimitive.Close>
+                                    ) : null}
+                                </div>
+                                <div className="ant-modal-body gm-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-4" style={styles?.body}>
+                                    {open || keepMounted ? children : null}
+                                </div>
+                                {resolvedFooter ? (
+                                    <div className="ant-modal-footer flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--gm-border)] bg-[var(--gm-wash)] px-5 py-3" style={styles?.footer}>
+                                        {resolvedFooter}
+                                    </div>
                                 ) : null}
                             </div>
-                            <div className="ant-modal-body gm-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-4" style={styles?.body}>
-                                {open || keepMounted ? children : null}
-                            </div>
-                            {resolvedFooter ? (
-                                <div className="ant-modal-footer flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--gm-border)] bg-[var(--gm-wash)] px-5 py-3" style={styles?.footer}>
-                                    {resolvedFooter}
-                                </div>
-                            ) : null}
-                        </div>
-                    </DialogPrimitive.Content>
+                        </DialogPrimitive.Content>
+                    </div>
                 </div>
             </DialogPrimitive.Portal>
         </DialogPrimitive.Root>
@@ -313,64 +320,66 @@ export function Drawer({
     const openAtPointerDown = useOpenAtPointerDown(open);
     const sizeStyle: CSSProperties = horizontal ? { width: extent, maxWidth: "100vw" } : { height: extent, maxHeight: "100dvh" };
     return (
-        <DialogPrimitive.Root open={open} onOpenChange={(next) => (next ? undefined : onClose?.())}>
+        <DialogPrimitive.Root modal={open && mask !== false} open={open} onOpenChange={(next) => (next ? undefined : onClose?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
-                {mask !== false ? (
-                    <DialogPrimitive.Overlay
+                <div className="ant-drawer-root">
+                    {mask !== false ? (
+                        <DialogPrimitive.Overlay
+                            forceMount={keepMounted ? true : undefined}
+                            style={styles?.mask}
+                            className="ant-drawer-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
+                        />
+                    ) : null}
+                    <DialogPrimitive.Content
                         forceMount={keepMounted ? true : undefined}
-                        style={styles?.mask}
-                        className="ant-drawer-mask fixed inset-0 z-[1000] bg-[var(--gm-scrim)] backdrop-blur-[2px] data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
-                    />
-                ) : null}
-                <DialogPrimitive.Content
-                    forceMount={keepMounted ? true : undefined}
-                    aria-describedby={undefined}
-                    aria-label={ariaLabel}
-                    onPointerDownOutside={(event) => {
-                        if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
-                    }}
-                    onInteractOutside={(event) => {
-                        if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
-                    }}
-                    onFocusOutside={(event) => {
-                        if (isInsidePopupLayer(event.target)) event.preventDefault();
-                    }}
-                    style={{ ...sizeStyle, ...styles?.wrapper }}
-                    className={cn(
-                        "ant-drawer gm-drawer fixed z-[1000] flex flex-col border-[var(--gm-border-strong)] bg-[var(--gm-bg-elevated)] text-[var(--gm-text)] shadow-[var(--gm-shadow)] outline-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=open]:duration-300",
-                        DRAWER_SIDE[placement],
-                        rootClassName,
-                    )}
-                >
-                    <div className={cn("ant-drawer-content flex min-h-0 flex-1 flex-col", className)} style={styles?.section}>
-                        <div className="ant-drawer-header flex shrink-0 items-center gap-3 border-b border-[var(--gm-border)] px-5 py-3.5" style={styles?.header}>
-                            <DialogPrimitive.Title className={cn("ant-drawer-title min-w-0 flex-1 truncate text-base font-semibold", !title && "sr-only")}>{title || ariaLabel || "侧边面板"}</DialogPrimitive.Title>
-                            {extra ? <div className="ant-drawer-extra shrink-0">{extra}</div> : null}
-                            {closable ? (
-                                <DialogPrimitive.Close
-                                    aria-label="关闭"
-                                    className="ant-drawer-close grid size-8 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-3)] transition-colors hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
-                                >
-                                    <X className="size-4" />
-                                </DialogPrimitive.Close>
-                            ) : null}
-                        </div>
-                        <div className="ant-drawer-body gm-scroll min-h-0 flex-1 overflow-y-auto p-5" style={styles?.body}>
-                            {loading ? (
-                                <div className="grid h-40 place-items-center text-[var(--gm-text-3)]">
-                                    <Loader2 className="size-5 animate-spin" />
-                                </div>
-                            ) : open || keepMounted ? (
-                                children
-                            ) : null}
-                        </div>
-                        {footer ? (
-                            <div className="ant-drawer-footer shrink-0 border-t border-[var(--gm-border)] px-5 py-3" style={styles?.footer}>
-                                {footer}
+                        aria-describedby={undefined}
+                        aria-label={ariaLabel}
+                        onPointerDownOutside={(event) => {
+                            if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
+                        }}
+                        onInteractOutside={(event) => {
+                            if (shouldBlockOutsideDismiss(openAtPointerDown.current, closeOnMask, isInsidePopupLayer(event.target))) event.preventDefault();
+                        }}
+                        onFocusOutside={(event) => {
+                            if (isInsidePopupLayer(event.target)) event.preventDefault();
+                        }}
+                        style={{ ...sizeStyle, ...styles?.wrapper }}
+                        className={cn(
+                            "ant-drawer gm-drawer fixed z-[1000] flex flex-col border-[var(--gm-border-strong)] bg-[var(--gm-bg-elevated)] text-[var(--gm-text)] shadow-[var(--gm-shadow)] outline-none data-[state=closed]:hidden data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=open]:duration-300",
+                            DRAWER_SIDE[placement],
+                            rootClassName,
+                        )}
+                    >
+                        <div className={cn("ant-drawer-content flex min-h-0 flex-1 flex-col", className)} style={styles?.section}>
+                            <div className="ant-drawer-header flex shrink-0 items-center gap-3 border-b border-[var(--gm-border)] px-5 py-3.5" style={styles?.header}>
+                                <DialogPrimitive.Title className={cn("ant-drawer-title min-w-0 flex-1 truncate text-base font-semibold", !title && "sr-only")}>{title || ariaLabel || "侧边面板"}</DialogPrimitive.Title>
+                                {extra ? <div className="ant-drawer-extra shrink-0">{extra}</div> : null}
+                                {closable ? (
+                                    <DialogPrimitive.Close
+                                        aria-label="关闭"
+                                        className="ant-drawer-close grid size-8 shrink-0 place-items-center rounded-[var(--gm-radius-sm)] text-[var(--gm-text-3)] transition-colors hover:bg-[var(--gm-wash-strong)] hover:text-[var(--gm-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+                                    >
+                                        <X className="size-4" />
+                                    </DialogPrimitive.Close>
+                                ) : null}
                             </div>
-                        ) : null}
-                    </div>
-                </DialogPrimitive.Content>
+                            <div className="ant-drawer-body gm-scroll min-h-0 flex-1 overflow-y-auto p-5" style={styles?.body}>
+                                {loading ? (
+                                    <div className="grid h-40 place-items-center text-[var(--gm-text-3)]">
+                                        <Loader2 className="size-5 animate-spin" />
+                                    </div>
+                                ) : open || keepMounted ? (
+                                    children
+                                ) : null}
+                            </div>
+                            {footer ? (
+                                <div className="ant-drawer-footer shrink-0 border-t border-[var(--gm-border)] px-5 py-3" style={styles?.footer}>
+                                    {footer}
+                                </div>
+                            ) : null}
+                        </div>
+                    </DialogPrimitive.Content>
+                </div>
             </DialogPrimitive.Portal>
         </DialogPrimitive.Root>
     );
