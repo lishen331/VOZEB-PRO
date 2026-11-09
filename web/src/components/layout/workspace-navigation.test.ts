@@ -19,10 +19,12 @@ const keys = (options: Parameters<typeof workspaceNavItems>[0]) => workspaceNavI
 describe("workspaceNavItems", () => {
     it("shows every creator entry for a normal user, grouped like the home sidebar", () => {
         const items = workspaceNavItems({ featureModules: ALL_MODULES, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS });
-        expect(items.map((item) => item.key)).toEqual(["home", "create", "drama", "canvas", "drama-lab", "one-click-film", "works", "assets", "my-prompts", "prompts", "ip-library", "me"]);
+        expect(items.map((item) => item.key)).toEqual(["home", "create", "drama", "canvas", "drama-lab", "one-click-film", "works", "assets", "prompts", "ip-library", "me"]);
         expect(items[0]).toMatchObject({ key: "home", href: "/", group: "create" });
-        // 作品广场（/gallery、/community）不进侧栏
+        // 作品广场（/community）不进侧栏
         expect(items.some((item) => item.key === "gallery" || item.key === "community")).toBe(false);
+        expect(items.find((item) => item.key === "assets")).toMatchObject({ label: "素材", href: "/assets" });
+        expect(items.find((item) => item.key === "prompts")).toMatchObject({ label: "提示词", href: "/prompts" });
         // 普通用户看不到学校入口
         expect(items.some((item) => item.group === "school")).toBe(false);
     });
@@ -35,6 +37,18 @@ describe("workspaceNavItems", () => {
         expect(result).not.toContain("one-click-film");
         expect(result).not.toContain("ip-library");
         expect(result).toContain("create");
+    });
+
+    it("does not expose a duplicate personal prompt entry", () => {
+        const items = workspaceNavItems({ featureModules: ALL_MODULES, menuPermissions: DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS });
+        expect(items.filter((item) => item.href === "/my-prompts")).toHaveLength(0);
+        expect(items.filter((item) => item.group === "assets")).toHaveLength(3);
+    });
+
+    it("shows the merged prompt entry if either legacy prompt permission is granted", () => {
+        expect(keys({ featureModules: ALL_MODULES, menuPermissions: ["my-prompts"] })).toContain("prompts");
+        expect(keys({ featureModules: ALL_MODULES, menuPermissions: ["prompt-library"] })).toContain("prompts");
+        expect(keys({ featureModules: ALL_MODULES, menuPermissions: ["assets"] })).not.toContain("prompts");
     });
 
     it("respects the role menu permissions", () => {
@@ -77,10 +91,10 @@ describe("workspaceNavItems", () => {
 
 describe("isHelpCenterVisible", () => {
     it("needs both the module switch and the role permission", () => {
-        expect(isHelpCenterVisible(ALL_MODULES, ["help-center"])).toBe(true);
+        expect(isHelpCenterVisible(ALL_MODULES, ["help-center"])).toBe(false);
         expect(isHelpCenterVisible(ALL_MODULES, ["creative-agent"])).toBe(false);
         expect(isHelpCenterVisible(normalizeFeatureModuleSettings({ "help-center": false }), ["help-center"])).toBe(false);
-        expect(isHelpCenterVisible(ALL_MODULES, undefined)).toBe(true);
+        expect(isHelpCenterVisible(ALL_MODULES, undefined)).toBe(false);
     });
 });
 
@@ -89,7 +103,7 @@ describe("workspaceNavActiveKey", () => {
     it("matches the first path segment", () => {
         expect(workspaceNavActiveKey("/", items)).toBe("home");
         expect(workspaceNavActiveKey("/assets", items)).toBe("assets");
-        expect(workspaceNavActiveKey("/my-prompts/abc", items)).toBe("my-prompts");
+        expect(workspaceNavActiveKey("/my-prompts/abc", items)).toBe("prompts");
         expect(workspaceNavActiveKey("/profile", items)).toBe("");
         expect(workspaceNavActiveKey("/gallery", items)).toBe("");
         expect(workspaceNavActiveKey("/community", items)).toBe("");

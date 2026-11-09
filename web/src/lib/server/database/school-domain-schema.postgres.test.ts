@@ -68,7 +68,9 @@ describe("PostgreSQL school domain schema", () => {
         try {
             await client.query(`CREATE SCHEMA ${schemaIdentifier}`);
             await client.query(`SET search_path TO ${schemaIdentifier}`);
-            await client.query("CREATE TABLE users (id text PRIMARY KEY)");
+            await client.query(
+                "CREATE TABLE users (id text PRIMARY KEY, username text NOT NULL DEFAULT 'legacy-user', role text NOT NULL DEFAULT 'user', admin_permissions jsonb NOT NULL DEFAULT '[]'::jsonb, updated_at timestamptz NOT NULL DEFAULT now())",
+            );
             await client.query("INSERT INTO users (id) VALUES ('legacy-user')");
             await client.query(`
                 CREATE TABLE platform_courses (

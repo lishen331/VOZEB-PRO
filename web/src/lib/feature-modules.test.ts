@@ -19,6 +19,25 @@ describe("feature module registry", () => {
         expect(featureModuleForPathname("/profile")).toBeUndefined();
     });
 
+    it("allows the merged prompt hub when either legacy prompt module is authorized, but not when both are disabled", () => {
+        const settings = normalizeFeatureModuleSettings(undefined);
+        expect(isUserNavigationPathAllowed("/prompts", ["my-prompts"], settings)).toBe(true);
+        expect(isUserNavigationPathAllowed("/prompts", ["prompt-library"], settings)).toBe(true);
+        expect(isUserNavigationPathAllowed("/prompts", [], settings)).toBe(false);
+        expect(isUserNavigationPathAllowed("/prompts", ["my-prompts"], normalizeFeatureModuleSettings({ "my-prompts": false, "prompt-library": false }))).toBe(false);
+    });
+
+    it("allows school administration only for an active school manager without treating it as a role menu", () => {
+        const settings = normalizeFeatureModuleSettings(undefined);
+        const manager = { ...schoolContext("teacher"), canManageSchool: true };
+        expect(isUserNavigationPathAllowed("/school", [], settings, manager)).toBe(true);
+        expect(isUserNavigationPathAllowed("/school", DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS, settings, schoolContext("teacher"))).toBe(false);
+        expect(isUserNavigationPathAllowed("/school", DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS, settings, { ...schoolContext("student"), canManageSchool: true })).toBe(false);
+        expect(isUserNavigationPathAllowed("/school", [], settings, { ...manager, school: { ...manager.school, status: "disabled" } })).toBe(false);
+        expect(isUserNavigationPathAllowed("/school", [], normalizeFeatureModuleSettings({ "school-management": false }), manager)).toBe(false);
+        expect(isUserNavigationPathAllowed("/school/join", [], settings)).toBe(true);
+    });
+
     it("makes teaching and learning centers configurable menus with matching school identities", () => {
         const settings = normalizeFeatureModuleSettings(undefined);
         expect(DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS).toEqual(expect.arrayContaining(["teaching", "learning"]));

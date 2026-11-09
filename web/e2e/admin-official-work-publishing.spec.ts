@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("admin official work publishing", () => {
     test("renders the official publishing workflow and responsive drawer", async ({ page }) => {
         await page.goto("/admin?section=works", { waitUntil: "domcontentloaded" });
-        await expect(page.getByRole("heading", { name: "作品管理" })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "作品管理", level: 1 })).toBeVisible();
         await expect(page.getByRole("button", { name: "发布官方作品" })).toBeVisible();
         await page.getByRole("button", { name: "发布官方作品" }).click();
         const drawer = page.locator(".ant-drawer");
@@ -12,10 +12,12 @@ test.describe("admin official work publishing", () => {
         await expect(drawer.getByPlaceholder("公开提示词（选填）")).toBeVisible();
         await expect(drawer.getByRole("button", { name: "保存草稿" })).toBeVisible();
         await expect(drawer.getByRole("button", { name: "发布", exact: true })).toBeVisible();
-        const box = await drawer.boundingBox();
-        expect(box).not.toBeNull();
-        expect(box!.x).toBeGreaterThanOrEqual(0);
-        expect(box!.x + box!.width).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+        await expect
+            .poll(async () => {
+                const box = await drawer.boundingBox();
+                return box ? Math.max(-box.x, box.x + box.width - (await page.evaluate(() => innerWidth))) : Number.POSITIVE_INFINITY;
+            })
+            .toBeLessThanOrEqual(1);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     });
 

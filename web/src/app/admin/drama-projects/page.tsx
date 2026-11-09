@@ -166,8 +166,8 @@ export default function AdminDramaProjectsPage() {
                 </Button>
             </div>
 
-            <div className="mb-4 flex gap-2">
-                <Input placeholder="搜索项目标题" prefix={<Search size={16} />} value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} onPressEnter={fetchProjects} style={{ width: 300 }} />
+            <div className="mb-4 flex min-w-0 flex-wrap gap-2">
+                <Input placeholder="搜索项目标题" prefix={<Search size={16} />} value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} onPressEnter={fetchProjects} rootClassName="w-full min-w-0 sm:w-[300px]" />
                 <Select
                     placeholder="状态筛选"
                     allowClear

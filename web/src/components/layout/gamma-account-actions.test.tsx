@@ -15,10 +15,8 @@ const base: GammaAccountActionsProps = {
     user: null,
     ready: true,
     dark: false,
-    showHelp: true,
     onToggleTheme: noop,
     onLogin: noop,
-    onPlans: noop,
     onOpen: noop,
     onLogout: noop,
 };
@@ -35,10 +33,16 @@ describe("GammaAccountActions 版式（对齐 /bluegamma/home）", () => {
         expect(icons).toBeLessThan(account);
         expect(html).toContain("justify-between");
         expect(html).not.toContain("签到");
+        expect(html).toContain("体验版");
+        expect(html).not.toContain("免费版");
+        expect(html).not.toContain("升级");
+        expect(html).not.toContain("套餐与积分");
+        expect(html).not.toContain("积分记录");
+        expect(html).not.toContain("CDK 兑换");
     });
 
     it("未登录展开：登录卡在上，帮助 / 主题图标在下", () => {
         const html = renderToStaticMarkup(<GammaAccountActions {...base} />);
-        expect(html.indexOf("登录后开始创作")).toBeLessThan(html.indexOf('aria-label="帮助中心"'));
+        expect(html).not.toContain('aria-label="帮助中心"');
     });
 });

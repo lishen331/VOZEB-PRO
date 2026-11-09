@@ -1,5 +1,3 @@
-"use client";
-
 import type { CanvasNodeData } from "../types";
 
 export function fitNodeSize(width: number, height: number, maxWidth = 640, maxHeight = 640) {

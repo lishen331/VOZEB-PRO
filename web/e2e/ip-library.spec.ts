@@ -118,7 +118,7 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
 async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string, mainSubIpTitle: string, extraSubIpTitle: string) {
     await page.goto("/admin?section=ipLibrary", { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-admin-ip-library]")).toBeVisible();
-    const row = page.locator("[data-admin-ip-library] .ant-table-row").filter({ hasText: title });
+    const row = page.locator("[data-admin-ip-library] tbody tr").filter({ hasText: title });
     await expect(row).toHaveCount(1);
     await expect(row.getByRole("button", { name: title, exact: true })).toHaveCount(0);
     await expect(row.getByRole("button", { name: "查看详情" })).toHaveText("详情");
@@ -127,10 +127,10 @@ async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string
     await row.getByRole("button", { name: "授权" }).click();
     const grantEditor = page.locator("[data-admin-ip-detail]");
     await expect(grantEditor).toBeVisible();
-    await expect(grantEditor.getByRole("tab", { name: "学校授权", exact: true })).toHaveAttribute("aria-selected", "true");
     const grantDialog = page.getByRole("dialog", { name: "授权给学校" });
     await expect(grantDialog).toBeVisible();
-    await grantDialog.getByRole("button", { name: "Close", exact: true }).click();
+    await grantDialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(grantEditor.getByRole("tab", { name: "学校授权", exact: true })).toHaveAttribute("aria-selected", "true");
     await grantEditor.getByRole("button", { name: "返回 IP 列表" }).click();
     await row.getByRole("button", { name: "查看详情" }).click();
     const editor = page.locator("[data-admin-ip-detail]");
@@ -141,7 +141,7 @@ async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string
     await expect(editor.getByRole("button", { name: extraSubIpTitle, exact: false })).toBeVisible();
     await expect(editor.getByRole("button", { name: "保存子 IP" })).toBeVisible();
     const ipCoverField = editor
-        .locator(".ant-form-item")
+        .locator(".gm-form-item")
         .filter({ has: page.getByText("IP 封面", { exact: true }) })
         .first();
     await expect(ipCoverField.getByRole("button", { name: "上传原文件" })).toBeVisible();
@@ -156,10 +156,10 @@ async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string
     expect((await getIp(page.request, ipId)).coverFileId).toEqual(expect.any(String));
     const categorySelect = editor.getByLabel("分类").first();
     await categorySelect.click();
-    await expect(page.locator('[role="option"][aria-label="故事梗概"]')).toHaveCount(1);
+    await expect(page.getByRole("option", { name: "故事梗概", exact: true })).toHaveCount(1);
     await page.keyboard.press("Escape");
     const coverField = editor
-        .locator(".ant-form-item")
+        .locator(".gm-form-item")
         .filter({ has: page.getByText("封面", { exact: true }) })
         .first();
     await expect(coverField.getByRole("button", { name: "上传原文件" })).toBeVisible();
@@ -173,8 +173,13 @@ async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string
     const contentTitle = `${mainSubIpTitle} 新增正文`;
     await editor.getByLabel("标题").last().fill(contentTitle);
     await editor.getByPlaceholder("手工录入正文").last().fill(`${contentTitle} 内容`);
+    const textUpload = page.waitForResponse((response) => response.request().method() === "POST" && /\/api\/admin\/ip-library\/[^/]+\/files$/.test(new URL(response.url()).pathname));
     await editor.getByRole("button", { name: "保存正文" }).last().click();
-    await expect(page.getByText("IP 文件已上传", { exact: true }).last()).toBeVisible();
+    const uploadedText = await textUpload;
+    expect(uploadedText.ok(), await uploadedText.text()).toBe(true);
+    await expect(editor.getByText(`${contentTitle} 内容`, { exact: true }).last()).toBeVisible();
+    await expect(editor.getByTitle("手工正文.txt", { exact: true })).toBeVisible();
+    await expect(editor.getByRole("button", { name: "保存正文" }).last()).not.toHaveAttribute("aria-busy", "true");
     await editor.getByRole("button", { name: "保存子 IP" }).click();
     await expect(page.getByText("子 IP 内容已保存，已立即生效", { exact: true })).toBeVisible({ timeout: 15_000 });
     const saved = requireSubIpByTitle(await getIp(page.request, ipId), mainSubIpTitle);
@@ -198,7 +203,7 @@ async function verifyPublicSingleSubIp(adminRequest: APIRequestContext, browser:
         await expect(page.getByText("按标签筛选", { exact: true })).toHaveCount(0);
         const search = page.getByPlaceholder("搜索 IP 名称或简介");
         await expect(search).toBeVisible();
-        const searchControl = page.locator(".ant-input-affix-wrapper").filter({ has: search });
+        const searchControl = search.locator("..").filter({ has: search });
         const [searchBox, libraryBox, rightPadding] = await Promise.all([
             searchControl.boundingBox(),
             page.locator("[data-ip-library-page] > div").boundingBox(),
@@ -265,7 +270,7 @@ async function createSchoolMembers(request: APIRequestContext, teacher: string, 
 }
 
 async function createOrdinaryUser(request: APIRequestContext, username: string) {
-    const response = await request.post("/api/admin/users", { data: { username, displayName: `公共 IP 用户 ${username}`, password: PASSWORD, role: "user", status: "active", pointsBalance: 0 } });
+    const response = await request.post("/api/admin/users", { data: { username, displayName: `公共 IP 用户 ${username}`, password: PASSWORD, status: "active", pointsBalance: 0 } });
     const body = await response.text();
     expect(response.ok(), body).toBe(true);
     expect(JSON.parse(body)).toMatchObject({ user: { username } });

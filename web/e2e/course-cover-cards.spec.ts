@@ -120,7 +120,7 @@ test("course cover local upload, persistence, assigned image cards and permissio
     }
     await schoolPage.getByRole("button", { name: `打开课程：${title}`, exact: true }).click();
     await expect(schoolPage.getByRole("button", { name: "新建安排", exact: true })).toBeVisible();
-    const anonymous = await browser.newContext({ baseURL });
+    const anonymous = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
     expect((await anonymous.request.get(`/api/school/courses/${assignment.id}/cover`)).status()).toBe(401);
     await anonymous.close();
     await manager.close();

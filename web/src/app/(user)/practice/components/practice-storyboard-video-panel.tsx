@@ -68,7 +68,9 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
         ...workflowFieldDefaults({ ...capability, inputSchema: capability.inputSchema.filter((field) => field.key !== "audioEnabled") }),
         ...(defaultInput?.workflowInput ?? {}),
     }));
-    const [uploading, setUploading] = useState(false);
+    const [imageUploading, setImageUploading] = useState(false);
+    const [audioUploading, setAudioUploading] = useState(false);
+    const uploading = imageUploading || audioUploading;
     const [busy, setBusy] = useState(false);
 
     const loadAudioHistory = async () => {
@@ -90,7 +92,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
             if (!preset || audioPresetLoadKey.current === value) return;
             audioPresetLoadKey.current = value;
             const requestId = ++audioLoadRequest.current;
-            setUploading(true);
+            setAudioUploading(true);
             try {
                 const uploaded = await uploadMediaFile(preset.sourceUrl, "audio");
                 if (requestId === audioLoadRequest.current) setAudio(uploaded);
@@ -100,7 +102,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
                     message.error(error instanceof Error ? error.message : "预置音色加载失败");
                 }
             } finally {
-                if (requestId === audioLoadRequest.current) setUploading(false);
+                if (requestId === audioLoadRequest.current) setAudioUploading(false);
             }
         },
         [message],
@@ -114,7 +116,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
         const selected = audioHistory.find((session) => session.id === id);
         if (!selected?.result?.media?.url) return;
         const requestId = ++audioLoadRequest.current;
-        setUploading(true);
+        setAudioUploading(true);
         try {
             const uploaded = await uploadMediaFile(selected.result.media.url, "audio");
             if (requestId === audioLoadRequest.current) {
@@ -124,37 +126,40 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
         } catch (error) {
             if (requestId === audioLoadRequest.current) message.error(error instanceof Error ? error.message : "引用配音失败");
         } finally {
-            if (requestId === audioLoadRequest.current) setUploading(false);
+            if (requestId === audioLoadRequest.current) setAudioUploading(false);
         }
     };
 
     const chooseImage = async (file?: File) => {
         if (!file || !file.type.startsWith("image/")) return;
-        setUploading(true);
+        setImageUploading(true);
         try {
             setImage(await uploadImage(file));
         } catch (error) {
             message.error(error instanceof Error ? error.message : "操作失败，请重试");
         } finally {
-            setUploading(false);
+            setImageUploading(false);
         }
     };
 
     const chooseAudio = async (file?: File) => {
         if (!file || !file.type.startsWith("audio/")) return;
-        setUploading(true);
+        const requestId = ++audioLoadRequest.current;
+        setAudioUploading(true);
         try {
-            setAudio(await uploadMediaFile(file, "audio"));
+            const uploaded = await uploadMediaFile(file, "audio");
+            if (requestId === audioLoadRequest.current) setAudio(uploaded);
         } catch (error) {
-            message.error(error instanceof Error ? error.message : "操作失败，请重试");
+            if (requestId === audioLoadRequest.current) message.error(error instanceof Error ? error.message : "操作失败，请重试");
         } finally {
-            setUploading(false);
+            if (requestId === audioLoadRequest.current) setAudioUploading(false);
         }
     };
 
     const chooseAudioSource = (value: string) => {
         ++audioLoadRequest.current;
         audioPresetLoadKey.current = undefined;
+        setAudioUploading(false);
         setSelectedAudioId(undefined);
         setAudio(undefined);
         if (value === "none") {
@@ -180,6 +185,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
         if (!enabled) {
             ++audioLoadRequest.current;
             audioPresetLoadKey.current = undefined;
+            setAudioUploading(false);
             setAudio(undefined);
             setSelectedAudioId(undefined);
             return;
@@ -244,16 +250,16 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
                         {audioSource === "preset" ? (
                             <>
                                 {audio?.url ? <audio controls preload="metadata" src={audio.url} className="w-full" /> : null}
-                                <p className="text-xs text-[var(--gm-text-3)]">{audio ? "音色已准备好，生成的视频会带上这段台词音频。" : uploading ? "正在准备音色…" : "请选择音色以准备台词音频。"}</p>
+                                <p className="text-xs text-[var(--gm-text-3)]">{audio ? "音色已准备好，生成的视频会带上这段台词音频。" : audioUploading ? "正在准备音色…" : "请选择音色以准备台词音频。"}</p>
                             </>
                         ) : audioSource === "upload" ? (
-                            <PracticeMediaInput label="台词音频" accept="audio/*" disabled={uploading} onChoose={(file) => void chooseAudio(file)} url={audio?.url} onRemove={() => setAudio(undefined)} />
+                            <PracticeMediaInput label="台词音频" accept="audio/*" disabled={audioUploading} onChoose={(file) => void chooseAudio(file)} url={audio?.url} onRemove={() => setAudio(undefined)} />
                         ) : (
                             <>
                                 <Select
                                     aria-label="历史配音"
                                     className="!w-full"
-                                    loading={audioHistoryLoading || uploading}
+                                    loading={audioHistoryLoading || audioUploading}
                                     value={selectedAudioId}
                                     placeholder="选择已完成的配音"
                                     options={audioHistory.map((session) => ({ value: session.id, label: `${session.title} · ${new Date(session.createdAt).toLocaleString()}` }))}
@@ -289,7 +295,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
                 size="large"
                 icon={<Film className="size-4" />}
                 loading={busy || uploading}
-                disabled={!capability.available || !model || !image?.storageKey || !prompt.trim() || (audioEnabled && !audio?.storageKey)}
+                disabled={uploading || !capability.available || !model || !image?.storageKey || !prompt.trim() || (audioEnabled && !audio?.storageKey)}
                 onClick={() => void submit()}
             >
                 生成分镜视频

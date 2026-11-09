@@ -17,7 +17,7 @@ export function HomeHeader() {
     const [navIndicator, setNavIndicator] = useState({ left: 0, width: 0, visible: false });
     const navItemRefs = useRef<(HTMLAnchorElement | HTMLButtonElement | null)[]>([]);
     const hoveredNavIndex = useRef<number | null>(null);
-    const { authenticated, site, openBillingPlans, openProtectedPath } = useHomeActions();
+    const { authenticated, site, openProtectedPath } = useHomeActions();
     const theme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
 
@@ -42,8 +42,8 @@ export function HomeHeader() {
 
     const activate = (item: HomeNavigationItem) => {
         setMobileOpen(false);
-        if (item.action === "billing") openBillingPlans();
         if (item.action === "protected") openProtectedPath(item.href);
+        else window.location.assign(item.href);
     };
 
     const trackNavItem = (index: number) => {
@@ -69,7 +69,7 @@ export function HomeHeader() {
                 >
                     <span className={styles.navGlassIndicator} data-testid="home-nav-glass" aria-hidden="true" style={{ left: navIndicator.left, opacity: navIndicator.visible ? 1 : 0, width: navIndicator.width }} />
                     {HOME_NAVIGATION.map((item, index) =>
-                        item.action !== "link" ? (
+                        item.action === "protected" ? (
                             <button
                                 key={item.href}
                                 ref={(node) => {
@@ -116,7 +116,7 @@ export function HomeHeader() {
             {mobileOpen ? (
                 <nav id="home-mobile-menu" className={styles.mobileNav} aria-label="移动端导航">
                     {HOME_NAVIGATION.map((item) =>
-                        item.action !== "link" ? (
+                        item.action === "protected" ? (
                             <button key={item.href} type="button" onClick={() => activate(item)}>
                                 {item.label}
                                 <ArrowRight aria-hidden="true" />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CourseChapter, CourseLesson } from "@/lib/school-domain";
-import { flattenLessons, parseTeachingTab, prepBackHref, resolvePrepLesson, teachingCourseHref, teachingHref } from "./teaching-routes";
+import { flattenLessons, parseTeachingTab, prepBackHref, resolvePrepLesson, teachingCourseHref, teachingHref, VISIBLE_TEACHING_TABS } from "./teaching-routes";
 
 function lesson(id: string, chapterId: string, sortOrder: number): CourseLesson {
     return { id, courseId: "course", chapterId, title: id, description: "", sortOrder, materials: [], createdAt: "", updatedAt: "" };
@@ -12,16 +12,21 @@ function chapter(id: string, sortOrder: number, lessons: CourseLesson[]): Course
 }
 
 describe("teaching routes", () => {
+    it("shows the course center first and hides non-primary tabs", () => {
+        expect(VISIBLE_TEACHING_TABS).toEqual(["catalog", "prep", "classes"]);
+    });
+
     it("builds L1 tab links, keeping the default tab parameter-free", () => {
         expect(teachingHref()).toBe("/teaching");
         expect(teachingHref("prep")).toBe("/teaching");
+        expect(teachingHref("catalog")).toBe("/teaching?tab=catalog");
         expect(teachingHref("assignments")).toBe("/teaching?tab=assignments");
     });
 
     it("falls back to the prep tab for unknown values", () => {
         expect(parseTeachingTab(null)).toBe("prep");
-        expect(parseTeachingTab("orders")).toBe("orders");
-        expect(parseTeachingTab("commercial-orders")).toBe("prep");
+        expect(parseTeachingTab("orders")).toBe("prep");
+        expect(parseTeachingTab("assignments")).toBe("prep");
     });
 
     it("builds L2 links that remember where the teacher came from", () => {

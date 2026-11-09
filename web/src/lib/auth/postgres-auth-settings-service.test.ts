@@ -29,6 +29,13 @@ describe("updatePostgresAuthSettings", () => {
         mocks.removeEntitlementPlansNotIn.mockResolvedValue([]);
     });
 
+    it("persists the authoritative script practice switch without rewriting channels", async () => {
+        const practiceScriptSettings = { ...DEFAULT_SETTINGS.practiceScriptSettings, enabled: false };
+        await updatePostgresAuthSettings({ practiceScriptSettings });
+        expect(mocks.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ practiceScriptSettings, settingsRevision: 2 }));
+        expect(mocks.upsertSystemModelChannel).not.toHaveBeenCalled();
+    });
+
     it("rejects a stale settings revision before writing", async () => {
         const current = structuredClone(DEFAULT_SETTINGS);
         current.settingsRevision = 7;

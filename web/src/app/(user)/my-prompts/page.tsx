@@ -1,5 +1,5 @@
-import { MyPromptsPage } from "@/components/my-prompts/my-prompts-page";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-    return <MyPromptsPage />;
+export default function MyPromptsPageRoute() {
+    redirect("/prompts?tab=mine");
 }

@@ -9,6 +9,25 @@ const group = (schoolId: string, id: string): ProductionGroupRecord => ({ id, sc
 const ledger = (id: string, key: string, amount: number): SchoolComputeLedgerRecord => ({ id, schoolId: "school-a", type: "credit", amount, balanceAfter: amount, idempotencyKey: key, createdAt: now });
 
 describe("school compute repository contract", () => {
+    it("binds only the school, decimal amount and timestamp when debiting the pool for an allocation", async () => {
+        const { createPostgresSchoolComputeRepository } = await import("./school-compute-repository");
+        const statements: Array<{ text: string; values?: unknown[] }> = [];
+        const repository = createPostgresSchoolComputeRepository({
+            query: async (text, values) => {
+                statements.push({ text, values });
+                if (text.startsWith("UPDATE school_compute_pools")) return { rows: [{ school_id: "school-a", available_points: "97.75", status: "active", created_at: now, updated_at: now }], rowCount: 1 } as never;
+                if (text.startsWith("UPDATE school_production_groups")) return { rows: [{ id: "group-a", school_id: "school-a", name: "group-a", status: "active", school_points_balance: "2.25", created_at: now, updated_at: now }], rowCount: 1 } as never;
+                return { rows: [], rowCount: 0 } as never;
+            },
+        });
+        await expect(repository.allocateToGroup("school-a", "group-a", 2.25, ledger("allocation", "allocation", -2.25))).resolves.toMatchObject({ pool: { availablePoints: 97.75 }, group: { schoolPointsBalance: 2.25 } });
+        const debit = statements.find((statement) => statement.text.startsWith("UPDATE school_compute_pools"));
+        expect(debit?.values).toEqual(["school-a", 2.25, now]);
+        expect(debit?.text).toContain("available_points - $2::numeric");
+        expect(debit?.text).toContain("updated_at = $3");
+        expect(debit?.text).toContain("available_points >= $2::numeric");
+        expect(statements.find((statement) => statement.text.startsWith("UPDATE school_production_groups"))?.values).toEqual(["school-a", "group-a", 2.25, now]);
+    });
     it("updates decimal balances without integer inference", async () => {
         const { createPostgresSchoolComputeRepository } = await import("./school-compute-repository");
         const rows: Record<string, unknown>[] = [];

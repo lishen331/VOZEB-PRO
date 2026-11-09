@@ -13,6 +13,14 @@ function queryArgs(query: ReturnType<typeof mockExecutor>["query"], index: numbe
 }
 
 describe("split Postgres repositories", () => {
+    it("writes and projects persisted script practice settings", async () => {
+        const practiceScriptSettings = { enabled: false };
+        const { executor, query } = mockExecutor([[{ id: "default", practice_script_settings: practiceScriptSettings }]]);
+        const result = await createPostgresRepositories(executor).settings.updateSettings({ practiceScriptSettings });
+        expect(queryArgs(query, 0)[0]).toContain("practice_script_settings =");
+        expect(queryArgs(query, 0)[1]).toContain(JSON.stringify(practiceScriptSettings));
+        expect(result).toMatchObject({ practiceScriptSettings });
+    });
     it("exposes the school and IP library domain repositories", () => {
         const { executor } = mockExecutor([]);
 

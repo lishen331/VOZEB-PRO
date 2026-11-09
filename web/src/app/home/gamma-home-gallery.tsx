@@ -14,6 +14,7 @@ import { imagePreviewUrl } from "@/lib/media-image-url";
 import { cn } from "@/lib/utils";
 import { WORK_CATEGORIES } from "@/lib/work-publication-options";
 import { listPublicGallery, type PublicGalleryItem } from "@/services/api/work-governance";
+import { filterVisibleGalleryItems, publicGalleryEmptyState } from "./gallery-visible-items";
 
 /*
  * 新首页下半屏：公开作品广场（真实数据 /api/public/gallery）。
@@ -76,6 +77,7 @@ export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: (
     const [category, setCategory] = useState<string>(ALL);
     const [keyword, setKeyword] = useState("");
     const [previewSlug, setPreviewSlug] = useState("");
+    const [failedSlugs, setFailedSlugs] = useState<Set<string>>(() => new Set());
     const debouncedKeyword = useDebouncedValue(keyword.trim(), KEYWORD_DEBOUNCE_MS);
 
     const query = useInfiniteQuery({
@@ -94,6 +96,8 @@ export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: (
     });
 
     const items = useMemo(() => uniqueBySlug(query.data?.pages.flatMap((page) => page.items) || []), [query.data?.pages]);
+    const visibleItems = useMemo(() => filterVisibleGalleryItems(items, failedSlugs), [failedSlugs, items]);
+    useEffect(() => setFailedSlugs(new Set()), [category, debouncedKeyword, sort]);
     const filtered = Boolean(debouncedKeyword) || category !== ALL;
 
     const resetFilters = () => {
@@ -120,7 +124,7 @@ export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: (
                     <GammaButton variant="primary" size="sm" onClick={onCreate}>
                         做同款创作
                     </GammaButton>
-                    <Link href="/gallery" className="inline-flex h-8 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
+                    <Link href="/community" className="inline-flex h-8 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
                         全部作品
                         <ArrowRight className="size-3.5" />
                     </Link>
@@ -136,7 +140,16 @@ export function GammaHomeGallery({ onCreate, hideSearch = false }: { onCreate: (
                     </GammaChip>
                 ))}
             </div>
-            <GalleryBody query={query} items={items} sort={sort} filtered={filtered} onReset={resetFilters} onPreview={setPreviewSlug} />
+            <GalleryBody
+                query={query}
+                items={visibleItems}
+                sort={sort}
+                emptyState={publicGalleryEmptyState(category === ALL ? "" : category, debouncedKeyword)}
+                filtered={filtered}
+                onReset={resetFilters}
+                onPreview={setPreviewSlug}
+                onMediaError={(slug) => setFailedSlugs((current) => new Set(current).add(slug))}
+            />
             <PublicWorkPreviewModal slug={previewSlug || undefined} onClose={() => setPreviewSlug("")} />
         </section>
     );
@@ -184,7 +197,25 @@ export function distributeToColumns<T>(items: T[], columnCount: number, isTall: 
 
 const isTallCard = (index: number) => index % 3 === 0;
 
-function GalleryBody({ query, items, sort, filtered, onReset, onPreview }: { query: GalleryQuery; items: PublicGalleryItem[]; sort: FeedSort; filtered: boolean; onReset: () => void; onPreview: (slug: string) => void }) {
+function GalleryBody({
+    query,
+    items,
+    sort,
+    emptyState,
+    filtered,
+    onReset,
+    onPreview,
+    onMediaError,
+}: {
+    query: GalleryQuery;
+    items: PublicGalleryItem[];
+    sort: FeedSort;
+    emptyState: { title: string; description: string };
+    filtered: boolean;
+    onReset: () => void;
+    onPreview: (slug: string) => void;
+    onMediaError: (slug: string) => void;
+}) {
     if (query.isPending) {
         return (
             <div aria-label="正在加载公开作品" className={MASONRY}>
@@ -212,8 +243,8 @@ function GalleryBody({ query, items, sort, filtered, onReset, onPreview }: { que
         return (
             <GammaEmptyState
                 icon={sort === "featured" ? <Sparkles /> : <Search />}
-                title={filtered ? "没有找到相关作品" : "还没有公开作品"}
-                description={filtered ? "换个关键词或分类看看" : "审核通过并公开发布的作品会出现在这里"}
+                title={emptyState.title}
+                description={emptyState.description}
                 action={
                     filtered ? (
                         <GammaButton size="sm" variant="soft" onClick={onReset}>
@@ -226,7 +257,7 @@ function GalleryBody({ query, items, sort, filtered, onReset, onPreview }: { que
     }
     return (
         <>
-            <GalleryColumns items={items} onPreview={onPreview} />
+            <GalleryColumns items={items} onPreview={onPreview} onMediaError={onMediaError} />
             <GalleryLoadMore query={query} loadedCount={items.length} />
         </>
     );
@@ -289,7 +320,7 @@ function GalleryLoadMore({ query, loadedCount }: { query: GalleryQuery; loadedCo
     );
 }
 
-function GalleryColumns({ items, onPreview }: { items: PublicGalleryItem[]; onPreview: (slug: string) => void }) {
+function GalleryColumns({ items, onPreview, onMediaError }: { items: PublicGalleryItem[]; onPreview: (slug: string) => void; onMediaError: (slug: string) => void }) {
     const columnCount = useColumnCount();
     const columns = useMemo(() => distributeToColumns(items, columnCount, isTallCard), [items, columnCount]);
     return (
@@ -297,7 +328,7 @@ function GalleryColumns({ items, onPreview }: { items: PublicGalleryItem[]; onPr
             {columns.map((entries, columnIndex) => (
                 <div key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-3">
                     {entries.map(({ item, index }) => (
-                        <GalleryCard key={item.slug} item={item} tall={isTallCard(index)} onPreview={() => onPreview(item.slug)} />
+                        <GalleryCard key={item.slug} item={item} tall={isTallCard(index)} onPreview={() => onPreview(item.slug)} onMediaError={() => onMediaError(item.slug)} />
                     ))}
                 </div>
             ))}
@@ -306,7 +337,7 @@ function GalleryColumns({ items, onPreview }: { items: PublicGalleryItem[]; onPr
 }
 
 /** 作品卡：封面（图片 / 视频首帧）+ 标题 / 作者 + 浏览与点赞数 */
-function GalleryCard({ item, tall, onPreview }: { item: PublicGalleryItem; tall: boolean; onPreview: () => void }) {
+function GalleryCard({ item, tall, onPreview, onMediaError }: { item: PublicGalleryItem; tall: boolean; onPreview: () => void; onMediaError: () => void }) {
     const [failed, setFailed] = useState(false);
     const preview = item.preview;
     const ratio = tall ? "aspect-[3/4]" : "aspect-[4/3]";
@@ -322,7 +353,8 @@ function GalleryCard({ item, tall, onPreview }: { item: PublicGalleryItem; tall:
                 alt={item.title}
                 containerClassName={cn("block w-full overflow-hidden", ratio)}
                 imageClassName="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
-                errorLabel="作品图片不可用"
+                errorLabel=""
+                onError={onMediaError}
             />
         ) : (
             <video src={preview.url} muted playsInline preload="metadata" onError={() => setFailed(true)} className={cn("w-full object-cover", ratio)} />

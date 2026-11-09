@@ -3,8 +3,9 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import sharp from "sharp";
 
-import { createCanvasProject, deleteCanvasProject, expectCanvasSaved, expectNoHorizontalOverflow, node, readCanvasProject } from "./canvas-e2e-helpers";
+import { createCanvasProject, deleteCanvasProject, expectCanvasSaved, expectNoHorizontalOverflow, node, readCanvasProject, selectCanvasTheme } from "./canvas-e2e-helpers";
 import { E2E_PROTOCOL_ORIGIN } from "./support";
+import { CANVAS_AGENT_ENABLED } from "../src/app/(user)/canvas/constants";
 
 test.describe.configure({ mode: "serial" });
 
@@ -15,7 +16,7 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
         nodes: [
             node("text-source", "text", 60, 100, 240, 170, { content: "创作方向" }),
             node("config-target", "config", 380, 100, 280, 210, { size: "1280x720", composerContent: "" }),
-            node("image-target", "image", 200, 360, 260, 200, { content: "/logo.svg", serverUrl: "/logo.svg" }),
+            node("image-target", "image", 720, 360, 260, 200, { content: "/logo.svg", serverUrl: "/logo.svg" }),
         ],
         connections: [],
     });
@@ -30,6 +31,7 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
         const surface = page.locator("[data-canvas-surface]");
         await expect(surface).toBeVisible({ timeout: 20_000 });
+        await selectCanvasTheme(page, "light");
         await expect(surface).toHaveCSS("background-color", "rgb(255, 255, 255)");
         await expect(surface.locator("[data-canvas-grid]")).toBeVisible();
         await expect(surface.locator("[data-canvas-grid]")).not.toHaveCSS("background-image", "none");
@@ -88,8 +90,8 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
         const expandedPrompt = promptDialog.getByRole("textbox", { name: "提示词编辑器" });
         await expect(promptDialog).toBeVisible();
         await expect(promptDialog.locator(".ant-modal-body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-        await expect(promptDialog.locator('[data-canvas-prompt-editor="expanded"]')).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-        await expect(expandedPrompt).toHaveCSS("background-color", "rgb(238, 246, 251)");
+        await expect(promptDialog.locator('[data-canvas-prompt-editor="expanded"]')).toHaveCSS("background-color", "rgb(238, 246, 251)");
+        await expect(expandedPrompt).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
         await expect(promptDialog.locator(".ant-modal-footer")).toHaveCount(0);
         await expect(expandedPrompt).toHaveValue("放大编辑后仍然同步");
         await expect.poll(() => expandedPrompt.evaluate((element) => document.activeElement === element)).toBe(true);
@@ -123,9 +125,12 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
 
         const sourceNode = page.locator('[data-node-id="text-source"]');
         await expect.poll(() => page.locator("[data-canvas-world-viewport]").evaluate((element) => element.scrollTop)).toBe(0);
-        await sourceNode.click();
+        // Clear the multi-selection so the selected image's prompt panel cannot cover the text node.
+        await surface.click({ position: { x: 20, y: 20 } });
+        await sourceNode.click({ position: { x: 120, y: 8 }, modifiers: ["Control"] });
+        await expectSelectedNodeCount(page, 1);
         await page.keyboard.down("Control");
-        await page.locator('[data-node-id="config-target"]').click({ position: { x: 36, y: 36 } });
+        await page.locator('[data-node-id="config-target"]').click({ position: { x: 140, y: 8 } });
         await page.keyboard.up("Control");
         await expectSelectedNodeCount(page, 2);
 
@@ -180,8 +185,10 @@ test("canvas keeps editing, selection, linking and persistence fluid", async ({ 
         await expect.poll(() => patchRequests.length).toBeGreaterThan(1);
         await expectCanvasSaved(page);
 
+        await surface.click({ position: { x: 20, y: 20 } });
+        await sourceNode.click({ position: { x: 120, y: 8 }, modifiers: ["Control"] });
         await page.keyboard.down("Control");
-        await imageNode.click({ position: { x: 36, y: 36 } });
+        await imageNode.click({ position: { x: 130, y: 120 } });
         await page.keyboard.up("Control");
         await expectSelectedNodeCount(page, 2);
         await page.getByRole("button", { name: "切换到小手模式" }).click();
@@ -288,7 +295,7 @@ test("canvas video warns about undersized reference images and asks before upsca
         await expect(dialog).toBeVisible();
         await expect(dialog).toContainText("444×283 → 471×300（放大）");
         await expect(dialog).toContainText("放大会降低参考图清晰度");
-        await dialog.getByRole("button", { name: "取消" }).click();
+        await dialog.getByRole("button", { name: /取\s*消/ }).click();
         await expect(dialog).toBeHidden();
         expect(submitted).toHaveLength(0);
         await expectCanvasSaved(page);
@@ -345,7 +352,7 @@ test("canvas video first and last frame roles persist and retry from the output 
         await settingsTrigger.click();
         let settings = page.locator("[data-canvas-video-reference-settings]");
         await expect(settings).toBeVisible();
-        await settings.getByRole("button", { name: "视频参考模式：首尾帧" }).click();
+        await page.getByRole("group", { name: "选择视频生成模式", exact: true }).getByRole("button", { name: "选择视频生成模式 首尾帧", exact: true }).click();
         await settings.getByRole("button", { name: "设为视频首帧：首帧图片" }).click();
         await settings.getByRole("button", { name: "选择视频尾帧" }).click();
         await settings.getByRole("button", { name: "设为视频尾帧：尾帧图片" }).click();
@@ -360,7 +367,7 @@ test("canvas video first and last frame roles persist and retry from the output 
                 const stored = await readCanvasProject(request, `/api/canvas/projects/${project.id}`);
                 return stored.nodes.find((item) => item.id === "video-config")?.metadata;
             })
-            .toMatchObject({ videoReferenceMode: "first_last", videoFirstFrame: { nodeId: "first-frame" }, videoLastFrame: { nodeId: "last-frame" } });
+            .toMatchObject({ videoGenerationMode: "first_last", videoReferenceMode: "first_last", videoFirstFrame: { nodeId: "first-frame" }, videoLastFrame: { nodeId: "last-frame" } });
 
         const collapseAgentPanel = page.getByRole("button", { name: "收起 Agent 面板" });
         if (await collapseAgentPanel.isVisible().catch(() => false)) {
@@ -382,7 +389,7 @@ test("canvas video first and last frame roles persist and retry from the output 
         }
 
         await page.setViewportSize({ width: 1280, height: 900 });
-        await page.evaluate(() => localStorage.setItem("vozeb-pro:theme_store", JSON.stringify({ state: { theme: "dark" }, version: 0 })));
+        await selectCanvasTheme(page, "dark");
         await page.reload({ waitUntil: "domcontentloaded" });
         await expect(page.locator("html")).toHaveClass(/dark/);
         settingsTrigger = page.locator('[data-node-id="video-config"]').getByRole("button", { name: /^视频设置：首尾帧/ });
@@ -404,7 +411,7 @@ test("canvas video first and last frame roles persist and retry from the output 
         settingsTrigger = page.locator('[data-node-id="video-config"]').getByRole("button", { name: /^视频设置：首尾帧/ });
         await settingsTrigger.click();
         settings = page.locator("[data-canvas-video-reference-settings]");
-        await settings.getByRole("button", { name: "视频参考模式：普通参考" }).click();
+        await page.getByRole("group", { name: "选择视频生成模式", exact: true }).getByRole("button", { name: "选择视频生成模式 全能参考", exact: true }).click();
         settingsTrigger = page.locator('[data-node-id="video-config"]').getByRole("button", { name: /^视频设置：普通参考/ });
         await settingsTrigger.click();
         await expect(settings).toBeHidden();
@@ -482,6 +489,16 @@ test("canvas opens the Agent rail at the intended width and keeps a fresh chat a
         await page.setViewportSize({ width: 1474, height: 900 });
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
 
+        if (!CANVAS_AGENT_ENABLED) {
+            await expectCanvasAgentUnavailable(page);
+            const before = await readCanvasProject(request, projectPath);
+            expect(before.chatSessions.map((session) => session.title)).toEqual(["待删除对话", "第二条对话", "第三条对话"]);
+            await page.reload({ waitUntil: "domcontentloaded" });
+            await expectCanvasAgentUnavailable(page);
+            expect((await readCanvasProject(request, projectPath)).chatSessions).toMatchObject(before.chatSessions);
+            expect(deletedConversationIds).toEqual([]);
+            return;
+        }
         const panel = page.getByLabel("Canvas Agent 对话面板");
         await expect(panel).toBeVisible({ timeout: 20_000 });
         await expect.poll(async () => Math.round((await panel.boundingBox())?.width || 0)).toBe(404);
@@ -564,6 +581,11 @@ test("canvas Agent toolbar stays ordered and its generation settings fit narrow 
         for (const width of [390, 430]) {
             await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });
             await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+            if (!CANVAS_AGENT_ENABLED) {
+                await expectCanvasAgentUnavailable(page);
+                await expectNoHorizontalOverflow(page, `Canvas disabled Agent ${width}px`);
+                continue;
+            }
             await page.getByRole("button", { name: "打开 Agent", exact: true }).click();
             const panel = page.getByLabel("Canvas Agent 对话面板");
             const textarea = panel.getByRole("textbox", { name: "描述你想让 Agent 如何操作画布" });
@@ -621,8 +643,14 @@ test("canvas Agent toolbar stays ordered and its generation settings fit narrow 
             await expect(page.locator("[data-creative-generation-preferences]:visible")).toHaveCount(0);
         }
 
+        if (!CANVAS_AGENT_ENABLED) {
+            await selectCanvasTheme(page, "dark");
+            await expectCanvasAgentUnavailable(page);
+            await expectNoHorizontalOverflow(page, "Canvas disabled Agent dark");
+            return;
+        }
         await page.getByRole("button", { name: "收起 Agent 面板" }).click();
-        await page.getByRole("button", { name: "切换到深色主题" }).click();
+        await selectCanvasTheme(page, "dark");
         await expect(page.locator("html")).toHaveClass(/dark/);
         await page.getByRole("button", { name: "打开 Agent", exact: true }).click();
         const darkTrigger = page.getByLabel("Canvas Agent 对话面板").getByRole("button", { name: /生成参数：/ });
@@ -656,13 +684,18 @@ test("canvas keeps project chat state isolated during client-side project naviga
 
     try {
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
-        await expect(page.getByText("这条消息不能进入新画布", { exact: true })).toBeVisible({ timeout: 20_000 });
+        if (CANVAS_AGENT_ENABLED) await expect(page.getByText("这条消息不能进入新画布", { exact: true })).toBeVisible({ timeout: 20_000 });
+        else {
+            await expectCanvasAgentUnavailable(page);
+            expect((await readCanvasProject(request, `/api/canvas/projects/${project.id}`)).chatSessions[0]).toMatchObject({ id: "source-session", messages: [{ id: "source-message", role: "user", text: "这条消息不能进入新画布" }] });
+        }
         await page.getByRole("button", { name: "打开资产面板" }).click();
         await page.getByRole("button", { name: "新建画布" }).click();
         await expect.poll(() => new URL(page.url()).pathname.split("/").pop()).not.toBe(project.id);
         createdProjectId = new URL(page.url()).pathname.split("/").pop() || "";
 
-        await expect(page.getByText("你好，我是你的画布助手", { exact: true })).toBeVisible({ timeout: 20_000 });
+        if (CANVAS_AGENT_ENABLED) await expect(page.getByText("你好，我是你的画布助手", { exact: true })).toBeVisible({ timeout: 20_000 });
+        else await expectCanvasAgentUnavailable(page);
         await expect(page.getByText("这条消息不能进入新画布", { exact: true })).toHaveCount(0);
         await expect.poll(async () => (await readCanvasProject(request, `/api/canvas/projects/${createdProjectId}`)).chatSessions).toEqual([]);
     } finally {
@@ -693,7 +726,7 @@ test("canvas separates project management from the command menu and keeps assets
         await expect(page.getByRole("menuitem", { name: "资产面板" })).toHaveCount(0);
         await expect(page.getByRole("menuitem", { name: "删除画布" })).toBeVisible();
         await expect(page.getByRole("menuitem", { name: "新建画布" })).toHaveCount(0);
-        await expect(page.getByRole("menuitem", { name: "我的画布" })).toHaveCount(0);
+        await expect(page.getByRole("menuitem", { name: "我的画布", exact: true })).toBeVisible();
         await page.getByRole("button", { name: "打开画布菜单" }).click();
 
         const closedWidth = (await surface.boundingBox())?.width || 0;
@@ -803,6 +836,12 @@ test("canvas Agent keeps simultaneous runs bound to separate chats", async ({ pa
 
     try {
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+        if (!CANVAS_AGENT_ENABLED) {
+            await expectCanvasAgentUnavailable(page);
+            expect(createBodies).toEqual([]);
+            expect((await readCanvasProject(request, `/api/canvas/projects/${project.id}`)).chatSessions).toEqual([]);
+            return;
+        }
         const composer = page.getByPlaceholder("描述你想让 Agent 如何操作画布");
         await expect(composer).toBeVisible({ timeout: 20_000 });
         await composer.fill("第一条后台任务");
@@ -966,6 +1005,7 @@ test("canvas restores all nine node types and opens text editing on a single cli
         await page.addInitScript(() => localStorage.setItem("vozeb-pro:theme_store", JSON.stringify({ state: { theme: "light" }, version: 0 })));
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
         await expect(page.locator("[data-canvas-surface]")).toBeVisible({ timeout: 20_000 });
+        await selectCanvasTheme(page, "light");
         await expect.poll(async () => readCanvasViewport(request, `/api/canvas/projects/${project.id}`)).toEqual({ x: 90, y: 80, k: 0.75 });
         await expect(page.locator("[data-node-id]")).toHaveCount(9);
         await expect(page.locator('[data-node-id="matrix-brief"]').getByText("创作目标")).toBeVisible();
@@ -973,7 +1013,9 @@ test("canvas restores all nine node types and opens text editing on a single cli
         await expect(page.locator('[data-node-id="matrix-task"]').getByText("任务恢复内容")).toBeVisible();
         await expect(page.locator('[data-node-id="matrix-brand"]').getByText("灵感与视觉方向")).toBeVisible();
         await expect(page.locator('[data-node-id="matrix-video"] video')).toBeVisible();
-        await expect(page.locator('[data-node-id="matrix-audio"] audio')).toBeVisible();
+        await expect(page.locator('[data-node-id="matrix-audio"] audio')).toHaveAttribute("src", "/logo.svg");
+        await expect(page.locator('[data-node-id="matrix-audio"]').getByRole("button", { name: "播放", exact: true })).toBeVisible();
+        await expect(page.locator('[data-node-id="matrix-audio"]').getByRole("slider", { name: "播放进度" })).toBeVisible();
         await expectNodeTheme("light");
 
         const surface = page.locator("[data-canvas-surface]");
@@ -1011,7 +1053,7 @@ test("canvas restores all nine node types and opens text editing on a single cli
 
         await page.reload({ waitUntil: "domcontentloaded" });
         await expect(page.locator('[data-node-id="matrix-text"]').getByText("单击后立即可编辑")).toBeVisible();
-        await page.getByRole("button", { name: "切换到深色主题" }).click();
+        await selectCanvasTheme(page, "dark");
         await expect(page.locator("html")).toHaveClass(/dark/);
         await expectNodeTheme("dark");
     } finally {
@@ -1025,6 +1067,13 @@ test("canvas Agent attachment remove badge stays compact and theme readable", as
     try {
         await page.addInitScript(() => localStorage.setItem("vozeb-pro:theme_store", JSON.stringify({ state: { theme: "light" }, version: 0 })));
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+        if (!CANVAS_AGENT_ENABLED) {
+            await expectCanvasAgentUnavailable(page);
+            await expect(page.getByRole("button", { name: "上传素材", exact: true })).toBeVisible();
+            await expect(page.getByRole("button", { name: /^移除参考素材：/ })).toHaveCount(0);
+            await expectNoHorizontalOverflow(page, "Canvas disabled Agent attachment controls");
+            return;
+        }
         const panel = page.getByRole("complementary", { name: "Canvas Agent 对话面板" });
         await expect(panel).toBeVisible({ timeout: 20_000 });
         await panel.locator('input[type="file"][multiple]').setInputFiles({
@@ -1071,7 +1120,7 @@ test("canvas Agent attachment remove badge stays compact and theme readable", as
         await expect(badge).toHaveCSS("background-color", "rgb(255, 241, 242)");
         await expect(badge).toHaveCSS("color", "rgb(220, 38, 38)");
         await panel.getByRole("textbox", { name: "描述你想让 Agent 如何操作画布" }).click();
-        await page.getByRole("button", { name: "切换到深色主题" }).click();
+        await selectCanvasTheme(page, "dark");
         await expect(page.locator("html")).toHaveClass(/dark/);
         await expect(badge).toHaveCSS("background-color", "rgba(15, 23, 42, 0.88)");
         await expect(badge).toHaveCSS("border-color", "rgba(255, 255, 255, 0.2)");
@@ -1150,5 +1199,11 @@ async function dragSelectionBox(page: Page, nodes: Locator) {
 }
 
 async function expectSelectedNodeCount(page: Page, count: number) {
-    await expect.poll(() => page.locator("[data-node-id] > div").evaluateAll((elements) => elements.filter((element) => getComputedStyle(element).borderColor === "rgb(47, 128, 255)").length)).toBe(count);
+    await expect.poll(() => page.locator("[data-node-id].z-50").count()).toBe(count);
+}
+
+async function expectCanvasAgentUnavailable(page: Page) {
+    await expect(page.getByRole("button", { name: "Agent（敬请期待）", exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Canvas Agent 对话面板")).toHaveCount(0);
+    await expect(page.getByPlaceholder("描述你想让 Agent 如何操作画布")).toHaveCount(0);
 }

@@ -38,7 +38,7 @@ import { useUserStore } from "@/stores/use-user-store";
 import { AssignmentCreateModal } from "./teaching-assignment-modal";
 import { TeachingCatalogBoard } from "./teaching-catalog-board";
 import { TeachingPrepBoard } from "./teaching-prep-board";
-import { parseTeachingTab, teachingCourseHref, teachingHref, TEACHING_TAB_LABELS, type TeachingTab } from "./teaching-routes";
+import { parseTeachingTab, teachingCourseHref, teachingHref, TEACHING_TAB_LABELS, VISIBLE_TEACHING_TABS, type TeachingTab } from "./teaching-routes";
 import { usePreparedLessons } from "./use-prepared-lessons";
 
 type ReviewForm = { feedback: string };
@@ -309,7 +309,9 @@ export default function TeachingPage() {
             label: TEACHING_TAB_LABELS.orders,
             children: <CommercialOrdersTab />,
         },
-    ];
+    ]
+        .filter((tab) => (VISIBLE_TEACHING_TABS as readonly string[]).includes(tab.key))
+        .sort((left, right) => VISIBLE_TEACHING_TABS.indexOf(left.key as TeachingTab) - VISIBLE_TEACHING_TABS.indexOf(right.key as TeachingTab));
 
     const pagination: Partial<Record<TeachingTab, { current: number; total: number; onChange: (page: number) => void }>> = {
         prep: { current: coursePage, total: courseTotal, onChange: setCoursePage },

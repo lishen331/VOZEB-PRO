@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  * 通用「返回上一级」。直接从外部链接打开详情页时没有可回退的历史，
  * 此时退到 fallbackHref（作品详情默认回作品广场），避免按钮点了没反应。
  */
-export function BackButton({ fallbackHref = "/gallery", label = "返回上一级", className }: { fallbackHref?: string; label?: string; className?: string }) {
+export function BackButton({ fallbackHref = "/community", label = "返回上一级", className }: { fallbackHref?: string; label?: string; className?: string }) {
     const router = useRouter();
     const goBack = () => {
         if (typeof window !== "undefined" && window.history.length > 1) router.back();

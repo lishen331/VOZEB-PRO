@@ -1,4 +1,5 @@
 allowBuilds:
   esbuild: true
 overrides:
-  sharp: 0.35.4
+  sharp: 0.35.5
+  sharp@<0.35.5: ^0.35.5

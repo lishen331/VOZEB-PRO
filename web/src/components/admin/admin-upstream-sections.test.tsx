@@ -7,4 +7,10 @@ describe("创作工坊插件子功能入口", () => {
         expect(source).not.toContain("{false ? (");
         expect(source).toContain("/admin/drama-lab-features");
     });
+
+    it("does not duplicate the script-practice toggle outside its authoritative practice settings section", async () => {
+        const source = await readFile(new URL("./admin-upstream-sections.tsx", import.meta.url), "utf8");
+        expect(source).not.toContain("剧本练习显示状态");
+        expect(source).not.toContain("practiceScriptSettings?.enabled");
+    });
 });

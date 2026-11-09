@@ -51,3 +51,13 @@ export async function expectNoHorizontalOverflow(page: Page, label: string) {
     const widths = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
     expect(widths.scrollWidth, `${label} document overflow`).toBeLessThanOrEqual(widths.clientWidth + 1);
 }
+
+export async function selectCanvasTheme(page: Page, theme: "light" | "dark") {
+    const appearance = page.getByRole("button", { name: "画布外观", exact: true });
+    await appearance.click();
+    const panel = page.locator(".canvas-appearance-panel");
+    await panel.getByRole("button", { name: `切换到${theme === "light" ? "浅色" : "深色"}主题`, exact: true }).click();
+    await expect(page.locator("[data-canvas-surface]")).toHaveCSS("background-color", theme === "light" ? "rgb(255, 255, 255)" : "rgb(9, 11, 16)");
+    await appearance.click();
+    await expect(panel).toBeHidden();
+}

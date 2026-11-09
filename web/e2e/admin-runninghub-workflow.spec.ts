@@ -5,7 +5,7 @@ test.describe.configure({ mode: "serial" });
 test("管理员可以维护 RunningHub 工作流版本和练习绑定", async ({ page }) => {
     const settingsResponse = await page.request.get("/api/admin/settings");
     expect(settingsResponse.ok(), await settingsResponse.text()).toBe(true);
-    const current = (await settingsResponse.json()).settings;
+    const { settings: current, settingsRevision } = await settingsResponse.json();
     const channel = {
         id: "e2e-runninghub-workflow",
         name: "E2E RunningHub",
@@ -49,7 +49,7 @@ test("管理员可以维护 RunningHub 工作流版本和练习绑定", async ({
     };
     const channels = [...current.systemChannels.filter((item: { id: string }) => item.id !== channel.id), channel];
     const saved = await page.request.patch("/api/admin/settings", {
-        data: { systemChannels: channels, logicalModels: current.logicalModels, defaultModels: current.defaultModels, practiceDefaultModels: current.practiceDefaultModels },
+        data: { settingsRevision, systemChannels: channels, logicalModels: current.logicalModels, defaultModels: current.defaultModels, practiceDefaultModels: current.practiceDefaultModels },
     });
     expect(saved.ok(), await saved.text()).toBe(true);
 

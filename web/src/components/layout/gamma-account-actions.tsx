@@ -1,16 +1,17 @@
 "use client";
 
-import { CircleHelp, Crown, Gift, History, LogIn, LogOut, Moon, Settings, Sun, UserRound, Zap } from "lucide-react";
+import { LogIn, LogOut, Moon, Sun, UserRound, Zap } from "lucide-react";
 
 import { GammaMenu } from "@/components/gamma-ui/gamma-overlays";
 import { AnnouncementNotificationCenter } from "@/components/layout/announcement-notification-center";
 import { cn } from "@/lib/utils";
 import { userAvatarFallback } from "@/lib/user-avatar";
+import { planDisplayName } from "@/lib/plan-label";
 import type { LocalUser } from "@/stores/use-user-store";
 
 /*
  * 布鲁伽马侧栏底部的账户操作区（首页与工作空间共用，替代旧版顶栏右上角）：
- *   已登录 → 积分卡（真实余额 + 升级）+ 通知 / 帮助 / 主题 + 账户菜单（个人中心 / 套餐 / 积分记录 / 管理后台 / 退出）
+ *   已登录 → 积分余额 + 通知 / 主题 + 精简账户菜单（个人中心 / 管理后台 / 退出）
  *   未登录 → 一张「登录 / 注册」卡
  * 签到功能已下线（/api/check-in 返回 410），这里不再出现。
  */
@@ -36,15 +37,10 @@ export interface GammaAccountActionsProps {
     /** 会话是否已拉取完成（未完成时不闪「登录」卡） */
     ready: boolean;
     dark: boolean;
-    /** 帮助中心模块开启且当前角色有权限时才显示帮助按钮 */
-    showHelp?: boolean;
     /** 顶栏已经有主题切换时传 false，避免同屏出现两个 */
     showTheme?: boolean;
     onToggleTheme: () => void;
     onLogin: () => void;
-    onPlans: () => void;
-    /** CDK 兑换积分 */
-    onRedeem?: () => void;
     onOpen: (path: string) => void;
     onLogout: () => void;
 }
@@ -61,26 +57,16 @@ function ThemeButton({ dark, onToggle }: { dark: boolean; onToggle: () => void }
     );
 }
 
-function HelpButton({ onOpen }: { onOpen: (path: string) => void }) {
-    return (
-        <button type="button" onClick={() => onOpen("/help")} aria-label="帮助中心" className={ICON_BTN}>
-            <CircleHelp />
-            <Tip>帮助中心</Tip>
-        </button>
-    );
-}
-
 /** 通知中心沿用原组件（公告 + 互动消息弹窗），只换按钮外观 */
 function NotificationButton() {
     return <AnnouncementNotificationCenter compact={false} buttonClassName={ICON_BTN} />;
 }
 
 /** 未登录：登录 / 注册卡；收起时只剩一个登录图标 */
-function GuestCard({ collapsed, dark, showHelp, showTheme = true, onToggleTheme, onLogin, onOpen }: Pick<GammaAccountActionsProps, "collapsed" | "dark" | "showHelp" | "showTheme" | "onToggleTheme" | "onLogin" | "onOpen">) {
+function GuestCard({ collapsed, dark, showTheme = true, onToggleTheme, onLogin }: Pick<GammaAccountActionsProps, "collapsed" | "dark" | "showTheme" | "onToggleTheme" | "onLogin">) {
     if (collapsed) {
         return (
             <div className="flex flex-col items-center gap-1">
-                {showHelp ? <HelpButton onOpen={onOpen} /> : null}
                 {showTheme ? <ThemeButton dark={dark} onToggle={onToggleTheme} /> : null}
                 <button type="button" onClick={onLogin} aria-label="登录 / 注册" className={cn(ICON_BTN, "text-[var(--gm-accent)]")}>
                     <LogIn />
@@ -103,10 +89,9 @@ function GuestCard({ collapsed, dark, showHelp, showTheme = true, onToggleTheme,
                     登录 / 注册
                 </button>
             </div>
-            {showHelp || showTheme ? (
-                <div className="flex items-center justify-between px-0.5">
-                    {showHelp ? <HelpButton onOpen={onOpen} /> : null}
-                    {showTheme ? <ThemeButton dark={dark} onToggle={onToggleTheme} /> : null}
+            {showTheme ? (
+                <div className="flex items-center justify-start px-0.5">
+                    <ThemeButton dark={dark} onToggle={onToggleTheme} />
                 </div>
             ) : null}
         </div>
@@ -126,7 +111,7 @@ function Avatar({ user }: { user: LocalUser }) {
 }
 
 export function GammaAccountActions(props: GammaAccountActionsProps) {
-    const { collapsed, user, ready, dark, showHelp = false, showTheme = true, onToggleTheme, onPlans, onRedeem, onOpen, onLogout } = props;
+    const { collapsed, user, ready, dark, showTheme = true, onToggleTheme, onOpen, onLogout } = props;
     // 会话未就绪：只占位，避免已登录用户先看到一闪而过的「登录」卡
     if (!ready) return <div aria-hidden className={collapsed ? "h-24" : "h-32"} />;
     if (!user) return <GuestCard {...props} />;
@@ -134,17 +119,13 @@ export function GammaAccountActions(props: GammaAccountActionsProps) {
     const points = Math.max(0, Math.floor(user.pointsBalance || 0));
     const accountItems = [
         { key: "profile", label: "个人中心", icon: <UserRound />, onSelect: () => onOpen("/profile") },
-        { key: "plans", label: "套餐与积分", icon: <Crown />, onSelect: onPlans },
-        { key: "points", label: "积分记录", icon: <History />, onSelect: () => onOpen("/profile?section=points") },
-        ...(onRedeem ? [{ key: "redeem", label: "CDK 兑换", icon: <Gift />, onSelect: onRedeem }] : []),
-        ...(user.role === "admin" ? [{ key: "admin", label: "管理后台", icon: <Settings />, onSelect: () => onOpen("/admin") }] : []),
+        ...(user.role === "admin" ? [{ key: "admin", label: "进入管理中心", icon: <UserRound />, onSelect: () => onOpen("/admin") }] : []),
         { key: "logout", label: "退出登录", icon: <LogOut />, danger: true, onSelect: onLogout },
     ];
     const name = user.displayName || user.username;
     const tools = (
         <>
             <NotificationButton />
-            {showHelp ? <HelpButton onOpen={onOpen} /> : null}
             {showTheme ? <ThemeButton dark={dark} onToggle={onToggleTheme} /> : null}
         </>
     );
@@ -152,10 +133,10 @@ export function GammaAccountActions(props: GammaAccountActionsProps) {
     if (collapsed) {
         return (
             <div className="flex flex-col items-center gap-1">
-                <button type="button" onClick={onPlans} aria-label={`积分 ${points}，查看套餐`} className={cn(ICON_BTN, "text-[var(--gm-accent)]")}>
+                <span aria-label={`积分余额 ${points}`} className={cn(ICON_BTN, "text-[var(--gm-accent)]")}>
                     <Zap className="fill-current" />
                     <Tip>{`积分 ${points.toLocaleString()}`}</Tip>
-                </button>
+                </span>
                 {tools}
                 <GammaMenu label="账户菜单" placement="right-end" trigger={() => <Avatar user={user} />} items={accountItems} />
             </div>
@@ -170,12 +151,8 @@ export function GammaAccountActions(props: GammaAccountActionsProps) {
                     <Zap className="size-3.5 fill-[var(--gm-cyan)] text-[var(--gm-accent)]" />
                     <span className="text-[15px] font-semibold tabular-nums">{points.toLocaleString()}</span>
                     <span className="text-[11px] text-[var(--gm-text-3)]">积分</span>
-                    <button type="button" onClick={onPlans} className="ml-auto inline-flex items-center gap-0.5 text-[11px] font-medium text-[var(--gm-accent)] hover:underline">
-                        <Crown className="size-3" />
-                        {user.hasActivePlan ? "续费" : "升级"}
-                    </button>
                 </div>
-                <p className="mt-1 truncate text-[11px] text-[var(--gm-text-3)]">{user.planName}</p>
+                <p className="mt-1 truncate text-[11px] text-[var(--gm-text-3)]">{planDisplayName(user.planName)}</p>
             </div>
             <div className="flex items-center justify-between px-0.5">{tools}</div>
             <div className="border-t border-[var(--gm-border)] pt-2">
