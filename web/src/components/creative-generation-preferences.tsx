@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button, Popover, Select, Tooltip } from "antd";
 import { AudioLines, ChevronDown, ImageIcon, Lightbulb, Maximize2, Sparkles, Video } from "lucide-react";
@@ -615,7 +615,7 @@ function PreferencePanel({
                     {customEditorOpen ? <CustomMediaSizeEditor capability={capability} size={selectedSize} onChange={onChange} /> : null}
                 </div>
             )}
-            <VideoQualityField value={selectedQuality} options={qualityOptions} allowCustom={!capabilityProfile?.resolutions?.length} onChange={(quality) => onChange({ quality })} />
+            <VideoQualityField value={selectedQuality} options={qualityOptions} allowCustom={false} onChange={(quality) => onChange({ quality })} />
             <DurationSliderField
                 label="视频时长"
                 ariaLabel="拖动调整视频时长"
