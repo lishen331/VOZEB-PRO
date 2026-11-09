@@ -439,6 +439,8 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
         ...config,
         model,
         quality: node?.metadata?.quality || config.quality || defaultConfig.quality,
+        imageResolution: node?.metadata?.resolution || config.imageResolution || defaultConfig.imageResolution,
+        imageBackground: node?.metadata?.background || config.imageBackground || defaultConfig.imageBackground,
         size: node?.type === CanvasNodeType.Panorama ? PANORAMA_IMAGE_SIZE : node?.metadata?.size || config.size || defaultConfig.size,
         videoSeconds: node?.metadata?.seconds || config.videoSeconds || defaultConfig.videoSeconds,
         vquality: node?.metadata?.vquality || config.vquality || defaultConfig.vquality,

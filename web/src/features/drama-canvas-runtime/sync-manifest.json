@@ -2,8 +2,8 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "cc655a3d3272f58c29d32b44c7de37635557332d",
-    "syncedAt": "2026-11-09T04:48:14.513Z",
+    "sourceCommit": "1132098920e63c91cdc1f4769ab9ea721dc2bd49",
+    "syncedAt": "2026-11-09T15:16:49.017Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
@@ -37,7 +37,7 @@
         },
         {
             "path": "[id]/canvas-page-utils.ts",
-            "sha256": "daae08ca80a6e23923c937026776779b48fa8e0b7f45fe6896a17f79d7f8373b"
+            "sha256": "5a69aa63170c4881377b9791ea4d77ef3ff7cb3ae4b80396f4f907c88b8c8e77"
         },
         {
             "path": "[id]/canvas-video-task-recovery.ts",
@@ -49,7 +49,7 @@
         },
         {
             "path": "[id]/use-canvas-generation-actions.tsx",
-            "sha256": "821ababfc27ca518e48390d7f79e980f015b263b2526d3557f04cceaea7abafc"
+            "sha256": "b7abf50521e362ca0062b536cd2d8eedf7323b549dee52cfcf7bcecdab0de50c"
         },
         {
             "path": "[id]/use-canvas-image-layer-actions.tsx",
