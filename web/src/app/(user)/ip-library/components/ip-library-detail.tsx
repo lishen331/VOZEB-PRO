@@ -5,7 +5,7 @@ import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { GammaDetailSkeleton } from "@/components/gamma-ui/gamma-data";
-import { BookOpen, Boxes, ChevronLeft, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
+import { BookOpen, Boxes, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -94,24 +94,30 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
             <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
                 {showSubIpDetail ? (
                     <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                            <Link
-                                href={IP_LIBRARY_LIST_HREF}
-                                aria-label="返回 IP 库"
-                                className="-ml-1.5 mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] focus-visible:outline-none"
-                            >
-                                <ChevronLeft className="size-4" aria-hidden />
-                                返回 IP 库
+                        <nav aria-label="面包屑" className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--gm-text-3)]">
+                            <Link href={IP_LIBRARY_LIST_HREF} className="-ml-1 rounded-[var(--gm-radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
+                                IP 库
                             </Link>
+                            <ChevronRight aria-hidden className="size-3.5 shrink-0 opacity-60" />
                             {/* 只在子 IP 视图里，IP 名才是「上一级」；单子 IP 详情下它就是当前页，不能再指向自己 */}
                             {subIpId ? (
-                                <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} className="truncate hover:text-[var(--gm-text)]">
+                                <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} className="min-w-0 truncate rounded-[var(--gm-radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
                                     {detail.title}
                                 </Link>
                             ) : (
-                                <span className="truncate text-[var(--gm-text-2)]">{detail.title}</span>
+                                <span aria-current="page" className="min-w-0 truncate text-[var(--gm-text-2)]">
+                                    {detail.title}
+                                </span>
                             )}
-                        </div>
+                            {subIpId ? (
+                                <>
+                                    <ChevronRight aria-hidden className="size-3.5 shrink-0 opacity-60" />
+                                    <span aria-current="page" className="min-w-0 truncate text-[var(--gm-text-2)]">
+                                        {selected.title}
+                                    </span>
+                                </>
+                            ) : null}
+                        </nav>
                         <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-[minmax(180px,300px)_minmax(0,1fr)] sm:gap-8">
                             <div className="mx-auto flex aspect-[4/3] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 shadow-sm">
                                 {selected.coverPreviewUrl ? <img src={selected.coverPreviewUrl} alt={selected.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-[var(--gm-text-3)]/40" />}
@@ -209,22 +215,15 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
     return (
         <>
             <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
-                <div className="flex items-center gap-2 text-xs text-[var(--gm-text-3)]">
-                    <Link
-                        href={IP_LIBRARY_LIST_HREF}
-                        aria-label="返回 IP 库"
-                        className="-ml-1.5 mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-[var(--gm-radius-sm)] px-2.5 text-[13px] text-[var(--gm-text-2)] transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)] focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] focus-visible:outline-none"
-                    >
-                        <ChevronLeft className="size-4" aria-hidden />
-                        返回 IP 库
-                    </Link>
-                    <span aria-hidden className="h-3.5 w-px bg-[var(--gm-border-strong)]" />
-                    <Link href={IP_LIBRARY_LIST_HREF} className="hover:text-[var(--gm-text)]">
+                <nav aria-label="面包屑" className="flex items-center gap-1.5 text-xs text-[var(--gm-text-3)]">
+                    <Link href={IP_LIBRARY_LIST_HREF} className="-ml-1 rounded-[var(--gm-radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
                         IP 库
                     </Link>
-                    <ChevronRight aria-hidden className="size-3.5" />
-                    <span className="truncate">{detail.title}</span>
-                </div>
+                    <ChevronRight aria-hidden className="size-3.5 shrink-0 opacity-60" />
+                    <span aria-current="page" className="min-w-0 truncate text-[var(--gm-text-2)]">
+                        {detail.title}
+                    </span>
+                </nav>
                 <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-[minmax(180px,300px)_minmax(0,1fr)] sm:gap-8">
                     <div className="mx-auto flex aspect-[4/3] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-2 shadow-sm">
                         {detail.coverPreviewUrl ? <img src={detail.coverPreviewUrl} alt={detail.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-[var(--gm-text-3)]/40" />}

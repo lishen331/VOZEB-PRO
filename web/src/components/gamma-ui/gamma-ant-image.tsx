@@ -11,7 +11,7 @@
  */
 
 import type { CSSProperties, ReactNode } from "react";
-import { createContext, useContext, useEffect, useId, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
@@ -59,15 +59,34 @@ export function PreviewGroup({ children }: { children?: ReactNode }) {
     const [items, setItems] = useState<GroupItem[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
 
-    const register = (item: GroupItem) => {
-        setItems((current) => (current.some((existing) => existing.id === item.id) ? current.map((existing) => (existing.id === item.id ? item : existing)) : [...current, item]));
-        return () => setItems((current) => current.filter((existing) => existing.id !== item.id));
-    };
+    const register = useCallback((item: GroupItem) => {
+        setItems((current) => {
+            const index = current.findIndex((existing) => existing.id === item.id);
+            if (index < 0) return [...current, item];
+            const existing = current[index];
+            // 内容没变就返回原数组：React 会跳过这次渲染，避免「注册 → 新数组 → 再渲染」的循环
+            if (existing.src === item.src && existing.alt === item.alt) return current;
+            const next = current.slice();
+            next[index] = item;
+            return next;
+        });
+        return () =>
+            setItems((current) => {
+                const index = current.findIndex((existing) => existing.id === item.id);
+                if (index < 0) return current;
+                return [...current.slice(0, index), ...current.slice(index + 1)];
+            });
+    }, []);
+
+    const open = useCallback((id: string) => setActiveId(id), []);
 
     const activeIndex = items.findIndex((item) => item.id === activeId);
     const active = activeIndex >= 0 ? items[activeIndex] : null;
 
-    const value: GroupContextValue = { register, open: setActiveId };
+    // context 值必须记忆化：ImageBase 的注册 effect 以 group 为依赖，每次渲染换新对象会让它
+    // 重新注册 → setItems 生成新数组 → 再渲染 → 无限循环。主线程被占满后，Next 的客户端跳转
+    // 永远提交不了（表现为侧栏、面包屑、卡片全都「点了没反应」）。
+    const value = useMemo<GroupContextValue>(() => ({ register, open }), [register, open]);
 
     return (
         <GroupContext.Provider value={value}>
