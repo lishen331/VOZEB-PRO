@@ -104,3 +104,12 @@
 
 - 17:02 新构建的学校完整 Chromium 多角色流程通过（1 passed）：课程创建/章节课时/分配/教学安排、学生作业与老师批改、商单两轮候选及交付、终态409、跨租户隔离、当前可见导航与亮暗主题页面；不再有空封面404。
 - 最终 Web 生产构建（包含 TypeScript 检查）、全量 ESLint、全量格式检查均退出码0。两个开发定位文档再次验证：440 routes、69 pages、147 tables，无漂移。全量桌面/390/430 与 PostgreSQL integration 仍需在候选CI执行，完成前不合并或发布生产。
+
+
+### 候选 CI 与安全/集成夹具复核
+
+- 已推送业务候选 `d0033248` 到修复分支（非 main/develop），完整手动 Quality 为 [42590488763](https://github.com/lishen331/VOZEB-PRO/actions/runs/42590488763)。该运行 Docs/audit/lint/typecheck/unit/format/build 已通过，Browser E2E 尚未结束；security 全历史扫描失败，不记为发布通过。
+- Gitleaks 8.24.3 扫描全历史报告 26 条（24 个唯一指纹），逐项检查后均为旧提交重放的确定性测试值、已审计文档示例、源码 SHA256 摘要和 PEM 格式包装字符串。18 项与原 `.gitleaksignore` 已审计内容逐字节相同；两份 Alipay 测试 PEM 与当前明确声明的测试 fixture 字节完全相同。仅补充精确 commit:file:rule:line 指纹，不禁用规则、不豁免整个业务文件或目录。
+- 同版本本地 `--all --redact` 复扫 1661 个提交：先 27 条告警，补充逐项审核的精确指纹后 `no leaks found`。额外本地分支文档示例也与既有已审核示例逐字节相同。未把密钥、私钥正文或完整服务器环境写入报告。
+- 独立 QA PostgreSQL 集成中，旧课程迁移夹具只创建 id，却遗漏迁移依赖的既有账号列 username/role/admin_permissions/updated_at。补齐测试前置结构，不修改生产 Schema；真实迁移仍连续执行两次并核对旧 JSON 数据和新增列/索引。
+- 跨 SSH 网络诊断执行 5 files / 22 tests 全通过，管理员备份测试实测约 6 秒；该次仅诊断命令使用 60 秒测试时限，未修改 CI 默认时限。不能将此证据冒充 CI 默认时限下的 PostgreSQL 集成门禁已通过，仍需最终候选完整 CI 结果。
