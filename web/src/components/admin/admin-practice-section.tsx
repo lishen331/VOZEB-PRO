@@ -72,7 +72,7 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 </div>
                 <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                     <h3 className="font-medium">剧本模型</h3>
-                    <div className="mt-3 grid gap-3">
+                    <Form layout="vertical" className="mt-3 grid gap-3">
                         <Form.Item label="剧本生成模型" className="mb-0">
                             <Select value={script.defaultModelId || undefined} placeholder="选择文本逻辑模型" options={modelOptions} onChange={(value) => updateScript({ defaultModelId: value, endpointId: "" })} />
                         </Form.Item>
@@ -103,7 +103,7 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                                 />
                             </Form.Item>
                         </div>
-                    </div>
+                    </Form>
                     {!script.defaultModelId ? (
                         <Alert className="mt-3" type="warning" showIcon message="尚未设置剧本生成模型，用户端将不可生成剧本。" />
                     ) : channelOptions.length ? (

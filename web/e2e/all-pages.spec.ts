@@ -230,3 +230,19 @@ function withoutExpectedResourceErrors(consoleErrors: string[], expectedLimitati
         return !expectedStatuses.has(status);
     });
 }
+
+test("practice configuration renders the sole script settings entry without form errors", async ({ page }, testInfo) => {
+    // This regression exercises the Form context; real agent persistence is PostgreSQL-only and covered separately.
+    await page.route("**/api/admin/practice-script/overview", (route) => route.fulfill({ json: { code: 0, data: { profiles: [] }, msg: "OK" } }));
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto("/admin?section=practice", { waitUntil: "domcontentloaded" });
+    const section = page.getByRole("region", { name: "无限练习配置", exact: true });
+    await expect(section.getByText("剧本生成模型", { exact: true })).toBeVisible();
+    await expect(section.getByText("备用剧本模型", { exact: true })).toBeVisible();
+    await expect(section.getByText("默认语言", { exact: true })).toBeVisible();
+    await expect(section.getByRole("button", { name: "保存无限练习配置", exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page, `${testInfo.project.name} practice configuration`);
+    expect(errors).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath("practice-configuration.png"), fullPage: true });
+});
