@@ -121,6 +121,8 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("SET school_id = membership.school_id");
         expect(ddl.indexOf("ALTER TABLE vozeb_pro_practice_script_projects ADD COLUMN IF NOT EXISTS mode text")).toBeLessThan(ddl.indexOf("CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_projects_school_owner_updated_idx"));
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text");
+        // 已存在的库不会重跑 CREATE TABLE，练习模型池必须靠 ALTER 补列，否则保存勾选 500。
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_app_settings ADD COLUMN IF NOT EXISTS practice_model_pool jsonb");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_version integer");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_config_fingerprint text");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_adapter_version integer");
