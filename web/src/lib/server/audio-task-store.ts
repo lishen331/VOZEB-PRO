@@ -19,6 +19,16 @@ export type AudioTaskConfig = {
     advancedConfig?: SystemChannelAdvancedConfig;
     voice?: string;
     customVoiceId?: string;
+    /** 生成模式：不填按 tts（普通合成）。设计、克隆在合成前先用上游创建一个音色。 */
+    mode?: "tts" | "design" | "clone";
+    /** 设计模式：声音描述。 */
+    voiceDescription?: string;
+    /** 克隆模式：参考音频的可访问地址（站内签名地址或公网地址）。 */
+    referenceAudioUrl?: string;
+    /** 克隆模式：同一段参考音频的指纹，用来复用已克隆的音色。 */
+    referenceAudioFingerprint?: string;
+    /** 克隆模式：用户已勾选「已获得本人授权」。 */
+    cloneConsent?: boolean;
     format?: string;
     speed?: string;
     instructions?: string;
