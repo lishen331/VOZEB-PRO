@@ -141,8 +141,8 @@ async function applyDramaRuntimeAdapters() {
         );
         client = replaceRequired(
             client,
-            "    const controller = useCanvasPageController();\n",
-            '    const controller = useCanvasPageController();\n    const searchParams = useSearchParams();\n    const focusShotId = searchParams.get("shotId") || "";\n    const focusAssetType = searchParams.get("assetType") || "";\n    const focusAssetId = searchParams.get("assetId") || "";\n    const focusedTargetRef = useRef("");\n',
+            "    const controller = useCanvasPageController(executionProfile);\n",
+            '    const controller = useCanvasPageController(executionProfile);\n    const searchParams = useSearchParams();\n    const focusShotId = searchParams.get("shotId") || "";\n    const focusAssetType = searchParams.get("assetType") || "";\n    const focusAssetId = searchParams.get("assetId") || "";\n    const focusedTargetRef = useRef("");\n',
             "shot focus state",
         );
         client = replaceRequired(client, "        setSize,\n", "        size,\n        setSize,\n", "shot focus viewport size");

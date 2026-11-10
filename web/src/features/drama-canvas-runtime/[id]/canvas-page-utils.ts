@@ -433,8 +433,8 @@ export function getInputSummary(inputs: NodeGenerationInput[]) {
     };
 }
 
-export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | undefined, mode: CanvasNodeGenerationMode): AiConfig {
-    const model = resolveCanvasGenerationModel(config, mode, node?.metadata?.model);
+export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | undefined, mode: CanvasNodeGenerationMode, allowedModels?: readonly string[]): AiConfig {
+    const model = allowedModels ? (node?.metadata?.model && allowedModels.includes(node.metadata.model) ? node.metadata.model : allowedModels[0] || "") : resolveCanvasGenerationModel(config, mode, node?.metadata?.model);
     return {
         ...config,
         model,
