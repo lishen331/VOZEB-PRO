@@ -2,8 +2,8 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "1132098920e63c91cdc1f4769ab9ea721dc2bd49",
-    "syncedAt": "2026-11-09T15:16:49.017Z",
+    "sourceCommit": "8cb456291f049cca24ae84f76c1295b9fc005c97",
+    "syncedAt": "2026-11-10T01:39:26.154Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
@@ -185,7 +185,7 @@
         },
         {
             "path": "components/canvas-image-settings-popover.tsx",
-            "sha256": "d147ed50fdce183d9c952fcc66692fa5b3b9fe729098d15a11380277ca458e8b"
+            "sha256": "5e7d2f8374903cc1681b4dea3c01aa9e42aacf96b3895209c5f455882c9f63ad"
         },
         {
             "path": "components/canvas-image-toolbar-settings-modal.tsx",
@@ -285,7 +285,7 @@
         },
         {
             "path": "components/canvas-video-settings-popover.tsx",
-            "sha256": "cafb2205c26b8c4f0a16b529b9f55476ceb67be7377e073e494da49726fdb68f"
+            "sha256": "67af2664f13ef5029c07196c14a8aebd852d7e8c3d8a292bfac8e939b39d01c3"
         },
         {
             "path": "components/canvas-zoom-controls.tsx",

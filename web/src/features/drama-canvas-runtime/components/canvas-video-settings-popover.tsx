@@ -1,5 +1,8 @@
 "use client";
 
+import { CANVAS_UI_FEATURES, isCanvasUiFeatureEnabled } from "@/lib/canvas-ui-features";
+import { usePublicSessionStore } from "@/stores/use-public-session-store";
+
 import { SlidersHorizontal } from "lucide-react";
 
 import { CreativeGenerationPreferences, generationPreferenceSummary, type CreativeGenerationPreferencePatch } from "@/components/creative-generation-preferences";
@@ -30,6 +33,7 @@ type CanvasVideoSettingsPopoverProps = {
 export function CanvasVideoSettingsPopover({ config, metadata, references, onConfigChange, onMetadataChange, buttonClassName, placement = "topLeft" }: CanvasVideoSettingsPopoverProps) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const responsivePlacement = useCreativeComposerPopoverPlacement(placement);
+    const customResolutionEnabled = usePublicSessionStore((state) => isCanvasUiFeatureEnabled(state.payload?.settings?.featureModules, CANVAS_UI_FEATURES.videoCustomResolution));
     const preferences: GenerationPreferences = {
         mode: "video",
         video: {
@@ -49,6 +53,7 @@ export function CanvasVideoSettingsPopover({ config, metadata, references, onCon
     return (
         <CreativeGenerationPreferences
             capability="video"
+            allowCustomResolution={customResolutionEnabled}
             preferences={preferences}
             capabilityProfile={canvasModelCapabilityProfile(config)}
             triggerLabel={summary}
