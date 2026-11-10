@@ -40,10 +40,14 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             const overflow = await rolePage.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
             expect(overflow.width).toBeLessThanOrEqual(overflow.viewport);
 
-            const hiddenScript = await rolePage.goto("/practice/script", { waitUntil: "domcontentloaded" });
-            expect(hiddenScript?.status()).toBe(404);
-            const hiddenMusic = await rolePage.goto("/practice/music", { waitUntil: "domcontentloaded" });
-            expect(hiddenMusic?.status()).toBe(404);
+            for (const hiddenPath of ["/practice/script", "/practice/music"]) {
+                const hidden = await rolePage.goto(hiddenPath, { waitUntil: "domcontentloaded" });
+                // Streaming notFound responses keep HTTP 200; assert the denial UI and indexing exclusion, not only transport status.
+                expect([200, 404]).toContain(hidden?.status());
+                await expect(rolePage.getByRole("heading", { name: "页面不存在", exact: true })).toBeVisible();
+                await expect(rolePage.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
+                await expect(rolePage.locator("[data-practice-module]")).toHaveCount(0);
+            }
 
             await rolePage.goto("/practice/character", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成角色图", { exact: true })).toBeVisible();

@@ -81,7 +81,7 @@ test("管理员可以维护 RunningHub 工作流版本和练习绑定", async ({
         .filter({ has: page.getByText("E2E RunningHub", { exact: true }) })
         .first();
     await expect(runningHubRow).toBeVisible({ timeout: 30_000 });
-    await runningHubRow.locator("button").nth(1).click({ timeout: 30_000 });
+    await runningHubRow.getByRole("button", { name: "查看", exact: true }).click({ timeout: 30_000 });
     await page.getByRole("tab", { name: "工作流" }).click();
     await expect(page.getByText("E2E 脚本工作流", { exact: true }).first()).toBeVisible();
     const workflowActions = page.getByRole("button", { name: "启用", exact: true }).last();

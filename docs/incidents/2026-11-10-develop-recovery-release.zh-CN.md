@@ -31,3 +31,13 @@
 复制同步后再次生产build（含完整typecheck）通过；短剧画布分镜handoff与跨剧集切换2项desktop通过，手机专属项在desktop按矩阵跳过，不计为通过。模型池新增真实UI专项：先发现fixture错误把生产渠道同时设置practiceEnabled=true而派生为shared，按现有协议改正fixture而不放宽断言；修正后1项通过，涵盖五池/视觉输入、生产用途及练习关闭候选排除、图片视频独立勾选和刷新保留、生产默认值不串改。仅本机localhost与专属QA库，无真实付费生成。
 
 防回退guard测试拆分7个独立场景消除一个同步大测试的总时限累加，无延长测试时限。当前尚未触发远端完整Quality或部署；生产保持原状。
+
+## 远端完整门禁与发布前保全（2026-11-10 上午）
+
+- 候选 `bd8c19eb392d13acf4542c288544dc0faa49e44c` 已推独立恢复分支，Quality run `42746640676`：Docs、安全、全量unit、格式、ESLint、类型和production build通过；完整浏览器199项中163通过、9失败、1重试通过、26跳过，因此未推进develop、未部署生产，PostgreSQL后置门禁尚未执行。
+- 失败分组取自CI下载的真实trace/截图：RunningHub旧nth(1)点击了新增练习开关而非“查看”；Next.js文档明确流式notFound可返回200，改为同时断言200/404、真实拒绝页面与noindex，API权限断言保持；手机端等待可见composer排除流式隐藏占位；颜色基线在移开鼠标后读取，不把hover当默认态。没有修改业务代码、延长超时或跳过原权限断言。
+- RunningHub本机隔离QA Chromium专项1项通过；其余失败分组正在按desktop/390/430三矩阵重跑，尚不记整体验收通过。
+- 测试服发布前新备份：`/opt/vozeb-pro/staging/backups/develop-recovery-20261110-111200`。受限env、app/worker镜像身份、约21MB PostgreSQL custom dump及SHA256已保存，pg_restore目录可读；模型池JSON摘要单独保存，用于发布后比较。本次没有恢复旧库、改动业务配置或触及生产。
+- 全局技能主文与reference统一禁止candidate dispatch到共享测试服；记录校验器36项测试通过。浏览器扩展导航持续报timeoutMs初始化错误，仅隔离QA真实Chromium证据有效，不冒充已完成线上点击。
+
+- 随后本机三矩阵失败分组重跑完成：desktop/390/430共12项全部通过（5.3分钟），加RunningHub专项1项通过；测试修改的ESLint、Prettier、全量TypeScript通过。后续候选仍需重新跑完整远端Quality，不能拿这13项替代全量。

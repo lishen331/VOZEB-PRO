@@ -7,7 +7,7 @@ import { selectCanvasTheme } from "./canvas-e2e-helpers";
 import { billingProductsFixture, expectDialogWithinViewport, expectNoHorizontalOverflow, masonryGalleryFixture, masonryLayoutIsReady, mockCreativeImageUploads, openCreativeHistory, readMasonryLayout } from "./responsive-helpers";
 
 async function waitForCreativeComposerReady(page: Page) {
-    await expect(page.locator(".creative-composer")).toHaveAttribute("data-ready", "true", { timeout: 45_000 });
+    await expect(page.locator(".creative-composer:visible")).toHaveAttribute("data-ready", "true", { timeout: 45_000 });
     await expect(page.getByRole("button", { name: /当前创作类型：/ })).toBeVisible({ timeout: 45_000 });
 }
 
@@ -313,6 +313,7 @@ test("creative composer controls return to a neutral palette after selection", a
         await waitForCreativeComposerReady(page);
         const modeTrigger = page.getByRole("button", { name: "当前创作类型：Agent 模式" });
         await expect(modeTrigger).toBeVisible();
+        await page.mouse.move(0, 0);
         const neutralPalette = await readPalette(page.getByRole("button", { name: "生成模型：智能模型" }));
         await expect.poll(() => readPalette(modeTrigger)).toEqual(neutralPalette);
         await expect.poll(() => readPalette(page.getByRole("button", { name: "生成参数：生成参数" }))).toEqual(neutralPalette);
@@ -327,6 +328,7 @@ test("creative composer controls return to a neutral palette after selection", a
         await selectComposerPopoverOption(modeTrigger, modePopover, modePopover.getByRole("button", { name: /视频生成/ }), () => expect(selectedModeTrigger).toBeVisible());
         await expect(modePopover).toBeHidden();
 
+        await page.mouse.move(0, 0);
         await expect.poll(() => readPalette(selectedModeTrigger)).toEqual(neutralPalette);
 
         const preferenceTrigger = page.getByRole("button", { name: "生成参数：智能参数 · 5秒" });
@@ -344,6 +346,7 @@ test("creative composer controls return to a neutral palette after selection", a
         await configuredPreferenceTrigger.click();
         await expect(preferencePopover).toBeHidden();
 
+        await page.mouse.move(0, 0);
         await expect.poll(() => readPalette(configuredPreferenceTrigger)).toEqual(neutralPalette);
         await expectNoHorizontalOverflow(page, label);
     };
@@ -619,14 +622,14 @@ test("creative conversation keeps successful media rounds copy-only", async ({ p
     expect(requestRect.bottom, JSON.stringify({ requestBottom: requestRect.bottom, groupTop: groupRect.top })).toBeLessThanOrEqual(groupRect.top + 1);
     if (process.env.VOZEB_PRO_VISUAL_CAPTURE === "1") {
         await page.getByTestId("creative-conversation-scroll").evaluate((element) => element.scrollTo({ top: Math.max(0, element.scrollHeight - element.clientHeight - 230) }));
-        await expect(page.locator(".creative-composer")).toHaveAttribute("data-compact", "true");
+        await expect(page.locator(".creative-composer:visible")).toHaveAttribute("data-compact", "true");
         const screenshotPath = testInfo.outputPath(`creative-media-single-${testInfo.project.name}.png`);
         await page.screenshot({ path: screenshotPath });
         await testInfo.attach("单结果创作记录", { path: screenshotPath, contentType: "image/png" });
     }
 
     const scrollArea = page.getByTestId("creative-conversation-scroll");
-    const composer = page.locator(".creative-composer");
+    const composer = page.locator(".creative-composer:visible");
     await scrollArea.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
     await expect(composer).toHaveAttribute("data-compact", "false");
     const expandedComposerHeight = await composer.evaluate((element) => element.getBoundingClientRect().height);
@@ -860,7 +863,7 @@ test("creative video first and last frame controls support upload, removal and r
     await page.goto("/create", { waitUntil: "domcontentloaded" });
     await selectFirstLastMode();
 
-    const composer = page.locator(".creative-composer");
+    const composer = page.locator(".creative-composer:visible");
     const frames = page.locator('[aria-label="视频首尾帧"]');
     await composer.locator("textarea").fill("让首尾画面自然衔接");
     await page.getByRole("button", { name: "发送" }).click();
