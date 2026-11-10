@@ -30,6 +30,9 @@ import type { SystemModelChannel } from "@/lib/auth/store";
 import { normalizeVoiceCustomization, type VoiceCustomizationConfig } from "@/lib/custom-voice-config";
 import { submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign, upstreamVoicePrefix } from "@/lib/server/custom-voice-upstream";
 import { concatAudioWithGaps, validateDialog } from "@/lib/server/audio-dialog-service";
+import { readReferenceAsset } from "@/lib/server/reference-asset-store";
+import { readFile } from "node:fs/promises";
+import type { ReferenceAudioInput } from "@/lib/server/custom-voice-upstream";
 import type { AudioTaskConfig } from "@/lib/server/audio-task-store";
 
 export type AudioUpstreamStep =
@@ -214,7 +217,9 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
         const voiceId = randomUUID();
         const prefix = upstreamVoicePrefix(voiceId);
         const channel = channelFromTaskConfig(config);
-        const result = await submitQwenVoiceClone(channel, voiceConfig, targetModel, prefix, { url: config.referenceAudioUrl });
+        // 站内音频（/api/reference-assets/...）上游访问不到、也不一定开了对象存储外链，
+        // 所以读成字节按 data: URI 内联上传；公网地址直接透传。
+        const result = await submitQwenVoiceClone(channel, voiceConfig, targetModel, prefix, await cloneAudioInput(config.referenceAudioUrl));
         if (result.status === "failed" || !result.upstreamVoiceId) {
             throw new GenerationSubmissionSafeFailure(result.failureReason || "音色克隆失败");
         }
@@ -356,6 +361,18 @@ async function downloadAudioBytes(url: string, role: string) {
     const response = await fetchSafeOutbound(url, { method: "GET", signal: AbortSignal.timeout(120_000) });
     if (!response.ok) throw new GenerationSubmissionSafeFailure(`角色「${role}」的音频下载失败（HTTP ${response.status}）`);
     return Buffer.from(await response.arrayBuffer());
+}
+
+/** 克隆参考音频：站内地址读成本地字节按 data: URI 内联上传，公网地址直接用 URL。 */
+async function cloneAudioInput(reference: string): Promise<ReferenceAudioInput> {
+    const value = (reference || "").trim();
+    if (!value.startsWith("/api/reference-assets/") && !value.startsWith("/api/generation-log-assets/")) return { url: value };
+    const token = value.split("?")[0].replace(/^\/api\/(?:reference|generation-log)-assets\//, "");
+    const asset = await readReferenceAsset(decodeURIComponent(token));
+    if (!asset) throw new GenerationSubmissionSafeFailure("找不到参考音频文件");
+    const bytes = await readFile(asset.filePath);
+    const format = asset.mimeType === "audio/wav" ? "wav" : asset.mimeType === "audio/mp4" ? "m4a" : "mp3";
+    return { data: bytes, format };
 }
 
 export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string, cookie = "", workerUserId = ""): Promise<AudioUpstreamStep> {
