@@ -49,3 +49,10 @@
 - 正式推进develop前重新fetch发现新提交 `82acc5e0`、`c0eb7a94`（千问/MiniMax音色适配、删除上游音色、幂等补列与索引）；测试服务器app/worker实际已更新至 `c0eb7a94`，readiness健康。因此没有把旧候选直接覆盖远端，而合并最新develop为 `fa07298f`，无冲突，完整保留新修复。
 - 最新合并的音色请求契约与发布guard共15项专项通过，TypeScript、ESLint、Prettier通过；集成树变化后仍重新跑完整CI，旧候选绿色不替代新候选证据。
 - 生产只读复核仍为 `69e2dec6`，app/worker及数据库健康。本轮恢复至今未修改生产。
+
+
+## 并发develop发布复核（2026-11-10 下午）
+
+- 新音色计费提交 `c6992f63` 出现时，其develop Staging workflow `42776639388` 正在构建。避免共享测试并发部署相互覆盖，工作流被develop更新触发取消，最新develop workflow `42777915932` 正在部署 `1b5465af`。没有手动部署候选镜像。
+- 最新develop新增 `a00c22d8`（千问设计试听格式）、`1b5465af`（MiniMax空音色删除语义），再次合入候选，无冲突；音色上游、计费和删音色专项共69项通过，TypeScript通过。
+- 最终整合候选为 `c4617b791dc2b25848d66e2ba785c26bf3969722`（未含发布记录后续新commit）。目标独立分支必须再次跑完整Quality；期间继续在测试服部署develop。必须等develop部署结束、核对实际app/worker SHA后，再以候选祖先检查发布恢复集成版本。
