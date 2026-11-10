@@ -5,7 +5,7 @@ import { mediaTaskSource } from "@/lib/media-management-contract";
 import { audioTaskRefundIdempotencyKey, refundAudioTask } from "@/lib/server/audio-task-refund";
 import { getAudioTask, transitionAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
-import { getPublicUsersByIds } from "@/lib/auth/store";
+import { getAuthSettings, getPublicUsersByIds } from "@/lib/auth/store";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
 import { CHANNEL_SATURATED_MESSAGE } from "@/lib/server/channel-concurrency";
 import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
@@ -216,7 +216,7 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
         }
         const voiceId = randomUUID();
         const prefix = upstreamVoicePrefix(voiceId);
-        const channel = channelFromTaskConfig(config);
+        const channel = await channelFromTaskConfig(config);
         // 站内音频（/api/reference-assets/...）上游访问不到、也不一定开了对象存储外链，
         // 所以读成字节按 data: URI 内联上传；公网地址直接透传。
         const result = await submitQwenVoiceClone(channel, voiceConfig, targetModel, prefix, await cloneAudioInput(config.referenceAudioUrl));
@@ -241,7 +241,7 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
     if (!description) throw new GenerationSubmissionSafeFailure("设计音色需要填写声音描述");
     const previewText = designPreviewText(task.prompt, voiceConfig);
     const voiceId = randomUUID();
-    const channel = channelFromTaskConfig(config);
+    const channel = await channelFromTaskConfig(config);
     const result = provider === "minimax" ? await submitMinimaxVoiceDesign(channel, voiceConfig, description, previewText) : await submitQwenVoiceDesign(channel, voiceConfig, targetModel, upstreamVoicePrefix(voiceId), description, previewText);
     if (result.status === "failed" || !result.upstreamVoiceId) {
         throw new GenerationSubmissionSafeFailure(result.failureReason || "音色设计失败");
@@ -276,9 +276,25 @@ function designPreviewText(prompt: string, config: VoiceCustomizationConfig) {
     return (text + filler).slice(0, config.designLimits.previewTextMax);
 }
 
-/** 音频任务里只带得到渠道的密钥和地址，适配器需要的是渠道形态的对象。 */
-function channelFromTaskConfig(config: AudioTaskConfig): SystemModelChannel {
-    return { id: config.channelId || "", name: "", baseUrl: config.baseUrl, apiKey: config.apiKey, apiFormat: config.apiFormat === "gemini" ? "gemini" : "openai", models: [], enabled: true, advancedConfig: config.advancedConfig } as SystemModelChannel;
+/**
+ * 适配器需要渠道形态的对象。音频任务里的 baseUrl 是站内代理路径（/api/ai/system/...），
+ * 而音色适配器直接出站调用上游，必须换成渠道在设置里的真实上游地址。
+ */
+async function channelFromTaskConfig(config: AudioTaskConfig): Promise<SystemModelChannel> {
+    const base = {
+        id: config.channelId || "",
+        name: "",
+        apiKey: config.apiKey,
+        apiFormat: (config.apiFormat === "gemini" ? "gemini" : "openai") as SystemModelChannel["apiFormat"],
+        models: [] as string[],
+        enabled: true,
+        advancedConfig: config.advancedConfig,
+    } as SystemModelChannel;
+    if (!config.baseUrl.startsWith("/")) return { ...base, baseUrl: config.baseUrl };
+    const settings = await getAuthSettings();
+    const stored = settings.systemChannels.find((item) => item.id === config.channelId);
+    if (!stored?.baseUrl) throw new GenerationSubmissionSafeFailure("找不到自定义音色所属渠道的上游地址");
+    return { ...base, baseUrl: stored.baseUrl, apiKey: stored.apiKey || config.apiKey, advancedConfig: config.advancedConfig || stored.advancedConfig };
 }
 
 async function persistVoicePreview(voiceId: string, base64: string, mimeType: string) {
