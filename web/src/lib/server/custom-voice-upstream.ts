@@ -223,6 +223,8 @@ export async function deleteMinimaxVoice(channel: SystemModelChannel, config: Vo
         });
         const text = await response.text();
         const data = parseJson<MinimaxVoiceResponse>(text);
+        // 设计或克隆后从未用于合成的音色，上游不算正式音色，删除会返回 2013「voice_id does not exist」，视为已删除。
+        if (data?.base_resp?.status_code === 2013) return { success: true };
         if (!response.ok || minimaxError(data)) return { success: false, error: `删除音色失败：${minimaxError(data) || text.slice(0, 300)}` };
         return { success: true };
     } catch (error) {
