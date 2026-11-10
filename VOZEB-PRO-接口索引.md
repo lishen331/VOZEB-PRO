@@ -287,7 +287,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| GET, POST | `/api/custom-voices` | 用户 | [route.ts](web/src/app/api/custom-voices/route.ts) | [custom-voice-store](web/src/lib/server/custom-voice-store.ts)<br>[generation-charge-service](web/src/lib/server/generation-charge-service.ts)<br>[custom-voice-upstream](web/src/lib/server/custom-voice-upstream.ts) | PostgreSQL | custom-voices：查询、提交/执行 |
+| GET, POST | `/api/custom-voices` | 用户 | [route.ts](web/src/app/api/custom-voices/route.ts) | [custom-voice-store](web/src/lib/server/custom-voice-store.ts)<br>[generation-charge-service](web/src/lib/server/generation-charge-service.ts)<br>[reference-asset-store](web/src/lib/server/reference-asset-store.ts) | PostgreSQL | custom-voices：查询、提交/执行 |
 | DELETE, GET, PATCH | `/api/custom-voices/[id]` | 用户 | [route.ts](web/src/app/api/custom-voices/[id]/route.ts) | [custom-voice-store](web/src/lib/server/custom-voice-store.ts)<br>[custom-voice-upstream](web/src/lib/server/custom-voice-upstream.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL | custom-voices / 单项：查询、更新、删除 |
 | GET | `/api/custom-voices/capabilities` | 用户 | [route.ts](web/src/app/api/custom-voices/capabilities/route.ts) | [store](web/src/lib/auth/store.ts)<br>[custom-voice-config](web/src/lib/custom-voice-config.ts) | PostgreSQL | custom-voices / capabilities：查询 |
 

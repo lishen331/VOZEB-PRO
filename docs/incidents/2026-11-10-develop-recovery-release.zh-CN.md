@@ -41,3 +41,11 @@
 - 全局技能主文与reference统一禁止candidate dispatch到共享测试服；记录校验器36项测试通过。浏览器扩展导航持续报timeoutMs初始化错误，仅隔离QA真实Chromium证据有效，不冒充已完成线上点击。
 
 - 随后本机三矩阵失败分组重跑完成：desktop/390/430共12项全部通过（5.3分钟），加RunningHub专项1项通过；测试修改的ESLint、Prettier、全量TypeScript通过。后续候选仍需重新跑完整远端Quality，不能拿这13项替代全量。
+
+
+## 第二轮完整CI通过与远端新增修复保留
+
+- 第二轮候选 `fa32797d586b185731d97b21009186035a07b9cb` 的完整Quality `42751130882` 已成功，Docs/Web/Security及Browser/PostgreSQL后置门禁均为success。
+- 正式推进develop前重新fetch发现新提交 `82acc5e0`、`c0eb7a94`（千问/MiniMax音色适配、删除上游音色、幂等补列与索引）；测试服务器app/worker实际已更新至 `c0eb7a94`，readiness健康。因此没有把旧候选直接覆盖远端，而合并最新develop为 `fa07298f`，无冲突，完整保留新修复。
+- 最新合并的音色请求契约与发布guard共15项专项通过，TypeScript、ESLint、Prettier通过；集成树变化后仍重新跑完整CI，旧候选绿色不替代新候选证据。
+- 生产只读复核仍为 `69e2dec6`，app/worker及数据库健康。本轮恢复至今未修改生产。
