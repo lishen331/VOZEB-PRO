@@ -2,21 +2,39 @@ import { fetchSafeOutbound } from "./safe-outbound-fetch";
 import type { SystemModelChannel } from "@/lib/auth/store";
 import type { VoiceCustomizationConfig, CustomVoiceStatus } from "@/lib/custom-voice-config";
 
-type MinimaxFileUploadResponse = {
-    file: { file_id: string };
-};
+/*
+ * 自定义音色上游适配器。请求格式以官方文档为准：
+ * - 千问（百炼）：克隆、设计、查询、删除共用 POST /api/v1/services/audio/tts/customization，
+ *   model 固定 "voice-enrollment"，用 input.action 区分操作（create_voice / query_voice / delete_voice）。
+ *   https://docs.bailian.console.aliyun.com/zh/model-studio/voice-clone-design-http-api
+ *   https://docs.bailian.console.aliyun.com/zh/model-studio/voice-design-api-references
+ *   音色创建时用 target_model 绑定合成模型，之后合成必须用同一模型。
+ * - MiniMax 官方：克隆 = /files/upload + /voice_clone；设计 = /voice_design（voice_id 由上游生成）。
+ *   渠道 baseUrl 已含 /v1，这里的兜底路径不再带 /v1。
+ */
 
-type MinimaxVoiceResponse = {
-    voice_id: string;
-    status?: string;
-    audio_url?: string;
-    extra_info?: { audio: { sample_audio: string } };
-    message?: string;
+export const QWEN_VOICE_ENROLLMENT_MODEL = "voice-enrollment";
+const QWEN_CUSTOMIZATION_PATH = "/api/v1/services/audio/tts/customization";
+
+type MinimaxFileUploadResponse = {
+    file?: { file_id?: string | number };
     base_resp?: { status_code?: number; status_msg?: string };
 };
 
-type QwenVoiceCustomizationResponse = {
-    output?: { voice: string; audio?: string };
+type MinimaxVoiceResponse = {
+    voice_id?: string;
+    trial_audio?: string;
+    demo_audio?: string;
+    base_resp?: { status_code?: number; status_msg?: string };
+};
+
+type QwenCustomizationResponse = {
+    output?: {
+        voice_id?: string;
+        status?: string;
+        target_model?: string;
+        preview_audio?: { data?: string; response_format?: string };
+    };
     code?: string;
     message?: string;
     request_id?: string;
@@ -28,219 +46,213 @@ export type CustomVoiceUpstreamResult = {
     upstreamRequestId?: string;
     previewUrl?: string;
     previewMimeType?: string;
+    /** 设计接口返回的试听音频（Base64），调用方负责落库后换成 previewUrl。 */
+    previewAudioBase64?: string;
     failureReason?: string;
 };
 
-export async function submitMinimaxVoiceClone(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, audioBuffer: Buffer, audioFormat: string): Promise<CustomVoiceUpstreamResult> {
+export type ReferenceAudioInput = { url: string } | { data: Buffer; format: string };
+
+/** 上游音色名前缀：千问只允许字母和数字、最多 10 位。 */
+export function upstreamVoicePrefix(seed: string) {
+    const cleaned = seed.replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
+    return `vz${cleaned || "voice"}`.slice(0, 10);
+}
+
+// ---------------------------------------------------------------- 千问
+
+export function qwenCloneRequest(targetModel: string, prefix: string, audio: ReferenceAudioInput) {
+    return {
+        model: QWEN_VOICE_ENROLLMENT_MODEL,
+        input: {
+            action: "create_voice",
+            target_model: targetModel,
+            audio: "url" in audio ? audio.url : `data:${audioMimeType(audio.format)};base64,${audio.data.toString("base64")}`,
+            prefix,
+            language_hints: ["zh"],
+        },
+    };
+}
+
+export function qwenDesignRequest(targetModel: string, prefix: string, voicePrompt: string, previewText: string) {
+    return {
+        model: QWEN_VOICE_ENROLLMENT_MODEL,
+        input: {
+            action: "create_voice",
+            target_model: targetModel,
+            voice_prompt: voicePrompt,
+            preview_text: previewText,
+            prefix,
+            language_hints: ["zh"],
+        },
+        parameters: { response_format: "mp3" },
+    };
+}
+
+export function qwenQueryRequest(voiceId: string) {
+    return { model: QWEN_VOICE_ENROLLMENT_MODEL, input: { action: "query_voice", voice_id: voiceId } };
+}
+
+export function qwenDeleteRequest(voiceId: string) {
+    return { model: QWEN_VOICE_ENROLLMENT_MODEL, input: { action: "delete_voice", voice_id: voiceId } };
+}
+
+export async function submitQwenVoiceClone(channel: SystemModelChannel, config: VoiceCustomizationConfig, targetModel: string, prefix: string, audio: ReferenceAudioInput): Promise<CustomVoiceUpstreamResult> {
+    const result = await postQwen(channel, config, qwenCloneRequest(targetModel, prefix, audio), "音色克隆");
+    if ("failureReason" in result) return result;
+    const voiceId = result.output?.voice_id;
+    if (!voiceId) return { status: "failed", failureReason: "音色克隆返回无效：缺少 voice_id" };
+    // 克隆音色需要审核：创建即返回 voice_id，状态通过 query_voice 轮询，OK 后才可用。
+    return { status: qwenStatus(result.output?.status) ?? "creating", upstreamVoiceId: voiceId, upstreamRequestId: result.request_id };
+}
+
+export async function submitQwenVoiceDesign(channel: SystemModelChannel, config: VoiceCustomizationConfig, targetModel: string, prefix: string, voicePrompt: string, previewText: string): Promise<CustomVoiceUpstreamResult> {
+    const result = await postQwen(channel, config, qwenDesignRequest(targetModel, prefix, voicePrompt, previewText), "音色设计");
+    if ("failureReason" in result) return result;
+    const voiceId = result.output?.voice_id;
+    if (!voiceId) return { status: "failed", failureReason: "音色设计返回无效：缺少 voice_id" };
+    const format = result.output?.preview_audio?.response_format || "mp3";
+    return {
+        status: qwenStatus(result.output?.status) ?? "ready",
+        upstreamVoiceId: voiceId,
+        upstreamRequestId: result.request_id,
+        previewAudioBase64: result.output?.preview_audio?.data,
+        previewMimeType: result.output?.preview_audio?.data ? audioMimeType(format) : undefined,
+    };
+}
+
+export async function queryQwenVoiceStatus(channel: SystemModelChannel, upstreamVoiceId: string): Promise<CustomVoiceUpstreamResult> {
+    const result = await postQwen(channel, channel.advancedConfig?.voiceCustomization, qwenQueryRequest(upstreamVoiceId), "查询音色状态");
+    if ("failureReason" in result) return result;
+    const status = qwenStatus(result.output?.status);
+    if (status === "failed") return { status: "failed", upstreamVoiceId, failureReason: "音色审核未通过" };
+    return { status: status ?? "creating", upstreamVoiceId, upstreamRequestId: result.request_id };
+}
+
+export async function deleteQwenVoice(channel: SystemModelChannel, config: VoiceCustomizationConfig, upstreamVoiceId: string): Promise<{ success: boolean; error?: string }> {
+    const result = await postQwen(channel, config, qwenDeleteRequest(upstreamVoiceId), "删除音色");
+    return "failureReason" in result ? { success: false, error: result.failureReason } : { success: true };
+}
+
+/** DEPLOYING → creating，OK → ready，UNDEPLOYED → failed；未知状态返回 undefined 由调用方决定。 */
+export function qwenStatus(value: string | undefined): CustomVoiceStatus | undefined {
+    const status = (value || "").toUpperCase();
+    if (status === "OK") return "ready";
+    if (status === "DEPLOYING") return "creating";
+    if (status === "UNDEPLOYED") return "failed";
+    return undefined;
+}
+
+async function postQwen(channel: SystemModelChannel, config: VoiceCustomizationConfig | undefined, body: unknown, label: string): Promise<QwenCustomizationResponse | { status: "failed"; failureReason: string }> {
     try {
-        const uploadPath = config.paths.upload || "/v1/files/upload";
-        const clonePath = config.paths.clone || "/v1/voice_clone";
+        const path = config?.paths.customization || QWEN_CUSTOMIZATION_PATH;
+        const response = await fetchSafeOutbound(joinUrl(channel.baseUrl, path), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
+            body: JSON.stringify(body),
+        });
+        const text = await response.text();
+        const data = parseJson<QwenCustomizationResponse>(text);
+        if (!response.ok || (data?.code && data.code !== "Success")) {
+            return { status: "failed", failureReason: `${label}失败：${data?.message || text.slice(0, 300) || `HTTP ${response.status}`}` };
+        }
+        return data || {};
+    } catch (error) {
+        return { status: "failed", failureReason: error instanceof Error ? `${label}请求异常：${error.message}` : `${label}请求异常` };
+    }
+}
 
+// ---------------------------------------------------------------- MiniMax
+
+export async function submitMinimaxVoiceClone(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, audio: { data: Buffer; format: string }): Promise<CustomVoiceUpstreamResult> {
+    try {
         const formData = new FormData();
-        const blob = new Blob([new Uint8Array(audioBuffer)], { type: `audio/${audioFormat}` });
-        formData.append("file", blob, `voice.${audioFormat}`);
+        formData.append("file", new Blob([new Uint8Array(audio.data)], { type: audioMimeType(audio.format) }), `voice.${audio.format}`);
         formData.append("purpose", "voice_clone");
-
-        const uploadResponse = await fetchSafeOutbound(`${channel.baseUrl}${uploadPath}`, {
+        const uploadResponse = await fetchSafeOutbound(joinUrl(channel.baseUrl, config.paths.upload || "/files/upload"), {
             method: "POST",
             headers: { Authorization: `Bearer ${channel.apiKey}` },
             body: formData,
         });
+        const uploadText = await uploadResponse.text();
+        const upload = parseJson<MinimaxFileUploadResponse>(uploadText);
+        if (!uploadResponse.ok || minimaxError(upload)) return { status: "failed", failureReason: `音频上传失败：${minimaxError(upload) || uploadText.slice(0, 300)}` };
+        const fileId = upload?.file?.file_id;
+        if (!fileId) return { status: "failed", failureReason: "音频上传返回无效：缺少 file_id" };
 
-        if (!uploadResponse.ok) {
-            const error = await uploadResponse.text();
-            return { status: "failed", failureReason: `音频上传失败: ${error}` };
-        }
-
-        const uploadData = (await uploadResponse.json()) as MinimaxFileUploadResponse;
-        const fileId = uploadData.file?.file_id;
-        if (!fileId) return { status: "failed", failureReason: "音频上传返回无效" };
-
-        const cloneRequest = { file_id: fileId, voice_id: voiceId };
-        const cloneResponse = await fetchSafeOutbound(`${channel.baseUrl}${clonePath}`, {
+        const cloneResponse = await fetchSafeOutbound(joinUrl(channel.baseUrl, config.paths.clone || "/voice_clone"), {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
-            body: JSON.stringify(cloneRequest),
+            body: JSON.stringify({ file_id: Number(fileId) || fileId, voice_id: voiceId }),
         });
-
-        if (!cloneResponse.ok) {
-            const error = await cloneResponse.text();
-            return { status: "failed", failureReason: `音色克隆失败: ${error}` };
-        }
-
-        const cloneData = (await cloneResponse.json()) as MinimaxVoiceResponse;
-        if (cloneData.base_resp?.status_code && cloneData.base_resp.status_code !== 0) {
-            return { status: "failed", failureReason: cloneData.base_resp.status_msg || "音色克隆失败" };
-        }
-        if (!cloneData.voice_id) return { status: "failed", failureReason: "音色克隆返回无效" };
-
-        const previewUrl = cloneData.audio_url || cloneData.extra_info?.audio?.sample_audio;
-        return { status: "ready", upstreamVoiceId: cloneData.voice_id, previewUrl, previewMimeType: previewUrl ? "audio/mpeg" : undefined };
+        const cloneText = await cloneResponse.text();
+        const clone = parseJson<MinimaxVoiceResponse>(cloneText);
+        if (!cloneResponse.ok || minimaxError(clone)) return { status: "failed", failureReason: `音色克隆失败：${minimaxError(clone) || cloneText.slice(0, 300)}` };
+        // MiniMax 克隆用的是我们指定的 voice_id，成功即可用。
+        return { status: "ready", upstreamVoiceId: clone?.voice_id || voiceId, previewUrl: clone?.demo_audio || undefined, previewMimeType: clone?.demo_audio ? "audio/mpeg" : undefined };
     } catch (error) {
-        return { status: "failed", failureReason: error instanceof Error ? error.message : "音色克隆请求异常" };
+        return { status: "failed", failureReason: error instanceof Error ? `音色克隆请求异常：${error.message}` : "音色克隆请求异常" };
     }
 }
 
-export async function submitMinimaxVoiceDesign(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, description: string, previewText?: string): Promise<CustomVoiceUpstreamResult> {
+export async function submitMinimaxVoiceDesign(channel: SystemModelChannel, config: VoiceCustomizationConfig, description: string, previewText: string): Promise<CustomVoiceUpstreamResult> {
     try {
-        const designPath = config.paths.design || "/v1/voice_design";
-        const designRequest = { voice_id: voiceId, description, ...(previewText ? { preview_text: previewText } : {}) };
-
-        const designResponse = await fetchSafeOutbound(`${channel.baseUrl}${designPath}`, {
+        const response = await fetchSafeOutbound(joinUrl(channel.baseUrl, config.paths.design || "/voice_design"), {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
-            body: JSON.stringify(designRequest),
+            body: JSON.stringify({ prompt: description, preview_text: previewText }),
         });
-
-        if (!designResponse.ok) {
-            const error = await designResponse.text();
-            return { status: "failed", failureReason: `音色设计失败: ${error}` };
-        }
-
-        const designData = (await designResponse.json()) as MinimaxVoiceResponse;
-        if (designData.base_resp?.status_code && designData.base_resp.status_code !== 0) {
-            return { status: "failed", failureReason: designData.base_resp.status_msg || "音色设计失败" };
-        }
-        if (!designData.voice_id) return { status: "failed", failureReason: "音色设计返回无效" };
-
-        const previewUrl = designData.audio_url || designData.extra_info?.audio?.sample_audio;
-        return { status: "ready", upstreamVoiceId: designData.voice_id, previewUrl, previewMimeType: previewUrl ? "audio/mpeg" : undefined };
+        const text = await response.text();
+        const data = parseJson<MinimaxVoiceResponse>(text);
+        if (!response.ok || minimaxError(data)) return { status: "failed", failureReason: `音色设计失败：${minimaxError(data) || text.slice(0, 300)}` };
+        if (!data?.voice_id) return { status: "failed", failureReason: "音色设计返回无效：缺少 voice_id" };
+        // trial_audio 是 hex 编码的试听音频，换成 Base64 交给调用方落库。
+        const previewAudioBase64 = data.trial_audio ? Buffer.from(data.trial_audio, "hex").toString("base64") : undefined;
+        return { status: "ready", upstreamVoiceId: data.voice_id, previewAudioBase64, previewMimeType: previewAudioBase64 ? "audio/mpeg" : undefined };
     } catch (error) {
-        return { status: "failed", failureReason: error instanceof Error ? error.message : "音色设计请求异常" };
+        return { status: "failed", failureReason: error instanceof Error ? `音色设计请求异常：${error.message}` : "音色设计请求异常" };
     }
 }
 
-export async function deleteMinimaxVoice(channel: SystemModelChannel, config: VoiceCustomizationConfig, upstreamVoiceId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteMinimaxVoice(channel: SystemModelChannel, config: VoiceCustomizationConfig, upstreamVoiceId: string, kind: "clone" | "design"): Promise<{ success: boolean; error?: string }> {
     try {
-        const deletePath = config.paths.delete || "/v1/delete_voice";
-        const deleteRequest = { voice_id: upstreamVoiceId };
-
-        const deleteResponse = await fetchSafeOutbound(`${channel.baseUrl}${deletePath}`, {
+        const response = await fetchSafeOutbound(joinUrl(channel.baseUrl, config.paths.delete || "/delete_voice"), {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
-            body: JSON.stringify(deleteRequest),
+            body: JSON.stringify({ voice_type: kind === "clone" ? "voice_cloning" : "voice_generation", voice_id: upstreamVoiceId }),
         });
-
-        if (!deleteResponse.ok) {
-            const error = await deleteResponse.text();
-            return { success: false, error: `删除音色失败: ${error}` };
-        }
-
-        const deleteData = (await deleteResponse.json()) as MinimaxVoiceResponse;
-        if (deleteData.base_resp?.status_code && deleteData.base_resp.status_code !== 0) {
-            return { success: false, error: deleteData.base_resp.status_msg || "删除音色失败" };
-        }
-
+        const text = await response.text();
+        const data = parseJson<MinimaxVoiceResponse>(text);
+        if (!response.ok || minimaxError(data)) return { success: false, error: `删除音色失败：${minimaxError(data) || text.slice(0, 300)}` };
         return { success: true };
     } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : "删除音色请求异常" };
+        return { success: false, error: error instanceof Error ? `删除音色请求异常：${error.message}` : "删除音色请求异常" };
     }
 }
 
-export async function submitQwenVoiceClone(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, audioBuffer: Buffer, audioFormat: string): Promise<CustomVoiceUpstreamResult> {
-    try {
-        const customizationPath = config.paths.customization || "/api/v1/services/audio/tts/customization";
-        const audioBase64 = audioBuffer.toString("base64");
-        const request = {
-            voice: voiceId,
-            audio_data: audioBase64,
-            audio_format: audioFormat,
-        };
-
-        const response = await fetchSafeOutbound(`${channel.baseUrl}${customizationPath}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
-            body: JSON.stringify(request),
-        });
-
-        if (!response.ok) {
-            const error = await response.text();
-            return { status: "failed", failureReason: `音色克隆失败: ${error}` };
-        }
-
-        const data = (await response.json()) as QwenVoiceCustomizationResponse;
-        if (data.code && data.code !== "Success") {
-            return { status: "failed", failureReason: data.message || "音色克隆失败" };
-        }
-        if (!data.output?.voice) return { status: "failed", failureReason: "音色克隆返回无效" };
-
-        const previewUrl = data.output.audio;
-        return { status: "ready", upstreamVoiceId: data.output.voice, upstreamRequestId: data.request_id, previewUrl, previewMimeType: previewUrl ? "audio/mpeg" : undefined };
-    } catch (error) {
-        return { status: "failed", failureReason: error instanceof Error ? error.message : "音色克隆请求异常" };
-    }
+function minimaxError(data: { base_resp?: { status_code?: number; status_msg?: string } } | undefined) {
+    const code = data?.base_resp?.status_code;
+    return code !== undefined && code !== 0 ? data?.base_resp?.status_msg || `错误码 ${code}` : "";
 }
 
-export async function submitQwenVoiceDesign(channel: SystemModelChannel, config: VoiceCustomizationConfig, voiceId: string, name: string, description: string, previewText?: string): Promise<CustomVoiceUpstreamResult> {
-    try {
-        const customizationPath = config.paths.customization || "/api/v1/services/audio/tts/customization";
-        const request = {
-            voice: voiceId,
-            description,
-            ...(previewText ? { preview_text: previewText } : {}),
-        };
+// ---------------------------------------------------------------- 共用
 
-        const response = await fetchSafeOutbound(`${channel.baseUrl}${customizationPath}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
-            body: JSON.stringify(request),
-        });
-
-        if (!response.ok) {
-            const error = await response.text();
-            return { status: "failed", failureReason: `音色设计失败: ${error}` };
-        }
-
-        const data = (await response.json()) as QwenVoiceCustomizationResponse;
-        if (data.code && data.code !== "Success") {
-            return { status: "failed", failureReason: data.message || "音色设计失败" };
-        }
-        if (!data.output?.voice) return { status: "failed", failureReason: "音色设计返回无效" };
-
-        const previewUrl = data.output.audio;
-        return { status: "ready", upstreamVoiceId: data.output.voice, upstreamRequestId: data.request_id, previewUrl, previewMimeType: previewUrl ? "audio/mpeg" : undefined };
-    } catch (error) {
-        return { status: "failed", failureReason: error instanceof Error ? error.message : "音色设计请求异常" };
-    }
+export function joinUrl(baseUrl: string, path: string) {
+    return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
-export async function queryQwenVoiceStatus(channel: SystemModelChannel, upstreamVoiceId: string): Promise<CustomVoiceUpstreamResult> {
+export function audioMimeType(format: string) {
+    const value = format.toLowerCase();
+    if (value === "wav") return "audio/wav";
+    if (value === "m4a" || value === "mp4") return "audio/mp4";
+    if (value === "pcm") return "audio/pcm";
+    return "audio/mpeg";
+}
+
+function parseJson<T>(text: string): T | undefined {
     try {
-        const customizationPath = channel.advancedConfig?.voiceCustomization?.paths?.customization || "/api/v1/services/audio/tts/customization";
-        const request = {
-            model: "voice-enrollment",
-            input: {
-                action: "query_voice",
-                voice_id: upstreamVoiceId,
-            },
-        };
-
-        const response = await fetchSafeOutbound(`${channel.baseUrl}${customizationPath}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${channel.apiKey}` },
-            body: JSON.stringify(request),
-        });
-
-        if (!response.ok) {
-            const error = await response.text();
-            return { status: "failed", failureReason: `查询音色状态失败: ${error}` };
-        }
-
-        const data = (await response.json()) as { output?: { status?: string; resource_link?: string }; code?: string; message?: string; request_id?: string };
-        if (data.code && data.code !== "Success") {
-            return { status: "failed", failureReason: data.message || "查询音色状态失败" };
-        }
-
-        const upstreamStatus = data.output?.status;
-        if (upstreamStatus === "OK") {
-            return { status: "ready", upstreamVoiceId, upstreamRequestId: data.request_id, previewUrl: data.output?.resource_link, previewMimeType: "audio/wav" };
-        }
-        if (upstreamStatus === "UNDEPLOYED") {
-            return { status: "failed", failureReason: "音色审核未通过" };
-        }
-        // DEPLOYING or other status, keep as creating
-        return { status: "creating", upstreamVoiceId, upstreamRequestId: data.request_id };
-    } catch (error) {
-        return { status: "failed", failureReason: error instanceof Error ? error.message : "查询音色状态请求异常" };
+        return JSON.parse(text) as T;
+    } catch {
+        return undefined;
     }
 }

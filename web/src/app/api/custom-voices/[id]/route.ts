@@ -4,8 +4,9 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { AuthInputError, isAuthInputError } from "@/lib/auth/store";
 import { getCustomVoice, updateCustomVoice } from "@/lib/server/custom-voice-store";
-import { queryQwenVoiceStatus } from "@/lib/server/custom-voice-upstream";
+import { queryQwenVoiceStatus, deleteMinimaxVoice, deleteQwenVoice } from "@/lib/server/custom-voice-upstream";
 import { getAuthSettings } from "@/lib/auth/store";
+import { normalizeVoiceCustomization } from "@/lib/custom-voice-config";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -91,7 +92,14 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         if (!voice) return NextResponse.json({ error: "Voice not found" }, { status: 404 });
         if (voice.ownerUserId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        // Mark as deleted without calling upstream delete API (upstream may auto-expire)
+        // 尽量调上游删除，释放百炼账号的音色配额；上游失败也标记为删除，避免用户列表里残留。
+        const settings = await getAuthSettings();
+        const channel = settings.systemChannels.find((ch) => ch.id === voice.channelId);
+        const voiceConfig = channel?.advancedConfig?.voiceCustomization ? normalizeVoiceCustomization(channel.advancedConfig.voiceCustomization) : undefined;
+        if (channel && voiceConfig && voice.upstreamVoiceId) {
+            if (voice.provider === "minimax") await deleteMinimaxVoice(channel, voiceConfig, voice.upstreamVoiceId, voice.kind);
+            else await deleteQwenVoice(channel, voiceConfig, voice.upstreamVoiceId);
+        }
         await updateCustomVoice(id, { status: "deleted" });
         return NextResponse.json({ success: true });
     } catch (error) {

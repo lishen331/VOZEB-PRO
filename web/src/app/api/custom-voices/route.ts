@@ -6,8 +6,19 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { AuthInputError, getAuthSettings, isAuthInputError, type SystemModelChannel } from "@/lib/auth/store";
 import { customVoiceCreatePoints, normalizeVoiceCustomization } from "@/lib/custom-voice-config";
 import { createCustomVoice, listCustomVoices, updateCustomVoice } from "@/lib/server/custom-voice-store";
-import { submitMinimaxVoiceClone, submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign } from "@/lib/server/custom-voice-upstream";
+import { submitMinimaxVoiceClone, submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign, upstreamVoicePrefix } from "@/lib/server/custom-voice-upstream";
 import { chargeGeneration, refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import { writePersistentMediaDataUrl } from "@/lib/server/reference-asset-store";
+
+/** 上游返回的 Base64 试听音频落盘，换成可播放地址。失败不影响音色本身，只丢掉试听。 */
+async function persistVoicePreview(voiceId: string, base64: string, mimeType: string) {
+    try {
+        const stored = await writePersistentMediaDataUrl(`data:${mimeType};base64,${base64}`, "audio", { ownerUserId: "system", source: "custom-voice-preview", originalName: `${voiceId}.mp3` });
+        return stored.url;
+    } catch {
+        return undefined;
+    }
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -72,6 +83,7 @@ export async function POST(request: NextRequest) {
         });
         try {
             let result;
+            const prefix = upstreamVoicePrefix(voiceId);
             if (kind === "clone") {
                 const audioData = body.audioData?.trim();
                 if (!audioData) throw new AuthInputError("audioData required for clone");
@@ -81,9 +93,9 @@ export async function POST(request: NextRequest) {
                     throw new AuthInputError(`Audio file too large (max ${voiceConfig.audioLimits.maxMB}MB)`);
                 }
                 if (voiceConfig.provider === "minimax") {
-                    result = await submitMinimaxVoiceClone(channel, voiceConfig, voiceId, name, audioBuffer, audioFormat);
+                    result = await submitMinimaxVoiceClone(channel, voiceConfig, voiceId, { data: audioBuffer, format: audioFormat });
                 } else {
-                    result = await submitQwenVoiceClone(channel, voiceConfig, voiceId, name, audioBuffer, audioFormat);
+                    result = await submitQwenVoiceClone(channel, voiceConfig, ttsModel, prefix, { data: audioBuffer, format: audioFormat });
                 }
             } else {
                 const prompt = body.prompt?.trim().slice(0, voiceConfig.designLimits.promptMax);
@@ -93,17 +105,19 @@ export async function POST(request: NextRequest) {
                     throw new AuthInputError(`previewText must be ${voiceConfig.designLimits.previewTextMin}-${voiceConfig.designLimits.previewTextMax} characters`);
                 }
                 if (voiceConfig.provider === "minimax") {
-                    result = await submitMinimaxVoiceDesign(channel, voiceConfig, voiceId, name, prompt, previewText);
+                    result = await submitMinimaxVoiceDesign(channel, voiceConfig, prompt, previewText);
                 } else {
-                    result = await submitQwenVoiceDesign(channel, voiceConfig, voiceId, name, prompt, previewText);
+                    result = await submitQwenVoiceDesign(channel, voiceConfig, ttsModel, prefix, prompt, previewText);
                 }
             }
+            // 千问设计的试听音频是 Base64，落库前换成可播放的地址。
+            const previewUrl = result.previewAudioBase64 ? await persistVoicePreview(voiceId, result.previewAudioBase64, result.previewMimeType || "audio/mpeg") : result.previewUrl;
             await updateCustomVoice(voiceId, {
                 chargeReceiptId: receipt.receiptId,
                 upstreamRequestId: result.upstreamRequestId,
                 status: result.status,
                 upstreamVoiceId: result.upstreamVoiceId,
-                previewUrl: result.previewUrl,
+                previewUrl,
                 previewMimeType: result.previewMimeType,
                 failureReason: result.failureReason,
             });
