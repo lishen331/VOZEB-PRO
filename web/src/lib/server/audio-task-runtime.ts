@@ -30,8 +30,8 @@ import type { SystemModelChannel } from "@/lib/auth/store";
 import { normalizeVoiceCustomization, type VoiceCustomizationConfig } from "@/lib/custom-voice-config";
 import { submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign, upstreamVoicePrefix } from "@/lib/server/custom-voice-upstream";
 import { concatAudioWithGaps, validateDialog } from "@/lib/server/audio-dialog-service";
-import { readReferenceAsset } from "@/lib/server/reference-asset-store";
-import { readFile } from "node:fs/promises";
+import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
+import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
 import type { ReferenceAudioInput } from "@/lib/server/custom-voice-upstream";
 import type { AudioTaskConfig } from "@/lib/server/audio-task-store";
 
@@ -363,15 +363,16 @@ async function downloadAudioBytes(url: string, role: string) {
     return Buffer.from(await response.arrayBuffer());
 }
 
-/** 克隆参考音频：站内地址读成本地字节按 data: URI 内联上传，公网地址直接用 URL。 */
+/** 克隆参考音频：站内地址读成字节按 data: URI 内联上传（自动兼容本地磁盘和对象存储），公网地址直接用 URL。 */
 async function cloneAudioInput(reference: string): Promise<ReferenceAudioInput> {
     const value = (reference || "").trim();
     if (!value.startsWith("/api/reference-assets/") && !value.startsWith("/api/generation-log-assets/")) return { url: value };
-    const token = value.split("?")[0].replace(/^\/api\/(?:reference|generation-log)-assets\//, "");
-    const asset = await readReferenceAsset(decodeURIComponent(token));
-    if (!asset) throw new GenerationSubmissionSafeFailure("找不到参考音频文件");
-    const bytes = await readFile(asset.filePath);
-    const format = asset.mimeType === "audio/wav" ? "wav" : asset.mimeType === "audio/mp4" ? "m4a" : "mp3";
+    const token = decodeURIComponent(value.split("?")[0].replace(/^\/api\/(?:reference|generation-log)-assets\//, ""));
+    const registration = await getLocalMediaRegistration(token);
+    if (!registration) throw new GenerationSubmissionSafeFailure("找不到参考音频文件");
+    const bytes = await readRegisteredMediaBytes(registration, 30 * 1024 * 1024);
+    const mime = registration.mimeType || "audio/mpeg";
+    const format = mime === "audio/wav" ? "wav" : mime === "audio/mp4" ? "m4a" : "mp3";
     return { data: bytes, format };
 }
 
