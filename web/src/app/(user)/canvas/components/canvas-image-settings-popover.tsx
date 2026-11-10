@@ -1,5 +1,8 @@
 "use client";
 
+import { CANVAS_UI_FEATURES, isCanvasUiFeatureEnabled } from "@/lib/canvas-ui-features";
+import { usePublicSessionStore } from "@/stores/use-public-session-store";
+
 import { SlidersHorizontal } from "lucide-react";
 
 import { CreativeGenerationPreferences, generationPreferenceSummary, imageResolutionLabel, selectedImageResolution, type CreativeGenerationPreferencePatch } from "@/components/creative-generation-preferences";
@@ -19,6 +22,7 @@ type CanvasImageSettingsPopoverProps = {
 
 export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChange, buttonClassName, placement = "topLeft", fixedSizeLabel }: CanvasImageSettingsPopoverProps) {
     const responsivePlacement = useCreativeComposerPopoverPlacement(placement);
+    const customResolutionEnabled = usePublicSessionStore((state) => isCanvasUiFeatureEnabled(state.payload?.settings?.featureModules, CANVAS_UI_FEATURES.imageCustomResolution));
     const preferences: GenerationPreferences = {
         mode: "image",
         image: {
@@ -35,6 +39,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
     return (
         <CreativeGenerationPreferences
             capability="image"
+            allowCustomResolution={customResolutionEnabled}
             preferences={preferences}
             capabilityProfile={canvasModelCapabilityProfile(config)}
             triggerLabel={summary}

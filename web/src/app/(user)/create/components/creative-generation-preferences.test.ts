@@ -73,7 +73,7 @@ describe("generationPreferenceSummary", () => {
 
 it("hides video quality custom entry while retaining preset selection and image custom sizes", async () => {
     const source = await readFile(resolve(process.cwd(), "src/components/creative-generation-preferences.tsx"), "utf8");
-    expect(source).toContain("allowCustom={false}");
+    expect(source).toContain("allowCustom={allowCustomResolution === true && !capabilityProfile?.resolutions?.length}");
     expect(source).toContain("onChange={(quality) => onChange({ quality })}");
     expect(source).toContain('aria-label={`打开${capability === "image" ? "图片" : "视频"}自定义像素尺寸`}');
 });

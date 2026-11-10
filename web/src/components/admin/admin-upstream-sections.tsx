@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminCanvasFeatureControls } from "./admin-canvas-feature-controls";
+import type { CanvasUiFeatureId } from "@/lib/canvas-ui-features";
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AgentSkillCreateModal } from "@/components/admin/agent-skill-create-modal";
 import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel-workspace";
@@ -328,7 +330,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
     const { settings, settingsLoading, activeSection, saveSettings } = controller;
     if (activeSection !== "plugins") return null;
 
-    const toggle = (id: FeatureModuleId, enabled: boolean) => saveSettings((current) => ({ featureModules: { ...current.featureModules, [id]: enabled } }), "插件状态已更新");
+    const toggle = (id: FeatureModuleId | CanvasUiFeatureId, enabled: boolean) => saveSettings((current) => ({ featureModules: { ...current.featureModules, [id]: enabled } }), "插件状态已更新");
 
     return (
         <Panel>
@@ -396,6 +398,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                                 <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onClick={() => undefined} onChange={(next) => void toggle(plugin.id, next)} />
                             </div>
                             <p className="mt-3 line-clamp-2 text-sm leading-5 text-[var(--gm-text-2)]">{plugin.description}</p>
+                            {plugin.id === "canvas" ? <AdminCanvasFeatureControls featureModules={settings.featureModules} loading={settingsLoading} onChange={(id, next) => void toggle(id, next)} /> : null}
                             <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
                                 {plugin.pathPrefixes.map((path) => (
                                     <Tag key={path}>{path}</Tag>

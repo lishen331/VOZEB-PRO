@@ -1,3 +1,4 @@
+import { CANVAS_UI_FEATURES, DEFAULT_CANVAS_UI_FEATURES } from "./canvas-ui-features";
 import type { SchoolContext } from "@/lib/school-domain";
 import type { LucideIcon } from "lucide-react";
 import { BookMarked, Clapperboard, CircleHelp, Compass, FileText, Film, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
@@ -123,7 +124,12 @@ export function featureModuleDefinition(id: FeatureModuleId) {
 
 export function normalizeFeatureModuleSettings(value: unknown): FeatureModuleSettings {
     const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-    return { ...input, ...Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])) } as FeatureModuleSettings;
+    return {
+        ...DEFAULT_CANVAS_UI_FEATURES,
+        ...input,
+        ...Object.fromEntries(Object.values(CANVAS_UI_FEATURES).map((id) => [id, input[id] === true])),
+        ...Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])),
+    } as FeatureModuleSettings;
 }
 
 export function isFeatureModuleEnabled(settings: Pick<{ featureModules: FeatureModuleSettings }, "featureModules">, id: FeatureModuleId) {
