@@ -95,7 +95,7 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
                 {showSubIpDetail ? (
                     <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                         <nav aria-label="面包屑" className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--gm-text-3)]">
-                            <Link href={IP_LIBRARY_LIST_HREF} className="-ml-1 rounded-[var(--gm-radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
+                            <Link href={IP_LIBRARY_LIST_HREF} aria-label="返回 IP 库" className="-ml-1 rounded-[var(--gm-radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
                                 IP 库
                             </Link>
                             <ChevronRight aria-hidden className="size-3.5 shrink-0 opacity-60" />
@@ -216,7 +216,7 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
         <>
             <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                 <nav aria-label="面包屑" className="flex items-center gap-1.5 text-xs text-[var(--gm-text-3)]">
-                    <Link href={IP_LIBRARY_LIST_HREF} className="-ml-1 rounded-[var(--gm-radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
+                    <Link href={IP_LIBRARY_LIST_HREF} aria-label="返回 IP 库" className="-ml-1 rounded-[var(--gm-radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
                         IP 库
                     </Link>
                     <ChevronRight aria-hidden className="size-3.5 shrink-0 opacity-60" />

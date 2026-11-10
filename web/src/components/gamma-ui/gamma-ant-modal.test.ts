@@ -109,12 +109,37 @@ describe("遮罩层不得常驻挂载（否则 body 滚动锁永不释放）", (
         }
     });
 
-    it("keeps the dialog content mounted so antd 的关闭态保留语义不变", async () => {
+    it("keeps business content in a stable portal without retaining Radix isolation effects", async () => {
         const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");
+        expect(source).toContain('const [host] = useState(() => document.createElement("div"))');
+        expect(source).toContain("parking.current?.appendChild(host)");
+        expect(source).toContain("node.appendChild(host)");
+        expect(source).toContain("{createPortal(");
+        expect(source).toContain("{open ? (");
+        expect(source).toContain("<DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>");
         const contentTags = [...source.matchAll(/<DialogPrimitive\.Content[\s\S]*?>/g)].map((match) => match[0]);
-        expect(contentTags.length).toBeGreaterThanOrEqual(2);
-        for (const tag of contentTags) {
-            expect(tag).toContain("forceMount");
-        }
+        expect(contentTags).toHaveLength(1);
+        expect(contentTags[0]).not.toContain("forceMount");
+    });
+});
+
+describe("closed retained dialogs release modal side effects", () => {
+    it("only isolates the rest of the page while the modal or masked drawer is open", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");
+        expect(source).toContain("<DialogPrimitive.Root modal={showMask}");
+        expect(source).toContain("<DialogPrimitive.Root modal={mask !== false}");
+        expect(source).toContain("const Content = destroyOnHidden ? DialogPrimitive.Content : RetainedDialogContent");
+        expect(source).not.toContain("Activity");
+    });
+});
+
+describe("modal overlay composition", () => {
+    it("keeps mask and content in one stable stacking context across reopening", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");
+        const wrap = source.indexOf('className="ant-modal-root"');
+        const overlay = source.indexOf("<DialogPrimitive.Overlay", wrap);
+        const content = source.indexOf("<Content", wrap);
+        expect(wrap).toBeLessThan(overlay);
+        expect(overlay).toBeLessThan(content);
     });
 });

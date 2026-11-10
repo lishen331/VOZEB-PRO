@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button, Popover, Select, Tooltip } from "antd";
 import { AudioLines, ChevronDown, ImageIcon, Lightbulb, Maximize2, Sparkles, Video } from "lucide-react";
@@ -258,6 +258,7 @@ export function CreativeGenerationPreferences({
     fixedSizeLabel,
     compact = false,
     showCount = true,
+    allowCustomResolution,
     videoReferenceContent,
     videoModeContent,
     onOpenChange,
@@ -279,6 +280,7 @@ export function CreativeGenerationPreferences({
     fixedSizeLabel?: string;
     compact?: boolean;
     showCount?: boolean;
+    allowCustomResolution?: boolean;
     videoReferenceContent?: ReactNode;
     videoModeContent?: ReactNode;
     onOpenChange?: (open: boolean) => void;
@@ -372,6 +374,7 @@ export function CreativeGenerationPreferences({
                         fixedSizeLabel={fixedSizeLabel}
                         compact={compact}
                         showCount={showCount}
+                        allowCustomResolution={allowCustomResolution}
                         videoReferenceContent={videoReferenceContent}
                         videoModeContent={videoModeContent}
                         onChange={onChange}
@@ -402,6 +405,7 @@ function PreferencePanel({
     fixedSizeLabel,
     compact,
     showCount,
+    allowCustomResolution,
     videoReferenceContent,
     videoModeContent,
     onChange,
@@ -412,6 +416,7 @@ function PreferencePanel({
     fixedSizeLabel?: string;
     compact: boolean;
     showCount: boolean;
+    allowCustomResolution?: boolean;
     videoReferenceContent?: ReactNode;
     videoModeContent?: ReactNode;
     onChange: (patch: CreativeGenerationPreferencePatch) => void;
@@ -483,22 +488,26 @@ function PreferencePanel({
                                 </button>
                             ))}
                         </div>
-                        <button
-                            type="button"
-                            className={cn(
-                                "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 text-[11px] transition",
-                                customEditorOpen || (parseCustomDimensions(selectedSize) && !isPresetMediaSize(capability, selectedSize))
-                                    ? "border-[#9bbdce] bg-[#f2f8fb] font-medium text-[#315d78] dark:border-[#557f96] dark:bg-[#20333d] dark:text-[#a8c8dc]"
-                                    : "border-[#d8dde2] text-[#687481] hover:border-[#b8c3cc] hover:bg-[#f7f8f9] hover:text-[#20242a] dark:border-[#414953] dark:text-[#a6afb9] dark:hover:bg-[#24282e] dark:hover:text-white",
-                            )}
-                            onClick={() => setCustomEditorOpen(true)}
-                            aria-label={`打开${capability === "image" ? "图片" : "视频"}自定义像素尺寸`}
-                            aria-pressed={customEditorOpen || (Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize))}
-                        >
-                            <Maximize2 className="size-3.5" />
-                            自定义像素尺寸
-                        </button>
-                        {customEditorOpen ? <CustomMediaSizeEditor capability={capability} size={selectedSize} onChange={onChange} /> : null}
+                        {allowCustomResolution !== false ? (
+                            <>
+                                <button
+                                    type="button"
+                                    className={cn(
+                                        "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 text-[11px] transition",
+                                        customEditorOpen || (parseCustomDimensions(selectedSize) && !isPresetMediaSize(capability, selectedSize))
+                                            ? "border-[#9bbdce] bg-[#f2f8fb] font-medium text-[#315d78] dark:border-[#557f96] dark:bg-[#20333d] dark:text-[#a8c8dc]"
+                                            : "border-[#d8dde2] text-[#687481] hover:border-[#b8c3cc] hover:bg-[#f7f8f9] hover:text-[#20242a] dark:border-[#414953] dark:text-[#a6afb9] dark:hover:bg-[#24282e] dark:hover:text-white",
+                                    )}
+                                    onClick={() => setCustomEditorOpen(true)}
+                                    aria-label={`打开${capability === "image" ? "图片" : "视频"}自定义像素尺寸`}
+                                    aria-pressed={customEditorOpen || (Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize))}
+                                >
+                                    <Maximize2 className="size-3.5" />
+                                    自定义像素尺寸
+                                </button>
+                                {customEditorOpen ? <CustomMediaSizeEditor capability={capability} size={selectedSize} onChange={onChange} /> : null}
+                            </>
+                        ) : null}
                     </div>
                 )}
                 <div className="grid gap-1.5">
@@ -597,25 +606,29 @@ function PreferencePanel({
                             </div>
                         </div>
                     ) : null}
-                    <button
-                        type="button"
-                        className={cn(
-                            "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 text-[11px] transition",
-                            customEditorOpen || (parseCustomDimensions(selectedSize) && !isPresetMediaSize(capability, selectedSize))
-                                ? "border-[#9bbdce] bg-[#f2f8fb] font-medium text-[#315d78] dark:border-[#557f96] dark:bg-[#20333d] dark:text-[#a8c8dc]"
-                                : "border-[#d8dde2] text-[#687481] hover:border-[#b8c3cc] hover:bg-[#f7f8f9] hover:text-[#20242a] dark:border-[#414953] dark:text-[#a6afb9] dark:hover:bg-[#24282e] dark:hover:text-white",
-                        )}
-                        onClick={() => setCustomEditorOpen(true)}
-                        aria-label="打开视频自定义像素尺寸"
-                        aria-pressed={customEditorOpen || (Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize))}
-                    >
-                        <Maximize2 className="size-3.5" />
-                        自定义像素尺寸
-                    </button>
-                    {customEditorOpen ? <CustomMediaSizeEditor capability={capability} size={selectedSize} onChange={onChange} /> : null}
+                    {allowCustomResolution !== false ? (
+                        <>
+                            <button
+                                type="button"
+                                className={cn(
+                                    "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 text-[11px] transition",
+                                    customEditorOpen || (parseCustomDimensions(selectedSize) && !isPresetMediaSize(capability, selectedSize))
+                                        ? "border-[#9bbdce] bg-[#f2f8fb] font-medium text-[#315d78] dark:border-[#557f96] dark:bg-[#20333d] dark:text-[#a8c8dc]"
+                                        : "border-[#d8dde2] text-[#687481] hover:border-[#b8c3cc] hover:bg-[#f7f8f9] hover:text-[#20242a] dark:border-[#414953] dark:text-[#a6afb9] dark:hover:bg-[#24282e] dark:hover:text-white",
+                                )}
+                                onClick={() => setCustomEditorOpen(true)}
+                                aria-label="打开视频自定义像素尺寸"
+                                aria-pressed={customEditorOpen || (Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize))}
+                            >
+                                <Maximize2 className="size-3.5" />
+                                自定义像素尺寸
+                            </button>
+                            {customEditorOpen ? <CustomMediaSizeEditor capability={capability} size={selectedSize} onChange={onChange} /> : null}
+                        </>
+                    ) : null}
                 </div>
             )}
-            <VideoQualityField value={selectedQuality} options={qualityOptions} allowCustom={!capabilityProfile?.resolutions?.length} onChange={(quality) => onChange({ quality })} />
+            <VideoQualityField value={selectedQuality} options={qualityOptions} allowCustom={allowCustomResolution === true && !capabilityProfile?.resolutions?.length} onChange={(quality) => onChange({ quality })} />
             <DurationSliderField
                 label="视频时长"
                 ariaLabel="拖动调整视频时长"

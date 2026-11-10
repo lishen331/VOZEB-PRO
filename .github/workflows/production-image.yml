@@ -20,6 +20,8 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/lishen331/vozeb-pro
+  # 国内镜像，生产服务器直连 ghcr.io 会在传输中途被重置，拉取大层永远完不成
+  PRODUCTION_IMAGE_PROXY: ghcr.nju.edu.cn
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
 jobs:
@@ -172,6 +174,13 @@ jobs:
           )
           target="$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST"
           image="${IMAGE_NAME}:sha-${RELEASE_SHA}"
+          # 先经国内镜像按 digest 拉，镜像站按标签会滞后，digest 则由 Docker 在拉取时校验。
+          # 取不到 digest 就跳过镜像，直接走 ghcr.io。
+          digest="$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}' 2>/dev/null || true)"
+          proxy_image=""
+          if [ -n "$digest" ]; then
+            proxy_image="${PRODUCTION_IMAGE_PROXY}/${IMAGE_NAME#ghcr.io/}@${digest}"
+          fi
 
           scp \
             -i "$key_file" \
@@ -185,14 +194,27 @@ jobs:
           # Each attempt gets a long timeout on purpose: killing `docker pull` discards
           # layers that were downloaded but not yet extracted, so short kill-and-retry
           # loops redownload the same large layers forever (same fix as staging).
-          ssh "${ssh_args[@]}" "$target" "IMAGE='$image' bash -s" <<'REMOTE'
+          ssh "${ssh_args[@]}" "$target" "IMAGE='$image' PROXY_IMAGE='$proxy_image' bash -s" <<'REMOTE'
           set -euo pipefail
           printf 'Docker pull diagnostics before production deploy:\n'
           docker version --format '{{.Server.Version}}' || true
           docker system df || true
           df -h / /var/lib/docker 2>/dev/null || df -h / || true
           pulled=""
+          # 直连 ghcr.io 在生产服务器上传输中途会被重置，大层永远拉不完。
+          # 先走国内镜像，镜像失败或卡住再回退直连。
+          if [ -n "$PROXY_IMAGE" ]; then
+            proxy_start=$(date +%s)
+            if timeout -k 30 900 docker pull "$PROXY_IMAGE"; then
+              docker tag "$PROXY_IMAGE" "$IMAGE"
+              pulled="yes"
+              printf 'Image pulled from proxy %s in %ss\n' "$PROXY_IMAGE" "$(( $(date +%s) - proxy_start ))"
+            else
+              printf 'Proxy pull failed after %ss; falling back to GHCR\n' "$(( $(date +%s) - proxy_start ))" >&2
+            fi
+          fi
           for attempt in $(seq 1 3); do
+            [ -n "$pulled" ] && break
             printf 'Production image pull attempt %s/3 (up to 20 minutes)\n' "$attempt"
             if timeout -k 30 1200 docker pull "$IMAGE"; then
               pulled="yes"

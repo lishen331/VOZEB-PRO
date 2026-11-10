@@ -134,6 +134,16 @@ describe("school course catalog service", () => {
         expect(JSON.stringify(result.items)).not.toContain("internalNote");
     });
 
+    it("omits cover URLs for courses with an empty or missing cover key", async () => {
+        const withoutCover = { ...course(), content: { coverStorageKey: "" } };
+        mocks.listCourseCatalog.mockResolvedValue({ total: 1, page: 1, pageSize: 20, items: [{ ...withoutCover, unlocked: false }] });
+        expect((await listSchoolCourseCatalog("user-a", { page: 1, pageSize: 20 })).items[0]).not.toHaveProperty("coverUrl");
+        mocks.getPlatformCourse.mockResolvedValue(withoutCover);
+        mocks.getPlatformCourseTree.mockResolvedValue({ ...tree(), content: {} });
+        mocks.getActiveCourseAssignmentByCourse.mockResolvedValue(null);
+        expect(await getSchoolCourseCatalogDetail("user-a", "course-a")).not.toHaveProperty("coverUrl");
+    });
+
     it("marks whether the viewer may unlock the course", async () => {
         mocks.requireActiveSchoolContext.mockResolvedValue(context(true));
         mocks.listCourseCatalog.mockResolvedValue({ total: 1, page: 1, pageSize: 20, items: [{ ...course(), unlocked: false }] });

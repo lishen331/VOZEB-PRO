@@ -118,7 +118,7 @@ export function CatalogCourseDetail({ courseId }: { courseId: string }) {
 
     return (
         <main className="h-full min-h-0 overflow-y-auto px-3 py-3 sm:px-6 sm:py-5 lg:px-8">
-            <div className="mx-auto w-full max-w-[1760px] flex flex-col gap-4">
+            <div className="gm-page flex flex-col gap-4">
                 <nav aria-label="当前位置" className="flex min-w-0 items-center gap-1 text-[11px] text-[var(--gm-text-3)]">
                     <Link href={teachingHref()} className="hover:text-[var(--gm-text)]">
                         教学中心

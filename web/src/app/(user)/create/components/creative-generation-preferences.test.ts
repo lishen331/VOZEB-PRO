@@ -70,3 +70,10 @@ describe("generationPreferenceSummary", () => {
         expect(source.indexOf("比例")).toBeLessThan(source.indexOf("自定义像素尺寸"));
     });
 });
+
+it("hides video quality custom entry while retaining preset selection and image custom sizes", async () => {
+    const source = await readFile(resolve(process.cwd(), "src/components/creative-generation-preferences.tsx"), "utf8");
+    expect(source).toContain("allowCustom={allowCustomResolution === true && !capabilityProfile?.resolutions?.length}");
+    expect(source).toContain("onChange={(quality) => onChange({ quality })}");
+    expect(source).toContain('aria-label={`打开${capability === "image" ? "图片" : "视频"}自定义像素尺寸`}');
+});

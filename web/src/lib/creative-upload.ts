@@ -26,6 +26,7 @@ export const CREATIVE_UPLOAD_MIME_TYPES = [
     "audio/opus",
     "audio/aac",
     "audio/flac",
+    "audio/x-flac",
 ] as const;
 
 export const CREATIVE_UPLOAD_ACCEPT = CREATIVE_UPLOAD_MIME_TYPES.join(",");

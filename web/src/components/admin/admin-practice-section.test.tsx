@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import type { AdminDashboardController } from "./use-admin-dashboard-controller";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AuthSettings } from "@/lib/auth/store";
-import { buildPracticeSettingsPatch, practiceScriptModelOptions, practiceScriptChannelOptions } from "./admin-practice-section";
+import { AdminPracticeSection, buildPracticeSettingsPatch, practiceScriptModelOptions, practiceScriptChannelOptions } from "./admin-practice-section";
 
 const settings = {
     practiceScriptSettings: {
@@ -30,6 +33,14 @@ const settings = {
 } as unknown as AuthSettings;
 
 describe("admin infinite practice configuration", () => {
+    it("renders the authoritative practice configuration fields within a Form context", () => {
+        const controller = { settings, activeSection: "practice", settingsLoading: false, setSettings: vi.fn(), saveSettings: vi.fn() } as unknown as AdminDashboardController;
+        const html = renderToStaticMarkup(createElement(AdminPracticeSection, { controller }));
+        expect(html).toContain("剧本生成模型");
+        expect(html).toContain("保存无限练习配置");
+        expect(html).toContain("默认语言");
+        expect(html).toContain('aria-label="显示剧本练习模块"');
+    });
     it("offers only text logical models and non-production endpoints", () => {
         expect(practiceScriptModelOptions(settings)).toEqual([{ value: "writer", label: "剧本写作" }]);
         expect(practiceScriptChannelOptions(settings, "writer")).toEqual([{ value: "practice", label: "练习渠道" }]);

@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { creativeUploadLimitLabel, creativeUploadMaxBytes, creativeUploadTypeFromMime } from "./creative-upload";
+import { creativeUploadLimitLabel, creativeUploadMaxBytes, creativeUploadTypeFromMime, isCreativeUploadMimeType } from "./creative-upload";
 
 describe("creative upload limits", () => {
+    it("accepts the audio/x-flac MIME returned by the bundled storyboard voice", () => {
+        expect(isCreativeUploadMimeType("audio/x-flac")).toBe(true);
+        expect(creativeUploadTypeFromMime("audio/x-flac")).toBe("audio");
+    });
     it.each([
         ["image/png", "image", 20, "20MB"],
         ["audio/mpeg", "audio", 30, "30MB"],

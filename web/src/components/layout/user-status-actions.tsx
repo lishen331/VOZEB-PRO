@@ -117,6 +117,7 @@ export function UserStatusActions({ variant = "default", onOpenShortcuts, initia
                 </Link>
             ),
         },
+        ...(user?.role === "admin" ? [{ key: "admin", icon: <UserCircle className="size-4" />, label: <Link href="/admin">进入管理中心</Link> }] : []),
         { type: "divider" },
         {
             key: "logout",

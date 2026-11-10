@@ -119,6 +119,7 @@ export function GammaAccountActions(props: GammaAccountActionsProps) {
     const points = Math.max(0, Math.floor(user.pointsBalance || 0));
     const accountItems = [
         { key: "profile", label: "个人中心", icon: <UserRound />, onSelect: () => onOpen("/profile") },
+        ...(user.role === "admin" ? [{ key: "admin", label: "进入管理中心", icon: <UserRound />, onSelect: () => onOpen("/admin") }] : []),
         { key: "logout", label: "退出登录", icon: <LogOut />, danger: true, onSelect: onLogout },
     ];
     const name = user.displayName || user.username;

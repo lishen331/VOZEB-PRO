@@ -96,7 +96,10 @@ test("学校算力池、制作小组和项目计费保持租户隔离", async ({
         const studentContext = await createAuthenticatedE2EContext(browser, BASE_URL, { username: names.student, password: PASSWORD }, contextOptions);
         contexts.push(teacherContext, studentContext);
         const studentUser = await findAdminUser(adminRequest, names.student);
-        await expectStatus(adminRequest.patch(`/api/admin/users/${studentUser.id}`, { data: { pointsBalance: 5 } }), 200);
+        expect(studentUser.pointsBalance).toBe(0);
+        await apiData(
+            await adminRequest.post(`/api/admin/schools/${schoolA.id}/members/${student!.id}/points-adjustments`, { data: { operation: "credit", amount: 5, reason: "E2E personal advance fixture", idempotencyKey: `personal-credit:${suffix}` } }),
+        );
         const advance = await apiData<{ id: string; originalPoints: number }>(
             await studentContext.request.post(`/api/teaching/production-groups/${group.id}/personal-advances`, {
                 data: { orderId: order.id, amount: 5, idempotencyKey: `personal-advance-e2e:${group.id}:${suffix}` },
@@ -183,7 +186,7 @@ async function createCanvas(request: APIRequestContext, title: string) {
 }
 
 async function createDrama(request: APIRequestContext, title: string) {
-    const data = await apiData<{ project: { id: string } }>(await request.post("/api/drama/projects", { data: { title, summary: "学校算力 E2E 短剧", ratio: "9:16" } }));
+    const data = await apiData<{ project: { id: string } }>(await request.post("/api/drama/projects", { data: { title, summary: "学校算力 E2E 短剧", initialScript: "老师与学生完成镜头练习。", ratio: "9:16" } }));
     return data.project.id;
 }
 
@@ -205,10 +208,8 @@ async function verifySchoolComputeUi(context: BrowserContext, projectName: strin
     try {
         await page.goto("/school", { waitUntil: "domcontentloaded" });
         await page.waitForLoadState("networkidle");
-        const tab = page.getByRole("tab", { name: "制作小组与算力", exact: true });
-        await expect(tab).toBeVisible();
-        await tab.evaluate((element) => (element as HTMLElement).click());
-        await expect(page.getByRole("heading", { name: "制作小组与算力", exact: true })).toBeVisible();
+        await expect(page.getByRole("tab", { name: "制作小组与算力", exact: true })).toHaveCount(0);
+        for (const name of ["学校资料", "成员管理", "班级管理", "课程安排"]) await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
         await expectNoHorizontalOverflow(page, `${projectName} school compute`);
         await expectVisibleControlsWithinViewport(page, `${projectName} school compute`);
     } finally {

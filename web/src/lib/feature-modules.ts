@@ -1,3 +1,4 @@
+import { CANVAS_UI_FEATURES, DEFAULT_CANVAS_UI_FEATURES } from "./canvas-ui-features";
 import type { SchoolContext } from "@/lib/school-domain";
 import type { LucideIcon } from "lucide-react";
 import { BookMarked, Clapperboard, CircleHelp, Compass, FileText, Film, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
@@ -130,7 +131,8 @@ export function featureModuleDefinition(id: FeatureModuleId) {
 
 export function normalizeFeatureModuleSettings(value: unknown): FeatureModuleSettings {
     const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-    return { ...input, ...Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])) } as FeatureModuleSettings;
+    const modules = Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])) as FeatureModuleSettings;
+    return { ...DEFAULT_CANVAS_UI_FEATURES, ...input, ...Object.fromEntries(Object.values(CANVAS_UI_FEATURES).map((id) => [id, input[id] === true])), ...modules };
 }
 
 export function isFeatureModuleEnabled(settings: Pick<{ featureModules: FeatureModuleSettings }, "featureModules">, id: FeatureModuleId) {
@@ -151,6 +153,11 @@ export function isUserNavigationPathAllowed(pathname: string, menuPermissions: r
     if (root === "prompts") return (featureModules["my-prompts"] !== false && menuPermissions.includes("my-prompts")) || (featureModules["prompt-library"] !== false && menuPermissions.includes("prompt-library"));
     const moduleId = featureModuleForPathname(pathname);
     if (!moduleId) return true;
+    if (moduleId === "school-management") {
+        if (featureModules[moduleId] === false) return false;
+        if (pathname === "/school/join") return true;
+        return hasActiveSchoolRole(schoolContext, "teacher") && schoolContext?.canManageSchool === true;
+    }
     if (featureModules[moduleId] === false || !menuPermissions.includes(moduleId as UserNavigationMenuPermission)) return false;
     if (moduleId === "teaching") return hasActiveSchoolRole(schoolContext, "teacher");
     if (moduleId === "learning") return hasActiveSchoolRole(schoolContext, "student");

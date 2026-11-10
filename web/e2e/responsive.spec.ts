@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { selectCanvasTheme } from "./canvas-e2e-helpers";
 import { billingProductsFixture, expectDialogWithinViewport, expectNoHorizontalOverflow, masonryGalleryFixture, masonryLayoutIsReady, mockCreativeImageUploads, openCreativeHistory, readMasonryLayout } from "./responsive-helpers";
 
 async function waitForCreativeComposerReady(page: Page) {
@@ -332,10 +333,15 @@ test("creative composer controls return to a neutral palette after selection", a
         const preferencePopover = page.locator(".ant-popover").last();
         await openComposerPopover(preferenceTrigger, preferencePopover);
         await expect.poll(() => readPalette(preferenceTrigger)).not.toEqual(neutralPalette);
-        await preferencePopover.getByRole("tab", { name: "输出" }).click();
-        const configuredPreferenceTrigger = page.getByRole("button", { name: "生成参数：智能参数 · 10秒" });
-        await selectComposerPopoverOption(preferenceTrigger, preferencePopover, preferencePopover.getByRole("button", { name: "输入视频时长 10 秒" }), () => expect(configuredPreferenceTrigger).toBeVisible());
-        await page.keyboard.press("Escape");
+        const duration = preferencePopover.getByRole("slider");
+        const maximum = await duration.getAttribute("aria-valuemax");
+        expect(Number(maximum)).toBeGreaterThan(0);
+        const configuredPreferenceTrigger = page.getByRole("button", { name: `生成参数：智能参数 · ${maximum}秒` });
+        await duration.focus();
+        await duration.press("End");
+        await expect(duration).toHaveAttribute("aria-valuenow", maximum!);
+        await expect(configuredPreferenceTrigger).toBeVisible();
+        await configuredPreferenceTrigger.click();
         await expect(preferencePopover).toBeHidden();
 
         await expect.poll(() => readPalette(configuredPreferenceTrigger)).toEqual(neutralPalette);
@@ -432,10 +438,10 @@ test("Agent generation inputs apply immediately and reveal video frame slots", a
     await expect(preferencePopover.getByText("1024×1536", { exact: true })).toBeVisible();
     await expect(preferencePopover.getByRole("button", { name: "应用", exact: true })).toHaveCount(0);
 
-    await preferencePopover.getByRole("tab", { name: "输出" }).click();
-    const countInput = preferencePopover.getByRole("textbox", { name: "自定义生成数量" });
-    await countInput.fill("6");
-    await expect(countInput).toHaveValue("6");
+    // Exercise an advertised model count; unconstrained counts retain their contract-level tests.
+    const count = preferencePopover.getByRole("button", { name: /^选择图片生成数量 4\s*(?:张|份)$/ });
+    await count.click();
+    await expect(count).toHaveAttribute("aria-pressed", "true");
     if (process.env.VOZEB_PRO_VISUAL_CAPTURE === "1") {
         const screenshotPath = testInfo.outputPath(`agent-immediate-parameters-${testInfo.project.name}.png`);
         await page.screenshot({ path: screenshotPath });
@@ -443,18 +449,17 @@ test("Agent generation inputs apply immediately and reveal video frame slots", a
     }
 
     await preferencePopover.getByRole("button", { name: "视频", exact: true }).click();
-    await preferencePopover.getByRole("tab", { name: "输出" }).click();
-    const durationInput = preferencePopover.getByRole("spinbutton", { name: "输入视频时长" });
-    await expect(durationInput).not.toHaveAttribute("max");
-    await durationInput.fill("60");
-    await durationInput.press("Tab");
-    await expect(durationInput).toHaveValue("60");
-    await preferencePopover.getByRole("tab", { name: "画面" }).click();
+    const durationInput = preferencePopover.getByRole("slider");
+    const supportedMaximum = await durationInput.getAttribute("aria-valuemax");
+    expect(Number(supportedMaximum)).toBeGreaterThan(0);
+    await durationInput.focus();
+    await durationInput.press("End");
+    await expect(durationInput).toHaveAttribute("aria-valuenow", supportedMaximum!);
     const firstLastOption = preferencePopover.getByRole("button", { name: "选择视频参考方式 首尾帧" });
     await expect(firstLastOption).toBeVisible();
     await firstLastOption.click();
-    await expect(page.getByRole("button", { name: "当前创作类型：Agent 模式" })).toBeVisible();
-    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "当前创作类型：视频生成" })).toBeVisible();
+    await page.getByRole("button", { name: /^生成参数：/ }).click();
     await expect(preferencePopover).toBeHidden();
 
     const frames = page.locator('[aria-label="视频首尾帧"]');
@@ -688,7 +693,7 @@ test("creative conversation keeps successful media rounds copy-only", async ({ p
         const style = getComputedStyle(element);
         return { disabled: (element as HTMLButtonElement).disabled, backgroundImage: style.backgroundImage, backgroundColor: style.backgroundColor };
     });
-    expect(disabledSendAppearance).toEqual({ disabled: true, backgroundImage: "none", backgroundColor: "rgb(226, 229, 232)" });
+    expect(disabledSendAppearance).toEqual({ disabled: true, backgroundImage: "none", backgroundColor: "rgba(16, 38, 84, 0.1)" });
     expect(compactAppearance.composerHeight).toBeLessThan(expandedComposerHeight);
     expect(compactAppearance.shellHeight).toBeLessThan(expandedComposerHeight);
     await page.getByRole("button", { name: "回到底部" }).click();
@@ -960,7 +965,7 @@ test("Agent text assets with emoji remain visible after hydration and refresh", 
 });
 
 test("creative workspaces remain usable without horizontal overflow in light and dark themes", async ({ page, request }) => {
-    const created = await request.post("/api/drama/projects", { data: { title: "E2E 短剧项目", ratio: "9:16" } });
+    const created = await request.post("/api/drama/projects", { data: { title: "E2E 短剧项目", initialScript: "学生讨论镜头练习。", ratio: "9:16" } });
     expect(created.ok(), await created.text()).toBe(true);
     const project = ((await created.json()) as { data: { project: { id: string } } }).data.project;
     const canvasCreated = await request.post("/api/canvas/projects", {
@@ -1078,9 +1083,10 @@ test("creative workspaces remain usable without horizontal overflow in light and
                 await expect(page.locator("[data-drama-episode-sidebar]")).toBeVisible();
             }
 
-            await page.getByRole("button", { name: "打开项目 Agent" }).click();
+            const openAgent = page.getByRole("button", { name: "打开项目 Agent", exact: true });
+            if (await openAgent.isVisible()) await openAgent.click();
             let agentSurface: Locator;
-            if ((page.viewportSize()?.width || 0) >= 1280) {
+            if ((page.viewportSize()?.width || 0) >= 1180) {
                 const agentPanel = page.getByRole("complementary", { name: "项目 Agent 面板" });
                 await expect(agentPanel).toBeVisible();
                 const contentBox = await productionSurface.boundingBox();
@@ -1123,15 +1129,11 @@ test("creative workspaces remain usable without horizontal overflow in light and
             await expect(page.getByRole("dialog", { name: "项目 Agent", exact: true })).toBeHidden();
         }
         if (route === canvasRoute) {
-            await expect(page.locator("[data-canvas-surface]")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+            await selectCanvasTheme(page, "light");
             if ((page.viewportSize()?.width || 0) <= 768) {
-                await page.getByRole("button", { name: "打开 Agent", exact: true }).click();
-                const agentPanel = page.getByLabel("Canvas Agent 对话面板");
-                await expect(agentPanel).toBeVisible();
-                await expect.poll(async () => Math.round((await agentPanel.boundingBox())?.width || 0)).toBe(page.viewportSize()?.width || 0);
-                await expect(page.getByPlaceholder("描述你想让 Agent 如何操作画布")).toBeVisible();
-                await expectNoHorizontalOverflow(page, `${route} Agent`);
-                await page.getByRole("button", { name: "收起 Agent 面板" }).click();
+                await expect(page.getByRole("button", { name: "Agent（敬请期待）", exact: true })).toBeDisabled();
+                await expect(page.getByLabel("Canvas Agent 对话面板")).toHaveCount(0);
+                await expectNoHorizontalOverflow(page, `${route} Agent unavailable`);
             }
             await page.locator('[data-node-id="responsive-config"]').click({ position: { x: 32, y: 32 } });
             await expect.poll(() => page.locator('[contenteditable="true"]').evaluate((element) => document.activeElement === element)).toBe(true);
@@ -1158,7 +1160,7 @@ test("creative workspaces remain usable without horizontal overflow in light and
     await expect(page.locator("html")).toHaveClass(/dark/);
     await expectNoHorizontalOverflow(page, "/create dark");
     await page.goto(canvasRoute, { waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-canvas-surface]")).toHaveCSS("background-color", "rgb(9, 11, 16)");
+    await selectCanvasTheme(page, "dark");
     await expectNoHorizontalOverflow(page, `${canvasRoute} dark`);
     await page.goto(dramaRoute, { waitUntil: "domcontentloaded" });
     await expect(page.locator("html")).toHaveClass(/dark/);
@@ -1167,76 +1169,43 @@ test("creative workspaces remain usable without horizontal overflow in light and
     await expectNoHorizontalOverflow(page, `${dramaRoute} dark`);
 });
 
-test("admin user editor groups permission controls and keeps the footer visible", async ({ page }, testInfo) => {
-    await page.goto("/admin?section=users", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "用户管理" })).toBeVisible();
-    await expect(page.locator("[data-hydrated='true']")).toHaveCount(1);
-    await expect(page.getByText(/共\s*\d+/).first()).toBeVisible();
-    const userSearchInput = page.getByRole("textbox", { name: "搜索用户" });
-    await userSearchInput.fill("e2e_admin");
-
-    const adminRow = page.getByRole("row").filter({ hasText: "@e2e_admin" });
-    await expect(adminRow).toBeVisible();
-    await adminRow.getByRole("button", { name: "管理", exact: true }).click();
-
-    const dialog = page.getByRole("dialog", { name: /用户管理/ });
-    await expect(dialog).toBeVisible();
-    await expectDialogWithinViewport(dialog);
-
-    const layout = await dialog.evaluate((element) => {
-        const bounds = (target: Element | null) => {
-            const rect = target?.getBoundingClientRect();
-            return rect ? { left: Math.round(rect.left), right: Math.round(rect.right), top: Math.round(rect.top), bottom: Math.round(rect.bottom) } : null;
-        };
-        const body = element.querySelector<HTMLElement>(".ant-modal-body");
-        const footer = element.querySelector<HTMLElement>(".ant-modal-footer");
-        const grid = element.querySelector<HTMLElement>("[data-admin-permission-grid]");
-        const groups = [...element.querySelectorAll<HTMLElement>("[data-admin-permission-group]")];
-        return {
-            columns: [...new Set(groups.map((group) => Math.round(group.getBoundingClientRect().left)))],
-            gridDisplay: grid ? getComputedStyle(grid).display : null,
-            groups: groups.map((group) => {
-                const rect = group.getBoundingClientRect();
-                const items = [...group.querySelectorAll<HTMLElement>("[data-admin-permission-item]")].map((item) => bounds(item));
-                return { left: Math.round(rect.left), right: Math.round(rect.right), top: Math.round(rect.top), width: Math.round(rect.width), items };
-            }),
-            bodyScrollable: Boolean(body && body.scrollHeight > body.clientHeight),
-            dialog: bounds(element),
-            footer: bounds(footer),
-            documentClientWidth: document.documentElement.clientWidth,
-            documentScrollWidth: document.documentElement.scrollWidth,
-        };
-    });
-
-    const mobile = testInfo.project.name.startsWith("mobile-");
-    expect(layout.columns).toHaveLength(mobile ? 1 : 2);
-    expect(layout.gridDisplay).toBe("grid");
-    if (mobile) {
-        expect(layout.groups.every((group) => group.left === layout.groups[0]?.left)).toBe(true);
-    } else {
-        for (const row of [layout.groups.slice(0, 2), layout.groups.slice(2, 4)]) {
-            expect(new Set(row.map((group) => group.top)).size).toBe(1);
-            expect(row.map((group) => group.left)).toEqual(layout.columns);
-            expect(Math.max(...row.map((group) => group.width)) - Math.min(...row.map((group) => group.width))).toBeLessThanOrEqual(1);
-        }
+test("ordinary user editor keeps role administration separate and its footer usable", async ({ page, request }) => {
+    const username = `editor_${randomUUID().replaceAll("-", "").slice(0, 10)}`;
+    const created = await request.post("/api/admin/users", { data: { username, displayName: username, password: "VozebE2E!2026" } });
+    expect(created.ok(), await created.text()).toBe(true);
+    const { user } = (await created.json()) as { user: { id: string } };
+    try {
+        await page.goto("/admin?section=users", { waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("heading", { name: "用户管理", exact: true })).toBeVisible();
+        await page.getByRole("textbox", { name: "搜索用户" }).fill(username);
+        const row = page.getByRole("row").filter({ hasText: username });
+        await expect(row).toBeVisible();
+        await row.getByRole("button", { name: "管理", exact: true }).click();
+        const dialog = page.getByRole("dialog", { name: `用户管理：${username}`, exact: true });
+        await expect(dialog).toBeVisible();
+        await expectDialogWithinViewport(dialog);
+        await expect(dialog.getByLabel("用户名", { exact: true })).toBeDisabled();
+        await expect(dialog.locator("[data-admin-permission-grid], [data-admin-permission-group]")).toHaveCount(0);
+        await expect(dialog.getByRole("checkbox", { name: /经营分析/ })).toHaveCount(0);
+        const nickname = `${username}_edited`;
+        await dialog.getByLabel("显示昵称", { exact: true }).fill(nickname);
+        const footer = dialog.locator(".ant-modal-footer");
+        await expect(footer.getByRole("button", { name: "保存", exact: true })).toBeVisible();
+        await expectDialogWithinViewport(footer);
+        await expectNoHorizontalOverflow(page, "ordinary user editor");
+        const saved = page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname === `/api/admin/users/${user.id}`);
+        await footer.getByRole("button", { name: "保存", exact: true }).click();
+        const response = await saved;
+        expect(response.ok(), await response.text()).toBe(true);
+        await expect(dialog).toBeHidden();
+        const listed = await request.get(`/api/admin/users?page=1&pageSize=20&keyword=${encodeURIComponent(username)}`);
+        expect(listed.ok()).toBe(true);
+        const body = (await listed.json()) as { users: Array<{ id: string; displayName: string; role: string }> };
+        expect(body.users.find((candidate) => candidate.id === user.id)).toMatchObject({ displayName: nickname, role: "user" });
+    } finally {
+        const removed = await request.delete(`/api/admin/users/${user.id}`);
+        expect(removed.ok(), await removed.text()).toBe(true);
     }
-    for (const group of layout.groups) {
-        expect(group.items.length).toBeGreaterThan(0);
-        expect(group.items.every((item) => item && item.left >= group.left && item.right <= group.right)).toBe(true);
-    }
-    expect(layout.bodyScrollable).toBe(true);
-    expect(layout.dialog?.left).toBeGreaterThanOrEqual(0);
-    expect(layout.dialog?.right).toBeLessThanOrEqual(page.viewportSize()!.width);
-    expect(layout.footer?.top).toBeGreaterThanOrEqual(0);
-    expect(layout.footer?.bottom).toBeLessThanOrEqual(page.viewportSize()!.height);
-    expect(layout.documentScrollWidth).toBeLessThanOrEqual(layout.documentClientWidth + 1);
-
-    const analyticsPermission = dialog.getByRole("checkbox", { name: /经营分析/ });
-    const initiallyChecked = await analyticsPermission.isChecked();
-    await analyticsPermission.click();
-    expect(await analyticsPermission.isChecked()).toBe(!initiallyChecked);
-    await analyticsPermission.click();
-    expect(await analyticsPermission.isChecked()).toBe(initiallyChecked);
 });
 
 test("conversation and Canvas deletion stay deleted after refresh", async ({ page, request }) => {
@@ -1259,13 +1228,20 @@ test("conversation and Canvas deletion stay deleted after refresh", async ({ pag
     const conversationDialog = page.getByRole("dialog", { name: "删除这条对话？" });
     await expect(conversationDialog).toContainText("永久删除消息、生成记录");
     await expectDialogWithinViewport(conversationDialog);
+    const deleteResponse = page.waitForResponse((response) => response.request().method() === "DELETE" && new URL(response.url()).pathname === "/api/creative/conversations");
     await conversationDialog.getByRole("button", { name: /删\s*除/ }).click();
+    const removed = await deleteResponse;
+    expect(removed.ok(), await removed.text()).toBe(true);
+    await expect(conversationDialog).toBeHidden();
     await expect(historyDialog.getByText(conversationTitles[0], { exact: true })).toBeHidden();
     expect((await request.get(`/api/creative/conversations/${conversations[0].id}`)).status()).toBe(404);
 
+    historyDialog = await openCreativeHistory(page);
     await historyDialog.getByRole("button", { name: "批量管理" }).click();
-    await historyDialog.getByRole("checkbox", { name: `选择${conversationTitles[1]}` }).check();
-    await historyDialog.getByRole("checkbox", { name: `选择${conversationTitles[2]}` }).check();
+    await historyDialog.getByRole("checkbox", { name: `选择${conversationTitles[1]}` }).press("Space");
+    await expect(historyDialog.getByRole("checkbox", { name: `选择${conversationTitles[1]}` })).toBeChecked();
+    await historyDialog.getByRole("checkbox", { name: `选择${conversationTitles[2]}` }).press("Space");
+    await expect(historyDialog.getByRole("checkbox", { name: `选择${conversationTitles[2]}` })).toBeChecked();
     await historyDialog.getByRole("button", { name: "批量删除" }).click();
     const batchDialog = page.getByRole("dialog", { name: "删除 2 条对话？" });
     await expectDialogWithinViewport(batchDialog);
@@ -1296,49 +1272,32 @@ test("conversation and Canvas deletion stay deleted after refresh", async ({ pag
     expect((await request.get(`/api/creative/conversations/${canvasProject.creativeConversationId}`)).status()).toBe(404);
 });
 
-test("eight billing plans remain dense and usable across desktop and mobile", async ({ page }, testInfo) => {
-    await page.route("**/api/billing/products", (route) =>
-        route.fulfill({
-            status: 200,
-            contentType: "application/json",
-            body: JSON.stringify({ products: billingProductsFixture(), paymentProviders: ["payply"] }),
-        }),
-    );
-    await page.goto("/profile?section=billing", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "可选套餐" })).toBeVisible();
-    await expect.poll(() => page.locator("[role='tab']").count()).toBe(8);
-
-    const layout = await page.evaluate(() => {
-        const visible = (element: Element) => {
-            const bounds = element.getBoundingClientRect();
-            return bounds.width > 0 && bounds.height > 0;
-        };
-        const cards = [...document.querySelectorAll<HTMLElement>("[data-billing-plan-card]")].filter(visible);
-        const tabs = [...document.querySelectorAll<HTMLElement>("[role='tab']")];
-        const tabViewport = tabs[0]?.parentElement?.parentElement;
-        return {
-            documentClientWidth: document.documentElement.clientWidth,
-            documentScrollWidth: document.documentElement.scrollWidth,
-            visibleCards: cards.length,
-            cardOverflow: cards.some((card) => card.scrollWidth > card.clientWidth + 1),
-            actionsOutsideCards: cards.some((card) => {
-                const action = card.querySelector<HTMLElement>("[data-billing-plan-action]");
-                if (!action) return true;
-                const cardBounds = card.getBoundingClientRect();
-                const actionBounds = action.getBoundingClientRect();
-                return actionBounds.left < cardBounds.left - 1 || actionBounds.right > cardBounds.right + 1;
-            }),
-            tabViewportWidth: tabViewport?.clientWidth || 0,
-            tabScrollWidth: tabViewport?.scrollWidth || 0,
-        };
+test("user billing entry stays hidden even when eight plans exist", async ({ page }) => {
+    let requests = 0;
+    await page.route("**/api/billing/products", (route) => {
+        requests += 1;
+        return route.fulfill({ json: { products: billingProductsFixture(), paymentProviders: ["payply"] } });
     });
-
-    const mobile = testInfo.project.name.startsWith("mobile-");
-    expect(layout.visibleCards).toBe(mobile ? 1 : 8);
-    expect(layout.documentScrollWidth).toBeLessThanOrEqual(layout.documentClientWidth + 1);
-    expect(layout.cardOverflow).toBe(false);
-    expect(layout.actionsOutsideCards).toBe(false);
-    if (mobile) expect(layout.tabScrollWidth).toBeGreaterThan(layout.tabViewportWidth);
+    await page.goto("/profile?section=billing", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "可选套餐", exact: true })).toHaveCount(0);
+    await expect(page.locator("[data-billing-plan-card], [data-billing-plan-action]")).toHaveCount(0);
+    for (const name of ["套餐中心", "我的优惠券", "订单记录", "积分记录", "消费记录", "邀请有礼", "账户与安全"]) {
+        await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+    }
+    for (const section of ["账户概览", "个人资料"])
+        await expect(
+            page
+                .getByRole("button", { name: new RegExp(`^${section}(?: |$)`) })
+                .filter({ visible: true })
+                .or(page.getByRole("combobox", { name: "切换个人中心分区" })),
+        ).toBeVisible();
+    await expectNoHorizontalOverflow(page, "profile with hidden billing entry");
+    expect(requests).toBe(0);
+    for (const path of ["/billing", "/billing/checkout"]) {
+        await page.goto(path);
+        await expect(page).toHaveURL(/\/profile$/);
+        await expect(page.locator("[data-billing-plan-card], [data-billing-plan-action]")).toHaveCount(0);
+    }
 });
 
 test("inspiration works fill each row before continuing down the shortest masonry column", async ({ page }, testInfo) => {

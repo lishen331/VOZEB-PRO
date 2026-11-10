@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
+import { Form } from "@/components/gamma-ui/gamma-ant-form";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Alert, Button, Checkbox, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
@@ -70,16 +71,16 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                             <h3 className="font-medium">模块状态</h3>
                             <p className="mt-1 text-xs text-zinc-500">关闭后隐藏用户端入口，已有项目不删除。</p>
                         </div>
-                        <Switch checked={script.enabled} onChange={(enabled) => updateScript({ enabled })} />
+                        <Switch aria-label="显示剧本练习模块" checked={script.enabled} onChange={(enabled) => updateScript({ enabled })} />
                     </div>
                 </div>
                 <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                     <h3 className="font-medium">剧本模型</h3>
-                    <div className="mt-3 grid gap-3">
-                        <Field label="剧本生成模型">
+                    <Form layout="vertical" className="mt-3 grid gap-3">
+                        <Form.Item label="剧本生成模型" className="mb-0">
                             <Select value={script.defaultModelId || undefined} placeholder="选择文本逻辑模型" options={modelOptions} onChange={(value) => updateScript({ defaultModelId: value, endpointId: "" })} />
-                        </Field>
-                        <Field label="备用剧本模型">
+                        </Form.Item>
+                        <Form.Item label="备用剧本模型" className="mb-0">
                             <Select
                                 allowClear
                                 value={script.fallbackModelId || undefined}
@@ -87,15 +88,15 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                                 options={modelOptions.filter((item) => item.value !== script.defaultModelId)}
                                 onChange={(value) => updateScript({ fallbackModelId: value || "" })}
                             />
-                        </Field>
-                        <Field label="使用渠道">
+                        </Form.Item>
+                        <Form.Item label="使用渠道" className="mb-0">
                             <Select allowClear value={script.endpointId || undefined} placeholder="自动选择可用渠道" options={channelOptions} onChange={(value) => updateScript({ endpointId: value || "" })} />
-                        </Field>
+                        </Form.Item>
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <Field label="默认语言">
+                            <Form.Item label="默认语言" className="mb-0">
                                 <Input value={script.defaultLanguage} onChange={(event) => updateScript({ defaultLanguage: event.target.value })} />
-                            </Field>
-                            <Field label="默认格式">
+                            </Form.Item>
+                            <Form.Item label="默认格式" className="mb-0">
                                 <Select
                                     value={script.defaultFormat}
                                     options={[
@@ -104,9 +105,9 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                                     ]}
                                     onChange={(value) => updateScript({ defaultFormat: value })}
                                 />
-                            </Field>
+                            </Form.Item>
                         </div>
-                    </div>
+                    </Form>
                     {!script.defaultModelId ? (
                         <Alert className="mt-3" type="warning" showIcon message="尚未设置剧本生成模型，用户端将不可生成剧本。" />
                     ) : channelOptions.length ? (
@@ -160,18 +161,5 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                 </Button>
             </div>
         </section>
-    );
-}
-
-/**
- * 本页的控件值都由 settings 直接驱动，不经过 Form 的字段存储，
- * 所以用这个轻量标签容器代替 Form.Item（后者必须放在 <Form> 内，否则整页渲染报错）。
- */
-function Field({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <div className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-medium text-[var(--gm-text)]">{label}</span>
-            {children}
-        </div>
     );
 }

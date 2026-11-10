@@ -168,12 +168,12 @@ test("coupon wallet paginates claimable templates and owned coupons independentl
     const paginations = page.locator(".ant-pagination");
     await expect(paginations).toHaveCount(2);
 
-    await paginations.nth(0).locator(".ant-pagination-next button").click();
+    await paginations.nth(0).getByRole("button", { name: "下一页", exact: true }).click();
     await expect(page.getByText("可领取活动 2-1", { exact: true })).toBeVisible();
     await expect(page.getByText("已领取券页 1-1", { exact: true })).toBeVisible();
     expect(requests).toContainEqual({ page: 1, templatePage: 2, includeTemplates: true });
 
-    await paginations.nth(1).locator(".ant-pagination-next button").click();
+    await paginations.nth(1).getByRole("button", { name: "下一页", exact: true }).click();
     await expect(page.getByText("已领取券页 2-1", { exact: true })).toBeVisible();
     await expect(page.getByText("可领取活动 2-1", { exact: true })).toBeVisible();
     expect(requests.some((request) => request.page === 2 && !request.includeTemplates)).toBe(true);
@@ -189,12 +189,12 @@ test("referral progress and rewards retain separate server pages", async ({ page
     const paginations = page.locator(".ant-pagination");
     await expect(paginations).toHaveCount(2);
 
-    await paginations.nth(0).locator(".ant-pagination-next button").click();
+    await paginations.nth(0).getByRole("button", { name: "下一页", exact: true }).click();
     await expect(page.getByText("受邀用户页 2", { exact: true })).toBeVisible();
     await expect(page.getByText(/奖励页 1/)).toBeVisible();
     expect(requests).toContainEqual({ referralsPage: 2, rewardsPage: 1 });
 
-    await paginations.nth(1).locator(".ant-pagination-next button").click();
+    await paginations.nth(1).getByRole("button", { name: "下一页", exact: true }).click();
     await expect(page.getByText(/奖励页 2/)).toBeVisible();
     await expect(page.getByText("受邀用户页 2", { exact: true })).toBeVisible();
     expect(requests).toContainEqual({ referralsPage: 2, rewardsPage: 2 });

@@ -671,6 +671,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                           ...effectiveConfig,
                           model: savedImageMetadata.model || effectiveConfig.imageModel || effectiveConfig.model,
                           quality: savedImageMetadata.quality || effectiveConfig.quality,
+                          imageResolution: savedImageMetadata.resolution || effectiveConfig.imageResolution,
                           size: savedImageMetadata.size || effectiveConfig.size,
                           count: "1",
                       }
@@ -768,7 +769,15 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                 }
 
                 const generationMetadata = savedImageMetadata?.generationType
-                    ? { generationType: savedImageMetadata.generationType, model: generationConfig.model, size: generationConfig.size, quality: generationConfig.quality, count: savedImageMetadata.count || 1, references: savedImageMetadata.references }
+                    ? {
+                          generationType: savedImageMetadata.generationType,
+                          model: generationConfig.model,
+                          size: generationConfig.size,
+                          quality: generationConfig.quality,
+                          resolution: generationConfig.imageResolution,
+                          count: savedImageMetadata.count || 1,
+                          references: savedImageMetadata.references,
+                      }
                     : buildImageGenerationMetadata(useReferenceImages ? "edit" : "generation", generationConfig, 1, retryImages);
                 setNodes((prev) =>
                     prev.map((item) =>

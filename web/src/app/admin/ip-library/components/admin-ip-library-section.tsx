@@ -720,7 +720,7 @@ function GrantPanel({
     };
     return (
         <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-zinc-500">授权后，该校管理员、教师和学生可直接访问对应子 IP。</p>
                 <Space>
                     <Tooltip title="刷新">
