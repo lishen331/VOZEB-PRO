@@ -124,12 +124,8 @@ export function featureModuleDefinition(id: FeatureModuleId) {
 
 export function normalizeFeatureModuleSettings(value: unknown): FeatureModuleSettings {
     const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-    return {
-        ...DEFAULT_CANVAS_UI_FEATURES,
-        ...input,
-        ...Object.fromEntries(Object.values(CANVAS_UI_FEATURES).map((id) => [id, input[id] === true])),
-        ...Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])),
-    } as FeatureModuleSettings;
+    const modules = Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])) as FeatureModuleSettings;
+    return { ...DEFAULT_CANVAS_UI_FEATURES, ...input, ...Object.fromEntries(Object.values(CANVAS_UI_FEATURES).map((id) => [id, input[id] === true])), ...modules };
 }
 
 export function isFeatureModuleEnabled(settings: Pick<{ featureModules: FeatureModuleSettings }, "featureModules">, id: FeatureModuleId) {
