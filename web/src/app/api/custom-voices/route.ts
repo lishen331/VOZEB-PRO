@@ -13,7 +13,8 @@ import { writePersistentMediaDataUrl } from "@/lib/server/reference-asset-store"
 /** 上游返回的 Base64 试听音频落盘，换成可播放地址。失败不影响音色本身，只丢掉试听。 */
 async function persistVoicePreview(voiceId: string, base64: string, mimeType: string) {
     try {
-        const stored = await writePersistentMediaDataUrl(`data:${mimeType};base64,${base64}`, "audio", { ownerUserId: "system", source: "custom-voice-preview", originalName: `${voiceId}.mp3` });
+        const extension = mimeType === "audio/wav" ? "wav" : mimeType === "audio/mp4" ? "m4a" : "mp3";
+        const stored = await writePersistentMediaDataUrl(`data:${mimeType};base64,${base64}`, "audio", { ownerUserId: "system", source: "custom-voice-preview", originalName: `${voiceId}.${extension}` });
         return stored.url;
     } catch {
         return undefined;
