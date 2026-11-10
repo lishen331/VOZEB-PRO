@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DIALOG_LIMITS, dialogRoles, parseDialogScript, validateDialog } from "./audio-dialog-service";
+import { DIALOG_LIMITS, dialogRoles, detectDialogScript, parseDialogScript, validateDialog } from "./audio-dialog-script";
 
 describe("dialog script parsing", () => {
     it("splits lines on Chinese and ASCII colons", () => {
@@ -45,5 +45,16 @@ describe("dialog validation", () => {
     it("rejects too many roles", () => {
         const many = Array.from({ length: DIALOG_LIMITS.maxRoles + 1 }, (_, i) => `角色${i}：你好`).join("\n");
         expect(validateDialog(parseDialogScript(many), {})).toContain("最多");
+    });
+});
+
+describe("detectDialogScript", () => {
+    const twoRoles = ["小美：你好", "阿强：你好"].join("\n");
+    const oneRole = ["小美：你好", "小美：再见"].join("\n");
+
+    it("suggests dialogue mode once two roles appear", () => {
+        expect(detectDialogScript(twoRoles).suggested).toBe(true);
+        expect(detectDialogScript(oneRole).suggested).toBe(false);
+        expect(detectDialogScript("普通的一句话").suggested).toBe(false);
     });
 });
