@@ -22,12 +22,24 @@ export type CustomVoice = {
     upstreamRequestId?: string;
     lastUsedAt?: string;
     expiresAt?: string;
+    /** 设计和克隆出来的音色默认保存；设计但用户没点保存的为 false，不进「我的音色」。 */
+    saved?: boolean;
+    /** 克隆去重指纹：用户 + 渠道 + 合成模型 + 参考音频。 */
+    sourceFingerprint?: string;
+    consentAt?: string;
+    /** MiniMax 音色首次合成成功、已扣音色费的时间。 */
+    unlockedAt?: string;
     createdAt: string;
     updatedAt: string;
 };
 
 type CreateCustomVoiceInput = Pick<CustomVoice, "ownerUserId" | "channelId" | "provider" | "ttsModel" | "kind" | "name"> & { id?: string };
-type UpdateCustomVoiceInput = Partial<Pick<CustomVoice, "name" | "status" | "upstreamVoiceId" | "previewUrl" | "previewMimeType" | "failureReason" | "shared" | "lastUsedAt" | "expiresAt" | "chargeReceiptId" | "upstreamRequestId">>;
+type UpdateCustomVoiceInput = Partial<
+    Pick<
+        CustomVoice,
+        "name" | "status" | "upstreamVoiceId" | "previewUrl" | "previewMimeType" | "failureReason" | "shared" | "lastUsedAt" | "expiresAt" | "chargeReceiptId" | "upstreamRequestId" | "saved" | "sourceFingerprint" | "consentAt" | "unlockedAt"
+    >
+>;
 
 const DATA_FILE = "custom-voices.json";
 
@@ -128,6 +140,22 @@ export async function updateCustomVoice(id: string, update: UpdateCustomVoiceInp
             sets.push(`upstream_request_id = $${i++}`);
             values.push(update.upstreamRequestId);
         }
+        if (update.saved !== undefined) {
+            sets.push(`saved = $${i++}`);
+            values.push(update.saved);
+        }
+        if (update.sourceFingerprint !== undefined) {
+            sets.push(`source_fingerprint = $${i++}`);
+            values.push(update.sourceFingerprint);
+        }
+        if (update.consentAt !== undefined) {
+            sets.push(`consent_at = $${i++}`);
+            values.push(update.consentAt);
+        }
+        if (update.unlockedAt !== undefined) {
+            sets.push(`unlocked_at = $${i++}`);
+            values.push(update.unlockedAt);
+        }
         values.push(id);
         await query(`UPDATE custom_voices SET ${sets.join(", ")} WHERE id = $${i}`, values);
         return;
@@ -222,6 +250,10 @@ function fromPostgres(row: Record<string, unknown>): CustomVoice {
         upstreamRequestId: row.upstream_request_id ? String(row.upstream_request_id) : undefined,
         lastUsedAt: row.last_used_at ? new Date(row.last_used_at as Date).toISOString() : undefined,
         expiresAt: row.expires_at ? new Date(row.expires_at as Date).toISOString() : undefined,
+        saved: row.saved === undefined || row.saved === null ? true : Boolean(row.saved),
+        sourceFingerprint: row.source_fingerprint ? String(row.source_fingerprint) : undefined,
+        consentAt: row.consent_at ? new Date(row.consent_at as Date).toISOString() : undefined,
+        unlockedAt: row.unlocked_at ? new Date(row.unlocked_at as Date).toISOString() : undefined,
         createdAt: new Date(row.created_at as Date).toISOString(),
         updatedAt: new Date(row.updated_at as Date).toISOString(),
     };
