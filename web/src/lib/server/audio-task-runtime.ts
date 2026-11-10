@@ -23,12 +23,13 @@ import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 import { recordGenerationTaskLogResult } from "@/lib/server/generation-log-task-service";
 import { getGenerationLogForUser } from "@/lib/server/generation-log-store";
-import { audioUpstreamFields } from "@/lib/audio-model-params";
+import { audioModelFamily, audioUpstreamFields } from "@/lib/audio-model-params";
 import { createCustomVoice, getCustomVoice, listCustomVoices, updateCustomVoice } from "@/lib/server/custom-voice-store";
 import { randomUUID } from "node:crypto";
 import type { SystemModelChannel } from "@/lib/auth/store";
 import { normalizeVoiceCustomization, type VoiceCustomizationConfig } from "@/lib/custom-voice-config";
 import { submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign, upstreamVoicePrefix } from "@/lib/server/custom-voice-upstream";
+import { concatAudioWithGaps, validateDialog } from "@/lib/server/audio-dialog-service";
 import type { AudioTaskConfig } from "@/lib/server/audio-task-store";
 
 export type AudioUpstreamStep =
@@ -72,6 +73,8 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
         }
 
         try {
+            // 多人对话：逐句合成后按序拼接成一段音频，不走上游单次创建流程。
+            if (config.mode === "dialog") return await runDialogAudioTask(task, config, origin, cookie, workerUserId);
             // Handle custom voice if specified
             let voiceId = config.voice;
             if (config.mode === "design" || config.mode === "clone") {
@@ -277,6 +280,82 @@ async function persistVoicePreview(voiceId: string, base64: string, mimeType: st
     const extension = mimeType === "audio/wav" ? "wav" : mimeType === "audio/mp4" ? "m4a" : "mp3";
     const stored = await writePersistentMediaDataUrl(`data:${mimeType};base64,${base64}`, "audio", { ownerUserId: "system", source: "custom-voice-preview", originalName: `${voiceId}.${extension}` });
     return stored.url;
+}
+
+/**
+ * 多人对话：每句单独调一次合成接口（带上该角色的音色和指令），按顺序拼接成一个文件。
+ * 并发 3，保持原顺序；任一句失败则整单失败，由外层走退款。
+ */
+async function runDialogAudioTask(task: AudioTask, config: AudioTaskConfig, origin: string, cookie: string, workerUserId: string): Promise<AudioUpstreamStep> {
+    const dialog = config.dialog;
+    if (!dialog?.lines?.length) throw new GenerationSubmissionSafeFailure("多人对话缺少台词");
+    const issue = validateDialog(dialog.lines, dialog.roles || {});
+    if (issue) throw new GenerationSubmissionSafeFailure(issue);
+    const family = audioModelFamily(config.model);
+    const extension = (config.format || "mp3").toLowerCase() === "wav" ? "wav" : "mp3";
+    const results: Array<Buffer | undefined> = new Array(dialog.lines.length);
+    let index = 0;
+    let failure = "";
+    const worker = async () => {
+        while (index < dialog.lines.length && !failure) {
+            const current = index++;
+            const line = dialog.lines[current];
+            const role = dialog.roles[line.role];
+            try {
+                results[current] = await synthesizeDialogLine(task, config, line, role, family, origin, cookie, workerUserId);
+            } catch (error) {
+                failure = error instanceof Error ? error.message : "多人对话合成失败";
+            }
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, dialog.lines.length) }, worker));
+    if (failure) throw new GenerationSubmissionSafeFailure(failure);
+    const segments = results.filter((bytes): bytes is Buffer => Boolean(bytes));
+    if (segments.length !== dialog.lines.length) throw new GenerationSubmissionSafeFailure("多人对话部分台词没有合成结果");
+    const joined = await concatAudioWithGaps(segments, extension);
+    await persistAudioBytes(task, origin, joined, extension === "wav" ? "audio/wav" : "audio/mpeg");
+    return { state: "completed" };
+}
+
+async function synthesizeDialogLine(task: AudioTask, config: AudioTaskConfig, line: { role: string; text: string }, role: { voice: string; instruction?: string; emotion?: string }, family: string, origin: string, cookie: string, workerUserId: string) {
+    const voiceId = role.voice;
+    const instruction = (role.instruction || "").trim();
+    const params: Record<string, unknown> = { ...(config.params || {}), voiceId };
+    if (family === "qwen" && instruction) params.instruction = instruction;
+    if (family === "minimax" && role.emotion) params.emotion = role.emotion;
+    const defaults = {
+        model: config.model,
+        input: line.text,
+        prompt: line.text,
+        text: line.text,
+        voice: voiceId,
+        response_format: config.format,
+        format: config.format,
+        speed: Number(config.speed) || 1,
+    };
+    const payload = { ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults), ...withoutUndefined(audioUpstreamFields(config.model, line.text, params, voiceId)) };
+    const { response } = await createAudioUpstream({ ...task, config }, origin, cookie, workerUserId, payload);
+    const contentType = response.headers.get("content-type")?.split(";")[0].toLowerCase() || "";
+    if (contentType.includes("json")) {
+        const text = await response.text();
+        let data: unknown;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new GenerationSubmissionSafeFailure("多人对话的音频接口返回了无效 JSON");
+        }
+        if (isProviderBusinessError(data)) throw new GenerationSubmissionSafeFailure(readProviderError(data) || `角色「${line.role}」合成失败`);
+        const directUrl = readProviderString(data, config.advancedConfig?.resultField, AUDIO_KEYS);
+        if (!directUrl) throw new GenerationSubmissionSafeFailure(`角色「${line.role}」没有返回音频`);
+        return await downloadAudioBytes(directUrl, line.role);
+    }
+    return Buffer.from(await response.arrayBuffer());
+}
+
+async function downloadAudioBytes(url: string, role: string) {
+    const response = await fetchSafeOutbound(url, { method: "GET", signal: AbortSignal.timeout(120_000) });
+    if (!response.ok) throw new GenerationSubmissionSafeFailure(`角色「${role}」的音频下载失败（HTTP ${response.status}）`);
+    return Buffer.from(await response.arrayBuffer());
 }
 
 export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string, cookie = "", workerUserId = ""): Promise<AudioUpstreamStep> {

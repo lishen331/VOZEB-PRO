@@ -20,7 +20,9 @@ export type AudioTaskConfig = {
     voice?: string;
     customVoiceId?: string;
     /** 生成模式：不填按 tts（普通合成）。设计、克隆在合成前先用上游创建一个音色。 */
-    mode?: "tts" | "design" | "clone";
+    mode?: "tts" | "design" | "clone" | "dialog";
+    /** 多人对话：解析后的台词与每个角色的音色 / 指令。 */
+    dialog?: { lines: Array<{ role: string; text: string }>; roles: Record<string, { voice: string; instruction?: string; emotion?: string }> };
     /** 设计模式：声音描述。 */
     voiceDescription?: string;
     /** 克隆模式：参考音频的可访问地址（站内签名地址或公网地址）。 */

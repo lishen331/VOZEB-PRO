@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { mediaTaskSource } from "@/lib/media-management-contract";
 import { resolveAudioModeOptions, resolveAudioTaskOptions } from "@/lib/server/audio-task-config";
+import { validateDialog } from "@/lib/server/audio-dialog-service";
 import { normalizeAudioParams, parseCustomVoiceId } from "@/lib/audio-model-params";
 import { getCustomVoice } from "@/lib/server/custom-voice-store";
 import { createAudioTask, type AudioTask, type AudioTaskConfig } from "@/lib/server/audio-task-store";
@@ -110,6 +111,10 @@ export async function POST(request: Request) {
         }
         if (modeOptions.mode === "design" && !modeOptions.voiceDescription) {
             return NextResponse.json({ error: "设计模式需要填写声音描述" }, { status: 400 });
+        }
+        if (modeOptions.mode === "dialog") {
+            const dialogIssue = validateDialog(modeOptions.dialog.lines, modeOptions.dialog.roles);
+            if (dialogIssue) return NextResponse.json({ error: dialogIssue }, { status: 400 });
         }
         const configs: AudioTaskConfig[] = candidates.map((channel) => ({
             ...channel,

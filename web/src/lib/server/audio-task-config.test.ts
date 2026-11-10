@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveAudioModeOptions, resolveAudioTaskOptions } from "./audio-task-config";
+import { resolveAudioModeOptions, resolveAudioTaskOptions, resolveDialogScript } from "./audio-task-config";
 
 describe("resolveAudioTaskOptions", () => {
     const defaults = { audioVoice: "nova", audioFormat: "wav" };
@@ -41,5 +41,28 @@ describe("resolveAudioModeOptions", () => {
 
     it("omits the fingerprint when the reference audio is missing", () => {
         expect(resolveAudioModeOptions({ mode: "clone", cloneConsent: true }, context)).toEqual({ mode: "clone", referenceAudioUrl: "", cloneConsent: true });
+    });
+});
+
+describe("resolveDialogScript", () => {
+    it("keeps only roles that appear in the script and have a voice", () => {
+        const result = resolveDialogScript({
+            dialogText: "小美：你好\n阿强：你也好\n小美：再见",
+            dialogRoles: {
+                小美: { voice: "longanhuan_v3.1", instruction: "  撒娇  " },
+                阿强: { voice: "longlaotie_v3.1", emotion: "happy" },
+                多余: { voice: "unused" },
+            },
+        });
+        expect(result.lines.map((line) => line.role)).toEqual(["小美", "阿强", "小美"]);
+        expect(result.roles).toEqual({ 小美: { voice: "longanhuan_v3.1", instruction: "撒娇" }, 阿强: { voice: "longlaotie_v3.1", emotion: "happy" } });
+    });
+
+    it("drops roles without a voice so validation can report them", () => {
+        expect(resolveDialogScript({ dialogText: "小美：你好\n阿强：你好", dialogRoles: { 小美: { voice: "v" } } }).roles).toEqual({ 小美: { voice: "v" } });
+    });
+
+    it("tolerates missing input", () => {
+        expect(resolveDialogScript(undefined)).toEqual({ lines: [], roles: {} });
     });
 });
