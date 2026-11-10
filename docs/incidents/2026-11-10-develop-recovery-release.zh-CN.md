@@ -24,6 +24,7 @@
 ## 未完成阶段
 
 本文件首次提交时仅本地集成验证完成。完整隔离QA E2E、远端Quality、测试恢复及生产晋级尚待；不得据本记录标题宣称已经恢复环境。
+
 ## 复制画布与模型池补充验收（本地）
 
 同步脚本原先固定匹配useCanvasPageController()，develop练习画布增加executionProfile参数后该精确锚点不再存在。更新锚点后按原适配规则同步107文件，保留短剧深链定位、分集持久化和返回工坊/一键成片来源分流，未直接手改复制业务。
@@ -42,7 +43,6 @@
 
 - 随后本机三矩阵失败分组重跑完成：desktop/390/430共12项全部通过（5.3分钟），加RunningHub专项1项通过；测试修改的ESLint、Prettier、全量TypeScript通过。后续候选仍需重新跑完整远端Quality，不能拿这13项替代全量。
 
-
 ## 第二轮完整CI通过与远端新增修复保留
 
 - 第二轮候选 `fa32797d586b185731d97b21009186035a07b9cb` 的完整Quality `42751130882` 已成功，Docs/Web/Security及Browser/PostgreSQL后置门禁均为success。
@@ -50,13 +50,11 @@
 - 最新合并的音色请求契约与发布guard共15项专项通过，TypeScript、ESLint、Prettier通过；集成树变化后仍重新跑完整CI，旧候选绿色不替代新候选证据。
 - 生产只读复核仍为 `69e2dec6`，app/worker及数据库健康。本轮恢复至今未修改生产。
 
-
 ## 并发develop发布复核（2026-11-10 下午）
 
 - 新音色计费提交 `c6992f63` 出现时，其develop Staging workflow `42776639388` 正在构建。避免共享测试并发部署相互覆盖，工作流被develop更新触发取消，最新develop workflow `42777915932` 正在部署 `1b5465af`。没有手动部署候选镜像。
 - 最新develop新增 `a00c22d8`（千问设计试听格式）、`1b5465af`（MiniMax空音色删除语义），再次合入候选，无冲突；音色上游、计费和删音色专项共69项通过，TypeScript通过。
 - 最终整合候选为 `c4617b791dc2b25848d66e2ba785c26bf3969722`（未含发布记录后续新commit）。目标独立分支必须再次跑完整Quality；期间继续在测试服部署develop。必须等develop部署结束、核对实际app/worker SHA后，再以候选祖先检查发布恢复集成版本。
-
 
 ## 当前暂停交接：三个画布交互热修复（2026-11-10 晚）
 
@@ -89,3 +87,37 @@
 3. 按Canvas单元/真实Chromium与desktop/390/430专项验证；跑typecheck、ESLint、Prettier、生产build及完整Quality，检查音频与超管、模型池既有功能。
 4. 按用户授权仅对production做三项热补丁：固定baseline image/BUILD_ID；逐文件精确hash匹配并备份；RSC/immutable静态资源使用新地址/manifest，不能同URL覆盖；客户端功能按画布范围，app只在SSR patch需要时重启；Worker、DB、生成配置不变。验证`gammatv`和`edu`两域名真实新bundle hash/readiness。
 5. 更新本记录并单独push修复分支后停止；不推develop、不部署测试、不发布正式production image，直到Claude音频完成并用户确认继续整批流程。
+
+## 生产三项Canvas临时热修复已应用（用户追加授权，2026-11-10 晚）
+
+本节更新并取代上一节“当前尚未热更新”的阶段性状态。用户明确要求先热更新这三项到生产，后续再随Claude音频改动一起完成源码/测试/正式发布；因此本次直接补丁生产当前运行bundle，**不推整合分支、不更新测试服、不合并或发布镜像**。
+
+### 生产行为改动
+
+1. 千问/MiniMax的Canvas音色试听按钮改为持有Audio实例；再次点击会调用`pause()`、清除实例并回到播放态；结束/错误只清理当前实例，避免过期回调影响新试听。
+2. 普通Canvas和短剧Canvas里，图片/全景/视频生成中不再允许停止本地等待；按钮禁用、aria-label为“生成中”。文本、音频任务仍可停止。配置信息节点同按其generationMode区分。只禁止用户停止客户端请求，不试图声称支持取消上游任务。图像/视频已提交任务不会因为点击而丢失本地回收链。
+3. 只在Canvas/短剧Canvas参数面板移除图片清晰度`4K`档与视频`1080P`档；1K/2K、智能/480P/720P和其他模型档位保持。过滤覆盖默认档与能力配置声明档。原Node metadata、全局默认、生成请求映射及其他 `/create` 工作台均未改；节点已存值不会被代码写回/清空，旧值仍能显示摘要但不可再从选项中选取。
+
+### 发布基线、备份和回滚
+
+- 基线生产app/worker均仍为镜像`sha-69e2dec6d52e1d6fd4ce1956d8c128ea6445e447`，`BUILD_ID=P59sr1hudwDZ_mQsklIIPP`。仅重启`vozeb-pro` app；Worker、数据库、配置、模型渠道未修改。
+- 备份：`/opt/vozeb-pro/production/hotpatches/canvas-audio-stop-quality-20261110/`。10个原运行文件逐个SHA256保存于`before.sha256`；`applied.json`记录6个SSR/路由清单覆盖文件与4个immutable新静态别名的before/after SHA；`manifest.json`记目标范围和验收边界；`rollback.sh`已`bash -n`通过，执行前核对镜像/BUILD_ID及6个服务端after哈希，再恢复备份并只重启app。回滚保留新静态别名以兼容已加载页面；尚未运行回滚。
+- 新静态资源URL：`3vti2n4hiqwqp.hotfix-fbcafe2089c9.js`、`1gq8apnp2z73f.hotfix-df1643cdb8ac.js`、`2qymhwwjq-8cd.hotfix-e68cf92c7a1e.js`、`3ixbyk-3gnhup.hotfix-ae7822ea28b4.js`。保留旧URL和文件供immutable旧缓存页面使用；普通/短剧画布manifest仅引用对应新地址，创作页`/create`仍使用旧参数选项bundle。
+
+### 验证证据与限制
+
+- 应用客户端与SSR补丁在修改前基于生产原文件内存演练：10个变更路径、14个锚点替换；所有产物经`vm.Script`语法检查和精确基线SHA校验。新URL后缀与内容SHA一致。
+- 从生产bundle隔离调用实际编译后的Qwen/MiniMax共用`VoicePreviewButton`函数，用FakeAudio回归：播放调用1次、第二次点击pause调用1次、状态与引用清空。
+- 运行态断言确认stop allowlist仅`text/audio`；image/video/panorama禁用。默认及模型声明能力下都过滤image 4K/video 1080P；2K/720P保留，隐藏UI不写入旧配置。
+- `gammatv.gammablue-x.com`、`edu.gammablue-x.com`两域名的4个新静态URL全部HTTP成功且SHA256精确匹配；响应为immutable一年缓存，旧地址保留。
+- 重启后readiness=ready；PostgreSQL/Schema/encryption和Worker heartbeat健康，app/worker仍同镜像SHA。`bash -n rollback.sh`通过。
+- **生产登录态人工点击尚未完成**：当前验收浏览器打开的是生产登录页、没有登录态；本次没有输入或传输凭据。故不把真实项目中的按钮点击/参数组合声称为已浏览器验收。用户需重新加载现有画布页面以获得新manifest/URL。
+- 未改源码、未推GitHub、未部署测试环境；整批develop恢复候选仍暂停。本地恢复worktree历史里有一个新的文档提交，最新协作者音频实现未整合；待Claude完成并用户指示后再按现行develop对齐、专项测试、完整CI、测试验收、用户确认后正式生产发布。
+
+### 三项热修复最终运行核验（2026-11-10 21:07 CST）
+
+- app于`2026-11-10T13:07:33.980383812Z`重启；Worker StartedAt仍为`2026-11-09T13:28:07.054147088Z`，容器镜像未变，证明本次没有重启或替换Worker。
+- restart后本机readiness仍ready；数据库/Schema/encryption healthy，Worker heartbeat fresh。`gammatv`和`edu`两域名各自下载4个唯一资源URL，响应均HTTP成功、SHA256等于after清单，Cache-Control为`public,max-age=31536000,immutable`。
+- 从生产静态bundle抽取并执行实际编译的音色试听按钮函数，用FakeAudio验证play一次后再次点击调用pause一次、清理实例；图片4K/视频1080P默认值与profile能力声明过滤断言通过；Canvas Image/Panorama/Video stop按钮disabled与no-op分支、Text/Audio stop分支均经JS语法/定向条件断言。
+- Browser打开生产首页显示登录页，无法看到受保护Canvas页面；没有把静态验证冒充生产真实DOM点击验证，没有发起收费生成，用户重新加载/登录后仍需人工确认交互。
+- 操作回滚脚本`rollback.sh`有baseline image/BUILD_ID和SSR/Manifest after-hash guard、`bash -n`通过；不会删掉新静态别名，兼容已加载页面。尚未执行回滚。
