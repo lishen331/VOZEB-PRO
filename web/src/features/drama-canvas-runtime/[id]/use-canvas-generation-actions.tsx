@@ -16,7 +16,7 @@ import { retryCanvasAgentNode } from "../components/canvas-agent-node-retry";
 import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext } from "../components/canvas-node-generation";
 import { type CanvasNodeGenerationMode } from "../components/canvas-node-prompt-panel";
 import { CANVAS_AGENT_ENABLED, NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
-import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type CanvasNodeData } from "../types";
+import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type CanvasNodeData, type CanvasNodeMetadata } from "../types";
 import { applyCameraPrompt } from "../utils/canvas-camera";
 import { canvasContainerChildIds, canvasContainerGeneratableIds, canvasNodeGenerationMode } from "../utils/canvas-container-group";
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
@@ -168,8 +168,11 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
     );
 
     const handleGenerateNode = useCallback(
-        async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => {
-            const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+        async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string, overrides?: Partial<CanvasNodeMetadata>) => {
+            // overrides：本次提交临时生效的节点设置（例如弹窗里刚确认的克隆授权）。
+            // React 状态要等下一次渲染才写回 nodesRef，不能指望它在本轮就能读到。
+            const storedNode = nodesRef.current.find((node) => node.id === nodeId);
+            const sourceNode = storedNode && overrides ? { ...storedNode, metadata: { ...storedNode.metadata, ...overrides } } : storedNode;
             // 生成中禁止重复提交：同一节点仍在等结果时再点一次，既会重复扣费，也会把原任务 ID 冲掉。
             if (generationRequestsRef.current.has(nodeId) || (sourceNode?.metadata?.status === NODE_STATUS_LOADING && sourceNode && hasCanvasGenerationTask(sourceNode))) {
                 message.info("正在生成中，请稍候");
