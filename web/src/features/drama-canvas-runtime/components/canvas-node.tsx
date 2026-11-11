@@ -125,6 +125,8 @@ export type CanvasNodeProps = {
      * needs to know when the panel has claimed that band.
      */
     onPanelPlacementChange?: (nodeId: string, placement: CanvasPanelPlacement) => void;
+    /** 仅练习画布为 true：已生成内容的节点显示"免费"角标。 */
+    practiceFree?: boolean;
 };
 
 import {
@@ -189,6 +191,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     onViewImage,
     onContextMenu,
     onPanelPlacementChange,
+    practiceFree,
 }: CanvasNodeProps) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const [hovered, setHovered] = useState(false);
@@ -673,6 +676,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                         onImageDimensions={onImageDimensions}
                         onToggleBatch={() => onToggleBatch?.(data.id)}
                         onSetBatchPrimary={() => onSetBatchPrimary?.(data)}
+                        practiceFree={practiceFree}
                     />
                 </div>
 

@@ -23,6 +23,7 @@ import {
 
 import type { CanvasPageState } from "./use-canvas-page-state";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
+import type { PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 
 function resumableTaskKind(node: CanvasNodeData): CanvasGenerationTaskKind | undefined {
     const metadata = node.metadata;
@@ -33,7 +34,7 @@ function resumableTaskKind(node: CanvasNodeData): CanvasGenerationTaskKind | und
     return undefined;
 }
 
-export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPageState; tasks: CanvasTaskRuntime }) {
+export function useCanvasPersistenceEffects({ state, tasks, practiceModels }: { state: CanvasPageState; tasks: CanvasTaskRuntime; practiceModels?: PracticeCanvasModelOptions }) {
     const skipInitialProjectSyncRef = useRef(false);
     const pendingRetryTimersRef = useRef(new Map<string, number>());
     const [pendingRetryNonce, triggerPendingRetry] = useReducer((value: number) => value + 1, 0);
@@ -285,7 +286,7 @@ export function useCanvasPersistenceEffects({ state, tasks }: { state: CanvasPag
             const review = canvasGenerationPendingState(node)?.review === true;
             resumingRef.current.add(node.id);
             const controller = startGenerationRequest(node.id, node.id, node.id);
-            const generationConfig = buildGenerationConfig(effectiveConfig, node, kind);
+            const generationConfig = buildGenerationConfig(effectiveConfig, node, kind, kind === "audio" ? undefined : practiceModels?.[kind]?.models);
             setRunningNodeId((current) => current || node.id);
             const run = async () => {
                 if (kind === "image" && metadata?.imageTask) {

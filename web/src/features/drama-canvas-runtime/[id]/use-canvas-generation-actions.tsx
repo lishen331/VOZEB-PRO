@@ -26,6 +26,7 @@ import { canvasUnsupportedReferenceIssues } from "../utils/canvas-model-capabili
 
 import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
 import { canvasGenerationPendingOptions, failCanvasGeneration, isCanvasGenerationRetryable, markCanvasGenerationPending, toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
+import { audioModeBlockingReason, buildAudioModeRequest, resolveAudioMode } from "@/lib/audio-node-mode";
 import { hasCanvasGenerationTask } from "./canvas-generation-review";
 import {
     buildAudioGenerationMetadata,
@@ -45,8 +46,9 @@ import {
 import type { CanvasInteractions } from "./use-canvas-interactions";
 import type { CanvasPageState } from "./use-canvas-page-state";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
+import type { PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 
-export function useCanvasGenerationActions({ state, tasks, interactions }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions }) {
+export function useCanvasGenerationActions({ state, tasks, interactions, practiceModels }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions; practiceModels?: PracticeCanvasModelOptions }) {
     const {
         message,
         modal,
@@ -172,7 +174,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 message.info("正在生成中，请稍候");
                 return;
             }
-            const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode);
+            const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode, mode === "audio" ? undefined : practiceModels?.[mode]?.models);
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;
@@ -446,6 +448,16 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                     const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
                     const isEmptyAudioNode = sourceNode?.type === CanvasNodeType.Audio && !sourceNode.metadata?.content;
                     const audioId = isEmptyAudioNode ? nodeId : nanoid();
+                    // 生成模式：没有手选时，连了参考音频就走克隆；克隆源取第一个连进来的音频节点。
+                    const referenceAudioUrl = generationContext.referenceAudios[0]?.url;
+                    const audioMode = resolveAudioMode(sourceNode?.metadata || {}, Boolean(referenceAudioUrl));
+                    const modeBlock = audioModeBlockingReason(audioMode, sourceNode?.metadata || {}, { text: effectivePrompt, referenceAudioUrl });
+                    if (modeBlock) {
+                        finishGenerationRequest(nodeId, runController);
+                        setRunningNodeId(null);
+                        message.warning(modeBlock);
+                        return;
+                    }
                     const parent = sourceNode?.position || { x: 0, y: 0 };
                     const audioNode: CanvasNodeData = {
                         id: audioId,
@@ -471,6 +483,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                             conversationId: currentProject?.creativeConversationId,
                             surface: "canvas",
                             projectId,
+                            mode: buildAudioModeRequest(audioMode, sourceNode?.metadata || {}, { text: effectivePrompt, referenceAudioUrl }),
                             ...createFreshGenerationTaskContext("canvas-audio", [projectId, audioId]),
                         });
                         setNodes((prev) => prev.map((node) => (node.id === audioId ? { ...node, metadata: { ...node.metadata, audioTask: task } } : node)));
@@ -663,6 +676,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             const batchRoot = node.metadata?.batchRootId ? nodesRef.current.find((item) => item.id === node.metadata?.batchRootId) : null;
             const savedImageMetadata = isCanvasImageNodeType(node.type) ? { ...batchRoot?.metadata, ...node.metadata } : undefined;
             const hasSavedImageMetadata = Boolean(savedImageMetadata?.generationType);
+            const retryMode = node.type === CanvasNodeType.Text ? "text" : isVideoRetry ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image";
             const generationConfig =
                 hasSavedImageMetadata && savedImageMetadata
                     ? {
@@ -672,7 +686,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                           size: savedImageMetadata.size || effectiveConfig.size,
                           count: "1",
                       }
-                    : { ...buildGenerationConfig(effectiveConfig, isVideoRetry ? node : sourceNode, node.type === CanvasNodeType.Text ? "text" : isVideoRetry ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
+                    : { ...buildGenerationConfig(effectiveConfig, isVideoRetry ? node : sourceNode, retryMode, retryMode === "audio" ? undefined : practiceModels?.[retryMode]?.models), count: "1" };
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;

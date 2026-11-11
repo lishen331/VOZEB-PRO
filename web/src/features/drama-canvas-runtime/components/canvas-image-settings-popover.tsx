@@ -2,7 +2,7 @@
 
 import { SlidersHorizontal } from "lucide-react";
 
-import { CreativeGenerationPreferences, generationPreferenceSummary, imageResolutionFromQuality, type CreativeGenerationPreferencePatch } from "@/components/creative-generation-preferences";
+import { CreativeGenerationPreferences, generationPreferenceSummary, imageResolutionLabel, selectedImageResolution, type CreativeGenerationPreferencePatch } from "@/components/creative-generation-preferences";
 import type { CreativeGenerationPreferences as GenerationPreferences } from "@/lib/creative-runtime-contract";
 import type { AiConfig } from "@/stores/use-config-store";
 import { useCreativeComposerPopoverPlacement, type CreativeComposerPopoverPlacement } from "@/components/creative-composer-popover";
@@ -24,7 +24,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
         image: {
             size: config.size || "auto",
             quality: imageQuality(config.quality),
-            resolution: config.imageResolution || "medium",
+            resolution: config.imageResolution || "",
             background: config.imageBackground || "auto",
             count: positiveInteger(config.count),
         },
@@ -55,8 +55,7 @@ export function canvasImagePreferenceSummary(preferences: GenerationPreferences,
     const image = preferences.image;
     const size = fixedSizeLabel || compactSizeLabel(image?.size);
     const quality = ({ auto: "标准", high: "高", medium: "标准", low: "低" } as Record<string, string>)[image?.quality || "auto"] || image?.quality || "标准";
-    // Derived from quality, matching what upstream actually honours.
-    const resolution = ({ low: "1K", medium: "2K", high: "4K" } as Record<string, string>)[imageResolutionFromQuality(image?.quality)] || "2K";
+    const resolution = imageResolutionLabel(selectedImageResolution(image));
     const bg = image?.background;
     const bgLabel = bg === "transparent" ? "·透明" : bg === "keep" ? "·保留背景" : "";
     const count = image?.count || 1;
