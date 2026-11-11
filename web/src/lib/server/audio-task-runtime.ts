@@ -340,6 +340,8 @@ async function runDialogAudioTask(task: AudioTask, config: AudioTaskConfig, orig
     const family = audioModelFamily(config.model);
     const extension = (config.format || "mp3").toLowerCase() === "wav" ? "wav" : "mp3";
     const results: Array<Buffer | undefined> = new Array(dialog.lines.length);
+    // 每句单独扣费：记下每句的扣费凭证，任一句失败时把已扣的全部退回。
+    const receipts: string[] = [];
     let index = 0;
     let failure = "";
     const worker = async () => {
@@ -348,22 +350,46 @@ async function runDialogAudioTask(task: AudioTask, config: AudioTaskConfig, orig
             const line = dialog.lines[current];
             const role = dialog.roles[line.role];
             try {
-                results[current] = await synthesizeDialogLine(task, config, line, role, family, origin, cookie, workerUserId);
+                const result = await synthesizeDialogLine(task, config, line, role, family, origin, cookie, workerUserId, current);
+                results[current] = result.bytes;
+                if (result.receiptId) receipts.push(result.receiptId);
             } catch (error) {
+                const lineReceipt = (error as { receiptId?: string }).receiptId;
+                if (lineReceipt) receipts.push(lineReceipt);
                 failure = error instanceof Error ? error.message : "多人对话合成失败";
             }
         }
     };
     await Promise.all(Array.from({ length: Math.min(3, dialog.lines.length) }, worker));
-    if (failure) throw new GenerationSubmissionSafeFailure(failure);
+    if (failure) {
+        await refundDialogReceipts(task, config, receipts);
+        throw new GenerationSubmissionSafeFailure(failure);
+    }
     const segments = results.filter((bytes): bytes is Buffer => Boolean(bytes));
     if (segments.length !== dialog.lines.length) throw new GenerationSubmissionSafeFailure("多人对话部分台词没有合成结果");
-    const joined = await concatAudioWithGaps(segments, extension);
-    await persistAudioBytes(task, origin, joined, extension === "wav" ? "audio/wav" : "audio/mpeg");
+    let joined: Buffer;
+    try {
+        joined = await concatAudioWithGaps(segments, extension);
+        await persistAudioBytes(task, origin, joined, extension === "wav" ? "audio/wav" : "audio/mpeg");
+    } catch (error) {
+        // 拼接或保存失败也要把各句扣费退回，否则用户付了钱却拿不到结果。
+        await refundDialogReceipts(task, config, receipts);
+        throw new GenerationSubmissionSafeFailure(error instanceof Error ? `多人对话拼接失败：${error.message}` : "多人对话拼接失败");
+    }
     return { state: "completed" };
 }
 
-async function synthesizeDialogLine(task: AudioTask, config: AudioTaskConfig, line: { role: string; text: string }, role: { voice: string; instruction?: string; emotion?: string }, family: string, origin: string, cookie: string, workerUserId: string) {
+async function synthesizeDialogLine(
+    task: AudioTask,
+    config: AudioTaskConfig,
+    line: { role: string; text: string },
+    role: { voice: string; instruction?: string; emotion?: string },
+    family: string,
+    origin: string,
+    cookie: string,
+    workerUserId: string,
+    lineIndex: number,
+): Promise<{ bytes: Buffer; receiptId?: string }> {
     const voiceId = role.voice;
     const instruction = (role.instruction || "").trim();
     const params: Record<string, unknown> = { ...(config.params || {}), voiceId };
@@ -380,7 +406,17 @@ async function synthesizeDialogLine(task: AudioTask, config: AudioTaskConfig, li
         speed: Number(config.speed) || 1,
     };
     const payload = { ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults), ...withoutUndefined(audioUpstreamFields(config.model, line.text, params, voiceId)) };
-    const { response } = await createAudioUpstream({ ...task, config }, origin, cookie, workerUserId, payload);
+    const { response } = await createAudioUpstream({ ...task, config }, origin, cookie, workerUserId, payload, undefined, `line:${lineIndex}`);
+    const receiptId = readBilling(response.headers).billingReceiptId;
+    try {
+        return await readDialogLineAudio(response, config, line, receiptId);
+    } catch (error) {
+        // 这句已经扣费但没拿到音频：把凭证带出去，由调用方统一退回。
+        throw Object.assign(error instanceof Error ? error : new Error(String(error)), { receiptId });
+    }
+}
+
+async function readDialogLineAudio(response: Response, config: AudioTaskConfig, line: { role: string; text: string }, receiptId: string | undefined): Promise<{ bytes: Buffer; receiptId?: string }> {
     const contentType = response.headers.get("content-type")?.split(";")[0].toLowerCase() || "";
     if (contentType.includes("json")) {
         const text = await response.text();
@@ -393,9 +429,21 @@ async function synthesizeDialogLine(task: AudioTask, config: AudioTaskConfig, li
         if (isProviderBusinessError(data)) throw new GenerationSubmissionSafeFailure(readProviderError(data) || `角色「${line.role}」合成失败`);
         const directUrl = readProviderString(data, config.advancedConfig?.resultField, AUDIO_KEYS);
         if (!directUrl) throw new GenerationSubmissionSafeFailure(`角色「${line.role}」没有返回音频`);
-        return await downloadAudioBytes(directUrl, line.role);
+        return { bytes: await downloadAudioBytes(directUrl, line.role), receiptId };
     }
-    return Buffer.from(await response.arrayBuffer());
+    return { bytes: Buffer.from(await response.arrayBuffer()), receiptId };
+}
+
+/** 多人对话失败：把已经扣费的每一句都退回。 */
+async function refundDialogReceipts(task: AudioTask, config: AudioTaskConfig, receipts: string[]) {
+    if (!generationTaskShouldConsumePoints(task.executionProfile)) return;
+    await Promise.all(
+        receipts.map((receiptId, index) =>
+            refundGenerationCharge({ userId: task.userId, receiptId, model: generationModelId(config), usageKind: "audio", units: 1, idempotencyKey: `${audioTaskRefundIdempotencyKey({ id: task.id, attemptNo: task.attemptNo })}:line:${index}` }).catch(
+                () => undefined,
+            ),
+        ),
+    );
 }
 
 async function downloadAudioBytes(url: string, role: string) {
@@ -518,9 +566,10 @@ export async function prepareAudioTaskAutomaticRetry(task: AudioTask, error: str
     });
 }
 
-async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>, workflow?: ReturnType<typeof workflowConfigForTask>) {
+async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>, workflow?: ReturnType<typeof workflowConfigForTask>, segment?: string) {
     let lastError = "";
-    const idempotencyKey = `audio-task:${task.id}:attempt:${task.attemptNo || 1}`;
+    // 多人对话一个任务会调多次合成，每句需要独立的计费幂等键，否则第二句会被判为「同键不同参数」。
+    const idempotencyKey = `audio-task:${task.id}:attempt:${task.attemptNo || 1}${segment ? `:${segment}` : ""}`;
     for (const path of resolvedProviderCreatePaths(task.config.advancedConfig, "audio", ["/audio/speech"])) {
         let response: Response;
         try {
