@@ -29,6 +29,8 @@ export type AudioTaskConfig = {
     createdVoiceId?: string;
     /** 克隆模式：参考音频的可访问地址（站内签名地址或公网地址）。 */
     referenceAudioUrl?: string;
+    /** 克隆模式：参考音频时长，提交前按渠道限制校验，不符合时不动上游、不扣费。 */
+    referenceAudioDurationMs?: number;
     /** 克隆模式：同一段参考音频的指纹，用来复用已克隆的音色。 */
     referenceAudioFingerprint?: string;
     /** 克隆模式：用户已勾选「已获得本人授权」。 */

@@ -15,6 +15,8 @@ type CanvasAudioSettingsPopoverProps = {
     config: AiConfig;
     metadata?: CanvasNodeMetadata;
     references?: CanvasResourceReference[];
+    /** 当前节点 id：引用清单在没有输入时会把节点自己列进来，必须排除，否则空节点也会显示克隆。 */
+    nodeId?: string;
     dialogText?: string;
     onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
     onParamsChange?: (params: AudioParams) => void;
@@ -25,22 +27,24 @@ type CanvasAudioSettingsPopoverProps = {
 
 const MODE_LABELS = { tts: "合成", design: "设计", clone: "克隆", dialog: "多人对话" } as const;
 
-export function CanvasAudioSettingsPopover({ config, metadata, references = [], dialogText = "", onConfigChange, onParamsChange, onMetadataChange, buttonClassName, placement = "topLeft" }: CanvasAudioSettingsPopoverProps) {
+export function CanvasAudioSettingsPopover({ config, metadata, references = [], nodeId, dialogText = "", onConfigChange, onParamsChange, onMetadataChange, buttonClassName, placement = "topLeft" }: CanvasAudioSettingsPopoverProps) {
     const family = audioModelFamily(config.model);
-    const referenceAudios = references.filter((reference) => reference.kind === "audio" && reference.active && reference.nodeId !== undefined);
+    // 只有千问和 MiniMax 有设计 / 克隆 / 多人对话；Suno、OpenAI 永远按普通合成显示和提交。
+    const modeCapable = (family === "qwen" || family === "minimax") && Boolean(onMetadataChange);
+    const referenceAudios = references.filter((reference) => reference.kind === "audio" && reference.active && reference.nodeId && reference.nodeId !== nodeId);
     const referenceAudio = referenceAudios[0];
     const audioMode = resolveAudioMode(metadata || {}, referenceAudios.length > 0);
-    const modeSummary =
-        audioMode === "clone"
-            ? `${MODE_LABELS.clone} · ${referenceAudio?.title || referenceAudio?.label || "未连接音频"}`
-            : audioMode === "dialog"
-              ? `${MODE_LABELS.dialog} · ${(dialogText.match(/^\s*([^\s：:]{1,8})\s*[：:]/gm) || []).length ? "按台词合成" : "等待台词"}`
-              : audioMode === "design"
-                ? `${MODE_LABELS.design} · ${metadata?.audioVoiceDescription?.trim() ? metadata.audioVoiceDescription.trim().slice(0, 8) : "未填写描述"}`
-                : "";
+    const modeSummary = !modeCapable
+        ? ""
+        : audioMode === "clone"
+          ? `${MODE_LABELS.clone} · ${referenceAudio?.label || "未连接音频"}`
+          : audioMode === "dialog"
+            ? `${MODE_LABELS.dialog} · ${(dialogText.match(/^\s*([^\s：:]{1,8})\s*[：:]/gm) || []).length ? "按台词合成" : "等待台词"}`
+            : audioMode === "design"
+              ? `${MODE_LABELS.design} · ${metadata?.audioVoiceDescription?.trim() ? metadata.audioVoiceDescription.trim().slice(0, 8) : "未填写描述"}`
+              : "";
     const detail = family === "openai" ? `${audioVoiceLabel(config.audioVoice)} · ${audioFormatLabel(config.audioFormat)} · ${audioSpeedLabel(config.audioSpeed)}` : audioParamsSummary(config.model, config.audioParams);
     const label = modeSummary ? `${modeSummary} · ${detail}` : detail;
-    const modeCapable = (family === "qwen" || family === "minimax") && Boolean(onMetadataChange);
 
     return (
         <CanvasSettingsPopoverShell label={label} buttonClassName={buttonClassName} defaultButtonClassName="!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5" placement={placement}>
@@ -71,7 +75,7 @@ export function CanvasAudioSettingsPopover({ config, metadata, references = [], 
                                 : undefined
                         }
                         dialogText={dialogText}
-                        referenceAudio={referenceAudio ? { label: referenceAudio.title || referenceAudio.label, durationMs: referenceAudio.durationMs } : null}
+                        referenceAudio={referenceAudio ? { label: referenceAudio.label, durationMs: referenceAudio.durationMs } : null}
                     />
                 )
             }

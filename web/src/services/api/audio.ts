@@ -27,7 +27,7 @@ export type AudioGenerationTask = { id: string; status?: "pending" | "running" |
 export type AudioModeRequest =
     | { mode: "tts" }
     | { mode: "design"; voiceDescription: string }
-    | { mode: "clone"; referenceAudioUrl: string; cloneConsent: boolean }
+    | { mode: "clone"; referenceAudioUrl: string; cloneConsent: boolean; referenceAudioDurationMs?: number }
     | { mode: "dialog"; dialogText: string; dialogRoles: Record<string, { voice: string; instruction?: string; emotion?: string }> };
 
 export type AudioGenerationTaskSnapshot = AudioGenerationTask &

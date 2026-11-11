@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { audioModeBlockingReason, buildAudioModeRequest, resolveAudioMode, shouldSuggestDialog } from "./audio-node-mode";
+import { audioModeBlockingReason, buildAudioModeRequest, resolveAudioMode, shouldSuggestDialog, withAudioDuration } from "./audio-node-mode";
 
 const twoRoles = ["小美：你好", "阿强：你也好"].join("\n");
 
@@ -61,5 +61,17 @@ describe("buildAudioModeRequest", () => {
         expect(buildAudioModeRequest("clone", { audioCloneConsent: true }, { text: "hi", referenceAudioUrl: "/a.mp3" })).toEqual({ mode: "clone", referenceAudioUrl: "/a.mp3", cloneConsent: true });
         expect(buildAudioModeRequest("design", { audioVoiceDescription: "  女声 " }, { text: "hi" })).toEqual({ mode: "design", voiceDescription: "女声" });
         expect(buildAudioModeRequest("tts", {}, { text: "hi" })).toEqual({ mode: "tts" });
+    });
+});
+
+describe("withAudioDuration", () => {
+    it("attaches the reference duration only for clone", () => {
+        expect(withAudioDuration(buildAudioModeRequest("clone", { audioCloneConsent: true }, { text: "hi", referenceAudioUrl: "/a.mp3" }), 23000)).toEqual({
+            mode: "clone",
+            referenceAudioUrl: "/a.mp3",
+            cloneConsent: true,
+            referenceAudioDurationMs: 23000,
+        });
+        expect(withAudioDuration(buildAudioModeRequest("tts", {}, { text: "hi" }), 23000)).toEqual({ mode: "tts" });
     });
 });

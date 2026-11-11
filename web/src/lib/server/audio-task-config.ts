@@ -14,7 +14,7 @@ export type AudioMode = "tts" | "design" | "clone" | "dialog";
 
 /** 生成模式相关的任务字段：只接受三种已知模式，其他一律按普通合成。 */
 export function resolveAudioModeOptions(
-    config: { mode?: unknown; voiceDescription?: unknown; referenceAudioUrl?: unknown; cloneConsent?: unknown; dialogText?: unknown; dialogRoles?: unknown } | undefined,
+    config: { mode?: unknown; voiceDescription?: unknown; referenceAudioUrl?: unknown; referenceAudioDurationMs?: unknown; cloneConsent?: unknown; dialogText?: unknown; dialogRoles?: unknown } | undefined,
     context: { channelId: string; model: string; userId: string },
 ) {
     const mode: AudioMode = config?.mode === "design" || config?.mode === "clone" || config?.mode === "dialog" ? config.mode : "tts";
@@ -27,6 +27,7 @@ export function resolveAudioModeOptions(
     return {
         mode,
         referenceAudioUrl,
+        referenceAudioDurationMs: typeof config?.referenceAudioDurationMs === "number" && Number.isFinite(config.referenceAudioDurationMs) ? config.referenceAudioDurationMs : undefined,
         cloneConsent: config?.cloneConsent === true,
         ...(referenceAudioUrl ? { referenceAudioFingerprint: cloneFingerprint(context, referenceAudioUrl) } : {}),
     } as const;

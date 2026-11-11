@@ -19,6 +19,8 @@ const UNAVAILABLE_PATTERN =
 // 前端自己生成、用户能据此操作的文案，展示时原样保留。
 const PASSTHROUGH_MESSAGES = /^(?:参考图片已丢失，无法继续重试|背景补全蒙版已丢失，无法继续重试)$/;
 const CAPACITY_PATTERN = /当前用户.{0,4}任务已达到并发上限/;
+// 音频模式的失败原因用户要能据此自行修正（参考音频太短、授权、台词），不能被折叠成「网络异常」。
+const AUDIO_PATTERN = /音色(克隆|设计)失败|valid audio too short|参考音频.{0,12}(时长|太短|过长)|多人对话/i;
 const USER_FACING_MESSAGES = new Set([
     GENERATION_BUSY_MESSAGE,
     GENERATION_UNAVAILABLE_MESSAGE,
@@ -38,6 +40,7 @@ export function generationUserMessage(raw: string | undefined | null) {
     const capacity = text.match(CAPACITY_PATTERN);
     if (capacity) return `${capacity[0]}，请稍后再试`;
     if (/积分不足|余额不足|insufficient[\s_-]?points/i.test(text)) return GENERATION_POINTS_MESSAGE;
+    if (AUDIO_PATTERN.test(text)) return text;
     if (REFERENCE_SIZE_PATTERN.test(text)) return /比例过于狭长/.test(text) ? text : GENERATION_REFERENCE_SIZE_MESSAGE;
     if (LAST_FRAME_CONFLICT_PATTERN.test(text)) return GENERATION_LAST_FRAME_MESSAGE;
     if (COPYRIGHT_PATTERN.test(text)) return GENERATION_COPYRIGHT_MESSAGE;

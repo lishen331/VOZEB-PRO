@@ -214,6 +214,11 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
         if (!config.referenceAudioUrl) throw new GenerationSubmissionSafeFailure("克隆音色缺少参考音频");
         const fingerprint = config.referenceAudioFingerprint;
         if (!fingerprint) throw new GenerationSubmissionSafeFailure("克隆音色缺少参考音频标识");
+        // 时长限制来自渠道的 voiceCustomization.audioLimits（上游公开约束），不符合时在调用上游前就拒绝。
+        const seconds = (config.referenceAudioDurationMs || 0) / 1000;
+        if (seconds && (seconds < voiceConfig.audioLimits.minSec || seconds > voiceConfig.audioLimits.maxSec)) {
+            throw new GenerationSubmissionSafeFailure(`参考音频时长 ${Math.round(seconds)} 秒，需要 ${voiceConfig.audioLimits.minSec}–${voiceConfig.audioLimits.maxSec} 秒`);
+        }
         const existing = await findReusableCloneVoice(task.userId, config.channelId || "", targetModel, fingerprint);
         if (existing?.upstreamVoiceId && existing.status === "ready") {
             await updateCustomVoice(existing.id, { lastUsedAt: new Date().toISOString() }).catch(() => {});

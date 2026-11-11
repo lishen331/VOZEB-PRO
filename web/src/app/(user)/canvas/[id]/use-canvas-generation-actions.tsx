@@ -26,7 +26,8 @@ import { canvasUnsupportedReferenceIssues } from "../utils/canvas-model-capabili
 
 import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
 import { canvasGenerationPendingOptions, failCanvasGeneration, isCanvasGenerationRetryable, markCanvasGenerationPending, toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
-import { audioModeBlockingReason, buildAudioModeRequest, resolveAudioMode } from "@/lib/audio-node-mode";
+import { audioModeBlockingReason, buildAudioModeRequest, resolveAudioMode, withAudioDuration } from "@/lib/audio-node-mode";
+import { audioModelFamily } from "@/lib/audio-model-params";
 import { hasCanvasGenerationTask } from "./canvas-generation-review";
 import {
     buildAudioGenerationMetadata,
@@ -448,9 +449,13 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                     const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
                     const isEmptyAudioNode = sourceNode?.type === CanvasNodeType.Audio && !sourceNode.metadata?.content;
                     const audioId = isEmptyAudioNode ? nodeId : nanoid();
-                    // 生成模式：没有手选时，连了参考音频就走克隆；克隆源取第一个连进来的音频节点。
-                    const referenceAudioUrl = generationContext.referenceAudios[0]?.url;
-                    const audioMode = resolveAudioMode(sourceNode?.metadata || {}, Boolean(referenceAudioUrl));
+                    // 生成模式：只有千问和 MiniMax 有设计 / 克隆 / 多人对话；Suno、OpenAI 一律按普通合成提交。
+                    const audioFamily = audioModelFamily(generationConfig.model);
+                    const modeSupported = audioFamily === "qwen" || audioFamily === "minimax";
+                    // 克隆源取第一个连进来的音频节点（不是本节点自己）。
+                    const referenceAudio = generationContext.referenceAudios[0];
+                    const referenceAudioUrl = referenceAudio?.url;
+                    const audioMode = modeSupported ? resolveAudioMode(sourceNode?.metadata || {}, Boolean(referenceAudioUrl)) : "tts";
                     const modeBlock = audioModeBlockingReason(audioMode, sourceNode?.metadata || {}, { text: effectivePrompt, referenceAudioUrl });
                     if (modeBlock) {
                         finishGenerationRequest(nodeId, runController);
@@ -483,7 +488,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                             conversationId: currentProject?.creativeConversationId,
                             surface: "canvas",
                             projectId,
-                            mode: buildAudioModeRequest(audioMode, sourceNode?.metadata || {}, { text: effectivePrompt, referenceAudioUrl }),
+                            // 克隆带上参考音频时长：服务端按渠道限制先校验，太短/太长在上游之前就拒绝。
+                            mode: withAudioDuration(buildAudioModeRequest(audioMode, sourceNode?.metadata || {}, { text: effectivePrompt, referenceAudioUrl }), referenceAudio?.durationMs),
                             ...createFreshGenerationTaskContext("canvas-audio", [projectId, audioId]),
                         });
                         setNodes((prev) => prev.map((node) => (node.id === audioId ? { ...node, metadata: { ...node.metadata, audioTask: task } } : node)));

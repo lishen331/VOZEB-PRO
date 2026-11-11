@@ -58,3 +58,8 @@ export function buildAudioModeRequest(mode: AudioMode, state: AudioModeNodeState
     }
     return { mode: "tts" } as const;
 }
+
+/** 克隆请求带上参考音频时长，服务端在调用上游前按渠道限制校验。 */
+export function withAudioDuration(request: ReturnType<typeof buildAudioModeRequest>, durationMs?: number) {
+    return request.mode === "clone" && durationMs !== undefined ? { ...request, referenceAudioDurationMs: durationMs } : request;
+}
