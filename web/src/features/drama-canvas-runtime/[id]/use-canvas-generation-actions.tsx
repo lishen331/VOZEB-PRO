@@ -471,7 +471,9 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                         position: isEmptyAudioNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y + ((sourceNode?.height || spec.height) - spec.height) / 2 },
                         width: isEmptyAudioNode ? sourceNode.width : spec.width,
                         height: isEmptyAudioNode ? sourceNode.height : spec.height,
-                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig) },
+                        // 空音频节点原地生成时不能丢掉已有的模式设置（audioMode / 手动标记 / 授权 / 角色），
+                        // 否则生成完新节点又回到「合成」，多人对话提示会再弹一次。
+                        metadata: { ...(isEmptyAudioNode ? sourceNode?.metadata : undefined), prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig) },
                     };
                     pendingChildIds = [audioId];
                     setNodes((prev) =>
