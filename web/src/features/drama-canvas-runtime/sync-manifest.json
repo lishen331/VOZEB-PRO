@@ -2,8 +2,8 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "684f722f9004cdb112693262bc597acda9c7b07c",
-    "syncedAt": "2026-11-11T03:21:27.100Z",
+    "sourceCommit": "98fd6e9cdd459e8777554127e677d0d6533e5359",
+    "syncedAt": "2026-11-11T06:14:26.380Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
@@ -97,7 +97,7 @@
         },
         {
             "path": "[id]/use-canvas-task-runtime.tsx",
-            "sha256": "25b2ff2e23d91e3efad8ee3d392dd54ce328db3da621f6d90ddd5d45c8239fdf"
+            "sha256": "d95b7cfd1c2eab35a64be16e66e52d8496b149db9bdb89a26a42b70338b43b49"
         },
         {
             "path": "components/canvas-agent-chat-ui.tsx",
@@ -225,7 +225,7 @@
         },
         {
             "path": "components/canvas-node-prompt-panel.tsx",
-            "sha256": "56596247ba49f236d1d57850cea690a508b83dae8c3579fb3aa2fcfe68469a7f"
+            "sha256": "92db85bafcd02d8da9ec1d65218f72cae13eed9fd758ed06929fecb73ba6d4cc"
         },
         {
             "path": "components/canvas-node-split-dialog.tsx",
@@ -317,7 +317,7 @@
         },
         {
             "path": "types.ts",
-            "sha256": "0b163e5fb8d95777923f7fcbfd3e9c2605f53d822a6140e16e2ed908164d1b58"
+            "sha256": "7219295d810e4f649626bd5e9abceb361acf5a568e45548b74dd228f70d931bf"
         },
         {
             "path": "use-canvas-local-agent-bridge.ts",

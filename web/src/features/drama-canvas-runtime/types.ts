@@ -166,6 +166,8 @@ export type CanvasNodeMetadata = {
     audioDialogRoles?: Record<string, { voice: string; instruction?: string; emotion?: string }>;
     /** 文本里出现多个角色时，用户点过「不用」后不再提示。 */
     audioDialogSuggestDismissed?: boolean;
+    /** 设计模式刚生成的音色记录 id（saved=false），结果下方可「存为我的音色」。 */
+    audioDesignVoiceId?: string;
     layerName?: string;
     layerVisible?: boolean;
     sourceLayerNodeId?: string;
