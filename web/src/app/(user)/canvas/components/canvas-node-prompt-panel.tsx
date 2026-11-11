@@ -45,7 +45,7 @@ type CanvasNodePromptPanelProps = {
     isRunning: boolean;
     onPromptChange: (nodeId: string, prompt: string) => void;
     onConfigChange: (nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => void;
-    onGenerate: (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => void;
+    onGenerate: (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string, overrides?: Partial<CanvasNodeData["metadata"]>) => void;
     onStop: (nodeId: string) => void;
     mentionReferences?: CanvasResourceReference[];
     onImageSettingsOpenChange?: (open: boolean) => void;
@@ -142,7 +142,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 cancelText: "取消",
                 onOk: () => {
                     onConfigChange(node.id, { audioCloneConsent: true });
-                    onGenerate(node.id, mode, text);
+                    // 同步把授权作为本次提交的覆盖值传下去：节点状态要下一帧才更新，这里等不到。
+                    onGenerate(node.id, mode, text, { audioCloneConsent: true });
                 },
             });
             return true;
@@ -544,16 +545,8 @@ function audioModeHint(node: CanvasNodeData, mode: CanvasNodeGenerationMode, mod
             ],
         };
     }
-    if (audioMode === "dialog") return null;
-    if (hasReferenceAudio && !metadata.audioModeManual && audioMode === "clone") {
-        return {
-            text: "连入了音频节点，已切到克隆",
-            actions: [
-                { label: "撤销", run: () => onConfigChange(node.id, { audioMode: "tts", audioModeManual: true }) },
-                { label: "去克隆", run: () => onConfigChange(node.id, { audioMode: "clone", audioModeManual: true }) },
-            ],
-        };
-    }
+    // 连入音频节点后已经自动切到克隆：设置按钮上就写着「克隆 · 音频1」，
+    // 不再重复提示一次；要改回合成直接在设置里选即可。
     return null;
 }
 

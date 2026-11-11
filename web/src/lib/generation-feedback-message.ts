@@ -20,7 +20,7 @@ const UNAVAILABLE_PATTERN =
 const PASSTHROUGH_MESSAGES = /^(?:参考图片已丢失，无法继续重试|背景补全蒙版已丢失，无法继续重试)$/;
 const CAPACITY_PATTERN = /当前用户.{0,4}任务已达到并发上限/;
 // 音频模式的失败原因用户要能据此自行修正（参考音频太短、授权、台词），不能被折叠成「网络异常」。
-const AUDIO_PATTERN = /音色(克隆|设计)失败|valid audio too short|参考音频.{0,12}(时长|太短|过长)|多人对话/i;
+const AUDIO_PATTERN = /音色(克隆|设计)失败|valid audio too short|参考音频.{0,12}(时长|太短|过长)|多人对话|Engine error|TTS speak operation failed|cosyvoice/i;
 const USER_FACING_MESSAGES = new Set([
     GENERATION_BUSY_MESSAGE,
     GENERATION_UNAVAILABLE_MESSAGE,

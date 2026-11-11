@@ -23,7 +23,7 @@ import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 import { recordGenerationTaskLogResult } from "@/lib/server/generation-log-task-service";
 import { getGenerationLogForUser } from "@/lib/server/generation-log-store";
-import { audioModelFamily, audioUpstreamFields } from "@/lib/audio-model-params";
+import { audioModelFamily, audioUpstreamFields, parseCustomVoiceId } from "@/lib/audio-model-params";
 import { createCustomVoice, getCustomVoice, listCustomVoices, updateCustomVoice } from "@/lib/server/custom-voice-store";
 import { randomUUID } from "node:crypto";
 import type { SystemModelChannel } from "@/lib/auth/store";
@@ -250,8 +250,9 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
             status: result.status,
             upstreamVoiceId: result.upstreamVoiceId,
             upstreamRequestId: result.upstreamRequestId,
-            previewUrl: result.previewUrl,
-            previewMimeType: result.previewMimeType,
+            // 克隆没有试听音频时，用参考音频本身当试听；否则「我的音色」里这条只能看不能听。
+            previewUrl: result.previewUrl || config.referenceAudioUrl,
+            previewMimeType: result.previewMimeType || (result.previewUrl ? undefined : "audio/mpeg"),
             failureReason: result.failureReason,
             ...cloneExtra(fingerprint),
         });
@@ -273,7 +274,8 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
     if (result.status === "failed" || !result.upstreamVoiceId) {
         throw new GenerationSubmissionSafeFailure(result.failureReason || "音色设计失败");
     }
-    const previewUrl = result.previewAudioBase64 ? await persistVoicePreview(voiceId, result.previewAudioBase64, result.previewMimeType || "audio/mpeg").catch(() => undefined) : result.previewUrl;
+    // 预览音频属于创建它的用户；owner 写成 "system" 会违反 users 外键，写入失败后静默变成没有试听。
+    const previewUrl = result.previewAudioBase64 ? await persistVoicePreview(task.userId, voiceId, result.previewAudioBase64, result.previewMimeType || "audio/mpeg").catch(() => undefined) : result.previewUrl;
     await createCustomVoice({ id: voiceId, ownerUserId: task.userId, channelId: config.channelId || "", provider, ttsModel: targetModel, kind, name: description.slice(0, 20) });
     await updateCustomVoice(voiceId, {
         status: "ready",
@@ -337,9 +339,9 @@ async function channelFromTaskConfig(config: AudioTaskConfig): Promise<SystemMod
     return { ...base, baseUrl: stored.baseUrl, apiKey: stored.apiKey || config.apiKey, advancedConfig: config.advancedConfig || stored.advancedConfig };
 }
 
-async function persistVoicePreview(voiceId: string, base64: string, mimeType: string) {
+async function persistVoicePreview(ownerUserId: string, voiceId: string, base64: string, mimeType: string) {
     const extension = mimeType === "audio/wav" ? "wav" : mimeType === "audio/mp4" ? "m4a" : "mp3";
-    const stored = await writePersistentMediaDataUrl(`data:${mimeType};base64,${base64}`, "audio", { ownerUserId: "system", source: "custom-voice-preview", originalName: `${voiceId}.${extension}` });
+    const stored = await writePersistentMediaDataUrl(`data:${mimeType};base64,${base64}`, "audio", { ownerUserId, source: "custom-voice-preview", originalName: `${voiceId}.${extension}` });
     return stored.url;
 }
 
@@ -394,6 +396,20 @@ async function runDialogAudioTask(task: AudioTask, config: AudioTaskConfig, orig
     return { state: "completed" };
 }
 
+/** 把 custom:<id> 解析成上游音色 id，并校验归属、状态、模型和渠道；普通音色原样返回。 */
+async function resolveTaskVoice(task: AudioTask, config: AudioTaskConfig, voice: string) {
+    const customId = parseCustomVoiceId(voice);
+    if (!customId) return voice;
+    const customVoice = await getCustomVoice(customId);
+    if (!customVoice || (customVoice.ownerUserId !== task.userId && !customVoice.shared)) throw new GenerationSubmissionSafeFailure("无权使用此自定义音色");
+    if (customVoice.status !== "ready") throw new GenerationSubmissionSafeFailure("自定义音色尚未就绪");
+    if (customVoice.ttsModel !== config.model) throw new GenerationSubmissionSafeFailure("自定义音色与当前模型不匹配");
+    if (customVoice.channelId !== config.channelId) throw new GenerationSubmissionSafeFailure("自定义音色与当前渠道不匹配");
+    if (!customVoice.upstreamVoiceId) throw new GenerationSubmissionSafeFailure("自定义音色缺少上游音色");
+    await updateCustomVoice(customId, { lastUsedAt: new Date().toISOString() }).catch(() => undefined);
+    return customVoice.upstreamVoiceId;
+}
+
 async function synthesizeDialogLine(
     task: AudioTask,
     config: AudioTaskConfig,
@@ -405,7 +421,8 @@ async function synthesizeDialogLine(
     workerUserId: string,
     lineIndex: number,
 ): Promise<{ bytes: Buffer; receiptId?: string }> {
-    const voiceId = role.voice;
+    // 角色可以选「我的音色」（custom:<id>）：上游只认 upstreamVoiceId，不能把内部 id 发出去。
+    const voiceId = await resolveTaskVoice(task, config, role.voice);
     const instruction = (role.instruction || "").trim();
     const params: Record<string, unknown> = { ...(config.params || {}), voiceId };
     if (family === "qwen" && instruction) params.instruction = instruction;
