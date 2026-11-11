@@ -28,7 +28,7 @@ import { createCustomVoice, getCustomVoice, listCustomVoices, updateCustomVoice 
 import { randomUUID } from "node:crypto";
 import type { SystemModelChannel } from "@/lib/auth/store";
 import { normalizeVoiceCustomization, type VoiceCustomizationConfig } from "@/lib/custom-voice-config";
-import { submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign, upstreamVoicePrefix } from "@/lib/server/custom-voice-upstream";
+import { queryQwenVoiceStatus, submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign, upstreamVoicePrefix } from "@/lib/server/custom-voice-upstream";
 import { concatAudioWithGaps, validateDialog } from "@/lib/server/audio-dialog-service";
 import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
 import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
@@ -210,8 +210,15 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
         const fingerprint = config.referenceAudioFingerprint;
         if (!fingerprint) throw new GenerationSubmissionSafeFailure("克隆音色缺少参考音频标识");
         const existing = await findReusableCloneVoice(task.userId, config.channelId || "", targetModel, fingerprint);
-        if (existing?.upstreamVoiceId) {
+        if (existing?.upstreamVoiceId && existing.status === "ready") {
             await updateCustomVoice(existing.id, { lastUsedAt: new Date().toISOString() }).catch(() => {});
+            return existing.upstreamVoiceId;
+        }
+        if (existing?.upstreamVoiceId && existing.status === "creating") {
+            // 上一次克隆还在审核：接着等它，不重复创建（指纹有唯一索引，重复创建也会失败）。
+            const ready = await waitForVoiceReady(await channelFromTaskConfig(config), existing.upstreamVoiceId);
+            await updateCustomVoice(existing.id, { status: ready ? "ready" : "creating", lastUsedAt: new Date().toISOString() });
+            if (!ready) throw new GenerationSubmissionSafeFailure("音色审核未在预期时间内完成，请稍后重试");
             return existing.upstreamVoiceId;
         }
         const voiceId = randomUUID();
@@ -233,7 +240,12 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
             failureReason: result.failureReason,
             ...cloneExtra(fingerprint),
         });
-        if (result.status === "creating") throw new GenerationSubmissionSafeFailure("音色正在审核中，请稍后重试");
+        if (result.status === "creating" && result.upstreamVoiceId) {
+            // 千问克隆要等审核，一般十几秒；直接在这里等，用户点一次生成就够，不用回来手动刷新。
+            const ready = await waitForVoiceReady(channel, result.upstreamVoiceId);
+            await updateCustomVoice(voiceId, { status: ready ? "ready" : "creating", failureReason: ready ? undefined : "音色审核未在预期时间内完成" });
+            if (!ready) throw new GenerationSubmissionSafeFailure("音色审核未在预期时间内完成，请稍后重试");
+        }
         return result.upstreamVoiceId;
     }
 
@@ -261,7 +273,8 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
 
 async function findReusableCloneVoice(userId: string, channelId: string, ttsModel: string, fingerprint: string) {
     const voices = await listCustomVoices({ ownerUserId: userId, ttsModel, includeOwned: true });
-    return voices.find((voice) => voice.kind === "clone" && voice.status === "ready" && voice.channelId === channelId && voice.upstreamVoiceId && (voice as { sourceFingerprint?: string }).sourceFingerprint === fingerprint);
+    const matches = voices.filter((voice) => voice.kind === "clone" && voice.channelId === channelId && voice.upstreamVoiceId && voice.sourceFingerprint === fingerprint);
+    return matches.find((voice) => voice.status === "ready") || matches.find((voice) => voice.status === "creating");
 }
 
 function cloneExtra(fingerprint: string) {
@@ -274,6 +287,18 @@ function designPreviewText(prompt: string, config: VoiceCustomizationConfig) {
     if (text.length >= config.designLimits.previewTextMin) return text;
     const filler = "大家好，这是用设计出来的声音说的一段试听文本，希望你喜欢。";
     return (text + filler).slice(0, config.designLimits.previewTextMax);
+}
+
+/** 轮询千问音色状态直到可用的等待上限；超时返回 false。 */
+async function waitForVoiceReady(channel: SystemModelChannel, upstreamVoiceId: string, timeoutMs = 120_000, intervalMs = 5_000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        const status = await queryQwenVoiceStatus(channel, upstreamVoiceId);
+        if (status.status === "ready") return true;
+        if (status.status === "failed") throw new GenerationSubmissionSafeFailure(status.failureReason || "音色审核未通过");
+    }
+    return false;
 }
 
 /**
