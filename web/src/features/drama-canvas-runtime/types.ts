@@ -154,6 +154,18 @@ export type CanvasNodeMetadata = {
     audioSpeed?: string;
     audioInstructions?: string;
     audioParams?: Record<string, string | number | boolean>;
+    /** 音频生成模式：合成 / 设计 / 克隆 / 多人对话。旧节点没有该字段，按合成处理。 */
+    audioMode?: "tts" | "design" | "clone" | "dialog";
+    /** 用户手动选过模式后，不再根据连线或文本自动切换。 */
+    audioModeManual?: boolean;
+    /** 设计模式的声音描述。 */
+    audioVoiceDescription?: string;
+    /** 克隆模式：用户已勾选本人授权。 */
+    audioCloneConsent?: boolean;
+    /** 多人对话：每个角色的音色、指令（千问）或情绪（MiniMax）。 */
+    audioDialogRoles?: Record<string, { voice: string; instruction?: string; emotion?: string }>;
+    /** 文本里出现多个角色时，用户点过「不用」后不再提示。 */
+    audioDialogSuggestDismissed?: boolean;
     layerName?: string;
     layerVisible?: boolean;
     sourceLayerNodeId?: string;

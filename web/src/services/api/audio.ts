@@ -23,6 +23,13 @@ type RequestOptions = {
 
 export type AudioGenerationTask = { id: string; status?: "pending" | "running" | "success" | "error" | "cancelled"; model: string };
 
+/** 音频节点的生成模式；不传按普通合成。 */
+export type AudioModeRequest =
+    | { mode: "tts" }
+    | { mode: "design"; voiceDescription: string }
+    | { mode: "clone"; referenceAudioUrl: string; cloneConsent: boolean }
+    | { mode: "dialog"; dialogText: string; dialogRoles: Record<string, { voice: string; instruction?: string; emotion?: string }> };
+
 export type AudioGenerationTaskSnapshot = AudioGenerationTask & GenerationTaskExecutionState & { result?: { url: string; mimeType: string }; error?: string; refundedPoints?: number };
 type AudioTaskPayload = { task?: AudioGenerationTaskSnapshot; error?: string };
 
@@ -36,12 +43,13 @@ export async function requestAudioGeneration(config: AiConfig, prompt: string, o
     return waitForAudioGenerationTask(config, task, options);
 }
 
-export async function createAudioGenerationTask(config: AiConfig, prompt: string, options?: RequestOptions): Promise<AudioGenerationTask> {
+export async function createAudioGenerationTask(config: AiConfig, prompt: string, options?: RequestOptions & { mode?: AudioModeRequest }): Promise<AudioGenerationTask> {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.audioModel);
     const model = requestConfig.model.trim();
     if (!model) throw new Error("请先配置音频模型");
     const format = normalizeAudioFormatValue(config.audioFormat);
     const instructions = config.audioInstructions.trim();
+    const mode = options?.mode && options.mode.mode !== "tts" ? options.mode : undefined;
     const response = await fetch("/api/audio-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,6 +61,7 @@ export async function createAudioGenerationTask(config: AiConfig, prompt: string
                 speed: normalizeAudioSpeedValue(config.audioSpeed),
                 params: config.audioParams,
                 ...(instructions ? { instructions } : {}),
+                ...(mode || {}),
             },
             prompt,
             source: options?.source,
