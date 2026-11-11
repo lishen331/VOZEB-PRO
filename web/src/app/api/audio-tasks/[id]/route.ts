@@ -135,6 +135,7 @@ function publicTask(task: NonNullable<Awaited<ReturnType<typeof getAudioTask>>>)
         model: generationModelId(task.config),
         result: task.result,
         error: task.error,
+        createdVoiceId: task.config.createdVoiceId,
         billing: task.billing ? { pointsCost: task.billing.pointsCost, refunded: task.billing.refunded } : undefined,
     };
 }

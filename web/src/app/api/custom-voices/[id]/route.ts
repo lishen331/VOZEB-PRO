@@ -56,8 +56,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if (!voice) return NextResponse.json({ error: "Voice not found" }, { status: 404 });
         if (voice.ownerUserId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const body = await readJsonBody<{ name?: string; shared?: boolean }>(request);
-        const update: { name?: string; shared?: boolean } = {};
+        const body = await readJsonBody<{ name?: string; shared?: boolean; saved?: boolean }>(request);
+        const update: { name?: string; shared?: boolean; saved?: boolean } = {};
 
         if (body.name !== undefined) {
             const name = body.name.trim().slice(0, 50);
@@ -67,6 +67,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         if (body.shared !== undefined) {
             update.shared = Boolean(body.shared);
+        }
+
+        // 设计出来的音色默认不入库，用户点「存为我的音色」后把它放进「我的音色」。
+        if (body.saved !== undefined) {
+            update.saved = Boolean(body.saved);
         }
 
         if (Object.keys(update).length === 0) {

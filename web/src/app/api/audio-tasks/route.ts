@@ -152,7 +152,7 @@ export async function POST(request: Request) {
 }
 
 function publicTask(task: AudioTask) {
-    return { id: task.id, status: task.status, model: generationModelId(task.config), result: task.result, error: task.error };
+    return { id: task.id, status: task.status, model: generationModelId(task.config), result: task.result, error: task.error, createdVoiceId: task.config.createdVoiceId };
 }
 
 function clean(value: unknown, max: number) {

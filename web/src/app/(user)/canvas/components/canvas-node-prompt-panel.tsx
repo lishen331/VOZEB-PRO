@@ -15,6 +15,7 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasImageReferenceRolesPopover } from "@/components/canvas-image-reference-roles-popover";
+import { AudioDesignVoiceSave } from "@/components/audio-design-voice-save";
 import { CanvasPromptLibrary } from "./canvas-prompt-library";
 import { CanvasAudioSettingsPopover } from "./canvas-audio-settings-popover";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
@@ -212,7 +213,9 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </Tooltip>
                     </div>
                 ) : null}
-                {mode === "audio" && audioHint ? (
+                {mode === "audio" && node.metadata?.audioDesignVoiceId && node.metadata?.status === "success" ? (
+                    <AudioDesignVoiceSave voiceId={node.metadata.audioDesignVoiceId} defaultName={String(node.metadata.audioVoiceDescription || "")} theme={theme} onSaved={() => onConfigChange(node.id, { audioDesignVoiceId: undefined })} />
+                ) : mode === "audio" && audioHint ? (
                     <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2 text-[11px]" aria-live="polite">
                         <span style={{ color: theme.node.muted }}>{audioHint.text}</span>
                         {audioHint.actions.map((action) => (

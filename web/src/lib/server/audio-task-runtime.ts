@@ -82,7 +82,12 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
             let voiceId = config.voice;
             if (config.mode === "design" || config.mode === "clone") {
                 // 设计和克隆：先用上游创建一个音色，再用它合成。任一步失败都按可安全重试处理。
-                voiceId = await ensureModeVoiceId(task, config, voiceId);
+                const created = await ensureModeVoiceId(task, config, voiceId);
+                voiceId = created.upstreamVoiceId;
+                // 记下本次生成的音色记录，任务结果里回给前端，设计结果才能「存为我的音色」。
+                if (created.customVoiceId && created.customVoiceId !== config.createdVoiceId) {
+                    await updateAudioTask(task.id, { config: { ...config, createdVoiceId: created.customVoiceId } }).catch(() => undefined);
+                }
             }
             if (config.customVoiceId) {
                 const customVoice = await getCustomVoice(config.customVoiceId);
@@ -212,14 +217,14 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
         const existing = await findReusableCloneVoice(task.userId, config.channelId || "", targetModel, fingerprint);
         if (existing?.upstreamVoiceId && existing.status === "ready") {
             await updateCustomVoice(existing.id, { lastUsedAt: new Date().toISOString() }).catch(() => {});
-            return existing.upstreamVoiceId;
+            return { upstreamVoiceId: existing.upstreamVoiceId, customVoiceId: existing.id };
         }
         if (existing?.upstreamVoiceId && existing.status === "creating") {
             // 上一次克隆还在审核：接着等它，不重复创建（指纹有唯一索引，重复创建也会失败）。
             const ready = await waitForVoiceReady(await channelFromTaskConfig(config), existing.upstreamVoiceId);
             await updateCustomVoice(existing.id, { status: ready ? "ready" : "creating", lastUsedAt: new Date().toISOString() });
             if (!ready) throw new GenerationSubmissionSafeFailure("音色审核未在预期时间内完成，请稍后重试");
-            return existing.upstreamVoiceId;
+            return { upstreamVoiceId: existing.upstreamVoiceId, customVoiceId: existing.id };
         }
         const voiceId = randomUUID();
         const prefix = upstreamVoicePrefix(voiceId);
@@ -246,7 +251,7 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
             await updateCustomVoice(voiceId, { status: ready ? "ready" : "creating", failureReason: ready ? undefined : "音色审核未在预期时间内完成" });
             if (!ready) throw new GenerationSubmissionSafeFailure("音色审核未在预期时间内完成，请稍后重试");
         }
-        return result.upstreamVoiceId;
+        return { upstreamVoiceId: result.upstreamVoiceId, customVoiceId: voiceId };
     }
 
     const description = (config.voiceDescription || "").trim();
@@ -268,7 +273,7 @@ async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallb
         previewUrl,
         previewMimeType: result.previewMimeType,
     });
-    return result.upstreamVoiceId;
+    return { upstreamVoiceId: result.upstreamVoiceId, customVoiceId: voiceId };
 }
 
 async function findReusableCloneVoice(userId: string, channelId: string, ttsModel: string, fingerprint: string) {

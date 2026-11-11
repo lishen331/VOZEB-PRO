@@ -25,6 +25,8 @@ export type AudioTaskConfig = {
     dialog?: { lines: Array<{ role: string; text: string }>; roles: Record<string, { voice: string; instruction?: string; emotion?: string }> };
     /** 设计模式：声音描述。 */
     voiceDescription?: string;
+    /** 设计 / 克隆在上游创建音色后在 custom_voices 落下的本地记录 id，任务结果用它让用户「存为我的音色」。 */
+    createdVoiceId?: string;
     /** 克隆模式：参考音频的可访问地址（站内签名地址或公网地址）。 */
     referenceAudioUrl?: string;
     /** 克隆模式：同一段参考音频的指纹，用来复用已克隆的音色。 */
