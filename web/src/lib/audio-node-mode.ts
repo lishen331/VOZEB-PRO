@@ -11,6 +11,9 @@ import { detectDialogScript } from "@/lib/audio-dialog-script";
 
 export type AudioMode = "tts" | "design" | "clone" | "dialog";
 
+/** 克隆参考音频的时长窗口：下界两家一致；上界取两家公开限制的较宽值，精确值仍由渠道配置在服务端校验。 */
+export const CLONE_AUDIO_LIMITS = { minSec: 10, maxSec: 300 };
+
 export type AudioModeNodeState = {
     audioMode?: AudioMode;
     audioModeManual?: boolean;
@@ -34,10 +37,14 @@ export function shouldSuggestDialog(state: AudioModeNodeState, mode: AudioMode, 
 }
 
 /** 提交前的阻断原因；返回 null 表示可以生成。 */
-export function audioModeBlockingReason(mode: AudioMode, state: AudioModeNodeState, input: { text: string; referenceAudioUrl?: string }) {
+export function audioModeBlockingReason(mode: AudioMode, state: AudioModeNodeState, input: { text: string; referenceAudioUrl?: string; referenceAudioDurationMs?: number }) {
     if (mode === "design" && !state.audioVoiceDescription?.trim()) return "请先填写声音描述";
     if (mode === "clone" && !input.referenceAudioUrl) return "克隆需要参考音频：把一个音频节点连到本节点";
     if (mode === "clone" && !state.audioCloneConsent) return "请先勾选「我已获得该声音本人授权」";
+    if (mode === "clone" && input.referenceAudioDurationMs !== undefined && input.referenceAudioDurationMs > 0) {
+        const seconds = Math.round(input.referenceAudioDurationMs / 1000);
+        if (seconds < CLONE_AUDIO_LIMITS.minSec || seconds > CLONE_AUDIO_LIMITS.maxSec) return `参考音频 ${seconds} 秒，需要 ${CLONE_AUDIO_LIMITS.minSec}–${CLONE_AUDIO_LIMITS.maxSec} 秒`;
+    }
     if (mode === "dialog") {
         const { roles } = detectDialogScript(input.text);
         if (roles.length < 2) return "多人对话至少要 2 个角色，每行写成「名字：台词」";

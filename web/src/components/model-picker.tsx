@@ -6,6 +6,7 @@ import { Cpu } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { modelOptionLabel, modelOptionName, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { audioModelPurpose, audioModelPurposeLabel, type AudioModelPurpose } from "@/lib/audio-model-params";
 
 type ModelPickerProps = {
     config: AiConfig;
@@ -85,11 +86,24 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
                 onMouseDown={(event) => event.stopPropagation()}
             >
                 {options.length ? (
-                    options.map((model) => (
-                        <SelectItem key={model} value={model} textValue={optionsOverride ? model : modelOptionLabel(config, model)}>
-                            {optionsOverride ? <span className="truncate">{model}</span> : <ModelLabel config={config} model={model} />}
-                        </SelectItem>
-                    ))
+                    capability === "audio" && !optionsOverride ? (
+                        audioOptionGroups(options).map((group) => (
+                            <div key={group.purpose} role="group" aria-label={audioModelPurposeLabel(group.purpose)}>
+                                <div className="px-2 pb-0.5 pt-1.5 text-[10px] font-medium text-muted-foreground">{audioModelPurposeLabel(group.purpose)}</div>
+                                {group.models.map((model) => (
+                                    <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}>
+                                        <ModelLabel config={config} model={model} />
+                                    </SelectItem>
+                                ))}
+                            </div>
+                        ))
+                    ) : (
+                        options.map((model) => (
+                            <SelectItem key={model} value={model} textValue={optionsOverride ? model : modelOptionLabel(config, model)}>
+                                {optionsOverride ? <span className="truncate">{model}</span> : <ModelLabel config={config} model={model} />}
+                            </SelectItem>
+                        ))
+                    )
                 ) : (
                     <SelectItem value="__empty__" disabled>
                         {emptyModelLabel(config, capability)}
@@ -98,6 +112,12 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
             </SelectContent>
         </Select>
     );
+}
+
+/** 音频模型按用途分组展示：音乐（Suno）/ 配音（千问、MiniMax）/ 其他，避免拿音乐模型去配音。 */
+function audioOptionGroups(options: string[]) {
+    const order: AudioModelPurpose[] = ["voice", "music", "other"];
+    return order.map((purpose) => ({ purpose, models: options.filter((model) => audioModelPurpose(model) === purpose) })).filter((group) => group.models.length > 0);
 }
 
 function emptyModelLabel(config: AiConfig, capability?: ModelCapability) {

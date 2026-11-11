@@ -5,8 +5,8 @@ import { FileText, Image as ImageIcon, Maximize2, Minimize2, Music2, Sparkles, S
 import { App, Button, Dropdown, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
-import { audioModelFamily, audioModelPlaceholder, isAudioLyricsMode, minimaxInterjections, minimaxPauseToken } from "@/lib/audio-model-params";
-import { resolveAudioMode, shouldSuggestDialog } from "@/lib/audio-node-mode";
+import { audioModelFamily, audioModelPlaceholder, audioModelPurposeHint, isAudioLyricsMode, minimaxInterjections, minimaxPauseToken } from "@/lib/audio-model-params";
+import { audioModeBlockingReason, resolveAudioMode, shouldSuggestDialog } from "@/lib/audio-node-mode";
 import { generateClientUUID } from "@/lib/client-uuid";
 import { writeLyrics } from "@/services/api/lyrics-writing";
 import { CreditSymbol, formatCreditAmount, requestCreditCost } from "@/constant/credits";
@@ -68,10 +68,18 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const textReferences = mentionReferences.filter((reference) => reference.active && reference.nodeId !== node.id);
     const [prompt, setPrompt] = useState(canvasNodePrompt(node));
     const [expanded, setExpanded] = useState(false);
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const [writingLyrics, setWritingLyrics] = useState(false);
     const lyricsMode = mode === "audio" && isAudioLyricsMode(config.model, config.audioParams);
     const audioHint = audioModeHint(node, mode, config.model, mentionReferences, prompt, onConfigChange);
+    // 克隆的参考音频时长：由引用清单的时长得到，太短/太长时禁用生成并说明原因，不等到上游报错。
+    const cloneReference = mentionReferences.find((reference) => reference.kind === "audio" && reference.active && reference.nodeId && reference.nodeId !== node.id);
+    const cloneDurationMs = cloneReference?.durationMs;
+    const audioMode = resolveAudioMode(node.metadata || {}, Boolean(cloneReference));
+    const cloneBlock =
+        audioMode === "clone" && cloneDurationMs !== undefined && cloneDurationMs > 0
+            ? audioModeBlockingReason("clone", { ...node.metadata, audioCloneConsent: true }, { text: prompt, referenceAudioUrl: cloneReference?.storageKey || cloneReference?.previewUrl || "ref", referenceAudioDurationMs: cloneDurationMs })
+            : null;
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
     const credits = requestCreditCost({
         apiSource: config.apiSource,
@@ -121,6 +129,24 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const submit = () => {
         const text = prompt.trim();
         if (!text || isRunning) return false;
+        if (mode === "audio" && cloneBlock) {
+            message.warning(cloneBlock);
+            return false;
+        }
+        if (mode === "audio" && audioMode === "clone" && !node.metadata?.audioCloneConsent) {
+            // 克隆要本人授权：没勾选时先生成前弹窗确认，确认后写入授权并继续。
+            modal.confirm({
+                title: "确认已获得声音本人授权",
+                content: "克隆会用参考音频里的声音朗读这段文本。请确认你已获得该声音本人的授权，同意用于语音合成。",
+                okText: "已获授权，继续生成",
+                cancelText: "取消",
+                onOk: () => {
+                    onConfigChange(node.id, { audioCloneConsent: true });
+                    onGenerate(node.id, mode, text);
+                },
+            });
+            return true;
+        }
         onGenerate(node.id, mode, text);
         return true;
     };
@@ -211,6 +237,11 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 {writingLyrics ? "正在写歌词…" : "AI 写歌词"}
                             </button>
                         </Tooltip>
+                    </div>
+                ) : null}
+                {mode === "audio" && audioModelPurposeHint(config.model) ? (
+                    <div className="px-3 pt-2 text-[11px]" style={{ color: theme.node.muted }}>
+                        {audioModelPurposeHint(config.model)}
                     </div>
                 ) : null}
                 {mode === "audio" && node.metadata?.audioDesignVoiceId && node.metadata?.status === "success" ? (
@@ -354,7 +385,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     type="primary"
                     className="canvas-generate-button canvas-metal-button !h-10 !min-w-16 shrink-0 !rounded-full !px-3"
                     data-generating={isRunning ? "true" : undefined}
-                    disabled={!isRunning && !prompt.trim()}
+                    disabled={!isRunning && (!prompt.trim() || Boolean(cloneBlock))}
+                    title={cloneBlock || undefined}
                     onClick={() => (isRunning ? onStop(node.id) : submit())}
                     aria-label={isRunning ? "停止生成" : "生成"}
                 >
