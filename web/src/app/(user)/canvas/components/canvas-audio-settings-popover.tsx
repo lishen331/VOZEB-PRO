@@ -25,6 +25,12 @@ type CanvasAudioSettingsPopoverProps = {
     placement?: CanvasSettingsPopoverPlacement;
 };
 
+/** 去掉音色名，只保留格式 / 语速这类仍然生效的参数。 */
+function formatOnlySummary(summary: string) {
+    const parts = summary.split(" · ").filter(Boolean);
+    return parts.length > 1 ? parts[parts.length - 1] : parts[0] || "";
+}
+
 const MODE_LABELS = { tts: "合成", design: "设计", clone: "克隆", dialog: "多人对话" } as const;
 
 export function CanvasAudioSettingsPopover({ config, metadata, references = [], nodeId, dialogText = "", onConfigChange, onParamsChange, onMetadataChange, buttonClassName, placement = "topLeft" }: CanvasAudioSettingsPopoverProps) {
@@ -43,8 +49,11 @@ export function CanvasAudioSettingsPopover({ config, metadata, references = [], 
             : audioMode === "design"
               ? `${MODE_LABELS.design} · ${metadata?.audioVoiceDescription?.trim() ? metadata.audioVoiceDescription.trim().slice(0, 8) : "未填写描述"}`
               : "";
+    // 设计与克隆的音色由模式自己决定（描述或参考音频），预置音色不参与生成，
+    // 所以摘要里不能再带「龙安欢（女）」，否则用户会以为用的是那个音色。
+    const voiceInUse = audioMode === "tts";
     const detail = family === "openai" ? `${audioVoiceLabel(config.audioVoice)} · ${audioFormatLabel(config.audioFormat)} · ${audioSpeedLabel(config.audioSpeed)}` : audioParamsSummary(config.model, config.audioParams);
-    const label = modeSummary ? `${modeSummary} · ${detail}` : detail;
+    const label = modeSummary ? `${modeSummary} · ${voiceInUse ? detail : formatOnlySummary(detail)}` : detail;
 
     return (
         <CanvasSettingsPopoverShell label={label} buttonClassName={buttonClassName} defaultButtonClassName="!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5" placement={placement}>

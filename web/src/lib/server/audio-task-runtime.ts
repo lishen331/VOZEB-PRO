@@ -128,11 +128,16 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
             const workflow = workflowConfigForTask(candidate);
             // 自定义音色：上游字段里的 voice 必须换成解析出的 upstreamVoiceId，
             // 不能让 custom:<id> 漏到上游，也不能因为剔除它而丢掉 voice_setting.voice_id。
+            // 设计 / 克隆刚创建的音色只在 voiceId 里，没有 customVoiceId，也必须覆盖掉参数里的默认音色，
+            // 否则会拿默认预置音色（如龙安欢·女）去合成，克隆出来的声音根本用不上。
             let payload: Record<string, unknown>;
             try {
                 payload = workflow
                     ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: defaults, references: [] })
-                    : { ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults), ...withoutUndefined(audioUpstreamFields(config.model, candidate.prompt, config.params, config.customVoiceId ? voiceId : undefined)) };
+                    : {
+                          ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults),
+                          ...withoutUndefined(audioUpstreamFields(config.model, candidate.prompt, config.params, config.customVoiceId || config.mode === "design" || config.mode === "clone" ? voiceId : undefined)),
+                      };
             } catch (error) {
                 throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "音频请求模板无效");
             }

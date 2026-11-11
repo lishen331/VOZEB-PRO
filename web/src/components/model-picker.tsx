@@ -6,7 +6,7 @@ import { Cpu } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { modelOptionLabel, modelOptionName, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
-import { audioModelPurpose, audioModelPurposeLabel, type AudioModelPurpose } from "@/lib/audio-model-params";
+import { audioModelPurpose, type AudioModelPurpose } from "@/lib/audio-model-params";
 
 type ModelPickerProps = {
     config: AiConfig;
@@ -87,15 +87,10 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
             >
                 {options.length ? (
                     capability === "audio" && !optionsOverride ? (
-                        audioOptionGroups(options).map((group) => (
-                            <div key={group.purpose} role="group" aria-label={audioModelPurposeLabel(group.purpose)}>
-                                <div className="px-2 pb-0.5 pt-1.5 text-[10px] font-medium text-muted-foreground">{audioModelPurposeLabel(group.purpose)}</div>
-                                {group.models.map((model) => (
-                                    <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}>
-                                        <ModelLabel config={config} model={model} />
-                                    </SelectItem>
-                                ))}
-                            </div>
+                        audioOptionOrder(options).map((model) => (
+                            <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}>
+                                <ModelLabel config={config} model={model} purpose />
+                            </SelectItem>
                         ))
                     ) : (
                         options.map((model) => (
@@ -114,10 +109,13 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
     );
 }
 
-/** 音频模型按用途分组展示：音乐（Suno）/ 配音（千问、MiniMax）/ 其他，避免拿音乐模型去配音。 */
-function audioOptionGroups(options: string[]) {
-    const order: AudioModelPurpose[] = ["voice", "music", "other"];
-    return order.map((purpose) => ({ purpose, models: options.filter((model) => audioModelPurpose(model) === purpose) })).filter((group) => group.models.length > 0);
+/**
+ * 音频模型按用途排序：配音（千问 / MiniMax）在前，音乐（Suno）在后。
+ * 下拉项只接受 SelectItem，分组标题放不进去，所以每条自带用途标签。
+ */
+function audioOptionOrder(options: string[]) {
+    const rank: Record<AudioModelPurpose, number> = { voice: 0, music: 1, other: 2 };
+    return [...options].sort((left, right) => rank[audioModelPurpose(left)] - rank[audioModelPurpose(right)]);
 }
 
 function emptyModelLabel(config: AiConfig, capability?: ModelCapability) {
@@ -126,11 +124,27 @@ function emptyModelLabel(config: AiConfig, capability?: ModelCapability) {
     return config.models.length ? `暂无匹配的${label}模型` : "请联系管理员在后台配置渠道和模型";
 }
 
-function ModelLabel({ config, model }: { config: AiConfig; model: string }) {
+function ModelLabel({ config, model, purpose = false }: { config: AiConfig; model: string; purpose?: boolean }) {
     return (
         <span className="flex min-w-0 items-center gap-2">
             <ModelIcon model={model} />
             <span className="truncate">{modelOptionLabel(config, model)}</span>
+            {purpose ? <AudioPurposeTag purpose={audioModelPurpose(model)} /> : null}
+        </span>
+    );
+}
+
+/** 音频模型用途标签：配音 / 音乐，帮用户区分「读文字」和「生音乐」。 */
+function AudioPurposeTag({ purpose }: { purpose: AudioModelPurpose }) {
+    const label = purpose === "music" ? "音乐" : purpose === "voice" ? "配音" : "其他";
+    return (
+        <span
+            className={cn(
+                "ml-auto shrink-0 rounded px-1 py-0.5 text-[10px] leading-none",
+                purpose === "music" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : purpose === "voice" ? "bg-sky-500/15 text-sky-600 dark:text-sky-400" : "bg-muted text-muted-foreground",
+            )}
+        >
+            {label}
         </span>
     );
 }
