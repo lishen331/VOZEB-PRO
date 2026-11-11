@@ -41,6 +41,9 @@ export function CanvasSettingsPopoverShell({ label, children, buttonClassName, d
             if (!(target instanceof Node)) return;
             if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
             if (target instanceof Element && target.closest(".ant-select-dropdown")) return;
+            // 面板里的 Modal / Upload / Tooltip 等浮层 Portal 到 body，点击它们不算点外部，
+            // 否则在弹窗里点复选框或上传区会把整个设置面板关掉。
+            if (target instanceof Element && target.closest(".ant-modal-root, .ant-modal-wrap, .ant-upload-wrapper, .ant-tooltip, .ant-popover, .ant-picker-dropdown, [role='dialog']")) return;
             if (document.activeElement instanceof HTMLElement && panelRef.current?.contains(document.activeElement)) document.activeElement.blur();
             setOpen(false);
             onOpenChange?.(false);

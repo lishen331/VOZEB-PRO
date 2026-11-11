@@ -6,6 +6,7 @@ import { App, Button, Dropdown, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
 import { audioModelFamily, audioModelPlaceholder, isAudioLyricsMode, minimaxInterjections, minimaxPauseToken } from "@/lib/audio-model-params";
+import { resolveAudioMode, shouldSuggestDialog } from "@/lib/audio-node-mode";
 import { generateClientUUID } from "@/lib/client-uuid";
 import { writeLyrics } from "@/services/api/lyrics-writing";
 import { CreditSymbol, formatCreditAmount, requestCreditCost } from "@/constant/credits";
@@ -69,6 +70,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const { message } = App.useApp();
     const [writingLyrics, setWritingLyrics] = useState(false);
     const lyricsMode = mode === "audio" && isAudioLyricsMode(config.model, config.audioParams);
+    const audioHint = audioModeHint(node, mode, config.model, mentionReferences, prompt, onConfigChange);
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
     const credits = requestCreditCost({
         apiSource: config.apiSource,
@@ -210,6 +212,22 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </Tooltip>
                     </div>
                 ) : null}
+                {mode === "audio" && audioHint ? (
+                    <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2 text-[11px]" aria-live="polite">
+                        <span style={{ color: theme.node.muted }}>{audioHint.text}</span>
+                        {audioHint.actions.map((action) => (
+                            <button
+                                key={action.label}
+                                type="button"
+                                className="rounded-md border px-1.5 py-0.5 font-medium hover:opacity-75"
+                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                                onClick={action.run}
+                            >
+                                {action.label}
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
                 <CanvasResourceMentionTextarea
                     autoFocus
                     value={prompt}
@@ -299,9 +317,13 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasAudioSettingsPopover
                                 config={config}
+                                metadata={node.metadata}
+                                references={mentionReferences}
+                                dialogText={prompt}
                                 buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS}
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))}
                                 onParamsChange={(audioParams) => onConfigChange(node.id, { audioParams })}
+                                onMetadataChange={(patch) => onConfigChange(node.id, patch)}
                             />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
                                 <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
@@ -461,6 +483,43 @@ export function appendCanvasLibraryPrompt(currentPrompt: string, selectedPrompt:
     if (!selected) return currentPrompt;
     const current = currentPrompt.trimEnd();
     return current ? `${current}\n\n${selected}` : selected;
+}
+
+/**
+ * 音频节点输入框上方的模式提示（spec §3.2）：
+ * - 连入音频节点后自动切到克隆，给一次撤销；
+ * - 文本里出现多个角色时只提示，用户点「切换」才进多人对话，点「不用」后该节点不再提示。
+ */
+function audioModeHint(node: CanvasNodeData, mode: CanvasNodeGenerationMode, model: string, references: CanvasResourceReference[], prompt: string, onConfigChange: (nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => void) {
+    const metadata = node.metadata || {};
+    const audioMode = resolveAudioMode(
+        metadata,
+        references.some((reference) => reference.kind === "audio" && reference.active && reference.nodeId !== node.id),
+    );
+    const suggestedRoles = shouldSuggestDialog(metadata, audioMode, prompt);
+    if (mode !== "audio" || audioMode === "clone" || audioMode === "dialog") return null;
+    const family = audioModelFamily(model);
+    if (family !== "qwen" && family !== "minimax") return null;
+    const hasReferenceAudio = references.some((reference) => reference.kind === "audio" && reference.active && reference.nodeId !== node.id);
+    if (hasReferenceAudio && !metadata.audioModeManual) {
+        return {
+            text: "连入了音频节点，已切到克隆",
+            actions: [
+                { label: "撤销", run: () => onConfigChange(node.id, { audioMode: "tts", audioModeManual: true }) },
+                { label: "去克隆", run: () => onConfigChange(node.id, { audioMode: "clone", audioModeManual: true }) },
+            ],
+        };
+    }
+    if (suggestedRoles) {
+        return {
+            text: `检测到 ${suggestedRoles.length} 个角色（${suggestedRoles.slice(0, 3).join("、")}${suggestedRoles.length > 3 ? " 等" : ""}），要切到多人对话吗？`,
+            actions: [
+                { label: "切换", run: () => onConfigChange(node.id, { audioMode: "dialog", audioModeManual: true }) },
+                { label: "不用", run: () => onConfigChange(node.id, { audioDialogSuggestDismissed: true }) },
+            ],
+        };
+    }
+    return null;
 }
 
 function defaultMode(type: CanvasNodeData["type"]): CanvasNodeGenerationMode {
