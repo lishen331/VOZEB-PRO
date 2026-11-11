@@ -172,6 +172,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
                 ) : mode === "audio" ? (
                     <CanvasAudioSettingsPopover
                         config={config}
+                        nodeId={node.id}
                         metadata={node.metadata}
                         references={references}
                         dialogText={String(node.metadata?.composerContent ?? node.metadata?.prompt ?? "")}

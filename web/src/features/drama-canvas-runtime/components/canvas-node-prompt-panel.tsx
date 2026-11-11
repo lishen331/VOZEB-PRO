@@ -320,6 +320,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasAudioSettingsPopover
                                 config={config}
+                                nodeId={node.id}
                                 metadata={node.metadata}
                                 references={mentionReferences}
                                 dialogText={prompt}
@@ -495,30 +496,29 @@ export function appendCanvasLibraryPrompt(currentPrompt: string, selectedPrompt:
  */
 function audioModeHint(node: CanvasNodeData, mode: CanvasNodeGenerationMode, model: string, references: CanvasResourceReference[], prompt: string, onConfigChange: (nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => void) {
     const metadata = node.metadata || {};
-    const audioMode = resolveAudioMode(
-        metadata,
-        references.some((reference) => reference.kind === "audio" && reference.active && reference.nodeId !== node.id),
-    );
-    const suggestedRoles = shouldSuggestDialog(metadata, audioMode, prompt);
-    if (mode !== "audio" || audioMode === "clone" || audioMode === "dialog") return null;
+    if (mode !== "audio") return null;
     const family = audioModelFamily(model);
     if (family !== "qwen" && family !== "minimax") return null;
-    const hasReferenceAudio = references.some((reference) => reference.kind === "audio" && reference.active && reference.nodeId !== node.id);
-    if (hasReferenceAudio && !metadata.audioModeManual) {
-        return {
-            text: "连入了音频节点，已切到克隆",
-            actions: [
-                { label: "撤销", run: () => onConfigChange(node.id, { audioMode: "tts", audioModeManual: true }) },
-                { label: "去克隆", run: () => onConfigChange(node.id, { audioMode: "clone", audioModeManual: true }) },
-            ],
-        };
-    }
-    if (suggestedRoles) {
+    const hasReferenceAudio = references.some((reference) => reference.kind === "audio" && reference.active && reference.nodeId && reference.nodeId !== node.id);
+    const audioMode = resolveAudioMode(metadata, hasReferenceAudio);
+    // 多人对话提示优先：输入框里已经写了「名字：台词」时，先问要不要切成多人对话。
+    const suggestedRoles = shouldSuggestDialog(metadata, audioMode, prompt);
+    if (suggestedRoles && audioMode !== "dialog") {
         return {
             text: `检测到 ${suggestedRoles.length} 个角色（${suggestedRoles.slice(0, 3).join("、")}${suggestedRoles.length > 3 ? " 等" : ""}），要切到多人对话吗？`,
             actions: [
                 { label: "切换", run: () => onConfigChange(node.id, { audioMode: "dialog", audioModeManual: true }) },
                 { label: "不用", run: () => onConfigChange(node.id, { audioDialogSuggestDismissed: true }) },
+            ],
+        };
+    }
+    if (audioMode === "dialog") return null;
+    if (hasReferenceAudio && !metadata.audioModeManual && audioMode === "clone") {
+        return {
+            text: "连入了音频节点，已切到克隆",
+            actions: [
+                { label: "撤销", run: () => onConfigChange(node.id, { audioMode: "tts", audioModeManual: true }) },
+                { label: "去克隆", run: () => onConfigChange(node.id, { audioMode: "clone", audioModeManual: true }) },
             ],
         };
     }

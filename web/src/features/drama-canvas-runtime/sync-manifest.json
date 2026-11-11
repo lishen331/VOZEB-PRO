@@ -2,8 +2,8 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "98fd6e9cdd459e8777554127e677d0d6533e5359",
-    "syncedAt": "2026-11-11T06:14:26.380Z",
+    "sourceCommit": "b248b5a1506eee9fa69afa525769a83054f3f6ff",
+    "syncedAt": "2026-11-11T07:49:25.463Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
@@ -49,7 +49,7 @@
         },
         {
             "path": "[id]/use-canvas-generation-actions.tsx",
-            "sha256": "fe8076cfb70007f45da966d259e042c7d9c6762555385277a188ede7ed5b4951"
+            "sha256": "99e40212a1ff75e4082bc58ca4f51b6a958264f91366c934c375a2f795323703"
         },
         {
             "path": "[id]/use-canvas-image-layer-actions.tsx",
@@ -161,7 +161,7 @@
         },
         {
             "path": "components/canvas-audio-settings-popover.tsx",
-            "sha256": "8a3fff048150e486f41d0025768a18b4e0ec22f9d3efdd1a2bacafe39cf537ff"
+            "sha256": "01baebd0fd9d6952360fdc1455634f40b45fa629e69124a7a79facf765da773a"
         },
         {
             "path": "components/canvas-camera-control.tsx",
@@ -173,7 +173,7 @@
         },
         {
             "path": "components/canvas-config-node-panel.tsx",
-            "sha256": "17e8140719213908e8232db0d76dd5d4045d346cf3fc76c6aa7896a12002470d"
+            "sha256": "1d935ccaf57750b5f9f5a8769e3bc5d6886bbdcc3298758b18f288011f0476c8"
         },
         {
             "path": "components/canvas-context-menu.tsx",
@@ -225,7 +225,7 @@
         },
         {
             "path": "components/canvas-node-prompt-panel.tsx",
-            "sha256": "92db85bafcd02d8da9ec1d65218f72cae13eed9fd758ed06929fecb73ba6d4cc"
+            "sha256": "12ec68696252c252b1fecbbe8cfaf4885ec2f4eb745c9d8bac6bcc3ce6350a5b"
         },
         {
             "path": "components/canvas-node-split-dialog.tsx",
