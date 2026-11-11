@@ -122,7 +122,8 @@ export function AudioModelParamsPanel({ model, params, onChange, theme, modeStat
     const mode = modeCapable ? (modeState as AudioModePanelState).mode : "tts";
     const allFields = audioVisibleFields(model, params);
     // 设计、克隆不选音色；多人对话的音色在角色卡片里选，全局指令也由角色指令代替。
-    const fields = !modeCapable ? allFields : allFields.filter((field) => (field.key === "voiceId" ? mode === "tts" : field.key === "instruction" ? mode !== "dialog" : true));
+    // 设计、克隆不选音色；多人对话的音色和指令都在角色卡片里，全局指令框隐藏；设计不需要指令（用声音描述代替）。
+    const fields = !modeCapable ? allFields : allFields.filter((field) => (field.key === "voiceId" ? mode === "tts" : field.key === "instruction" ? mode === "tts" || mode === "clone" : true));
     const values = normalizeAudioParams(model, params);
     const groups = [...new Set(fields.map((field) => field.group))];
     const update = (key: string, value: AudioParams[string]) => onChange({ ...values, [key]: value });
