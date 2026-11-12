@@ -5,7 +5,7 @@ import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Button, Tag } from "@/components/gamma-ui/gamma-ant";
 import { GammaDetailSkeleton } from "@/components/gamma-ui/gamma-data";
-import { BookOpen, Boxes, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
+import { BookOpen, Boxes, ChevronLeft, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -91,7 +91,7 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
 
     return (
         <main className="relative z-0 h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]" data-ip-library-detail>
-            <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
+            <div className="gm-page px-3 py-4 sm:px-6 sm:py-8">
                 {showSubIpDetail ? (
                     <header className="border-b border-[var(--gm-border)] pb-5 sm:pb-8">
                         <nav aria-label="面包屑" className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--gm-text-3)]">

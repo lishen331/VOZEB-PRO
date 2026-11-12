@@ -138,7 +138,7 @@ export default function CanvasPage() {
 
     return (
         <main className="h-full overflow-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
-            <div className="mx-auto w-full max-w-[1760px] flex flex-col gap-2 px-2 py-2 sm:gap-6 sm:px-6 sm:py-8">
+            <div className="gm-page flex flex-col gap-2 px-2 py-2 sm:gap-6 sm:px-6 sm:py-8">
                 <header className="flex flex-wrap items-end justify-between gap-2.5 border-b border-[var(--gm-border)] pb-3 sm:gap-4 sm:pb-5">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
@@ -188,7 +188,7 @@ export default function CanvasPage() {
                     </section>
                 ) : projects.length ? (
                     <>
-                        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+                        <div className="gm-card-grid-wide">
                             {projects.map((project) => (
                                 <CanvasProjectCard key={project.id} project={project} />
                             ))}

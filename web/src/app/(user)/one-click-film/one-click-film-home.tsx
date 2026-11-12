@@ -70,7 +70,7 @@ export default function OneClickFilmHome() {
 
     return (
         <main className="h-full overflow-y-auto bg-[var(--gm-bg)] text-[var(--gm-text)]">
-            <div className="mx-auto w-full max-w-[1760px] px-4 py-5 sm:px-6 sm:py-8">
+            <div className="gm-page px-4 py-5 sm:px-6 sm:py-8">
                 <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--gm-border)] pb-5">
                     <div>
                         <div className="flex items-center gap-2 text-sm text-[var(--gm-text-3)]">
@@ -95,7 +95,7 @@ export default function OneClickFilmHome() {
                         <span className="text-sm text-[var(--gm-text-3)]">共 {total} 个项目</span>
                     </div>
                     {loading ? (
-                        <GammaCardGridSkeleton count={6} className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 mt-4" label="正在加载一键成片项目" />
+                        <GammaCardGridSkeleton count={6} className="gm-card-grid-wide mt-4" label="正在加载一键成片项目" />
                     ) : error ? (
                         <div className="py-12 text-center text-sm text-destructive">
                             {error}
@@ -105,7 +105,7 @@ export default function OneClickFilmHome() {
                             </Button>
                         </div>
                     ) : projects.length ? (
-                        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 mt-4">
+                        <div className="gm-card-grid-wide mt-4">
                             {projects.map((project, index) => (
                                 <GammaReveal key={project.id} index={index} animate={firstEntry} className="grid">
                                     <article className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-5">
