@@ -38,6 +38,30 @@ export function buildVideoProviderRequest(template: string | undefined, defaults
     return renderProviderRequest(template, values, alignVideoProviderFields);
 }
 
+/**
+ * Upstreams that set `referenceModeExclusive` reject a request carrying both keyframes
+ * (`image_url` / `end_image_url`) and multi-image references (`image_urls`). Pick one group
+ * from what the task actually has: a first frame means keyframe mode, otherwise multi-image.
+ * Channels without the flag are returned untouched, so their behaviour cannot change.
+ */
+export function applyExclusiveVideoReferenceMode<T extends TemplateValues>(values: T, options: { exclusive: boolean; hasFirstFrame: boolean; hasLastFrame?: boolean }): T {
+    if (!options.exclusive) return values;
+    const next: TemplateValues = { ...values };
+    if (options.hasFirstFrame) {
+        for (const key of MULTI_IMAGE_REFERENCE_KEYS) delete next[key];
+        if (!options.hasLastFrame) {
+            for (const key of LAST_FRAME_REFERENCE_KEYS) delete next[key];
+        }
+        return next as T;
+    }
+    for (const key of KEYFRAME_REFERENCE_KEYS) delete next[key];
+    return next as T;
+}
+
+const MULTI_IMAGE_REFERENCE_KEYS = ["images", "image_urls", "reference_images"] as const;
+const LAST_FRAME_REFERENCE_KEYS = ["end_image_url", "last_frame", "last_frame_url"] as const;
+const KEYFRAME_REFERENCE_KEYS = ["image_url", "image", "first_frame", "first_frame_url", ...LAST_FRAME_REFERENCE_KEYS] as const;
+
 export function assertReferenceUrls(config: SystemChannelAdvancedConfig | undefined, references: Array<{ url?: string }>, publicUrlRequired = false) {
     if (!references.length) return;
     const ruleRequiresPublicUrl = /公网|public|next_public_site_url|must.*\burl\b|\burl\b.*only|必须.*\burl\b|仅.*\burl\b|只.*\burl\b/i.test(config?.referenceRule || "");

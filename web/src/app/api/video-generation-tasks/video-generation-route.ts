@@ -11,7 +11,18 @@ import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
-import { assertReferenceCapabilities, assertReferenceUrls, assertVideoReferenceRoles, buildVideoProviderRequest, isProviderBusinessError, readProviderError, readProviderString, resolvedProviderCreatePaths } from "@/lib/server/provider-task-config";
+import {
+    applyExclusiveVideoReferenceMode,
+    assertReferenceCapabilities,
+    assertReferenceUrls,
+    assertVideoReferenceRoles,
+    buildVideoProviderRequest,
+    isProviderBusinessError,
+    readProviderError,
+    readProviderString,
+    resolvedProviderCreatePaths,
+} from "@/lib/server/provider-task-config";
+import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
 import { buildGlobalAiOpcVideoRequest, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { createVideoTask, transitionVideoTask, updateVideoTask, type VideoTask } from "@/lib/server/video-task-store";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
@@ -582,6 +593,11 @@ export async function createUpstream(
         last_frame: lastFrameUrl,
         last_frame_url: lastFrameUrl,
     };
+    // Upstreams that refuse keyframes together with multi-image references get exactly one group.
+    // Applied to both maps because the template reads `values` while `defaults` is the fallback
+    // payload when no template is configured.
+    const referenceMode = resolveReferenceModeExclusive(channel, channel.model) ? { exclusive: true, hasFirstFrame: Boolean(firstFrameUrl), hasLastFrame: Boolean(lastFrameUrl) } : { exclusive: false, hasFirstFrame: false };
+    const filteredValues = applyExclusiveVideoReferenceMode(values, referenceMode);
     const defaults = {
         model: channel.model,
         prompt,
@@ -604,6 +620,7 @@ export async function createUpstream(
         ...(firstFrameUrl ? { first_frame: firstFrameUrl, first_frame_url: firstFrameUrl } : {}),
         ...(lastFrameUrl ? { last_frame: lastFrameUrl, last_frame_url: lastFrameUrl } : {}),
     };
+    const filteredDefaults = applyExclusiveVideoReferenceMode(defaults, referenceMode);
     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
     const multipart = channel.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
     const payload = workflow
@@ -684,7 +701,7 @@ export async function createUpstream(
                             firstFrame: firstFrameUrl || undefined,
                             lastFrame: lastFrameUrl || undefined,
                         })
-                      : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
+                      : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, filteredDefaults, filteredValues);
     const requestBody = multipart
         ? await buildOpenAiVideoFormData({ model: channel.model, prompt, seconds: values.seconds as number, width: dimensions.width, height: dimensions.height, imageUrls: firstFrameUrl ? [firstFrameUrl] : images, origin, cookie })
         : JSON.stringify(payload);
@@ -1018,6 +1035,15 @@ async function prepareTuziReferences(channel: NonNullable<ReturnType<typeof toSy
 
 function referenceUrls(items: readonly VideoGenerationReference[], type: VideoGenerationReference["type"]) {
     return unique(items.filter((item) => item.type === type).map((item) => clean(item.url)));
+}
+
+/**
+ * Only models that explicitly declare `referenceModeExclusive` get the keyframe/multi-image
+ * split. Everything else keeps the historical "send whatever the template declares" behaviour.
+ */
+function resolveReferenceModeExclusive(channel: NonNullable<ReturnType<typeof toSystemGenerationChannel>>, model: string) {
+    const modelConfig = resolveChannelModelConfig(channel.advancedConfig, model);
+    return modelConfig?.referenceModeExclusive === true;
 }
 
 function videoReferenceContent(prompt: string, references: readonly VideoGenerationReference[]) {
