@@ -23,25 +23,34 @@ type RequestOptions = {
 
 export type AudioGenerationTask = { id: string; status?: "pending" | "running" | "success" | "error" | "cancelled"; model: string };
 
-export type AudioGenerationTaskSnapshot = AudioGenerationTask & GenerationTaskExecutionState & { result?: { url: string; mimeType: string }; error?: string; refundedPoints?: number };
+/** 音频节点的生成模式；不传按普通合成。 */
+export type AudioModeRequest =
+    | { mode: "tts" }
+    | { mode: "design"; voiceDescription: string }
+    | { mode: "clone"; referenceAudioUrl: string; cloneConsent: boolean; referenceAudioDurationMs?: number }
+    | { mode: "dialog"; dialogText: string; dialogRoles: Record<string, { voice: string; instruction?: string; emotion?: string }> };
+
+export type AudioGenerationTaskSnapshot = AudioGenerationTask &
+    GenerationTaskExecutionState & { result?: { url: string; mimeType: string }; error?: string; refundedPoints?: number; /** 设计模式创建的本地音色记录，用来「存为我的音色」 */ createdVoiceId?: string };
 type AudioTaskPayload = { task?: AudioGenerationTaskSnapshot; error?: string };
 
 const AUDIO_TASK_POLL_INTERVAL_MS = 1800;
 const AUDIO_TASK_TIMEOUT_MS = 30 * 60 * 1000;
 
-export type GeneratedAudioResult = { blob: Blob; url: string; mimeType: string };
+export type GeneratedAudioResult = { blob: Blob; url: string; mimeType: string; createdVoiceId?: string };
 
 export async function requestAudioGeneration(config: AiConfig, prompt: string, options?: RequestOptions): Promise<GeneratedAudioResult> {
     const task = await createAudioGenerationTask(config, prompt, options);
     return waitForAudioGenerationTask(config, task, options);
 }
 
-export async function createAudioGenerationTask(config: AiConfig, prompt: string, options?: RequestOptions): Promise<AudioGenerationTask> {
+export async function createAudioGenerationTask(config: AiConfig, prompt: string, options?: RequestOptions & { mode?: AudioModeRequest }): Promise<AudioGenerationTask> {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.audioModel);
     const model = requestConfig.model.trim();
     if (!model) throw new Error("请先配置音频模型");
     const format = normalizeAudioFormatValue(config.audioFormat);
     const instructions = config.audioInstructions.trim();
+    const mode = options?.mode && options.mode.mode !== "tts" ? options.mode : undefined;
     const response = await fetch("/api/audio-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,6 +62,7 @@ export async function createAudioGenerationTask(config: AiConfig, prompt: string
                 speed: normalizeAudioSpeedValue(config.audioSpeed),
                 params: config.audioParams,
                 ...(instructions ? { instructions } : {}),
+                ...(mode || {}),
             },
             prompt,
             source: options?.source,
@@ -105,7 +115,7 @@ export async function waitForAudioGenerationTask(config: AiConfig, task: AudioGe
                 await assertAudioBlob(blob);
                 await refreshUserPointsIfSystem(requestConfig.apiSource);
                 const audio = blob.type.startsWith("audio/") ? blob : new Blob([blob], { type: audioMimeType(format) });
-                return { blob: audio, url: current.result.url, mimeType: current.result.mimeType || audio.type };
+                return { blob: audio, url: current.result.url, mimeType: current.result.mimeType || audio.type, createdVoiceId: current.createdVoiceId };
             }
             if (current.status === "error" || current.status === "cancelled") throw new GenerationTaskTerminalError(withRefundNotice(current.error || (current.status === "cancelled" ? "请求已取消" : "音频生成失败"), current.refundedPoints));
             await delay(AUDIO_TASK_POLL_INTERVAL_MS, options?.signal);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    applyExclusiveVideoReferenceMode,
     assertReferenceCapabilities,
     assertReferenceUrls,
     assertVideoReferenceRoles,
@@ -163,5 +164,53 @@ it("replaces documented nested reference examples with the current request input
     expect(buildVideoProviderRequest(template, {}, { model: "premium/seedance-2", prompt: "test", first_frame: "", last_frame: "", images: ["https://oss.example/1.png", "https://oss.example/2.png"], videos: [] })).toEqual({
         model: "premium/seedance-2",
         input: { prompt: "test", reference_image_urls: ["https://oss.example/1.png", "https://oss.example/2.png"] },
+    });
+});
+
+describe("exclusive video reference mode", () => {
+    const both = {
+        model: "SD-2.5-O",
+        prompt: "test",
+        image_urls: ["https://cdn.example/a.png"],
+        reference_images: ["https://cdn.example/a.png"],
+        images: ["https://cdn.example/a.png"],
+        image_url: "https://cdn.example/first.png",
+        first_frame: "https://cdn.example/first.png",
+        end_image_url: "https://cdn.example/last.png",
+        videos: ["https://cdn.example/v.mp4"],
+        audios: [],
+    };
+
+    it("leaves values untouched for channels that did not opt in", () => {
+        const input = { ...both };
+        expect(applyExclusiveVideoReferenceMode(input, { exclusive: false, hasFirstFrame: true, hasLastFrame: true })).toEqual(both);
+    });
+
+    it("keeps only multi-image references when the task carries no first frame", () => {
+        const result = applyExclusiveVideoReferenceMode({ ...both }, { exclusive: true, hasFirstFrame: false });
+        expect(result.image_urls).toEqual(["https://cdn.example/a.png"]);
+        expect(result.images).toEqual(["https://cdn.example/a.png"]);
+        expect(result).not.toHaveProperty("image_url");
+        expect(result).not.toHaveProperty("first_frame");
+        expect(result).not.toHaveProperty("end_image_url");
+        expect(result.videos).toEqual(["https://cdn.example/v.mp4"]);
+    });
+
+    it("keeps only the first frame when the task carries one", () => {
+        const result = applyExclusiveVideoReferenceMode({ ...both }, { exclusive: true, hasFirstFrame: true, hasLastFrame: false });
+        expect(result.image_url).toBe("https://cdn.example/first.png");
+        expect(result.first_frame).toBe("https://cdn.example/first.png");
+        expect(result).not.toHaveProperty("end_image_url");
+        expect(result).not.toHaveProperty("image_urls");
+        expect(result).not.toHaveProperty("images");
+        expect(result).not.toHaveProperty("reference_images");
+    });
+
+    it("keeps both keyframes in first-and-last mode", () => {
+        const result = applyExclusiveVideoReferenceMode({ ...both }, { exclusive: true, hasFirstFrame: true, hasLastFrame: true });
+        expect(result.image_url).toBe("https://cdn.example/first.png");
+        expect(result.end_image_url).toBe("https://cdn.example/last.png");
+        expect(result).not.toHaveProperty("image_urls");
+        expect(result).not.toHaveProperty("images");
     });
 });

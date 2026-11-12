@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-11-10。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **444** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-11-11。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **444** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -201,7 +201,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| POST | `/api/audio-tasks` | 混合 | [route.ts](web/src/app/api/audio-tasks/route.ts) | [audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[custom-voice-store](web/src/lib/server/custom-voice-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务：提交/执行 |
+| POST | `/api/audio-tasks` | 混合 | [route.ts](web/src/app/api/audio-tasks/route.ts) | [audio-dialog-service](web/src/lib/server/audio-dialog-service.ts)<br>[audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[custom-voice-store](web/src/lib/server/custom-voice-store.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务：提交/执行 |
 | GET, PATCH, POST | `/api/audio-tasks/[id]` | 混合 | [route.ts](web/src/app/api/audio-tasks/[id]/route.ts) | [audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务 / 单项：查询、更新、提交/执行 |
 
 ### `auth`（13）

@@ -6,6 +6,7 @@ import { Cpu } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { modelOptionLabel, modelOptionName, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { audioModelPurpose, type AudioModelPurpose } from "@/lib/audio-model-params";
 
 type ModelPickerProps = {
     config: AiConfig;
@@ -85,11 +86,19 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
                 onMouseDown={(event) => event.stopPropagation()}
             >
                 {options.length ? (
-                    options.map((model) => (
-                        <SelectItem key={model} value={model} textValue={optionsOverride ? model : modelOptionLabel(config, model)}>
-                            {optionsOverride ? <span className="truncate">{model}</span> : <ModelLabel config={config} model={model} />}
-                        </SelectItem>
-                    ))
+                    capability === "audio" && !optionsOverride ? (
+                        audioOptionOrder(options).map((model) => (
+                            <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}>
+                                <ModelLabel config={config} model={model} purpose />
+                            </SelectItem>
+                        ))
+                    ) : (
+                        options.map((model) => (
+                            <SelectItem key={model} value={model} textValue={optionsOverride ? model : modelOptionLabel(config, model)}>
+                                {optionsOverride ? <span className="truncate">{model}</span> : <ModelLabel config={config} model={model} />}
+                            </SelectItem>
+                        ))
+                    )
                 ) : (
                     <SelectItem value="__empty__" disabled>
                         {emptyModelLabel(config, capability)}
@@ -100,17 +109,42 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
     );
 }
 
+/**
+ * 音频模型按用途排序：配音（千问 / MiniMax）在前，音乐（Suno）在后。
+ * 下拉项只接受 SelectItem，分组标题放不进去，所以每条自带用途标签。
+ */
+function audioOptionOrder(options: string[]) {
+    const rank: Record<AudioModelPurpose, number> = { voice: 0, music: 1, other: 2 };
+    return [...options].sort((left, right) => rank[audioModelPurpose(left)] - rank[audioModelPurpose(right)]);
+}
+
 function emptyModelLabel(config: AiConfig, capability?: ModelCapability) {
     const label = capability === "image" ? "生图" : capability === "video" ? "视频" : capability === "text" ? "文本" : capability === "audio" ? "音频" : "";
     if (capability && config.models.length) return `暂无匹配的${label}模型`;
     return config.models.length ? `暂无匹配的${label}模型` : "请联系管理员在后台配置渠道和模型";
 }
 
-function ModelLabel({ config, model }: { config: AiConfig; model: string }) {
+function ModelLabel({ config, model, purpose = false }: { config: AiConfig; model: string; purpose?: boolean }) {
     return (
         <span className="flex min-w-0 items-center gap-2">
             <ModelIcon model={model} />
             <span className="truncate">{modelOptionLabel(config, model)}</span>
+            {purpose ? <AudioPurposeTag purpose={audioModelPurpose(model)} /> : null}
+        </span>
+    );
+}
+
+/** 音频模型用途标签：配音 / 音乐，帮用户区分「读文字」和「生音乐」。 */
+function AudioPurposeTag({ purpose }: { purpose: AudioModelPurpose }) {
+    const label = purpose === "music" ? "音乐" : purpose === "voice" ? "配音" : "其他";
+    return (
+        <span
+            className={cn(
+                "ml-auto shrink-0 rounded px-1 py-0.5 text-[10px] leading-none",
+                purpose === "music" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : purpose === "voice" ? "bg-sky-500/15 text-sky-600 dark:text-sky-400" : "bg-muted text-muted-foreground",
+            )}
+        >
+            {label}
         </span>
     );
 }

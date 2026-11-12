@@ -1,15 +1,19 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Segmented, Select, Slider, Switch, Tooltip } from "antd";
-import { CircleHelp, Play, RotateCcw, Square } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
+import { Checkbox, Segmented, Select, Slider, Switch, Tooltip } from "antd";
+import { CircleHelp, RotateCcw } from "lucide-react";
 import useSWR from "swr";
 
-import { audioVisibleFields, normalizeAudioParams, type AudioParamField, type AudioParamOption, type AudioParams } from "@/lib/audio-model-params";
+import { audioModelFamily, audioVisibleFields, normalizeAudioParams, type AudioParamField, type AudioParamOption, type AudioParams } from "@/lib/audio-model-params";
 
+import { AudioDialogRoles, type DialogRoleSetting } from "@/components/audio-dialog-roles";
+import { CompactOptionGroup } from "@/components/creative-generation-preferences";
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { VoiceSelector } from "@/components/voice-selector";
+import { VoicePreviewButton, useVoicePreview } from "@/components/voice-preview";
 import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
+import type { AudioMode } from "@/lib/audio-node-mode";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
 
@@ -36,14 +40,14 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-lg font-semibold">音频设置</div> : null}
                 <SettingGroup title="声音" color={theme.node.muted}>
-                    <AudioSelect value={voice} options={audioVoiceOptions} theme={theme} onChange={(value) => onConfigChange("audioVoice", value)} />
+                    <AudioSelect value={voice} options={audioVoiceOptions} onChange={(value) => onConfigChange("audioVoice", value)} />
                 </SettingGroup>
                 <div className="grid grid-cols-2 gap-2.5">
                     <SettingGroup title="格式" color={theme.node.muted}>
-                        <AudioSelect value={format} options={audioFormatOptions} theme={theme} onChange={(value) => onConfigChange("audioFormat", value)} />
+                        <AudioSelect value={format} options={audioFormatOptions} onChange={(value) => onConfigChange("audioFormat", value)} />
                     </SettingGroup>
                     <SettingGroup title="语速" color={theme.node.muted}>
-                        <AudioSelect value={speed} options={speedSelectOptions} theme={theme} onChange={(value) => onConfigChange("audioSpeed", value)} />
+                        <AudioSelect value={speed} options={speedSelectOptions} onChange={(value) => onConfigChange("audioSpeed", value)} />
                     </SettingGroup>
                 </div>
                 <SettingGroup title="声音指令" color={theme.node.muted}>
@@ -61,7 +65,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
     );
 }
 
-function AudioSelect({ value, options, theme, onChange }: { value: string; options: Array<{ value: string; label: string }>; theme: CanvasTheme; onChange: (value: string) => void }) {
+function AudioSelect({ value, options, onChange }: { value: string; options: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {
     return (
         <span className="block [&_.ant-select]:w-full" onMouseDown={(event) => event.stopPropagation()}>
             {/* This panel is a hand-rolled portal (canvas-settings-popover-shell.tsx) at
@@ -84,16 +88,66 @@ function SettingGroup({ title, color, children }: { title: string; color: string
     );
 }
 
-export function AudioModelParamsPanel({ model, params, onChange, theme }: { model: string; params: AudioParams | undefined; onChange: (params: AudioParams) => void; theme: CanvasTheme }) {
-    const fields = audioVisibleFields(model, params);
+export type AudioModePanelState = {
+    mode: AudioMode;
+    voiceDescription?: string;
+    cloneConsent?: boolean;
+    dialogRoles?: Record<string, DialogRoleSetting>;
+};
+
+type AudioModelParamsPanelProps = {
+    model: string;
+    params: AudioParams | undefined;
+    onChange: (params: AudioParams) => void;
+    theme: CanvasTheme;
+    /** 只有千问和 MiniMax 支持设计、克隆、多人对话；没有这两个回调时完全不显示模式控件。 */
+    modeState?: AudioModePanelState;
+    onModeStateChange?: (patch: Partial<AudioModePanelState>) => void;
+    /** 多人对话按「名字：台词」解析角色，这里传节点输入框的文本。 */
+    dialogText?: string;
+    /** 克隆模式的参考音频卡片。 */
+    referenceAudio?: { label: string; durationMs?: number } | null;
+};
+
+const AUDIO_MODE_OPTIONS = [
+    { value: "tts" as const, label: "合成" },
+    { value: "design" as const, label: "设计" },
+    { value: "clone" as const, label: "克隆" },
+    { value: "dialog" as const, label: "多人对话" },
+];
+
+export function AudioModelParamsPanel({ model, params, onChange, theme, modeState, onModeStateChange, dialogText = "", referenceAudio }: AudioModelParamsPanelProps) {
+    const family = audioModelFamily(model);
+    const modeCapable = (family === "qwen" || family === "minimax") && Boolean(modeState && onModeStateChange);
+    const mode = modeCapable ? (modeState as AudioModePanelState).mode : "tts";
+    const allFields = audioVisibleFields(model, params);
+    // 设计、克隆不选音色；多人对话的音色在角色卡片里选，全局指令也由角色指令代替。
+    // 设计、克隆不选音色；多人对话的音色和指令都在角色卡片里，全局指令框隐藏；设计不需要指令（用声音描述代替）。
+    const fields = !modeCapable ? allFields : allFields.filter((field) => (field.key === "voiceId" ? mode === "tts" : field.key === "instruction" ? mode === "tts" || mode === "clone" : true));
     const values = normalizeAudioParams(model, params);
     const groups = [...new Set(fields.map((field) => field.group))];
     const update = (key: string, value: AudioParams[string]) => onChange({ ...values, [key]: value });
     const reset = () => onChange(normalizeAudioParams(model, {}));
+    const voiceField = allFields.find((field): field is AudioParamField & { options: AudioParamOption[] } => field.key === "voiceId" && field.type === "select");
 
     return (
         <ImageSettingsTheme theme={theme}>
             <div className="w-full min-w-0 space-y-4" style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
+                {modeCapable ? (
+                    <>
+                        <CompactOptionGroup label="生成模式" ariaLabel="选择音频生成模式" value={mode} options={AUDIO_MODE_OPTIONS} columns={4} onChange={(next) => onModeStateChange?.({ mode: next })} />
+                        {mode === "design" ? <VoiceDescriptionField value={modeState?.voiceDescription || ""} theme={theme} onChange={(voiceDescription) => onModeStateChange?.({ voiceDescription })} /> : null}
+                        {mode === "clone" ? <ClonePanel referenceAudio={referenceAudio} consent={Boolean(modeState?.cloneConsent)} theme={theme} onConsentChange={(cloneConsent) => onModeStateChange?.({ cloneConsent })} /> : null}
+                        {mode === "dialog" && voiceField && (family === "qwen" || family === "minimax") ? (
+                            <section className="space-y-2">
+                                <div className="text-xs font-medium" style={{ color: theme.node.muted }}>
+                                    角色
+                                </div>
+                                <AudioDialogRoles text={dialogText} roles={modeState?.dialogRoles || {}} model={model} family={family} presetVoices={voiceField.options} theme={theme} onChange={(dialogRoles) => onModeStateChange?.({ dialogRoles })} />
+                            </section>
+                        ) : null}
+                    </>
+                ) : null}
                 {groups.map((group, index) => (
                     <section key={group} className="space-y-2.5">
                         <div className="flex items-center justify-between text-xs font-medium" style={{ color: theme.node.muted }}>
@@ -114,6 +168,51 @@ export function AudioModelParamsPanel({ model, params, onChange, theme }: { mode
                 ))}
             </div>
         </ImageSettingsTheme>
+    );
+}
+
+function VoiceDescriptionField({ value, theme, onChange }: { value: string; theme: CanvasTheme; onChange: (value: string) => void }) {
+    return (
+        <section className="space-y-1.5">
+            <div className="text-xs font-medium" style={{ color: theme.node.muted }}>
+                声音描述
+            </div>
+            <textarea
+                value={value}
+                maxLength={500}
+                placeholder="例如：三十多岁的女性，声音温柔偏低沉，语速从容，适合纪录片旁白。"
+                className="thin-scrollbar h-20 w-full resize-none rounded-xl border bg-transparent px-3 py-2 text-sm leading-5 outline-none"
+                style={{ borderColor: theme.node.stroke, color: theme.node.text }}
+                onChange={(event) => onChange(event.target.value)}
+                onMouseDown={(event) => event.stopPropagation()}
+            />
+            <div className="text-right text-[11px]" style={{ color: theme.node.muted }}>
+                {value.trim().length} / 500
+            </div>
+        </section>
+    );
+}
+
+function ClonePanel({ referenceAudio, consent, theme, onConsentChange }: { referenceAudio?: { label: string; durationMs?: number } | null; consent: boolean; theme: CanvasTheme; onConsentChange: (consent: boolean) => void }) {
+    return (
+        <section className="space-y-2">
+            <div className="text-xs font-medium" style={{ color: theme.node.muted }}>
+                参考音频
+            </div>
+            <div className="rounded-xl border px-3 py-2 text-xs leading-5" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
+                {referenceAudio ? (
+                    <>
+                        <div className="truncate">{referenceAudio.label}</div>
+                        <div style={{ color: theme.node.muted }}>{referenceAudio.durationMs ? `${Math.round(referenceAudio.durationMs / 1000)} 秒 · ` : ""}用它的声音读输入框里的文本</div>
+                    </>
+                ) : (
+                    <span style={{ color: theme.node.muted }}>把一个音频节点连到本节点，作为要克隆的声音</span>
+                )}
+            </div>
+            <Checkbox checked={consent} onChange={(event) => onConsentChange(event.target.checked)}>
+                <span className="text-xs">我已获得该声音本人授权，同意用于语音合成</span>
+            </Checkbox>
+        </section>
     );
 }
 
@@ -248,68 +347,4 @@ function groupSelectOptions(options: SelectOption[]): SelectEntry[] {
         groups.set(name, [...(groups.get(name) || []), option]);
     }
     return [...groups].map(([name, items]) => ({ label: name, title: name, options: items }));
-}
-
-type VoicePreview = ReturnType<typeof useVoicePreview>;
-
-function useVoicePreview() {
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const [playing, setPlaying] = useState<string>();
-    const [failed, setFailed] = useState<string>();
-
-    useEffect(() => {
-        const ref = audioRef;
-        return () => ref.current?.pause();
-    }, []);
-
-    const toggle = useCallback(
-        (url: string) => {
-            audioRef.current?.pause();
-            if (playing === url) {
-                audioRef.current = null;
-                setPlaying(undefined);
-                return;
-            }
-            const audio = new Audio(url);
-            audioRef.current = audio;
-            const stop = (error: boolean) => {
-                if (audioRef.current !== audio) return;
-                audioRef.current = null;
-                setPlaying(undefined);
-                if (error) setFailed(url);
-            };
-            audio.onended = () => stop(false);
-            audio.onerror = () => stop(true);
-            setFailed(undefined);
-            setPlaying(url);
-            audio.play().catch(() => stop(true));
-        },
-        [playing],
-    );
-
-    return { playing, failed, toggle };
-}
-
-function VoicePreviewButton({ url, preview, theme }: { url: string; preview: VoicePreview; theme: CanvasTheme }) {
-    const playing = preview.playing === url;
-    const failed = preview.failed === url;
-    return (
-        <button
-            type="button"
-            aria-label={playing ? "停止试听" : "试听"}
-            title={failed ? "试听加载失败，点击重试" : playing ? "停止试听" : "试听"}
-            className={`grid size-6 shrink-0 place-items-center rounded-full hover:opacity-75 ${failed ? "text-red-500" : ""}`}
-            style={failed ? undefined : { color: playing ? theme.node.text : theme.node.muted }}
-            onMouseDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-            }}
-            onClick={(event) => {
-                event.stopPropagation();
-                preview.toggle(url);
-            }}
-        >
-            {playing ? <Square className="size-3" fill="currentColor" /> : <Play className="size-3.5" />}
-        </button>
-    );
 }

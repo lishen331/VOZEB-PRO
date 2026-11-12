@@ -21,6 +21,28 @@ export function audioModelFamily(model: string | undefined): AudioModelFamily {
     return "openai";
 }
 
+export type AudioModelPurpose = "music" | "voice" | "other";
+
+/**
+ * 音频模型按用途分组：Suno 是描述/歌词生成音乐与背景音，千问和 MiniMax 是配音（语音合成）。
+ * 用户在音频节点的模型下拉里要一眼分清，避免拿音乐模型去配音。
+ */
+export function audioModelPurpose(model: string | undefined): AudioModelPurpose {
+    const family = audioModelFamily(model);
+    if (family === "suno") return "music";
+    if (family === "qwen" || family === "minimax") return "voice";
+    return "other";
+}
+
+export function audioModelPurposeLabel(purpose: AudioModelPurpose) {
+    return purpose === "music" ? "音乐 · 描述/歌词生音乐" : purpose === "voice" ? "配音 · 语音合成" : "其他音频";
+}
+
+/** 节点里选到音乐模型时的提示：音乐模型没有音色、克隆和多人对话。 */
+export function audioModelPurposeHint(model: string | undefined) {
+    return audioModelPurpose(model) === "music" ? "音乐模型只生成音乐和背景音，不做配音；要读文字请选配音模型（千问 / MiniMax）" : "";
+}
+
 export const minimaxVoiceOptions: Option[] = [
     { value: "female-shaonv", label: "少女音色" },
     { value: "female-yujie", label: "御姐音色" },
