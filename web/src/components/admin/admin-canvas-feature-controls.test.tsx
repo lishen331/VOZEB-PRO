@@ -14,10 +14,10 @@ describe("Canvas card child switches", () => {
     it("shows exactly the image/video switches and toggles the intended child only", () => {
         const onChange = vi.fn();
         const html = renderToStaticMarkup(<AdminCanvasFeatureControls featureModules={{ canvas: true }} loading={false} onChange={onChange} />);
-        expect(html).toContain("图片节点自定义清晰度");
-        expect(html).toContain("视频节点自定义清晰度");
+        expect(html).toContain("图片4K及自定义像素入口");
+        expect(html).toContain("视频1080P及自定义清晰度入口");
         expect(html.match(/aria-checked="false"/g)).toHaveLength(2);
-        callbacks.get("图片节点自定义清晰度显示状态")?.(true);
+        callbacks.get("图片4K及自定义像素入口显示状态")?.(true);
         expect(onChange).toHaveBeenCalledExactlyOnceWith(CANVAS_UI_FEATURES.imageCustomResolution, true);
     });
     it("keeps child selections but disables controls when Canvas is off", () => {

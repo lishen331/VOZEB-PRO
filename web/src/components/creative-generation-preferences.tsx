@@ -233,8 +233,10 @@ function greatestCommonDivisor(left: number, right: number): number {
 }
 
 /** Canvas-only visibility policy; keep saved preferences and other workspaces unchanged. */
-export function canvasVisibleResolutionOptions<T extends { value: string }>(capability: MediaCapability, options: readonly T[]): T[] {
-    return options.filter((option) => normalizeResolution(option.value) !== (capability === "image" ? "4k" : capability === "video" ? "1080" : ""));
+export function canvasVisibleResolutionOptions<T extends { value: string }>(capability: MediaCapability, options: readonly T[], showHighResolution = false): T[] {
+    if (showHighResolution || capability === "audio") return [...options];
+    const hiddenPreset = capability === "image" ? "4k" : "1080";
+    return options.filter((option) => normalizeResolution(option.value) !== hiddenPreset);
 }
 
 function normalizeResolution(value: string) {
@@ -433,8 +435,9 @@ function PreferencePanel({
 }) {
     const ratios = generationRatioOptions(capability, capabilityProfile);
     const resolutions = generationResolutionOptions(capability, capabilityProfile);
-    const qualityOptions = canvasResolutionPresets ? canvasVisibleResolutionOptions(capability, resolutions) : resolutions;
-    const imageResolutions = canvasResolutionPresets ? canvasVisibleResolutionOptions("image", imageResolutionOptions) : imageResolutionOptions;
+    const showCanvasHighResolution = allowCustomResolution === true;
+    const qualityOptions = canvasResolutionPresets ? canvasVisibleResolutionOptions(capability, resolutions, showCanvasHighResolution) : resolutions;
+    const imageResolutions = canvasResolutionPresets ? canvasVisibleResolutionOptions("image", imageResolutionOptions, showCanvasHighResolution) : imageResolutionOptions;
     const durationOptions = generationDurationOptions(capabilityProfile);
     const selectedSize = capability === "image" ? preferences.image?.size || "auto" : preferences.video?.size || "auto";
     const selectedQuality = capability === "image" ? preferences.image?.quality || "auto" : preferences.video?.quality || "auto";

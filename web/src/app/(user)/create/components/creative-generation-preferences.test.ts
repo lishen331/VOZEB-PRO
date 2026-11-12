@@ -37,7 +37,7 @@ describe("generationPreferenceSummary", () => {
         expect(generationResolutionOptions("video", { resolutions: ["1080P"] }).map((option) => option.value)).toEqual(["auto", "1080P"]);
     });
 
-    it("hides only the selected Canvas resolution presets without changing source options", () => {
+    it("keeps 2K visible and lets the Canvas child switches reveal 4K/1080P without changing source options", () => {
         const image = [
             { value: "1k", label: "1K" },
             { value: "2k", label: "2K" },
@@ -49,8 +49,10 @@ describe("generationPreferenceSummary", () => {
             { value: "1080P", label: "1080P" },
             { value: "1440", label: "1440P" },
         ];
-        expect(canvasVisibleResolutionOptions("image", image).map((option) => option.value)).toEqual(["1k", "2k"]);
-        expect(canvasVisibleResolutionOptions("video", video).map((option) => option.value)).toEqual(["auto", "720", "1440"]);
+        expect(canvasVisibleResolutionOptions("image", image, false).map((option) => option.value)).toEqual(["1k", "2k"]);
+        expect(canvasVisibleResolutionOptions("video", video, false).map((option) => option.value)).toEqual(["auto", "720", "1440"]);
+        expect(canvasVisibleResolutionOptions("image", image, true).map((option) => option.value)).toEqual(["1k", "2k", "4k"]);
+        expect(canvasVisibleResolutionOptions("video", video, true).map((option) => option.value)).toEqual(["auto", "720", "1080P", "1440"]);
         expect(image.map((option) => option.value)).toEqual(["1k", "2k", "4k"]);
         expect(video.map((option) => option.value)).toEqual(["auto", "720", "1080P", "1440"]);
     });
