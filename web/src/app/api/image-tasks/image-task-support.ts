@@ -107,6 +107,7 @@ export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"
         queryPath: textOrEmpty(config.queryPath),
         taskIdField: textOrEmpty(config.taskIdField),
         requestTemplate: textOrEmpty(config.requestTemplate),
+        editRequestTemplate: textOrEmpty(config.editRequestTemplate),
         resultField: textOrEmpty(config.resultField),
         statusField: textOrEmpty(config.statusField),
         durationRange: textOrEmpty(config.durationRange),

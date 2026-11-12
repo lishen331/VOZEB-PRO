@@ -48,6 +48,12 @@ export type SystemChannelModelConfig = {
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate?: string;
+    /**
+     * Some image upstreams take a different body for edits than for generation
+     * (MiniMax sends reference images as `images:[{image_url}]` on `/images/edits`).
+     * When set, edit tasks render this template instead of `requestTemplate`.
+     */
+    editRequestTemplate?: string;
     taskIdField?: string;
     resultField?: string;
     statusField?: string;
@@ -214,6 +220,8 @@ export type SystemChannelAdvancedConfig = {
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate: string;
+    /** Channel-level fallback for the per-model edit template; see `SystemChannelModelConfig.editRequestTemplate`. */
+    editRequestTemplate?: string;
     taskIdField?: string;
     resultField: string;
     statusField: string;
