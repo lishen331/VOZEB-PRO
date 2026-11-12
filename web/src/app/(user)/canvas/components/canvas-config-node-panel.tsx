@@ -245,9 +245,9 @@ export function CanvasConfigNodePanel({ node, isRunning, canStop, inputSummary, 
                 danger={isRunning && canStop}
                 disabled={isRunning ? !canStop : !canGenerate}
                 style={
-                    isRunning
+                    isRunning && canStop
                         ? { background: theme.node.danger, borderColor: theme.node.danger, color: theme.node.actionDangerText }
-                        : canGenerate
+                        : !isRunning && canGenerate
                           ? { background: theme.node.action, borderColor: theme.node.action, color: theme.node.actionText }
                           : { background: theme.toolbar.itemHover, borderColor: theme.node.stroke, color: theme.node.muted }
                 }

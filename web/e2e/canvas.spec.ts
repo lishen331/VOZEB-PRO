@@ -1296,10 +1296,13 @@ for (const mode of ["image", "video"] as const) {
             const config = page.locator('[data-node-id="running-config"]');
             await config.getByRole("button", { name: "开始生成" }).click();
             await expect.poll(() => submitted).toBe(1);
-            await expect(config.getByRole("button", { name: "生成中", exact: true })).toBeDisabled();
+            const runningButton = config.getByRole("button", { name: "生成中", exact: true });
+            await expect(runningButton).toBeDisabled();
+            await expect(runningButton).not.toHaveClass(/ant-btn-dangerous/);
             await config.getByRole("button", { name: /^切换生成类型/ }).click();
             await page.getByRole("menuitem", { name: "文本", exact: true }).click();
-            await expect(config.getByRole("button", { name: "生成中", exact: true })).toBeDisabled();
+            await expect(runningButton).toBeDisabled();
+            await expect(runningButton).not.toHaveClass(/ant-btn-dangerous/);
             await expect(config.getByRole("button", { name: "停止", exact: true })).toHaveCount(0);
             await expect(page.getByRole("dialog", { name: "停止生成？" })).toHaveCount(0);
             await expectCanvasSaved(page);
