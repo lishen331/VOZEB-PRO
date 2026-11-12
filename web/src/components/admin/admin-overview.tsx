@@ -5,6 +5,7 @@ import { CircleDollarSign, Database, PlugZap, RefreshCw, UsersRound } from "luci
 
 import { generationKindLabel, generationSourceLabel } from "@/components/admin/admin-generation-log";
 import { AdminCommerceConversionPanel } from "@/components/admin/admin-commerce-conversion-panel";
+import { AdminSuccessRatePanel } from "@/components/admin/admin-success-rate-panel";
 import { Metric, Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { formatAdminMoney } from "@/components/admin/admin-values";
 import type { AdminBillingSummary } from "@/lib/admin-billing-types";
@@ -69,6 +70,7 @@ export function AdminOverview({ stats, settingsSummary, walletSummary, billingSu
                 <CompactDonutPanel title="入口分布" description="查看调用来自创作 Agent、画布、短剧或其他生成入口。" items={operationsSummary.sourceDistribution} emptyText="暂无入口记录" totalLabel="入口请求" />
                 <CompactDonutPanel title="内容类型分布" description="对图片、视频等生成类型做运营观察。" items={operationsSummary.kindDistribution} emptyText="暂无类型记录" totalLabel="类型请求" />
             </div>
+            <AdminSuccessRatePanel />
             <Panel>
                 <PanelHeader title="业务健康" description="商业化后台首页只放运营判断相关信息；媒体文件维护已归入本地媒体页面。" />
                 <div className="admin-resource-grid grid grid-cols-2 lg:grid-cols-4">

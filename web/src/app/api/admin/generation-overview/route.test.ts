@@ -5,7 +5,15 @@ const mocks = vi.hoisted(() => ({ getCurrentUser: vi.fn(), getAdminGenerationOve
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/generation-overview-service", () => ({ getAdminGenerationOverviewSummary: mocks.getAdminGenerationOverviewSummary }));
 
+import type { NextRequest } from "next/server";
+
 import { GET } from "./route";
+
+function request(range?: string) {
+    const url = new URL("http://localhost/api/admin/generation-overview");
+    if (range !== undefined) url.searchParams.set("range", range);
+    return { nextUrl: url } as NextRequest;
+}
 
 describe("GET /api/admin/generation-overview", () => {
     beforeEach(() => {
@@ -17,21 +25,21 @@ describe("GET /api/admin/generation-overview", () => {
     it("requires an administrator", async () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "user", role: "user" });
 
-        expect((await GET()).status).toBe(403);
+        expect((await GET(request())).status).toBe(403);
         expect(mocks.getAdminGenerationOverviewSummary).not.toHaveBeenCalled();
     });
 
     it("allows the commerce duty to read the business overview", async () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "commerce-admin", role: "admin", status: "active", adminPermissions: ["commerce.manage"] });
 
-        const response = await GET();
+        const response = await GET(request());
 
         expect(response.status).toBe(200);
         expect(mocks.getAdminGenerationOverviewSummary).toHaveBeenCalledTimes(1);
     });
 
     it("returns the lightweight overview contract", async () => {
-        const response = await GET();
+        const response = await GET(request());
 
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({ code: 0, data: { windowDays: 7, totalCalls: 0 }, msg: "OK" });

@@ -17,6 +17,16 @@ export type GenerationLogOverviewAggregate = {
 };
 export type GenerationLogCreateOverview = { runningTasks: CreateOverviewTask[]; recentAssets: CreateOverviewAsset[] };
 
+/** 成功率分组：分母只含 success/failed，pending 单独计数。 */
+export type GenerationLogSuccessRateGroup = { key: string; total: number; success: number; failed: number; pending: number };
+export type GenerationLogSuccessRateAggregate = {
+    kinds: GenerationLogSuccessRateGroup[];
+    channels: GenerationLogSuccessRateGroup[];
+    profiles: GenerationLogSuccessRateGroup[];
+    topFailureReason: string;
+    topFailureCount: number;
+};
+
 export class AnnouncementsRepository {
     constructor(private readonly db: QueryExecutor) {}
 
@@ -285,6 +295,78 @@ export class GenerationLogsRepository {
         };
     }
 
+    /**
+     * 生成成功率：一次查询按 kind / channel / executionProfile 分组计数。
+     * 渠道与执行环境来自任务的关联表，与调用记录列表同一套 JOIN，保证口径一致。
+     */
+    async getSuccessRateAggregate(input: { startAt: string; endAt: string }): Promise<GenerationLogSuccessRateAggregate> {
+        const result = await this.db.query<Record<string, unknown>>(
+            `
+            WITH scoped AS MATERIALIZED (
+                SELECT
+                    log.kind AS kind_key,
+                    log.status AS status_key,
+                    coalesce(nullif(btrim(channel.name), ''), '未记录渠道') AS channel_key,
+                    coalesce(nullif(btrim(task.execution_profile), ''), 'production') AS profile_key,
+                    nullif(btrim(coalesce(log.error, '')), '') AS reason_key
+                FROM generation_logs log
+                LEFT JOIN generation_tasks task ON task.id = log.task_id
+                LEFT JOIN system_model_channels channel ON channel.id = task.channel_id
+                WHERE log.created_at >= $1::timestamptz AND log.created_at < $2::timestamptz
+                  AND log.kind IN ('image', 'video', 'text', 'audio')
+            )
+            SELECT
+                (
+                    SELECT coalesce(jsonb_agg(jsonb_build_object('key', k, 'total', t, 'success', s, 'failed', f, 'pending', p) ORDER BY t DESC, k), '[]'::jsonb)
+                    FROM (
+                        SELECT
+                            kind_key AS k,
+                            count(*)::int AS t,
+                            count(*) FILTER (WHERE status_key = 'success')::int AS s,
+                            count(*) FILTER (WHERE status_key = 'failed')::int AS f,
+                            count(*) FILTER (WHERE status_key = 'pending')::int AS p
+                        FROM scoped GROUP BY kind_key
+                    ) rows
+                ) AS kinds,
+                (
+                    SELECT coalesce(jsonb_agg(jsonb_build_object('key', k, 'total', t, 'success', s, 'failed', f, 'pending', p) ORDER BY t DESC, k), '[]'::jsonb)
+                    FROM (
+                        SELECT
+                            channel_key AS k,
+                            count(*)::int AS t,
+                            count(*) FILTER (WHERE status_key = 'success')::int AS s,
+                            count(*) FILTER (WHERE status_key = 'failed')::int AS f,
+                            count(*) FILTER (WHERE status_key = 'pending')::int AS p
+                        FROM scoped GROUP BY channel_key
+                    ) rows
+                ) AS channels,
+                (
+                    SELECT coalesce(jsonb_agg(jsonb_build_object('key', k, 'total', t, 'success', s, 'failed', f, 'pending', p) ORDER BY t DESC, k), '[]'::jsonb)
+                    FROM (
+                        SELECT
+                            profile_key AS k,
+                            count(*)::int AS t,
+                            count(*) FILTER (WHERE status_key = 'success')::int AS s,
+                            count(*) FILTER (WHERE status_key = 'failed')::int AS f,
+                            count(*) FILTER (WHERE status_key = 'pending')::int AS p
+                        FROM scoped GROUP BY profile_key
+                    ) rows
+                ) AS profiles,
+                coalesce((SELECT reason_key FROM scoped WHERE status_key = 'failed' AND reason_key IS NOT NULL GROUP BY reason_key ORDER BY count(*) DESC, reason_key LIMIT 1), '') AS top_reason,
+                coalesce((SELECT count(*)::int FROM scoped WHERE status_key = 'failed' AND reason_key = (SELECT reason_key FROM scoped WHERE status_key = 'failed' AND reason_key IS NOT NULL GROUP BY reason_key ORDER BY count(*) DESC, reason_key LIMIT 1)), 0) AS top_reason_count
+            `,
+            [input.startAt, input.endAt],
+        );
+        const row = result.rows[0] || {};
+        return {
+            kinds: successRateGroups(row.kinds),
+            channels: successRateGroups(row.channels),
+            profiles: successRateGroups(row.profiles),
+            topFailureReason: String(row.top_reason || ""),
+            topFailureCount: Number(row.top_reason_count || 0),
+        };
+    }
+
     async getCreateOverview(userId: string): Promise<GenerationLogCreateOverview> {
         const result = await this.db.query<Record<string, unknown>>(
             `
@@ -525,6 +607,21 @@ function overviewBuckets(value: unknown): GenerationLogOverviewBucket[] {
             return { key: String(source.key || "").trim(), value: Math.max(0, Number(source.value) || 0) };
         })
         .filter((item) => Boolean(item.key) && item.value > 0);
+}
+
+function successRateGroups(value: unknown): GenerationLogSuccessRateGroup[] {
+    const items = typeof value === "string" ? safeJsonArray(value) : value;
+    if (!Array.isArray(items)) return [];
+    return items.flatMap((item) => {
+        const source = item && typeof item === "object" && !Array.isArray(item) ? (item as Record<string, unknown>) : {};
+        const key = String(source.key || "").trim();
+        if (!key) return [];
+        const success = Math.max(0, Number(source.success) || 0);
+        const failed = Math.max(0, Number(source.failed) || 0);
+        const pending = Math.max(0, Number(source.pending) || 0);
+        // total 用于排序，不参与成功率分母：分母只含 success + failed。
+        return [{ key, total: success + failed + pending, success, failed, pending }];
+    });
 }
 
 function jsonObjects(value: unknown): Record<string, unknown>[] {

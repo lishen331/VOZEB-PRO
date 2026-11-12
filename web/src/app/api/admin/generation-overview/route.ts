@@ -1,18 +1,24 @@
 import { hasAnyAdminPermission } from "@/lib/admin-permissions";
 import { NextResponse } from "next/server";
 
+import type { NextRequest } from "next/server";
+
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAdminGenerationOverviewSummary } from "@/lib/server/generation-overview-service";
+import { getAdminGenerationOverviewSummary, getAdminSuccessRatePanel, parseSuccessRateRange } from "@/lib/server/generation-overview-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     const currentUser = await getCurrentUser();
     if (!currentUser) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     if (!hasAnyAdminPermission(currentUser, ["analytics.read", "commerce.manage"])) return NextResponse.json({ code: 403, data: null, msg: "需要管理员权限" }, { status: 403 });
 
     try {
+        const rangeParam = request.nextUrl.searchParams.get("range");
+        if (rangeParam !== null) {
+            return NextResponse.json({ code: 0, data: await getAdminSuccessRatePanel(parseSuccessRateRange(rangeParam)), msg: "OK" });
+        }
         return NextResponse.json({ code: 0, data: await getAdminGenerationOverviewSummary(), msg: "OK" });
     } catch (error) {
         console.error("Admin generation overview failed", error);
