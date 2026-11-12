@@ -226,7 +226,12 @@ function isExternallyReachableReferenceUrl(value: string) {
 }
 
 function pruneEmptyReferenceFields(value: unknown): unknown {
-    if (Array.isArray(value)) return value.map(pruneEmptyReferenceFields);
+    if (Array.isArray(value)) {
+        // An entry such as `{"image":"{{image}}"}` with no reference collapses to `{}`.
+        // Some upstreams (Qwen content arrays) reject an empty object, so drop the
+        // husk the same way an empty reference field is dropped.
+        return value.map(pruneEmptyReferenceFields).filter((item) => !isEmptyReferenceHusk(item));
+    }
     if (!value || typeof value !== "object") return value;
     const entries = Object.entries(value).flatMap(([key, item]) => {
         if (item === undefined) return [];
@@ -234,6 +239,10 @@ function pruneEmptyReferenceFields(value: unknown): unknown {
         return next === EMPTY_REFERENCE ? [] : [[key, next] as const];
     });
     return Object.fromEntries(entries);
+}
+
+function isEmptyReferenceHusk(value: unknown) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value) && Object.keys(value as Record<string, unknown>).length === 0;
 }
 
 function normalizeReferenceValue(value: unknown): unknown {

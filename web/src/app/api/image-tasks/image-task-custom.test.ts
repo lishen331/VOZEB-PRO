@@ -206,4 +206,79 @@ describe("declarative image request size", () => {
         const headers = new Headers((mocks.fetchInternalApi.mock.calls[0]?.[1] as RequestInit).headers);
         expect(readVerifiedSystemAiBusinessRequestId(headers, "practice-image", task.config.model, "open-source-practice")).toBe("image-task:image-one:attempt:4:poll");
     });
+
+    it("renders the edit template and object-array references for custom image edits", async () => {
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ data: [{ url: "https://fixture.invalid/edited.png" }] }));
+        const task = {
+            id: "minimax-edit",
+            userId: "fixture-user",
+            kind: "edit",
+            source: "image-workbench",
+            prompt: "把背景换成纯白色",
+            references: [{ dataUrl: "data:image/png;base64,aGVsbG8=" }],
+            config: {
+                baseUrl: "/api/ai/system/minimax",
+                apiKey: "system",
+                model: "MiniMax-H3-Image",
+                apiFormat: "openai",
+                quality: "auto",
+                size: "1024x1024",
+                advancedConfig: {
+                    ...emptyAdvancedConfig(),
+                    protocol: "custom",
+                    createPath: "/images/generations",
+                    editPath: "/images/edits",
+                    resultField: "data[0].url",
+                    referenceRule: "参考图以 base64 内联发送",
+                    requestTemplate: '{"model":"{{model}}","prompt":"{{prompt}}","size":"{{size}}"}',
+                    editRequestTemplate: '{"model":"{{model}}","prompt":"{{prompt}}","size":"{{size_star}}","images":"{{image_objects}}"}',
+                },
+            },
+        } as unknown as ImageTask;
+
+        await expect(runCustomImageTask(task, "http://fixture", "https://app.fixture", "", true)).resolves.toMatchObject({ remoteUrl: "https://fixture.invalid/edited.png" });
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe("http://fixture/api/ai/system/minimax/images/edits");
+        expect(JSON.parse(String(init.body))).toEqual({
+            model: "MiniMax-H3-Image",
+            prompt: "把背景换成纯白色",
+            size: "1024*1024",
+            images: [{ image_url: "data:image/png;base64,aGVsbG8=" }],
+        });
+    });
+
+    it("keeps the generation template for generation tasks that configure an edit template", async () => {
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ data: [{ url: "https://fixture.invalid/generated.png" }] }));
+        const task = {
+            id: "qwen-generation",
+            userId: "fixture-user",
+            kind: "generation",
+            source: "image-workbench",
+            prompt: "a red apple",
+            references: [],
+            config: {
+                baseUrl: "/api/ai/system/dashscope",
+                apiKey: "system",
+                model: "qwen-image-2.1-pro",
+                apiFormat: "openai",
+                quality: "auto",
+                size: "1024x1024",
+                advancedConfig: {
+                    ...emptyAdvancedConfig(),
+                    protocol: "custom",
+                    createPath: "/services/aigc/multimodal-generation/generation",
+                    resultField: "output.choices[0].message.content[0].image",
+                    requestTemplate: '{"model":"{{model}}","input":{"messages":[{"role":"user","content":[{"image":"{{image}}"},{"text":"{{prompt}}"}]}]},"parameters":{"n":1,"size":"{{size_star}}"}}',
+                },
+            },
+        } as unknown as ImageTask;
+
+        await expect(runCustomImageTask(task, "http://fixture", "https://app.fixture", "", true)).resolves.toMatchObject({ remoteUrl: "https://fixture.invalid/generated.png" });
+        const [, init] = mocks.fetchInternalApi.mock.calls[0] as [string, RequestInit];
+        expect(JSON.parse(String(init.body))).toEqual({
+            model: "qwen-image-2.1-pro",
+            input: { messages: [{ role: "user", content: [{ text: "a red apple" }] }] },
+            parameters: { n: 1, size: "1024*1024" },
+        });
+    });
 });

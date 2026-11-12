@@ -72,10 +72,15 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         )
     ).filter(Boolean);
     const outputCount = config.outputMode === "layers" ? undefined : 1;
+    // MiniMax 图片编辑只认 `images:[{image_url}]`；千问的 content 数组要 `{"image":url}`；
+    // 千问 `size` 还只认 `<宽>*<高>`。三个都按渠道配置的模板取用，未使用的渠道无副作用。
+    const imageObjects = images.map((imageUrl) => ({ image_url: imageUrl }));
+    const imageContent = images.map((imageUrl) => ({ image: imageUrl }));
     const values = {
         model: config.model,
         prompt: task.upstreamPrompt || withSystemPrompt(config, withImageOutputInstructions(config, task.prompt)),
         size,
+        size_star: size ? size.replace(/\s*[x×]\s*/i, "*") : "",
         ratio: imageRequestAspectRatio(config.size || "auto"),
         aspect_ratio: imageRequestAspectRatio(config.size || "auto"),
         resolution: advanced.protocol === "yumeng" ? resolveYumengImageResolution(config.model, requestedImageResolution(config)) : requestedImageResolution(config)?.toUpperCase() || "auto",
@@ -90,7 +95,11 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         batch_size: outputCount,
         image: images[0] || "",
         images,
+        image_objects: imageObjects,
+        image_content: imageContent,
     };
+    // 编辑与生成报文不同的渠道（如 MiniMax 的 /images/edits）用 editRequestTemplate 覆盖。
+    const requestTemplate = task.kind === "edit" ? advanced.editRequestTemplate || advanced.requestTemplate : advanced.requestTemplate;
     const payload = workflow
         ? buildRunningHubWorkflowPayload({
               config: workflow,
@@ -101,7 +110,7 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
           })
         : advanced.protocol === "yumeng"
           ? buildYumengImageRequest({ model: config.model, prompt: values.prompt, images, aspectRatio: values.aspect_ratio, resolution: values.resolution, size })
-          : buildProviderRequest(advanced.requestTemplate, values, values);
+          : buildProviderRequest(requestTemplate, values, values);
     const url = taskUrl(config, task.kind === "edit" ? advanced.editPath || advanced.createPath : advanced.createPath, origin);
     const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
     headers.set("content-type", "application/json");
