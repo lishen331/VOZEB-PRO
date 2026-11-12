@@ -2,8 +2,8 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "7eb1bcc6470bb8fefb7ec3f79e57891923ce9e8b",
-    "syncedAt": "2026-11-12T04:36:05.932Z",
+    "sourceCommit": "adf1c3edc9ead3afdbcc3087686a0291336964b2",
+    "syncedAt": "2026-11-12T06:10:28.694Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
@@ -173,7 +173,7 @@
         },
         {
             "path": "components/canvas-config-node-panel.tsx",
-            "sha256": "64e6e2d48a2d3ca3300e9ffcce8109e52ced4fa0ea66a5b9bd989f47dc1f8eb3"
+            "sha256": "160199900c1f05c211af95bb92a671f20eb9d0441204ced36844a1023cde4c9c"
         },
         {
             "path": "components/canvas-context-menu.tsx",
