@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-21T15:43:49.533992+00:00",
+  "id": "bf7e78fb-5eff-41b3-b471-5b1cc82694e5",
+  "status": "success",
+  "logicalModel": "gpt-image-2",
+  "createdAt": "2026-10-21T15:34:32.096+00:00",
+  "completedAt": "2026-10-21T15:40:25.026+00:00",
+  "elapsedSeconds": 352.93,
+  "attemptCount": 1,
+  "events": [
+    {
+      "at": 1792597223986,
+      "phase": "upstream_body_complete",
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "durationMs": 288385,
+      "responseBytes": 3776910
+    },
+    {
+      "at": 1792596935598,
+      "phase": "upstream_response",
+      "status": 200,
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "requestId": "202610211534384145555548268d9d67CdSOJ0M",
+      "durationMs": 63070
+    }
+  ],
+  "browserDisplayVerified": false,
+  "excludedFromFrozenClassroom": true
+}

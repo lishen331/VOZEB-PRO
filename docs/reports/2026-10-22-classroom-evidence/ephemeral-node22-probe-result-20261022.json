@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-22T09:10:06.529Z",
+  "node": "v22.23.4",
+  "v8": "12.4.254.21-node.57",
+  "readOnlyFixture": true,
+  "noRealNetwork": true,
+  "noApplicationState": true,
+  "commit": "bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+  "rows": [
+    {
+      "size": 4500000,
+      "kind": "b64_json",
+      "results": 1,
+      "ok": true,
+      "ms": 82.33669499999999
+    },
+    {
+      "size": 4500000,
+      "kind": "data_url",
+      "results": 1,
+      "ok": true,
+      "ms": 29.731693000000007
+    },
+    {
+      "size": 9000000,
+      "kind": "b64_json",
+      "results": 1,
+      "ok": true,
+      "ms": 71.288263
+    },
+    {
+      "size": 9000000,
+      "kind": "data_url",
+      "results": 1,
+      "ok": true,
+      "ms": 51.002808000000016
+    }
+  ]
+}

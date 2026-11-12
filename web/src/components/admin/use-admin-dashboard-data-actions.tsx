@@ -104,6 +104,8 @@ export function useAdminDashboardDataActions({ state }: { state: AdminDashboardS
         setGenerationLogSource,
         generationLogStatus,
         setGenerationLogStatus,
+        generationLogProfile,
+        setGenerationLogProfile,
         generationLogUserId,
         setGenerationLogUserId,
         generationLogStart,
@@ -502,6 +504,7 @@ export function useAdminDashboardDataActions({ state }: { state: AdminDashboardS
             if (generationLogKind) params.set("kind", generationLogKind);
             if (generationLogSource) params.set("source", generationLogSource);
             if (generationLogStatus) params.set("status", generationLogStatus);
+            if (generationLogProfile) params.set("executionProfile", generationLogProfile);
             if (generationLogUserId) params.set("userId", generationLogUserId);
             if (generationLogStart) params.set("start", generationLogStart);
             if (generationLogEnd) params.set("end", generationLogEnd);
@@ -557,6 +560,7 @@ export function useAdminDashboardDataActions({ state }: { state: AdminDashboardS
         setGenerationLogKind("");
         setGenerationLogSource("");
         setGenerationLogStatus("");
+        setGenerationLogProfile("");
         setGenerationLogUserId("");
         setGenerationLogStart("");
         setGenerationLogEnd("");

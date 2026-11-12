@@ -5,7 +5,7 @@ import { mediaTaskSource } from "@/lib/media-management-contract";
 import { audioTaskRefundIdempotencyKey, refundAudioTask } from "@/lib/server/audio-task-refund";
 import { getAudioTask, transitionAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
-import { getPublicUsersByIds } from "@/lib/auth/store";
+import { getAuthSettings, getPublicUsersByIds } from "@/lib/auth/store";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
 import { CHANNEL_SATURATED_MESSAGE } from "@/lib/server/channel-concurrency";
 import { finishGenerationAttempt, generationReservationId, nextGenerationAttemptNo, releaseGenerationReservations, renewGenerationReservations, reserveGenerationAttemptSlot, startGenerationAttempt } from "@/lib/server/generation-attempt";
@@ -23,8 +23,17 @@ import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 import { recordGenerationTaskLogResult } from "@/lib/server/generation-log-task-service";
 import { getGenerationLogForUser } from "@/lib/server/generation-log-store";
-import { audioUpstreamFields } from "@/lib/audio-model-params";
-import { getCustomVoice, updateCustomVoice } from "@/lib/server/custom-voice-store";
+import { audioModelFamily, audioUpstreamFields, parseCustomVoiceId } from "@/lib/audio-model-params";
+import { createCustomVoice, getCustomVoice, listCustomVoices, updateCustomVoice } from "@/lib/server/custom-voice-store";
+import { randomUUID } from "node:crypto";
+import type { SystemModelChannel } from "@/lib/auth/store";
+import { normalizeVoiceCustomization, type VoiceCustomizationConfig } from "@/lib/custom-voice-config";
+import { queryQwenVoiceStatus, submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign, upstreamVoicePrefix } from "@/lib/server/custom-voice-upstream";
+import { concatAudioWithGaps, validateDialog } from "@/lib/server/audio-dialog-service";
+import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
+import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
+import type { ReferenceAudioInput } from "@/lib/server/custom-voice-upstream";
+import type { AudioTaskConfig } from "@/lib/server/audio-task-store";
 
 export type AudioUpstreamStep =
     | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
@@ -67,8 +76,19 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
         }
 
         try {
+            // 多人对话：逐句合成后按序拼接成一段音频，不走上游单次创建流程。
+            if (config.mode === "dialog") return await runDialogAudioTask(task, config, origin, cookie, workerUserId);
             // Handle custom voice if specified
             let voiceId = config.voice;
+            if (config.mode === "design" || config.mode === "clone") {
+                // 设计和克隆：先用上游创建一个音色，再用它合成。任一步失败都按可安全重试处理。
+                const created = await ensureModeVoiceId(task, config, voiceId);
+                voiceId = created.upstreamVoiceId;
+                // 记下本次生成的音色记录，任务结果里回给前端，设计结果才能「存为我的音色」。
+                if (created.customVoiceId && created.customVoiceId !== config.createdVoiceId) {
+                    await updateAudioTask(task.id, { config: { ...config, createdVoiceId: created.customVoiceId } }).catch(() => undefined);
+                }
+            }
             if (config.customVoiceId) {
                 const customVoice = await getCustomVoice(config.customVoiceId);
                 if (!customVoice) {
@@ -108,11 +128,16 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
             const workflow = workflowConfigForTask(candidate);
             // 自定义音色：上游字段里的 voice 必须换成解析出的 upstreamVoiceId，
             // 不能让 custom:<id> 漏到上游，也不能因为剔除它而丢掉 voice_setting.voice_id。
+            // 设计 / 克隆刚创建的音色只在 voiceId 里，没有 customVoiceId，也必须覆盖掉参数里的默认音色，
+            // 否则会拿默认预置音色（如龙安欢·女）去合成，克隆出来的声音根本用不上。
             let payload: Record<string, unknown>;
             try {
                 payload = workflow
                     ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: defaults, references: [] })
-                    : { ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults), ...withoutUndefined(audioUpstreamFields(config.model, candidate.prompt, config.params, config.customVoiceId ? voiceId : undefined)) };
+                    : {
+                          ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults),
+                          ...withoutUndefined(audioUpstreamFields(config.model, candidate.prompt, config.params, config.customVoiceId || config.mode === "design" || config.mode === "clone" ? voiceId : undefined)),
+                      };
             } catch (error) {
                 throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "音频请求模板无效");
             }
@@ -174,6 +199,302 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
         }
     }
     return { state: "failed", status: "failed", error: latestError };
+}
+
+/**
+ * 设计 / 克隆模式：先用上游创建一个音色，返回可用于合成的 voice_id。
+ * - 克隆：同一段参考音频（指纹相同）复用已就绪的音色，不重复调上游、不重复扣费。
+ * - 设计：每次生成都创建新音色，默认不保存；用户点保存后才进入「我的音色」。
+ * 失败一律抛 GenerationSubmissionSafeFailure，走既有的退款路径。
+ */
+async function ensureModeVoiceId(task: AudioTask, config: AudioTaskConfig, fallbackVoiceId: string | undefined) {
+    const voiceConfig = normalizeVoiceCustomization(config.advancedConfig?.voiceCustomization);
+    if (!voiceConfig) throw new GenerationSubmissionSafeFailure("当前渠道未启用自定义音色");
+    const kind = config.mode === "clone" ? "clone" : "design";
+    const targetModel = config.model;
+    const provider = voiceConfig.provider;
+
+    if (kind === "clone") {
+        if (!config.cloneConsent) throw new GenerationSubmissionSafeFailure("克隆音色需要先确认已获得声音本人授权");
+        if (!config.referenceAudioUrl) throw new GenerationSubmissionSafeFailure("克隆音色缺少参考音频");
+        const fingerprint = config.referenceAudioFingerprint;
+        if (!fingerprint) throw new GenerationSubmissionSafeFailure("克隆音色缺少参考音频标识");
+        // 时长限制来自渠道的 voiceCustomization.audioLimits（上游公开约束），不符合时在调用上游前就拒绝。
+        const seconds = (config.referenceAudioDurationMs || 0) / 1000;
+        if (seconds && (seconds < voiceConfig.audioLimits.minSec || seconds > voiceConfig.audioLimits.maxSec)) {
+            throw new GenerationSubmissionSafeFailure(`参考音频时长 ${Math.round(seconds)} 秒，需要 ${voiceConfig.audioLimits.minSec}–${voiceConfig.audioLimits.maxSec} 秒`);
+        }
+        const existing = await findReusableCloneVoice(task.userId, config.channelId || "", targetModel, fingerprint);
+        if (existing?.upstreamVoiceId && existing.status === "ready") {
+            await updateCustomVoice(existing.id, { lastUsedAt: new Date().toISOString() }).catch(() => {});
+            return { upstreamVoiceId: existing.upstreamVoiceId, customVoiceId: existing.id };
+        }
+        if (existing?.upstreamVoiceId && existing.status === "creating") {
+            // 上一次克隆还在审核：接着等它，不重复创建（指纹有唯一索引，重复创建也会失败）。
+            const ready = await waitForVoiceReady(await channelFromTaskConfig(config), existing.upstreamVoiceId);
+            await updateCustomVoice(existing.id, { status: ready ? "ready" : "creating", lastUsedAt: new Date().toISOString() });
+            if (!ready) throw new GenerationSubmissionSafeFailure("音色审核未在预期时间内完成，请稍后重试");
+            return { upstreamVoiceId: existing.upstreamVoiceId, customVoiceId: existing.id };
+        }
+        const voiceId = randomUUID();
+        const prefix = upstreamVoicePrefix(voiceId);
+        const channel = await channelFromTaskConfig(config);
+        // 站内音频（/api/reference-assets/...）上游访问不到、也不一定开了对象存储外链，
+        // 所以读成字节按 data: URI 内联上传；公网地址直接透传。
+        const result = await submitQwenVoiceClone(channel, voiceConfig, targetModel, prefix, await cloneAudioInput(config.referenceAudioUrl));
+        if (result.status === "failed" || !result.upstreamVoiceId) {
+            throw new GenerationSubmissionSafeFailure(result.failureReason || "音色克隆失败");
+        }
+        await createCustomVoice({ id: voiceId, ownerUserId: task.userId, channelId: config.channelId || "", provider, ttsModel: targetModel, kind, name: "克隆音色", ...cloneExtra(fingerprint) });
+        await updateCustomVoice(voiceId, {
+            status: result.status,
+            upstreamVoiceId: result.upstreamVoiceId,
+            upstreamRequestId: result.upstreamRequestId,
+            // 克隆没有试听音频时，用参考音频本身当试听；否则「我的音色」里这条只能看不能听。
+            previewUrl: result.previewUrl || config.referenceAudioUrl,
+            previewMimeType: result.previewMimeType || (result.previewUrl ? undefined : "audio/mpeg"),
+            failureReason: result.failureReason,
+            ...cloneExtra(fingerprint),
+        });
+        if (result.status === "creating" && result.upstreamVoiceId) {
+            // 千问克隆要等审核，一般十几秒；直接在这里等，用户点一次生成就够，不用回来手动刷新。
+            const ready = await waitForVoiceReady(channel, result.upstreamVoiceId);
+            await updateCustomVoice(voiceId, { status: ready ? "ready" : "creating", failureReason: ready ? undefined : "音色审核未在预期时间内完成" });
+            if (!ready) throw new GenerationSubmissionSafeFailure("音色审核未在预期时间内完成，请稍后重试");
+        }
+        return { upstreamVoiceId: result.upstreamVoiceId, customVoiceId: voiceId };
+    }
+
+    const description = (config.voiceDescription || "").trim();
+    if (!description) throw new GenerationSubmissionSafeFailure("设计音色需要填写声音描述");
+    const previewText = designPreviewText(task.prompt, voiceConfig);
+    const voiceId = randomUUID();
+    const channel = await channelFromTaskConfig(config);
+    const result = provider === "minimax" ? await submitMinimaxVoiceDesign(channel, voiceConfig, description, previewText) : await submitQwenVoiceDesign(channel, voiceConfig, targetModel, upstreamVoicePrefix(voiceId), description, previewText);
+    if (result.status === "failed" || !result.upstreamVoiceId) {
+        throw new GenerationSubmissionSafeFailure(result.failureReason || "音色设计失败");
+    }
+    // 预览音频属于创建它的用户；owner 写成 "system" 会违反 users 外键，写入失败后静默变成没有试听。
+    const previewUrl = result.previewAudioBase64 ? await persistVoicePreview(task.userId, voiceId, result.previewAudioBase64, result.previewMimeType || "audio/mpeg").catch(() => undefined) : result.previewUrl;
+    await createCustomVoice({ id: voiceId, ownerUserId: task.userId, channelId: config.channelId || "", provider, ttsModel: targetModel, kind, name: description.slice(0, 20) });
+    await updateCustomVoice(voiceId, {
+        status: "ready",
+        saved: false,
+        upstreamVoiceId: result.upstreamVoiceId,
+        upstreamRequestId: result.upstreamRequestId,
+        previewUrl,
+        previewMimeType: result.previewMimeType,
+    });
+    return { upstreamVoiceId: result.upstreamVoiceId, customVoiceId: voiceId };
+}
+
+async function findReusableCloneVoice(userId: string, channelId: string, ttsModel: string, fingerprint: string) {
+    const voices = await listCustomVoices({ ownerUserId: userId, ttsModel, includeOwned: true });
+    const matches = voices.filter((voice) => voice.kind === "clone" && voice.channelId === channelId && voice.upstreamVoiceId && voice.sourceFingerprint === fingerprint);
+    return matches.find((voice) => voice.status === "ready") || matches.find((voice) => voice.status === "creating");
+}
+
+function cloneExtra(fingerprint: string) {
+    return { sourceFingerprint: fingerprint, consentAt: new Date().toISOString(), saved: true } as const;
+}
+
+/** 设计接口要求 preview_text 15～200 字；取节点文本的前 200 字，不够时补一句通用话术。 */
+function designPreviewText(prompt: string, config: VoiceCustomizationConfig) {
+    const text = (prompt || "").trim().slice(0, config.designLimits.previewTextMax);
+    if (text.length >= config.designLimits.previewTextMin) return text;
+    const filler = "大家好，这是用设计出来的声音说的一段试听文本，希望你喜欢。";
+    return (text + filler).slice(0, config.designLimits.previewTextMax);
+}
+
+/** 轮询千问音色状态直到可用的等待上限；超时返回 false。 */
+async function waitForVoiceReady(channel: SystemModelChannel, upstreamVoiceId: string, timeoutMs = 120_000, intervalMs = 5_000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        const status = await queryQwenVoiceStatus(channel, upstreamVoiceId);
+        if (status.status === "ready") return true;
+        if (status.status === "failed") throw new GenerationSubmissionSafeFailure(status.failureReason || "音色审核未通过");
+    }
+    return false;
+}
+
+/**
+ * 适配器需要渠道形态的对象。音频任务里的 baseUrl 是站内代理路径（/api/ai/system/...），
+ * 而音色适配器直接出站调用上游，必须换成渠道在设置里的真实上游地址。
+ */
+async function channelFromTaskConfig(config: AudioTaskConfig): Promise<SystemModelChannel> {
+    const base = {
+        id: config.channelId || "",
+        name: "",
+        apiKey: config.apiKey,
+        apiFormat: (config.apiFormat === "gemini" ? "gemini" : "openai") as SystemModelChannel["apiFormat"],
+        models: [] as string[],
+        enabled: true,
+        advancedConfig: config.advancedConfig,
+    } as SystemModelChannel;
+    if (!config.baseUrl.startsWith("/")) return { ...base, baseUrl: config.baseUrl };
+    const settings = await getAuthSettings();
+    const stored = settings.systemChannels.find((item) => item.id === config.channelId);
+    if (!stored?.baseUrl) throw new GenerationSubmissionSafeFailure("找不到自定义音色所属渠道的上游地址");
+    return { ...base, baseUrl: stored.baseUrl, apiKey: stored.apiKey || config.apiKey, advancedConfig: config.advancedConfig || stored.advancedConfig };
+}
+
+async function persistVoicePreview(ownerUserId: string, voiceId: string, base64: string, mimeType: string) {
+    const extension = mimeType === "audio/wav" ? "wav" : mimeType === "audio/mp4" ? "m4a" : "mp3";
+    const stored = await writePersistentMediaDataUrl(`data:${mimeType};base64,${base64}`, "audio", { ownerUserId, source: "custom-voice-preview", originalName: `${voiceId}.${extension}` });
+    return stored.url;
+}
+
+/**
+ * 多人对话：每句单独调一次合成接口（带上该角色的音色和指令），按顺序拼接成一个文件。
+ * 并发 3，保持原顺序；任一句失败则整单失败，由外层走退款。
+ */
+async function runDialogAudioTask(task: AudioTask, config: AudioTaskConfig, origin: string, cookie: string, workerUserId: string): Promise<AudioUpstreamStep> {
+    const dialog = config.dialog;
+    if (!dialog?.lines?.length) throw new GenerationSubmissionSafeFailure("多人对话缺少台词");
+    const issue = validateDialog(dialog.lines, dialog.roles || {});
+    if (issue) throw new GenerationSubmissionSafeFailure(issue);
+    const family = audioModelFamily(config.model);
+    const extension = (config.format || "mp3").toLowerCase() === "wav" ? "wav" : "mp3";
+    const results: Array<Buffer | undefined> = new Array(dialog.lines.length);
+    // 每句单独扣费：记下每句的扣费凭证，任一句失败时把已扣的全部退回。
+    const receipts: string[] = [];
+    let index = 0;
+    let failure = "";
+    const worker = async () => {
+        while (index < dialog.lines.length && !failure) {
+            const current = index++;
+            const line = dialog.lines[current];
+            const role = dialog.roles[line.role];
+            try {
+                const result = await synthesizeDialogLine(task, config, line, role, family, origin, cookie, workerUserId, current);
+                results[current] = result.bytes;
+                if (result.receiptId) receipts.push(result.receiptId);
+            } catch (error) {
+                const lineReceipt = (error as { receiptId?: string }).receiptId;
+                if (lineReceipt) receipts.push(lineReceipt);
+                failure = error instanceof Error ? error.message : "多人对话合成失败";
+            }
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, dialog.lines.length) }, worker));
+    if (failure) {
+        await refundDialogReceipts(task, config, receipts);
+        throw new GenerationSubmissionSafeFailure(failure);
+    }
+    const segments = results.filter((bytes): bytes is Buffer => Boolean(bytes));
+    if (segments.length !== dialog.lines.length) throw new GenerationSubmissionSafeFailure("多人对话部分台词没有合成结果");
+    let joined: Buffer;
+    try {
+        joined = await concatAudioWithGaps(segments, extension);
+        await persistAudioBytes(task, origin, joined, extension === "wav" ? "audio/wav" : "audio/mpeg");
+    } catch (error) {
+        // 拼接或保存失败也要把各句扣费退回，否则用户付了钱却拿不到结果。
+        await refundDialogReceipts(task, config, receipts);
+        throw new GenerationSubmissionSafeFailure(error instanceof Error ? `多人对话拼接失败：${error.message}` : "多人对话拼接失败");
+    }
+    return { state: "completed" };
+}
+
+/** 把 custom:<id> 解析成上游音色 id，并校验归属、状态、模型和渠道；普通音色原样返回。 */
+async function resolveTaskVoice(task: AudioTask, config: AudioTaskConfig, voice: string) {
+    const customId = parseCustomVoiceId(voice);
+    if (!customId) return voice;
+    const customVoice = await getCustomVoice(customId);
+    if (!customVoice || (customVoice.ownerUserId !== task.userId && !customVoice.shared)) throw new GenerationSubmissionSafeFailure("无权使用此自定义音色");
+    if (customVoice.status !== "ready") throw new GenerationSubmissionSafeFailure("自定义音色尚未就绪");
+    if (customVoice.ttsModel !== config.model) throw new GenerationSubmissionSafeFailure("自定义音色与当前模型不匹配");
+    if (customVoice.channelId !== config.channelId) throw new GenerationSubmissionSafeFailure("自定义音色与当前渠道不匹配");
+    if (!customVoice.upstreamVoiceId) throw new GenerationSubmissionSafeFailure("自定义音色缺少上游音色");
+    await updateCustomVoice(customId, { lastUsedAt: new Date().toISOString() }).catch(() => undefined);
+    return customVoice.upstreamVoiceId;
+}
+
+async function synthesizeDialogLine(
+    task: AudioTask,
+    config: AudioTaskConfig,
+    line: { role: string; text: string },
+    role: { voice: string; instruction?: string; emotion?: string },
+    family: string,
+    origin: string,
+    cookie: string,
+    workerUserId: string,
+    lineIndex: number,
+): Promise<{ bytes: Buffer; receiptId?: string }> {
+    // 角色可以选「我的音色」（custom:<id>）：上游只认 upstreamVoiceId，不能把内部 id 发出去。
+    const voiceId = await resolveTaskVoice(task, config, role.voice);
+    const instruction = (role.instruction || "").trim();
+    const params: Record<string, unknown> = { ...(config.params || {}), voiceId };
+    if (family === "qwen" && instruction) params.instruction = instruction;
+    if (family === "minimax" && role.emotion) params.emotion = role.emotion;
+    const defaults = {
+        model: config.model,
+        input: line.text,
+        prompt: line.text,
+        text: line.text,
+        voice: voiceId,
+        response_format: config.format,
+        format: config.format,
+        speed: Number(config.speed) || 1,
+    };
+    const payload = { ...buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults), ...withoutUndefined(audioUpstreamFields(config.model, line.text, params, voiceId)) };
+    const { response } = await createAudioUpstream({ ...task, config }, origin, cookie, workerUserId, payload, undefined, `line:${lineIndex}`);
+    const receiptId = readBilling(response.headers).billingReceiptId;
+    try {
+        return await readDialogLineAudio(response, config, line, receiptId);
+    } catch (error) {
+        // 这句已经扣费但没拿到音频：把凭证带出去，由调用方统一退回。
+        throw Object.assign(error instanceof Error ? error : new Error(String(error)), { receiptId });
+    }
+}
+
+async function readDialogLineAudio(response: Response, config: AudioTaskConfig, line: { role: string; text: string }, receiptId: string | undefined): Promise<{ bytes: Buffer; receiptId?: string }> {
+    const contentType = response.headers.get("content-type")?.split(";")[0].toLowerCase() || "";
+    if (contentType.includes("json")) {
+        const text = await response.text();
+        let data: unknown;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new GenerationSubmissionSafeFailure("多人对话的音频接口返回了无效 JSON");
+        }
+        if (isProviderBusinessError(data)) throw new GenerationSubmissionSafeFailure(readProviderError(data) || `角色「${line.role}」合成失败`);
+        const directUrl = readProviderString(data, config.advancedConfig?.resultField, AUDIO_KEYS);
+        if (!directUrl) throw new GenerationSubmissionSafeFailure(`角色「${line.role}」没有返回音频`);
+        return { bytes: await downloadAudioBytes(directUrl, line.role), receiptId };
+    }
+    return { bytes: Buffer.from(await response.arrayBuffer()), receiptId };
+}
+
+/** 多人对话失败：把已经扣费的每一句都退回。 */
+async function refundDialogReceipts(task: AudioTask, config: AudioTaskConfig, receipts: string[]) {
+    if (!generationTaskShouldConsumePoints(task.executionProfile)) return;
+    await Promise.all(
+        receipts.map((receiptId, index) =>
+            refundGenerationCharge({ userId: task.userId, receiptId, model: generationModelId(config), usageKind: "audio", units: 1, idempotencyKey: `${audioTaskRefundIdempotencyKey({ id: task.id, attemptNo: task.attemptNo })}:line:${index}` }).catch(
+                () => undefined,
+            ),
+        ),
+    );
+}
+
+async function downloadAudioBytes(url: string, role: string) {
+    const response = await fetchSafeOutbound(url, { method: "GET", signal: AbortSignal.timeout(120_000) });
+    if (!response.ok) throw new GenerationSubmissionSafeFailure(`角色「${role}」的音频下载失败（HTTP ${response.status}）`);
+    return Buffer.from(await response.arrayBuffer());
+}
+
+/** 克隆参考音频：站内地址读成字节按 data: URI 内联上传（自动兼容本地磁盘和对象存储），公网地址直接用 URL。 */
+async function cloneAudioInput(reference: string): Promise<ReferenceAudioInput> {
+    const value = (reference || "").trim();
+    if (!value.startsWith("/api/reference-assets/") && !value.startsWith("/api/generation-log-assets/")) return { url: value };
+    const token = decodeURIComponent(value.split("?")[0].replace(/^\/api\/(?:reference|generation-log)-assets\//, ""));
+    const registration = await getLocalMediaRegistration(token);
+    if (!registration) throw new GenerationSubmissionSafeFailure("找不到参考音频文件");
+    const bytes = await readRegisteredMediaBytes(registration, 30 * 1024 * 1024);
+    const mime = registration.mimeType || "audio/mpeg";
+    const format = mime === "audio/wav" ? "wav" : mime === "audio/mp4" ? "m4a" : "mp3";
+    return { data: bytes, format };
 }
 
 export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string, cookie = "", workerUserId = ""): Promise<AudioUpstreamStep> {
@@ -277,9 +598,10 @@ export async function prepareAudioTaskAutomaticRetry(task: AudioTask, error: str
     });
 }
 
-async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>, workflow?: ReturnType<typeof workflowConfigForTask>) {
+async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>, workflow?: ReturnType<typeof workflowConfigForTask>, segment?: string) {
     let lastError = "";
-    const idempotencyKey = `audio-task:${task.id}:attempt:${task.attemptNo || 1}`;
+    // 多人对话一个任务会调多次合成，每句需要独立的计费幂等键，否则第二句会被判为「同键不同参数」。
+    const idempotencyKey = `audio-task:${task.id}:attempt:${task.attemptNo || 1}${segment ? `:${segment}` : ""}`;
     for (const path of resolvedProviderCreatePaths(task.config.advancedConfig, "audio", ["/audio/speech"])) {
         let response: Response;
         try {

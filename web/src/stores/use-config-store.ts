@@ -15,6 +15,7 @@ import type { LogicalModelCapabilityProfile } from "@/lib/auth/store-types";
 type ApiCallFormat = "openai" | "gemini";
 type SystemChannelProtocol =
     | "auto"
+    | "agnes"
     | "openai"
     | "yumeng"
     | "gemini"
@@ -177,7 +178,7 @@ export type PublicSystemSettings = {
         textModel?: string;
         audioModel?: string;
     };
-    systemChannels?: Array<ModelChannel & { enabled?: boolean; hasApiKey?: boolean }>;
+    systemChannels?: Array<ModelChannel & { enabled?: boolean; practiceEnabled?: boolean; purpose?: string; hasApiKey?: boolean }>;
     logicalModels?: LogicalModel[];
 };
 
@@ -266,6 +267,7 @@ function isAiConfigReady(config: AiConfig, model: string) {
 
 export function applyPublicSystemSettings(config: AiConfig, settings?: PublicSystemSettings | null): AiConfig {
     const channels = (settings?.systemChannels || [])
+        // 正式生产开关只管生产侧；purpose 仍决定可见性（纯练习渠道不进生产列表）。
         .filter((channel) => channel.enabled !== false && channel.hasApiKey !== false && channel.purpose !== "open-source-practice" && channel.models?.length)
         .map((channel) => ({
             id: channel.id,

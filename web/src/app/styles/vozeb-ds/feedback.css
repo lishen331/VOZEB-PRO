@@ -1,0 +1,200 @@
+/* Skeleton / progress / empty / error / upload */
+.vz-ds .vz-skel {
+    border-radius: var(--vz-r-xs);
+    background: linear-gradient(90deg, var(--vz-surface-3) 25%, color-mix(in srgb, var(--vz-surface-3) 70%, var(--vz-text-1) 8%) 50%, var(--vz-surface-3) 75%);
+    background-size: 300% 100%;
+    animation: vz-skel 1.4s ease-in-out infinite;
+}
+@keyframes vz-skel {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: 0 0;
+    }
+}
+
+.vz-ds .vz-progress {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--vz-surface-3);
+    overflow: hidden;
+}
+.vz-ds .vz-progress__bar {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--vz-gradient-glow);
+    box-shadow: 0 0 12px rgba(52, 211, 255, 0.45);
+    transition: width var(--vz-dur-3) var(--vz-ease);
+}
+.vz-ds .vz-progress[data-tone="success"] .vz-progress__bar {
+    background: var(--vz-success);
+    box-shadow: none;
+}
+.vz-ds .vz-progress[data-tone="danger"] .vz-progress__bar {
+    background: var(--vz-danger);
+    box-shadow: none;
+}
+.vz-ds .vz-progress[data-indeterminate="true"] .vz-progress__bar {
+    width: 35% !important;
+    animation: vz-indet 1.3s var(--vz-ease) infinite;
+}
+@keyframes vz-indet {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(300%);
+    }
+}
+
+.vz-ds .vz-state {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    padding: 32px 20px;
+    text-align: center;
+    border: 1px dashed var(--vz-border-strong);
+    border-radius: var(--vz-r-lg);
+    background: var(--vz-surface-2);
+}
+.vz-ds .vz-state__icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    background: var(--vz-surface-3);
+    color: var(--vz-text-2);
+    box-shadow: var(--vz-highlight);
+}
+.vz-ds .vz-state__icon svg {
+    width: 22px;
+    height: 22px;
+}
+.vz-ds .vz-state[data-tone="danger"] {
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--vz-danger) 30%, transparent);
+    background: color-mix(in srgb, var(--vz-danger) 6%, var(--vz-surface-2));
+}
+.vz-ds .vz-state[data-tone="danger"] .vz-state__icon {
+    color: var(--vz-danger-text);
+    background: var(--vz-danger-soft);
+}
+
+.vz-ds .vz-alert {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: var(--vz-r-md);
+    border: 1px solid transparent;
+    font-size: 13px;
+}
+.vz-ds .vz-alert svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    margin-top: 2px;
+}
+.vz-ds .vz-alert[data-tone="success"] {
+    color: var(--vz-success-text);
+    background: var(--vz-success-soft);
+}
+.vz-ds .vz-alert[data-tone="warning"] {
+    color: var(--vz-warning-text);
+    background: var(--vz-warning-soft);
+}
+.vz-ds .vz-alert[data-tone="danger"] {
+    color: var(--vz-danger-text);
+    background: var(--vz-danger-soft);
+}
+.vz-ds .vz-alert[data-tone="info"] {
+    color: var(--vz-info-text);
+    background: var(--vz-info-soft);
+}
+.vz-ds .vz-alert b {
+    color: var(--vz-text-1);
+    font-weight: 600;
+}
+
+.vz-ds .vz-upload {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 24px 16px;
+    border: 1.5px dashed var(--vz-control-border);
+    border-radius: var(--vz-r-lg);
+    background: var(--vz-surface-2);
+    text-align: center;
+    cursor: pointer;
+    transition:
+        border-color var(--vz-dur-2),
+        background var(--vz-dur-2),
+        transform var(--vz-dur-2) var(--vz-ease);
+}
+.vz-ds .vz-upload:hover,
+.vz-ds .vz-upload:focus-visible {
+    border-color: var(--vz-focus-color);
+    background: color-mix(in srgb, var(--vz-brand) 6%, var(--vz-surface-2));
+}
+.vz-ds .vz-upload:focus-visible {
+    box-shadow: var(--vz-ring);
+    border-color: var(--vz-focus-color);
+}
+.vz-ds .vz-upload[data-dragging="true"] {
+    border-style: solid;
+    border-color: var(--vz-brand);
+    background: var(--vz-brand-soft);
+    transform: scale(1.01);
+}
+.vz-ds .vz-upload__icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: var(--vz-gradient);
+    color: #fff;
+    box-shadow: var(--vz-glow-brand);
+}
+.vz-ds .vz-upload__icon svg {
+    width: 20px;
+    height: 20px;
+}
+.vz-ds .vz-thumbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 8px;
+}
+.vz-ds .vz-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: var(--vz-r-sm);
+    overflow: hidden;
+    border: 1px solid var(--vz-border);
+    background: var(--vz-surface-3);
+}
+.vz-ds .vz-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.vz-ds .vz-thumb[data-status="uploading"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 10, 14, 0.55);
+}
+.vz-ds .vz-thumb[data-status="error"] {
+    border-color: var(--vz-danger);
+}
+.vz-ds .vz-thumb__badge {
+    position: absolute;
+    inset: auto 4px 4px;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+}

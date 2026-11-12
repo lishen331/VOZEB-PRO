@@ -1,0 +1,987 @@
+{
+  "tasks": [
+    {
+      "id": "c0629ca6-61e9-4ec5-8e81-74e0de94b2b9",
+      "events": [
+        {
+          "at": 1792658306087,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792658306102,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792658306117,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658395701,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220838349216260378268d9d6JcILbsup"
+        },
+        {
+          "at": 1792658400334,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 8354120
+        },
+        {
+          "at": 1792658400344,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792658400538,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658400543,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658402931,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658402943,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "success",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792658402963,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "persisted"
+        }
+      ],
+      "status": "success",
+      "task_type": "image",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:38:26.077+00:00",
+      "updated_at": "2026-10-22T08:40:02.953+00:00",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 96868,
+        "successCount": 1
+      },
+      "execution_phase": "completed",
+      "current_upstream_model": "gpt-image-2",
+      "has_nonempty_result_payload": true
+    },
+    {
+      "id": "8ff4c81b-c7ed-4fb0-8c8a-d8d5187ef212",
+      "events": [
+        {
+          "at": 1792658338303,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792658338315,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658338326,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658579361,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220838587315105652l2yefu6YdFLZSpR"
+        },
+        {
+          "at": 1792658595597,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "responseBytes": 4442522
+        },
+        {
+          "at": 1792658595609,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658595737,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658595741,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658596641,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658596651,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "success",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658596669,
+          "model": "gpt-image-2-all",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "persisted"
+        }
+      ],
+      "status": "success",
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:38:58.295+00:00",
+      "updated_at": "2026-10-22T08:43:16.657+00:00",
+      "logical_model": "gpt-image-2-all",
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 258358,
+        "successCount": 1
+      },
+      "execution_phase": "completed",
+      "current_upstream_model": "gpt-image-2-all",
+      "has_nonempty_result_payload": true
+    },
+    {
+      "id": "ef643bc2-2314-449b-ba99-f47ebdf40aac",
+      "events": [
+        {
+          "at": 1792658366624,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792658366640,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658366648,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658580596,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220839267623130762l2yefu6aczkMY3j"
+        },
+        {
+          "at": 1792658595543,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "responseBytes": 3388050
+        },
+        {
+          "at": 1792658595548,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658595674,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658595678,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658596639,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658596648,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "success",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658596663,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "persisted"
+        }
+      ],
+      "status": "success",
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:39:26.616+00:00",
+      "updated_at": "2026-10-22T08:43:16.656+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 230034,
+        "successCount": 1
+      },
+      "execution_phase": "completed",
+      "current_upstream_model": "gpt-image-2-c",
+      "has_nonempty_result_payload": true
+    },
+    {
+      "id": "65ccada1-0b73-4fc9-a335-01a6b1a8cf05",
+      "events": [
+        {
+          "at": 1792658378735,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792658378747,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658378759,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658584212,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "202610220839394637425872l2yefu6MqBAGSll"
+        },
+        {
+          "at": 1792658595911,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "responseBytes": 7032117
+        },
+        {
+          "at": 1792658595925,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658596374,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658596379,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658596640,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658596648,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "success",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658596669,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "persisted"
+        }
+      ],
+      "status": "success",
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:39:38.726+00:00",
+      "updated_at": "2026-10-22T08:43:16.657+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 217924,
+        "successCount": 1
+      },
+      "execution_phase": "completed",
+      "current_upstream_model": "gpt-image-2-c",
+      "has_nonempty_result_payload": true
+    },
+    {
+      "id": "c52d1105-7d22-4c50-a422-8d78373dcdf7",
+      "events": [
+        {
+          "at": 1792658418098,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792658418110,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658418119,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658582522,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022084018488653670RI2ypSq2PgbqE1EK"
+        },
+        {
+          "at": 1792658594922,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "responseBytes": 3561918
+        },
+        {
+          "at": 1792658594927,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658595045,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658595052,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658595292,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658595299,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "success",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658595313,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "persisted"
+        }
+      ],
+      "status": "success",
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:40:18.088+00:00",
+      "updated_at": "2026-10-22T08:43:15.307+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 177213,
+        "successCount": 1
+      },
+      "execution_phase": "completed",
+      "current_upstream_model": "gpt-image-2-c",
+      "has_nonempty_result_payload": true
+    },
+    {
+      "id": "48df9792-ad9c-410e-9be7-ccf721fd2408",
+      "events": [
+        {
+          "at": 1792658548910,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658548925,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658554508,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658554520,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658565273,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658565288,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658576369,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658576381,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658587281,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658587293,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658598004,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658598017,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658609360,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658609374,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658620913,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658620926,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658633248,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658633260,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658644436,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 233
+        },
+        {
+          "at": 1792658644450,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "submitted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitted"
+        },
+        {
+          "at": 1792658672327,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 497
+        },
+        {
+          "at": 1792658675853,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658675858,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658676131,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658676142,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "success",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792658682105,
+          "model": "gpt-image-2.5-sunburst",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "persisted"
+        }
+      ],
+      "status": "success",
+      "task_type": "image",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:41:04.341+00:00",
+      "updated_at": "2026-10-22T08:44:42.095+00:00",
+      "logical_model": "gpt-image-2.5-sunburst",
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 211804,
+        "successCount": 1
+      },
+      "execution_phase": "completed",
+      "current_upstream_model": "gpt-image-2.5-sunburst",
+      "has_nonempty_result_payload": true
+    },
+    {
+      "id": "5bdd17da-75cc-41fe-b4bd-dd01d9f83e78",
+      "events": [
+        {
+          "at": 1792658469766,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792658469780,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658469826,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658607103,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "requestId": "20261022084111822827396RI2ypSq2utbvUYtA"
+        },
+        {
+          "at": 1792658611928,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_body_complete",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "responseBytes": 2342098
+        },
+        {
+          "at": 1792658611933,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658612008,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658612014,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658612022,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658612029,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "success",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658612044,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "persisted"
+        }
+      ],
+      "status": "success",
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:41:09.751+00:00",
+      "updated_at": "2026-10-22T08:43:32.036+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 142280,
+        "successCount": 1
+      },
+      "execution_phase": "completed",
+      "current_upstream_model": "gpt-image-2-c",
+      "has_nonempty_result_payload": true
+    },
+    {
+      "id": "e61e8bf7-4a3e-4d7a-950c-767f157c85e1",
+      "events": [
+        {
+          "at": 1792658627108,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "created",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792658627126,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "running",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792658627140,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792658679804,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610220843537004944768268d9d6OWSWY6hh"
+        },
+        {
+          "at": 1792658683349,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_complete",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "responseBytes": 4977427
+        },
+        {
+          "at": 1792658683358,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792658683505,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658683509,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658684267,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "completed"
+        },
+        {
+          "at": 1792658684275,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "success",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792658684290,
+          "model": "gpt-image-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "errorCode": "persisted"
+        }
+      ],
+      "status": "success",
+      "task_type": "image",
+      "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+      "created_at": "2026-10-22T08:43:47.097+00:00",
+      "updated_at": "2026-10-22T08:44:44.283+00:00",
+      "logical_model": "gpt-image-2",
+      "generation_log": {
+        "status": "success",
+        "failCount": 0,
+        "durationMs": 57180,
+        "successCount": 1
+      },
+      "execution_phase": "completed",
+      "current_upstream_model": "gpt-image-2",
+      "has_nonempty_result_payload": true
+    },
+    {
+      "id": "51382c09-1880-4182-a1b2-390612b5b81e",
+      "events": [
+        {
+          "at": 1792658670709,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "created"
+        },
+        {
+          "at": 1792658670721,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "running",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792658670730,
+          "model": "gpt-image-2-c",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "submitting"
+        }
+      ],
+      "status": "running",
+      "task_type": "image",
+      "channel_id": "_-eQ3SntRYtuDZz9mJ_OK",
+      "created_at": "2026-10-22T08:44:30.701+00:00",
+      "updated_at": "2026-10-22T08:44:30.725+00:00",
+      "logical_model": "gpt-image-2-c",
+      "generation_log": null,
+      "execution_phase": "submitting",
+      "current_upstream_model": "gpt-image-2-c",
+      "has_nonempty_result_payload": false
+    }
+  ],
+  "auditedAt": "2026-10-22T08:45:15.985527+00:00"
+}

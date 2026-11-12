@@ -12,6 +12,7 @@ import type { VoiceCustomizationConfig } from "@/lib/custom-voice-config";
 export type ApiCallFormat = "openai" | "gemini";
 export type SystemChannelProtocol =
     | "auto"
+    | "agnes"
     | "openai"
     | "yumeng"
     | "gemini"
@@ -79,6 +80,30 @@ export type RunningHubGenerationSizeOption = {
     disabled?: boolean;
 };
 export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
+
+/**
+ * 练习模型池按能力分成五个池子，与「默认模型」的五个字段一一对应。
+ * vision 是 text 的子集：只收支持图片输入的文本模型。
+ */
+export type PracticePoolKind = "text" | "vision" | "image" | "video" | "audio";
+
+export type PracticeModelPoolConfig = {
+    /**
+     * 旧的平面池，保留用于向后兼容。pools 里没有配置某个池时回退到这里。
+     * - true: 显式加入池子
+     * - false: 显式排除
+     * - undefined: 未配置(回退到默认包含)
+     */
+    models?: Record<string, boolean>;
+
+    /** 五个能力池，各自独立勾选，键为上游模型名(小写)。 */
+    pools?: Partial<Record<PracticePoolKind, Record<string, boolean>>>;
+
+    /**
+     * 配置版本,用于未来迁移。
+     */
+    version?: number;
+};
 export type PracticeModuleVisibility = {
     canvas: boolean;
     drama: boolean;
@@ -228,7 +253,10 @@ export type SystemModelChannel = {
     webhookSecret?: string;
     apiFormat: ApiCallFormat;
     models: string[];
+    /** 正式生产启用。 */
     enabled: boolean;
+    /** 无限练习启用。未设置时回落 enabled，保持存量渠道行为不变。 */
+    practiceEnabled?: boolean;
     purpose?: SystemChannelPurpose;
     advancedConfig?: SystemChannelAdvancedConfig;
     hasApiKey?: boolean;
@@ -675,6 +703,7 @@ export type AuthSettings = {
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
     practiceWorkflowModels: PracticeWorkflowModelBindings;
+    practiceModelPool?: PracticeModelPoolConfig;
     practiceModuleVisibility?: PracticeModuleVisibility;
     practiceScriptSettings: PracticeScriptSettings;
     agentSkills: AgentSkill[];

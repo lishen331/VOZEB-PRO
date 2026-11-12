@@ -1,0 +1,103 @@
+{
+  "currentRuntimeCommand": {
+    "exit": 0,
+    "stdout": "{\"node\":\"v22.23.4\",\"v8\":\"12.4.254.21-node.57\",\"platform\":\"linux\",\"arch\":\"x64\"}",
+    "error": ""
+  },
+  "diagnosticPhaseAudit": {
+    "at": "2026-10-22T08:55:41.82703+00:00",
+    "events": [
+      {
+        "id": "f41da877-a2ef-4c2e-b968-4e76dfbba8d3",
+        "exceptions": [
+          {
+            "at": 1792658181075,
+            "phase": "provider_exception",
+            "errorName": "RangeError",
+            "errorMessage": "Maximum call stack size exceeded"
+          },
+          {
+            "at": 1792658182240,
+            "phase": "provider_exception",
+            "errorName": "GenerationSubmissionSafeFailure",
+            "errorMessage": "图片生成失败，状态码 403"
+          }
+        ],
+        "event_phases": [
+          "transport_request",
+          "upstream_request",
+          "transport_policy",
+          "transport_response",
+          "upstream_body_complete",
+          "recovery_end",
+          "upstream_body_first_byte",
+          "poll",
+          "provider_exception",
+          "state",
+          "upstream_response",
+          "provider_start",
+          "task_created"
+        ]
+      },
+      {
+        "id": "685fca7c-bc66-4459-a918-42acc20c8e02",
+        "exceptions": [
+          {
+            "at": 1792658257731,
+            "phase": "provider_exception",
+            "errorName": "RangeError",
+            "errorMessage": "Maximum call stack size exceeded"
+          },
+          {
+            "at": 1792658259146,
+            "phase": "provider_exception",
+            "errorName": "GenerationSubmissionSafeFailure",
+            "errorMessage": "图片生成失败，状态码 403"
+          }
+        ],
+        "event_phases": [
+          "transport_request",
+          "upstream_request",
+          "transport_policy",
+          "transport_response",
+          "upstream_body_complete",
+          "recovery_end",
+          "upstream_body_first_byte",
+          "poll",
+          "provider_exception",
+          "state",
+          "upstream_response",
+          "provider_start",
+          "task_created"
+        ]
+      },
+      {
+        "id": "7141b4ea-ebb1-4c46-8cc1-18aa63ee6f02",
+        "exceptions": [
+          {
+            "at": 1792657774484,
+            "phase": "provider_exception",
+            "errorName": "RangeError",
+            "errorMessage": "Maximum call stack size exceeded"
+          }
+        ],
+        "event_phases": [
+          "transport_request",
+          "upstream_request",
+          "transport_policy",
+          "transport_response",
+          "upstream_body_complete",
+          "recovery_end",
+          "upstream_body_first_byte",
+          "poll",
+          "provider_exception",
+          "state",
+          "upstream_response",
+          "provider_start",
+          "task_created"
+        ]
+      }
+    ]
+  },
+  "readOnly": true
+}

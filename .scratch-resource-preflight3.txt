@@ -1,0 +1,55 @@
+SCHEMA_COLUMNS
+vozeb_pro_channel_concurrency_reservations|channel_id
+vozeb_pro_channel_concurrency_reservations|upstream_model
+vozeb_pro_channel_concurrency_reservations|request_id
+vozeb_pro_channel_concurrency_reservations|expires_at
+vozeb_pro_generation_tasks|id
+vozeb_pro_generation_tasks|user_id
+vozeb_pro_generation_tasks|task_type
+vozeb_pro_generation_tasks|status
+vozeb_pro_generation_tasks|payload
+vozeb_pro_generation_tasks|created_at
+vozeb_pro_generation_tasks|updated_at
+vozeb_pro_generation_tasks|expires_at
+vozeb_pro_generation_tasks|conversation_id
+vozeb_pro_generation_tasks|run_id
+vozeb_pro_generation_tasks|surface
+vozeb_pro_generation_tasks|project_id
+vozeb_pro_generation_tasks|parent_task_id
+vozeb_pro_generation_tasks|attempt_no
+vozeb_pro_generation_tasks|client_request_id
+vozeb_pro_generation_tasks|execution_phase
+vozeb_pro_generation_tasks|upstream_task_id
+vozeb_pro_generation_tasks|channel_id
+vozeb_pro_generation_tasks|provider
+vozeb_pro_generation_tasks|query_path
+vozeb_pro_generation_tasks|submitted_at
+vozeb_pro_generation_tasks|next_poll_at
+vozeb_pro_generation_tasks|last_poll_at
+vozeb_pro_generation_tasks|last_upstream_status
+vozeb_pro_generation_tasks|result_payload
+vozeb_pro_generation_tasks|worker_id
+vozeb_pro_generation_tasks|lease_until
+vozeb_pro_generation_tasks|last_heartbeat_at
+vozeb_pro_generation_tasks|execution_profile
+vozeb_pro_generation_tasks|workflow_key
+vozeb_pro_generation_tasks|workflow_version
+vozeb_pro_generation_tasks|upstream_workflow_id
+vozeb_pro_generation_tasks|business_code
+vozeb_pro_generation_tasks|task_origin
+vozeb_pro_generation_tasks|workflow_code
+vozeb_pro_generation_tasks|workflow_adapter_version
+vozeb_pro_generation_tasks|school_id
+vozeb_pro_generation_tasks|diagnostic_events
+vozeb_pro_generation_tasks|diagnostic_expires_at
+vozeb_pro_generation_tasks|upstream_request_id
+RESERVATIONS
+ERROR:  column "status" does not exist
+LINE 1: select count(*),coalesce(sum(case when status='active' then ...
+                                               ^
+TASKS
+3429|513
+IMAGE_CONFIG
+id=sha256:dd87db6deeb38a624a1fc0b46918fd7b74c3e2acf3c4bb4a67af31a018899ad2 created=2026-10-06T05:45:26.962139311Z digest=["ghcr.nju.edu.cn/lishen331/vozeb-pro@sha256:ad1b75ba75da2c2811ee77532dc2cfc7a6257925e738b72756eeab28d34ff4bb"] labels=null
+COMPOSE
+stat /opt/vozeb-staging/docker-compose.yml: no such file or directory

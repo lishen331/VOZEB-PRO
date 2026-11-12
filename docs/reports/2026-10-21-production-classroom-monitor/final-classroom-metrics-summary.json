@@ -1,0 +1,959 @@
+{
+  "sourceAt": "2026-10-21T13:08:29.623413+00:00",
+  "windowStart": "2026-10-21T14:30:00+08:00",
+  "windowEnd": "2026-10-21T20:51:47+08:00",
+  "sourceSha256": "a8fd41658c1a53b412f00f61ff925c9cf8da5fd959232f0c1cfe6d32c4291130",
+  "revision": 95,
+  "denominator": "unique database tasks created within inclusive frozen classroom window; excludes unassociated HTTP rejections and postclass tasks",
+  "taskSuccessNotBrowserVerification": true,
+  "overall": {
+    "total": 434,
+    "success": 270,
+    "failure": 164,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 434,
+    "successRatePct": 62.21,
+    "terminalSuccessRatePct": 62.21,
+    "successLatency": {
+      "n": 270,
+      "mean": 117.729,
+      "p95": 270.133,
+      "min": 23.997,
+      "max": 906.078
+    },
+    "failureLatency": {
+      "n": 160,
+      "mean": 70.332,
+      "p95": 315.243,
+      "min": 0.097,
+      "max": 603.492
+    },
+    "failureMissingCompletionLog": [
+      "4565b219-aeca-4e56-a4a3-e89f5a44251f",
+      "af53f7fb-b90f-40e5-a3a5-5fbbfcd82e25",
+      "846d5467-57ed-4f53-9186-c2269e0d9619",
+      "58ce7c95-baf6-4e2d-a98c-621a2bee0834"
+    ]
+  },
+  "types": [
+    {
+      "type": "image",
+      "total": 428,
+      "success": 266,
+      "failure": 162,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 428,
+      "successRatePct": 62.15,
+      "terminalSuccessRatePct": 62.15,
+      "successLatency": {
+        "n": 266,
+        "mean": 112.826,
+        "p95": 259.09,
+        "min": 23.997,
+        "max": 486.608
+      },
+      "failureLatency": {
+        "n": 158,
+        "mean": 69.924,
+        "p95": 317.19,
+        "min": 0.097,
+        "max": 603.492
+      }
+    },
+    {
+      "type": "video",
+      "total": 6,
+      "success": 4,
+      "failure": 2,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 6,
+      "successRatePct": 66.67,
+      "terminalSuccessRatePct": 66.67,
+      "successLatency": {
+        "n": 4,
+        "mean": 443.734,
+        "p95": 906.078,
+        "min": 251.833,
+        "max": 906.078
+      },
+      "failureLatency": {
+        "n": 2,
+        "mean": 102.553,
+        "p95": 122.349,
+        "min": 82.757,
+        "max": 122.349
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "alias": "ACC-b73dc7e7f0",
+      "maskedAccount": "25***0014",
+      "total": 106,
+      "success": 28,
+      "failure": 78,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 106,
+      "successRatePct": 26.42,
+      "terminalSuccessRatePct": 26.42,
+      "successLatency": {
+        "n": 28,
+        "mean": 107.762,
+        "p95": 200.023,
+        "min": 36.915,
+        "max": 290.539
+      }
+    },
+    {
+      "alias": "ACC-abde476c11",
+      "maskedAccount": "25***0007",
+      "total": 50,
+      "success": 35,
+      "failure": 15,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 50,
+      "successRatePct": 70.0,
+      "terminalSuccessRatePct": 70.0,
+      "successLatency": {
+        "n": 35,
+        "mean": 124.98,
+        "p95": 251.529,
+        "min": 42.183,
+        "max": 348.742
+      }
+    },
+    {
+      "alias": "ACC-54877f92c5",
+      "maskedAccount": "25***0032",
+      "total": 42,
+      "success": 28,
+      "failure": 14,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 42,
+      "successRatePct": 66.67,
+      "terminalSuccessRatePct": 66.67,
+      "successLatency": {
+        "n": 28,
+        "mean": 126.681,
+        "p95": 305.581,
+        "min": 38.658,
+        "max": 341.677
+      }
+    },
+    {
+      "alias": "ACC-9420cfcf0a",
+      "maskedAccount": "25***0059",
+      "total": 41,
+      "success": 30,
+      "failure": 11,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 41,
+      "successRatePct": 73.17,
+      "terminalSuccessRatePct": 73.17,
+      "successLatency": {
+        "n": 30,
+        "mean": 151.688,
+        "p95": 486.608,
+        "min": 23.997,
+        "max": 906.078
+      }
+    },
+    {
+      "alias": "ACC-3cb807d27d",
+      "maskedAccount": "25***0168",
+      "total": 32,
+      "success": 22,
+      "failure": 10,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 32,
+      "successRatePct": 68.75,
+      "terminalSuccessRatePct": 68.75,
+      "successLatency": {
+        "n": 22,
+        "mean": 135.92,
+        "p95": 297.09,
+        "min": 54.986,
+        "max": 469.339
+      }
+    },
+    {
+      "alias": "ACC-13a0fb3771",
+      "maskedAccount": "25***0042",
+      "total": 31,
+      "success": 19,
+      "failure": 12,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 31,
+      "successRatePct": 61.29,
+      "terminalSuccessRatePct": 61.29,
+      "successLatency": {
+        "n": 19,
+        "mean": 118.51,
+        "p95": 253.026,
+        "min": 40.417,
+        "max": 253.026
+      }
+    },
+    {
+      "alias": "ACC-d5606c4f7f",
+      "maskedAccount": "25***0153",
+      "total": 27,
+      "success": 21,
+      "failure": 6,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 27,
+      "successRatePct": 77.78,
+      "terminalSuccessRatePct": 77.78,
+      "successLatency": {
+        "n": 21,
+        "mean": 93.849,
+        "p95": 189.312,
+        "min": 36.772,
+        "max": 262.392
+      }
+    },
+    {
+      "alias": "ACC-10ff57beb5",
+      "maskedAccount": "25***0027",
+      "total": 25,
+      "success": 20,
+      "failure": 5,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 25,
+      "successRatePct": 80.0,
+      "terminalSuccessRatePct": 80.0,
+      "successLatency": {
+        "n": 20,
+        "mean": 102.591,
+        "p95": 248.334,
+        "min": 42.174,
+        "max": 259.09
+      }
+    },
+    {
+      "alias": "ACC-6822c546ae",
+      "maskedAccount": "25***0165",
+      "total": 23,
+      "success": 17,
+      "failure": 6,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 23,
+      "successRatePct": 73.91,
+      "terminalSuccessRatePct": 73.91,
+      "successLatency": {
+        "n": 17,
+        "mean": 127.501,
+        "p95": 258.086,
+        "min": 33.781,
+        "max": 258.086
+      }
+    },
+    {
+      "alias": "ACC-3e25979637",
+      "maskedAccount": "25***0173",
+      "total": 21,
+      "success": 19,
+      "failure": 2,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 21,
+      "successRatePct": 90.48,
+      "terminalSuccessRatePct": 90.48,
+      "successLatency": {
+        "n": 19,
+        "mean": 87.772,
+        "p95": 264.264,
+        "min": 36.079,
+        "max": 264.264
+      }
+    },
+    {
+      "alias": "ACC-929c993d05",
+      "maskedAccount": "25***0192",
+      "total": 15,
+      "success": 14,
+      "failure": 1,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 15,
+      "successRatePct": 93.33,
+      "terminalSuccessRatePct": 93.33,
+      "successLatency": {
+        "n": 14,
+        "mean": 81.458,
+        "p95": 234.716,
+        "min": 35.871,
+        "max": 234.716
+      }
+    },
+    {
+      "alias": "ACC-c450b6582e",
+      "maskedAccount": "25***0029",
+      "total": 12,
+      "success": 12,
+      "failure": 0,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 12,
+      "successRatePct": 100.0,
+      "terminalSuccessRatePct": 100.0,
+      "successLatency": {
+        "n": 12,
+        "mean": 140.164,
+        "p95": 302.431,
+        "min": 45.22,
+        "max": 302.431
+      }
+    },
+    {
+      "alias": "ACC-53691bfdec",
+      "maskedAccount": "25***0047",
+      "total": 7,
+      "success": 3,
+      "failure": 4,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 7,
+      "successRatePct": 42.86,
+      "terminalSuccessRatePct": 42.86,
+      "successLatency": {
+        "n": 3,
+        "mean": 94.644,
+        "p95": 119.821,
+        "min": 68.69,
+        "max": 119.821
+      }
+    },
+    {
+      "alias": "ACC-06847b9778",
+      "maskedAccount": "y***s",
+      "total": 2,
+      "success": 2,
+      "failure": 0,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 2,
+      "successRatePct": 100.0,
+      "terminalSuccessRatePct": 100.0,
+      "successLatency": {
+        "n": 2,
+        "mean": 45.639,
+        "p95": 56.873,
+        "min": 34.406,
+        "max": 56.873
+      }
+    }
+  ],
+  "models": [
+    {
+      "type": "image",
+      "model": "gpt-image-2-all",
+      "total": 148,
+      "success": 93,
+      "failure": 55,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 148,
+      "successRatePct": 62.84,
+      "terminalSuccessRatePct": 62.84,
+      "successLatency": {
+        "n": 93,
+        "mean": 139.863,
+        "p95": 297.09,
+        "min": 38.658,
+        "max": 348.742
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2",
+      "total": 124,
+      "success": 116,
+      "failure": 8,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 124,
+      "successRatePct": 93.55,
+      "terminalSuccessRatePct": 93.55,
+      "successLatency": {
+        "n": 116,
+        "mean": 84.798,
+        "p95": 258.086,
+        "min": 23.997,
+        "max": 486.608
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-c",
+      "total": 81,
+      "success": 57,
+      "failure": 24,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 81,
+      "successRatePct": 70.37,
+      "terminalSuccessRatePct": 70.37,
+      "successLatency": {
+        "n": 57,
+        "mean": 125.753,
+        "p95": 251.529,
+        "min": 53.317,
+        "max": 270.133
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-5-sunburst",
+      "total": 46,
+      "success": 0,
+      "failure": 46,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 46,
+      "successRatePct": 0.0,
+      "terminalSuccessRatePct": 0.0,
+      "successLatency": {
+        "n": 0,
+        "mean": null,
+        "p95": null,
+        "min": null,
+        "max": null
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-5-flare",
+      "total": 27,
+      "success": 0,
+      "failure": 27,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 27,
+      "successRatePct": 0.0,
+      "terminalSuccessRatePct": 0.0,
+      "successLatency": {
+        "n": 0,
+        "mean": null,
+        "p95": null,
+        "min": null,
+        "max": null
+      }
+    },
+    {
+      "type": "video",
+      "model": "doubao-seedance-2-0",
+      "total": 3,
+      "success": 3,
+      "failure": 0,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 3,
+      "successRatePct": 100.0,
+      "terminalSuccessRatePct": 100.0,
+      "successLatency": {
+        "n": 3,
+        "mean": 479.692,
+        "p95": 906.078,
+        "min": 251.833,
+        "max": 906.078
+      }
+    },
+    {
+      "type": "video",
+      "model": "official/seedance-2",
+      "total": 3,
+      "success": 1,
+      "failure": 2,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 3,
+      "successRatePct": 33.33,
+      "terminalSuccessRatePct": 33.33,
+      "successLatency": {
+        "n": 1,
+        "mean": 335.861,
+        "p95": 335.861,
+        "min": 335.861,
+        "max": 335.861
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2.5-sunburst",
+      "total": 2,
+      "success": 0,
+      "failure": 2,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 2,
+      "successRatePct": 0.0,
+      "terminalSuccessRatePct": 0.0,
+      "successLatency": {
+        "n": 0,
+        "mean": null,
+        "p95": null,
+        "min": null,
+        "max": null
+      }
+    }
+  ],
+  "channels": [
+    {
+      "type": "image",
+      "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+      "channelName": "模汇X中漫 API 渠道",
+      "model": "gpt-image-2-all",
+      "total": 151,
+      "success": 93,
+      "failure": 58,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 151,
+      "successRatePct": 61.59,
+      "terminalSuccessRatePct": 61.59,
+      "diagnosticModelCoverage": 151,
+      "successAttemptLatency": {
+        "n": 93,
+        "mean": 139.84,
+        "p95": 297.071
+      }
+    },
+    {
+      "type": "image",
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "channelName": "兔子 API 渠道",
+      "model": "gpt-image-2",
+      "total": 133,
+      "success": 116,
+      "failure": 17,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 133,
+      "successRatePct": 87.22,
+      "terminalSuccessRatePct": 87.22,
+      "diagnosticModelCoverage": 133,
+      "successAttemptLatency": {
+        "n": 116,
+        "mean": 84.778,
+        "p95": 258.073
+      }
+    },
+    {
+      "type": "image",
+      "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+      "channelName": "模汇X中漫 API 渠道",
+      "model": "gpt-image-2-c",
+      "total": 87,
+      "success": 57,
+      "failure": 30,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 87,
+      "successRatePct": 65.52,
+      "terminalSuccessRatePct": 65.52,
+      "diagnosticModelCoverage": 87,
+      "successAttemptLatency": {
+        "n": 57,
+        "mean": 125.73,
+        "p95": 251.507
+      }
+    },
+    {
+      "type": "image",
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "channelName": "modelbay API 渠道",
+      "model": "gpt-image-2-5-sunburst",
+      "total": 50,
+      "success": 0,
+      "failure": 50,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 50,
+      "successRatePct": 0.0,
+      "terminalSuccessRatePct": 0.0,
+      "diagnosticModelCoverage": 50,
+      "successAttemptLatency": {
+        "n": 0,
+        "mean": null,
+        "p95": null
+      }
+    },
+    {
+      "type": "image",
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "channelName": "modelbay API 渠道",
+      "model": "gpt-image-2-5-flare",
+      "total": 29,
+      "success": 0,
+      "failure": 29,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 29,
+      "successRatePct": 0.0,
+      "terminalSuccessRatePct": 0.0,
+      "diagnosticModelCoverage": 29,
+      "successAttemptLatency": {
+        "n": 0,
+        "mean": null,
+        "p95": null
+      }
+    },
+    {
+      "type": "video",
+      "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+      "channelName": "模汇X中漫 API 渠道",
+      "model": "[未证实] attempt记录:doubao-seedance-2-0",
+      "total": 3,
+      "success": 3,
+      "failure": 0,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 3,
+      "successRatePct": 100.0,
+      "terminalSuccessRatePct": 100.0,
+      "diagnosticModelCoverage": 0,
+      "successAttemptLatency": {
+        "n": 3,
+        "mean": 478.475,
+        "p95": 903.978
+      }
+    },
+    {
+      "type": "image",
+      "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+      "channelName": "兔子 API 渠道",
+      "model": "gpt-image-2.5-sunburst",
+      "total": 2,
+      "success": 0,
+      "failure": 2,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 2,
+      "successRatePct": 0.0,
+      "terminalSuccessRatePct": 0.0,
+      "diagnosticModelCoverage": 2,
+      "successAttemptLatency": {
+        "n": 0,
+        "mean": null,
+        "p95": null
+      }
+    },
+    {
+      "type": "video",
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "channelName": "modelbay API 渠道",
+      "model": "official/seedance-2",
+      "total": 2,
+      "success": 0,
+      "failure": 2,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 2,
+      "successRatePct": 0.0,
+      "terminalSuccessRatePct": 0.0,
+      "diagnosticModelCoverage": 2,
+      "successAttemptLatency": {
+        "n": 0,
+        "mean": null,
+        "p95": null
+      }
+    },
+    {
+      "type": "image",
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "channelName": "modelbay API 渠道",
+      "model": "gpt-image-2-image-to-image",
+      "total": 1,
+      "success": 0,
+      "failure": 1,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 1,
+      "successRatePct": 0.0,
+      "terminalSuccessRatePct": 0.0,
+      "diagnosticModelCoverage": 1,
+      "successAttemptLatency": {
+        "n": 0,
+        "mean": null,
+        "p95": null
+      }
+    },
+    {
+      "type": "video",
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "channelName": "modelbay API 渠道",
+      "model": "[未证实] attempt记录:official/seedance-2",
+      "total": 1,
+      "success": 1,
+      "failure": 0,
+      "canceled": 0,
+      "pending": 0,
+      "terminal": 1,
+      "successRatePct": 100.0,
+      "terminalSuccessRatePct": 100.0,
+      "diagnosticModelCoverage": 0,
+      "successAttemptLatency": {
+        "n": 1,
+        "mean": 335.005,
+        "p95": 335.005
+      }
+    }
+  ],
+  "failureGroups": [
+    {
+      "category": "上游不接受response_format参数",
+      "count": 73,
+      "pctOfFailed": 44.51,
+      "taskIds": [
+        "93949b07-9274-48b8-8ef5-ca073e1ec89e",
+        "877db1e8-b237-4400-bb5c-07891789f65f",
+        "6b17223f-253b-4c56-b101-d92c186f0161",
+        "e6031a79-cc13-42c1-a1c5-95c7d6c91d5e",
+        "84c228c8-c5d7-48a6-950f-ea661a379a5b",
+        "0675cbb6-04a1-4462-8718-11e2c8c2047c",
+        "354e9889-6385-4e6d-944e-46ffffb10b21",
+        "6c0eb34c-d2dd-4d84-a97f-0a44611261c4",
+        "094f7e39-d536-4ac8-a8c3-b99a992ea2d9",
+        "88c6f899-a4b5-4f9a-8c89-2c236a930cc9",
+        "1d18a250-af2f-482a-8592-2babb42ced14",
+        "8bb05443-bac5-4998-868c-d11160893dae",
+        "edf321af-8fda-4f6e-a2b4-148c911b0ff6",
+        "1bc8fc3c-1a61-416e-9aa8-d90dd55a14cf",
+        "b9811902-f8f2-4695-91ee-3ee9a4c5a5f1",
+        "cc71f1c9-432c-41ec-87cc-05d3a1cf4da5",
+        "7b76529c-2754-4a17-8e3c-2eee2f2ee9d2",
+        "90ec0136-1568-433f-a2a6-59ab3a6580d8",
+        "fd1ae121-4668-4fda-b58f-9d43b7fbca38",
+        "8f365cbb-7ef8-4b69-bffe-856e918db65b",
+        "cb707d57-c95f-4fe8-82f0-84e3240e903c",
+        "f6ab15aa-9528-44c2-8b19-41def005e3a4",
+        "18a611b5-a6a8-4b88-b2dd-c817bc927b6a",
+        "e17852c5-6355-40a3-a4db-0a4031aedcf0",
+        "e0214b3a-cab3-4fef-aff3-4dd7e3acdd89",
+        "c4fc656e-5b9c-4377-a68c-69e53e901876",
+        "6e51689a-0020-4f37-9e96-1f8b4baac8ab",
+        "0ff41093-cfd0-4413-a1f8-11782dbab15f",
+        "676957f0-8e26-40f5-9d4c-08795471cffb",
+        "f43da5d6-a1ed-4e57-aaa8-a8c5548fb0f8",
+        "4f94df43-ae77-4695-ba27-0bf09721b57f",
+        "c7bf23bf-ab2e-43b0-8f54-9ee5190a148e",
+        "4308a050-fa9f-4eb9-a199-0e6f7751db1d",
+        "42d1f7de-dd93-40c6-967c-bd131f294662",
+        "42c5632b-7bf1-4fbd-b9b6-a0fb72edeb86",
+        "285ce757-4283-416d-b3dd-ee1b26f17447",
+        "bbd77400-dc16-4910-a6f1-1bcccb568ad2",
+        "2908e17c-73b5-47e8-989a-3c880b523f4b",
+        "550687d3-9d40-472c-b769-60f94d1c680a",
+        "0bd76881-36dc-4d5b-a6bf-4de440ef4edb",
+        "b816da59-b5d6-44fb-a12f-5bfcd3608b9b",
+        "df0e2e2e-464a-47f5-a557-64086e017c70",
+        "a1809ce9-c54b-4764-b1a7-21f60b4f3f9c",
+        "29d08012-31cf-4719-9234-f987c2f2fe1c",
+        "617e4f0a-7bc2-4b80-a0cc-fdfe98d4340c",
+        "5d83483e-35af-4bd3-a405-de5d08046696",
+        "fb23e62c-2ba7-43b6-a5b5-3d43e665fd2e",
+        "d9f5110a-98df-45b5-81d0-9ff58bc99055",
+        "22fa8e25-de28-4d86-b96b-cc0380cea30e",
+        "cf2ffbff-1514-4fe2-83a7-b138edd684a5",
+        "8f0afb9e-aff9-4e75-97c8-2a704f3f9cdc",
+        "fba664e5-ba92-41ad-ba99-fd210b6b5c74",
+        "39317825-6fb8-47c8-92ab-c4d28c938e34",
+        "f7a4611c-7ee2-459d-8268-11013bd4483e",
+        "a2027143-f1f9-4033-a0bb-31b599bea717",
+        "4d6c5088-9954-4cf3-9697-a73d2c9c4523",
+        "e9d707c5-de50-46a6-86ae-77dc7354eb65",
+        "3d5ce42a-8c0e-4ced-b7a7-3e1e4573003a",
+        "f672c26f-9398-4b08-86ad-a886bcc1de2c",
+        "decd0434-cde9-4e14-9053-d0a71399a5d1",
+        "8522c0ec-ea58-4b92-b9f4-9d0e3cc42aa8",
+        "0ec6d134-c0e9-470d-9172-fae30d09e648",
+        "89c33524-0ed6-488f-8712-a7e284f02c11",
+        "a516a9d8-93d0-4af7-a52e-394cd9483627",
+        "3e3b6c2f-33d0-4e1c-b2b0-5bd70205323d",
+        "696dd6b0-3a18-4564-a500-cd7f6cca275c",
+        "2e302dff-d0fd-4eb7-8c42-aa2c4568ad2f",
+        "3c4917aa-d7b5-4e86-a5de-3de46d731e5c",
+        "b5c187f9-8b3a-4aca-b4c0-9e5eefc17b74",
+        "89db56f0-ff9f-415d-86ee-64f25f702e9d",
+        "a832ea3c-a438-4860-b739-3766268746a8",
+        "e0f0cf20-e631-4b8d-acde-31e39a208f16",
+        "5bec6ee3-b726-449d-a489-50f567f2fc06"
+      ]
+    },
+    {
+      "category": "模汇异步URL格式契约不匹配",
+      "count": 55,
+      "pctOfFailed": 33.54,
+      "taskIds": [
+        "3969f8fa-6174-44a4-b96f-8060e51c40d0",
+        "9bf27f74-5ed2-4622-8203-294c7ba6151a",
+        "2ded0cfd-d9e7-43fa-a479-5fc6b85e4e0f",
+        "896760e0-1506-4ae6-826f-1d11dea3ee39",
+        "48202297-7f8c-4669-9aec-2f52ed96e6f4",
+        "1d28437c-e843-4c67-b0ab-52608baf19b2",
+        "02d2ee28-5b56-4c5d-8f92-0799cbb88568",
+        "144a76a6-ae1f-4876-b2bc-cf331ef6793f",
+        "9f719e79-f4f2-4d3f-86f2-4c67392af832",
+        "d202f4b0-69da-42b4-953e-b99e71b4f37e",
+        "568c3155-1588-4df4-9d8e-e47c44d9382b",
+        "0f21203d-1d3b-4e1f-bf2b-0e2e32a9227e",
+        "db4de73c-0b49-4d6e-a2aa-bd549b206751",
+        "e4559131-457c-4c97-8c3b-e5b69cbda434",
+        "42740d9a-86c8-4b79-a07e-a3fbf6c263ff",
+        "ad6c5338-3c67-4c8e-84cb-da3f249e4dbf",
+        "dce509e7-36e8-4b76-8c7c-c0e0dd5b1dd4",
+        "735eaa4d-412c-42b3-9aa6-809af0a21695",
+        "e1c9dc5f-b1b4-4247-ad06-228934e91aa7",
+        "1543b184-cb90-4762-b334-2f2a78176e64",
+        "26f57220-6d1d-4a02-8831-ce64ee85c4d2",
+        "ef827d0d-3a26-46f4-9d7f-a00d1a49f045",
+        "c4fd14aa-7ff5-47d6-b640-ee996c01dadb",
+        "676da9e8-e7d4-4a55-9a4a-28b6fb533f58",
+        "ff580165-622f-4e85-a710-e3e88e38c8de",
+        "497b2ba6-325f-441c-bd6a-cc6bba1a3c35",
+        "cef35030-e8dd-4c21-8936-d61d7107c06e",
+        "4a5ce31e-1fa0-4bd0-9830-0808a83beaff",
+        "17eace57-43e4-4a63-97af-b08dbde40fa5",
+        "39b730b0-431d-4e5a-892f-622229dbae46",
+        "75449b1b-4eb5-43e4-a69c-d8565bc9547c",
+        "9e9c41f2-31c3-4ddb-841b-783d0bb63221",
+        "cb57a075-f9da-4950-87d9-eb9bbe8649c7",
+        "cfa39866-1f03-4753-941d-caedc48b7bc1",
+        "aadfe18e-c75c-4d48-abf4-4868e849b991",
+        "66acb89e-b80d-4173-a5e6-a5af675c1735",
+        "355183c2-f7ae-4a6c-8bb6-a917558d2d0e",
+        "371f36be-13a0-44d5-b3ea-92e1dd0f9dde",
+        "2783ef82-31ab-45dd-a805-d36ab245afb0",
+        "cef3e0ac-adbb-4b96-8559-9eab34d85769",
+        "ed35da19-c679-40a3-9ad3-e73e6d7618cc",
+        "ca87f509-e805-4b41-b641-94ec8ba16e14",
+        "17cb85ce-7a51-40b7-a65a-7f2f002607ba",
+        "521859d6-2c06-4dae-880f-4f2e943be123",
+        "5591537e-2ce5-4cb5-a44a-daf29c70e7f7",
+        "7441241b-f88e-47ef-8d55-d44ecdbc8404",
+        "f549978c-f930-4c05-825a-50b8dda3e7e5",
+        "ce44cb6f-3b73-4024-8a51-01e63e180806",
+        "abd436c1-d08a-4a5e-a7e9-58fbd94656ab",
+        "d9b14166-abc5-4b3c-be9c-f01b82a3c248",
+        "400d8869-bf24-41ea-b44e-ee52ec5d1aa6",
+        "68530e11-d86b-418b-afa3-541141c218ae",
+        "c52410ca-7513-42e6-a5e5-6291d5fde060",
+        "ba851105-b418-4f8a-88cc-8726e326095f",
+        "42d1fc04-845f-497b-a446-c8f0a67be0c8"
+      ]
+    },
+    {
+      "category": "上游504后备用请求403",
+      "count": 17,
+      "pctOfFailed": 10.37,
+      "taskIds": [
+        "f7992a52-1ab9-40de-8bdf-5cba6b1eccce",
+        "9454de8f-9c7d-46a5-bfce-4b92c50cb39b",
+        "c430c325-3c8d-4ac9-b243-3fb56d22776a",
+        "21631eb0-bc0e-4819-88f7-e78cfc3aa330",
+        "5a070fbe-c50e-492b-bdcc-770d6a2fceac",
+        "ec23e9c5-3c76-4514-a39a-a2f6de308c50",
+        "c5710c5b-270c-4992-ab2a-c0cf4b1ae817",
+        "c975b2ce-8030-458d-a139-968cb6f654ac",
+        "ce8b81c5-ecc5-40bc-81c2-b664a478fb1b",
+        "f215cb50-69e0-46d8-b202-97ba8e58b173",
+        "42b72d29-caac-4944-9772-0fa43add249a",
+        "53e978d9-b8c6-480f-b022-2ecac5d2e641",
+        "f757abb1-6767-417c-b1ec-40cb04b0af58",
+        "d4c3ab0e-2ffb-4ace-b8a0-24461434d64e",
+        "42bde14d-92a0-4416-8c21-5b42a071b270",
+        "b415f396-3b62-4521-ae31-3d924c1ecc34",
+        "cf0b1c63-a717-49c0-ad63-888025c1e120"
+      ]
+    },
+    {
+      "category": "上游连接超时后备用请求失败",
+      "count": 6,
+      "pctOfFailed": 3.66,
+      "taskIds": [
+        "a5195906-c5b4-4c1c-b3ab-d7b30ffe683e",
+        "b466e7ac-7cd9-4215-991e-21bd07a397e6",
+        "37777856-193e-47f8-a6f3-03b9449bea07",
+        "cc9e3334-3fde-44cc-9a4a-fd369a72ff52",
+        "190887c6-ed4f-4a20-9f7a-9b9d8c461e24",
+        "8ebfe9dc-41c2-41d1-8a7b-61f68cd0b2cc"
+      ]
+    },
+    {
+      "category": "平台图片比例校验拒绝",
+      "count": 4,
+      "pctOfFailed": 2.44,
+      "taskIds": [
+        "4565b219-aeca-4e56-a4a3-e89f5a44251f",
+        "af53f7fb-b90f-40e5-a3a5-5fbbfcd82e25",
+        "846d5467-57ed-4f53-9186-c2269e0d9619",
+        "58ce7c95-baf6-4e2d-a98c-621a2bee0834"
+      ]
+    },
+    {
+      "category": "平台参考图大小保护拒绝",
+      "count": 3,
+      "pctOfFailed": 1.83,
+      "taskIds": [
+        "c7f8f4a1-dc87-4444-beb1-ab7c267c156a",
+        "79048b25-72b6-4be4-b97f-bdf0c23bceb9",
+        "d0f3a586-87c2-46dd-aa80-edac2e4c801f"
+      ]
+    },
+    {
+      "category": "上游内容拒绝",
+      "count": 2,
+      "pctOfFailed": 1.22,
+      "taskIds": [
+        "ece864d7-ac25-48b6-aa64-fbfa604fdb66",
+        "1af10e67-93dc-465e-a7bf-737cd17b4469"
+      ]
+    },
+    {
+      "category": "上游参考视频输入不兼容（HTTP400）",
+      "count": 2,
+      "pctOfFailed": 1.22,
+      "taskIds": [
+        "c0ee98d1-57dd-4550-85f6-5f5484a3b67f",
+        "1781e2e9-203f-42aa-af97-643e1c389afc"
+      ]
+    },
+    {
+      "category": "响应正文中断后备用请求失败",
+      "count": 1,
+      "pctOfFailed": 0.61,
+      "taskIds": [
+        "299dfb88-f33c-4dcc-b5f0-b36fdbd6c080"
+      ]
+    },
+    {
+      "category": "响应正文读取超时",
+      "count": 1,
+      "pctOfFailed": 0.61,
+      "taskIds": [
+        "da3a25fa-ee9b-48c9-b8d3-34c4a0e1677d"
+      ]
+    }
+  ],
+  "attemptCount": 459,
+  "duplicateIdentityGroups": 0,
+  "draftTablesMatchedFreshFrozenSource": {
+    "2": true,
+    "3": true,
+    "4": true,
+    "5": true
+  }
+}

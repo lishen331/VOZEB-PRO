@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-21T12:22:20.668864+00:00",
+  "tasks": [
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "nodeId": "video-fZOtsyqvr0rG1ESHULBH2",
+      "nodeType": "video",
+      "nodeStatus": "success",
+      "nodeMissing": false,
+      "pendingTaskId": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "originalNodeId": "video-fZOtsyqvr0rG1ESHULBH2",
+      "resultMatchesServerUrl": true,
+      "newerVideoTasksSameOriginalNode": 0
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "nodeId": "video-Kg28vwev5jeWi8UULEccV",
+      "nodeType": "video",
+      "nodeStatus": "success",
+      "nodeMissing": false,
+      "pendingTaskId": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "originalNodeId": "video-Kg28vwev5jeWi8UULEccV",
+      "resultMatchesServerUrl": true,
+      "newerVideoTasksSameOriginalNode": 0
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "nodeId": null,
+      "nodeType": null,
+      "nodeStatus": null,
+      "nodeMissing": true,
+      "pendingTaskId": null,
+      "originalNodeId": "video-wNtCqQkUWPKDFKprxKHhm",
+      "resultMatchesServerUrl": null,
+      "newerVideoTasksSameOriginalNode": 0
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "nodeId": null,
+      "nodeType": null,
+      "nodeStatus": null,
+      "nodeMissing": true,
+      "pendingTaskId": null,
+      "originalNodeId": "video-nBiG5ueOVAnaXC4-5Vqd4",
+      "resultMatchesServerUrl": null,
+      "newerVideoTasksSameOriginalNode": 0
+    }
+  ]
+}

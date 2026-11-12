@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-22T10:24:44.466184+00:00",
+  "file": "classroom-event-watch-20261022-181441.jsonl",
+  "sha256": "9f6f6db38bbd331d757b669b3bee09927997bea96317781195323b4cb0d207a6",
+  "samples": 11,
+  "first": "2026-10-22T10:14:41.577934+00:00",
+  "last": "2026-10-22T10:24:20.471186+00:00",
+  "noObservedGenerationOrBuildOrHealthStateChange": true,
+  "monitorStillRunning": true
+}

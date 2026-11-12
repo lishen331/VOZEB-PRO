@@ -1,0 +1,105 @@
+{
+  "verifiedAt": "2026-10-21T13:15:27.181965+00:00",
+  "result": "PASS",
+  "sourceAt": "2026-10-21T13:08:29.623413+00:00",
+  "sourceCopiedByteForByte": true,
+  "sourceSha256": "a8fd41658c1a53b412f00f61ff925c9cf8da5fd959232f0c1cfe6d32c4291130",
+  "windowStart": "2026-10-21T14:30:00+08:00",
+  "windowEnd": "2026-10-21T20:51:47+08:00",
+  "inclusiveCreationWindowChecked": true,
+  "uniqueTaskCount": 434,
+  "success": 270,
+  "failure": 164,
+  "canceled": 0,
+  "pending": 0,
+  "allTerminal": true,
+  "executionPhaseCompletedCount": 434,
+  "taskSuccessRatePct": 62.21,
+  "accountCount": 14,
+  "modelCount": 8,
+  "channelModelRowCount": 10,
+  "actualAttemptCount": 459,
+  "duplicateTaskIds": 0,
+  "duplicateIdentityGroups": 0,
+  "accountAndModelTotalsReconciled": true,
+  "rateFormulasRecomputed": true,
+  "draftTablesMatchedFreshFrozenSource": {
+    "2": true,
+    "3": true,
+    "4": true,
+    "5": true
+  },
+  "renderedTableNumbersIndependentlyChecked": true,
+  "markdownColumnCountsValid": true,
+  "timingRecomputedFromTimestamps": true,
+  "successTimingCoverage": "270/270",
+  "failureTimingCoverage": "160/164",
+  "missingFailureCompletionLogs": [
+    "4565b219-aeca-4e56-a4a3-e89f5a44251f",
+    "af53f7fb-b90f-40e5-a3a5-5fbbfcd82e25",
+    "846d5467-57ed-4f53-9186-c2269e0d9619",
+    "58ce7c95-baf6-4e2d-a98c-621a2bee0834"
+  ],
+  "failureGroupsSum": 164,
+  "failureGroupsUniqueTaskCoverage": true,
+  "referenceVideoUpstream400Count": 2,
+  "referenceVideo400EventsIndependentlyChecked": true,
+  "postclassTasksExcluded": true,
+  "credentialScanPatterns": [
+    "openaiStyleKey",
+    "privateKey",
+    "bearerCredential",
+    "secretAssignment"
+  ],
+  "fileScans": {
+    "classroom-final-metrics-source.json": {
+      "strictUtf8": true,
+      "replacementCharacters": 0,
+      "credentialPatternHits": {
+        "openaiStyleKey": 0,
+        "privateKey": 0,
+        "bearerCredential": 0,
+        "secretAssignment": 0
+      }
+    },
+    "final-classroom-metrics-summary.json": {
+      "strictUtf8": true,
+      "replacementCharacters": 0,
+      "credentialPatternHits": {
+        "openaiStyleKey": 0,
+        "privateKey": 0,
+        "bearerCredential": 0,
+        "secretAssignment": 0
+      }
+    },
+    "final-classroom-video-lifecycle.json": {
+      "strictUtf8": true,
+      "replacementCharacters": 0,
+      "credentialPatternHits": {
+        "openaiStyleKey": 0,
+        "privateKey": 0,
+        "bearerCredential": 0,
+        "secretAssignment": 0
+      }
+    },
+    "production-classroom-final-report.zh-CN.md": {
+      "strictUtf8": true,
+      "replacementCharacters": 0,
+      "credentialPatternHits": {
+        "openaiStyleKey": 0,
+        "privateKey": 0,
+        "bearerCredential": 0,
+        "secretAssignment": 0
+      }
+    }
+  },
+  "monitorHeartbeatObservedAt": "2026-10-21T13:14:54.369640+00:00",
+  "monitorHeartbeatAgeSecondsAtVerification": 32.812,
+  "monitorProcessesStopped": false,
+  "productionModified": false,
+  "paidGenerationsIssued": false,
+  "realtimeSourcesOrGeneratorModified": false,
+  "releaseStatus": "incomplete / in progress",
+  "forceMohuiUrlRelease": "not publishing",
+  "scopeNote": "credential pattern scan is bounded evidence, not a proof of all conceivable secret formats; browser visibility/playback and financial reconciliation remain separate"
+}

@@ -253,6 +253,8 @@ export function mapGenerationLog(row: Record<string, unknown>): GenerationLogRec
         assets: [],
         requestSnapshot: jsonValue(row.request_snapshot),
         taskId: optionalString(row.task_id),
+        executionProfile: row.task_execution_profile === "open-source-practice" || row.task_execution_profile === "production" ? row.task_execution_profile : undefined,
+        channelName: optionalString(row.task_channel_name),
         error: optionalString(row.error),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),

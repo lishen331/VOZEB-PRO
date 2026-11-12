@@ -1,0 +1,115 @@
+{
+  "readOnly": true,
+  "scannedCommit": "bc2643a5d2c8ddc51173f4a74d45da3c6ee52859",
+  "output": {
+    "scanned": 1346,
+    "bytes": 19557872,
+    "matches": [
+      {
+        "file": "/app/web/.next/server/chunks/src_00k01tv._.js",
+        "bytes": 125027,
+        "target": "iVBORw0KGgo",
+        "offset": 35896,
+        "snippet": "+$/i.test(t.replace(/\\s/g,\"\"))?\"\":`data:image/png;base64,${t.replace(/\\s/g,\"\")}`)}function ee(e){let t=e.trim().replace(/\\s/g,\"\"),r=t.startsWith(\"/9j/\")?\"image/jpeg\":t.startsWith(\"iVBORw0KGgo\")?\"image/png\":t.startsWith(\"R0lGOD\")?\"image/gif\":t.startsWith(\"UklGR\")?\"image/webp\":\"\";return r&&/^[a-z0-9+/=_-]+$/i.test(t)?`data:${r};base64,${t}`:\"\"}function et(e){if(\"number\"==typeof e.code&&0!==e.code)return e.msg||\"图片生成失败\";if(e.error?.message)return e.error.message;let t=(e.status||\"\").toLowerCase();return[\"fai"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_00k01tv._.js",
+        "bytes": 125027,
+        "target": "图片接口返回了无效 JSON",
+        "offset": 32024,
+        "snippet": "ction B(e,t){try{return await t.json()}catch(r){throw await (0,a.traceMediaException)(r,\"response_parse_exception\"),await eb(e,t.headers),new S.GenerationSubmissionUncertainError(\"图片接口返回了无效 JSON，创建结果待确认\")}}function V(e){return(0,w.resolveModelRequestTimeoutMs)(e,\"image\")}function W(e){return(0,w.resolveModelPollingAttempts)(e,\"image\",R.IMAGE_TASK_POLL_INTERVAL_MS,R.IMAGE_TASK_POLL_ATTEMPTS)}[a,i,n,o,u,f,I,b]=U.then?(await U)():U;class eS extends Error{}class eR extends Error{}function K(e,t=\"primary\"){let"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_00k01tv._.js",
+        "bytes": 125027,
+        "target": "上游图片无法通过授权媒体路径读取",
+        "offset": 66252,
+        "snippet": "rationModelId)(e.config),url:u}):void 0,m=l.proxyUrl?await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c):null;if(l.proxyUrl&&!m?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游图片无法通过授权媒体路径读取\");if(\"layers\"===e.config.outputMode){let e=m||await (0,a.inlineRemoteImageResult)(t.dataUrl||n||\"\",r,i,n,c);if(!e?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游分层图片无法读取并验收\");return e}return m||(0,a.directRemoteImageResult)(n)||await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c)}function h(e){return e.fin"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_08z17h4._.js",
+        "bytes": 125027,
+        "target": "iVBORw0KGgo",
+        "offset": 35896,
+        "snippet": "+$/i.test(t.replace(/\\s/g,\"\"))?\"\":`data:image/png;base64,${t.replace(/\\s/g,\"\")}`)}function ee(e){let t=e.trim().replace(/\\s/g,\"\"),r=t.startsWith(\"/9j/\")?\"image/jpeg\":t.startsWith(\"iVBORw0KGgo\")?\"image/png\":t.startsWith(\"R0lGOD\")?\"image/gif\":t.startsWith(\"UklGR\")?\"image/webp\":\"\";return r&&/^[a-z0-9+/=_-]+$/i.test(t)?`data:${r};base64,${t}`:\"\"}function et(e){if(\"number\"==typeof e.code&&0!==e.code)return e.msg||\"图片生成失败\";if(e.error?.message)return e.error.message;let t=(e.status||\"\").toLowerCase();return[\"fai"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_08z17h4._.js",
+        "bytes": 125027,
+        "target": "图片接口返回了无效 JSON",
+        "offset": 32024,
+        "snippet": "ction B(e,t){try{return await t.json()}catch(r){throw await (0,a.traceMediaException)(r,\"response_parse_exception\"),await eb(e,t.headers),new S.GenerationSubmissionUncertainError(\"图片接口返回了无效 JSON，创建结果待确认\")}}function V(e){return(0,w.resolveModelRequestTimeoutMs)(e,\"image\")}function W(e){return(0,w.resolveModelPollingAttempts)(e,\"image\",R.IMAGE_TASK_POLL_INTERVAL_MS,R.IMAGE_TASK_POLL_ATTEMPTS)}[a,i,n,o,u,f,I,b]=U.then?(await U)():U;class eS extends Error{}class eR extends Error{}function K(e,t=\"primary\"){let"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_08z17h4._.js",
+        "bytes": 125027,
+        "target": "上游图片无法通过授权媒体路径读取",
+        "offset": 66252,
+        "snippet": "rationModelId)(e.config),url:u}):void 0,m=l.proxyUrl?await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c):null;if(l.proxyUrl&&!m?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游图片无法通过授权媒体路径读取\");if(\"layers\"===e.config.outputMode){let e=m||await (0,a.inlineRemoteImageResult)(t.dataUrl||n||\"\",r,i,n,c);if(!e?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游分层图片无法读取并验收\");return e}return m||(0,a.directRemoteImageResult)(n)||await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c)}function h(e){return e.fin"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_090yby2._.js",
+        "bytes": 125027,
+        "target": "iVBORw0KGgo",
+        "offset": 35896,
+        "snippet": "+$/i.test(t.replace(/\\s/g,\"\"))?\"\":`data:image/png;base64,${t.replace(/\\s/g,\"\")}`)}function ee(e){let t=e.trim().replace(/\\s/g,\"\"),r=t.startsWith(\"/9j/\")?\"image/jpeg\":t.startsWith(\"iVBORw0KGgo\")?\"image/png\":t.startsWith(\"R0lGOD\")?\"image/gif\":t.startsWith(\"UklGR\")?\"image/webp\":\"\";return r&&/^[a-z0-9+/=_-]+$/i.test(t)?`data:${r};base64,${t}`:\"\"}function et(e){if(\"number\"==typeof e.code&&0!==e.code)return e.msg||\"图片生成失败\";if(e.error?.message)return e.error.message;let t=(e.status||\"\").toLowerCase();return[\"fai"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_090yby2._.js",
+        "bytes": 125027,
+        "target": "图片接口返回了无效 JSON",
+        "offset": 32024,
+        "snippet": "ction B(e,t){try{return await t.json()}catch(r){throw await (0,a.traceMediaException)(r,\"response_parse_exception\"),await eb(e,t.headers),new S.GenerationSubmissionUncertainError(\"图片接口返回了无效 JSON，创建结果待确认\")}}function V(e){return(0,w.resolveModelRequestTimeoutMs)(e,\"image\")}function W(e){return(0,w.resolveModelPollingAttempts)(e,\"image\",R.IMAGE_TASK_POLL_INTERVAL_MS,R.IMAGE_TASK_POLL_ATTEMPTS)}[a,i,n,o,u,f,I,b]=U.then?(await U)():U;class eS extends Error{}class eR extends Error{}function K(e,t=\"primary\"){let"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_090yby2._.js",
+        "bytes": 125027,
+        "target": "上游图片无法通过授权媒体路径读取",
+        "offset": 66252,
+        "snippet": "rationModelId)(e.config),url:u}):void 0,m=l.proxyUrl?await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c):null;if(l.proxyUrl&&!m?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游图片无法通过授权媒体路径读取\");if(\"layers\"===e.config.outputMode){let e=m||await (0,a.inlineRemoteImageResult)(t.dataUrl||n||\"\",r,i,n,c);if(!e?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游分层图片无法读取并验收\");return e}return m||(0,a.directRemoteImageResult)(n)||await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c)}function h(e){return e.fin"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_1rhf1rv._.js",
+        "bytes": 125027,
+        "target": "iVBORw0KGgo",
+        "offset": 35896,
+        "snippet": "+$/i.test(t.replace(/\\s/g,\"\"))?\"\":`data:image/png;base64,${t.replace(/\\s/g,\"\")}`)}function ee(e){let t=e.trim().replace(/\\s/g,\"\"),r=t.startsWith(\"/9j/\")?\"image/jpeg\":t.startsWith(\"iVBORw0KGgo\")?\"image/png\":t.startsWith(\"R0lGOD\")?\"image/gif\":t.startsWith(\"UklGR\")?\"image/webp\":\"\";return r&&/^[a-z0-9+/=_-]+$/i.test(t)?`data:${r};base64,${t}`:\"\"}function et(e){if(\"number\"==typeof e.code&&0!==e.code)return e.msg||\"图片生成失败\";if(e.error?.message)return e.error.message;let t=(e.status||\"\").toLowerCase();return[\"fai"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_1rhf1rv._.js",
+        "bytes": 125027,
+        "target": "图片接口返回了无效 JSON",
+        "offset": 32024,
+        "snippet": "ction B(e,t){try{return await t.json()}catch(r){throw await (0,a.traceMediaException)(r,\"response_parse_exception\"),await eb(e,t.headers),new S.GenerationSubmissionUncertainError(\"图片接口返回了无效 JSON，创建结果待确认\")}}function V(e){return(0,w.resolveModelRequestTimeoutMs)(e,\"image\")}function W(e){return(0,w.resolveModelPollingAttempts)(e,\"image\",R.IMAGE_TASK_POLL_INTERVAL_MS,R.IMAGE_TASK_POLL_ATTEMPTS)}[a,i,n,o,u,f,I,b]=U.then?(await U)():U;class eS extends Error{}class eR extends Error{}function K(e,t=\"primary\"){let"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_1rhf1rv._.js",
+        "bytes": 125027,
+        "target": "上游图片无法通过授权媒体路径读取",
+        "offset": 66252,
+        "snippet": "rationModelId)(e.config),url:u}):void 0,m=l.proxyUrl?await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c):null;if(l.proxyUrl&&!m?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游图片无法通过授权媒体路径读取\");if(\"layers\"===e.config.outputMode){let e=m||await (0,a.inlineRemoteImageResult)(t.dataUrl||n||\"\",r,i,n,c);if(!e?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游分层图片无法读取并验收\");return e}return m||(0,a.directRemoteImageResult)(n)||await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c)}function h(e){return e.fin"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_1tpli4q._.js",
+        "bytes": 125027,
+        "target": "iVBORw0KGgo",
+        "offset": 35896,
+        "snippet": "+$/i.test(t.replace(/\\s/g,\"\"))?\"\":`data:image/png;base64,${t.replace(/\\s/g,\"\")}`)}function ee(e){let t=e.trim().replace(/\\s/g,\"\"),r=t.startsWith(\"/9j/\")?\"image/jpeg\":t.startsWith(\"iVBORw0KGgo\")?\"image/png\":t.startsWith(\"R0lGOD\")?\"image/gif\":t.startsWith(\"UklGR\")?\"image/webp\":\"\";return r&&/^[a-z0-9+/=_-]+$/i.test(t)?`data:${r};base64,${t}`:\"\"}function et(e){if(\"number\"==typeof e.code&&0!==e.code)return e.msg||\"图片生成失败\";if(e.error?.message)return e.error.message;let t=(e.status||\"\").toLowerCase();return[\"fai"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_1tpli4q._.js",
+        "bytes": 125027,
+        "target": "图片接口返回了无效 JSON",
+        "offset": 32024,
+        "snippet": "ction B(e,t){try{return await t.json()}catch(r){throw await (0,a.traceMediaException)(r,\"response_parse_exception\"),await eb(e,t.headers),new S.GenerationSubmissionUncertainError(\"图片接口返回了无效 JSON，创建结果待确认\")}}function V(e){return(0,w.resolveModelRequestTimeoutMs)(e,\"image\")}function W(e){return(0,w.resolveModelPollingAttempts)(e,\"image\",R.IMAGE_TASK_POLL_INTERVAL_MS,R.IMAGE_TASK_POLL_ATTEMPTS)}[a,i,n,o,u,f,I,b]=U.then?(await U)():U;class eS extends Error{}class eR extends Error{}function K(e,t=\"primary\"){let"
+      },
+      {
+        "file": "/app/web/.next/server/chunks/src_1tpli4q._.js",
+        "bytes": 125027,
+        "target": "上游图片无法通过授权媒体路径读取",
+        "offset": 66252,
+        "snippet": "rationModelId)(e.config),url:u}):void 0,m=l.proxyUrl?await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c):null;if(l.proxyUrl&&!m?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游图片无法通过授权媒体路径读取\");if(\"layers\"===e.config.outputMode){let e=m||await (0,a.inlineRemoteImageResult)(t.dataUrl||n||\"\",r,i,n,c);if(!e?.dataUrl?.startsWith(\"data:image/\"))throw Error(\"上游分层图片无法读取并验收\");return e}return m||(0,a.directRemoteImageResult)(n)||await (0,a.inlineRemoteImageResult)(t.dataUrl,r,i,n,c)}function h(e){return e.fin"
+      }
+    ]
+  }
+}

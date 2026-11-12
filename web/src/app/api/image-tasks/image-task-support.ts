@@ -78,7 +78,9 @@ export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: A
     const requestedModel = config?.model || settings.defaultModels.imageModel;
     const candidates = resolvePracticeGenerationCandidates(settings, "image", requestedModel, { ...(context || {}), executionProfile });
     return candidates.map((resolved) => {
-        const channel = attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {});
+        // 只有 RunningHub 工作流候选才挂工作流配置。练习池选出的普通渠道（OpenAI、模汇等）
+        // 挂上去会抛「练习工作流渠道不可用」，画布生图在建任务前就失败。
+        const channel = resolved.channel.advancedConfig?.protocol === "runninghub" ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {}) : toSystemGenerationChannel(resolved);
         return {
             ...channel,
             channelId: resolved.channelId,
@@ -237,7 +239,7 @@ export function matchesApiHost(baseUrl: string, hostname: string) {
 export function taskUrl(config: ImageTaskConfig, path: string, origin: string) {
     const protocol = resolveChannelModelConfig(config.advancedConfig, config.model)?.protocol || config.advancedConfig?.protocol;
     const apiBase =
-        protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task"
+        protocol === "agnes" || protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task"
             ? absoluteApiBaseUrl(config.baseUrl, origin)
             : normalizeApiBaseUrl(config.baseUrl, config.apiFormat, origin);
     return `${apiBase}${path}`;
@@ -921,8 +923,9 @@ export async function readFetchError(response: Response, fallback: string) {
         return `${fallback}，上游返回了网页错误（HTTP ${response.status}${details ? `，${details}` : ""}），请检查接口路径、鉴权、参考图提交方式或网关状态`;
     }
     try {
-        const payload = JSON.parse(text) as { error?: { message?: string }; message?: string; msg?: string };
-        return payload.msg || payload.message || payload.error?.message || statusText;
+        const payload = JSON.parse(text) as { error?: { message?: string } | string; message?: string; msg?: string };
+        const errorMessage = typeof payload.error === "string" ? payload.error : payload.error?.message;
+        return payload.msg || payload.message || errorMessage || statusText;
     } catch {
         return text.slice(0, 300) || statusText;
     }

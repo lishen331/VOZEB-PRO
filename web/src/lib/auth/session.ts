@@ -7,7 +7,7 @@ import { adminDutiesFromMenuPermissions } from "@/components/admin/admin-section
 import { getPlatformAdminMenuPermissions } from "@/lib/server/platform-admin-menu-service";
 import { getTrustedProxyHops } from "@/lib/server/trusted-proxy";
 import { parseSessionCookie } from "./store-normalizers";
-import { resolveExplicitReferenceCapabilities } from "@/lib/model-routing-config";
+import { channelEnabledForSurface, resolveExplicitReferenceCapabilities } from "@/lib/model-routing-config";
 
 const SESSION_COOKIE_NAME = "vozeb_pro_session";
 
@@ -201,7 +201,7 @@ export function serializeModelCatalogSettings(settings: AuthSettings) {
                     }),
             })),
         systemChannels: settings.systemChannels
-            .filter((channel) => channel.enabled)
+            .filter((channel) => channelEnabledForSurface(channel, "production"))
             .map((channel) => ({
                 id: channel.id,
                 name: channel.name,
@@ -210,6 +210,7 @@ export function serializeModelCatalogSettings(settings: AuthSettings) {
                 apiFormat: channel.apiFormat,
                 models: channel.models,
                 enabled: channel.enabled,
+                practiceEnabled: channel.practiceEnabled,
                 hasApiKey: Boolean(channel.apiKey),
                 purpose: channel.purpose || "shared",
             })),

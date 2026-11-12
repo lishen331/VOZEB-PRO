@@ -1,8 +1,10 @@
-import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { AuthSettings, LogicalModel, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
-import { resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
+import { channelEnabledForSurface, channelModelCapability, channelUsableForSurface, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
+import { channelSupportsModel, rawModelName } from "./generation-channel";
+import { channelConnectionReady } from "@/lib/channel-protocol-registry";
 
 import { prepareRunningHubWorkflowExecution } from "./runninghub-workflow-adapter";
 import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
@@ -22,7 +24,134 @@ export type PracticeWorkflowContext = {
     workflowKey?: string;
     workflowVersion?: number;
     workflowConfigFingerprint?: string;
+    /**
+     * 仅由任务 Route 在服务端按角色权限填入，前端传入的同名字段一律丢弃。
+     * 为真时，练习画布允许请求练习池里的真实上游模型，而不是只能用虚拟模型名。
+     */
+    practiceModelTest?: boolean;
+    /**
+     * 本次请求是否携带了图片/视频参考。由服务端从已净化的消息内容判定，
+     * 与正式生产一致：带图的文本请求走 vision 池（文本模型里支持图片输入的那部分）。
+     */
+    requiresImageInput?: boolean;
 };
+
+/**
+ * Demo 七条工作流中，当练习上下文没有显式 workflowCode 时按业务 code 选用的缺省工作流。
+ * 角色/场景/道具练习必须由练习会话显式携带 workflowCode，这里只兜底分镜/配音链路。
+ */
+const PRACTICE_CANVAS_VIRTUAL_MODELS: Record<string, LogicalModelCapability> = {
+    gamaimage: "image",
+    gamavideo: "video",
+    gamatext: "text",
+};
+
+/** 练习画布的虚拟模型名。普通用户只能请求这些名字，后端从练习池里随机挑渠道。 */
+export function practiceCanvasVirtualModel(capability: LogicalModelCapability) {
+    return Object.entries(PRACTICE_CANVAS_VIRTUAL_MODELS).find(([, value]) => value === capability)?.[0] || "";
+}
+
+/**
+ * 练习画布的虚拟模型名。普通用户只能请求这三个名字，后端从练习池里随机挑渠道；
+ * 名字本身不是逻辑模型，正式路由解析不到它们。
+ */
+export function practiceCanvasVirtualCapability(model: string): LogicalModelCapability | undefined {
+    return PRACTICE_CANVAS_VIRTUAL_MODELS[rawModelName(model).toLowerCase()];
+}
+
+/**
+ * 练习池里具备指定能力的渠道候选。不走逻辑模型绑定：练习画布没有逻辑模型，
+ * 直接按渠道 purpose 与模型能力展开，并用随机顺序让每次请求命中不同渠道。
+ * 返回全部候选而不是只返回一个，让调用方沿用现有的健康检查与故障转移。
+ */
+export function resolvePracticeCanvasPoolCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
+    const candidates = practiceCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput);
+    for (let index = candidates.length - 1; index > 0; index -= 1) {
+        const swap = Math.floor(Math.random() * (index + 1));
+        [candidates[index], candidates[swap]] = [candidates[swap], candidates[index]];
+    }
+    return candidates;
+}
+
+/** 练习池里某类能力的上游模型，按名字去重并保持渠道配置顺序，供测试权限的模型下拉使用。 */
+export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, capability: LogicalModelCapability) {
+    const seen = new Set<string>();
+    return practiceCanvasPoolCandidates(settings, capability).flatMap((candidate) => {
+        const name = candidate.upstreamModel;
+        const key = name.toLowerCase();
+        if (seen.has(key)) return [];
+        seen.add(key);
+        return [{ id: name, name }];
+    });
+}
+
+/**
+ * 与系统代理同规则：存在启用的逻辑模型，且它对该渠道该上游模型的绑定启用。
+ * 不满足时代理返回 403「未绑定可用逻辑模型」，所以池子展示和练习路由都要提前排除。
+ */
+export function channelModelBoundForPractice(logicalModels: LogicalModel[] | undefined, channelId: string, upstreamModel: string) {
+    const normalized = upstreamModel
+        .trim()
+        .replace(/^models\//i, "")
+        .toLowerCase();
+    if (!normalized) return false;
+    return (logicalModels || []).some(
+        (logical) =>
+            logical.enabled &&
+            logical.bindings.some(
+                (binding) =>
+                    binding.enabled &&
+                    binding.channelId === channelId &&
+                    binding.upstreamModel
+                        .trim()
+                        .replace(/^models\//i, "")
+                        .toLowerCase() === normalized,
+            ),
+    );
+}
+
+/** 池子里某个模型是否被勾选：优先查该能力的池，没有配置该池则回退旧的平面表，最后默认包含。 */
+export function practicePoolIncludes(pool: PracticeModelPoolConfig | undefined, kind: PracticePoolKind, modelKey: string): boolean {
+    const scoped = pool?.pools?.[kind];
+    if (scoped && typeof scoped[modelKey] === "boolean") return scoped[modelKey];
+    if (pool?.models && typeof pool.models[modelKey] === "boolean") return pool.models[modelKey];
+    return true;
+}
+
+/** 按池收集候选；kind 与模型能力必须匹配，vision 额外要求声明了图片输入。 */
+function collectPracticePoolCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, kind: PracticePoolKind, requestedModel: string): ResolvedLogicalModel[] {
+    return settings.systemChannels
+        .filter((channel) => channelUsableForSurface(channel, "open-source-practice"))
+        .flatMap((channel) =>
+            channel.models
+                .filter((model) => {
+                    const modelName = rawModelName(model).toLowerCase();
+                    if (kind === "vision" ? channelModelCapability(channel, model) !== "text" : channelModelCapability(channel, model) !== capability) return false;
+                    if (kind === "vision" && resolveLogicalModelCapabilityProfile({}, "text", channel, rawModelName(model))?.supportsImageInput !== true) return false;
+                    if (!practicePoolIncludes(settings.practiceModelPool, kind, modelName)) return false;
+                    // 与系统代理同规则：逻辑模型停用、或该渠道的绑定没开，代理会 403，不能放进池子。
+                    if (!channelModelBoundForPractice(settings.logicalModels, channel.id, rawModelName(model))) return false;
+                    return !requestedModel || channelSupportsModel([model], requestedModel);
+                })
+                .map((model) => ({
+                    logicalModelId: rawModelName(model),
+                    upstreamModel: rawModelName(model),
+                    channelId: channel.id,
+                    channel,
+                    capabilityProfile: resolveLogicalModelCapabilityProfile({}, capability, channel, rawModelName(model)),
+                })),
+        );
+}
+
+function practiceCanvasPoolCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
+    // 文本请求按是否带图选池：带图的优先走 vision（文本模型里支持图片输入的那部分）。
+    // vision 池空时回落到文本池——否则「图片理解池没配」会让所有带参考图的练习请求直接失败。
+    if (capability === "text" && requiresImageInput) {
+        const visionCandidates = collectPracticePoolCandidates(settings, capability, "vision", requestedModel);
+        if (visionCandidates.length) return visionCandidates;
+    }
+    return collectPracticePoolCandidates(settings, capability, capability as PracticePoolKind, requestedModel);
+}
 
 /**
  * Demo 七条工作流中，当练习上下文没有显式 workflowCode 时按业务 code 选用的缺省工作流。
@@ -61,9 +190,11 @@ export function workflowTimeoutMs(config: Pick<RunningHubWorkflowConfig, "timeou
     return config?.timeoutSeconds && Number.isFinite(config.timeoutSeconds) && config.timeoutSeconds > 0 ? config.timeoutSeconds * 1000 : fallbackMs;
 }
 
-export function generationBusinessCode(surface: string | undefined, capability: "text" | "image" | "video" | "audio") {
+export function generationBusinessCode(surface: string | undefined, capability: "text" | "image" | "video" | "audio", requestedModel = "") {
     if (surface === "drama") return capability === "text" ? "script" : capability === "image" ? "storyboard-image" : capability === "video" ? "storyboard-video" : "dubbing";
-    if (surface === "canvas" && capability === "image") return "canvas";
+    // 画布练习默认走练习模型池（gamaimage 等虚拟模型名），不补 RunningHub 业务码，
+    // 否则普通渠道会被判成「练习工作流渠道不可用」。只有请求明确点名工作流时才补。
+    if (surface === "canvas" && capability === "image" && rawModelName(requestedModel) && !practiceCanvasVirtualCapability(requestedModel)) return "canvas";
     return undefined;
 }
 
@@ -113,7 +244,7 @@ export function workflowReferenceSupport(workflow: Pick<RunningHubWorkflowConfig
 }
 
 function runningHubPracticeChannels(settings: Pick<AuthSettings, "systemChannels">) {
-    return settings.systemChannels.filter((channel) => channel.enabled && channel.purpose === "open-source-practice" && channel.advancedConfig?.protocol === "runninghub");
+    return settings.systemChannels.filter((channel) => channelEnabledForSurface(channel, "open-source-practice") && channel.advancedConfig?.protocol === "runninghub");
 }
 
 /**
@@ -143,11 +274,26 @@ export function resolvePracticeWorkflowCandidates(settings: Pick<AuthSettings, "
  * 任务 Route Handler 的统一候选入口：
  * - 正式生产：沿用逻辑模型路由；
  * - 无限练习的图片/视频/音频：只走 RunningHub 工作流，不回退普通模型；
- * - 无限练习的文本（剧本）：Demo 没有文本工作流，继续使用练习用途的普通逻辑模型。
+ * - 无限练习的文本（剧本）：Demo 没有文本工作流，继续使用练习用途的普通逻辑模型；
+ * - 练习画布：请求虚拟模型名时从练习池随机选渠道；持有测试权限时允许指定池内真实模型。
+ *   其余请求保持原样，避免影响短剧练习的工作流路由。
  */
-export function resolvePracticeGenerationCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, capability: LogicalModelCapability, requestedModel: string, context: PracticeWorkflowContext | undefined): ResolvedLogicalModel[] {
+export function resolvePracticeGenerationCandidates(
+    settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">,
+    capability: LogicalModelCapability,
+    requestedModel: string,
+    context: PracticeWorkflowContext | undefined,
+): ResolvedLogicalModel[] {
     const executionProfile: PracticeExecutionProfile = context?.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
     if (executionProfile !== "open-source-practice") return resolveLogicalModelCandidates(settings, capability, requestedModel, "", executionProfile);
+    const requiresImageInput = context?.requiresImageInput === true;
+    const virtualCapability = practiceCanvasVirtualCapability(requestedModel);
+    // 练习画布先于工作流路由判断：画布请求可能带着 "canvas" 业务码，但它选的是练习池里的
+    // 普通渠道，不是 RunningHub 工作流。短剧练习没有虚拟模型名，仍走下面的工作流分支。
+    if (virtualCapability) return virtualCapability === capability ? resolvePracticeCanvasPoolCandidates(settings, capability, "", requiresImageInput) : [];
+    if (context?.practiceModelTest && rawModelName(requestedModel)) {
+        return resolvePracticeCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput);
+    }
     if (capability === "text" && !context?.workflowKey && !context?.workflowCode) return resolveLogicalModelCandidates(settings, capability, requestedModel, "", executionProfile);
     return resolvePracticeWorkflowCandidates(settings, capability, context?.businessCode || "", context?.workflowCode);
 }

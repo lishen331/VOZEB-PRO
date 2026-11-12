@@ -45,6 +45,7 @@ import { SYSTEM_PROXY_JSON_BODY_MAX_BYTES } from "@/lib/server/system-proxy-requ
 import { userOwnsGenerationUpstreamTask } from "@/lib/server/generation-task-authorization";
 import { authorizeSystemAiProxyRequest } from "@/lib/server/system-ai-proxy-policy";
 import { normalizeRunningHubWorkflowConfig, workflowCapabilityForBusinessCode } from "@/lib/server/runninghub-workflow-domain";
+import { audioBillingUnits } from "@/lib/audio-synthesis-pricing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +57,12 @@ type RouteContext = {
     params: Promise<{ channelId: string; path: string[] }>;
 };
 type PointsRequest = { model: string; amount: number; usageKind: PointUsageKind };
+
+// 语音合成：千问、MiniMax 按字数计费，amount 是计费单位数（每 100 个计费字符 1 单位），
+// 模型积分（model_point_costs）表示每单位多少积分。Suno 等按次的模型仍是 1。
+function audioPointsRequest(model: string, payload: Record<string, unknown>): PointsRequest {
+    return { model, amount: audioBillingUnits(model, payload), usageKind: "audio" };
+}
 type ProxyRequestBody = { body?: BodyInit; pointsPayload?: ArrayBuffer | Record<string, unknown>; bodyDigest: string };
 const MAX_PROXY_MULTIPART_BYTES = 25 * 1024 * 1024;
 // 结果媒体可能几十 MB，30s 读不完（2026-10-23 生产）。外层读取器仍按 content-length 限时。
@@ -671,7 +678,7 @@ function classifyPointsRequest(method: string, apiFormat: ApiCallFormat, path: s
     if (routePath === "/images/generations" || routePath === "/images/edits") {
         return { model, amount: readRequestCount(payload) * imageQualityMultiplier(payload, multipliers), usageKind: "image" };
     }
-    if (routePath === "/audio/speech") return { model, amount: 1, usageKind: "audio" };
+    if (routePath === "/audio/speech") return audioPointsRequest(model, payload);
     if (routePath === "/videos" || routePath === "/video/generations" || routePath === "/videos/generations" || routePath === "/videos/videos" || routePath === "/contents/generations/tasks") {
         return { model, amount: videoParameterMultiplier(payload, multipliers), usageKind: "video" };
     }
@@ -712,7 +719,7 @@ function classifyConfiguredPointsRequest(
     const capability = logicalModels.find((logical) => logical.enabled && logical.bindings.some((binding) => binding.enabled && binding.channelId === channelId && sameModel(binding.upstreamModel, model)))?.capability;
     if (capability === "image") return { model, amount: readRequestCount(payload) * imageQualityMultiplier(payload, multipliers), usageKind: "image" };
     if (capability === "video") return { model, amount: videoParameterMultiplier(payload, multipliers), usageKind: "video" };
-    if (capability === "audio") return { model, amount: 1, usageKind: "audio" };
+    if (capability === "audio") return audioPointsRequest(model, payload);
     return capability === "text" ? { model, amount: 1, usageKind: "text" } : null;
 }
 
@@ -872,6 +879,7 @@ function targetUrl(baseUrl: string, apiFormat: "openai" | "gemini", path: string
         protocol === "qwen-tts" ||
         protocol === "volcengine-video" ||
         protocol === "seedance-special" ||
+        protocol === "agnes" ||
         protocol === "stable-diffusion" ||
         protocol === "yumeng" ||
         protocol === "runninghub" ||

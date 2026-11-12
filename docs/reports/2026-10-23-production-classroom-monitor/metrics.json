@@ -1,0 +1,93 @@
+{
+  "window": "2026-10-23 09:00-24:00 +08:00",
+  "total": 355,
+  "success": 261,
+  "failure": 94,
+  "success_rate": 0.7352112676056338,
+  "image": {
+    "total": 147,
+    "success": 91,
+    "failure": 56
+  },
+  "video": {
+    "total": 208,
+    "success": 170,
+    "failure": 38
+  },
+  "alerts": 94,
+  "categories": {
+    "图片结果媒体读取超时": 30,
+    "持久化栈溢出": 17,
+    "其他后端错误": 13,
+    "真人内容拦截": 18,
+    "参数不兼容 response_format": 2,
+    "提交中断未取得上游任务 ID": 5,
+    "媒体读取 HTTP 错误": 1,
+    "模型不支持参考视频": 2,
+    "视频上游 HTTP 405": 5,
+    "额度不足": 1
+  },
+  "heartbeat": {
+    "at": "2026-10-23T11:19:42.667720+00:00",
+    "cycle": 872,
+    "revision": 99,
+    "counts": [
+      {
+        "count": 261,
+        "status": "error",
+        "task_type": "video"
+      },
+      {
+        "count": 383,
+        "status": "error",
+        "task_type": "image"
+      },
+      {
+        "count": 400,
+        "status": "success",
+        "task_type": "video"
+      },
+      {
+        "count": 635,
+        "status": "success",
+        "task_type": "image"
+      },
+      {
+        "count": 174,
+        "status": "success",
+        "task_type": "text"
+      },
+      {
+        "count": 7,
+        "status": "error",
+        "task_type": "text"
+      }
+    ],
+    "success": 1209,
+    "failures": 651,
+    "active": 0,
+    "oldestActiveSeconds": 0,
+    "ready": true,
+    "workerHealthy": true,
+    "hostCpuPct": 1.26,
+    "memAvailableMiB": 5743,
+    "diskUsedPct": 59.26,
+    "containerRestarts": [
+      {
+        "name": "/vozeb-pro",
+        "restarts": 0,
+        "oom": false
+      },
+      {
+        "name": "/vozeb-pro-generation-worker",
+        "restarts": 0,
+        "oom": false
+      },
+      {
+        "name": "/vozeb-pro-postgres",
+        "restarts": 0,
+        "oom": false
+      }
+    ]
+  }
+}

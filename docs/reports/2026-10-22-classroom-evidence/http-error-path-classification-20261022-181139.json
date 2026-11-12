@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-22T10:11:38.725389+00:00",
+  "readOnly": true,
+  "tailLimit": 3000,
+  "since": "2026-10-22T18:10:00+08:00",
+  "notAuthoritativeTotal": true,
+  "errors": [
+    {
+      "at": "2026-10-22T18:10:28+08:00",
+      "method": "GET",
+      "status": 404,
+      "pathClass": "other-page",
+      "pathSHA256": "8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0f1",
+      "extension": null
+    }
+  ]
+}

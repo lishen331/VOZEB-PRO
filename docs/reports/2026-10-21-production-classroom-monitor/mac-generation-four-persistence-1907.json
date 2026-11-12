@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-21T11:07:55.643438+00:00",
+  "checks": [
+    {
+      "id": "7ddedb9e-4a31-40cc-856f-48d8a39df316",
+      "status": "success",
+      "matching_nodes": [],
+      "task_result_present": true
+    },
+    {
+      "id": "8ebfe9dc-41c2-41d1-8a7b-61f68cd0b2cc",
+      "status": "error",
+      "matching_nodes": [],
+      "task_result_present": false
+    },
+    {
+      "id": "f8c0c7f4-c21b-451e-a6b3-0abe7c96e163",
+      "status": "success",
+      "matching_nodes": [
+        {
+          "id": "image-Xku0pylLPrsAaBFAeNfVK",
+          "status": "success"
+        }
+      ],
+      "task_result_present": true
+    },
+    {
+      "id": "ae9c318b-6ec4-4450-8e65-1068b470429a",
+      "status": "success",
+      "matching_nodes": [
+        {
+          "id": "image-HlzGMnsQ0EfEd1Z2aIDke",
+          "status": "success"
+        }
+      ],
+      "task_result_present": true
+    }
+  ]
+}

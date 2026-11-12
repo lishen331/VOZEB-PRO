@@ -1,0 +1,35 @@
+.vz-ds .vz-media-note {
+    min-height: 18px;
+    color: var(--vz-brand-text);
+}
+.vz-ds .vz-media .vz-btn[aria-pressed="true"] {
+    color: var(--vz-danger);
+}
+.vz-ds .vz-media .vz-btn[aria-pressed="true"] svg {
+    fill: currentColor;
+}
+.vz-ds .vz-audio__seek {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    accent-color: var(--vz-brand);
+    cursor: pointer;
+}
+.vz-ds .vz-audio__seek:focus-visible {
+    outline: 2px solid var(--vz-brand-text);
+    outline-offset: 3px;
+    border-radius: 8px;
+}
+@media (hover: none), (pointer: coarse) {
+    .vz-ds .vz-media__overlay {
+        opacity: 1;
+        transform: none;
+    }
+    .vz-ds .vz-media .vz-btn--icon {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .vz-ds .vz-audio__seek {
+        min-height: 32px;
+    }
+}

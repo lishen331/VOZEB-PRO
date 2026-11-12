@@ -30,8 +30,9 @@ import type { CanvasInteractions } from "./use-canvas-interactions";
 import type { CanvasPageState } from "./use-canvas-page-state";
 import { useCanvasImageLayerActions } from "./use-canvas-image-layer-actions";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
+import type { PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 
-export function useCanvasNodeMediaActions({ state, tasks, interactions }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions }) {
+export function useCanvasNodeMediaActions({ state, tasks, interactions, practiceModels }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions; practiceModels?: PracticeCanvasModelOptions }) {
     const {
         message,
         params,
@@ -363,7 +364,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
         setSelectedNodeIds(new Set([childId]));
         setDialogNodeId(childId);
     }, []);
-    const { removeBackgroundImageNode, splitImageLayers } = useCanvasImageLayerActions({ state, tasks });
+    const { removeBackgroundImageNode, splitImageLayers } = useCanvasImageLayerActions({ state, tasks, practiceModels });
 
     const cropImageNode = useCallback(
         async (node: CanvasNodeData, crop: CanvasImageCropRect) => {
@@ -422,7 +423,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
     const maskEditImageNode = useCallback(
         async (node: CanvasNodeData, payload: CanvasImageMaskEditPayload) => {
             if (!node.metadata?.content) return;
-            const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1", size: node.metadata?.size || "auto" };
+            const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image", practiceModels?.image?.models), count: "1", size: node.metadata?.size || "auto" };
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;
@@ -467,7 +468,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
     const emotionEditImageNode = useCallback(
         async (node: CanvasNodeData, payload: CanvasEmotionPayload) => {
             if (!node.metadata?.content) return;
-            const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1", size: node.metadata?.size || "auto" };
+            const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image", practiceModels?.image?.models), count: "1", size: node.metadata?.size || "auto" };
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;
@@ -522,7 +523,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions }: { stat
     const generateAngleNode = useCallback(
         async (node: CanvasNodeData, params: CanvasImageAngleParams) => {
             if (!node.metadata?.content) return;
-            const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
+            const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image", practiceModels?.image?.models), count: "1" };
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;

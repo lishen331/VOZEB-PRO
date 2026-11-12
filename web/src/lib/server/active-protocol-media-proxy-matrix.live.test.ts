@@ -364,7 +364,7 @@ function imageTask(channel: ProxyChannel, edit: boolean): ImageTask {
 }
 
 async function runImage(task: ImageTask, protocol: SystemChannelProtocol) {
-    const declarative = protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task";
+    const declarative = protocol === "agnes" || protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task";
     const submitted = declarative ? await runCustomImageTask(task, INTERNAL_ORIGIN, fixtureOrigin, "", true) : await runOpenAiImageTask(task, INTERNAL_ORIGIN, fixtureOrigin, "", true);
     return submitted.pending ? pollCustomImageTask(task, submitted.pending.id, submitted.pending.mediaBaseUrl, submitted.pending.pollBaseUrl, "", true) : submitted;
 }
@@ -411,7 +411,19 @@ function expectProxyRequests(channel: ProxyChannel, createPath: string | undefin
     expect(request.headers["x-client-request-id"]).toBeTruthy();
     Object.entries(channel.expectedAuthHeaders).forEach(([key, value]) => expect(request.headers[key.toLowerCase()]).toBe(value));
     expect(requestContainsReference(request)).toBe(referenceRequired);
-    if (queryPath && taskId) expect(fixture.requests.some((request) => request.method === "GET" && request.path === upstreamPath(channel.upstreamBaseUrl, queryPath.replace(":model", model).replace(":task_id", taskId)))).toBe(true);
+    if (queryPath && taskId) {
+        const matched = fixture.requests.some(
+            (request) =>
+                request.method === "GET" &&
+                (queryPath.startsWith("/agnesapi") ? request.path === "/v1/agnesapi" || request.path === "/agnesapi" : request.path === upstreamPath(channel.upstreamBaseUrl, queryPath.replace(":model", model).replace(":task_id", taskId))),
+        );
+        if (!matched && channel.config.advancedConfig?.protocol === "agnes")
+            console.log(
+                "AGNES FIXTURE REQUESTS",
+                fixture.requests.map((item) => ({ method: item.method, path: item.path, query: item.query })),
+            );
+        expect(matched).toBe(true);
+    }
     expect(mocks.consumeUserPoints).toHaveBeenCalled();
 }
 

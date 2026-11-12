@@ -1,0 +1,45 @@
+RUN_AT
+2026-10-06T17:10:20+08:00
+PS
+vozeb-staging-generation-worker-1|ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe|Up 3 hours|3 hours ago
+vozeb-staging-app-1|ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe|Up 3 hours (healthy)|3 hours ago
+vozeb-staging-postgres-1|5c773214aed7|Up 2 weeks (healthy)|7 weeks ago
+INSPECT
+image=ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe;id=bb8d284411314b56dfc505f04317c4b2d4720d4386376ad951fc2c161d556ec4;started=2026-10-06T05:48:54.023033828Z;status=running;restart=0
+image=ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe;id=bc71e71ca50027323a2c57bf95de55a1a11dd50c353d63dc043cc572ad202295;started=2026-10-06T05:49:09.685221727Z;status=running;restart=0
+ENV
+VOZEB_PRO_DRAMA_WORKFLOW_LAB=1
+VOZEB_PRO_TRUSTED_PROXY_HOPS=1
+VOZEB_PRO_IMAGE=ghcr.io/lishen331/vozeb-pro:sha-404656898c14ad095a477ac9f54f599ab2e64dbe
+VOZEB_PRO_DATABASE_PROVIDER=postgres
+NODE_ENV=production
+NODE_OPTIONS=--max-old-space-size=384
+HEALTH
+live|200|{"code":0,"data":{"status":"live"},"msg":"服务运行中"}
+ready|200|{"code":0,"data":{"ready":true,"provider":"postgres","database":{"healthy":true,"schemaReady":true},"encryptionReady":true,"firstAdminRequired":false,"generationWorker":{"required":true,"healthy":true,"lastHeartbeatAt":"2026-10-06T09:10:11.108Z","staleAfterMs":90000}},"msg":"服务已就绪"}
+RESOURCE
+               total        used        free      shared  buff/cache   available
+Mem:            7456        1336         872          95        5640        6120
+Swap:              0           0           0
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/vda3      ext4  148G   69G   73G  49% /
+Filesystem     Inodes IUsed IFree IUse% Mounted on
+/dev/vda3        9.4M  870K  8.5M   10% /
+4
+ 17:10:20 up 14 days,  7:59,  1 user,  load average: 0.00, 0.00, 0.00
+vozeb-staging-generation-worker-1|0.02%|36.71MiB / 7.282GiB|0.49%|6.04MB / 3.23MB|16.4kB / 0B|9
+vozeb-staging-app-1|11.25%|218.3MiB / 7.282GiB|2.93%|63MB / 246MB|3.87MB / 7.63MB|10
+vozeb-staging-postgres-1|1.35%|118.8MiB / 7.282GiB|1.59%|1.27GB / 4.88GB|150MB / 2.05GB|9
+PG
+2026-10-06 09:10:23.070439+00|9
+0
+cancelled|130
+error|452
+paused|6
+running|513
+success|2328
+0
+LOG
+Error: The Server Reference ID did not match the expected format. Received "x".
+Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+    at ignore-listed frames

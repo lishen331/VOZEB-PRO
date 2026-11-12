@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-22T10:12:27.024145+00:00",
+  "readOnly": true,
+  "domain": "gammatv.gammablue-x.com",
+  "unauthenticated": true,
+  "bodyRetained": false,
+  "requests": [
+    {
+      "path": "/",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "redirectPath": null
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "redirectPath": null
+    }
+  ]
+}

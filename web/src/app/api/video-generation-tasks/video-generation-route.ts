@@ -34,6 +34,7 @@ import { ingestTuziReferences } from "@/lib/server/tuzi-asset-service";
 import { buildTuziSeedanceVideoRequest } from "@/lib/tuzi-seedance-video";
 import { buildMohuiSeedanceVideoRequest } from "@/lib/mohui-seedance-video";
 import { assertVozebRecommendedVideoReferences, buildVozebRecommendedVideoRequest } from "@/lib/vozeb-recommended-video";
+import { agnesVideoQueryPath, buildAgnesVideoRequest, isAgnesVideoChannel, readAgnesVideoId } from "@/lib/server/agnes-video-provider";
 import { assertGeminiVideoReferences, buildGeminiVideoRequest, geminiVideoCreatePath, normalizeGeminiVideoDuration, parseGeminiVideoCreateResponse } from "@/lib/server/gemini-video-provider";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { maintenanceWorkerContextHeaders, requestRuntimeCredential } from "@/lib/server/maintenance-auth";
@@ -46,6 +47,7 @@ import { normalizeVideoProviderImageReferences } from "@/lib/server/video-refere
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { resolvePracticeModelTestAccess } from "@/lib/server/user-navigation-permissions";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
@@ -59,7 +61,7 @@ import {
     workflowTaskContextForChannel,
     workflowTimeoutMs,
 } from "@/lib/server/runninghub-workflow-runtime";
-import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionContext } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 // 与图片一致：默认每分钟 500 个、瞬间 10 个突发。单个渠道名额用完就溢出到下一个渠道，整列表都不行才等 200 毫秒重来一轮，最多 2 秒。
@@ -153,10 +155,10 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+    let projectContext: Awaited<ReturnType<typeof resolveProjectExecutionContext>>;
 
     try {
-        projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+        projectContext = await resolveProjectExecutionContext(user.id, body.context || {});
     } catch (error) {
         const known = projectExecutionProfileError(error);
 
@@ -164,6 +166,7 @@ export async function POST(request: Request) {
 
         throw error;
     }
+    const projectProfile = projectContext?.executionProfile;
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
@@ -174,14 +177,15 @@ export async function POST(request: Request) {
             const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
             if (!clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "video");
             const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
-            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+            const practiceModelTest = await resolvePracticeModelTestAccess(user, { ...clientContext, executionProfile });
+            trustedContext = { ...clientContext, executionProfile, ...(projectContext?.schoolId ? { schoolId: projectContext.schoolId } : {}), ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
         const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
         const channels = resolvePracticeGenerationCandidates(settings, "video", requestedModel, trustedContext)
-            .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
+            .map((channel) => ({ ...(channel.channel.advancedConfig?.protocol === "runninghub" ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext) : toSystemGenerationChannel(channel)), executionProfile }))
             .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
         const prompt = String(body.prompt || "").trim();
         if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
@@ -285,14 +289,15 @@ export async function POST(request: Request) {
                 const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
                 if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "video");
                 const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
-                trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+                const practiceModelTest = await resolvePracticeModelTestAccess(user, { ...clientContext, executionProfile });
+                trustedContext = { ...clientContext, executionProfile, ...(projectContext?.schoolId ? { schoolId: projectContext.schoolId } : {}), ...(billingContext ? { billingContext } : {}), ...(practiceModelTest ? { practiceModelTest } : {}) };
             } catch (error) {
                 if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
                 throw error;
             }
             const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
             const allChannels = resolvePracticeGenerationCandidates(settings, "video", requestedModel, trustedContext)
-                .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
+                .map((channel) => ({ ...(channel.channel.advancedConfig?.protocol === "runninghub" ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext) : toSystemGenerationChannel(channel)), executionProfile }))
                 .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
             const prompt = String(body.prompt || "").trim();
             if (!allChannels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
@@ -546,6 +551,9 @@ export async function createUpstream(
     const generateAudio = raw.videoGenerateAudio !== false && raw.videoGenerateAudio !== "false";
     if (isGeminiVideoChannel(channel)) {
         return createGeminiVideoUpstream({ userId, origin, cookie, channel, prompt, raw, references, generateAudio, multipliers, billingRequestId, billingContext, executionProfile });
+    }
+    if (isAgnesVideoChannel(channel.baseUrl, channel.model, channel.advancedConfig?.protocol)) {
+        return createAgnesVideoUpstream({ origin, cookie, channel, prompt, raw, references, multipliers, billingRequestId, billingContext, executionProfile });
     }
     const values = {
         model: channel.model,
@@ -813,6 +821,59 @@ async function createGeminiVideoUpstream(input: {
     };
 }
 
+async function createAgnesVideoUpstream(input: {
+    origin: string;
+    cookie: string;
+    channel: NonNullable<ReturnType<typeof toSystemGenerationChannel>>;
+    prompt: string;
+    raw: Record<string, unknown>;
+    references: VideoGenerationReference[];
+    multipliers: Awaited<ReturnType<typeof getAuthSettings>>["generationPointMultipliers"];
+    billingRequestId: string;
+    billingContext?: SchoolComputeBillingContext;
+    executionProfile: PracticeExecutionProfile;
+}) {
+    const payload = buildAgnesVideoRequest({ model: input.channel.model, prompt: input.prompt, seconds: input.raw.videoSeconds, aspectRatio: input.raw.size, resolution: input.raw.vquality, references: input.references });
+    const response = await proxyFetch(input.origin, input.channel.baseUrl, "/videos", input.cookie, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": input.billingRequestId,
+            "X-Client-Request-Id": input.billingRequestId,
+            ...systemAiBillingHeaders(generationModelId(input.channel), `video-request:${input.billingRequestId}`, input.channel.model, input.executionProfile, input.billingContext),
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(input.channel, "video")),
+    });
+    const text = await response.text();
+    if (!response.ok) {
+        const message = readVideoProviderHttpError(text, response.status);
+        if (SAFE_CREATE_FAILURE_STATUSES.has(response.status)) throw new SafeCandidateFailure(message);
+        throw new Error(message);
+    }
+    let data: unknown;
+    try {
+        data = parseVideoProviderJson(text);
+    } catch (error) {
+        throw new VideoSubmissionUncertainError(error instanceof Error ? error.message : "Agnes 视频接口返回了无效 JSON", videoSubmissionBilling(response.headers, input.raw, input.multipliers));
+    }
+    const providerError = readProviderError(data);
+    if (isProviderBusinessError(data)) throw new SafeCandidateFailure(providerError || "视频接口请求失败");
+    const id = readAgnesVideoId(data);
+    if (!id) throw new VideoSubmissionUncertainError(providerError || "视频接口没有返回任务 ID", videoSubmissionBilling(response.headers, input.raw, input.multipliers));
+    return {
+        id,
+        provider: "generation" as const,
+        model: input.channel.model,
+        pollPath: "/videos",
+        queryPath: agnesVideoQueryPath(input.channel.model),
+        resultUrl: undefined,
+        pointsCost: billedPointsCost(response.headers.get("x-vozeb-pro-points-cost")),
+        pointsUnits: videoUnits(input.raw, input.multipliers),
+        billingReceiptId: response.headers.get("x-vozeb-pro-billing-receipt-id") || undefined,
+    };
+}
+
 function globalAiOpcVideoPreset(config: NonNullable<ReturnType<typeof toSystemGenerationChannel>>["advancedConfig"], model: string) {
     const preset = resolveGlobalAiOpcPreset(config, model);
     return preset?.capability === "video" ? preset : undefined;
@@ -983,7 +1044,7 @@ function normalizePublicOrigin(value: string) {
     }
 }
 const MEDIA_KEYS = VIDEO_PROVIDER_MEDIA_KEYS;
-const SAFE_CREATE_FAILURE_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429, 451]);
+const SAFE_CREATE_FAILURE_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429, 451, 503]);
 
 class SafeCandidateFailure extends Error {}
 class ContentPolicyFailure extends SafeCandidateFailure {}

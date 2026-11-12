@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import type { PracticeModuleKind, PracticeProjectKind, PracticeSessionMode } from "@/lib/practice-domain";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModel } from "@/lib/server/logical-model-router";
+import { channelUsableForSurface } from "@/lib/model-routing-config";
 import { getDatabaseProvider, createPostgresRepositories } from "@/lib/server/database";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import type { JsonValue, PracticeSessionRecord } from "@/lib/server/database/repository-types";
@@ -466,7 +467,7 @@ export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<ty
         ({ character: "character_main_view", scene: "scene_main_view", prop: "prop_main_view", "storyboard-image": "storyboard_shot", "storyboard-video": "storyboard_shot_video", dubbing: "storyboard_dialogue_audio" } as Record<string, string>)[module];
     if (module !== "script") {
         const workflowCandidates = settings.systemChannels
-            .filter((channel) => channel.enabled && channel.advancedConfig?.protocol === "runninghub" && channel.purpose === "open-source-practice")
+            .filter((channel) => channelUsableForSurface(channel, "open-source-practice") && channel.advancedConfig?.protocol === "runninghub")
             .flatMap((channel) => Object.values(channel.advancedConfig?.workflowConfigs || {}).map((raw) => ({ channel, workflow: normalizeWorkflow(raw) })))
             .filter(({ workflow }) => workflow.enabled && workflow.capability === capability && workflow.workflowCode === expectedCode)
             .sort((left, right) => right.workflow.version - left.workflow.version);

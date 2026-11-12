@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-21T11:48:46.110Z",
+  "accessAt": "2026-10-21T11:48:44.811868+00:00",
+  "metricsAt": "2026-10-21T11:48:30.769412+00:00",
+  "eventCount": 600,
+  "eventCap": 600,
+  "rows": [
+    {
+      "taskId": "3fb020a5-9a7c-4aba-a79a-90c357435b76",
+      "kind": "edit",
+      "references": 2,
+      "status": "success",
+      "elapsedSeconds": 486.608,
+      "matchingAccess": [
+        {
+          "at": "2026-10-21T19:35:20+08:00",
+          "epochMs": 1792582520000,
+          "clientAlias": "MAC-a0e42d5a58a9",
+          "browser": "Chrome/Chromium",
+          "browserVersion": "130.0.0.0",
+          "method": "POST",
+          "path": "/api/image-tasks",
+          "status": 200,
+          "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+        }
+      ]
+    },
+    {
+      "taskId": "059bb1b8-9215-4295-9b1f-61235372c049",
+      "kind": "edit",
+      "references": 2,
+      "status": "success",
+      "elapsedSeconds": 60.868,
+      "matchingAccess": [
+        {
+          "at": "2026-10-21T19:44:36+08:00",
+          "epochMs": 1792583076000,
+          "clientAlias": "MAC-a0e42d5a58a9",
+          "browser": "Chrome/Chromium",
+          "browserVersion": "130.0.0.0",
+          "method": "POST",
+          "path": "/api/image-tasks",
+          "status": 200,
+          "refererProjectId": "canvas-DqaYs2UD9Ru2LLMby3yoG"
+        }
+      ]
+    }
+  ]
+}

@@ -213,6 +213,7 @@ class SettingsRepository {
         if (input.practiceWorkflowModels !== undefined) add("practice_workflow_models", jsonParam(input.practiceWorkflowModels));
         if (input.practiceScriptSettings !== undefined) add("practice_script_settings", jsonParam(input.practiceScriptSettings));
         if (input.practiceModuleVisibility !== undefined) add("practice_module_visibility", jsonParam(input.practiceModuleVisibility));
+        if (input.practiceModelPool !== undefined) add("practice_model_pool", jsonParam(input.practiceModelPool));
         if (input.agentSkills !== undefined) add("agent_skills", jsonParam(input.agentSkills));
         if (input.featureModules !== undefined) add("feature_modules", jsonParam(input.featureModules));
         if (input.freeDailyPoints !== undefined) add("free_daily_points", input.freeDailyPoints);
@@ -270,8 +271,8 @@ class SettingsRepository {
     async upsertSystemModelChannel(channel: Omit<SystemModelChannelRecord, "createdAt" | "updatedAt">) {
         const result = await this.db.query(
             `
-            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order, purpose)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order, purpose, practice_enabled)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 base_url = EXCLUDED.base_url,
@@ -281,6 +282,7 @@ class SettingsRepository {
                 models = EXCLUDED.models,
                 enabled = EXCLUDED.enabled,
                 purpose = EXCLUDED.purpose,
+                practice_enabled = EXCLUDED.practice_enabled,
                 advanced_config = EXCLUDED.advanced_config,
                 sort_order = EXCLUDED.sort_order
             RETURNING *
@@ -297,6 +299,7 @@ class SettingsRepository {
                 jsonParam(channel.advancedConfig),
                 channel.sortOrder,
                 channel.purpose || "shared",
+                channel.practiceEnabled ?? null,
             ],
         );
         return mapSystemModelChannel(result.rows[0]);
@@ -333,6 +336,7 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
         practiceWorkflowModels: jsonValue(row.practice_workflow_models),
         practiceScriptSettings: jsonValue(row.practice_script_settings),
         practiceModuleVisibility: jsonValue(row.practice_module_visibility),
+        practiceModelPool: jsonValue(row.practice_model_pool),
         agentSkills: jsonValue(row.agent_skills),
         featureModules: jsonValue(row.feature_modules),
         createdAt: isoValue(row.created_at),
@@ -365,6 +369,7 @@ function mapSystemModelChannel(row: Record<string, unknown>): SystemModelChannel
         apiFormat: row.api_format === "gemini" ? "gemini" : "openai",
         models: jsonValue(row.models),
         enabled: row.enabled !== false,
+        practiceEnabled: typeof row.practice_enabled === "boolean" ? row.practice_enabled : undefined,
         purpose: row.purpose === "production" || row.purpose === "open-source-practice" ? row.purpose : "shared",
         advancedConfig: optionalJson(row.advanced_config),
         sortOrder: numberValue(row.sort_order),

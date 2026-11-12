@@ -89,20 +89,27 @@ export const FEATURE_MODULES: readonly FeatureModuleDefinition[] = [
 export const USER_NAVIGATION_ROLE_KEYS = ["teacher", "student", "normal-user"] as const;
 export type UserNavigationRoleKey = (typeof USER_NAVIGATION_ROLE_KEYS)[number];
 
+/**
+ * Menu permissions that are not feature modules and are never granted by default.
+ * They exist only so a role can opt in; every other menu permission defaults to granted.
+ */
+export const OPT_IN_USER_NAVIGATION_MENU_PERMISSIONS = [{ id: "practice-model-test", name: "练习模型测试" }] as const;
+export type OptInUserNavigationMenuPermission = (typeof OPT_IN_USER_NAVIGATION_MENU_PERMISSIONS)[number]["id"];
+
 /** Role-controlled foreground menu modules. School modules also require the matching active school identity. */
 export const USER_NAVIGATION_MENU_PERMISSION_GROUPS = [
-    { key: "practice", label: "无限练习", moduleIds: ["practice"] },
+    { key: "practice", label: "无限练习", moduleIds: ["practice", "practice-model-test"] },
     { key: "create", label: "Agent", moduleIds: ["creative-agent"] },
     { key: "projects", label: "项目", moduleIds: ["canvas", "drama", "drama-lab", "one-click-film"] },
     { key: "assets", label: "资产", moduleIds: ["works", "assets", "my-prompts", "prompt-library"] },
     { key: "community", label: "社区", moduleIds: ["community", "ip-library", "creator-home"] },
     { key: "school", label: "学校", moduleIds: ["teaching", "learning"] },
     { key: "support", label: "支持", moduleIds: ["help-center"] },
-] as const satisfies ReadonlyArray<{ key: string; label: string; moduleIds: readonly FeatureModuleId[] }>;
+] as const satisfies ReadonlyArray<{ key: string; label: string; moduleIds: readonly (FeatureModuleId | OptInUserNavigationMenuPermission)[] }>;
 
 export const USER_NAVIGATION_MENU_PERMISSION_IDS = USER_NAVIGATION_MENU_PERMISSION_GROUPS.flatMap((group) => group.moduleIds);
 export type UserNavigationMenuPermission = (typeof USER_NAVIGATION_MENU_PERMISSION_IDS)[number];
-export const DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS: UserNavigationMenuPermission[] = [...USER_NAVIGATION_MENU_PERMISSION_IDS];
+export const DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS: UserNavigationMenuPermission[] = USER_NAVIGATION_MENU_PERMISSION_IDS.filter((id) => !OPT_IN_USER_NAVIGATION_MENU_PERMISSIONS.some((permission) => permission.id === id));
 
 export function normalizeUserNavigationMenuPermissions(value: unknown): UserNavigationMenuPermission[] {
     if (!Array.isArray(value)) return [...DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS];

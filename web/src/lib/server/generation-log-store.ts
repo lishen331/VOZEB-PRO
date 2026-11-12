@@ -65,6 +65,8 @@ export async function listGenerationLogs(options: GenerationLogListOptions = {})
             keyword: options.keyword,
             startAt: dateFilterValue(options.start),
             endAt: dateFilterValue(options.end, true),
+            includeTaskContext: options.includeTaskContext,
+            executionProfile: isExecutionProfile(options.executionProfile) ? options.executionProfile : undefined,
         });
         return { ...result, items: result.items.map(toStoredGenerationLog) };
     }
@@ -335,6 +337,10 @@ function collectGenerationLogAssetKeys(db: Awaited<ReturnType<typeof readGenerat
         ),
     );
     return keys;
+}
+
+function isExecutionProfile(value: string | undefined): value is "production" | "open-source-practice" {
+    return value === "production" || value === "open-source-practice";
 }
 
 function dateFilterValue(value: string | undefined, end = false) {

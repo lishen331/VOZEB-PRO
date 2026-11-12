@@ -1,0 +1,522 @@
+{
+  "at": "2026-10-21T12:18:57.520Z",
+  "readOnly": true,
+  "boundedBytes": 67108864,
+  "snapshots": 34,
+  "source": "previously captured local snapshots, no provider call",
+  "tasks": [
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "createdAt": "2026-10-21T11:59:34.595+00:00",
+      "firstSnapshotAt": "2026-10-21T11:59:47.511843+00:00",
+      "lastSnapshotAt": "2026-10-21T12:18:18.402093+00:00",
+      "status": "success",
+      "model": "doubao-seedance-2-0",
+      "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+      "initialTransportResponsePreserved": true
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "createdAt": "2026-10-21T11:59:59.376+00:00",
+      "firstSnapshotAt": "2026-10-21T12:00:22.337885+00:00",
+      "lastSnapshotAt": "2026-10-21T12:18:18.402093+00:00",
+      "status": "success",
+      "model": "doubao-seedance-2-0",
+      "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+      "initialTransportResponsePreserved": true
+    },
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "createdAt": "2026-10-21T12:03:26.065+00:00",
+      "firstSnapshotAt": "2026-10-21T12:03:50.402218+00:00",
+      "lastSnapshotAt": "2026-10-21T12:18:18.402093+00:00",
+      "status": "running",
+      "model": "doubao-seedance-2-0",
+      "upstreamTaskId": "task_MghQUBEIhLSfMUf9qZvD7jFuobGBkQpe",
+      "initialTransportResponsePreserved": true
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "createdAt": "2026-10-21T12:15:58.096+00:00",
+      "firstSnapshotAt": "2026-10-21T12:15:59.222007+00:00",
+      "lastSnapshotAt": "2026-10-21T12:18:18.402093+00:00",
+      "status": "running",
+      "model": "official/seedance-2",
+      "upstreamTaskId": "task_Mi2IgePQo18F0YyeGfYl4Ny7m3GsAhZb",
+      "initialTransportResponsePreserved": true
+    }
+  ],
+  "initialEvents": [
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974599,
+        "phase": "task_created",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974605,
+        "phase": "state",
+        "state": "submitting",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "errorCode": "submitting"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974607,
+        "phase": "submit_start",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "protocol": "mohui-seedance"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974609,
+        "phase": "transport_request",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974690,
+        "phase": "upstream_request",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583975029,
+        "phase": "upstream_response",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "status": 200,
+        "requestId": "20261021115934710867567RI2ypSq27A63A0E6",
+        "durationMs": 338
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583975037,
+        "phase": "transport_response",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "status": 200,
+        "durationMs": 428
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583975040,
+        "phase": "submit_end",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "durationMs": 433
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583975048,
+        "phase": "state",
+        "state": "submitted",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "errorCode": "submitted"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999391,
+        "phase": "transport_request",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999417,
+        "phase": "upstream_request",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999677,
+        "phase": "upstream_response",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "status": 200,
+        "requestId": "202610211159594214396782l2yefu6vzTRZX3N",
+        "durationMs": 259
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999684,
+        "phase": "transport_response",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "status": 200,
+        "durationMs": 294
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999687,
+        "phase": "submit_end",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "durationMs": 298
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999695,
+        "phase": "state",
+        "state": "submitted",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "errorCode": "submitted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "event": {
+        "at": 1792584206086,
+        "phase": "transport_request",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:03:50.402218+00:00"
+    },
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "event": {
+        "at": 1792584206127,
+        "phase": "upstream_request",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:03:50.402218+00:00"
+    },
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "event": {
+        "at": 1792584206320,
+        "phase": "upstream_response",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "status": 200,
+        "requestId": "20261021120326133642646RI2ypSq2HY9YTFXh",
+        "durationMs": 193
+      },
+      "firstSeenSnapshot": "2026-10-21T12:03:50.402218+00:00"
+    },
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "event": {
+        "at": 1792584206327,
+        "phase": "transport_response",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "status": 200,
+        "durationMs": 241
+      },
+      "firstSeenSnapshot": "2026-10-21T12:03:50.402218+00:00"
+    },
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "event": {
+        "at": 1792584206329,
+        "phase": "submit_end",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_MghQUBEIhLSfMUf9qZvD7jFuobGBkQpe",
+        "durationMs": 248
+      },
+      "firstSeenSnapshot": "2026-10-21T12:03:50.402218+00:00"
+    },
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "event": {
+        "at": 1792584206337,
+        "phase": "state",
+        "state": "submitted",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_MghQUBEIhLSfMUf9qZvD7jFuobGBkQpe",
+        "errorCode": "submitted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:03:50.402218+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792584250079,
+        "phase": "state",
+        "state": "result_ready",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "errorCode": "succeeded"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792584250082,
+        "phase": "recovery_end",
+        "state": "result_ready",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "durationMs": 147
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792584250350,
+        "phase": "state",
+        "state": "persisting",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "errorCode": "succeeded"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792584251221,
+        "phase": "state",
+        "state": "completed",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "errorCode": "persisted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792584251225,
+        "phase": "recovery_end",
+        "state": "completed",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "durationMs": 878
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792584254791,
+        "phase": "state",
+        "state": "result_ready",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "errorCode": "succeeded"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792584254795,
+        "phase": "recovery_end",
+        "state": "result_ready",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "durationMs": 148
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792584255063,
+        "phase": "state",
+        "state": "persisting",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "errorCode": "succeeded"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792584255771,
+        "phase": "state",
+        "state": "completed",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "errorCode": "persisted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792584255775,
+        "phase": "recovery_end",
+        "state": "completed",
+        "model": "doubao-seedance-2-0",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "durationMs": 715
+      },
+      "firstSeenSnapshot": "2026-10-21T12:04:25.215808+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792584958101,
+        "phase": "task_created",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:15:59.222007+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792584958107,
+        "phase": "state",
+        "state": "submitting",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS",
+        "errorCode": "submitting"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:15:59.222007+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792584958109,
+        "phase": "submit_start",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS",
+        "protocol": "modelbay-seedance"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:15:59.222007+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792585023750,
+        "phase": "transport_request",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:17:08.668261+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792585023901,
+        "phase": "upstream_request",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:17:08.668261+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792585031169,
+        "phase": "upstream_response",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS",
+        "status": 200,
+        "durationMs": 7267
+      },
+      "firstSeenSnapshot": "2026-10-21T12:17:43.442889+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792585031176,
+        "phase": "transport_response",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS",
+        "status": 200,
+        "durationMs": 7427
+      },
+      "firstSeenSnapshot": "2026-10-21T12:17:43.442889+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792585031179,
+        "phase": "submit_end",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS",
+        "upstreamTaskId": "task_Mi2IgePQo18F0YyeGfYl4Ny7m3GsAhZb",
+        "durationMs": 73070
+      },
+      "firstSeenSnapshot": "2026-10-21T12:17:43.442889+00:00"
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "event": {
+        "at": 1792585031188,
+        "phase": "state",
+        "state": "submitted",
+        "model": "official/seedance-2",
+        "channelId": "X9te4qOV0ZaPsJpErRRWS",
+        "upstreamTaskId": "task_Mi2IgePQo18F0YyeGfYl4Ny7m3GsAhZb",
+        "errorCode": "submitted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:17:43.442889+00:00"
+    }
+  ]
+}

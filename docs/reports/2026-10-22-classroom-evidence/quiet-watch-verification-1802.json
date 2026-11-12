@@ -1,0 +1,10 @@
+{
+  "lastConfirmed": "2026-10-22T10:02:34.446195+00:00",
+  "lastSample": "2026-10-22T10:02:01.694349+00:00",
+  "scope": "read-only classroom monitor; no stop inferred from zero tasks",
+  "observationFile": "quiet-watch-20261022-175741.jsonl",
+  "sha256": "44552280f617d7d88cc5f00b004f7756f1c5ba3d4892250742a0992f054b511e",
+  "noNewObservedTasksDuringWindow": true,
+  "monitorStillActive": true,
+  "notARepairVerification": true
+}

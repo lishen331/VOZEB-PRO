@@ -407,7 +407,8 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
     );
 
     const completeAudioTask = useCallback(async (nodeId: string, generationConfig: AiConfig, task: NonNullable<CanvasNodeMetadata["audioTask"]>, controller: AbortController, prompt?: string) => {
-        const audio = await storeGeneratedAudio(await waitForAudioGenerationTask(generationConfig, task, { signal: controller.signal }), generationConfig.audioFormat);
+        const result = await waitForAudioGenerationTask(generationConfig, task, { signal: controller.signal });
+        const audio = await storeGeneratedAudio(result, generationConfig.audioFormat);
         setNodes((prev) =>
             prev.map((node) =>
                 node.id === nodeId
@@ -417,6 +418,8 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
                               ...node.metadata,
                               ...audioMetadata(audio),
                               prompt: prompt || node.metadata?.prompt,
+                              // 设计模式：结果下方提供「存为我的音色」，用这条未保存的记录。
+                              audioDesignVoiceId: result.createdVoiceId,
                               audioTask: undefined,
                               errorDetails: undefined,
                           },

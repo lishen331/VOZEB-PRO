@@ -347,6 +347,7 @@ export function mapPostgresSettings(settingsRow: Record<string, unknown> | undef
             apiFormat: row.api_format === "gemini" ? "gemini" : "openai",
             models: dbJson(row.models, []),
             enabled: dbBool(row.enabled, true),
+            practiceEnabled: typeof row.practice_enabled === "boolean" ? row.practice_enabled : undefined,
             purpose: row.purpose === "production" || row.purpose === "open-source-practice" ? row.purpose : "shared",
             advancedConfig: dbJson(row.advanced_config, undefined),
         })),
@@ -354,6 +355,7 @@ export function mapPostgresSettings(settingsRow: Record<string, unknown> | undef
         defaultModels: dbJson(settingsRow?.default_models, fallback.defaultModels),
         practiceDefaultModels: dbJson(settingsRow?.practice_default_models, fallback.practiceDefaultModels),
         practiceWorkflowModels: dbJson(settingsRow?.practice_workflow_models, fallback.practiceWorkflowModels),
+        practiceModelPool: dbJson(settingsRow?.practice_model_pool, fallback.practiceModelPool),
         practiceScriptSettings: dbJson(settingsRow?.practice_script_settings, fallback.practiceScriptSettings),
         practiceModuleVisibility: dbJson(settingsRow?.practice_module_visibility, fallback.practiceModuleVisibility),
         agentSkills: dbJson(settingsRow?.agent_skills, fallback.agentSkills),
@@ -580,8 +582,8 @@ export async function upsertPostgresSystemChannels(db: QueryExecutor, channels: 
     for (const [index, channel] of channels.entries()) {
         await db.query(
             `
-            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order, purpose)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order, purpose, practice_enabled)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 base_url = EXCLUDED.base_url,
@@ -591,11 +593,25 @@ export async function upsertPostgresSystemChannels(db: QueryExecutor, channels: 
                 models = EXCLUDED.models,
                 enabled = EXCLUDED.enabled,
                 purpose = EXCLUDED.purpose,
+                practice_enabled = EXCLUDED.practice_enabled,
                 advanced_config = EXCLUDED.advanced_config,
                 sort_order = EXCLUDED.sort_order,
                 updated_at = now()
             `,
-            [channel.id, channel.name, channel.baseUrl, channel.apiKey, channel.webhookSecret || "", channel.apiFormat, dbJsonParam(channel.models), channel.enabled, dbJsonParam(channel.advancedConfig), index, channel.purpose || "shared"],
+            [
+                channel.id,
+                channel.name,
+                channel.baseUrl,
+                channel.apiKey,
+                channel.webhookSecret || "",
+                channel.apiFormat,
+                dbJsonParam(channel.models),
+                channel.enabled,
+                dbJsonParam(channel.advancedConfig),
+                index,
+                channel.purpose || "shared",
+                channel.practiceEnabled ?? null,
+            ],
         );
     }
 }

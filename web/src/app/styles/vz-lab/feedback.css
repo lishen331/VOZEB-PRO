@@ -1,0 +1,224 @@
+.vzl .vzl-skel {
+    display: block;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--vzl-surface-3) 25%, color-mix(in srgb, var(--vzl-surface-3) 80%, var(--vzl-text-1) 9%) 50%, var(--vzl-surface-3) 75%);
+    background-size: 300% 100%;
+    animation: vzl-skel 1.4s ease-in-out infinite;
+}
+@keyframes vzl-skel {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: 0 0;
+    }
+}
+
+.vzl .vzl-progress {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--vzl-surface-3);
+    overflow: hidden;
+}
+.vzl .vzl-progress__bar {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--vzl-gradient-glow);
+    transition: width var(--vzl-d3) var(--vzl-ease);
+}
+.vzl .vzl-progress[data-tone="success"] .vzl-progress__bar {
+    background: var(--vzl-success);
+}
+.vzl .vzl-progress[data-tone="danger"] .vzl-progress__bar {
+    background: var(--vzl-danger);
+}
+.vzl .vzl-progress[data-indeterminate="true"] .vzl-progress__bar {
+    width: 35% !important;
+    animation: vzl-indet 1.3s var(--vzl-ease) infinite;
+}
+@keyframes vzl-indet {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(300%);
+    }
+}
+
+.vzl .vzl-state {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 10px;
+    min-height: 220px;
+    padding: 28px 20px;
+    text-align: center;
+    border: 1px dashed var(--vzl-border-strong);
+    border-radius: var(--vzl-r-lg);
+    background: var(--vzl-surface-2);
+}
+.vzl .vzl-state__icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    background: var(--vzl-surface-3);
+    color: var(--vzl-text-2);
+    box-shadow: var(--vzl-highlight);
+}
+.vzl .vzl-state__icon svg {
+    width: 22px;
+    height: 22px;
+}
+.vzl .vzl-state[data-tone="danger"] {
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--vzl-danger) 32%, transparent);
+    background: color-mix(in srgb, var(--vzl-danger) 6%, var(--vzl-surface-2));
+}
+.vzl .vzl-state[data-tone="danger"] .vzl-state__icon {
+    color: var(--vzl-danger);
+    background: var(--vzl-danger-soft);
+}
+
+.vzl .vzl-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: var(--vzl-r-md);
+    font-size: 13px;
+    color: var(--vzl-text-2);
+}
+.vzl .vzl-alert svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    margin-top: 2px;
+}
+.vzl .vzl-alert b {
+    color: var(--vzl-text-1);
+    font-weight: 600;
+}
+.vzl .vzl-alert[data-tone="success"] {
+    background: var(--vzl-success-soft);
+}
+.vzl .vzl-alert[data-tone="success"] svg {
+    color: var(--vzl-success);
+}
+.vzl .vzl-alert[data-tone="warning"] {
+    background: var(--vzl-warning-soft);
+}
+.vzl .vzl-alert[data-tone="warning"] svg {
+    color: var(--vzl-warning);
+}
+.vzl .vzl-alert[data-tone="danger"] {
+    background: var(--vzl-danger-soft);
+}
+.vzl .vzl-alert[data-tone="danger"] svg {
+    color: var(--vzl-danger);
+}
+.vzl .vzl-alert[data-tone="info"] {
+    background: var(--vzl-info-soft);
+}
+.vzl .vzl-alert[data-tone="info"] svg {
+    color: var(--vzl-info);
+}
+
+.vzl .vzl-upload {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 24px 16px;
+    border: 1.5px dashed var(--vzl-border-strong);
+    border-radius: var(--vzl-r-lg);
+    background: var(--vzl-surface-2);
+    color: inherit;
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+    transition:
+        border-color var(--vzl-d2),
+        background var(--vzl-d2),
+        transform var(--vzl-d2) var(--vzl-ease);
+}
+.vzl .vzl-upload:hover {
+    border-color: color-mix(in srgb, var(--vzl-brand) 60%, transparent);
+    background: color-mix(in srgb, var(--vzl-brand) 6%, var(--vzl-surface-2));
+}
+.vzl .vzl-upload:focus-visible {
+    box-shadow: var(--vzl-ring);
+}
+.vzl .vzl-upload[data-dragging="true"] {
+    border-style: solid;
+    border-color: var(--vzl-brand);
+    background: var(--vzl-brand-soft);
+    transform: scale(1.01);
+}
+.vzl .vzl-upload__icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: var(--vzl-gradient);
+    color: #fff;
+    box-shadow: var(--vzl-glow);
+}
+.vzl .vzl-upload__icon svg {
+    width: 20px;
+    height: 20px;
+}
+.vzl .vzl-thumbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 8px;
+}
+.vzl .vzl-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: var(--vzl-r-sm);
+    overflow: hidden;
+    border: 1px solid var(--vzl-border);
+    background: var(--vzl-surface-3);
+}
+.vzl .vzl-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.vzl .vzl-thumb[data-status="uploading"] img {
+    opacity: 0.45;
+}
+.vzl .vzl-thumb[data-status="error"] {
+    border-color: var(--vzl-danger);
+}
+.vzl .vzl-thumb[data-status="error"] img {
+    filter: grayscale(1) brightness(0.6);
+}
+.vzl .vzl-thumb__remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+}
+.vzl .vzl-thumb__remove svg {
+    width: 14px;
+    height: 14px;
+}
+.vzl .vzl-thumb__badge {
+    position: absolute;
+    inset: auto 4px 4px;
+    display: flex;
+    justify-content: center;
+}
+.vzl .vzl-thumb__badge .vzl-tag {
+    height: 20px;
+    padding: 0 6px;
+    font-size: 11px;
+}

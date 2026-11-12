@@ -52,6 +52,7 @@ export function useAdminDashboardEffects({ state, data, settingsActions }: { sta
         generationLogKind,
         generationLogSource,
         generationLogStatus,
+        generationLogProfile,
         generationLogUserId,
         generationLogStart,
         generationLogEnd,
@@ -136,7 +137,7 @@ export function useAdminDashboardEffects({ state, data, settingsActions }: { sta
     useEffect(() => {
         if (activeSection !== "logs") return;
         void loadGenerationLogs();
-    }, [activeSection, generationLogPage, generationLogSearch, generationLogKind, generationLogSource, generationLogStatus, generationLogUserId, generationLogStart, generationLogEnd]);
+    }, [activeSection, generationLogPage, generationLogSearch, generationLogKind, generationLogSource, generationLogStatus, generationLogProfile, generationLogUserId, generationLogStart, generationLogEnd]);
 
     useEffect(() => {
         if (activeSection !== "cdk") return;

@@ -215,14 +215,14 @@ describe("admin model catalog", () => {
     });
 
     it("merges configured, provider, and Agnes official catalogs without dropping models", () => {
-        const merged = mergeModelCatalogEntries([{ id: "manual-text", capability: "text", source: "configured" }], [{ id: "agnes-video-v2.0", capability: "image", source: "provider" }], officialModelCatalog("https://apihub.agnes-ai.com/v1"));
+        const merged = mergeModelCatalogEntries([{ id: "manual-text", capability: "text", source: "configured" }], [{ id: "agnes-video-2.5", capability: "image", source: "provider" }], officialModelCatalog("https://apihub.agnes-ai.com/v1"));
 
         expect(merged).toEqual(
             expect.arrayContaining([
                 { id: "manual-text", capability: "text", source: "configured" },
-                { id: "agnes-2.0-flash", capability: "text", source: "official" },
+                { id: "agnes-2.5-flash", capability: "text", source: "official" },
                 { id: "agnes-image-2.1-flash", capability: "image", source: "official" },
-                { id: "agnes-video-v2.0", capability: "video", source: "official" },
+                { id: "agnes-video-2.5", capability: "video", source: "official" },
             ]),
         );
     });

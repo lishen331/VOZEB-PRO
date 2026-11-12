@@ -1,0 +1,67 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e7]: VOZEB PRO
+    - navigation "工作空间导航" [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]: 项目
+        - generic [ref=e11]:
+          - link "画布" [ref=e12] [cursor=pointer]:
+            - /url: /canvas
+            - img [ref=e13]
+            - generic [ref=e18]: 画布
+          - link "创作工坊" [ref=e20] [cursor=pointer]:
+            - /url: /drama-lab
+            - img [ref=e21]
+            - generic [ref=e23]: 创作工坊
+          - link "一键成片" [ref=e24] [cursor=pointer]:
+            - /url: /one-click-film
+            - img [ref=e25]
+            - generic [ref=e27]: 一键成片
+      - generic [ref=e28]:
+        - generic [ref=e29]: 资产
+        - generic [ref=e30]:
+          - link "作品" [ref=e31] [cursor=pointer]:
+            - /url: /works
+            - img [ref=e32]
+            - generic [ref=e34]: 作品
+          - link "素材" [ref=e35] [cursor=pointer]:
+            - /url: /assets
+            - img [ref=e36]
+            - generic [ref=e41]: 素材
+    - link "帮助" [ref=e43] [cursor=pointer]:
+      - /url: /help
+      - img [ref=e44]
+      - generic [ref=e48]: 帮助
+      - img [ref=e49]
+  - generic [ref=e51]:
+    - banner [ref=e52]:
+      - generic [ref=e53]:
+        - button "收起侧边栏" [pressed] [ref=e54]:
+          - img [ref=e55]
+        - generic [ref=e59]: 画布
+      - generic [ref=e61]:
+        - button "通知中心" [ref=e62]:
+          - img [ref=e63]
+        - button "切换到深色主题" [ref=e66]:
+          - img [ref=e67]
+          - generic [ref=e69]: 切换到深色主题
+        - link "登录" [ref=e70] [cursor=pointer]:
+          - /url: /login
+          - img [ref=e71]
+          - generic [ref=e75]: 登录
+    - main [ref=e77]:
+      - generic [ref=e78]:
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - paragraph [ref=e81]: 画布库
+            - heading "我的画布" [level=1] [ref=e82]
+          - generic [ref=e83]:
+            - button "导入画布" [disabled] [ref=e84]:
+              - generic:
+                - img
+              - generic: 导入画布
+            - button "新建画布" [disabled] [ref=e85]:
+              - generic:
+                - img
+              - generic: 新建画布
+        - generic [ref=e87]: 正在加载画布...

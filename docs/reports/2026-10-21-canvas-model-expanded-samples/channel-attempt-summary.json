@@ -1,0 +1,954 @@
+[
+  {
+    "key": "image / _-eQ3SntRYtuDZz9mJ_OK / gpt-image-2-c",
+    "kind": "image",
+    "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+    "channelName": "模汇X中漫 API 渠道",
+    "upstreamModel": "gpt-image-2-c",
+    "attempts": 11,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 111.071,
+      "median": 80.56,
+      "p95": 298.108,
+      "min": 43.339,
+      "max": 298.108
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.6-luna",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.6-luna",
+    "attempts": 14,
+    "success": 14,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 3.075,
+      "median": 2.25,
+      "p95": 8.558,
+      "min": 1.494,
+      "max": 8.558
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "video / wD0cO6S6cyhbyvYIRDE28 / cdance2.0-mini-0807",
+    "kind": "video",
+    "channelId": "wD0cO6S6cyhbyvYIRDE28",
+    "channelName": "天翼云星辰 TokenHub 视频渠道",
+    "upstreamModel": "cdance2.0-mini-0807",
+    "attempts": 6,
+    "success": 5,
+    "failure": 1,
+    "pending": 0,
+    "successRatePct": 83.33,
+    "successLatencySeconds": {
+      "n": 5,
+      "mean": 88.095,
+      "median": 89.655,
+      "p95": 96.035,
+      "min": 75.404,
+      "max": 96.035
+    },
+    "failureLatencySeconds": {
+      "n": 1,
+      "mean": 6.884,
+      "median": 6.884,
+      "p95": 6.884,
+      "min": 6.884,
+      "max": 6.884
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5",
+    "attempts": 14,
+    "success": 14,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 20.518,
+      "median": 10.768,
+      "p95": 49.95,
+      "min": 5.596,
+      "max": 49.95
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.2",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.2",
+    "attempts": 13,
+    "success": 13,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 13,
+      "mean": 5.668,
+      "median": 2.905,
+      "p95": 31.287,
+      "min": 1.649,
+      "max": 31.287
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5-mini",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5-mini",
+    "attempts": 14,
+    "success": 14,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 14.423,
+      "median": 10.092,
+      "p95": 44.005,
+      "min": 4.615,
+      "max": 44.005
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.1",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.1",
+    "attempts": 14,
+    "success": 14,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.369,
+      "median": 1.943,
+      "p95": 5.955,
+      "min": 1.183,
+      "max": 5.955
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5-pro",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5-pro",
+    "attempts": 14,
+    "success": 0,
+    "failure": 14,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 14,
+      "mean": 2.974,
+      "median": 1.826,
+      "p95": 9.164,
+      "min": 1.332,
+      "max": 9.164
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.4",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.4",
+    "attempts": 13,
+    "success": 13,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 13,
+      "mean": 2.409,
+      "median": 2.052,
+      "p95": 5.194,
+      "min": 1.287,
+      "max": 5.194
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.5-pro",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.5-pro",
+    "attempts": 15,
+    "success": 0,
+    "failure": 15,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 15,
+      "mean": 1.346,
+      "median": 1.168,
+      "p95": 4.052,
+      "min": 0.612,
+      "max": 4.052
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.4-pro",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.4-pro",
+    "attempts": 15,
+    "success": 0,
+    "failure": 15,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 15,
+      "mean": 6.751,
+      "median": 5.221,
+      "p95": 18.755,
+      "min": 3.532,
+      "max": 18.755
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.4-mini",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.4-mini",
+    "attempts": 14,
+    "success": 14,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.554,
+      "median": 2.411,
+      "p95": 5.477,
+      "min": 1.111,
+      "max": 5.477
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.5",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.5",
+    "attempts": 15,
+    "success": 15,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 15,
+      "mean": 3.487,
+      "median": 3.03,
+      "p95": 6.617,
+      "min": 2.008,
+      "max": 6.617
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.6-sol",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.6-sol",
+    "attempts": 14,
+    "success": 14,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 4.67,
+      "median": 3.282,
+      "p95": 11.796,
+      "min": 2.015,
+      "max": 11.796
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / 9vdLZl4cJtS-re_mfLZxp / gpt-5.6-terra",
+    "kind": "text",
+    "channelId": "9vdLZl4cJtS-re_mfLZxp",
+    "channelName": "模汇x中漫 API gpt文本",
+    "upstreamModel": "gpt-5.6-terra",
+    "attempts": 14,
+    "success": 14,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.835,
+      "median": 2.222,
+      "p95": 6.566,
+      "min": 1.507,
+      "max": 6.566
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / jKjmH5G1HlrzOyDfuohV0 / codex-auto-review",
+    "kind": "text",
+    "channelId": "jKjmH5G1HlrzOyDfuohV0",
+    "channelName": "昱梦渠道 gpt",
+    "upstreamModel": "codex-auto-review",
+    "attempts": 5,
+    "success": 0,
+    "failure": 5,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 5,
+      "mean": 3.131,
+      "median": 1.417,
+      "p95": 10.635,
+      "min": 0.952,
+      "max": 10.635
+    }
+  },
+  {
+    "key": "text / jKjmH5G1HlrzOyDfuohV0 / gpt-6-astra",
+    "kind": "text",
+    "channelId": "jKjmH5G1HlrzOyDfuohV0",
+    "channelName": "昱梦渠道 gpt",
+    "upstreamModel": "gpt-6-astra",
+    "attempts": 3,
+    "success": 0,
+    "failure": 3,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 3,
+      "mean": 2.153,
+      "median": 1.564,
+      "p95": 3.56,
+      "min": 1.336,
+      "max": 3.56
+    }
+  },
+  {
+    "key": "image / hr5VKuKJKirZ1-sdRZPY5 / gpt-image-2",
+    "kind": "image",
+    "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+    "channelName": "兔子 API 渠道",
+    "upstreamModel": "gpt-image-2",
+    "attempts": 11,
+    "success": 9,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 81.82,
+    "successLatencySeconds": {
+      "n": 9,
+      "mean": 35.518,
+      "median": 28.724,
+      "p95": 86.172,
+      "min": 25.418,
+      "max": 86.172
+    },
+    "failureLatencySeconds": {
+      "n": 2,
+      "mean": 0.761,
+      "median": 0.698,
+      "p95": 0.824,
+      "min": 0.698,
+      "max": 0.824
+    }
+  },
+  {
+    "key": "image / _-eQ3SntRYtuDZz9mJ_OK / gpt-image-2-all",
+    "kind": "image",
+    "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+    "channelName": "模汇X中漫 API 渠道",
+    "upstreamModel": "gpt-image-2-all",
+    "attempts": 12,
+    "success": 9,
+    "failure": 3,
+    "pending": 0,
+    "successRatePct": 75,
+    "successLatencySeconds": {
+      "n": 9,
+      "mean": 60.482,
+      "median": 53.417,
+      "p95": 102.342,
+      "min": 36.534,
+      "max": 102.342
+    },
+    "failureLatencySeconds": {
+      "n": 3,
+      "mean": 200.095,
+      "median": 300.067,
+      "p95": 300.088,
+      "min": 0.13,
+      "max": 300.088
+    }
+  },
+  {
+    "key": "image / X9te4qOV0ZaPsJpErRRWS / gpt-image-2-image-to-image",
+    "kind": "image",
+    "channelId": "X9te4qOV0ZaPsJpErRRWS",
+    "channelName": "modelbay API 渠道",
+    "upstreamModel": "gpt-image-2-image-to-image",
+    "attempts": 22,
+    "success": 16,
+    "failure": 6,
+    "pending": 0,
+    "successRatePct": 72.73,
+    "successLatencySeconds": {
+      "n": 16,
+      "mean": 93.122,
+      "median": 92.017,
+      "p95": 128.261,
+      "min": 68.085,
+      "max": 128.261
+    },
+    "failureLatencySeconds": {
+      "n": 6,
+      "mean": 125.417,
+      "median": 129.489,
+      "p95": 151.398,
+      "min": 90.474,
+      "max": 151.398
+    }
+  },
+  {
+    "key": "image / hr5VKuKJKirZ1-sdRZPY5 / gpt-image-2.5-sunburst",
+    "kind": "image",
+    "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+    "channelName": "兔子 API 渠道",
+    "upstreamModel": "gpt-image-2.5-sunburst",
+    "attempts": 11,
+    "success": 4,
+    "failure": 7,
+    "pending": 0,
+    "successRatePct": 36.36,
+    "successLatencySeconds": {
+      "n": 4,
+      "mean": 33.548,
+      "median": 33.193,
+      "p95": 37.499,
+      "min": 29.079,
+      "max": 37.499
+    },
+    "failureLatencySeconds": {
+      "n": 7,
+      "mean": 3.617,
+      "median": 1.1,
+      "p95": 8.632,
+      "min": 0.318,
+      "max": 8.632
+    }
+  },
+  {
+    "key": "image / X9te4qOV0ZaPsJpErRRWS / gpt-image-2-5-flare",
+    "kind": "image",
+    "channelId": "X9te4qOV0ZaPsJpErRRWS",
+    "channelName": "modelbay API 渠道",
+    "upstreamModel": "gpt-image-2-5-flare",
+    "attempts": 11,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 35.426,
+      "median": 37.318,
+      "p95": 63.196,
+      "min": 19.794,
+      "max": 63.196
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "image / X9te4qOV0ZaPsJpErRRWS / gpt-image-2-5-sunburst",
+    "kind": "image",
+    "channelId": "X9te4qOV0ZaPsJpErRRWS",
+    "channelName": "modelbay API 渠道",
+    "upstreamModel": "gpt-image-2-5-sunburst",
+    "attempts": 11,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 31.121,
+      "median": 30.696,
+      "p95": 57.679,
+      "min": 16.206,
+      "max": 57.679
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "image / X9te4qOV0ZaPsJpErRRWS / gpt-image-2-text-to-image",
+    "kind": "image",
+    "channelId": "X9te4qOV0ZaPsJpErRRWS",
+    "channelName": "modelbay API 渠道",
+    "upstreamModel": "gpt-image-2-text-to-image",
+    "attempts": 11,
+    "success": 7,
+    "failure": 4,
+    "pending": 0,
+    "successRatePct": 63.64,
+    "successLatencySeconds": {
+      "n": 7,
+      "mean": 94.261,
+      "median": 94.808,
+      "p95": 116.803,
+      "min": 71.684,
+      "max": 116.803
+    },
+    "failureLatencySeconds": {
+      "n": 4,
+      "mean": 114.546,
+      "median": 111.953,
+      "p95": 126.758,
+      "min": 102.775,
+      "max": 126.758
+    }
+  },
+  {
+    "key": "video / wD0cO6S6cyhbyvYIRDE28 / cdance2.0-fast-0807",
+    "kind": "video",
+    "channelId": "wD0cO6S6cyhbyvYIRDE28",
+    "channelName": "天翼云星辰 TokenHub 视频渠道",
+    "upstreamModel": "cdance2.0-fast-0807",
+    "attempts": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 104.341,
+      "median": 107.153,
+      "p95": 121.452,
+      "min": 74.217,
+      "max": 121.452
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "video / X9te4qOV0ZaPsJpErRRWS / official/seedance-2-5",
+    "kind": "video",
+    "channelId": "X9te4qOV0ZaPsJpErRRWS",
+    "channelName": "modelbay API 渠道",
+    "upstreamModel": "official/seedance-2-5",
+    "attempts": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 159.251,
+      "median": 155.016,
+      "p95": 180.988,
+      "min": 150.832,
+      "max": 180.988
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "video / hr5VKuKJKirZ1-sdRZPY5 / doubao-seedance-2-0-260128",
+    "kind": "video",
+    "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+    "channelName": "兔子 API 渠道",
+    "upstreamModel": "doubao-seedance-2-0-260128",
+    "attempts": 4,
+    "success": 0,
+    "failure": 4,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 4,
+      "mean": 1.232,
+      "median": 0.968,
+      "p95": 1.936,
+      "min": 0.928,
+      "max": 1.936
+    }
+  },
+  {
+    "key": "video / X9te4qOV0ZaPsJpErRRWS / official/seedance-2",
+    "kind": "video",
+    "channelId": "X9te4qOV0ZaPsJpErRRWS",
+    "channelName": "modelbay API 渠道",
+    "upstreamModel": "official/seedance-2",
+    "attempts": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 203.247,
+      "median": 185.424,
+      "p95": 262.917,
+      "min": 178.832,
+      "max": 262.917
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "video / _-eQ3SntRYtuDZz9mJ_OK / doubao-seedance-2-0",
+    "kind": "video",
+    "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+    "channelName": "模汇X中漫 API 渠道",
+    "upstreamModel": "doubao-seedance-2-0",
+    "attempts": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 271.055,
+      "median": 258.68,
+      "p95": 299.876,
+      "min": 250.517,
+      "max": 299.876
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "video / hr5VKuKJKirZ1-sdRZPY5 / doubao-seedance-2-5-260628",
+    "kind": "video",
+    "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+    "channelName": "兔子 API 渠道",
+    "upstreamModel": "doubao-seedance-2-5-260628",
+    "attempts": 1,
+    "success": 0,
+    "failure": 1,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 1,
+      "mean": 0.756,
+      "median": 0.756,
+      "p95": 0.756,
+      "min": 0.756,
+      "max": 0.756
+    }
+  },
+  {
+    "key": "video / wD0cO6S6cyhbyvYIRDE28 / cdance2.0-0807",
+    "kind": "video",
+    "channelId": "wD0cO6S6cyhbyvYIRDE28",
+    "channelName": "天翼云星辰 TokenHub 视频渠道",
+    "upstreamModel": "cdance2.0-0807",
+    "attempts": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 240.319,
+      "median": 231.891,
+      "p95": 276.465,
+      "min": 207.749,
+      "max": 276.465
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "image / X9te4qOV0ZaPsJpErRRWS / gpt-image-2.5-sunburst",
+    "kind": "image",
+    "channelId": "X9te4qOV0ZaPsJpErRRWS",
+    "channelName": "modelbay API 渠道",
+    "upstreamModel": "gpt-image-2.5-sunburst",
+    "attempts": 2,
+    "success": 0,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 2,
+      "mean": 0.025,
+      "median": 0.023,
+      "p95": 0.026,
+      "min": 0.023,
+      "max": 0.026
+    }
+  },
+  {
+    "key": "image / _-eQ3SntRYtuDZz9mJ_OK / gpt-image-2.5-sunburst",
+    "kind": "image",
+    "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+    "channelName": "模汇X中漫 API 渠道",
+    "upstreamModel": "gpt-image-2.5-sunburst",
+    "attempts": 1,
+    "success": 0,
+    "failure": 1,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 1,
+      "mean": 0.027,
+      "median": 0.027,
+      "p95": 0.027,
+      "min": 0.027,
+      "max": 0.027
+    }
+  },
+  {
+    "key": "image / hr5VKuKJKirZ1-sdRZPY5 / gpt-image-2-all",
+    "kind": "image",
+    "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+    "channelName": "兔子 API 渠道",
+    "upstreamModel": "gpt-image-2-all",
+    "attempts": 1,
+    "success": 0,
+    "failure": 1,
+    "pending": 0,
+    "successRatePct": 0,
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 1,
+      "mean": 0.154,
+      "median": 0.154,
+      "p95": 0.154,
+      "min": 0.154,
+      "max": 0.154
+    }
+  }
+]

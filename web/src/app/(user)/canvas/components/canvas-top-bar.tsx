@@ -138,7 +138,7 @@ export function CanvasTopBar({
                                 {title}
                             </button>
                         )}
-                        {practice ? <span className="shrink-0 border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">练习</span> : null}
+                        {practice ? <span className="shrink-0 rounded-full border border-cyan-300 bg-cyan-50 px-2 py-0.5 text-[11px] font-medium text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300">🎓 练习模式</span> : null}
                     </div>
                     {(saveState?.status === "error" || saveState?.status === "conflict") && onRetrySave ? (
                         <button

@@ -1,5 +1,5 @@
 import type { LogicalModelCapability, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
-import { channelDetectedCapabilities, normalizeDefaultModelsConfig } from "@/lib/model-routing-config";
+import { channelDetectedCapabilities, deriveChannelPurpose, normalizeDefaultModelsConfig } from "@/lib/model-routing-config";
 import { channelProtocolDefinition } from "@/lib/channel-protocol-registry";
 
 export type ChannelWorkspaceSettings = {
@@ -14,7 +14,8 @@ export type ChannelWorkspaceStatus = "enabled" | "draft" | "disabled";
 const capabilityLabels: Record<LogicalModelCapability, string> = { text: "文本", image: "图片", video: "视频", audio: "音频" };
 
 export function channelWorkspaceStatus(channel: SystemModelChannel): ChannelWorkspaceStatus {
-    if (channel.enabled) return "enabled";
+    // 任一启用开关打开都算"在用"：只开练习的渠道不应显示成已停用。
+    if (channel.enabled || channel.practiceEnabled) return "enabled";
     return channel.baseUrl.trim() ? "disabled" : "draft";
 }
 
@@ -48,7 +49,14 @@ export function removeChannelFromWorkspace(settings: ChannelWorkspaceSettings, c
 }
 
 export function updateChannelInWorkspace(settings: ChannelWorkspaceSettings, channelId: string, patch: Partial<SystemModelChannel>): ChannelWorkspaceSettings {
-    const systemChannels = settings.systemChannels.map((channel) => (channel.id === channelId ? { ...channel, ...patch } : channel));
+    const systemChannels = settings.systemChannels.map((channel) => {
+        if (channel.id !== channelId) return channel;
+        const next = { ...channel, ...patch };
+        // 改任一启用开关时同步推导用途，否则"打开练习开关"会被旧的「正式生产」用途挡住，
+        // 界面看起来像点了没反应。
+        if ("enabled" in patch || "practiceEnabled" in patch) next.purpose = deriveChannelPurpose(next);
+        return next;
+    });
     return {
         ...settings,
         systemChannels,

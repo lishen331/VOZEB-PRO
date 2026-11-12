@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-22T09:46:43.582940+00:00",
+  "files": [
+    {
+      "name": "success-idle-assets-and-mini-parameters-20261022-174351.json",
+      "bytes": 1218,
+      "sha256": "073ff9d017077e04d08c4423c267718d9dc68035aee95acf97f0dc7fb9054e33"
+    },
+    {
+      "name": "offline-diagnostic-budget-probe-20261022.cjs",
+      "bytes": 2172,
+      "sha256": "6435fb4baf4e65738af805216cdce38dfdd08cb3d5d4b2e00d50de8ed419c606"
+    },
+    {
+      "name": "offline-diagnostic-budget-probe-20261022.json",
+      "bytes": 475,
+      "sha256": "48e157e3fdbcadcc3111a922afa258884efb8e23d9264b4f87ccb196b9a4d602"
+    }
+  ]
+}

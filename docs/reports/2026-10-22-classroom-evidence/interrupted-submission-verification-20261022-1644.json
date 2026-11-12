@@ -1,0 +1,299 @@
+{
+  "tasks": [
+    {
+      "id": "14878a5f-18ef-44c3-a830-c891414ba556",
+      "events": [
+        {
+          "at": 1792658218989,
+          "phase": "task_created",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658218995,
+          "phase": "state",
+          "state": "created",
+          "status": null,
+          "errorCode": "created",
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658219007,
+          "phase": "state",
+          "state": "running",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658219016,
+          "phase": "state",
+          "state": "submitting",
+          "status": null,
+          "errorCode": "submitting",
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658219017,
+          "phase": "provider_start",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658219193,
+          "phase": "poll",
+          "state": "api_response:submitting",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658220371,
+          "phase": "transport_request",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658220624,
+          "phase": "transport_policy",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658220626,
+          "phase": "upstream_request",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658399029,
+          "phase": "state",
+          "state": "error",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658399041,
+          "phase": "state",
+          "state": "completed",
+          "status": null,
+          "errorCode": "submission_interrupted_without_upstream_id",
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658399043,
+          "phase": "recovery_end",
+          "state": "failed",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658400011,
+          "phase": "poll",
+          "state": "api_response:completed",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        }
+      ],
+      "status": "error",
+      "billing": null,
+      "worker_id": null,
+      "created_at": "2026-10-22T08:36:58.986+00:00",
+      "updated_at": "2026-10-22T08:39:59.03+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:39:59.038+00:00",
+      "next_poll_at": null,
+      "submitted_at": "2026-10-22T08:36:59.013+00:00",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:39:59.016+00:00",
+      "points_by_direct_task_key": []
+    },
+    {
+      "id": "60d08e23-f36f-4b94-89af-12b3c68b7b7d",
+      "events": [
+        {
+          "at": 1792658222884,
+          "phase": "task_created",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658222890,
+          "phase": "state",
+          "state": "created",
+          "status": null,
+          "errorCode": "created",
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658222902,
+          "phase": "state",
+          "state": "running",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658222916,
+          "phase": "state",
+          "state": "submitting",
+          "status": null,
+          "errorCode": "submitting",
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658222918,
+          "phase": "poll",
+          "state": "api_response:submitting",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658222920,
+          "phase": "provider_start",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658222973,
+          "phase": "transport_request",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658223022,
+          "phase": "transport_policy",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658223025,
+          "phase": "upstream_request",
+          "state": null,
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658402933,
+          "phase": "state",
+          "state": "error",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658402950,
+          "phase": "state",
+          "state": "completed",
+          "status": null,
+          "errorCode": "submission_interrupted_without_upstream_id",
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658402954,
+          "phase": "recovery_end",
+          "state": "failed",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        },
+        {
+          "at": 1792658403334,
+          "phase": "poll",
+          "state": "api_response:completed",
+          "status": null,
+          "errorCode": null,
+          "errorName": null,
+          "requestId": null,
+          "responseBytes": null
+        }
+      ],
+      "status": "error",
+      "billing": null,
+      "worker_id": null,
+      "created_at": "2026-10-22T08:37:02.881+00:00",
+      "updated_at": "2026-10-22T08:40:02.937+00:00",
+      "lease_until": null,
+      "last_poll_at": "2026-10-22T08:40:02.946+00:00",
+      "next_poll_at": null,
+      "submitted_at": "2026-10-22T08:37:02.909+00:00",
+      "upstream_task_id": null,
+      "last_heartbeat_at": "2026-10-22T08:40:02.92+00:00",
+      "points_by_direct_task_key": []
+    }
+  ],
+  "auditedAt": "2026-10-22T08:43:30.628493+00:00"
+}

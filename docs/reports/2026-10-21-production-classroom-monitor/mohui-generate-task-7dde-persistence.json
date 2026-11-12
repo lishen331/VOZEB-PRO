@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-21T10:43:41.128333+00:00",
+  "id": "7ddedb9e-4a31-40cc-856f-48d8a39df316",
+  "kind": "generation",
+  "status": "success",
+  "attemptCount": 1,
+  "firstChannel": "_-eQ3SntRYtuDZz9mJ_OK",
+  "logicalModel": "gpt-image-2-c",
+  "referenceCount": 0,
+  "taskResultPresent": true,
+  "matchingCanvasNodes": [
+    {
+      "nodeId": "image-I9QmOHqrfS-TYqQamdaui",
+      "status": "idle"
+    }
+  ]
+}

@@ -1,0 +1,1808 @@
+{
+  "at": "2026-10-21T09:18:34.95975+00:00",
+  "checks": [
+    {
+      "id": "b2575ce7-fad5-47cf-b761-22f430c2d6a5",
+      "status": "success",
+      "created_at": "2026-10-21T09:17:24.972+00:00",
+      "project_id": "canvas-80iJLAKxzDveAIiXsq5VM",
+      "updated_at": "2026-10-21T09:18:19.964+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4578606,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-QniSzonYQX-GFB4_Sd-hB",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "192cb833-15cb-4644-8bb5-293ec09d1f0f",
+      "status": "success",
+      "created_at": "2026-10-21T09:16:04.325+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T09:17:50.771+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 4777924,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-1KWcu8B1OL1LtBCjmxKBL",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "35d6a43f-13c2-43e0-b0cc-ed9c557d8f26",
+      "status": "success",
+      "created_at": "2026-10-21T09:15:32.8+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T09:16:15.042+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "413dd457-d404-4471-8ea5-988bbb2eb978",
+      "status": "success",
+      "created_at": "2026-10-21T09:15:08.907+00:00",
+      "project_id": "canvas-Yk-iMcWZ-qt-LjF7D53Ar",
+      "updated_at": "2026-10-21T09:16:31.031+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 9998924,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-7Myk4XXtkuncrpjWmIOOF",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "1dcf40ce-1a78-4d64-b8e3-872c5faa75f2",
+      "status": "success",
+      "created_at": "2026-10-21T09:14:47.689+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T09:16:50.535+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4967208,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-z9mygTuPXkfT4cWUdt_4T",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "e92d7515-5a0a-466d-a7dd-d35f50351011",
+      "status": "success",
+      "created_at": "2026-10-21T09:14:20.827+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T09:15:43.508+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5173297,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-8504s6NsOA-p-xrv2UL0W",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "471ef97e-d988-4dd7-a42c-a6bd35ab7dd0",
+      "status": "success",
+      "created_at": "2026-10-21T09:13:06.02+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T09:14:28.586+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 4908260,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-j0-KCcTVwpUUiMEkQJUth",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "4ea9127a-4b7b-4a65-8a47-067c9dc6090d",
+      "status": "success",
+      "created_at": "2026-10-21T09:12:12.441+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T09:15:23.158+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 2468583,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-89of1yuyM4ICGZqzKVGFc",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "9edcccc2-8460-4630-8c5b-af1a22b2be38",
+      "status": "success",
+      "created_at": "2026-10-21T09:09:46.831+00:00",
+      "project_id": "canvas-zOuw4LeGkMgstoEODE22R",
+      "updated_at": "2026-10-21T09:12:52.174+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 3569299,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-Ei0Z5BRtdNMY9cY9zk8vq",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "20554388-142a-411b-8d57-230f0285ca7c",
+      "status": "success",
+      "created_at": "2026-10-21T09:09:21.97+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T09:11:41.052+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 5139979,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-DJ-acVYYXRNqQ1Y54Sq_3",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "cfee7374-f96e-4a60-957a-1c39030a5d1d",
+      "status": "success",
+      "created_at": "2026-10-21T09:09:07.677+00:00",
+      "project_id": "canvas-Yk-iMcWZ-qt-LjF7D53Ar",
+      "updated_at": "2026-10-21T09:11:12.666+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "ca5e6da3-a539-4c12-aadb-f082b707b4e5",
+      "status": "success",
+      "created_at": "2026-10-21T09:08:27.084+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T09:10:13.481+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 5100125,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-WM98i8FBZJUP7SPcKVILw",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "b16fde17-1162-43d1-b30b-6675831bcfdc",
+      "status": "success",
+      "created_at": "2026-10-21T09:08:15.37+00:00",
+      "project_id": "canvas-Y7bnV0p5fFTPcd3TSrX5a",
+      "updated_at": "2026-10-21T09:10:28.931+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 5152332,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-JQsja0p_DBGFkCwRbqh7y",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "54cd1e35-21c3-4e61-bb0f-b586084cb0e2",
+      "status": "success",
+      "created_at": "2026-10-21T09:07:30.32+00:00",
+      "project_id": "canvas-zOuw4LeGkMgstoEODE22R",
+      "updated_at": "2026-10-21T09:09:00.223+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 5165094,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-kv0iriucMGI6aqbJsjvvy",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "743ef0b2-aa29-4dac-bc10-8437b77a26c1",
+      "status": "success",
+      "created_at": "2026-10-21T09:07:16.256+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T09:08:05.878+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "7002915e-1ba6-4abb-bbc1-3640270ec13d",
+      "status": "success",
+      "created_at": "2026-10-21T09:07:02.795+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T09:08:59.975+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "372b1795-a390-4345-a356-d5cf0c2c107b",
+      "status": "success",
+      "created_at": "2026-10-21T09:05:36.623+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T09:06:42.661+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "710aa860-7ee4-4af1-a7e3-b87b1289cbaa",
+      "status": "success",
+      "created_at": "2026-10-21T09:04:54.323+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T09:05:34.749+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 8910432,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-nimYitWoawcdB9QoZw_11",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "5395221e-43c5-4fc5-96f6-0274d2009d21",
+      "status": "success",
+      "created_at": "2026-10-21T09:03:05.166+00:00",
+      "project_id": "canvas-zP_RBVPOrSPOKIrtXD1nz",
+      "updated_at": "2026-10-21T09:04:24.778+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5035673,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-jAWRGBAZjGVcxdBRzawov",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "9aeeef9a-a7a4-43b0-9049-78ad83a90edc",
+      "status": "success",
+      "created_at": "2026-10-21T09:02:01.729+00:00",
+      "project_id": "canvas-Y7bnV0p5fFTPcd3TSrX5a",
+      "updated_at": "2026-10-21T09:04:04.622+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 5320328,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-XPGVSNEj5xMvrkWScsgyo",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "2ac52940-b2c3-4145-a6d2-30ccd7d5ead5",
+      "status": "success",
+      "created_at": "2026-10-21T09:01:33.889+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T09:02:24.745+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 10170258,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-pwSn2aWBcH6f9u2XO3IAw",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "a5b0d2aa-948a-49c8-9c96-6e179abfa72d",
+      "status": "success",
+      "created_at": "2026-10-21T09:00:26.361+00:00",
+      "project_id": "canvas-zP_RBVPOrSPOKIrtXD1nz",
+      "updated_at": "2026-10-21T09:04:40.918+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "07502540-2e31-42e5-81f1-c6dc87c1ce43",
+      "status": "success",
+      "created_at": "2026-10-21T08:59:36.395+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T09:01:54.118+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 4934394,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "G_cvMzO544Bw1GfvQgts-",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "56f95b99-49d7-4715-8801-59033c51cf41",
+      "status": "success",
+      "created_at": "2026-10-21T08:59:27.05+00:00",
+      "project_id": "canvas-Yk-iMcWZ-qt-LjF7D53Ar",
+      "updated_at": "2026-10-21T09:02:10.728+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "23bdeb41-d3ca-497d-80fc-a406027766fc",
+      "status": "success",
+      "created_at": "2026-10-21T08:59:11.01+00:00",
+      "project_id": "canvas-zP_RBVPOrSPOKIrtXD1nz",
+      "updated_at": "2026-10-21T08:59:54.506+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "9e55baf5-d0d5-479f-ae0a-b5c966102c88",
+      "status": "success",
+      "created_at": "2026-10-21T08:58:16.064+00:00",
+      "project_id": "canvas-0Rq1x4XbOeRqvNGKc5Zyt",
+      "updated_at": "2026-10-21T09:03:57.747+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4822548,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-dIvqPeVxGefzH4bWLU_6m",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "aac75700-0f29-47e8-938b-acd428dae4a8",
+      "status": "success",
+      "created_at": "2026-10-21T08:58:02.677+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T08:58:48.539+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 3180366,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-RGsRwuBA8JeteDA2UMjE7",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "872d2475-baac-448f-99b5-fe8f2c9e4da9",
+      "status": "success",
+      "created_at": "2026-10-21T08:56:26.588+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:57:49.13+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 3253173,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "MK5Ipx2F6HuePE5dS6eNt",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "b641342b-98e3-4869-be9f-c911bd031364",
+      "status": "success",
+      "created_at": "2026-10-21T08:56:06.587+00:00",
+      "project_id": "canvas-zP_RBVPOrSPOKIrtXD1nz",
+      "updated_at": "2026-10-21T08:57:36.488+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "231d5608-b5f9-4ad5-9853-c3167e1da547",
+      "status": "success",
+      "created_at": "2026-10-21T08:56:05.016+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:56:45.333+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "79dd903e-c235-46a4-8cec-a9c09a62d4d6",
+      "status": "success",
+      "created_at": "2026-10-21T08:55:48.889+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:57:28.127+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "3a3a1bf0-6953-47dc-9094-037038639d1f",
+      "status": "success",
+      "created_at": "2026-10-21T08:54:23.815+00:00",
+      "project_id": "canvas-1tU6waD6q8TwEsffVHJFo",
+      "updated_at": "2026-10-21T08:56:16.675+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5194984,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-J5jEryb7yZZu3QWMWBghm",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "5f01afd5-b942-4afb-877a-26f51a890a80",
+      "status": "success",
+      "created_at": "2026-10-21T08:53:30.901+00:00",
+      "project_id": "canvas-Vl72xBiqqw6KqqVAcQjnf",
+      "updated_at": "2026-10-21T08:54:18.78+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 2567402,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-j1QNSWjURVEugahbZAvJ5",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "7a491d5b-9217-412e-876e-087a37ebbff8",
+      "status": "success",
+      "created_at": "2026-10-21T08:53:11.117+00:00",
+      "project_id": "canvas-Y7bnV0p5fFTPcd3TSrX5a",
+      "updated_at": "2026-10-21T08:54:49.701+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 5131454,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-I_ERvSic9Czk1GLLBswFx",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "51f45ccd-a83b-4623-a28b-c70f8b02a13d",
+      "status": "success",
+      "created_at": "2026-10-21T08:53:04.653+00:00",
+      "project_id": "canvas-Yk-iMcWZ-qt-LjF7D53Ar",
+      "updated_at": "2026-10-21T08:55:13.831+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 10397384,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-Y_Ckq6VWdg2rKSnffZ6D1",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "cd272cbf-a029-4f88-be13-b6b2108996f3",
+      "status": "success",
+      "created_at": "2026-10-21T08:52:44.352+00:00",
+      "project_id": "canvas-80iJLAKxzDveAIiXsq5VM",
+      "updated_at": "2026-10-21T08:53:43.327+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4833478,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-a5G1xrz514CIuRG52VJ7B",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "6efc978f-874f-4f71-8cbf-e492e48ea4ad",
+      "status": "success",
+      "created_at": "2026-10-21T08:52:41.692+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:55:25.068+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 5146868,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "WYbNSs-vekBVAyf5MPNNS",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "cd1893cc-c98c-4a22-b333-abe1825ba7fa",
+      "status": "success",
+      "created_at": "2026-10-21T08:52:27.507+00:00",
+      "project_id": "canvas-Yk-iMcWZ-qt-LjF7D53Ar",
+      "updated_at": "2026-10-21T08:54:19.39+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "1928e89f-7fad-421a-87d3-6c06c410b14b",
+      "status": "success",
+      "created_at": "2026-10-21T08:52:07.981+00:00",
+      "project_id": "canvas-1tU6waD6q8TwEsffVHJFo",
+      "updated_at": "2026-10-21T08:52:49.006+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5027626,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-IX8UEQIdsdsqShhhahs--",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "6d70322f-a0b5-4350-9e28-c5cc29a46be5",
+      "status": "success",
+      "created_at": "2026-10-21T08:51:04.418+00:00",
+      "project_id": "canvas-Vl72xBiqqw6KqqVAcQjnf",
+      "updated_at": "2026-10-21T08:52:08.924+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "98d5a51b-3f6f-4dc9-8dbc-2540799bb7d3",
+      "status": "success",
+      "created_at": "2026-10-21T08:50:59.227+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T08:52:29.588+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 5199113,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-SK5wEnJajSwWjjki039rB",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "503a8c83-ce28-4497-8fac-6a894ea4b02a",
+      "status": "success",
+      "created_at": "2026-10-21T08:50:24.483+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:52:18.412+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 5148360,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-2o35U-1R0TW_VFBnll-3j",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "29522833-109d-4ca2-b333-eb76b1ac1260",
+      "status": "success",
+      "created_at": "2026-10-21T08:49:52.725+00:00",
+      "project_id": "canvas-1tU6waD6q8TwEsffVHJFo",
+      "updated_at": "2026-10-21T08:50:36.534+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5315646,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-Cxcl53ILN6Dq-kqxJYhlk",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "3777c2c7-47ae-45b3-9007-f8278f5eeab6",
+      "status": "success",
+      "created_at": "2026-10-21T08:49:36.468+00:00",
+      "project_id": "canvas-Vl72xBiqqw6KqqVAcQjnf",
+      "updated_at": "2026-10-21T08:51:08.57+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "07e3a8af-8cad-4ca0-b831-645c6cea81bb",
+      "status": "success",
+      "created_at": "2026-10-21T08:49:07.958+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T08:49:49.133+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 9139830,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-mOIgcbI3XHUZxF1NN_r74",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "800d2c0a-924f-496a-9727-e17d07a8e0f6",
+      "status": "success",
+      "created_at": "2026-10-21T08:48:43.793+00:00",
+      "project_id": "canvas-0Rq1x4XbOeRqvNGKc5Zyt",
+      "updated_at": "2026-10-21T08:50:21.218+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5049149,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-48TMLlEEMChXf6csHFHgm",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "e8e19965-1b03-4de5-b0d4-f42d6d111a57",
+      "status": "success",
+      "created_at": "2026-10-21T08:47:46.429+00:00",
+      "project_id": "canvas-80iJLAKxzDveAIiXsq5VM",
+      "updated_at": "2026-10-21T08:49:28.828+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4711038,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-zrwaCoB6r7c-A-pm5OrY5",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "cb253c5f-296d-40c9-ad11-ca7bfd5fed02",
+      "status": "success",
+      "created_at": "2026-10-21T08:47:03.531+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:52:52.277+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 5071904,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-RhFs10GjGrnatyw2m0OtJ",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "c8d25d25-acf0-4b3d-abc4-8053b9be3efd",
+      "status": "success",
+      "created_at": "2026-10-21T08:46:07.281+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:48:21.532+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 2488144,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-n6Y4hO3pW-DW0UJWm_ice",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "b5c3faad-dfac-4c9b-bd2b-0ca9549b2911",
+      "status": "success",
+      "created_at": "2026-10-21T08:45:27.158+00:00",
+      "project_id": "canvas-zP_RBVPOrSPOKIrtXD1nz",
+      "updated_at": "2026-10-21T08:46:58.306+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 2848145,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-6ocUTum036cZZe0Nbj20x",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "3e2bfee8-3362-4ef2-97f1-9736cea692c6",
+      "status": "success",
+      "created_at": "2026-10-21T08:44:04.954+00:00",
+      "project_id": "canvas-1tU6waD6q8TwEsffVHJFo",
+      "updated_at": "2026-10-21T08:44:48.124+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5289480,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image--3yCdgpLGTP3eR4AnnUtV",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "74aaf475-2644-46e5-8df3-e1a9f901a3b2",
+      "status": "success",
+      "created_at": "2026-10-21T08:43:59.01+00:00",
+      "project_id": "canvas-Vl72xBiqqw6KqqVAcQjnf",
+      "updated_at": "2026-10-21T08:45:54.341+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 2800600,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-F4YebrAQQ65Lw_RCB3ZPt",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "997c760c-e374-4712-8d24-8f0f82d1508b",
+      "status": "success",
+      "created_at": "2026-10-21T08:43:40.979+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T08:45:12.678+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "7ab1e9c8-fd24-4c60-a5c5-4bff712d5052",
+      "status": "success",
+      "created_at": "2026-10-21T08:42:57.617+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:43:57.799+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "45b0e4e1-fc4b-435f-bcd1-3e7114c70527",
+      "status": "success",
+      "created_at": "2026-10-21T08:42:31.653+00:00",
+      "project_id": "canvas-zP_RBVPOrSPOKIrtXD1nz",
+      "updated_at": "2026-10-21T08:43:37.779+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "00c4f10b-aeee-4a47-99a6-0f20199812de",
+      "status": "success",
+      "created_at": "2026-10-21T08:41:04.231+00:00",
+      "project_id": "canvas-zOuw4LeGkMgstoEODE22R",
+      "updated_at": "2026-10-21T08:42:01.095+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 3033002,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-2SzCGpHB6Gj2yNNTZlvYc",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "ad8625a1-7764-48c8-bf58-4871310662b6",
+      "status": "success",
+      "created_at": "2026-10-21T08:40:02.402+00:00",
+      "project_id": "canvas-1tU6waD6q8TwEsffVHJFo",
+      "updated_at": "2026-10-21T08:41:01.207+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5127424,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-rkjZqv5YqD__mO8cx2ohx",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "f71a97ff-ed16-4f4d-bdd7-0021645d9cf7",
+      "status": "success",
+      "created_at": "2026-10-21T08:39:28.85+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T08:40:51.389+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 8546934,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-hsYTXIIX50yP0N3rQmKzV",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "4db4c8d7-c0cf-47c0-b44a-dabb9ce381f8",
+      "status": "success",
+      "created_at": "2026-10-21T08:39:07.174+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T08:40:20.749+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "f3df588e-b930-4408-8e53-852194256ce1",
+      "status": "success",
+      "created_at": "2026-10-21T08:38:45.841+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:39:59.219+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "ca670723-4d05-4c3b-8cbe-f148c54220dd",
+      "status": "success",
+      "created_at": "2026-10-21T08:37:28.671+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:39:42.028+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4963686,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-N6Y2XErXu5Rf8f0rbFwBu",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "6f1792f6-93ac-4eff-97d2-916e8df2cfa8",
+      "status": "success",
+      "created_at": "2026-10-21T08:37:15.709+00:00",
+      "project_id": "canvas-80iJLAKxzDveAIiXsq5VM",
+      "updated_at": "2026-10-21T08:45:05.053+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4964972,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-A5NXLjeb-UW-B_6EILk2Q",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "4d59cdd2-1016-4b74-b47e-8dbda88fb5f7",
+      "status": "success",
+      "created_at": "2026-10-21T08:36:54.188+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T08:37:58.521+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 10096240,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-VUU4Sdk5I8or6kCMjY-Ot",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "a607315e-bcf4-4235-8205-c422362b011a",
+      "status": "success",
+      "created_at": "2026-10-21T08:36:53.297+00:00",
+      "project_id": "canvas-1tU6waD6q8TwEsffVHJFo",
+      "updated_at": "2026-10-21T08:37:40.699+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 5087450,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-jLs1XvhRUEJfxrIz2cjnE",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "0a9c69bf-509f-44cd-acb2-f04303cab1e8",
+      "status": "success",
+      "created_at": "2026-10-21T08:36:25.528+00:00",
+      "project_id": "canvas-zOuw4LeGkMgstoEODE22R",
+      "updated_at": "2026-10-21T08:38:14.022+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 4678364,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-oIGRzpqEpk3bc3cfaza4q",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "e6b6a814-c77b-4045-882e-01d166411489",
+      "status": "success",
+      "created_at": "2026-10-21T08:35:10.45+00:00",
+      "project_id": "canvas-0Rq1x4XbOeRqvNGKc5Zyt",
+      "updated_at": "2026-10-21T08:35:49.112+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4996137,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-ehWHm8cHa7kj7A1TpbKr8",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "769c2111-0ec6-4a81-a7c6-69f37649d246",
+      "status": "success",
+      "created_at": "2026-10-21T08:34:27.21+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:36:26.391+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 5085739,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-8s4mtTrRIyYDUo5K6biKV",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "88f02a4a-3a25-48eb-8824-2b2927306b98",
+      "status": "success",
+      "created_at": "2026-10-21T08:34:21.84+00:00",
+      "project_id": "canvas-Vl72xBiqqw6KqqVAcQjnf",
+      "updated_at": "2026-10-21T08:35:22.528+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 2630229,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "glrZerWRGZf__yPC_TMpG",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "7fd15858-5699-411b-b554-aa61fc5b8c1f",
+      "status": "success",
+      "created_at": "2026-10-21T08:33:58.754+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T08:35:16.588+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "08df7a57-4d50-4bff-9749-c2f5f602d499",
+      "status": "success",
+      "created_at": "2026-10-21T08:33:58.154+00:00",
+      "project_id": "canvas-80iJLAKxzDveAIiXsq5VM",
+      "updated_at": "2026-10-21T08:34:56.566+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4984355,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image--KEOIvihxMRfQRcv5xQ1C",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "778076d7-d22e-4f7a-8ef2-b3f32b76e5b9",
+      "status": "success",
+      "created_at": "2026-10-21T08:32:53.258+00:00",
+      "project_id": "canvas-Vl72xBiqqw6KqqVAcQjnf",
+      "updated_at": "2026-10-21T08:33:35.542+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4178294,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "1ZguFAYCrLKFB0l7AFJJ3",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "f775c7e7-d013-42ae-be2e-9df7f8e469af",
+      "status": "success",
+      "created_at": "2026-10-21T08:32:50.185+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T08:37:12.579+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 8983336,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-ZCciFDzcCpizqn908AjNe",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "e6a1a973-659c-4824-86cf-1089e62d0a4b",
+      "status": "success",
+      "created_at": "2026-10-21T08:32:38.326+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T08:35:14.258+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "c73a3107-b18e-4775-97b0-83f1aeb7357c",
+      "status": "success",
+      "created_at": "2026-10-21T08:32:15.983+00:00",
+      "project_id": "canvas-Yk-iMcWZ-qt-LjF7D53Ar",
+      "updated_at": "2026-10-21T08:35:12.746+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4793902,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-wI34lk6Oap7fc6DrNC9nB",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "d66e258b-c26f-4547-bf63-088960298729",
+      "status": "success",
+      "created_at": "2026-10-21T08:31:50.084+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T08:34:16.25+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "410eda9f-daa0-4deb-9912-06eaeb92b6f3",
+      "status": "success",
+      "created_at": "2026-10-21T08:31:28.639+00:00",
+      "project_id": "canvas-80iJLAKxzDveAIiXsq5VM",
+      "updated_at": "2026-10-21T08:32:36.129+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 3059923,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-TRx_FivxyFPU06E6idAQi",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "db23e84e-61d3-4ccb-8f74-f641f484181d",
+      "status": "success",
+      "created_at": "2026-10-21T08:30:45.401+00:00",
+      "project_id": "canvas-Y7bnV0p5fFTPcd3TSrX5a",
+      "updated_at": "2026-10-21T08:33:11.876+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4339648,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-ZP82ctxGgUpDF3rDERRJv",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "6d54f237-0cbb-4716-8e59-c455bc387a0a",
+      "status": "success",
+      "created_at": "2026-10-21T08:30:38.586+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:31:48.174+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "4d5311f9-979f-453f-a682-b3fe0c37b31a",
+      "status": "success",
+      "created_at": "2026-10-21T08:30:38.264+00:00",
+      "project_id": "canvas-zOuw4LeGkMgstoEODE22R",
+      "updated_at": "2026-10-21T08:33:10.552+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4724905,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-SUCSHFxMqQ7LolOq2JeY_",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "4fd2026f-c4ac-4bd9-a55a-5c5dc1368b3b",
+      "status": "success",
+      "created_at": "2026-10-21T08:30:06.107+00:00",
+      "project_id": "canvas-zP_RBVPOrSPOKIrtXD1nz",
+      "updated_at": "2026-10-21T08:34:30.376+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4567887,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-rsbSbco7dJ-nV9l79dGQ6",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "e35c8cdf-3fb5-46ed-b9ec-ae7c85ba37fb",
+      "status": "success",
+      "created_at": "2026-10-21T08:29:54.917+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:31:35.528+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [
+        {
+          "bytes": 4513930,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-Nwa5FXP5i4x3YeiQLJGPJ",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "4ca54f35-5fca-4ac5-b04b-0d5acd29f3db",
+      "status": "success",
+      "created_at": "2026-10-21T08:29:33.757+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:30:39.643+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "85651858-01c6-41fc-8213-67773e3cc996",
+      "status": "success",
+      "created_at": "2026-10-21T08:29:13.321+00:00",
+      "project_id": "canvas-80iJLAKxzDveAIiXsq5VM",
+      "updated_at": "2026-10-21T08:30:15.563+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "e2ee8787-8b2d-46cd-87cd-25db25acecc2",
+      "status": "success",
+      "created_at": "2026-10-21T08:28:02.56+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:31:17.253+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "0d5de864-f642-4d1c-aa53-bff1250e670d",
+      "status": "success",
+      "created_at": "2026-10-21T08:27:48.785+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:28:54.756+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "ecb3c901-89b8-40fd-b5b9-f7bf849857d9",
+      "status": "success",
+      "created_at": "2026-10-21T08:27:38.795+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:30:15.564+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "1e7b0330-de07-44ba-bc22-89ba0936999e",
+      "status": "success",
+      "created_at": "2026-10-21T08:26:20.881+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:28:05.402+00:00",
+      "logical_model": "gpt-image-2-c",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-c",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "2af26590-ae17-4f72-8823-df7417616365",
+      "status": "success",
+      "created_at": "2026-10-21T08:23:45+00:00",
+      "project_id": "canvas-zOuw4LeGkMgstoEODE22R",
+      "updated_at": "2026-10-21T08:24:45.6+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 2368418,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-tcyXYGUQ5h3YtOsi1dSev",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "c451e46a-c799-4744-ad95-435f0c8548b7",
+      "status": "success",
+      "created_at": "2026-10-21T08:23:20.385+00:00",
+      "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+      "updated_at": "2026-10-21T08:25:39.651+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4932143,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-3wt1mHArVmrio2qSgTzBr",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "34a85e2a-c81c-48a7-8d9e-280b858627d5",
+      "status": "success",
+      "created_at": "2026-10-21T08:23:09.417+00:00",
+      "project_id": "canvas-0Rq1x4XbOeRqvNGKc5Zyt",
+      "updated_at": "2026-10-21T08:24:55.671+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4822466,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-fc5FzRIp6AcQOltFDwFOY",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "baf9889d-8eae-43f5-b838-1a4ae53b20cd",
+      "status": "success",
+      "created_at": "2026-10-21T08:23:05.736+00:00",
+      "project_id": "canvas-1tU6waD6q8TwEsffVHJFo",
+      "updated_at": "2026-10-21T08:24:21.376+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 4928199,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-f5HWyRdkmNDw0Mby78DCd",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "37039523-a74c-4e1a-985b-5d949f43eaae",
+      "status": "success",
+      "created_at": "2026-10-21T08:23:02.713+00:00",
+      "project_id": "canvas-0Rq1x4XbOeRqvNGKc5Zyt",
+      "updated_at": "2026-10-21T08:25:14.859+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "2020c741-41ce-4a3a-b14d-1e157565bba9",
+      "status": "success",
+      "created_at": "2026-10-21T08:22:08.043+00:00",
+      "project_id": "canvas-5QmyNt1tSGz8l0lUgH34M",
+      "updated_at": "2026-10-21T08:23:24.929+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4936883,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-eO6pB9hc1A2h7KsTw7U9P",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "47b6e648-355b-47a9-8f43-dcbe64b0858c",
+      "status": "success",
+      "created_at": "2026-10-21T08:22:00.396+00:00",
+      "project_id": "canvas-23DaWpoOLn3ZarSGdtHEb",
+      "updated_at": "2026-10-21T08:23:28.341+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "9e069e5a-8cee-45e1-80d4-a635303fd639",
+      "status": "success",
+      "created_at": "2026-10-21T08:21:44.253+00:00",
+      "project_id": "canvas-zP_RBVPOrSPOKIrtXD1nz",
+      "updated_at": "2026-10-21T08:22:40.582+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "06dbe61e-37f5-425a-8353-83ec2e1d1a85",
+      "status": "success",
+      "created_at": "2026-10-21T08:20:11.654+00:00",
+      "project_id": "canvas-D7BO4j7MVG6HOOR3NX8Pa",
+      "updated_at": "2026-10-21T08:23:04.385+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 3229516,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-uDovcDgzt8gxxxeOHh4Pa",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "e8fb206f-958e-47f8-875d-499b9e8b64b5",
+      "status": "success",
+      "created_at": "2026-10-21T08:19:54.704+00:00",
+      "project_id": "canvas-zOuw4LeGkMgstoEODE22R",
+      "updated_at": "2026-10-21T08:22:50.986+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "0e32e1b3-1348-4f2e-8e81-d2a9dad8d729",
+      "status": "success",
+      "created_at": "2026-10-21T08:19:41.6+00:00",
+      "project_id": "canvas-Yk-iMcWZ-qt-LjF7D53Ar",
+      "updated_at": "2026-10-21T08:23:21.561+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 7130058,
+          "width": 2720,
+          "height": 1536,
+          "nodeId": "image-bADzTPSXkaWabNW9cY0nV",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "d5a4c073-abcd-4d1a-a5d7-d518bdf612b5",
+      "status": "success",
+      "created_at": "2026-10-21T08:19:33.147+00:00",
+      "project_id": "canvas-zOuw4LeGkMgstoEODE22R",
+      "updated_at": "2026-10-21T08:20:44.168+00:00",
+      "logical_model": "gpt-image-2",
+      "matching_nodes": [
+        {
+          "bytes": 1799487,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-pz6J8Uw6RxBeseyXZZ4U7",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2",
+      "project_present": true,
+      "task_has_result": true
+    },
+    {
+      "id": "c1713808-1b4b-4eac-b963-bf3c8b56d922",
+      "status": "success",
+      "created_at": "2026-10-21T08:18:20.992+00:00",
+      "project_id": "canvas-Y7bnV0p5fFTPcd3TSrX5a",
+      "updated_at": "2026-10-21T08:23:23.426+00:00",
+      "logical_model": "gpt-image-2-all",
+      "matching_nodes": [
+        {
+          "bytes": 4426598,
+          "width": 1824,
+          "height": 1024,
+          "nodeId": "image-jNpGVUJoYWn_SLZw8FoSQ",
+          "nodeStatus": "success",
+          "taskIdMatches": true
+        }
+      ],
+      "upstream_model": "gpt-image-2-all",
+      "project_present": true,
+      "task_has_result": true
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-22T09:26:06.306431+00:00",
+  "data": [
+    {
+      "id": "241e815d-d927-4ddb-85a9-1f0407d0c587",
+      "status": "success",
+      "node_id": "-dwCZtdCJQ8fJT7mEP1RC",
+      "has_content": false,
+      "node_status": "idle",
+      "is_batch_root": false,
+      "child_id_count": 0,
+      "linked_child_nodes": 0,
+      "project_updated_at": "2026-10-22T09:13:32.797955+00:00",
+      "member_snapshot_count": 0,
+      "task_result_url_exists": true,
+      "any_node_matches_result_url": false
+    }
+  ]
+}

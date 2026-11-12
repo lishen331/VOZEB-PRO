@@ -4,7 +4,8 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { mediaTaskSource } from "@/lib/media-management-contract";
-import { resolveAudioTaskOptions } from "@/lib/server/audio-task-config";
+import { resolveAudioModeOptions, resolveAudioTaskOptions } from "@/lib/server/audio-task-config";
+import { validateDialog } from "@/lib/server/audio-dialog-service";
 import { normalizeAudioParams, parseCustomVoiceId } from "@/lib/audio-model-params";
 import { getCustomVoice } from "@/lib/server/custom-voice-store";
 import { createAudioTask, type AudioTask, type AudioTaskConfig } from "@/lib/server/audio-task-store";
@@ -20,7 +21,7 @@ import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-r
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionContext } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
@@ -58,14 +59,15 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+    let projectContext: Awaited<ReturnType<typeof resolveProjectExecutionContext>>;
     try {
-        projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+        projectContext = await resolveProjectExecutionContext(user.id, body.context || {});
     } catch (error) {
         const known = projectExecutionProfileError(error);
         if (known) return NextResponse.json({ error: known.message }, { status: known.status });
         throw error;
     }
+    const projectProfile = projectContext?.executionProfile;
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
@@ -76,13 +78,13 @@ export async function POST(request: Request) {
             const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
             if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "audio");
             const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
-            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+            trustedContext = { ...clientContext, executionProfile, ...(projectContext?.schoolId ? { schoolId: projectContext.schoolId } : {}), ...(billingContext ? { billingContext } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
         const channels = resolvePracticeGenerationCandidates(settings, "audio", body.config?.model || settings.defaultModels.audioModel, trustedContext).map((resolved) => ({
-            ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, trustedContext),
+            ...(resolved.channel.advancedConfig?.protocol === "runninghub" ? attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, trustedContext) : toSystemGenerationChannel(resolved)),
             channelId: resolved.channelId,
             executionProfile,
         }));
@@ -99,9 +101,25 @@ export async function POST(request: Request) {
         if (!candidates.length) return NextResponse.json({ error: "自定义音色与当前模型渠道不匹配" }, { status: 400 });
         const hasHealthy = await hasHealthyRuntimeCandidate(candidates, "audio");
         if (!hasHealthy) return NextResponse.json({ error: "当前音频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
+        // 设计 / 克隆：先校验模式参数，再带上指纹决定是否复用已克隆的音色。
+        const modeOptions = resolveAudioModeOptions(body.config, { channelId: candidates[0].channelId!, model: candidates[0].model, userId: user.id });
+        if (modeOptions.mode === "clone" && (!("referenceAudioUrl" in modeOptions) || !modeOptions.referenceAudioUrl)) {
+            return NextResponse.json({ error: "克隆模式需要先连接一段参考音频" }, { status: 400 });
+        }
+        if (modeOptions.mode === "clone" && !modeOptions.cloneConsent) {
+            return NextResponse.json({ error: "克隆音色需要先确认已获得声音本人授权" }, { status: 400 });
+        }
+        if (modeOptions.mode === "design" && !modeOptions.voiceDescription) {
+            return NextResponse.json({ error: "设计模式需要填写声音描述" }, { status: 400 });
+        }
+        if (modeOptions.mode === "dialog") {
+            const dialogIssue = validateDialog(modeOptions.dialog.lines, modeOptions.dialog.roles);
+            if (dialogIssue) return NextResponse.json({ error: dialogIssue }, { status: 400 });
+        }
         const configs: AudioTaskConfig[] = candidates.map((channel) => ({
             ...channel,
             ...resolveAudioTaskOptions(body.config, settings.generationDefaults),
+            ...modeOptions,
             ...(customVoice ? { customVoiceId: customVoice.id } : {}),
             instructions: clean(body.config?.instructions, 2_000),
             params: normalizeAudioParams(channel.model, body.config?.params),
@@ -134,7 +152,7 @@ export async function POST(request: Request) {
 }
 
 function publicTask(task: AudioTask) {
-    return { id: task.id, status: task.status, model: generationModelId(task.config), result: task.result, error: task.error };
+    return { id: task.id, status: task.status, model: generationModelId(task.config), result: task.result, error: task.error, createdVoiceId: task.config.createdVoiceId };
 }
 
 function clean(value: unknown, max: number) {

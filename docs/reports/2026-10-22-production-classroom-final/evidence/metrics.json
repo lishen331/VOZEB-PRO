@@ -1,0 +1,2609 @@
+{
+  "freeze_at": "2026-10-22T10:57:09.428849+00:00",
+  "revision": 96,
+  "scopes": {
+    "all_day": {
+      "tasks": 917,
+      "success": 587,
+      "error": 330,
+      "active": 0,
+      "cancelled": 0,
+      "accounts": 31,
+      "success_timing_seconds": {
+        "n": 580,
+        "mean": 171.00785344827585,
+        "p50": 78.17,
+        "p95": 660.068,
+        "max": 1254.105
+      },
+      "error_timing_seconds": {
+        "n": 330,
+        "mean": 105.50975757575758,
+        "p50": 41.101,
+        "p95": 346.57,
+        "max": 1800.09
+      }
+    },
+    "after_0830": {
+      "tasks": 640,
+      "success": 322,
+      "error": 318,
+      "active": 0,
+      "cancelled": 0,
+      "accounts": 31,
+      "success_timing_seconds": {
+        "n": 322,
+        "mean": 296.3373944099379,
+        "p50": 230.034,
+        "p95": 789.332,
+        "max": 1254.105
+      },
+      "error_timing_seconds": {
+        "n": 318,
+        "mean": 108.06590566037735,
+        "p50": 41.238,
+        "p95": 348.274,
+        "max": 1800.09
+      }
+    },
+    "before_0830": {
+      "tasks": 277,
+      "success": 265,
+      "error": 12,
+      "active": 0,
+      "cancelled": 0,
+      "accounts": 16,
+      "success_timing_seconds": {
+        "n": 258,
+        "mean": 14.588813953488373,
+        "p50": 2.923,
+        "p95": 41.518,
+        "max": 325.555
+      },
+      "error_timing_seconds": {
+        "n": 12,
+        "mean": 37.77183333333333,
+        "p50": 4.942,
+        "p95": 81.968,
+        "max": 81.968
+      }
+    },
+    "explicit_attachment_retest": {
+      "tasks": 307,
+      "success": 295,
+      "error": 12,
+      "active": 0,
+      "cancelled": 0,
+      "accounts": 15,
+      "success_timing_seconds": {
+        "n": 288,
+        "mean": 38.68104513888889,
+        "p50": 4.206,
+        "p95": 209.586,
+        "max": 387.648
+      },
+      "error_timing_seconds": {
+        "n": 12,
+        "mean": 37.77183333333333,
+        "p50": 4.942,
+        "p95": 81.968,
+        "max": 81.968
+      }
+    },
+    "outside_attachment_retest": {
+      "tasks": 610,
+      "success": 292,
+      "error": 318,
+      "active": 0,
+      "cancelled": 0,
+      "accounts": 20,
+      "success_timing_seconds": {
+        "n": 292,
+        "mean": 301.52196575342464,
+        "p50": 247.986,
+        "p95": 816.711,
+        "max": 1254.105
+      },
+      "error_timing_seconds": {
+        "n": 318,
+        "mean": 108.06590566037735,
+        "p50": 41.238,
+        "p95": 348.274,
+        "max": 1800.09
+      }
+    },
+    "dedicated_test_accounts": {
+      "tasks": 314,
+      "success": 302,
+      "error": 12,
+      "active": 0,
+      "cancelled": 0,
+      "accounts": 15,
+      "success_timing_seconds": {
+        "n": 295,
+        "mean": 38.527013559322036,
+        "p50": 4.19,
+        "p95": 209.586,
+        "max": 387.648
+      },
+      "error_timing_seconds": {
+        "n": 12,
+        "mean": 37.77183333333333,
+        "p50": 4.942,
+        "p95": 81.968,
+        "max": 81.968
+      }
+    },
+    "other_accounts": {
+      "tasks": 603,
+      "success": 285,
+      "error": 318,
+      "active": 0,
+      "cancelled": 0,
+      "accounts": 16,
+      "success_timing_seconds": {
+        "n": 285,
+        "mean": 308.13714385964914,
+        "p50": 263.645,
+        "p95": 816.711,
+        "max": 1254.105
+      },
+      "error_timing_seconds": {
+        "n": 318,
+        "mean": 108.06590566037735,
+        "p50": 41.238,
+        "p95": 348.274,
+        "max": 1800.09
+      }
+    }
+  },
+  "by_type": {
+    "image": {
+      "tasks": 379,
+      "success": 231,
+      "error": 148,
+      "active": 0,
+      "cancelled": 0
+    },
+    "video": {
+      "tasks": 357,
+      "success": 182,
+      "error": 175,
+      "active": 0,
+      "cancelled": 0
+    },
+    "text": {
+      "tasks": 181,
+      "success": 174,
+      "error": 7,
+      "active": 0,
+      "cancelled": 0
+    }
+  },
+  "account_metrics": [
+    {
+      "alias": "ACC-06847b9778",
+      "test_alias": null,
+      "masked_account": "y***s",
+      "all_day": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 3,
+        "mean": 352.422,
+        "p50": 355.129,
+        "p95": 426.532,
+        "max": 426.532
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "alias": "ACC-0e84bfdcb6",
+      "test_alias": "U03",
+      "masked_account": "cl***0_03",
+      "all_day": {
+        "tasks": 22,
+        "success": 21,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 20,
+        "mean": 46.50575,
+        "p50": 3.058,
+        "p95": 305.126,
+        "max": 325.562
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 80.796,
+        "p50": 80.796,
+        "p95": 80.796,
+        "max": 80.796
+      }
+    },
+    {
+      "alias": "ACC-10ff57beb5",
+      "test_alias": null,
+      "masked_account": "25***0027",
+      "all_day": {
+        "tasks": 18,
+        "success": 13,
+        "error": 5,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 18,
+        "success": 13,
+        "error": 5,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 13,
+        "mean": 314.45923076923077,
+        "p50": 331.955,
+        "p95": 429.151,
+        "max": 429.151
+      },
+      "error_timing_seconds": {
+        "n": 5,
+        "mean": 23.668,
+        "p50": 1.893,
+        "p95": 63.037,
+        "max": 63.037
+      }
+    },
+    {
+      "alias": "ACC-13a0fb3771",
+      "test_alias": null,
+      "masked_account": "25***0042",
+      "all_day": {
+        "tasks": 27,
+        "success": 10,
+        "error": 17,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 27,
+        "success": 10,
+        "error": 17,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 10,
+        "mean": 340.9894,
+        "p50": 331.86,
+        "p95": 555.166,
+        "max": 555.166
+      },
+      "error_timing_seconds": {
+        "n": 17,
+        "mean": 16.065470588235293,
+        "p50": 20.553,
+        "p95": 41.238,
+        "max": 41.238
+      }
+    },
+    {
+      "alias": "ACC-153bdff5e0",
+      "test_alias": "U15",
+      "masked_account": "cl***0_15",
+      "all_day": {
+        "tasks": 18,
+        "success": 16,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 2,
+        "success": 2,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 15,
+        "mean": 28.228466666666666,
+        "p50": 3.671,
+        "p95": 156.277,
+        "max": 156.277
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 41.6405,
+        "p50": 1.313,
+        "p95": 81.968,
+        "max": 81.968
+      }
+    },
+    {
+      "alias": "ACC-15a1bb3f35",
+      "test_alias": "U05",
+      "masked_account": "cl***0_05",
+      "all_day": {
+        "tasks": 22,
+        "success": 22,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 21,
+        "mean": 39.83419047619048,
+        "p50": 5.829,
+        "p95": 224.764,
+        "max": 253.071
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "alias": "ACC-1cbfe16eb3",
+      "test_alias": "U06",
+      "masked_account": "cl***0_06",
+      "all_day": {
+        "tasks": 22,
+        "success": 22,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 21,
+        "mean": 41.64495238095238,
+        "p50": 4.982,
+        "p95": 224.812,
+        "max": 289.546
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "alias": "ACC-1e970cbf72",
+      "test_alias": "U09",
+      "masked_account": "cl***0_09",
+      "all_day": {
+        "tasks": 22,
+        "success": 20,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 20,
+        "mean": 53.50375,
+        "p50": 3.919,
+        "p95": 320.247,
+        "max": 380.616
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 22.860500000000002,
+        "p50": 4.942,
+        "p95": 40.779,
+        "max": 40.779
+      }
+    },
+    {
+      "alias": "ACC-3cb807d27d",
+      "test_alias": null,
+      "masked_account": "25***0168",
+      "all_day": {
+        "tasks": 16,
+        "success": 13,
+        "error": 3,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 16,
+        "success": 13,
+        "error": 3,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 13,
+        "mean": 273.13723076923077,
+        "p50": 307.414,
+        "p95": 509.659,
+        "max": 509.659
+      },
+      "error_timing_seconds": {
+        "n": 3,
+        "mean": 12.177000000000001,
+        "p50": 0.125,
+        "p95": 36.31,
+        "max": 36.31
+      }
+    },
+    {
+      "alias": "ACC-3e25979637",
+      "test_alias": null,
+      "masked_account": "25***0173",
+      "all_day": {
+        "tasks": 27,
+        "success": 23,
+        "error": 4,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 27,
+        "success": 23,
+        "error": 4,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 23,
+        "mean": 286.633,
+        "p50": 327.334,
+        "p95": 461.944,
+        "max": 555.623
+      },
+      "error_timing_seconds": {
+        "n": 4,
+        "mean": 27.571,
+        "p50": 26.349,
+        "p95": 42.364,
+        "max": 42.364
+      }
+    },
+    {
+      "alias": "ACC-4641ae0ef4",
+      "test_alias": "U11",
+      "masked_account": "cl***0_11",
+      "all_day": {
+        "tasks": 18,
+        "success": 17,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 2,
+        "success": 2,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 25.881823529411765,
+        "p50": 3.721,
+        "p95": 158.062,
+        "max": 158.062
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 1.63,
+        "p50": 1.63,
+        "p95": 1.63,
+        "max": 1.63
+      }
+    },
+    {
+      "alias": "ACC-4f36809ffd",
+      "test_alias": "U07",
+      "masked_account": "cl***0_07",
+      "all_day": {
+        "tasks": 22,
+        "success": 22,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 21,
+        "mean": 42.551809523809524,
+        "p50": 6.209,
+        "p95": 181.533,
+        "max": 387.648
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "alias": "ACC-53691bfdec",
+      "test_alias": null,
+      "masked_account": "25***0047",
+      "all_day": {
+        "tasks": 76,
+        "success": 30,
+        "error": 46,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 76,
+        "success": 30,
+        "error": 46,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 30,
+        "mean": 206.66993333333335,
+        "p50": 119.275,
+        "p95": 1054.785,
+        "max": 1058.979
+      },
+      "error_timing_seconds": {
+        "n": 46,
+        "mean": 109.74869565217391,
+        "p50": 80.182,
+        "p95": 304.801,
+        "max": 352.369
+      }
+    },
+    {
+      "alias": "ACC-54877f92c5",
+      "test_alias": null,
+      "masked_account": "25***0032",
+      "all_day": {
+        "tasks": 103,
+        "success": 7,
+        "error": 96,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 103,
+        "success": 7,
+        "error": 96,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 7,
+        "mean": 372.21,
+        "p50": 332.537,
+        "p95": 588.09,
+        "max": 588.09
+      },
+      "error_timing_seconds": {
+        "n": 96,
+        "mean": 75.01214583333334,
+        "p50": 26.147,
+        "p95": 550.961,
+        "max": 1800.03
+      }
+    },
+    {
+      "alias": "ACC-6822c546ae",
+      "test_alias": null,
+      "masked_account": "25***0165",
+      "all_day": {
+        "tasks": 47,
+        "success": 28,
+        "error": 19,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 47,
+        "success": 28,
+        "error": 19,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 28,
+        "mean": 319.58375,
+        "p50": 211.529,
+        "p95": 792.888,
+        "max": 979.267
+      },
+      "error_timing_seconds": {
+        "n": 19,
+        "mean": 157.26294736842107,
+        "p50": 136.745,
+        "p95": 366.523,
+        "max": 366.523
+      }
+    },
+    {
+      "alias": "ACC-6d3d221c13",
+      "test_alias": "U04",
+      "masked_account": "cl***0_04",
+      "all_day": {
+        "tasks": 23,
+        "success": 21,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 20,
+        "mean": 38.261900000000004,
+        "p50": 3.581,
+        "p95": 209.586,
+        "max": 249.683
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 2.5999999999999996,
+        "p50": 2.598,
+        "p95": 2.602,
+        "max": 2.602
+      }
+    },
+    {
+      "alias": "ACC-8729ae81f7",
+      "test_alias": "U14",
+      "masked_account": "cl***0_14",
+      "all_day": {
+        "tasks": 18,
+        "success": 17,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 2,
+        "success": 2,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 31.375823529411765,
+        "p50": 5.802,
+        "p95": 155.638,
+        "max": 155.638
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 1.445,
+        "p50": 1.445,
+        "p95": 1.445,
+        "max": 1.445
+      }
+    },
+    {
+      "alias": "ACC-929c993d05",
+      "test_alias": null,
+      "masked_account": "25***0192",
+      "all_day": {
+        "tasks": 29,
+        "success": 12,
+        "error": 17,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 29,
+        "success": 12,
+        "error": 17,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 12,
+        "mean": 536.0929166666667,
+        "p50": 377.394,
+        "p95": 994.794,
+        "max": 994.794
+      },
+      "error_timing_seconds": {
+        "n": 17,
+        "mean": 140.81323529411765,
+        "p50": 40.902,
+        "p95": 539.822,
+        "max": 539.822
+      }
+    },
+    {
+      "alias": "ACC-9420cfcf0a",
+      "test_alias": null,
+      "masked_account": "25***0059",
+      "all_day": {
+        "tasks": 50,
+        "success": 39,
+        "error": 11,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 50,
+        "success": 39,
+        "error": 11,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 39,
+        "mean": 455.25602564102564,
+        "p50": 439.179,
+        "p95": 943.942,
+        "max": 1062.053
+      },
+      "error_timing_seconds": {
+        "n": 11,
+        "mean": 149.81636363636363,
+        "p50": 152.353,
+        "p95": 327.354,
+        "max": 327.354
+      }
+    },
+    {
+      "alias": "ACC-992c434add",
+      "test_alias": "U08",
+      "masked_account": "cl***0_08",
+      "all_day": {
+        "tasks": 21,
+        "success": 21,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 20,
+        "mean": 31.9798,
+        "p50": 4.43,
+        "p95": 182.942,
+        "max": 187.951
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "alias": "ACC-9f8748c5d7",
+      "test_alias": "U10",
+      "masked_account": "cl***0_10",
+      "all_day": {
+        "tasks": 20,
+        "success": 20,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 20,
+        "mean": 30.66285,
+        "p50": 2.923,
+        "p95": 156.826,
+        "max": 202.118
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "alias": "ACC-abde476c11",
+      "test_alias": null,
+      "masked_account": "25***0007",
+      "all_day": {
+        "tasks": 39,
+        "success": 20,
+        "error": 19,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 39,
+        "success": 20,
+        "error": 19,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 20,
+        "mean": 418.2512,
+        "p50": 178.054,
+        "p95": 1126.499,
+        "max": 1254.105
+      },
+      "error_timing_seconds": {
+        "n": 19,
+        "mean": 38.04842105263158,
+        "p50": 17.122,
+        "p95": 183.296,
+        "max": 183.296
+      }
+    },
+    {
+      "alias": "ACC-b5f4702d19",
+      "test_alias": "U12",
+      "masked_account": "cl***0_12",
+      "all_day": {
+        "tasks": 18,
+        "success": 18,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 2,
+        "success": 2,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 18,
+        "mean": 24.654944444444443,
+        "p50": 2.583,
+        "p95": 156.934,
+        "max": 156.934
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "alias": "ACC-b73dc7e7f0",
+      "test_alias": null,
+      "masked_account": "25***0014",
+      "all_day": {
+        "tasks": 80,
+        "success": 38,
+        "error": 42,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 80,
+        "success": 38,
+        "error": 42,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 38,
+        "mean": 214.54973684210526,
+        "p50": 137.654,
+        "p95": 781.757,
+        "max": 816.711
+      },
+      "error_timing_seconds": {
+        "n": 42,
+        "mean": 119.3344761904762,
+        "p50": 37.811,
+        "p95": 329.575,
+        "max": 348.274
+      }
+    },
+    {
+      "alias": "ACC-c450b6582e",
+      "test_alias": null,
+      "masked_account": "25***0029",
+      "all_day": {
+        "tasks": 5,
+        "success": 3,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 5,
+        "success": 3,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 3,
+        "mean": 159.62266666666667,
+        "p50": 143.072,
+        "p95": 192.747,
+        "max": 192.747
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 357.76599999999996,
+        "p50": 314.791,
+        "p95": 400.741,
+        "max": 400.741
+      }
+    },
+    {
+      "alias": "ACC-d5606c4f7f",
+      "test_alias": null,
+      "masked_account": "25***0153",
+      "all_day": {
+        "tasks": 50,
+        "success": 23,
+        "error": 27,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 50,
+        "success": 23,
+        "error": 27,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 23,
+        "mean": 220.1312608695652,
+        "p50": 214.396,
+        "p95": 366.914,
+        "max": 441.34
+      },
+      "error_timing_seconds": {
+        "n": 27,
+        "mean": 143.29733333333334,
+        "p50": 141.269,
+        "p95": 315.358,
+        "max": 319.418
+      }
+    },
+    {
+      "alias": "ACC-dbb55557f9",
+      "test_alias": "U13",
+      "masked_account": "cl***0_13",
+      "all_day": {
+        "tasks": 18,
+        "success": 17,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 2,
+        "success": 2,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 31.031529411764705,
+        "p50": 2.461,
+        "p95": 183.902,
+        "max": 183.902
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 73.178,
+        "p50": 73.178,
+        "p95": 73.178,
+        "max": 73.178
+      }
+    },
+    {
+      "alias": "ACC-e344f0e0fe",
+      "test_alias": null,
+      "masked_account": "25***0003",
+      "all_day": {
+        "tasks": 26,
+        "success": 18,
+        "error": 8,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 26,
+        "success": 18,
+        "error": 8,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 18,
+        "mean": 219.51188888888888,
+        "p50": 179.6,
+        "p95": 442.431,
+        "max": 442.431
+      },
+      "error_timing_seconds": {
+        "n": 8,
+        "mean": 295.269625,
+        "p50": 268.232,
+        "p95": 624.965,
+        "max": 624.965
+      }
+    },
+    {
+      "alias": "ACC-ee0ee16ac7",
+      "test_alias": "U01",
+      "masked_account": "cl***0_01",
+      "all_day": {
+        "tasks": 22,
+        "success": 21,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 2,
+        "success": 2,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 21,
+        "mean": 41.03771428571429,
+        "p50": 5.532,
+        "p95": 153.844,
+        "max": 300.394
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 80.789,
+        "p50": 80.789,
+        "p95": 80.789,
+        "max": 80.789
+      }
+    },
+    {
+      "alias": "ACC-eef057078f",
+      "test_alias": null,
+      "masked_account": "a***n",
+      "all_day": {
+        "tasks": 7,
+        "success": 5,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 5,
+        "success": 3,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 5,
+        "mean": 233.517,
+        "p50": 182.781,
+        "p95": 544.754,
+        "max": 544.754
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 932.799,
+        "p50": 65.508,
+        "p95": 1800.09,
+        "max": 1800.09
+      }
+    },
+    {
+      "alias": "ACC-f778b2788d",
+      "test_alias": "U02",
+      "masked_account": "cl***0_02",
+      "all_day": {
+        "tasks": 28,
+        "success": 27,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 3,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 27,
+        "mean": 56.022740740740744,
+        "p50": 4.206,
+        "p95": 325.452,
+        "max": 325.555
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 81.222,
+        "p50": 81.222,
+        "p95": 81.222,
+        "max": 81.222
+      }
+    }
+  ],
+  "model_metrics": [
+    {
+      "type": "image",
+      "model": "gpt-image-2",
+      "all_day": {
+        "tasks": 89,
+        "success": 58,
+        "error": 31,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 76,
+        "success": 45,
+        "error": 31,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 58,
+        "mean": 85.72472413793103,
+        "p50": 73.397,
+        "p95": 161.983,
+        "max": 688.936
+      },
+      "error_timing_seconds": {
+        "n": 31,
+        "mean": 95.83193548387096,
+        "p50": 89.851,
+        "p95": 170.044,
+        "max": 252.573
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-5-flare",
+      "all_day": {
+        "tasks": 24,
+        "success": 13,
+        "error": 11,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 11,
+        "success": 0,
+        "error": 11,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 13,
+        "mean": 16.196076923076923,
+        "p50": 16.599,
+        "p95": 19.495,
+        "max": 19.495
+      },
+      "error_timing_seconds": {
+        "n": 11,
+        "mean": 20.08418181818182,
+        "p50": 10.995,
+        "p95": 96.455,
+        "max": 96.455
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-5-sunburst",
+      "all_day": {
+        "tasks": 30,
+        "success": 13,
+        "error": 17,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 17,
+        "success": 0,
+        "error": 17,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 13,
+        "mean": 16.013538461538463,
+        "p50": 15.502,
+        "p95": 19.166,
+        "max": 19.166
+      },
+      "error_timing_seconds": {
+        "n": 17,
+        "mean": 24.647176470588235,
+        "p50": 27.135,
+        "p95": 40.691,
+        "max": 40.691
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-all",
+      "all_day": {
+        "tasks": 62,
+        "success": 31,
+        "error": 31,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 47,
+        "success": 16,
+        "error": 31,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 31,
+        "mean": 108.1233870967742,
+        "p50": 70.009,
+        "p95": 271.78,
+        "max": 295.812
+      },
+      "error_timing_seconds": {
+        "n": 31,
+        "mean": 272.1771612903226,
+        "p50": 301.32,
+        "p95": 404.563,
+        "max": 539.822
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-c",
+      "all_day": {
+        "tasks": 123,
+        "success": 75,
+        "error": 48,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 110,
+        "success": 62,
+        "error": 48,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 75,
+        "mean": 142.66734666666667,
+        "p50": 142.28,
+        "p95": 275.921,
+        "max": 442.431
+      },
+      "error_timing_seconds": {
+        "n": 48,
+        "mean": 225.72935416666667,
+        "p50": 208.092,
+        "p95": 390.057,
+        "max": 624.965
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-image-to-image",
+      "all_day": {
+        "tasks": 2,
+        "success": 0,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 2,
+        "success": 0,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 3.1705,
+        "p50": 2.564,
+        "p95": 3.777,
+        "max": 3.777
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2-text-to-image",
+      "all_day": {
+        "tasks": 16,
+        "success": 14,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 3,
+        "success": 1,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 7,
+        "mean": 104.81442857142856,
+        "p50": 97.411,
+        "p95": 129.332,
+        "max": 129.332
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 0.679,
+        "p50": 0.282,
+        "p95": 1.076,
+        "max": 1.076
+      }
+    },
+    {
+      "type": "image",
+      "model": "gpt-image-2.5-sunburst",
+      "all_day": {
+        "tasks": 33,
+        "success": 27,
+        "error": 6,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 20,
+        "success": 19,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 27,
+        "mean": 77.59696296296296,
+        "p50": 41.736,
+        "p95": 341.959,
+        "max": 342.537
+      },
+      "error_timing_seconds": {
+        "n": 6,
+        "mean": 77.26983333333334,
+        "p50": 80.789,
+        "p95": 81.968,
+        "max": 81.968
+      }
+    },
+    {
+      "type": "text",
+      "model": "codex-auto-review",
+      "all_day": {
+        "tasks": 1,
+        "success": 0,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 1.445,
+        "p50": 1.445,
+        "p95": 1.445,
+        "max": 1.445
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 6.313823529411764,
+        "p50": 5.612,
+        "p95": 13.134,
+        "max": 13.134
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5-mini",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 3.7501764705882352,
+        "p50": 3.781,
+        "p95": 4.654,
+        "max": 4.654
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5-pro",
+      "all_day": {
+        "tasks": 2,
+        "success": 0,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 2.5999999999999996,
+        "p50": 2.598,
+        "p95": 2.602,
+        "max": 2.602
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.1",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 1.2297647058823529,
+        "p50": 1.153,
+        "p95": 2.003,
+        "max": 2.003
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.2",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 1.6423529411764706,
+        "p50": 1.634,
+        "p95": 2.084,
+        "max": 2.084
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.4",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 1.9245294117647058,
+        "p50": 1.507,
+        "p95": 6.209,
+        "max": 6.209
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.4-mini",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 1.3858823529411766,
+        "p50": 1.274,
+        "p95": 2.139,
+        "max": 2.139
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.4-pro",
+      "all_day": {
+        "tasks": 2,
+        "success": 0,
+        "error": 2,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "error_timing_seconds": {
+        "n": 2,
+        "mean": 22.860500000000002,
+        "p50": 4.942,
+        "p95": 40.779,
+        "max": 40.779
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.5",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 3.2128823529411763,
+        "p50": 2.78,
+        "p95": 10.353,
+        "max": 10.353
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.5-pro",
+      "all_day": {
+        "tasks": 1,
+        "success": 0,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 1.63,
+        "p50": 1.63,
+        "p95": 1.63,
+        "max": 1.63
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.6-luna",
+      "all_day": {
+        "tasks": 21,
+        "success": 21,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 21,
+        "mean": 2.2469047619047617,
+        "p50": 2.054,
+        "p95": 2.455,
+        "max": 8.026
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.6-sol",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 2.799529411764706,
+        "p50": 1.759,
+        "p95": 15.992,
+        "max": 15.992
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-5.6-terra",
+      "all_day": {
+        "tasks": 17,
+        "success": 17,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 17,
+        "mean": 1.8153529411764706,
+        "p50": 1.537,
+        "p95": 5.689,
+        "max": 5.689
+      },
+      "error_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    {
+      "type": "text",
+      "model": "gpt-6-astra",
+      "all_day": {
+        "tasks": 1,
+        "success": 0,
+        "error": 1,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 0,
+        "success": 0,
+        "error": 0,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "error_timing_seconds": {
+        "n": 1,
+        "mean": 1.313,
+        "p50": 1.313,
+        "p95": 1.313,
+        "max": 1.313
+      }
+    },
+    {
+      "type": "video",
+      "model": "cdance2.0-0807",
+      "all_day": {
+        "tasks": 42,
+        "success": 16,
+        "error": 26,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 42,
+        "success": 16,
+        "error": 26,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 16,
+        "mean": 302.5229375,
+        "p50": 305.78,
+        "p95": 509.659,
+        "max": 509.659
+      },
+      "error_timing_seconds": {
+        "n": 26,
+        "mean": 62.228500000000004,
+        "p50": 8.334,
+        "p95": 550.961,
+        "max": 611.311
+      }
+    },
+    {
+      "type": "video",
+      "model": "cdance2.0-fast-0807",
+      "all_day": {
+        "tasks": 14,
+        "success": 5,
+        "error": 9,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 14,
+        "success": 5,
+        "error": 9,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 5,
+        "mean": 122.0496,
+        "p50": 106.662,
+        "p95": 204.329,
+        "max": 204.329
+      },
+      "error_timing_seconds": {
+        "n": 9,
+        "mean": 75.61477777777777,
+        "p50": 9.287,
+        "p95": 605.88,
+        "max": 605.88
+      }
+    },
+    {
+      "type": "video",
+      "model": "cdance2.0-mini-0807",
+      "all_day": {
+        "tasks": 6,
+        "success": 0,
+        "error": 6,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 6,
+        "success": 0,
+        "error": 6,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "error_timing_seconds": {
+        "n": 6,
+        "mean": 120.71483333333333,
+        "p50": 12.8,
+        "p95": 615.983,
+        "max": 615.983
+      }
+    },
+    {
+      "type": "video",
+      "model": "doubao-seedance-2-0",
+      "all_day": {
+        "tasks": 166,
+        "success": 111,
+        "error": 55,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 164,
+        "success": 109,
+        "error": 55,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 111,
+        "mean": 508.47432432432436,
+        "p50": 417.15,
+        "p95": 994.794,
+        "max": 1254.105
+      },
+      "error_timing_seconds": {
+        "n": 55,
+        "mean": 30.964454545454544,
+        "p50": 26.147,
+        "p95": 70.246,
+        "max": 277.474
+      }
+    },
+    {
+      "type": "video",
+      "model": "doubao-seedance-2-0-260128",
+      "all_day": {
+        "tasks": 31,
+        "success": 10,
+        "error": 21,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 30,
+        "success": 9,
+        "error": 21,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 10,
+        "mean": 241.4648,
+        "p50": 202.118,
+        "p95": 371.468,
+        "max": 371.468
+      },
+      "error_timing_seconds": {
+        "n": 21,
+        "mean": 39.587380952380954,
+        "p50": 29.266,
+        "p95": 75.68,
+        "max": 120.161
+      }
+    },
+    {
+      "type": "video",
+      "model": "doubao-seedance-2-5-260628",
+      "all_day": {
+        "tasks": 18,
+        "success": 6,
+        "error": 12,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 18,
+        "success": 6,
+        "error": 12,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 6,
+        "mean": 149.2235,
+        "p50": 139.024,
+        "p95": 183.902,
+        "max": 183.902
+      },
+      "error_timing_seconds": {
+        "n": 12,
+        "mean": 237.9505,
+        "p50": 98.019,
+        "p95": 1800.09,
+        "max": 1800.09
+      }
+    },
+    {
+      "type": "video",
+      "model": "official/seedance-2",
+      "all_day": {
+        "tasks": 59,
+        "success": 25,
+        "error": 34,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 59,
+        "success": 25,
+        "error": 34,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 25,
+        "mean": 354.73264,
+        "p50": 341.145,
+        "p95": 603.968,
+        "max": 627.025
+      },
+      "error_timing_seconds": {
+        "n": 34,
+        "mean": 78.03699999999999,
+        "p50": 4.677,
+        "p95": 183.296,
+        "max": 1800.03
+      }
+    },
+    {
+      "type": "video",
+      "model": "official/seedance-2-5",
+      "all_day": {
+        "tasks": 21,
+        "success": 9,
+        "error": 12,
+        "active": 0,
+        "cancelled": 0
+      },
+      "classroom": {
+        "tasks": 21,
+        "success": 9,
+        "error": 12,
+        "active": 0,
+        "cancelled": 0
+      },
+      "success_timing_seconds": {
+        "n": 9,
+        "mean": 265.23144444444443,
+        "p50": 156.826,
+        "p95": 588.09,
+        "max": 588.09
+      },
+      "error_timing_seconds": {
+        "n": 12,
+        "mean": 28.54725,
+        "p50": 5.389,
+        "p95": 68.051,
+        "max": 68.051
+      }
+    }
+  ],
+  "channel_attempt_metrics": [
+    {
+      "type": "image",
+      "channel": "modelbay API 渠道",
+      "actual_model": "gpt-image-2",
+      "attempts": 2,
+      "success": 0,
+      "failed": 2,
+      "after_0830_attempts": 2,
+      "model_evidence_fallback": 2,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "image",
+      "channel": "modelbay API 渠道",
+      "actual_model": "gpt-image-2-5-flare",
+      "attempts": 42,
+      "success": 16,
+      "failed": 26,
+      "after_0830_attempts": 27,
+      "model_evidence_fallback": 0,
+      "success_attempt_mean_seconds": 17.3284375,
+      "success_attempt_p95_seconds": 25.749
+    },
+    {
+      "type": "image",
+      "channel": "modelbay API 渠道",
+      "actual_model": "gpt-image-2-5-sunburst",
+      "attempts": 42,
+      "success": 15,
+      "failed": 27,
+      "after_0830_attempts": 27,
+      "model_evidence_fallback": 0,
+      "success_attempt_mean_seconds": 15.9472,
+      "success_attempt_p95_seconds": 19.097
+    },
+    {
+      "type": "image",
+      "channel": "modelbay API 渠道",
+      "actual_model": "gpt-image-2-all",
+      "attempts": 1,
+      "success": 0,
+      "failed": 1,
+      "after_0830_attempts": 1,
+      "model_evidence_fallback": 1,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "image",
+      "channel": "modelbay API 渠道",
+      "actual_model": "gpt-image-2-image-to-image",
+      "attempts": 8,
+      "success": 0,
+      "failed": 8,
+      "after_0830_attempts": 5,
+      "model_evidence_fallback": 2,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "image",
+      "channel": "modelbay API 渠道",
+      "actual_model": "gpt-image-2-text-to-image",
+      "attempts": 21,
+      "success": 14,
+      "failed": 7,
+      "after_0830_attempts": 6,
+      "model_evidence_fallback": 15,
+      "success_attempt_mean_seconds": 99.95428571428572,
+      "success_attempt_p95_seconds": 131.361
+    },
+    {
+      "type": "image",
+      "channel": "兔子 API 渠道",
+      "actual_model": "gpt-image-2",
+      "attempts": 106,
+      "success": 57,
+      "failed": 49,
+      "after_0830_attempts": 93,
+      "model_evidence_fallback": 1,
+      "success_attempt_mean_seconds": 72.90815789473685,
+      "success_attempt_p95_seconds": 155.981
+    },
+    {
+      "type": "image",
+      "channel": "兔子 API 渠道",
+      "actual_model": "gpt-image-2.5-sunburst",
+      "attempts": 54,
+      "success": 19,
+      "failed": 35,
+      "after_0830_attempts": 41,
+      "model_evidence_fallback": 11,
+      "success_attempt_mean_seconds": 103.30057894736842,
+      "success_attempt_p95_seconds": 346.784
+    },
+    {
+      "type": "image",
+      "channel": "模汇X中漫 API 渠道",
+      "actual_model": "gpt-image-2-all",
+      "attempts": 91,
+      "success": 37,
+      "failed": 54,
+      "after_0830_attempts": 74,
+      "model_evidence_fallback": 0,
+      "success_attempt_mean_seconds": 102.05256756756756,
+      "success_attempt_p95_seconds": 271.757
+    },
+    {
+      "type": "image",
+      "channel": "模汇X中漫 API 渠道",
+      "actual_model": "gpt-image-2-c",
+      "attempts": 135,
+      "success": 73,
+      "failed": 62,
+      "after_0830_attempts": 120,
+      "model_evidence_fallback": 3,
+      "success_attempt_mean_seconds": 125.72575342465754,
+      "success_attempt_p95_seconds": 245.586
+    },
+    {
+      "type": "text",
+      "channel": "昱梦渠道 gpt",
+      "actual_model": "codex-auto-review",
+      "attempts": 1,
+      "success": 0,
+      "failed": 1,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 1,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "text",
+      "channel": "昱梦渠道 gpt",
+      "actual_model": "gpt-6-astra",
+      "attempts": 1,
+      "success": 0,
+      "failed": 1,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 1,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 6.277470588235294,
+      "success_attempt_p95_seconds": 13.091
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5-mini",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 3.721058823529412,
+      "success_attempt_p95_seconds": 4.614
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5-pro",
+      "attempts": 2,
+      "success": 0,
+      "failed": 2,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 2,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.1",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 1.1971176470588236,
+      "success_attempt_p95_seconds": 1.966
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.2",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 1.6118823529411765,
+      "success_attempt_p95_seconds": 2.039
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.4",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 1.894235294117647,
+      "success_attempt_p95_seconds": 6.178
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.4-mini",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 1.3202352941176472,
+      "success_attempt_p95_seconds": 2.112
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.4-pro",
+      "attempts": 2,
+      "success": 0,
+      "failed": 2,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 2,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.5",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 3.179235294117647,
+      "success_attempt_p95_seconds": 10.321
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.5-pro",
+      "attempts": 1,
+      "success": 0,
+      "failed": 1,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 1,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.6-luna",
+      "attempts": 21,
+      "success": 21,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 21,
+      "success_attempt_mean_seconds": 2.218904761904762,
+      "success_attempt_p95_seconds": 2.422
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.6-sol",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 2.7703529411764705,
+      "success_attempt_p95_seconds": 15.964
+    },
+    {
+      "type": "text",
+      "channel": "模汇x中漫 API gpt文本",
+      "actual_model": "gpt-5.6-terra",
+      "attempts": 17,
+      "success": 17,
+      "failed": 0,
+      "after_0830_attempts": 0,
+      "model_evidence_fallback": 17,
+      "success_attempt_mean_seconds": 1.7831176470588235,
+      "success_attempt_p95_seconds": 5.666
+    },
+    {
+      "type": "video",
+      "channel": "modelbay API 渠道",
+      "actual_model": "official/seedance-2",
+      "attempts": 59,
+      "success": 25,
+      "failed": 34,
+      "after_0830_attempts": 59,
+      "model_evidence_fallback": 50,
+      "success_attempt_mean_seconds": 353.62384,
+      "success_attempt_p95_seconds": 598.889
+    },
+    {
+      "type": "video",
+      "channel": "modelbay API 渠道",
+      "actual_model": "official/seedance-2-5",
+      "attempts": 21,
+      "success": 9,
+      "failed": 12,
+      "after_0830_attempts": 21,
+      "model_evidence_fallback": 20,
+      "success_attempt_mean_seconds": 264.29833333333335,
+      "success_attempt_p95_seconds": 587.399
+    },
+    {
+      "type": "video",
+      "channel": "兔子 API 渠道",
+      "actual_model": "doubao-seedance-2-0-260128",
+      "attempts": 31,
+      "success": 10,
+      "failed": 21,
+      "after_0830_attempts": 30,
+      "model_evidence_fallback": 9,
+      "success_attempt_mean_seconds": 238.1625,
+      "success_attempt_p95_seconds": 366.698
+    },
+    {
+      "type": "video",
+      "channel": "兔子 API 渠道",
+      "actual_model": "doubao-seedance-2-5-260628",
+      "attempts": 18,
+      "success": 6,
+      "failed": 12,
+      "after_0830_attempts": 18,
+      "model_evidence_fallback": 7,
+      "success_attempt_mean_seconds": 145.85750000000002,
+      "success_attempt_p95_seconds": 183.452
+    },
+    {
+      "type": "video",
+      "channel": "天翼云星辰 TokenHub 视频渠道",
+      "actual_model": "cdance2.0-0807",
+      "attempts": 42,
+      "success": 16,
+      "failed": 26,
+      "after_0830_attempts": 42,
+      "model_evidence_fallback": 19,
+      "success_attempt_mean_seconds": 301.8844375,
+      "success_attempt_p95_seconds": 509.061
+    },
+    {
+      "type": "video",
+      "channel": "天翼云星辰 TokenHub 视频渠道",
+      "actual_model": "cdance2.0-fast-0807",
+      "attempts": 14,
+      "success": 5,
+      "failed": 9,
+      "after_0830_attempts": 14,
+      "model_evidence_fallback": 5,
+      "success_attempt_mean_seconds": 121.2068,
+      "success_attempt_p95_seconds": 202.201
+    },
+    {
+      "type": "video",
+      "channel": "天翼云星辰 TokenHub 视频渠道",
+      "actual_model": "cdance2.0-mini-0807",
+      "attempts": 6,
+      "success": 0,
+      "failed": 6,
+      "after_0830_attempts": 6,
+      "model_evidence_fallback": 1,
+      "success_attempt_mean_seconds": null,
+      "success_attempt_p95_seconds": null
+    },
+    {
+      "type": "video",
+      "channel": "模汇X中漫 API 渠道",
+      "actual_model": "doubao-seedance-2-0",
+      "attempts": 166,
+      "success": 111,
+      "failed": 55,
+      "after_0830_attempts": 164,
+      "model_evidence_fallback": 109,
+      "success_attempt_mean_seconds": 507.1206846846847,
+      "success_attempt_p95_seconds": 992.955
+    }
+  ],
+  "log_missing_tasks": [
+    "a86eadcf-0ceb-4de7-a631-5b4437fc58b5",
+    "f55ffc3f-a388-472e-9abb-aea586f93f68",
+    "dc9c0f4c-7a20-4cc6-8d0d-377c6143824c",
+    "34caa535-5aa3-48d4-96da-17892d88d4e6",
+    "2e9684d2-90aa-4b01-9ec3-2ade42c010e5",
+    "c9e65990-d3db-4036-b298-8be7dcfbbb4f",
+    "c20d8535-a139-459f-be79-eb1b44e7754d"
+  ]
+}

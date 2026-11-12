@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-10-22T10:40:12.697184+00:00",
+  "sampleAt": "2026-10-22T10:39:58.723459+00:00",
+  "samplerAlive": true,
+  "readOnly": true,
+  "active": 0,
+  "latestCreatedAtInRecentTasks": "2026-10-22T09:42:28.561+00:00",
+  "latestTerminalAtInRecentTasks": "2026-10-22T09:53:28.622+00:00",
+  "appReady": true,
+  "workerHealthy": true,
+  "remainingEvidenceGap": "RangeError production stack and mini/R2V effective resolution were not retained; further diagnosis needs new runtime evidence or approval for minimal diagnostic deployment",
+  "noProductionChange": true,
+  "backgroundSamplingMustRemainActive": true
+}

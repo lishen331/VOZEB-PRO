@@ -16,7 +16,7 @@ import { retryCanvasAgentNode } from "../components/canvas-agent-node-retry";
 import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext } from "../components/canvas-node-generation";
 import { type CanvasNodeGenerationMode } from "../components/canvas-node-prompt-panel";
 import { CANVAS_AGENT_ENABLED, NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
-import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type CanvasNodeData } from "../types";
+import { CanvasNodeType, isCanvasImageNodeType, type CanvasAssistantImage, type CanvasNodeData, type CanvasNodeMetadata } from "../types";
 import { applyCameraPrompt } from "../utils/canvas-camera";
 import { canvasContainerChildIds, canvasContainerGeneratableIds, canvasNodeGenerationMode } from "../utils/canvas-container-group";
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
@@ -26,6 +26,8 @@ import { canvasUnsupportedReferenceIssues } from "../utils/canvas-model-capabili
 
 import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
 import { canvasGenerationPendingOptions, failCanvasGeneration, isCanvasGenerationRetryable, markCanvasGenerationPending, toCanvasGenerationUserMessage } from "./canvas-generation-feedback";
+import { audioModeBlockingReason, buildAudioModeRequest, resolveAudioMode, withAudioDuration } from "@/lib/audio-node-mode";
+import { audioModelFamily } from "@/lib/audio-model-params";
 import { hasCanvasGenerationTask } from "./canvas-generation-review";
 import {
     buildAudioGenerationMetadata,
@@ -45,8 +47,9 @@ import {
 import type { CanvasInteractions } from "./use-canvas-interactions";
 import type { CanvasPageState } from "./use-canvas-page-state";
 import type { CanvasTaskRuntime } from "./use-canvas-task-runtime";
+import type { PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 
-export function useCanvasGenerationActions({ state, tasks, interactions }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions }) {
+export function useCanvasGenerationActions({ state, tasks, interactions, practiceModels }: { state: CanvasPageState; tasks: CanvasTaskRuntime; interactions: CanvasInteractions; practiceModels?: PracticeCanvasModelOptions }) {
     const {
         message,
         modal,
@@ -165,14 +168,17 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
     );
 
     const handleGenerateNode = useCallback(
-        async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => {
-            const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+        async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string, overrides?: Partial<CanvasNodeMetadata>) => {
+            // overrides：本次提交临时生效的节点设置（例如弹窗里刚确认的克隆授权）。
+            // React 状态要等下一次渲染才写回 nodesRef，不能指望它在本轮就能读到。
+            const storedNode = nodesRef.current.find((node) => node.id === nodeId);
+            const sourceNode = storedNode && overrides ? { ...storedNode, metadata: { ...storedNode.metadata, ...overrides } } : storedNode;
             // 生成中禁止重复提交：同一节点仍在等结果时再点一次，既会重复扣费，也会把原任务 ID 冲掉。
             if (generationRequestsRef.current.has(nodeId) || (sourceNode?.metadata?.status === NODE_STATUS_LOADING && sourceNode && hasCanvasGenerationTask(sourceNode))) {
                 message.info("正在生成中，请稍候");
                 return;
             }
-            const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode);
+            const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode, mode === "audio" ? undefined : practiceModels?.[mode]?.models);
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;
@@ -446,6 +452,20 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                     const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
                     const isEmptyAudioNode = sourceNode?.type === CanvasNodeType.Audio && !sourceNode.metadata?.content;
                     const audioId = isEmptyAudioNode ? nodeId : nanoid();
+                    // 生成模式：只有千问和 MiniMax 有设计 / 克隆 / 多人对话；Suno、OpenAI 一律按普通合成提交。
+                    const audioFamily = audioModelFamily(generationConfig.model);
+                    const modeSupported = audioFamily === "qwen" || audioFamily === "minimax";
+                    // 克隆源取第一个连进来的音频节点（不是本节点自己）。
+                    const referenceAudio = generationContext.referenceAudios[0];
+                    const referenceAudioUrl = referenceAudio?.url;
+                    const audioMode = modeSupported ? resolveAudioMode(sourceNode?.metadata || {}, Boolean(referenceAudioUrl)) : "tts";
+                    const modeBlock = audioModeBlockingReason(audioMode, sourceNode?.metadata || {}, { text: effectivePrompt, referenceAudioUrl });
+                    if (modeBlock) {
+                        finishGenerationRequest(nodeId, runController);
+                        setRunningNodeId(null);
+                        message.warning(modeBlock);
+                        return;
+                    }
                     const parent = sourceNode?.position || { x: 0, y: 0 };
                     const audioNode: CanvasNodeData = {
                         id: audioId,
@@ -454,7 +474,9 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                         position: isEmptyAudioNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y + ((sourceNode?.height || spec.height) - spec.height) / 2 },
                         width: isEmptyAudioNode ? sourceNode.width : spec.width,
                         height: isEmptyAudioNode ? sourceNode.height : spec.height,
-                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig) },
+                        // 空音频节点原地生成时不能丢掉已有的模式设置（audioMode / 手动标记 / 授权 / 角色），
+                        // 否则生成完新节点又回到「合成」，多人对话提示会再弹一次。
+                        metadata: { ...(isEmptyAudioNode ? sourceNode?.metadata : undefined), prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig) },
                     };
                     pendingChildIds = [audioId];
                     setNodes((prev) =>
@@ -471,6 +493,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                             conversationId: currentProject?.creativeConversationId,
                             surface: "canvas",
                             projectId,
+                            // 克隆带上参考音频时长：服务端按渠道限制先校验，太短/太长在上游之前就拒绝。
+                            mode: withAudioDuration(buildAudioModeRequest(audioMode, sourceNode?.metadata || {}, { text: effectivePrompt, referenceAudioUrl }), referenceAudio?.durationMs),
                             ...createFreshGenerationTaskContext("canvas-audio", [projectId, audioId]),
                         });
                         setNodes((prev) => prev.map((node) => (node.id === audioId ? { ...node, metadata: { ...node.metadata, audioTask: task } } : node)));
@@ -663,6 +687,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             const batchRoot = node.metadata?.batchRootId ? nodesRef.current.find((item) => item.id === node.metadata?.batchRootId) : null;
             const savedImageMetadata = isCanvasImageNodeType(node.type) ? { ...batchRoot?.metadata, ...node.metadata } : undefined;
             const hasSavedImageMetadata = Boolean(savedImageMetadata?.generationType);
+            const retryMode = node.type === CanvasNodeType.Text ? "text" : isVideoRetry ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image";
             const generationConfig =
                 hasSavedImageMetadata && savedImageMetadata
                     ? {
@@ -672,7 +697,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                           size: savedImageMetadata.size || effectiveConfig.size,
                           count: "1",
                       }
-                    : { ...buildGenerationConfig(effectiveConfig, isVideoRetry ? node : sourceNode, node.type === CanvasNodeType.Text ? "text" : isVideoRetry ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
+                    : { ...buildGenerationConfig(effectiveConfig, isVideoRetry ? node : sourceNode, retryMode, retryMode === "audio" ? undefined : practiceModels?.[retryMode]?.models), count: "1" };
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;

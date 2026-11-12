@@ -1,0 +1,385 @@
+{
+  "capturedAt": "2026-10-21T15:01:43.238922+00:00",
+  "sampleAt": "2026-10-21T15:01:34.396231+00:00",
+  "readOnly": true,
+  "tasks": [
+    {
+      "id": "9303680c-8059-47e2-9bdb-d5fd6c925349",
+      "requestedModel": "gpt-image-2-c",
+      "status": "error",
+      "finalError": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792592726196,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 38,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792592726159,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792592725404,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 504,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 301666,
+          "errorMessage": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx/1.31.1</center>\r\n</body>\r\n</html>\r\n"
+        },
+        {
+          "at": 1792592725384,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 504,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 301540,
+          "errorMessage": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx/1.31.1</center>\r\n</body>\r\n</html>\r\n"
+        },
+        {
+          "at": 1792592423844,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792592423739,
+          "model": "gpt-image-2-c",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "attempts": [
+        {
+          "error": "图片生成失败，上游返回了网页错误（HTTP 504，地址 [URL] text/html），请检查接口路径、鉴权、参考图提交方式或网关状态",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792592423671,
+          "completedAt": 1792592725408,
+          "upstreamError": "图片生成失败，上游返回了网页错误（HTTP 504，地址 [URL] text/html），请检查接口路径、鉴权、参考图提交方式或网关状态"
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792592725950,
+          "completedAt": 1792592726209,
+          "upstreamError": "图片生成失败，状态码 403"
+        }
+      ]
+    },
+    {
+      "id": "bc81e585-2794-4c46-9004-b1153f36e612",
+      "requestedModel": "gpt-image-2-all",
+      "status": "error",
+      "finalError": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792592498176,
+          "model": "gpt-image-2-5-flare",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 16,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792592498160,
+          "model": "gpt-image-2-5-flare",
+          "phase": "transport_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792592497753,
+          "model": "gpt-image-2-all",
+          "phase": "transport_response",
+          "status": 504,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 301972,
+          "errorMessage": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx/1.31.1</center>\r\n</body>\r\n</html>\r\n"
+        },
+        {
+          "at": 1792592497724,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_response",
+          "status": 504,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 301913,
+          "errorMessage": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx/1.31.1</center>\r\n</body>\r\n</html>\r\n"
+        },
+        {
+          "at": 1792592195810,
+          "model": "gpt-image-2-all",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792592195781,
+          "model": "gpt-image-2-all",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "attempts": [
+        {
+          "error": "图片生成失败，上游返回了网页错误（HTTP 504，地址 [URL] text/html），请检查接口路径、鉴权、参考图提交方式或网关状态",
+          "model": "gpt-image-2-all",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792592195744,
+          "completedAt": 1792592497762,
+          "upstreamError": "图片生成失败，上游返回了网页错误（HTTP 504，地址 [URL] text/html），请检查接口路径、鉴权、参考图提交方式或网关状态"
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2-all",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792592497922,
+          "completedAt": 1792592498189,
+          "upstreamError": "图片生成失败，状态码 403"
+        }
+      ]
+    },
+    {
+      "id": "27e81657-072d-4ada-b0f4-c76ad311ef74",
+      "requestedModel": "gpt-image-2",
+      "status": "error",
+      "finalError": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792592271515,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 12,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792592271502,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792592270614,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_exception",
+          "state": "request_signal_aborted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 548405,
+          "errorMessage": "",
+          "responseBytes": 4965225
+        },
+        {
+          "at": 1792591722195,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610211407572933406478268d9d6zpkley5n",
+          "durationMs": 49675
+        },
+        {
+          "at": 1792591672520,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792591670599,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        }
+      ],
+      "attempts": [
+        {
+          "error": "The operation was aborted due to timeout",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792591670555,
+          "completedAt": 1792592270609,
+          "upstreamError": "The operation was aborted due to timeout"
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792592271360,
+          "completedAt": 1792592271531,
+          "upstreamError": "图片生成失败，状态码 403"
+        }
+      ]
+    },
+    {
+      "id": "74b3bc58-d8e2-4402-b1f2-4657cd385eaa",
+      "requestedModel": "gpt-image-2",
+      "status": "error",
+      "finalError": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792594204074,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 13,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792594204061,
+          "model": "gpt-image-2-c",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792594202115,
+          "model": "gpt-image-2",
+          "phase": "upstream_body_exception",
+          "state": "request_signal_aborted",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 515121,
+          "errorMessage": "",
+          "responseBytes": 2733905
+        },
+        {
+          "at": 1792593686977,
+          "model": "gpt-image-2",
+          "phase": "upstream_response",
+          "status": 200,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "requestId": "202610211440121110042618268d9d6oZnm8Y6m",
+          "durationMs": 84789
+        },
+        {
+          "at": 1792593602189,
+          "model": "gpt-image-2",
+          "phase": "upstream_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792593602098,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        }
+      ],
+      "attempts": [
+        {
+          "error": "The operation was aborted due to timeout",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792593602055,
+          "completedAt": 1792594202109,
+          "upstreamError": "The operation was aborted due to timeout"
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792594203892,
+          "completedAt": 1792594204083,
+          "upstreamError": "图片生成失败，状态码 403"
+        }
+      ]
+    },
+    {
+      "id": "c2ee27e3-2eed-4d7d-a6a5-3bea3a3bfeba",
+      "requestedModel": "gpt-image-2-c",
+      "status": "error",
+      "finalError": "图片生成失败，状态码 403",
+      "events": [
+        {
+          "at": 1792594662105,
+          "model": "gpt-image-2",
+          "phase": "transport_response",
+          "status": 403,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "durationMs": 11,
+          "errorMessage": "该上游模型未绑定可用逻辑模型"
+        },
+        {
+          "at": 1792594662094,
+          "model": "gpt-image-2",
+          "phase": "transport_request",
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+        },
+        {
+          "at": 1792594661392,
+          "model": "gpt-image-2-c",
+          "phase": "transport_response",
+          "status": 504,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 300176,
+          "errorMessage": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx/1.31.1</center>\r\n</body>\r\n</html>\r\n"
+        },
+        {
+          "at": 1792594661371,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_response",
+          "status": 504,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 300131,
+          "errorMessage": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx/1.31.1</center>\r\n</body>\r\n</html>\r\n"
+        },
+        {
+          "at": 1792594361240,
+          "model": "gpt-image-2-c",
+          "phase": "upstream_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792594361215,
+          "model": "gpt-image-2-c",
+          "phase": "transport_request",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        }
+      ],
+      "attempts": [
+        {
+          "error": "图片生成失败，上游返回了网页错误（HTTP 504，地址 [URL] text/html），请检查接口路径、鉴权、参考图提交方式或网关状态",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "startedAt": 1792594361167,
+          "completedAt": 1792594661396,
+          "upstreamError": "图片生成失败，上游返回了网页错误（HTTP 504，地址 [URL] text/html），请检查接口路径、鉴权、参考图提交方式或网关状态"
+        },
+        {
+          "error": "图片生成失败，状态码 403",
+          "model": "gpt-image-2-c",
+          "status": "failed",
+          "attemptNo": 2,
+          "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+          "startedAt": 1792594661935,
+          "completedAt": 1792594662115,
+          "upstreamError": "图片生成失败，状态码 403"
+        }
+      ]
+    }
+  ],
+  "conclusion": "Three upstream 504 cases and two upstream HTTP200 body-timeout cases; all ended in platform fallback logical-model binding rejection, not confirmed fallback upstream 403."
+}

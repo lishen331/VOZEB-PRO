@@ -34,6 +34,7 @@ const CANVAS_SHARED_COMPONENTS = [
     "components/agent/agent-message-format",
     "components/agent/compact-agent-generation-settings",
     "components/agent/creative-agent-controls",
+    "components/audio-design-voice-save",
     "components/audio-settings-panel",
     "components/canvas-image-reference-roles-popover",
     "components/creative-composer-popover",

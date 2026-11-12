@@ -1,0 +1,1858 @@
+[
+  {
+    "key": "image / gpt-image-2-c / text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2-c",
+    "model": "gpt-image-2-c",
+    "inputMode": "text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 111.184,
+      "median": 80.631,
+      "p95": 298.155,
+      "min": 43.361,
+      "max": 298.155
+    },
+    "successLatencySamplesFromLogs": 11,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 11,
+      "mean": 111.19,
+      "median": 80.636,
+      "p95": 298.16,
+      "min": 43.366,
+      "max": 298.16
+    }
+  },
+  {
+    "key": "text / gpt-5.6-luna / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.6-luna",
+    "model": "gpt-5.6-luna",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 87.5,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 3.134,
+      "median": 2.293,
+      "p95": 8.607,
+      "min": 1.519,
+      "max": 8.607
+    },
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.216,
+      "median": 0.014,
+      "p95": 0.419,
+      "min": 0.014,
+      "max": 0.419
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 3.116,
+      "median": 2.288,
+      "p95": 8.601,
+      "min": 1.514,
+      "max": 8.601
+    }
+  },
+  {
+    "key": "video / cdance2.0-mini-0807 / text-to-video",
+    "kind": "video",
+    "originalRequestedModel": "cdance2.0-mini-0807",
+    "model": "天翼云 Seedance 2.0 Mini",
+    "inputMode": "text-to-video",
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "success": 5,
+    "failure": 1,
+    "pending": 0,
+    "successRatePct": 83.33,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 5,
+      "mean": 88.661,
+      "median": 90.155,
+      "p95": 96.512,
+      "min": 75.905,
+      "max": 96.512
+    },
+    "successLatencySamplesFromLogs": 5,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 1,
+      "mean": 7.02,
+      "median": 7.02,
+      "p95": 7.02,
+      "min": 7.02,
+      "max": 7.02
+    },
+    "failureLatencySeconds": {
+      "n": 1,
+      "mean": 7.02,
+      "median": 7.02,
+      "p95": 7.02,
+      "min": 7.02,
+      "max": 7.02
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 5,
+      "mean": 88.095,
+      "median": 89.655,
+      "p95": 96.035,
+      "min": 75.404,
+      "max": 96.035
+    }
+  },
+  {
+    "key": "text / gpt-5 / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5",
+    "model": "gpt-5",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 87.5,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 20.57,
+      "median": 10.797,
+      "p95": 50.001,
+      "min": 5.616,
+      "max": 50.001
+    },
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.166,
+      "median": 0.159,
+      "p95": 0.174,
+      "min": 0.159,
+      "max": 0.174
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 20.564,
+      "median": 10.791,
+      "p95": 49.995,
+      "min": 5.611,
+      "max": 49.995
+    }
+  },
+  {
+    "key": "text / gpt-5.2 / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.2",
+    "model": "gpt-5.2",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 13,
+    "success": 13,
+    "failure": 3,
+    "pending": 0,
+    "successRatePct": 81.25,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 13,
+      "mean": 5.747,
+      "median": 3.002,
+      "p95": 31.323,
+      "min": 1.672,
+      "max": 31.323
+    },
+    "successLatencySamplesFromLogs": 13,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 3,
+      "mean": 0.121,
+      "median": 0.086,
+      "p95": 0.254,
+      "min": 0.022,
+      "max": 0.254
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 13,
+      "mean": 5.728,
+      "median": 2.985,
+      "p95": 31.302,
+      "min": 1.667,
+      "max": 31.302
+    }
+  },
+  {
+    "key": "text / gpt-5-mini / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5-mini",
+    "model": "gpt-5-mini",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 87.5,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 14.472,
+      "median": 10.113,
+      "p95": 44.026,
+      "min": 4.642,
+      "max": 44.026
+    },
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.204,
+      "median": 0.175,
+      "p95": 0.232,
+      "min": 0.175,
+      "max": 0.232
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 14.452,
+      "median": 10.108,
+      "p95": 44.021,
+      "min": 4.634,
+      "max": 44.021
+    }
+  },
+  {
+    "key": "text / gpt-5.1 / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.1",
+    "model": "gpt-5.1",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 87.5,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.408,
+      "median": 2.002,
+      "p95": 6.052,
+      "min": 1.206,
+      "max": 6.052
+    },
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.07,
+      "median": 0.049,
+      "p95": 0.091,
+      "min": 0.049,
+      "max": 0.091
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 2.401,
+      "median": 1.997,
+      "p95": 6.048,
+      "min": 1.199,
+      "max": 6.048
+    }
+  },
+  {
+    "key": "text / gpt-5-pro / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5-pro",
+    "model": "gpt-5-pro",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "successRatePct": 0,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 14,
+      "mean": 2.994,
+      "median": 1.848,
+      "p95": 9.181,
+      "min": 1.367,
+      "max": 9.181
+    },
+    "failureLatencySeconds": {
+      "n": 14,
+      "mean": 2.994,
+      "median": 1.848,
+      "p95": 9.181,
+      "min": 1.367,
+      "max": 9.181
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.135,
+      "median": 0.077,
+      "p95": 0.193,
+      "min": 0.077,
+      "max": 0.193
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / gpt-5.4 / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.4",
+    "model": "gpt-5.4",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 13,
+    "success": 13,
+    "failure": 3,
+    "pending": 0,
+    "successRatePct": 81.25,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 13,
+      "mean": 2.483,
+      "median": 2.099,
+      "p95": 5.227,
+      "min": 1.363,
+      "max": 5.227
+    },
+    "successLatencySamplesFromLogs": 13,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 3,
+      "mean": 0.153,
+      "median": 0.13,
+      "p95": 0.2,
+      "min": 0.129,
+      "max": 0.2
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 13,
+      "mean": 2.438,
+      "median": 2.094,
+      "p95": 5.223,
+      "min": 1.303,
+      "max": 5.223
+    }
+  },
+  {
+    "key": "text / gpt-5.5-pro / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.5-pro",
+    "model": "gpt-5.5-pro",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 15,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "successRatePct": 0,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 15,
+      "mean": 1.412,
+      "median": 1.215,
+      "p95": 4.073,
+      "min": 0.639,
+      "max": 4.073
+    },
+    "failureLatencySeconds": {
+      "n": 15,
+      "mean": 1.412,
+      "median": 1.215,
+      "p95": 4.073,
+      "min": 0.639,
+      "max": 4.073
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 1,
+      "mean": 0.084,
+      "median": 0.084,
+      "p95": 0.084,
+      "min": 0.084,
+      "max": 0.084
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / gpt-5.4-pro / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.4-pro",
+    "model": "gpt-5.4-pro",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 15,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "successRatePct": 0,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 15,
+      "mean": 6.771,
+      "median": 5.239,
+      "p95": 18.787,
+      "min": 3.555,
+      "max": 18.787
+    },
+    "failureLatencySeconds": {
+      "n": 15,
+      "mean": 6.771,
+      "median": 5.239,
+      "p95": 18.787,
+      "min": 3.555,
+      "max": 18.787
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 1,
+      "mean": 0.138,
+      "median": 0.138,
+      "p95": 0.138,
+      "min": 0.138,
+      "max": 0.138
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / gpt-5.4-mini / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.4-mini",
+    "model": "gpt-5.4-mini",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 87.5,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.593,
+      "median": 2.54,
+      "p95": 5.506,
+      "min": 1.136,
+      "max": 5.506
+    },
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.163,
+      "median": 0.128,
+      "p95": 0.197,
+      "min": 0.128,
+      "max": 0.197
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 2.587,
+      "median": 2.534,
+      "p95": 5.501,
+      "min": 1.131,
+      "max": 5.501
+    }
+  },
+  {
+    "key": "text / gpt-5.5 / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.5",
+    "model": "gpt-5.5",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 15,
+    "success": 15,
+    "failure": 1,
+    "pending": 0,
+    "successRatePct": 93.75,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 15,
+      "mean": 3.53,
+      "median": 3.074,
+      "p95": 6.763,
+      "min": 2.031,
+      "max": 6.763
+    },
+    "successLatencySamplesFromLogs": 15,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 1,
+      "mean": 0.067,
+      "median": 0.067,
+      "p95": 0.067,
+      "min": 0.067,
+      "max": 0.067
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 15,
+      "mean": 3.522,
+      "median": 3.059,
+      "p95": 6.757,
+      "min": 2.025,
+      "max": 6.757
+    }
+  },
+  {
+    "key": "text / gpt-5.6-sol / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.6-sol",
+    "model": "gpt-5.6-sol",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 87.5,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 4.715,
+      "median": 3.307,
+      "p95": 11.819,
+      "min": 2.106,
+      "max": 11.819
+    },
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.108,
+      "median": 0.088,
+      "p95": 0.129,
+      "min": 0.088,
+      "max": 0.129
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 4.7,
+      "median": 3.302,
+      "p95": 11.814,
+      "min": 2.1,
+      "max": 11.814
+    }
+  },
+  {
+    "key": "text / gpt-5.6-terra / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-5.6-terra",
+    "model": "gpt-5.6-terra",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 14,
+    "success": 14,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 87.5,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 14,
+      "mean": 2.877,
+      "median": 2.252,
+      "p95": 6.589,
+      "min": 1.546,
+      "max": 6.589
+    },
+    "successLatencySamplesFromLogs": 14,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.072,
+      "median": 0.039,
+      "p95": 0.106,
+      "min": 0.039,
+      "max": 0.106
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 14,
+      "mean": 2.868,
+      "median": 2.243,
+      "p95": 6.584,
+      "min": 1.528,
+      "max": 6.584
+    }
+  },
+  {
+    "key": "text / codex-auto-review / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "codex-auto-review",
+    "model": "codex-auto-review",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 5,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "successRatePct": 0,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 5,
+      "mean": 3.152,
+      "median": 1.444,
+      "p95": 10.653,
+      "min": 0.967,
+      "max": 10.653
+    },
+    "failureLatencySeconds": {
+      "n": 5,
+      "mean": 3.152,
+      "median": 1.444,
+      "p95": 10.653,
+      "min": 0.967,
+      "max": 10.653
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 11,
+      "mean": 0.271,
+      "median": 0.278,
+      "p95": 0.635,
+      "min": 0.018,
+      "max": 0.635
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "text / gpt-6-astra / text-to-text",
+    "kind": "text",
+    "originalRequestedModel": "gpt-6-astra",
+    "model": "gpt-6-astra",
+    "inputMode": "text-to-text",
+    "submittedSamples": 16,
+    "taskSamples": 3,
+    "success": 0,
+    "failure": 16,
+    "pending": 0,
+    "successRatePct": 0,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 3,
+      "mean": 2.183,
+      "median": 1.602,
+      "p95": 3.578,
+      "min": 1.37,
+      "max": 3.578
+    },
+    "failureLatencySeconds": {
+      "n": 3,
+      "mean": 2.183,
+      "median": 1.602,
+      "p95": 3.578,
+      "min": 1.37,
+      "max": 3.578
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 13,
+      "mean": 0.331,
+      "median": 0.227,
+      "p95": 1.627,
+      "min": 0.01,
+      "max": 1.627
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "image / gpt-image-2 / text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2",
+    "model": "gpt-image-2",
+    "inputMode": "text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 9,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 81.82,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 9,
+      "mean": 35.604,
+      "median": 28.744,
+      "p95": 86.232,
+      "min": 25.444,
+      "max": 86.232
+    },
+    "successLatencySamplesFromLogs": 9,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 2,
+      "mean": 0.788,
+      "median": 0.727,
+      "p95": 0.85,
+      "min": 0.727,
+      "max": 0.85
+    },
+    "failureLatencySeconds": {
+      "n": 2,
+      "mean": 0.788,
+      "median": 0.727,
+      "p95": 0.85,
+      "min": 0.727,
+      "max": 0.85
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 9,
+      "mean": 35.609,
+      "median": 28.746,
+      "p95": 86.235,
+      "min": 25.448,
+      "max": 86.235
+    }
+  },
+  {
+    "key": "image / gpt-image-2-all / text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2-all",
+    "model": "gpt-image-2-all",
+    "inputMode": "text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 9,
+    "failure": 2,
+    "pending": 0,
+    "successRatePct": 81.82,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 9,
+      "mean": 60.513,
+      "median": 53.35,
+      "p95": 102.363,
+      "min": 36.534,
+      "max": 102.363
+    },
+    "successLatencySamplesFromLogs": 9,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 2,
+      "mean": 300.571,
+      "median": 300.473,
+      "p95": 300.669,
+      "min": 300.473,
+      "max": 300.669
+    },
+    "failureLatencySeconds": {
+      "n": 2,
+      "mean": 300.571,
+      "median": 300.473,
+      "p95": 300.669,
+      "min": 300.473,
+      "max": 300.669
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 9,
+      "mean": 60.529,
+      "median": 53.453,
+      "p95": 102.368,
+      "min": 36.555,
+      "max": 102.368
+    }
+  },
+  {
+    "key": "image / gpt-image-2-image-to-image / text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2-image-to-image",
+    "model": "gpt-image-2-image-to-image",
+    "inputMode": "text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 8,
+    "failure": 3,
+    "pending": 0,
+    "successRatePct": 72.73,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 8,
+      "mean": 96.058,
+      "median": 89.823,
+      "p95": 127.411,
+      "min": 68.723,
+      "max": 127.411
+    },
+    "successLatencySamplesFromLogs": 8,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 3,
+      "mean": 113.706,
+      "median": 119.778,
+      "p95": 130.789,
+      "min": 90.552,
+      "max": 130.789
+    },
+    "failureLatencySeconds": {
+      "n": 3,
+      "mean": 113.706,
+      "median": 119.778,
+      "p95": 130.789,
+      "min": 90.552,
+      "max": 130.789
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 8,
+      "mean": 97.218,
+      "median": 92.36,
+      "p95": 128.283,
+      "min": 69.377,
+      "max": 128.283
+    }
+  },
+  {
+    "key": "image / gpt-image-2.5-sunburst / text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2.5-sunburst",
+    "model": "gpt-image-2.5-sunburst",
+    "inputMode": "text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 4,
+    "failure": 7,
+    "pending": 0,
+    "successRatePct": 36.36,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 4,
+      "mean": 29.872,
+      "median": 29.736,
+      "p95": 33.661,
+      "min": 26.103,
+      "max": 33.661
+    },
+    "successLatencySamplesFromLogs": 4,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 7,
+      "mean": 3.853,
+      "median": 1.208,
+      "p95": 9.62,
+      "min": 0.347,
+      "max": 9.62
+    },
+    "failureLatencySeconds": {
+      "n": 7,
+      "mean": 3.853,
+      "median": 1.208,
+      "p95": 9.62,
+      "min": 0.347,
+      "max": 9.62
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 4,
+      "mean": 33.577,
+      "median": 33.236,
+      "p95": 37.521,
+      "min": 29.105,
+      "max": 37.521
+    }
+  },
+  {
+    "key": "image / gpt-image-2-5-flare / text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2-5-flare",
+    "model": "gpt-image-2-5-flare",
+    "inputMode": "text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 35.447,
+      "median": 37.357,
+      "p95": 63.214,
+      "min": 19.833,
+      "max": 63.214
+    },
+    "successLatencySamplesFromLogs": 11,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 11,
+      "mean": 35.452,
+      "median": 37.36,
+      "p95": 63.217,
+      "min": 19.839,
+      "max": 63.217
+    }
+  },
+  {
+    "key": "image / gpt-image-2-5-sunburst / text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2-5-sunburst",
+    "model": "gpt-image-2-5-sunburst",
+    "inputMode": "text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 11,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 11,
+      "mean": 31.166,
+      "median": 31.014,
+      "p95": 57.696,
+      "min": 16.224,
+      "max": 57.696
+    },
+    "successLatencySamplesFromLogs": 11,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 11,
+      "mean": 31.172,
+      "median": 31.018,
+      "p95": 57.7,
+      "min": 16.228,
+      "max": 57.7
+    }
+  },
+  {
+    "key": "image / gpt-image-2-text-to-image / text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2-text-to-image",
+    "model": "gpt-image-2-text-to-image",
+    "inputMode": "text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 7,
+    "failure": 4,
+    "pending": 0,
+    "successRatePct": 63.64,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 5,
+      "mean": 86.131,
+      "median": 89.062,
+      "p95": 95.328,
+      "min": 69.364,
+      "max": 95.328
+    },
+    "successLatencySamplesFromLogs": 5,
+    "successMissingCompletionLog": 2,
+    "failureTaskLatencySeconds": {
+      "n": 4,
+      "mean": 114.766,
+      "median": 112.498,
+      "p95": 126.798,
+      "min": 103.013,
+      "max": 126.798
+    },
+    "failureLatencySeconds": {
+      "n": 4,
+      "mean": 114.766,
+      "median": 112.498,
+      "p95": 126.798,
+      "min": 103.013,
+      "max": 126.798
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 7,
+      "mean": 94.29,
+      "median": 94.831,
+      "p95": 116.829,
+      "min": 71.71,
+      "max": 116.829
+    }
+  },
+  {
+    "key": "video / cdance2.0-fast-0807 / text-to-video",
+    "kind": "video",
+    "originalRequestedModel": "cdance2.0-fast-0807",
+    "model": "天翼云 Seedance 2.0 Fast",
+    "inputMode": "text-to-video",
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 104.953,
+      "median": 107.905,
+      "p95": 122.089,
+      "min": 74.788,
+      "max": 122.089
+    },
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 104.341,
+      "median": 107.153,
+      "p95": 121.452,
+      "min": 74.217,
+      "max": 121.452
+    }
+  },
+  {
+    "key": "video / official/seedance-2-5 / text-to-video",
+    "kind": "video",
+    "originalRequestedModel": "official/seedance-2-5",
+    "model": "official/seedance-2-5",
+    "inputMode": "text-to-video",
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 159.917,
+      "median": 155.804,
+      "p95": 181.654,
+      "min": 151.416,
+      "max": 181.654
+    },
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 159.251,
+      "median": 155.016,
+      "p95": 180.988,
+      "min": 150.832,
+      "max": 180.988
+    }
+  },
+  {
+    "key": "video / doubao-seedance-2-0-260128 / text-to-video",
+    "kind": "video",
+    "originalRequestedModel": "doubao-seedance-2-0-260128",
+    "model": "doubao-seedance-2-0-260128",
+    "inputMode": "text-to-video",
+    "submittedSamples": 6,
+    "taskSamples": 4,
+    "success": 0,
+    "failure": 6,
+    "pending": 0,
+    "successRatePct": 0,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 4,
+      "mean": 1.255,
+      "median": 0.988,
+      "p95": 1.966,
+      "min": 0.948,
+      "max": 1.966
+    },
+    "failureLatencySeconds": {
+      "n": 4,
+      "mean": 1.255,
+      "median": 0.988,
+      "p95": 1.966,
+      "min": 0.948,
+      "max": 1.966
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 2,
+      "mean": 0.23,
+      "median": 0.145,
+      "p95": 0.316,
+      "min": 0.145,
+      "max": 0.316
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "video / official/seedance-2 / text-to-video",
+    "kind": "video",
+    "originalRequestedModel": "official/seedance-2",
+    "model": "official/seedance-2",
+    "inputMode": "text-to-video",
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 203.905,
+      "median": 186.082,
+      "p95": 263.459,
+      "min": 179.422,
+      "max": 263.459
+    },
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 203.247,
+      "median": 185.424,
+      "p95": 262.917,
+      "min": 178.832,
+      "max": 262.917
+    }
+  },
+  {
+    "key": "video / doubao-seedance-2-0 / text-to-video",
+    "kind": "video",
+    "originalRequestedModel": "doubao-seedance-2-0",
+    "model": "doubao-seedance-2-0",
+    "inputMode": "text-to-video",
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 272.062,
+      "median": 260.154,
+      "p95": 300.673,
+      "min": 251.221,
+      "max": 300.673
+    },
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 271.055,
+      "median": 258.68,
+      "p95": 299.876,
+      "min": 250.517,
+      "max": 299.876
+    }
+  },
+  {
+    "key": "video / doubao-seedance-2-5-260628 / text-to-video",
+    "kind": "video",
+    "originalRequestedModel": "doubao-seedance-2-5-260628",
+    "model": "doubao-seedance-2-5-260628",
+    "inputMode": "text-to-video",
+    "submittedSamples": 6,
+    "taskSamples": 1,
+    "success": 0,
+    "failure": 6,
+    "pending": 0,
+    "successRatePct": 0,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successLatencySamplesFromLogs": 0,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 1,
+      "mean": 0.781,
+      "median": 0.781,
+      "p95": 0.781,
+      "min": 0.781,
+      "max": 0.781
+    },
+    "failureLatencySeconds": {
+      "n": 1,
+      "mean": 0.781,
+      "median": 0.781,
+      "p95": 0.781,
+      "min": 0.781,
+      "max": 0.781
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 5,
+      "mean": 0.374,
+      "median": 0.31,
+      "p95": 0.618,
+      "min": 0.214,
+      "max": 0.618
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    }
+  },
+  {
+    "key": "video / cdance2.0-0807 / text-to-video",
+    "kind": "video",
+    "originalRequestedModel": "cdance2.0-0807",
+    "model": "天翼云 Seedance 2.0",
+    "inputMode": "text-to-video",
+    "submittedSamples": 6,
+    "taskSamples": 6,
+    "success": 6,
+    "failure": 0,
+    "pending": 0,
+    "successRatePct": 100,
+    "referenceCounts": [
+      0
+    ],
+    "successLatencySeconds": {
+      "n": 6,
+      "mean": 240.864,
+      "median": 232.458,
+      "p95": 277.301,
+      "min": 208.205,
+      "max": 277.301
+    },
+    "successLatencySamplesFromLogs": 6,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 6,
+      "mean": 240.319,
+      "median": 231.891,
+      "p95": 276.465,
+      "min": 207.749,
+      "max": 276.465
+    }
+  },
+  {
+    "key": "image / gpt-image-2-image-to-image / image+text-to-image",
+    "kind": "image",
+    "originalRequestedModel": "gpt-image-2-image-to-image",
+    "model": "gpt-image-2-image-to-image",
+    "inputMode": "image+text-to-image",
+    "submittedSamples": 11,
+    "taskSamples": 11,
+    "success": 8,
+    "failure": 3,
+    "pending": 0,
+    "successRatePct": 72.73,
+    "referenceCounts": [
+      1
+    ],
+    "successLatencySeconds": {
+      "n": 8,
+      "mean": 88.053,
+      "median": 90.079,
+      "p95": 98.031,
+      "min": 67.397,
+      "max": 98.031
+    },
+    "successLatencySamplesFromLogs": 8,
+    "successMissingCompletionLog": 0,
+    "failureTaskLatencySeconds": {
+      "n": 3,
+      "mean": 137.415,
+      "median": 130.992,
+      "p95": 151.597,
+      "min": 129.656,
+      "max": 151.597
+    },
+    "failureLatencySeconds": {
+      "n": 3,
+      "mean": 137.415,
+      "median": 130.992,
+      "p95": 151.597,
+      "min": 129.656,
+      "max": 151.597
+    },
+    "serverRejectionLatencySeconds": {
+      "n": 0,
+      "mean": null,
+      "median": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successAttemptProxyLatencySeconds": {
+      "n": 8,
+      "mean": 89.083,
+      "median": 91.261,
+      "p95": 98.741,
+      "min": 68.111,
+      "max": 98.741
+    }
+  }
+]

@@ -6,7 +6,7 @@ import { ECOMMERCE_IMAGE_SKILL } from "@/lib/server/agent-skills/ecommerce-image
 import { YANAI_BEAUTY_SKILL } from "@/lib/server/agent-skills/yanai-beauty";
 import { DEFAULT_CREATIVE_SHORTCUT_SKILLS } from "@/lib/server/agent-skills/creative-shortcuts";
 import { normalizeFeatureModuleSettings } from "@/lib/feature-modules";
-import { deriveLogicalModelsConfig, normalizeDefaultModelsConfig, normalizeLogicalModelsConfig } from "@/lib/model-routing-config";
+import { deriveChannelPurpose, deriveLogicalModelsConfig, normalizeDefaultModelsConfig, normalizeLogicalModelsConfig } from "@/lib/model-routing-config";
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { resolveConfiguredModelPointCost } from "@/lib/model-point-cost";
 import { normalizeSystemChannelAdvancedConfig } from "./store-normalizers-channel";
@@ -271,6 +271,7 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         practiceWorkflowModels: {},
         practiceScriptSettings: normalizePracticeScriptSettings(settings.practiceScriptSettings),
         practiceModuleVisibility: normalizePracticeModuleVisibility(settings.practiceModuleVisibility),
+        practiceModelPool: settings.practiceModelPool,
         agentSkills: normalizeAgentSkills(settings.agentSkills),
         featureModules: normalizeFeatureModuleSettings(settings.featureModules),
         voicePricing: settings.voicePricing ?? { usdToCny: 7.2, pointsPerYuan: 100 },
@@ -740,6 +741,8 @@ export function normalizeLinkUrl(value: unknown, fallback: string) {
 }
 
 export function normalizeSystemChannel(channel: Partial<SystemModelChannel>): SystemModelChannel {
+    const enabled = channel.enabled !== false;
+    const practiceEnabled = typeof channel.practiceEnabled === "boolean" ? channel.practiceEnabled : undefined;
     const normalized: SystemModelChannel = {
         id: channel.id?.trim() || randomUUID(),
         name: repairKnownMojibakeText(channel.name?.trim() || "") || "通用接口",
@@ -748,11 +751,13 @@ export function normalizeSystemChannel(channel: Partial<SystemModelChannel>): Sy
         webhookSecret: normalizeSecretText(channel.webhookSecret, "", 4000),
         apiFormat: channel.apiFormat === "gemini" ? "gemini" : "openai",
         models: Array.from(new Set((channel.models || []).map((model) => model.trim()).filter(Boolean))),
-        enabled: channel.enabled !== false,
-        purpose: normalizeChannelPurpose(channel.purpose),
+        enabled,
+        practiceEnabled,
+        // 用途由两个开关推导，避免它与开关打架：purpose 只作为标签，不再参与判定。
+        purpose: deriveChannelPurpose({ enabled, practiceEnabled, purpose: normalizeChannelPurpose(channel.purpose) }),
         advancedConfig: normalizeSystemChannelAdvancedConfig(channel.advancedConfig),
     };
-    return normalized.advancedConfig?.protocol === "yumeng" ? applyChannelProtocol(normalized, "yumeng") : normalized;
+    return normalized.advancedConfig?.protocol === "yumeng" || normalized.advancedConfig?.protocol === "agnes" ? applyChannelProtocol(normalized, normalized.advancedConfig.protocol) : normalized;
 }
 
 function normalizeChannelPurpose(value: unknown): SystemChannelPurpose {

@@ -207,7 +207,7 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
         return sendJson(response, 200, { id, task_id: id, object: "video", status: "queued", progress: 0 });
     }
 
-    if (request.method === "POST" && (GLOBAL_AIOPC_VIDEO_PATHS.has(path) || ["/videos", "/video/generations", "/contents/generations/tasks", "/doubao/api/v3/contents/generations/tasks", "/seedance-special/videos"].includes(path))) {
+    if (request.method === "POST" && (GLOBAL_AIOPC_VIDEO_PATHS.has(path) || ["/video/generations", "/contents/generations/tasks", "/doubao/api/v3/contents/generations/tasks", "/seedance-special/videos"].includes(path))) {
         const model = requestedModel(body, request.headers["content-type"] || "");
         if (shouldFailRequest(request, model)) return sendJson(response, model.includes("-fail") ? 400 : 503, { error: { message: "fixture video failure" } });
         const id = nextTaskId("video");
@@ -226,6 +226,32 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
         const id = nextTaskId("vozeb-video");
         tasks.set(id, { kind: "vozeb-video", status: "completed" });
         return sendJson(response, 200, { id, task_id: id, object: "video", model: payload.model, status: "queued", progress: 0, created_at: 0 });
+    }
+    if (
+        request.method === "POST" &&
+        path === "/videos" &&
+        String(request.headers["content-type"] || "")
+            .toLowerCase()
+            .includes("application/json")
+    ) {
+        const payload = jsonBody(body);
+        const id = nextTaskId("agnes-video");
+        if (payload.mode || String(payload.model || "").startsWith("agnes-video")) {
+            tasks.set(id, { kind: "agnes-video", status: "completed" });
+            return sendJson(response, 200, { id: `queue-${id}`, video_id: id, status: "queued" });
+        }
+        tasks.set(id, { kind: "video", status: "completed" });
+        return sendJson(response, 200, { id, task_id: id, status: "queued" });
+    }
+    if (request.method === "POST" && path === "/videos") {
+        const id = nextTaskId("video");
+        tasks.set(id, { kind: "video", status: "completed" });
+        return sendJson(response, 200, { id, task_id: id, status: "queued" });
+    }
+    const agnesVideoId = path === "/agnesapi" ? new URL(request.url || "", url.origin).searchParams.get("video_id") : "";
+    if (request.method === "GET" && agnesVideoId) {
+        const mediaUrl = `${url.origin}/media/fixture.mp4`;
+        return sendJson(response, 200, { id: `queue-${agnesVideoId}`, video_id: agnesVideoId, status: "completed", progress: 100, internal_status: "pending", internal_progress: 0, url: mediaUrl });
     }
     if (request.method === "POST" && path === YUMENG_MODEL_CENTER_TASK_PATH) {
         const payload = jsonBody(body);

@@ -1,0 +1,431 @@
+- generic [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - complementary [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]:
+            - link "BLUEGAMMA 管理控制台" [ref=e736] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e10]:
+                - generic [ref=e11]: BLUEGAMMA
+                - generic [ref=e12]: 管理控制台
+            - button "收起后台侧边栏" [expanded] [ref=e13]:
+              - img [ref=e14]
+          - generic [ref=e17]:
+            - generic [ref=e18]:
+              - button "经营分析" [expanded] [ref=e19]:
+                - generic [ref=e20]: 经营分析
+                - img [ref=e21]
+              - generic [ref=e23]:
+                - button "经营看板" [ref=e24]:
+                  - img [ref=e26]
+                  - generic [ref=e30]: 经营看板
+                - button "用户运营" [ref=e31]:
+                  - img [ref=e33]
+                  - generic [ref=e37]: 用户运营
+                - button "调用记录" [ref=e38]:
+                  - img [ref=e40]
+                  - generic [ref=e42]: 调用记录
+                - button "生成运维" [ref=e43]:
+                  - img [ref=e45]
+                  - generic [ref=e47]: 生成运维
+                - button "短剧管理" [ref=e48]:
+                  - img [ref=e50]
+                  - generic [ref=e55]: 短剧管理
+            - generic [ref=e56]:
+              - button "产教运营" [expanded] [ref=e57]:
+                - generic [ref=e58]: 产教运营
+                - img [ref=e59]
+              - generic [ref=e61]:
+                - button "学校管理" [ref=e62]:
+                  - img [ref=e64]
+                  - generic [ref=e69]: 学校管理
+                - button "学校算力池" [ref=e70]:
+                  - img [ref=e72]
+                  - generic [ref=e77]: 学校算力池
+                - button "课程管理" [ref=e78]:
+                  - img [ref=e80]
+                  - generic [ref=e82]: 课程管理
+                - button "商单管理" [ref=e83]:
+                  - img [ref=e85]
+                  - generic [ref=e90]: 商单管理
+            - generic [ref=e91]:
+              - button "商品运营" [expanded] [ref=e92]:
+                - generic [ref=e93]: 商品运营
+                - img [ref=e94]
+              - generic [ref=e96]:
+                - button "套餐管理" [ref=e97]:
+                  - img [ref=e99]
+                  - generic [ref=e101]: 套餐管理
+                - button "订单管理" [ref=e102]:
+                  - img [ref=e104]
+                  - generic [ref=e106]: 订单管理
+            - generic [ref=e107]:
+              - button "营销推广" [expanded] [ref=e108]:
+                - generic [ref=e109]: 营销推广
+                - img [ref=e110]
+              - generic [ref=e112]:
+                - button "促销活动" [ref=e113]:
+                  - img [ref=e115]
+                  - generic [ref=e118]: 促销活动
+                - button "优惠券" [ref=e119]:
+                  - img [ref=e121]
+                  - generic [ref=e124]: 优惠券
+                - button "邀请奖励" [ref=e125]:
+                  - img [ref=e127]
+                  - generic [ref=e130]: 邀请奖励
+            - generic [ref=e131]:
+              - button "财务管理" [expanded] [ref=e132]:
+                - generic [ref=e133]: 财务管理
+                - img [ref=e134]
+              - generic [ref=e136]:
+                - button "积分规则" [ref=e137]:
+                  - img [ref=e139]
+                  - generic [ref=e142]: 积分规则
+                - button "支付渠道" [ref=e143]:
+                  - img [ref=e145]
+                  - generic [ref=e151]: 支付渠道
+                - button "CDK 兑换" [ref=e152]:
+                  - img [ref=e154]
+                  - generic [ref=e158]: CDK 兑换
+                - button "财务流水" [ref=e159]:
+                  - img [ref=e161]
+                  - generic [ref=e164]: 财务流水
+            - generic [ref=e165]:
+              - button "上游配置" [expanded] [ref=e166]:
+                - generic [ref=e167]: 上游配置
+                - img [ref=e168]
+              - generic [ref=e170]:
+                - button "模型渠道" [active] [ref=e171]:
+                  - img [ref=e173]
+                  - generic [ref=e179]: 模型渠道
+                - button "无限练习" [ref=e180]:
+                  - img [ref=e182]
+                  - generic [ref=e185]: 无限练习
+                - button "Agent Skills" [ref=e186]:
+                  - img [ref=e188]
+                  - generic [ref=e191]: Agent Skills
+                - button "插件市场" [ref=e192]:
+                  - img [ref=e194]
+                  - generic [ref=e196]: 插件市场
+            - generic [ref=e197]:
+              - button "创作工坊配置" [expanded] [ref=e198]:
+                - generic [ref=e199]: 创作工坊配置
+                - img [ref=e200]
+              - generic [ref=e202]:
+                - button "兼容 AI 配置" [ref=e203]:
+                  - img [ref=e205]
+                  - generic [ref=e208]: 兼容 AI 配置
+                - button "提示词模板" [ref=e209]:
+                  - img [ref=e211]
+                  - generic [ref=e214]: 提示词模板
+                - button "兼容业务场景" [ref=e215]:
+                  - img [ref=e217]
+                  - generic [ref=e218]: 兼容业务场景
+                - button "兼容生成设置" [ref=e219]:
+                  - img [ref=e221]
+                  - generic [ref=e223]: 兼容生成设置
+                - button "兼容 SD2 资产" [ref=e224]:
+                  - img [ref=e226]
+                  - generic [ref=e228]: 兼容 SD2 资产
+            - generic [ref=e229]:
+              - button "权限管理" [expanded] [ref=e230]:
+                - generic [ref=e231]: 权限管理
+                - img [ref=e232]
+              - generic [ref=e234]:
+                - button "角色管理" [ref=e235]:
+                  - img [ref=e237]
+                  - generic [ref=e241]: 角色管理
+                - button "管理员管理" [ref=e242]:
+                  - img [ref=e244]
+                  - generic [ref=e248]: 管理员管理
+            - generic [ref=e249]:
+              - button "系统管理" [expanded] [ref=e250]:
+                - generic [ref=e251]: 系统管理
+                - img [ref=e252]
+              - generic [ref=e254]:
+                - button "站点资料" [ref=e255]:
+                  - img [ref=e257]
+                  - generic [ref=e262]: 站点资料
+                - button "基础设置" [ref=e263]:
+                  - img [ref=e265]
+                  - generic [ref=e266]: 基础设置
+                - button "角色功能" [ref=e267]:
+                  - img [ref=e269]
+                  - generic [ref=e273]: 角色功能
+                - button "注销申请" [ref=e274]:
+                  - img [ref=e276]
+                  - generic [ref=e281]: 注销申请
+            - generic [ref=e282]:
+              - button "存储与备份" [expanded] [ref=e283]:
+                - generic [ref=e284]: 存储与备份
+                - img [ref=e285]
+              - generic [ref=e287]:
+                - button "本地媒体" [ref=e288]:
+                  - img [ref=e290]
+                  - generic [ref=e292]: 本地媒体
+                - button "外部存储" [ref=e293]:
+                  - img [ref=e295]
+                  - generic [ref=e297]: 外部存储
+                - button "数据备份" [ref=e298]:
+                  - img [ref=e300]
+                  - generic [ref=e306]: 数据备份
+            - generic [ref=e307]:
+              - button "内容运营" [expanded] [ref=e308]:
+                - generic [ref=e309]: 内容运营
+                - img [ref=e310]
+              - generic [ref=e312]:
+                - button "IP 库" [ref=e313]:
+                  - img [ref=e315]
+                  - generic [ref=e317]: IP 库
+                - button "作品管理" [ref=e318]:
+                  - img [ref=e320]
+                  - generic [ref=e322]: 作品管理
+                - button "公告通知" [ref=e323]:
+                  - img [ref=e325]
+                  - generic [ref=e328]: 公告通知
+                - button "提示词运营" [ref=e329]:
+                  - img [ref=e331]
+                  - generic [ref=e334]: 提示词运营
+            - generic [ref=e335]:
+              - button "帮助与支持" [expanded] [ref=e336]:
+                - generic [ref=e337]: 帮助与支持
+                - img [ref=e338]
+              - generic [ref=e340]:
+                - button "版本更新" [ref=e341]:
+                  - img [ref=e343]
+                  - generic [ref=e347]: 版本更新
+                - button "使用文档" [ref=e348]:
+                  - img [ref=e350]
+                  - generic [ref=e352]: 使用文档
+      - generic [ref=e353]:
+        - generic [ref=e355]:
+          - generic [ref=e357]:
+            - generic [ref=e358]: 后台
+            - generic [ref=e359]: /
+            - strong [ref=e360]: 模型渠道
+          - generic [ref=e361]:
+            - link "初始化 50%" [ref=e362] [cursor=pointer]:
+              - /url: /admin/setup
+              - img [ref=e364]
+              - generic [ref=e368]:
+                - text: 初始化 50%
+                - img [ref=e369]
+            - generic [ref=e373]:
+              - button "返回 Agent 创作" [ref=e374]:
+                - img [ref=e375]
+                - generic [ref=e377]: 返回 Agent 创作
+              - generic [ref=e378]:
+                - button "999,935" [ref=e379]:
+                  - img [ref=e381]
+                  - text: 999,935
+                - button "通知中心" [ref=e384]:
+                  - img [ref=e385]
+                - button "切换到深色主题" [ref=e388]:
+                  - img [ref=e389]
+                  - generic [ref=e391]: 切换到深色主题
+                - button "账户菜单" [ref=e392]:
+                  - generic [ref=e393]: BL
+        - generic [ref=e394]:
+          - generic [ref=e395]:
+            - heading "模型渠道" [level=1] [ref=e737]
+            - generic [ref=e397]: 添加上游接口，维护模型目录、逻辑绑定和各能力默认模型。
+          - generic [ref=e738]:
+            - generic [ref=e739]:
+              - generic [ref=e740]:
+                - heading "模型渠道" [level=2] [ref=e741]
+                - generic [ref=e742]: 管理上游渠道、协议、模型能力与站内逻辑模型路由。
+              - button "保存模型渠道配置" [ref=e744] [cursor=pointer]:
+                - img [ref=e746]
+                - generic [ref=e750]: 保存更改
+            - generic [ref=e752]:
+              - generic [ref=e753]:
+                - generic [ref=e754]:
+                  - generic [ref=e755]: 启用渠道
+                  - generic [ref=e756]: 6/6
+                - generic [ref=e757]:
+                  - generic [ref=e758]: 已同步模型
+                  - generic [ref=e759]: "6"
+                - generic [ref=e760]:
+                  - generic [ref=e761]: 使用协议
+                  - generic [ref=e762]: "2"
+                - generic [ref=e763]:
+                  - generic [ref=e764]: 默认能力
+                  - generic [ref=e765]: 3/4
+              - generic [ref=e766]:
+                - tablist [ref=e767]:
+                  - generic [ref=e769]:
+                    - tab "渠道管理" [selected] [ref=e771] [cursor=pointer]:
+                      - generic [ref=e772]:
+                        - img [ref=e774]
+                        - text: 渠道管理
+                    - tab "协议中心" [ref=e778] [cursor=pointer]:
+                      - generic [ref=e779]:
+                        - img [ref=e781]
+                        - text: 协议中心
+                    - tab "逻辑模型" [ref=e785] [cursor=pointer]:
+                      - generic [ref=e786]:
+                        - img [ref=e788]
+                        - text: 逻辑模型
+                  - generic [ref=e793]:
+                    - button "同步全部模型" [ref=e794] [cursor=pointer]:
+                      - img [ref=e796]
+                      - generic [ref=e801]: 同步全部模型
+                    - button "接入新渠道" [ref=e802] [cursor=pointer]:
+                      - img [ref=e804]
+                      - generic [ref=e805]: 接入新渠道
+                - tabpanel "渠道管理" [ref=e808]:
+                  - generic [ref=e809]:
+                    - generic [ref=e810]:
+                      - generic [ref=e811]:
+                        - img [ref=e813]
+                        - textbox "搜索渠道、地址、协议或模型" [ref=e816]
+                      - generic [ref=e818]:
+                        - generic [ref=e820] [cursor=pointer]:
+                          - generic "全部状态" [ref=e821]:
+                            - text: 全部状态
+                            - combobox [ref=e822]
+                          - img "down" [ref=e824]:
+                            - img [ref=e825]
+                        - generic [ref=e828] [cursor=pointer]:
+                          - generic "全部协议" [ref=e829]:
+                            - text: 全部协议
+                            - combobox [ref=e830]
+                          - img "down" [ref=e832]:
+                            - img [ref=e833]
+                    - table [ref=e842]:
+                      - rowgroup [ref=e851]:
+                        - row "渠道 协议 模型/工作流 能力 绑定 启用 操作" [ref=e852]:
+                          - columnheader "渠道" [ref=e853]
+                          - columnheader "协议" [ref=e854]
+                          - columnheader "模型/工作流" [ref=e855]
+                          - columnheader "能力" [ref=e856]
+                          - columnheader "绑定" [ref=e857]
+                          - columnheader "启用" [ref=e858]
+                          - columnheader "操作" [ref=e859]
+                      - rowgroup [ref=e860]:
+                        - row "模汇x中漫 API gpt文本 已启用 https://api.easyart.cc/ New API 13 文本 13 模汇x中漫 API gpt文本启用状态 查 看 同步 模汇x中漫 API gpt文本 模型 删除 模汇x中漫 API gpt文本" [ref=e861]:
+                          - cell "模汇x中漫 API gpt文本 已启用 https://api.easyart.cc/" [ref=e862]:
+                            - generic [ref=e863]:
+                              - generic [ref=e864]:
+                                - generic [ref=e865]: 模汇x中漫 API gpt文本
+                                - generic [ref=e866]: 已启用
+                              - generic [ref=e867]: https://api.easyart.cc/
+                          - cell "New API" [ref=e868]
+                          - cell "13" [ref=e869]
+                          - cell "文本" [ref=e870]
+                          - cell "13" [ref=e871]
+                          - cell "模汇x中漫 API gpt文本启用状态" [ref=e872]:
+                            - switch "模汇x中漫 API gpt文本启用状态" [checked] [ref=e873] [cursor=pointer]
+                          - cell "查 看 同步 模汇x中漫 API gpt文本 模型 删除 模汇x中漫 API gpt文本" [ref=e876]:
+                            - generic [ref=e877]:
+                              - button "查 看" [ref=e879] [cursor=pointer]:
+                                - generic [ref=e880]: 查 看
+                              - button "同步 模汇x中漫 API gpt文本 模型" [ref=e882] [cursor=pointer]:
+                                - img [ref=e884]
+                              - button "删除 模汇x中漫 API gpt文本" [ref=e890] [cursor=pointer]:
+                                - img [ref=e892]
+                        - row "昱梦渠道 gpt 已启用 https://aiqiym.com/ New API 5 文本 5 昱梦渠道 gpt启用状态 查 看 同步 昱梦渠道 gpt 模型 删除 昱梦渠道 gpt" [ref=e895]:
+                          - cell "昱梦渠道 gpt 已启用 https://aiqiym.com/" [ref=e896]:
+                            - generic [ref=e897]:
+                              - generic [ref=e898]:
+                                - generic [ref=e899]: 昱梦渠道 gpt
+                                - generic [ref=e900]: 已启用
+                              - generic [ref=e901]: https://aiqiym.com/
+                          - cell "New API" [ref=e902]
+                          - cell "5" [ref=e903]
+                          - cell "文本" [ref=e904]
+                          - cell "5" [ref=e905]
+                          - cell "昱梦渠道 gpt启用状态" [ref=e906]:
+                            - switch "昱梦渠道 gpt启用状态" [checked] [ref=e907] [cursor=pointer]
+                          - cell "查 看 同步 昱梦渠道 gpt 模型 删除 昱梦渠道 gpt" [ref=e910]:
+                            - generic [ref=e911]:
+                              - button "查 看" [ref=e913] [cursor=pointer]:
+                                - generic [ref=e914]: 查 看
+                              - button "同步 昱梦渠道 gpt 模型" [ref=e916] [cursor=pointer]:
+                                - img [ref=e918]
+                              - button "删除 昱梦渠道 gpt" [ref=e924] [cursor=pointer]:
+                                - img [ref=e926]
+                        - row "RunningHub 渠道 已启用 https://www.runninghub.cn/ RunningHub 7 工作流 0 RunningHub 渠道启用状态 查 看 删除 RunningHub 渠道" [ref=e929]:
+                          - cell "RunningHub 渠道 已启用 https://www.runninghub.cn/" [ref=e930]:
+                            - generic [ref=e931]:
+                              - generic [ref=e932]:
+                                - generic [ref=e933]: RunningHub 渠道
+                                - generic [ref=e934]: 已启用
+                              - generic [ref=e935]: https://www.runninghub.cn/
+                          - cell "RunningHub" [ref=e936]
+                          - cell "7" [ref=e937]
+                          - cell "工作流" [ref=e938]
+                          - cell "0" [ref=e939]
+                          - cell "RunningHub 渠道启用状态" [ref=e940]:
+                            - switch "RunningHub 渠道启用状态" [checked] [ref=e941] [cursor=pointer]
+                          - cell "查 看 删除 RunningHub 渠道" [ref=e944]:
+                            - generic [ref=e945]:
+                              - button "查 看" [ref=e947] [cursor=pointer]:
+                                - generic [ref=e948]: 查 看
+                              - button "删除 RunningHub 渠道" [ref=e950] [cursor=pointer]:
+                                - img [ref=e952]
+                        - row "模汇X中漫 API 渠道 已启用 https://api.easyart.cc/ New API 33 文本、视频、图片 33 模汇X中漫 API 渠道启用状态 查 看 同步 模汇X中漫 API 渠道 模型 删除 模汇X中漫 API 渠道" [ref=e955]:
+                          - cell "模汇X中漫 API 渠道 已启用 https://api.easyart.cc/" [ref=e956]:
+                            - generic [ref=e957]:
+                              - generic [ref=e958]:
+                                - generic [ref=e959]: 模汇X中漫 API 渠道
+                                - generic [ref=e960]: 已启用
+                              - generic [ref=e961]: https://api.easyart.cc/
+                          - cell "New API" [ref=e962]
+                          - cell "33" [ref=e963]
+                          - cell "文本、视频、图片" [ref=e964]
+                          - cell "33" [ref=e965]
+                          - cell "模汇X中漫 API 渠道启用状态" [ref=e966]:
+                            - switch "模汇X中漫 API 渠道启用状态" [checked] [ref=e967] [cursor=pointer]
+                          - cell "查 看 同步 模汇X中漫 API 渠道 模型 删除 模汇X中漫 API 渠道" [ref=e970]:
+                            - generic [ref=e971]:
+                              - button "查 看" [ref=e973] [cursor=pointer]:
+                                - generic [ref=e974]: 查 看
+                              - button "同步 模汇X中漫 API 渠道 模型" [ref=e976] [cursor=pointer]:
+                                - img [ref=e978]
+                              - button "删除 模汇X中漫 API 渠道" [ref=e984] [cursor=pointer]:
+                                - img [ref=e986]
+                        - row "兔子 API 渠道 已启用 https://api.tu-zi.com/ New API 637 文本、图片、音频、视频 637 兔子 API 渠道启用状态 查 看 同步 兔子 API 渠道 模型 删除 兔子 API 渠道" [ref=e989]:
+                          - cell "兔子 API 渠道 已启用 https://api.tu-zi.com/" [ref=e990]:
+                            - generic [ref=e991]:
+                              - generic [ref=e992]:
+                                - generic [ref=e993]: 兔子 API 渠道
+                                - generic [ref=e994]: 已启用
+                              - generic [ref=e995]: https://api.tu-zi.com/
+                          - cell "New API" [ref=e996]
+                          - cell "637" [ref=e997]
+                          - cell "文本、图片、音频、视频" [ref=e998]
+                          - cell "637" [ref=e999]
+                          - cell "兔子 API 渠道启用状态" [ref=e1000]:
+                            - switch "兔子 API 渠道启用状态" [checked] [ref=e1001] [cursor=pointer]
+                          - cell "查 看 同步 兔子 API 渠道 模型 删除 兔子 API 渠道" [ref=e1004]:
+                            - generic [ref=e1005]:
+                              - button "查 看" [ref=e1007] [cursor=pointer]:
+                                - generic [ref=e1008]: 查 看
+                              - button "同步 兔子 API 渠道 模型" [ref=e1010] [cursor=pointer]:
+                                - img [ref=e1012]
+                              - button "删除 兔子 API 渠道" [ref=e1018] [cursor=pointer]:
+                                - img [ref=e1020]
+                        - row "modelbay API 渠道 已启用 https://api.modelbay.io/ New API 71 视频、文本、图片、音频 71 modelbay API 渠道启用状态 查 看 同步 modelbay API 渠道 模型 删除 modelbay API 渠道" [ref=e1023]:
+                          - cell "modelbay API 渠道 已启用 https://api.modelbay.io/" [ref=e1024]:
+                            - generic [ref=e1025]:
+                              - generic [ref=e1026]:
+                                - generic [ref=e1027]: modelbay API 渠道
+                                - generic [ref=e1028]: 已启用
+                              - generic [ref=e1029]: https://api.modelbay.io/
+                          - cell "New API" [ref=e1030]
+                          - cell "71" [ref=e1031]
+                          - cell "视频、文本、图片、音频" [ref=e1032]
+                          - cell "71" [ref=e1033]
+                          - cell "modelbay API 渠道启用状态" [ref=e1034]:
+                            - switch "modelbay API 渠道启用状态" [checked] [ref=e1035] [cursor=pointer]
+                          - cell "查 看 同步 modelbay API 渠道 模型 删除 modelbay API 渠道" [ref=e1038]:
+                            - generic [ref=e1039]:
+                              - button "查 看" [ref=e1041] [cursor=pointer]:
+                                - generic [ref=e1042]: 查 看
+                              - button "同步 modelbay API 渠道 模型" [ref=e1044] [cursor=pointer]:
+                                - img [ref=e1046]
+                              - button "删除 modelbay API 渠道" [ref=e1052] [cursor=pointer]:
+                                - img [ref=e1054]
+  - alert [ref=e735]

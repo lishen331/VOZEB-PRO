@@ -1,0 +1,231 @@
+{
+  "at": "2026-10-21T09:44:14.529Z",
+  "sampleAt": "2026-10-21T09:43:50.811592+00:00",
+  "readOnly": true,
+  "tasks": [
+    {
+      "id": "5bec6ee3-b726-449d-a489-50f567f2fc06",
+      "status": "error",
+      "createdAt": "2026-10-21T09:32:09.071+00:00",
+      "logicalModel": "gpt-image-2-5-sunburst",
+      "error": "Unknown parameter: 'response_format'.",
+      "attempts": [
+        {
+          "error": "Unknown parameter: 'response_format'.",
+          "model": "gpt-image-2-5-sunburst",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792575129102,
+          "completedAt": 1792575133295,
+          "upstreamError": "Unknown parameter: 'response_format'."
+        }
+      ],
+      "events": [
+        {
+          "at": 1792575133287,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4120,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792575133264,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 4029,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792575129235,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "upstream_request",
+          "method": "POST",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "parameters": "{\"model\":\"gpt-image-2-5-sunburst\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"jpeg\",\"files\":[{\"size\":134590,\"type\":\"image/jpeg\"},{\"size\":55242,\"type\":\"image/webp\"},{\"size\":1626493,\"type\":\"image/png\"}]}"
+        }
+      ],
+      "generationLog": {
+        "id": "image-task:5bec6ee3-b726-449d-a489-50f567f2fc06",
+        "error": "Unknown parameter: 'response_format'.",
+        "status": "failed",
+        "durationMs": 4232,
+        "completedAt": "2026-10-21T09:32:13.303+00:00"
+      }
+    },
+    {
+      "id": "e0f0cf20-e631-4b8d-acde-31e39a208f16",
+      "status": "error",
+      "createdAt": "2026-10-21T09:31:34.797+00:00",
+      "logicalModel": "gpt-image-2-5-sunburst",
+      "error": "Unknown parameter: 'response_format'.",
+      "attempts": [
+        {
+          "error": "Unknown parameter: 'response_format'.",
+          "model": "gpt-image-2-5-sunburst",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792575094819,
+          "completedAt": 1792575100240,
+          "upstreamError": "Unknown parameter: 'response_format'."
+        }
+      ],
+      "events": [
+        {
+          "at": 1792575100232,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 5359,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792575100208,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 5277,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792575094931,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "upstream_request",
+          "method": "POST",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "parameters": "{\"model\":\"gpt-image-2-5-sunburst\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"jpeg\",\"files\":[{\"size\":134590,\"type\":\"image/jpeg\"},{\"size\":55242,\"type\":\"image/webp\"},{\"size\":1626493,\"type\":\"image/png\"}]}"
+        }
+      ],
+      "generationLog": {
+        "id": "image-task:e0f0cf20-e631-4b8d-acde-31e39a208f16",
+        "error": "Unknown parameter: 'response_format'.",
+        "status": "failed",
+        "durationMs": 5450,
+        "completedAt": "2026-10-21T09:31:40.247+00:00"
+      }
+    },
+    {
+      "id": "a832ea3c-a438-4860-b739-3766268746a8",
+      "status": "error",
+      "createdAt": "2026-10-21T09:31:25.214+00:00",
+      "logicalModel": "gpt-image-2-5-sunburst",
+      "error": "Unknown parameter: 'response_format'.",
+      "attempts": [
+        {
+          "error": "Unknown parameter: 'response_format'.",
+          "model": "gpt-image-2-5-sunburst",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792575085263,
+          "completedAt": 1792575092085,
+          "upstreamError": "Unknown parameter: 'response_format'."
+        }
+      ],
+      "events": [
+        {
+          "at": 1792575092077,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 6748,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792575092059,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 6626,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792575085433,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "upstream_request",
+          "method": "POST",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "parameters": "{\"model\":\"gpt-image-2-5-sunburst\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"jpeg\",\"files\":[{\"size\":134590,\"type\":\"image/jpeg\"},{\"size\":55242,\"type\":\"image/webp\"},{\"size\":1626493,\"type\":\"image/png\"}]}"
+        }
+      ],
+      "generationLog": {
+        "id": "image-task:a832ea3c-a438-4860-b739-3766268746a8",
+        "error": "Unknown parameter: 'response_format'.",
+        "status": "failed",
+        "durationMs": 6878,
+        "completedAt": "2026-10-21T09:31:32.092+00:00"
+      }
+    },
+    {
+      "id": "89db56f0-ff9f-415d-86ee-64f25f702e9d",
+      "status": "error",
+      "createdAt": "2026-10-21T09:31:03.362+00:00",
+      "logicalModel": "gpt-image-2-5-sunburst",
+      "error": "Unknown parameter: 'response_format'.",
+      "attempts": [
+        {
+          "error": "Unknown parameter: 'response_format'.",
+          "model": "gpt-image-2-5-sunburst",
+          "status": "failed",
+          "attemptNo": 1,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "startedAt": 1792575063390,
+          "completedAt": 1792575068815,
+          "upstreamError": "Unknown parameter: 'response_format'."
+        }
+      ],
+      "events": [
+        {
+          "at": 1792575068806,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 5357,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792575068783,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 5269,
+          "contentType": "application/json; charset=utf-8",
+          "errorMessage": "Unknown parameter: 'response_format'."
+        },
+        {
+          "at": 1792575063514,
+          "model": "gpt-image-2-5-sunburst",
+          "phase": "upstream_request",
+          "method": "POST",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "parameters": "{\"model\":\"gpt-image-2-5-sunburst\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"jpeg\",\"files\":[{\"size\":134590,\"type\":\"image/jpeg\"},{\"size\":55242,\"type\":\"image/webp\"},{\"size\":1626493,\"type\":\"image/png\"}]}"
+        }
+      ],
+      "generationLog": {
+        "id": "image-task:89db56f0-ff9f-415d-86ee-64f25f702e9d",
+        "error": "Unknown parameter: 'response_format'.",
+        "status": "failed",
+        "durationMs": 5461,
+        "completedAt": "2026-10-21T09:31:08.823+00:00"
+      }
+    }
+  ]
+}

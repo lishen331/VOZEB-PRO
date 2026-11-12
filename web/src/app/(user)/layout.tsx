@@ -26,6 +26,8 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
         redirect(loginHref(nextPath));
     }
     const user = access.user;
+    // 这两次查询都要 user.id，无法与上面的鉴权并行；下面那组才开了 Promise.all。
+    // 保持串行是有意的：user 为 null 时上面已经 redirect，这里才能安全解引用。
     const schoolContext = await getSchoolContextForUser(user.id);
     const activeSchoolId = schoolContext?.school.status === "active" && schoolContext.membership.status === "active" ? schoolContext.school.id : undefined;
     const [featureModules, menuPermissions] = await Promise.all([getFreshAuthSettings().then((settings) => settings.featureModules), getUserNavigationMenuPermissions(user.id, activeSchoolId)]);

@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-21T12:47:23.512Z",
+  "incidentAt": "2026-10-21T12:37:21.346Z",
+  "category": "metrics-capture-failed",
+  "scope": "local full-window metrics collector; not a production generation failure",
+  "detail": "Child metrics command failed; retained message is truncated before the exact exception cause. Do not claim a confirmed parse/network/DB root cause.",
+  "currentMetricsAt": "2026-10-21T12:47:10.84061+00:00",
+  "currentTaskCount": 432,
+  "backgroundSamplerNotRestarted": true,
+  "productionWrites": false
+}

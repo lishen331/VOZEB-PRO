@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-22T10:05:20.907194+00:00",
+  "readOnly": true,
+  "tailLimit": 8000,
+  "since": "2026-10-22T18:00:00+08:00",
+  "redirectRouteGroups": {
+    "/api/generation-log-assets/*": 73,
+    "/api/reference-assets/*": 100
+  },
+  "notAuthoritativeTotal": true
+}

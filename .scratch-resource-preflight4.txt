@@ -1,0 +1,14 @@
+RESERVATION_SCHEMA
+channel_id|text
+upstream_model|text
+request_id|text
+expires_at|timestamp with time zone
+RESERVATION_ROWS
+0|0||
+TASK_STATUS
+cancelled|130
+error|452
+paused|6
+running|513
+success|2328
+LAST_TASKS

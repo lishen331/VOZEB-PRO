@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-21T15:24:45.573553+00:00",
+  "scope": "local report generator only; production application and SQL sampler not changed",
+  "firstRecordedFailure": "2026-10-21T13:51:38.311Z",
+  "lastRecordedFailure": "2026-10-21T15:05:48.423Z",
+  "failedReportCycles": 71,
+  "sourceBytesNow": 670372794,
+  "cause": "update-status.cjs synchronously materialized the whole JSONL as a JavaScript string before split and parse; size exceeded Node string limit",
+  "fix": "stream each JSONL line in Python, aggregate count and CPU/memory extrema without materializing the whole file, reject malformed complete records and flag an incomplete trailing record",
+  "unitTests": 6,
+  "metricsPublicationAt": "2026-10-21T15:24:15.78821+00:00",
+  "latestProductionSample": "2026-10-21T15:24:08.774747+00:00",
+  "sourceRecordsDeleted": false,
+  "productionRestarted": false,
+  "note": "watchdog readiness/healthy referred to sampler and production; it did not prove the report publication was fresh. Historical report staleness is a monitoring defect, not a student generation failure."
+}

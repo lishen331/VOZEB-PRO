@@ -52,6 +52,33 @@ describe("generation log asset access", () => {
         mocks.head.mockReturnValue(new Response(null, { status: 200, headers: { "Content-Type": "image/png", "Content-Length": "5" } }));
     });
 
+    it("returns original object image bytes at the first hop for a verified provider read", async () => {
+        mocks.verify.mockReturnValue(true);
+        mocks.getCurrentUser.mockResolvedValue(null);
+        mocks.registration.mockResolvedValue({ ownerUserId: "owner", mimeType: "image/png", storageProvider: "object", bytes: 4 });
+        mocks.readBytes.mockResolvedValue(Buffer.from([137, 80, 78, 71]));
+        const response = await GET(new Request("https://app.example/api/generation-log-assets/permanent/2026/07/20/images/file.png?purpose=provider-read&expires=1&signature=test"), context);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+        expect(response.headers.get("content-type")).toBe("image/png");
+        expect(response.headers.get("content-length")).toBe("4");
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([137, 80, 78, 71]));
+        expect(mocks.readBytes).toHaveBeenCalledWith(expect.objectContaining({ storageProvider: "object" }), 20 * 1024 * 1024);
+        expect(mocks.externalRead).not.toHaveBeenCalled();
+        expect(mocks.getCurrentUser).not.toHaveBeenCalled();
+        expect(mocks.wrap).toHaveBeenCalled();
+    });
+
+    it("does not deliver provider image bytes for an invalid anonymous signature", async () => {
+        mocks.getCurrentUser.mockResolvedValue(null);
+        mocks.registration.mockResolvedValue({ ownerUserId: "owner", mimeType: "image/png", storageProvider: "object" });
+        const response = await GET(new Request("https://app.example/api/generation-log-assets/permanent/2026/07/20/images/file.png?purpose=provider-read&expires=1&signature=invalid"), context);
+        expect(response.status).toBe(401);
+        expect(mocks.readBytes).not.toHaveBeenCalled();
+        expect(mocks.externalRead).not.toHaveBeenCalled();
+    });
+
     it("serves object images without a cross-origin redirect for canvas reads", async () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "owner", role: "user" });
         mocks.registration.mockResolvedValue({ ownerUserId: "owner", originalName: "file.png", mimeType: "image/png", storageProvider: "object", bytes: 4 });

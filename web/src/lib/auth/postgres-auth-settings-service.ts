@@ -56,6 +56,7 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>, e
                     apiFormat: channel.apiFormat,
                     models: asJson(channel.models),
                     enabled: channel.enabled,
+                    practiceEnabled: channel.practiceEnabled,
                     purpose: channel.purpose || "shared",
                     advancedConfig: channel.advancedConfig ? asJson(channel.advancedConfig) : undefined,
                     sortOrder,
@@ -94,6 +95,7 @@ function postgresSettingsPatch(patch: Partial<AuthSettings>, settings: AuthSetti
     if (patch.practiceWorkflowModels !== undefined) result.practiceWorkflowModels = asJson(settings.practiceWorkflowModels);
     if (patch.practiceScriptSettings !== undefined) result.practiceScriptSettings = asJson(settings.practiceScriptSettings);
     if (patch.practiceModuleVisibility !== undefined) result.practiceModuleVisibility = asJson(settings.practiceModuleVisibility);
+    if (patch.practiceModelPool !== undefined) result.practiceModelPool = asJson(settings.practiceModelPool);
     if (patch.agentSkills !== undefined) result.agentSkills = asJson(settings.agentSkills);
     if (patch.featureModules !== undefined) result.featureModules = asJson(settings.featureModules);
     return result;

@@ -79,9 +79,9 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
     if (!permit) return NextResponse.json({ code: 429, data: null, msg: "媒体并发访问过多，请稍后重试" }, { status: 429, headers: { "Retry-After": "2" } });
     if (mediaRegistration?.storageProvider === "object") {
         try {
-            // WebGL/canvas pixel reads require an origin-clean response. Normal
-            // display still redirects to OSS; only explicit canvas reads use bytes.
-            if (url.searchParams.get("render") === "canvas" && mediaRegistration.mimeType.startsWith("image/")) {
+            // Provider image fetchers must receive bytes at the first hop, without
+            // relying on redirect support. Ordinary browser display still uses OSS.
+            if ((signed || url.searchParams.get("render") === "canvas") && mediaRegistration.mimeType.startsWith("image/")) {
                 const bytes = await readRegisteredMediaBytes(mediaRegistration, creativeUploadMaxBytes(creativeUploadTypeFromMime(mediaRegistration.mimeType) || "image"));
                 const response = new Response(new Uint8Array(bytes), { headers: { "Content-Type": mediaRegistration.mimeType, "Content-Length": String(bytes.length), "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
                 return withMediaConcurrency(response, permit, request.signal);

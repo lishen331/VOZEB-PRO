@@ -1,0 +1,240 @@
+{
+  "at": "2026-10-21T12:07:34.890Z",
+  "readOnly": true,
+  "boundedBytes": 67108864,
+  "source": "previously captured local snapshots, no provider call",
+  "tasks": [
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "firstSnapshotAt": "2026-10-21T11:59:47.511843+00:00",
+      "lastSnapshotAt": "2026-10-21T12:07:19.152557+00:00",
+      "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+      "status": "success"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "firstSnapshotAt": "2026-10-21T12:00:22.337885+00:00",
+      "lastSnapshotAt": "2026-10-21T12:07:19.152557+00:00",
+      "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+      "status": "success"
+    }
+  ],
+  "initialEvents": [
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974599,
+        "phase": "task_created",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974605,
+        "phase": "state",
+        "state": "submitting",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "errorCode": "submitting"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974609,
+        "phase": "transport_request",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583974690,
+        "phase": "upstream_request",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0"
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583975029,
+        "phase": "upstream_response",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "status": 200,
+        "requestId": "20261021115934710867567RI2ypSq27A63A0E6",
+        "durationMs": 338
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583975037,
+        "phase": "transport_response",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "status": 200,
+        "durationMs": 428
+      },
+      "firstSeenSnapshot": "2026-10-21T11:59:47.511843+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792583975048,
+        "phase": "state",
+        "state": "submitted",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "errorCode": "submitted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999391,
+        "phase": "transport_request",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999417,
+        "phase": "upstream_request",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999677,
+        "phase": "upstream_response",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "status": 200,
+        "requestId": "202610211159594214396782l2yefu6vzTRZX3N",
+        "durationMs": 259
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999684,
+        "phase": "transport_response",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "status": 200,
+        "durationMs": 294
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792583999695,
+        "phase": "state",
+        "state": "submitted",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "errorCode": "submitted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:00:22.337885+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792584250079,
+        "phase": "state",
+        "state": "result_ready",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "errorCode": "succeeded"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:07:19.152557+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792584250350,
+        "phase": "state",
+        "state": "persisting",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "errorCode": "succeeded"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:07:19.152557+00:00"
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "event": {
+        "at": 1792584251221,
+        "phase": "state",
+        "state": "completed",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+        "errorCode": "persisted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:07:19.152557+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792584254791,
+        "phase": "state",
+        "state": "result_ready",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "errorCode": "succeeded"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:07:19.152557+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792584255063,
+        "phase": "state",
+        "state": "persisting",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "errorCode": "succeeded"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:07:19.152557+00:00"
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "event": {
+        "at": 1792584255771,
+        "phase": "state",
+        "state": "completed",
+        "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+        "model": "doubao-seedance-2-0",
+        "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+        "errorCode": "persisted"
+      },
+      "firstSeenSnapshot": "2026-10-21T12:07:19.152557+00:00"
+    }
+  ]
+}

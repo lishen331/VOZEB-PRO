@@ -1,0 +1,229 @@
+/* VOZEB Design System tokens — scoped to .vz-ds, never applied globally. */
+@property --vz-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+
+.vz-ds {
+    color-scheme: dark;
+    --vz-bg: #0a0c11;
+    --vz-surface-1: #11141b;
+    --vz-surface-2: #171b24;
+    --vz-surface-3: #1f242f;
+    --vz-surface-hover: rgba(255, 255, 255, 0.045);
+    --vz-surface-press: rgba(255, 255, 255, 0.07);
+    --vz-glass: rgba(16, 19, 26, 0.66);
+    --vz-glass-strong: rgba(22, 26, 35, 0.84);
+    --vz-text-1: #f3f5f9;
+    --vz-text-2: #aab2c2;
+    --vz-text-3: #8792a5;
+    --vz-text-on-brand: #ffffff;
+    --vz-brand: #7c6cff;
+    --vz-brand-hover: #8d80ff;
+    --vz-brand-text: #b9b0ff;
+    --vz-brand-soft: rgba(124, 108, 255, 0.15);
+    --vz-accent: #34d3ff;
+    --vz-accent-text: var(--vz-accent);
+    --vz-accent-soft: rgba(52, 211, 255, 0.13);
+    --vz-gradient: linear-gradient(135deg, #6d48e5 0%, #4d55d9 55%, #2d60c7 100%);
+    --vz-gradient-success: linear-gradient(135deg, #14704d, #18794e);
+    --vz-gradient-danger: linear-gradient(135deg, #be123c, #a91b45);
+    --vz-gradient-glow: linear-gradient(135deg, #7c6cff, #34d3ff);
+    --vz-success: #34d399;
+    --vz-success-text: var(--vz-success);
+    --vz-success-soft: rgba(52, 211, 153, 0.14);
+    --vz-warning: #fbbf24;
+    --vz-warning-text: var(--vz-warning);
+    --vz-warning-soft: rgba(251, 191, 36, 0.14);
+    --vz-danger: #fb7185;
+    --vz-danger-text: var(--vz-danger);
+    --vz-danger-soft: rgba(251, 113, 133, 0.14);
+    --vz-info: #60a5fa;
+    --vz-info-text: var(--vz-info);
+    --vz-info-soft: rgba(96, 165, 250, 0.14);
+    --vz-border: rgba(255, 255, 255, 0.08);
+    --vz-border-strong: rgba(255, 255, 255, 0.15);
+    /* Identifying control edges stay distinct from decorative borders. */
+    --vz-control-border: #737f93;
+    --vz-focus-color: #7c6cff;
+    --vz-divider: rgba(255, 255, 255, 0.06);
+    --vz-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --vz-shadow-1: var(--vz-highlight), 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -14px rgba(0, 0, 0, 0.55);
+    --vz-shadow-2: var(--vz-highlight), 0 2px 6px rgba(0, 0, 0, 0.25), 0 20px 48px -18px rgba(0, 0, 0, 0.65);
+    --vz-shadow-3: var(--vz-highlight), 0 32px 80px -24px rgba(0, 0, 0, 0.75);
+    --vz-glow-brand: 0 10px 30px -10px rgba(110, 92, 255, 0.7);
+    --vz-ring: 0 0 0 2px var(--vz-bg), 0 0 0 4px var(--vz-focus-color);
+    --vz-blur: saturate(160%) blur(20px);
+
+    /* 4px base / 8px rhythm: space-4 is 16px, space-8 is 32px. */
+    --vz-space-1: 4px;
+    --vz-space-2: 8px;
+    --vz-space-3: 12px;
+    --vz-space-4: 16px;
+    --vz-space-5: 20px;
+    --vz-space-6: 24px;
+    --vz-space-8: 32px;
+    --vz-space-10: 40px;
+    --vz-space-12: 48px;
+    --vz-space-16: 64px;
+    --vz-text-size-xs: 12px;
+    --vz-text-size-sm: 13px;
+    --vz-text-size-md: 14px;
+    --vz-text-size-lg: 16px;
+    --vz-text-size-xl: 20px;
+    --vz-text-size-2xl: 24px;
+    --vz-text-size-3xl: 32px;
+    --vz-leading-tight: 1.2;
+    --vz-leading-title: 1.25;
+    --vz-leading-heading: 1.4;
+    --vz-leading-body: 1.55;
+    --vz-leading-relaxed: 1.65;
+    --vz-r-xs: 8px;
+    --vz-r-sm: 10px;
+    --vz-r-md: 14px;
+    --vz-r-lg: 18px;
+    --vz-r-xl: 24px;
+    --vz-r-2xl: 28px;
+
+    --vz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --vz-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+    --vz-dur-1: 120ms;
+    --vz-dur-2: 200ms;
+    --vz-dur-3: 320ms;
+
+    --vz-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --vz-font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+.vz-ds[data-vz-theme="light"] {
+    color-scheme: light;
+    --vz-bg: #f3f4f8;
+    --vz-surface-1: #ffffff;
+    --vz-surface-2: #f7f8fb;
+    --vz-surface-3: #eef0f5;
+    --vz-surface-hover: rgba(20, 24, 40, 0.04);
+    --vz-surface-press: rgba(20, 24, 40, 0.07);
+    --vz-glass: rgba(255, 255, 255, 0.7);
+    --vz-glass-strong: rgba(255, 255, 255, 0.88);
+    --vz-text-1: #141824;
+    --vz-text-2: #4d5566;
+    --vz-text-3: #5c6779;
+    --vz-brand: #5f4bff;
+    --vz-brand-hover: #6d5bff;
+    --vz-brand-text: #4c39e6;
+    --vz-brand-soft: rgba(95, 75, 255, 0.1);
+    --vz-accent: #0596c7;
+    --vz-accent-text: #006b91;
+    --vz-accent-soft: rgba(5, 150, 199, 0.1);
+    --vz-success: #059669;
+    --vz-success-text: #006b4b;
+    --vz-success-soft: rgba(5, 150, 105, 0.1);
+    --vz-warning: #b45309;
+    --vz-warning-text: #92400e;
+    --vz-warning-soft: rgba(217, 119, 6, 0.12);
+    --vz-danger: #e11d48;
+    --vz-danger-text: #be123c;
+    --vz-danger-soft: rgba(225, 29, 72, 0.09);
+    --vz-info: #2563eb;
+    --vz-info-text: #1d4ed8;
+    --vz-info-soft: rgba(37, 99, 235, 0.09);
+    --vz-border: rgba(20, 24, 40, 0.08);
+    --vz-border-strong: rgba(20, 24, 40, 0.15);
+    --vz-control-border: #737d8e;
+    --vz-focus-color: #5f4bff;
+    --vz-divider: rgba(20, 24, 40, 0.06);
+    --vz-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    --vz-shadow-1: 0 1px 2px rgba(20, 24, 40, 0.05), 0 8px 24px -16px rgba(20, 24, 40, 0.18);
+    --vz-shadow-2: 0 2px 6px rgba(20, 24, 40, 0.05), 0 20px 48px -20px rgba(20, 24, 40, 0.25);
+    --vz-shadow-3: 0 32px 80px -24px rgba(20, 24, 40, 0.32);
+    --vz-glow-brand: 0 10px 28px -12px rgba(95, 75, 255, 0.55);
+    --vz-ring: 0 0 0 2px var(--vz-bg), 0 0 0 4px var(--vz-focus-color);
+}
+
+.vz-ds {
+    position: relative;
+    height: 100dvh;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    scroll-padding-top: 80px;
+    background: var(--vz-bg);
+    color: var(--vz-text-1);
+    font-family: var(--vz-font);
+    font-size: var(--vz-text-size-md);
+    line-height: var(--vz-leading-body);
+    letter-spacing: -0.003em;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+}
+
+.vz-ds *,
+.vz-ds *::before,
+.vz-ds *::after {
+    box-sizing: border-box;
+}
+
+.vz-ds :focus-visible {
+    outline: 2px solid var(--vz-focus-color);
+    outline-offset: 3px;
+}
+
+.vz-ds .vz-num {
+    font-variant-numeric: tabular-nums;
+}
+
+.vz-ds .vz-h-display {
+    font-size: clamp(var(--vz-text-size-2xl), 3.2vw, var(--vz-text-size-3xl));
+    font-weight: 650;
+    letter-spacing: -0.022em;
+    line-height: var(--vz-leading-tight);
+}
+.vz-ds .vz-h1 {
+    font-size: var(--vz-text-size-2xl);
+    font-weight: 650;
+    letter-spacing: -0.018em;
+    line-height: var(--vz-leading-title);
+}
+.vz-ds .vz-h2 {
+    font-size: var(--vz-text-size-xl);
+    font-weight: 600;
+    letter-spacing: -0.014em;
+    line-height: var(--vz-leading-heading);
+}
+.vz-ds .vz-h3 {
+    font-size: var(--vz-text-size-lg);
+    font-weight: 600;
+    letter-spacing: -0.008em;
+    line-height: var(--vz-leading-heading);
+}
+.vz-ds .vz-body {
+    font-size: var(--vz-text-size-md);
+    color: var(--vz-text-2);
+}
+.vz-ds .vz-caption {
+    font-size: var(--vz-text-size-xs);
+    color: var(--vz-text-3);
+    line-height: var(--vz-leading-relaxed);
+}
+.vz-ds .vz-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--vz-text-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vz-ds {
+        scroll-behavior: auto;
+    }
+    .vz-ds *,
+    .vz-ds *::before,
+    .vz-ds *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-11-09。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **440** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-11-11。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **444** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**440**
-- 方法出现次数：DELETE 66、GET 223、HEAD 6、PATCH 62、POST 246、PUT 18
-- 一级域：`admin` 134、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 25、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**444**
+- 方法出现次数：DELETE 66、GET 226、HEAD 6、PATCH 63、POST 246、PUT 18
+- 一级域：`admin` 137、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 26、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（134）
+### `admin`（137）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -98,6 +98,7 @@
 | GET | `/api/admin/drama-projects/[id]/episodes` | 管理员 | [route.ts](web/src/app/api/admin/drama-projects/[id]/episodes/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[session](web/src/lib/auth/session.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-projects / 单项 / episodes：查询 |
 | DELETE, GET | `/api/admin/generation-assets` | 管理员 | [route.ts](web/src/app/api/admin/generation-assets/route.ts) | [local-media-storage](web/src/lib/server/local-media-storage.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 生成资产：查询、删除 |
 | DELETE, GET | `/api/admin/generation-logs` | 管理员 | [route.ts](web/src/app/api/admin/generation-logs/route.ts) | [generation-log-store](web/src/lib/server/generation-log-store.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成日志：查询、删除 |
+| GET | `/api/admin/generation-logs/[id]/trace` | 管理员 | [route.ts](web/src/app/api/admin/generation-logs/[id]/trace/route.ts) | [generation-log-trace](web/src/lib/server/generation-log-trace.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成日志 / 单项 / trace：查询 |
 | GET | `/api/admin/generation-operations` | 管理员 | [route.ts](web/src/app/api/admin/generation-operations/route.ts) | [generation-operations-service](web/src/lib/server/generation-operations-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成运维：查询 |
 | POST | `/api/admin/generation-operations/[type]/[id]/review` | 管理员 | [route.ts](web/src/app/api/admin/generation-operations/[type]/[id]/review/route.ts) | [generation-task-review-service](web/src/lib/server/generation-task-review-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成运维 / 指定任务类型 / 单项 / 审核：提交/执行 |
 | GET | `/api/admin/generation-overview` | 管理员 | [route.ts](web/src/app/api/admin/generation-overview/route.ts) | [generation-overview-service](web/src/lib/server/generation-overview-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成概览：查询 |
@@ -119,6 +120,8 @@
 | POST | `/api/admin/object-storage/files/cleanup` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/files/cleanup/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 文件 / cleanup：提交/执行 |
 | GET | `/api/admin/object-storage/files/preview` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/files/preview/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 文件 / 预览：查询 |
 | POST | `/api/admin/object-storage/sync` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/sync/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 迁移同步：提交/执行 |
+| PATCH | `/api/admin/practice-model-pool` | 管理员 | [route.ts](web/src/app/api/admin/practice-model-pool/route.ts) | [store](web/src/lib/auth/store.ts)<br>[store-types](web/src/lib/auth/store-types.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-model-pool：更新 |
+| GET | `/api/admin/practice-model-pool/candidates` | 管理员 | [route.ts](web/src/app/api/admin/practice-model-pool/candidates/route.ts) | [generation-channel](web/src/lib/server/generation-channel.ts)<br>[runninghub-workflow-runtime](web/src/lib/server/runninghub-workflow-runtime.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-model-pool / candidates：查询 |
 | PATCH | `/api/admin/practice-script/agents/[agentKey]` | 管理员 | [route.ts](web/src/app/api/admin/practice-script/agents/[agentKey]/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-domain](web/src/lib/server/script-agent-domain.ts)<br>[script-agent-skills](web/src/lib/server/script-agent-skills.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-script / agents / [agentKey]：更新 |
 | GET | `/api/admin/practice-script/overview` | 管理员 | [route.ts](web/src/app/api/admin/practice-script/overview/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-repository](web/src/lib/server/database/script-agent-repository.ts)<br>[script-agent-skills](web/src/lib/server/script-agent-skills.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / practice-script / 概览：查询 |
 | GET, POST | `/api/admin/prompts` | 管理员 | [route.ts](web/src/app/api/admin/prompts/route.ts) | [store](web/src/lib/auth/store.ts)<br>[store](web/src/lib/prompts/store.ts) | PostgreSQL、公开内容/站点设置 | 管理后台 / 提示词：查询、提交/执行 |
@@ -198,7 +201,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| POST | `/api/audio-tasks` | 混合 | [route.ts](web/src/app/api/audio-tasks/route.ts) | [audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[custom-voice-store](web/src/lib/server/custom-voice-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务：提交/执行 |
+| POST | `/api/audio-tasks` | 混合 | [route.ts](web/src/app/api/audio-tasks/route.ts) | [audio-dialog-service](web/src/lib/server/audio-dialog-service.ts)<br>[audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[custom-voice-store](web/src/lib/server/custom-voice-store.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务：提交/执行 |
 | GET, PATCH, POST | `/api/audio-tasks/[id]` | 混合 | [route.ts](web/src/app/api/audio-tasks/[id]/route.ts) | [audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务 / 单项：查询、更新、提交/执行 |
 
 ### `auth`（13）
@@ -284,7 +287,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| GET, POST | `/api/custom-voices` | 用户 | [route.ts](web/src/app/api/custom-voices/route.ts) | [custom-voice-store](web/src/lib/server/custom-voice-store.ts)<br>[generation-charge-service](web/src/lib/server/generation-charge-service.ts)<br>[custom-voice-upstream](web/src/lib/server/custom-voice-upstream.ts) | PostgreSQL | custom-voices：查询、提交/执行 |
+| GET, POST | `/api/custom-voices` | 用户 | [route.ts](web/src/app/api/custom-voices/route.ts) | [custom-voice-store](web/src/lib/server/custom-voice-store.ts)<br>[generation-charge-service](web/src/lib/server/generation-charge-service.ts)<br>[reference-asset-store](web/src/lib/server/reference-asset-store.ts) | PostgreSQL | custom-voices：查询、提交/执行 |
 | DELETE, GET, PATCH | `/api/custom-voices/[id]` | 用户 | [route.ts](web/src/app/api/custom-voices/[id]/route.ts) | [custom-voice-store](web/src/lib/server/custom-voice-store.ts)<br>[custom-voice-upstream](web/src/lib/server/custom-voice-upstream.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL | custom-voices / 单项：查询、更新、删除 |
 | GET | `/api/custom-voices/capabilities` | 用户 | [route.ts](web/src/app/api/custom-voices/capabilities/route.ts) | [store](web/src/lib/auth/store.ts)<br>[custom-voice-config](web/src/lib/custom-voice-config.ts) | PostgreSQL | custom-voices / capabilities：查询 |
 
@@ -528,10 +531,11 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/points` | 用户 | [route.ts](web/src/app/api/points/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 积分：查询 |
 
-### `practice`（25）
+### `practice`（26）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/practice/available-models` | 混合 | [route.ts](web/src/app/api/practice/available-models/route.ts) | [runninghub-workflow-runtime](web/src/lib/server/runninghub-workflow-runtime.ts)<br>[user-navigation-permissions](web/src/lib/server/user-navigation-permissions.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL | practice / available-models：查询 |
 | GET | `/api/practice/modules` | 混合 | [route.ts](web/src/app/api/practice/modules/route.ts) | [practice-module-service](web/src/lib/server/practice-module-service.ts) | PostgreSQL | practice / modules：查询 |
 | GET, POST | `/api/practice/projects` | 混合 | [route.ts](web/src/app/api/practice/projects/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL | practice / 项目：查询、提交/执行 |
 | GET | `/api/practice/projects/[id]` | 混合 | [route.ts](web/src/app/api/practice/projects/[id]/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | PostgreSQL | practice / 项目 / 单项：查询 |

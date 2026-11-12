@@ -41,6 +41,26 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
     const advanced = config.advancedConfig;
     const workflow = workflowConfigForTask(task);
     if (!advanced?.createPath || !advanced.resultField || (advanced.protocol === "runninghub" && (!advanced.taskIdField || !advanced.queryPath))) throw new GenerationSubmissionSafeFailure("图片异步协议缺少创建、查询或结果字段");
+    if (advanced.protocol === "agnes") {
+        const references = [...task.references, ...(task.mask ? [task.mask] : [])];
+        const images = await Promise.all(references.map((reference, index) => imageReferenceToDataUrl(reference, reference.name || `reference-${index + 1}.png`, origin, cookie)));
+        const ratio = imageRequestAspectRatio(config.size || "auto");
+        const resolution = requestedImageResolution(config)?.toUpperCase();
+        const size = resolution || (/^\d+x\d+$/i.test(config.size || "") ? config.size : "1K");
+        const payload = {
+            model: config.model,
+            prompt: task.upstreamPrompt || buildImageTaskPrompt(task),
+            size,
+            ...(ratio && ratio !== "auto" ? { ratio } : {}),
+            ...(images.length ? { image: images } : {}),
+            ...(config.advancedConfig?.imageResponseFormat === "b64_json" ? { return_base64: true } : {}),
+        };
+        const url = taskUrl(config, advanced.createPath, origin);
+        const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
+        headers.set("content-type", "application/json");
+        const response = await imageSubmissionFetch(config, url, { method: "POST", headers, body: JSON.stringify(payload), cache: "no-store" });
+        return parseDeclarativeSubmission(task, response, url, cookie, singleStep);
+    }
     const size = resolveDeclarativeImageSize(config);
     if (isAsyncImageTaskProtocol(advanced.protocol)) return runAsyncImageTask(task, advanced.protocol, size, origin, publicOrigin, cookie, singleStep);
     const [width, height] = /^\d+x\d+$/.test(size) ? size.split("x").map(Number) : [undefined, undefined];

@@ -3,12 +3,24 @@ import { getDramaProjectForUser } from "./drama-project-service";
 
 export type ProjectExecutionProfile = "production" | "open-source-practice";
 
-export async function resolveProjectExecutionProfile(userId: string, context: { surface?: string; projectId?: string }): Promise<ProjectExecutionProfile | undefined> {
+export type ProjectExecutionContext = { executionProfile: ProjectExecutionProfile; schoolId?: string };
+
+/**
+ * 练习任务的学校范围只能取自项目本身，不采信客户端。
+ * 项目归属哪个学校，任务就记到哪个学校；项目没有学校归属时不补，保持原有行为。
+ */
+export async function resolveProjectExecutionContext(userId: string, context: { surface?: string; projectId?: string }): Promise<ProjectExecutionContext | undefined> {
     const projectId = typeof context.projectId === "string" ? context.projectId.trim() : "";
     if (!projectId) return undefined;
-    if (context.surface === "canvas") return readProfile(await loadProject(() => getCanvasProjectForUser(userId, projectId)));
-    if (context.surface === "drama") return readProfile(await loadProject(() => getDramaProjectForUser(userId, projectId)));
-    return undefined;
+    const project = context.surface === "canvas" ? await loadProject(() => getCanvasProjectForUser(userId, projectId)) : context.surface === "drama" ? await loadProject(() => getDramaProjectForUser(userId, projectId)) : null;
+    const executionProfile = readProfile(project);
+    if (!executionProfile) return undefined;
+    const schoolId = project && typeof project === "object" && typeof (project as { schoolId?: unknown }).schoolId === "string" ? (project as { schoolId: string }).schoolId.trim() : "";
+    return { executionProfile, ...(schoolId ? { schoolId } : {}) };
+}
+
+export async function resolveProjectExecutionProfile(userId: string, context: { surface?: string; projectId?: string }): Promise<ProjectExecutionProfile | undefined> {
+    return (await resolveProjectExecutionContext(userId, context))?.executionProfile;
 }
 
 async function loadProject<T>(load: () => Promise<T>) {

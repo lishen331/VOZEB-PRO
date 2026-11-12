@@ -1,0 +1,270 @@
+{
+  "at": "2026-10-21T12:21:40.303483+00:00",
+  "tasks": [
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "status": "success",
+      "videoNodes": [
+        {
+          "nodeId": "video-fZOtsyqvr0rG1ESHULBH2",
+          "status": "success",
+          "metadataKeys": [
+            "size",
+            "bytes",
+            "model",
+            "prompt",
+            "status",
+            "content",
+            "seconds",
+            "mimeType",
+            "vquality",
+            "serverUrl",
+            "watermark",
+            "durationMs",
+            "references",
+            "storageKey",
+            "naturalWidth",
+            "generateAudio",
+            "naturalHeight",
+            "videoReferences",
+            "videoReferenceMode",
+            "generationPendingSince",
+            "generationPendingTaskId"
+          ],
+          "topLevelKeys": [
+            "id",
+            "type",
+            "title",
+            "width",
+            "height",
+            "metadata",
+            "position"
+          ],
+          "taskIdMatches": true,
+          "resultMatchesNodeValue": false,
+          "resultMatchesMetadataValue": true
+        },
+        {
+          "nodeId": "video-Kg28vwev5jeWi8UULEccV",
+          "status": "success",
+          "metadataKeys": [
+            "size",
+            "bytes",
+            "model",
+            "prompt",
+            "status",
+            "content",
+            "seconds",
+            "mimeType",
+            "vquality",
+            "serverUrl",
+            "watermark",
+            "durationMs",
+            "references",
+            "storageKey",
+            "naturalWidth",
+            "generateAudio",
+            "naturalHeight",
+            "videoReferences",
+            "videoReferenceMode",
+            "generationPendingSince",
+            "generationPendingTaskId"
+          ],
+          "topLevelKeys": [
+            "id",
+            "type",
+            "title",
+            "width",
+            "height",
+            "metadata",
+            "position"
+          ],
+          "taskIdMatches": false,
+          "resultMatchesNodeValue": false,
+          "resultMatchesMetadataValue": false
+        }
+      ],
+      "projectPresent": true,
+      "resultUrlPresent": true
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "status": "success",
+      "videoNodes": [
+        {
+          "nodeId": "video-fZOtsyqvr0rG1ESHULBH2",
+          "status": "success",
+          "metadataKeys": [
+            "size",
+            "bytes",
+            "model",
+            "prompt",
+            "status",
+            "content",
+            "seconds",
+            "mimeType",
+            "vquality",
+            "serverUrl",
+            "watermark",
+            "durationMs",
+            "references",
+            "storageKey",
+            "naturalWidth",
+            "generateAudio",
+            "naturalHeight",
+            "videoReferences",
+            "videoReferenceMode",
+            "generationPendingSince",
+            "generationPendingTaskId"
+          ],
+          "topLevelKeys": [
+            "id",
+            "type",
+            "title",
+            "width",
+            "height",
+            "metadata",
+            "position"
+          ],
+          "taskIdMatches": false,
+          "resultMatchesNodeValue": false,
+          "resultMatchesMetadataValue": false
+        },
+        {
+          "nodeId": "video-Kg28vwev5jeWi8UULEccV",
+          "status": "success",
+          "metadataKeys": [
+            "size",
+            "bytes",
+            "model",
+            "prompt",
+            "status",
+            "content",
+            "seconds",
+            "mimeType",
+            "vquality",
+            "serverUrl",
+            "watermark",
+            "durationMs",
+            "references",
+            "storageKey",
+            "naturalWidth",
+            "generateAudio",
+            "naturalHeight",
+            "videoReferences",
+            "videoReferenceMode",
+            "generationPendingSince",
+            "generationPendingTaskId"
+          ],
+          "topLevelKeys": [
+            "id",
+            "type",
+            "title",
+            "width",
+            "height",
+            "metadata",
+            "position"
+          ],
+          "taskIdMatches": true,
+          "resultMatchesNodeValue": false,
+          "resultMatchesMetadataValue": true
+        }
+      ],
+      "projectPresent": true,
+      "resultUrlPresent": true
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "status": "success",
+      "videoNodes": [],
+      "projectPresent": true,
+      "resultUrlPresent": true
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "status": "success",
+      "videoNodes": [
+        {
+          "nodeId": "video-fZOtsyqvr0rG1ESHULBH2",
+          "status": "success",
+          "metadataKeys": [
+            "size",
+            "bytes",
+            "model",
+            "prompt",
+            "status",
+            "content",
+            "seconds",
+            "mimeType",
+            "vquality",
+            "serverUrl",
+            "watermark",
+            "durationMs",
+            "references",
+            "storageKey",
+            "naturalWidth",
+            "generateAudio",
+            "naturalHeight",
+            "videoReferences",
+            "videoReferenceMode",
+            "generationPendingSince",
+            "generationPendingTaskId"
+          ],
+          "topLevelKeys": [
+            "id",
+            "type",
+            "title",
+            "width",
+            "height",
+            "metadata",
+            "position"
+          ],
+          "taskIdMatches": false,
+          "resultMatchesNodeValue": false,
+          "resultMatchesMetadataValue": false
+        },
+        {
+          "nodeId": "video-Kg28vwev5jeWi8UULEccV",
+          "status": "success",
+          "metadataKeys": [
+            "size",
+            "bytes",
+            "model",
+            "prompt",
+            "status",
+            "content",
+            "seconds",
+            "mimeType",
+            "vquality",
+            "serverUrl",
+            "watermark",
+            "durationMs",
+            "references",
+            "storageKey",
+            "naturalWidth",
+            "generateAudio",
+            "naturalHeight",
+            "videoReferences",
+            "videoReferenceMode",
+            "generationPendingSince",
+            "generationPendingTaskId"
+          ],
+          "topLevelKeys": [
+            "id",
+            "type",
+            "title",
+            "width",
+            "height",
+            "metadata",
+            "position"
+          ],
+          "taskIdMatches": false,
+          "resultMatchesNodeValue": false,
+          "resultMatchesMetadataValue": false
+        }
+      ],
+      "projectPresent": true,
+      "resultUrlPresent": true
+    }
+  ]
+}

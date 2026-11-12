@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-    resolveProjectExecutionProfile: vi.fn(),
+    resolveProjectExecutionContext: vi.fn(),
     after: vi.fn(),
     fetchInternalApi: vi.fn(),
     createVideoTask: vi.fn(),
@@ -68,7 +68,7 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGeneration
 vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
 vi.mock("@/lib/server/generation-project-context", () => ({
-    resolveProjectExecutionProfile: mocks.resolveProjectExecutionProfile,
+    resolveProjectExecutionContext: mocks.resolveProjectExecutionContext,
     projectExecutionProfileError: (error: unknown) =>
         error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number"
             ? { status: (error as { status: number }).status, message: error instanceof Error ? error.message : "项目访问权限已失效" }
@@ -112,7 +112,7 @@ describe("video generation candidate failover", () => {
         vi.clearAllMocks();
         vi.stubEnv("VOZEB_PRO_DATABASE_PROVIDER", "file");
         resetChannelRateLimits();
-        mocks.resolveProjectExecutionProfile.mockResolvedValue(undefined);
+        mocks.resolveProjectExecutionContext.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
         mocks.fetchInternalApi.mockReset();
         resetChannelRuntimeHealth();
@@ -148,7 +148,7 @@ describe("video generation candidate failover", () => {
             inputMappings: [],
             outputMappings: [],
         };
-        mocks.resolveProjectExecutionProfile.mockResolvedValueOnce("open-source-practice");
+        mocks.resolveProjectExecutionContext.mockResolvedValueOnce({ executionProfile: "open-source-practice", schoolId: "school-a" });
         mocks.getAuthSettings.mockResolvedValueOnce({
             ...settings,
             systemChannels: [
@@ -178,7 +178,7 @@ describe("video generation candidate failover", () => {
     });
 
     it("returns the project access status before task creation", async () => {
-        mocks.resolveProjectExecutionProfile.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
+        mocks.resolveProjectExecutionContext.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
         const response = await POST(
             new Request("http://localhost/api/video-generation-tasks", {
                 method: "POST",

@@ -1,0 +1,1276 @@
+{
+  "at": "2026-10-21T16:30:36.992289+00:00",
+  "windowStart": "2026-10-21T16:00:00Z",
+  "readOnly": true,
+  "tailLimit": 3000,
+  "notAuthoritativeTotal": true,
+  "errors": [
+    {
+      "at": "2026-10-22T00:01:00+08:00",
+      "method": "GET",
+      "path": "/",
+      "status": 404,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-22T00:03:59+08:00",
+      "method": "GET",
+      "path": "/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:00+08:00",
+      "method": "GET",
+      "path": "/.env.local",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:00+08:00",
+      "method": "GET",
+      "path": "/.env.production",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:01+08:00",
+      "method": "GET",
+      "path": "/.env.production.local",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:01+08:00",
+      "method": "GET",
+      "path": "/.env.backup",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:01+08:00",
+      "method": "GET",
+      "path": "/.env.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:02+08:00",
+      "method": "GET",
+      "path": "/.env.old",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:02+08:00",
+      "method": "GET",
+      "path": "/.env.save",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:03+08:00",
+      "method": "GET",
+      "path": "/.env.dev",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:03+08:00",
+      "method": "GET",
+      "path": "/.env.staging",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:03+08:00",
+      "method": "GET",
+      "path": "/.env.test",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:04+08:00",
+      "method": "GET",
+      "path": "/.env.prod",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:04+08:00",
+      "method": "GET",
+      "path": "/.env.development",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:05+08:00",
+      "method": "GET",
+      "path": "/.env.example",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:05+08:00",
+      "method": "GET",
+      "path": "/.env.main",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:06+08:00",
+      "method": "GET",
+      "path": "/.env.live",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:06+08:00",
+      "method": "GET",
+      "path": "/.env.release",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:06+08:00",
+      "method": "GET",
+      "path": "/.env.master",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:07+08:00",
+      "method": "GET",
+      "path": "/.env.stage",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:07+08:00",
+      "method": "GET",
+      "path": "/.env.prod.local",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:08+08:00",
+      "method": "GET",
+      "path": "/.env.prod.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:08+08:00",
+      "method": "GET",
+      "path": "/.env.production.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:08+08:00",
+      "method": "GET",
+      "path": "/.env.local.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:09+08:00",
+      "method": "GET",
+      "path": "/.env.ci",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:09+08:00",
+      "method": "GET",
+      "path": "/.env.docker",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:10+08:00",
+      "method": "GET",
+      "path": "/.env.v2",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:10+08:00",
+      "method": "GET",
+      "path": "/.env.orig",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:11+08:00",
+      "method": "GET",
+      "path": "/.env.copy",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:11+08:00",
+      "method": "GET",
+      "path": "/laravel/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:11+08:00",
+      "method": "GET",
+      "path": "/storage/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:12+08:00",
+      "method": "GET",
+      "path": "/public/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:12+08:00",
+      "method": "GET",
+      "path": "/app/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:13+08:00",
+      "method": "GET",
+      "path": "/config/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:13+08:00",
+      "method": "GET",
+      "path": "/api/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:14+08:00",
+      "method": "GET",
+      "path": "/admin/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:14+08:00",
+      "method": "GET",
+      "path": "/backend/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:15+08:00",
+      "method": "GET",
+      "path": "/html/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:15+08:00",
+      "method": "GET",
+      "path": "/htdocs/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:15+08:00",
+      "method": "GET",
+      "path": "/public_html/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:16+08:00",
+      "method": "GET",
+      "path": "/var/www/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:17+08:00",
+      "method": "GET",
+      "path": "/wordpress/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:17+08:00",
+      "method": "GET",
+      "path": "/wp/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:17+08:00",
+      "method": "GET",
+      "path": "/wp-admin/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:18+08:00",
+      "method": "GET",
+      "path": "/symfony/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:18+08:00",
+      "method": "GET",
+      "path": "/django/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:18+08:00",
+      "method": "GET",
+      "path": "/node/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:19+08:00",
+      "method": "GET",
+      "path": "/nodejs/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:19+08:00",
+      "method": "GET",
+      "path": "/shopify/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:20+08:00",
+      "method": "GET",
+      "path": "/magento/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:20+08:00",
+      "method": "GET",
+      "path": "/joomla/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:21+08:00",
+      "method": "GET",
+      "path": "/env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:21+08:00",
+      "method": "GET",
+      "path": "/env.txt",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:21+08:00",
+      "method": "GET",
+      "path": "/.env.txt",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:22+08:00",
+      "method": "GET",
+      "path": "/environment",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:22+08:00",
+      "method": "GET",
+      "path": "/.env.prod.save",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:22+08:00",
+      "method": "GET",
+      "path": "/.env.old.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:23+08:00",
+      "method": "GET",
+      "path": "/.env.local.copy",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:23+08:00",
+      "method": "GET",
+      "path": "/cpanel.config",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:24+08:00",
+      "method": "GET",
+      "path": "/.cpanel.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:24+08:00",
+      "method": "GET",
+      "path": "/cpanel/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:25+08:00",
+      "method": "GET",
+      "path": "/whm.config",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:26+08:00",
+      "method": "GET",
+      "path": "/.whm.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:26+08:00",
+      "method": "GET",
+      "path": "/whm/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:26+08:00",
+      "method": "GET",
+      "path": "/cpanel",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:27+08:00",
+      "method": "GET",
+      "path": "/whm",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:27+08:00",
+      "method": "GET",
+      "path": "/cpanel/cpanel.config",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:28+08:00",
+      "method": "GET",
+      "path": "/whm/whm.config",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:28+08:00",
+      "method": "GET",
+      "path": "/.cpanel/config",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:29+08:00",
+      "method": "GET",
+      "path": "/.whm/config",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:29+08:00",
+      "method": "GET",
+      "path": "/.env.production.local.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:29+08:00",
+      "method": "GET",
+      "path": "/.env.bak.prod",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:30+08:00",
+      "method": "GET",
+      "path": "/.env.bak.dev",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:30+08:00",
+      "method": "GET",
+      "path": "/next/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:31+08:00",
+      "method": "GET",
+      "path": "/nextjs/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:31+08:00",
+      "method": "GET",
+      "path": "/vite/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:31+08:00",
+      "method": "GET",
+      "path": "/nuxt/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:32+08:00",
+      "method": "GET",
+      "path": "/sveltekit/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:32+08:00",
+      "method": "GET",
+      "path": "/astro/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:33+08:00",
+      "method": "GET",
+      "path": "/remix/.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:33+08:00",
+      "method": "GET",
+      "path": "/.env.next",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:34+08:00",
+      "method": "GET",
+      "path": "/.env.vite",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:34+08:00",
+      "method": "GET",
+      "path": "/.env.nuxt",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:34+08:00",
+      "method": "GET",
+      "path": "/.env-secrets",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:35+08:00",
+      "method": "GET",
+      "path": "/secrets.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:35+08:00",
+      "method": "GET",
+      "path": "/vars.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:36+08:00",
+      "method": "GET",
+      "path": "/.environment",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:36+08:00",
+      "method": "GET",
+      "path": "/config/.env.local",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:37+08:00",
+      "method": "GET",
+      "path": "/api/.env.local",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:37+08:00",
+      "method": "GET",
+      "path": "/admin/.env.local",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:38+08:00",
+      "method": "GET",
+      "path": "/prod.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:38+08:00",
+      "method": "GET",
+      "path": "/dev.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:38+08:00",
+      "method": "GET",
+      "path": "/stage.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:39+08:00",
+      "method": "GET",
+      "path": "/test.env",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:39+08:00",
+      "method": "GET",
+      "path": "/.env.prod.old",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:40+08:00",
+      "method": "GET",
+      "path": "/.env.local.old",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:40+08:00",
+      "method": "GET",
+      "path": "/.git/config",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:41+08:00",
+      "method": "GET",
+      "path": "/.git/HEAD",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:41+08:00",
+      "method": "GET",
+      "path": "/.git/logs/HEAD",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:41+08:00",
+      "method": "GET",
+      "path": "/.git/packed-refs",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:42+08:00",
+      "method": "GET",
+      "path": "/.git/info/refs",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:42+08:00",
+      "method": "GET",
+      "path": "/.git/index",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:43+08:00",
+      "method": "GET",
+      "path": "/.git/COMMIT_EDITMSG",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:43+08:00",
+      "method": "GET",
+      "path": "/.git/description",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:44+08:00",
+      "method": "GET",
+      "path": "/wp-config.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:44+08:00",
+      "method": "GET",
+      "path": "/wp-config.php.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:45+08:00",
+      "method": "GET",
+      "path": "/wp-config.php.old",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:45+08:00",
+      "method": "GET",
+      "path": "/wp-config.php.save",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:45+08:00",
+      "method": "GET",
+      "path": "/wp-config.php.swp",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:46+08:00",
+      "method": "GET",
+      "path": "/wp-config.php~",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:46+08:00",
+      "method": "GET",
+      "path": "/wp-config.php.txt",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:47+08:00",
+      "method": "GET",
+      "path": "/wp-config.php.orig",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:47+08:00",
+      "method": "GET",
+      "path": "/wp-config.php.disabled",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:48+08:00",
+      "method": "GET",
+      "path": "/wp-config.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:48+08:00",
+      "method": "GET",
+      "path": "/wp-config.txt",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:48+08:00",
+      "method": "GET",
+      "path": "/wordpress/wp-config.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:49+08:00",
+      "method": "GET",
+      "path": "/wp/wp-config.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:49+08:00",
+      "method": "GET",
+      "path": "/blog/wp-config.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:49+08:00",
+      "method": "GET",
+      "path": "/wp-config.php.dist",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:50+08:00",
+      "method": "GET",
+      "path": "/storage/logs/laravel.log",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:50+08:00",
+      "method": "GET",
+      "path": "/storage/logs/laravel.log.1",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:50+08:00",
+      "method": "GET",
+      "path": "/storage/logs/laravel.log.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:51+08:00",
+      "method": "GET",
+      "path": "/laravel.log",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:52+08:00",
+      "method": "GET",
+      "path": "/logs/laravel.log",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:52+08:00",
+      "method": "GET",
+      "path": "/storage/logs/laravel-2026-10-21.log",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:52+08:00",
+      "method": "GET",
+      "path": "/phpinfo.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:53+08:00",
+      "method": "GET",
+      "path": "/info.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:54+08:00",
+      "method": "GET",
+      "path": "/test.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:54+08:00",
+      "method": "GET",
+      "path": "/i.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:54+08:00",
+      "method": "GET",
+      "path": "/php.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:55+08:00",
+      "method": "GET",
+      "path": "/p.php",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:55+08:00",
+      "method": "GET",
+      "path": "/server-status",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:56+08:00",
+      "method": "GET",
+      "path": "/server-info",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:56+08:00",
+      "method": "GET",
+      "path": "/apache-status",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:56+08:00",
+      "method": "GET",
+      "path": "/nginx_status",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:57+08:00",
+      "method": "GET",
+      "path": "/.aws/credentials",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:57+08:00",
+      "method": "GET",
+      "path": "/.aws/config",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:57+08:00",
+      "method": "GET",
+      "path": "/.docker/config.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:58+08:00",
+      "method": "GET",
+      "path": "/.npmrc",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:58+08:00",
+      "method": "GET",
+      "path": "/.pypirc",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:59+08:00",
+      "method": "GET",
+      "path": "/.netrc",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:04:59+08:00",
+      "method": "GET",
+      "path": "/.git-credentials",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:00+08:00",
+      "method": "GET",
+      "path": "/.composer/auth.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:00+08:00",
+      "method": "GET",
+      "path": "/composer/auth.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:00+08:00",
+      "method": "GET",
+      "path": "/.config/gcloud/application_default_credentials.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:01+08:00",
+      "method": "GET",
+      "path": "/.htpasswd",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:01+08:00",
+      "method": "GET",
+      "path": "/.htpasswd.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:02+08:00",
+      "method": "GET",
+      "path": "/.htpasswd.old",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:02+08:00",
+      "method": "GET",
+      "path": "/.htaccess",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:02+08:00",
+      "method": "GET",
+      "path": "/.htaccess.bak",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:03+08:00",
+      "method": "GET",
+      "path": "/auth.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:03+08:00",
+      "method": "GET",
+      "path": "/.DS_Store",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:04+08:00",
+      "method": "GET",
+      "path": "/composer.lock",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:04+08:00",
+      "method": "GET",
+      "path": "/composer.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:04+08:00",
+      "method": "GET",
+      "path": "/package-lock.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:05+08:00",
+      "method": "GET",
+      "path": "/yarn.lock",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:05+08:00",
+      "method": "GET",
+      "path": "/package.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:05+08:00",
+      "method": "GET",
+      "path": "/.gitignore",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:06+08:00",
+      "method": "GET",
+      "path": "/.gitattributes",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:06+08:00",
+      "method": "GET",
+      "path": "/.gitlab-ci.yml",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:07+08:00",
+      "method": "GET",
+      "path": "/.travis.yml",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:07+08:00",
+      "method": "GET",
+      "path": "/swagger.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:07+08:00",
+      "method": "GET",
+      "path": "/openapi.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:08+08:00",
+      "method": "GET",
+      "path": "/api/swagger.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:08+08:00",
+      "method": "GET",
+      "path": "/api/openapi.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:09+08:00",
+      "method": "GET",
+      "path": "/v2/api-docs",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:10+08:00",
+      "method": "GET",
+      "path": "/api/docs",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:10+08:00",
+      "method": "GET",
+      "path": "/api-docs",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:10+08:00",
+      "method": "GET",
+      "path": "/swagger/v1/swagger.json",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:11+08:00",
+      "method": "GET",
+      "path": "/graphql",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:05:11+08:00",
+      "method": "GET",
+      "path": "/.well-known/security.txt",
+      "status": 404,
+      "browserFamily": "Chrome/"
+    },
+    {
+      "at": "2026-10-22T00:09:01+08:00",
+      "method": "GET",
+      "path": "/dns-query",
+      "status": 404,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-22T00:09:01+08:00",
+      "method": "POST",
+      "path": "/dns-query",
+      "status": 404,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-22T00:14:30+08:00",
+      "method": "GET",
+      "path": "/.env",
+      "status": 404,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-22T00:14:30+08:00",
+      "method": "GET",
+      "path": "/.git/config",
+      "status": 404,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-22T00:19:21+08:00",
+      "method": "GET",
+      "path": "/",
+      "status": 404,
+      "browserFamily": "Safari/"
+    },
+    {
+      "at": "2026-10-22T00:21:58+08:00",
+      "method": "GET",
+      "path": "/",
+      "status": 404,
+      "browserFamily": "Safari/"
+    },
+    {
+      "at": "2026-10-22T00:23:04+08:00",
+      "method": "GET",
+      "path": "/",
+      "status": 404,
+      "browserFamily": "Firefox/"
+    },
+    {
+      "at": "2026-10-22T00:25:10+08:00",
+      "method": "GET",
+      "path": "/api/model-catalog",
+      "status": 401,
+      "browserFamily": "Safari/"
+    },
+    {
+      "at": "2026-10-22T00:25:12+08:00",
+      "method": "GET",
+      "path": "/apple-touch-icon-precomposed.png",
+      "status": 404,
+      "browserFamily": "other"
+    },
+    {
+      "at": "2026-10-22T00:25:12+08:00",
+      "method": "GET",
+      "path": "/apple-touch-icon.png",
+      "status": 404,
+      "browserFamily": "other"
+    }
+  ]
+}

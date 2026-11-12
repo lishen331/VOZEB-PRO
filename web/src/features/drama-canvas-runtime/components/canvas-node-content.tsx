@@ -44,6 +44,8 @@ export type NodeContentRendererProps = {
     onToggleBatch?: () => void;
     onSetBatchPrimary?: () => void;
     onImageDimensions?: (nodeId: string, naturalWidth: number, naturalHeight: number) => void;
+    /** 练习画布上，已生成出内容的节点右上角显示"免费"。 */
+    practiceFree?: boolean;
 };
 
 export function NodeContent(props: NodeContentRendererProps) {
@@ -61,7 +63,17 @@ export function NodeContent(props: NodeContentRendererProps) {
     if (props.node.metadata?.status === "cancelled") return <CancelledContent theme={props.theme} />;
 
     const Renderer = nodeContentRenderers[props.node.type];
-    return Renderer ? <Renderer {...props} /> : <UnknownNodeContent theme={props.theme} />;
+    const content = Renderer ? <Renderer {...props} /> : <UnknownNodeContent theme={props.theme} />;
+    // 只标记生成出来的媒体结果。用户自己写的文字、导入的素材不标。
+    const generatedResult = Boolean(props.node.metadata?.content) && (props.node.type === CanvasNodeType.Image || props.node.type === CanvasNodeType.Video || props.node.type === CanvasNodeType.Audio);
+    return props.practiceFree && generatedResult ? (
+        <>
+            {content}
+            <span className="pointer-events-none absolute right-2 top-2 z-[70] rounded bg-emerald-500/85 px-1.5 py-0.5 text-[10px] font-medium leading-none text-white">免费</span>
+        </>
+    ) : (
+        content
+    );
 }
 
 export const nodeContentRenderers = {

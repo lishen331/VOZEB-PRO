@@ -37,6 +37,10 @@ export type StoredGenerationLog = {
     assets: GenerationLogAsset[];
     requestSnapshot?: GenerationLogRequestSnapshot;
     taskId?: string;
+    /** Admin list only. Joined from the task; absent on user-facing reads. */
+    executionProfile?: "production" | "open-source-practice";
+    /** Admin list only. Channel display name joined from the task's channel. */
+    channelName?: string;
     error?: string;
     createdAt: string;
     updatedAt: string;
@@ -99,6 +103,10 @@ export type GenerationLogListOptions = {
     userId?: string;
     start?: string;
     end?: string;
+    /** Admin list only. "production" or "open-source-practice"; ignored elsewhere. */
+    executionProfile?: string;
+    /** Admin list only. Joins execution profile and channel name; never set on user-facing reads. */
+    includeTaskContext?: boolean;
 };
 
 export type GenerationAssetStats = {

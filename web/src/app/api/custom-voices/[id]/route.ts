@@ -4,8 +4,9 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { AuthInputError, isAuthInputError } from "@/lib/auth/store";
 import { getCustomVoice, updateCustomVoice } from "@/lib/server/custom-voice-store";
-import { queryQwenVoiceStatus } from "@/lib/server/custom-voice-upstream";
+import { queryQwenVoiceStatus, deleteMinimaxVoice, deleteQwenVoice } from "@/lib/server/custom-voice-upstream";
 import { getAuthSettings } from "@/lib/auth/store";
+import { normalizeVoiceCustomization } from "@/lib/custom-voice-config";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -55,8 +56,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if (!voice) return NextResponse.json({ error: "Voice not found" }, { status: 404 });
         if (voice.ownerUserId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const body = await readJsonBody<{ name?: string; shared?: boolean }>(request);
-        const update: { name?: string; shared?: boolean } = {};
+        const body = await readJsonBody<{ name?: string; shared?: boolean; saved?: boolean }>(request);
+        const update: { name?: string; shared?: boolean; saved?: boolean } = {};
 
         if (body.name !== undefined) {
             const name = body.name.trim().slice(0, 50);
@@ -66,6 +67,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         if (body.shared !== undefined) {
             update.shared = Boolean(body.shared);
+        }
+
+        // 设计出来的音色默认不入库，用户点「存为我的音色」后把它放进「我的音色」。
+        if (body.saved !== undefined) {
+            update.saved = Boolean(body.saved);
         }
 
         if (Object.keys(update).length === 0) {
@@ -91,7 +97,14 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         if (!voice) return NextResponse.json({ error: "Voice not found" }, { status: 404 });
         if (voice.ownerUserId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        // Mark as deleted without calling upstream delete API (upstream may auto-expire)
+        // 尽量调上游删除，释放百炼账号的音色配额；上游失败也标记为删除，避免用户列表里残留。
+        const settings = await getAuthSettings();
+        const channel = settings.systemChannels.find((ch) => ch.id === voice.channelId);
+        const voiceConfig = channel?.advancedConfig?.voiceCustomization ? normalizeVoiceCustomization(channel.advancedConfig.voiceCustomization) : undefined;
+        if (channel && voiceConfig && voice.upstreamVoiceId) {
+            if (voice.provider === "minimax") await deleteMinimaxVoice(channel, voiceConfig, voice.upstreamVoiceId, voice.kind);
+            else await deleteQwenVoice(channel, voiceConfig, voice.upstreamVoiceId);
+        }
         await updateCustomVoice(id, { status: "deleted" });
         return NextResponse.json({ success: true });
     } catch (error) {

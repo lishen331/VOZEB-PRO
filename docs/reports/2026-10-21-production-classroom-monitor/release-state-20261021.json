@@ -1,0 +1,202 @@
+{
+  "at": "2026-10-21T14:37:50.664972+00:00",
+  "userAuthorization": "Class ended; summarize; Mohui URL fallback only; deploy other own fixes to staging and production, production must exclude colleagues changes",
+  "classroom": {
+    "closed": true,
+    "cutoff": "2026-10-21T20:51:47+08:00",
+    "tasks": 434,
+    "success": 270,
+    "failure": 164,
+    "pending": 0,
+    "accounts": 14,
+    "report": "D:/Claude code programe/VOZEB-PRO/VOZEB-PRO/docs/reports/2026-10-21-production-classroom-monitor/production-classroom-final-report.zh-CN.md",
+    "validation": "final-classroom-validation.json"
+  },
+  "production": {
+    "deployedSha": "2b99976ffff6f6060fd06c07767e56d62eb5a402",
+    "host": "8.163.33.161",
+    "sshUser": "root",
+    "port": 22222,
+    "composeDir": "/opt/vozeb-pro/production",
+    "composeFile": "compose.production.yml",
+    "branch": "codex/release-media-delivery-prod-20261021",
+    "worktree": "D:/Claude code programe/VOZEB-PRO/VOZEB-PRO/.worktrees/release-media-delivery-prod-20261021",
+    "committed": true,
+    "pushed": true,
+    "deployed": false,
+    "commit": "2758a6200d92f11fd3e02cd62c72253ead15bdea"
+  },
+  "staging": {
+    "base": "1ecb51aca15ba02a6b529aa43afc583789991c92",
+    "branch": "codex/release-media-delivery-staging-20261021",
+    "worktree": "D:/Claude code programe/VOZEB-PRO/VOZEB-PRO/.worktrees/release-media-delivery-staging-20261021",
+    "additionalGateFix": "kling-home-view.tsx remove unused onSearch; staging only; agent verified red/green typecheck and 4 tests",
+    "committed": true,
+    "pushed": true,
+    "deployed": false,
+    "commit": "d2a4b5957a0a8c7103273f1403b5c76482c70f81"
+  },
+  "scope": {
+    "included": [
+      "A strict Canvas image result delivery and diagnostics",
+      "C provider-read signed OSS video streaming"
+    ],
+    "excluded": [
+      "B image-task-openai/support/URL contract test",
+      "all colleagues develop commits on production",
+      "channel config or billing changes"
+    ]
+  },
+  "workflow": {
+    "file": ".github/workflows/staging-image.yml",
+    "manualDeployDefault": true,
+    "productionBuildDispatch": "deploy=false on production release branch; immutable SHA tag only; no staging deploy",
+    "developRollingTag": "Only refs/heads/develop may update :develop",
+    "yamlGuardValidation": "Passed via PyYAML; separate agent review pending",
+    "qualityGatesUnchanged": true,
+    "fullAuditAdded": true,
+    "nativeMediaBrowserGateAdded": true,
+    "buildOnlyConcurrencyIsolated": true,
+    "browserCasesDiscovered": 9,
+    "runResults": "Both failed at Dependency audit; downstream checks/build/deploy not run. No new image deployed."
+  },
+  "verification": {
+    "prodTypegen": 0,
+    "prodTypecheck": 0,
+    "mediaTests": 135,
+    "fullSuite": {
+      "passed": 5648,
+      "failedAssertions": 1,
+      "pending": 33,
+      "status": "Windows default workers had module/fork failures; individual recheck resolved two files, only existing dead-route-guard 5000ms sequential-read timeout remains; do not increase timeout or skip tests; use Linux CI for full suite"
+    },
+    "lintSession": 7946,
+    "testsEvidenceDir": "C:\\Users\\admin\\Downloads\\VOZEB-classroom-monitor-20261021-1441/release-verification",
+    "prodFinalTypecheck": 0,
+    "prodNewHelperLint": 0,
+    "developmentMap": {
+      "routes": 426,
+      "pages": 59,
+      "tables": 144,
+      "updatePassed": true,
+      "verificationPassed": true
+    },
+    "audit": {
+      "exit": 1,
+      "metadata": {
+        "critical": 2,
+        "high": 27,
+        "moderate": 32,
+        "low": 7
+      },
+      "unpatchedOfficialPackage": "braces@3.0.3 GHSA-vfj7-8cjw-p6xm",
+      "nextOfficialPatchedVersion": "16.4.1",
+      "dependencyFilesNotModified": true
+    },
+    "postBuildTypecheck": {
+      "productionExit": 2,
+      "stagingExit": 2,
+      "reason": "Four generated Next route/page type diagnostics in unchanged admin entries. Earlier pre-build checks passed; not an all-green typecheck claim."
+    },
+    "identityPrecedenceTests": {
+      "production": 138,
+      "stagingTargeted": 25,
+      "lintExit": 0
+    },
+    "localWebpackBuild": {
+      "productionExit": 0,
+      "stagingExit": 0,
+      "testedProductionCommit": "f4e8f261ef0321f9329a462f927800ca0f1648b6",
+      "testedStagingCommit": "221e28b70551388af4785e4c40a2f1d0951656bf",
+      "beforeIdentityFollowup": true
+    },
+    "localBrowser": {
+      "production": 9,
+      "staging": 9,
+      "runtime": "direct next start plus worker using local fixtures, not standalone",
+      "beforeIdentityFollowup": true,
+      "standaloneExit": 1,
+      "standaloneReason": "Windows junction source/destination copy collision"
+    },
+    "githubRuns": [
+      {
+        "id": 39616122585,
+        "status": "completed",
+        "conclusion": "failure",
+        "branch": "codex/release-media-delivery-staging-20261021",
+        "sha": "d2a4b5957a0a8c7103273f1403b5c76482c70f81",
+        "jobs": [
+          {
+            "name": "build",
+            "status": "completed",
+            "conclusion": "failure",
+            "failedSteps": [
+              "Dependency audit"
+            ]
+          }
+        ]
+      },
+      {
+        "id": 39616128089,
+        "status": "completed",
+        "conclusion": "failure",
+        "branch": "codex/release-media-delivery-prod-20261021",
+        "sha": "2758a6200d92f11fd3e02cd62c72253ead15bdea",
+        "jobs": [
+          {
+            "name": "build",
+            "status": "completed",
+            "conclusion": "failure",
+            "failedSteps": [
+              "Dependency audit"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "agents": {
+    "media_release_review": "Completed review, staging type fix, legacy diagnostic and identity precedence patches; changes synchronized and pushed to isolated branches.",
+    "classroom_closeout_review": "Completed final classroom report, workflow review and dependency audit report."
+  },
+  "next": [
+    "Obtain explicit scope decision for dependency remediation (A/C code safely backed up on GitHub; no images deployed)",
+    "If authorized, apply minimal audited updates to package.json/workspace/lock for web and docs; Next official patch16.4.1 confirmed available; braces no public fix requires reviewed controlled remedy, not silent ignore",
+    "Re-run dependency audit and all source/browser gates on isolated SHA, then build immutable image without staging side effects",
+    "Finish staging branch integration separately; never merge develop into production",
+    "Deploy only green isolated production SHA when jobs are drained and verify health/diagnostics/real OSS paths",
+    "Update release state, class report release section and final user delivery"
+  ],
+  "postClassMonitor": {
+    "samplerPid": 16488,
+    "reporterPid": 9172,
+    "stillRunning": true,
+    "reason": "release health monitoring, final class report frozen separately",
+    "latestSample": "2026-10-21T14:18:08.886498+00:00",
+    "active": 2,
+    "lastObservedAnomaly": {
+      "at": "2026-10-21T14:18:15.853Z",
+      "taskId": "a2876b1e-00e2-42b1-8eea-61f4af1994f3",
+      "model": "gpt-image-2-5-sunburst",
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "phase": "upstream",
+      "status": 400,
+      "error": "Unknown parameter: 'response_format'.",
+      "outbound": {
+        "response_format": "b64_json",
+        "size": "2160x3840",
+        "quality": "high",
+        "n": 1,
+        "output_format": "png/jpeg",
+        "referenceFileCount": 1
+      },
+      "upstreamRequests": 1,
+      "attempts": 1,
+      "upstreamTaskId": null,
+      "classification": "ModelBay rejects response_format parameter; confirmed upstream 400, not frontend-only or local validation",
+      "evidenceSource": "latest.json and task-changes/alerts captured by read-only sampler",
+      "productionWrites": false
+    }
+  },
+  "waitingForUserDecision": "Authorize necessary dependency security upgrades and controlled handling of unpatched braces before actual deployments; do not bypass audit or invent patched versions"
+}

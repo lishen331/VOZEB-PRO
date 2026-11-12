@@ -1,4 +1,5 @@
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
+import type { SystemChannelPurpose } from "@/lib/practice-domain";
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { inferModelCapability, isCreativeGenerationModel, normalizeModelId } from "@/lib/model-capability";
 import { channelConnectionReady, protocolCatalogCapability, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
@@ -117,6 +118,53 @@ export function normalizeDefaultModelsConfig(
     ) as SystemDefaultModels;
 }
 
+export type ChannelSurface = "production" | "open-source-practice";
+
+/**
+ * 渠道在某个场景下是否启用。
+ *
+ * 两个场景各有一个开关：`enabled` 管正式生产，`practiceEnabled` 管无限练习。
+ * `practiceEnabled` 未设置时回落 `enabled`，存量渠道行为不变。
+ *
+ * `purpose` 仍然决定渠道在哪个场景里可见（纯生产渠道不进练习池），
+ * 但它由两个开关推导（见 deriveChannelPurpose），不再由管理员单独选择。
+ */
+export function channelEnabledForSurface(channel: Pick<SystemModelChannel, "enabled" | "practiceEnabled" | "purpose">, surface: ChannelSurface): boolean {
+    if (!resolvePracticeModelAccess(surface, channel.purpose || "shared")) return false;
+    return surface === "production" ? channel.enabled !== false : (channel.practiceEnabled ?? channel.enabled) !== false;
+}
+
+/**
+ * 由两个开关推导渠道用途，保持单一事实来源。
+ * 两个都开 = shared；只开练习 = open-source-practice；只开生产 = production。
+ *
+ * 只有显式设置过练习开关（practiceEnabled 是布尔值）时才推导；
+ * 存量渠道没有这个字段，沿用原 purpose，避免把"纯生产"误判成"共享"。
+ */
+export function deriveChannelPurpose(channel: Pick<SystemModelChannel, "enabled" | "practiceEnabled" | "purpose">): SystemChannelPurpose {
+    if (typeof channel.practiceEnabled !== "boolean") return channel.purpose || "shared";
+    const production = channel.enabled !== false;
+    const practice = channel.practiceEnabled;
+    if (production && practice) return "shared";
+    if (practice) return "open-source-practice";
+    if (production) return "production";
+    return channel.purpose || "shared";
+}
+
+export function channelUsableForSurface(channel: Pick<SystemModelChannel, "enabled" | "practiceEnabled" | "purpose" | "baseUrl" | "apiKey" | "hasApiKey"> & Partial<SystemModelChannel>, surface: ChannelSurface): boolean {
+    return channelEnabledForSurface(channel, surface) && channelConnectionReady(channel);
+}
+
+/**
+ * 开关在界面上应该显示的状态。
+ * 直接看 channelEnabledForSurface，而不是 `practiceEnabled ?? enabled` ——
+ * 后者会让一个用途仍是「正式生产」、从未设置过练习开关的渠道显示成"练习已开"，
+ * 而实际上它在练习侧是被排除的，管理员会误以为已经配好。
+ */
+export function channelSwitchState(channel: Pick<SystemModelChannel, "enabled" | "practiceEnabled" | "purpose">, surface: ChannelSurface): boolean {
+    return channelEnabledForSurface(channel, surface);
+}
+
 export function isLogicalModelResolvable(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
     return Boolean(resolveLogicalModelConfig(logicalModels, channels, capability, modelId, executionProfile));
 }
@@ -128,9 +176,7 @@ export function logicalModelSupportsImageInput(logicalModels: LogicalModel[], ch
     return logical.bindings
         .filter((binding) => binding.enabled)
         .some((binding) => {
-            const channel = channels.find(
-                (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel),
-            );
+            const channel = channels.find((item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item, binding.upstreamModel));
             return Boolean(channel && resolveLogicalModelCapabilityProfile(binding, "text", channel, binding.upstreamModel)?.supportsImageInput);
         });
 }
@@ -140,7 +186,7 @@ export function resolveVisionModelConfig(logicalModels: LogicalModel[], channels
     const logical = logicalModels.find((model) => model.enabled && model.capability === capability && model.id.toLowerCase() === rawModelName(modelId).toLowerCase());
     if (!logical) return null;
     for (const binding of logical.bindings.filter((item) => item.enabled).sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id))) {
-        const channel = channels.find((item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel));
+        const channel = channels.find((item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item, binding.upstreamModel));
         if (channel && resolveLogicalModelCapabilityProfile(binding, capability, channel, binding.upstreamModel)?.supportsImageInput === true) {
             return { logicalModel: logical, binding, channel };
         }
@@ -157,7 +203,7 @@ export function resolveLogicalModelConfig(logicalModels: LogicalModel[], channel
     if (!logical) return null;
     const bindings = [...logical.bindings].filter((binding) => binding.enabled).sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id));
     for (const binding of bindings) {
-        const channel = channels.find((item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel));
+        const channel = channels.find((item) => item.id === binding.channelId && channelUsableForSurface(item, executionProfile) && channelSupportsModel(item, binding.upstreamModel));
         if (channel) return { logicalModel: logical, binding, channel };
     }
     return null;

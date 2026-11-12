@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seedance 真人素材视频生成完整教程 | 兔子API</title>
+  <meta name="description" content="从真人图片上传、合规审核和素材 UUID 查询，到单图、多图及音视频参考生成，提供完整 curl 调用、参数表、任务轮询和错误排查。">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  
+  <link rel="canonical" href="https://api.tu-zi.com/docs/api/seedance-real-person-video">
+  <link rel="alternate" hreflang="zh-CN" href="https://api.tu-zi.com/docs/api/seedance-real-person-video">
+  <link rel="alternate" hreflang="en" href="https://api.tu-zi.com/en/docs/api/seedance-real-person-video">
+  <link rel="alternate" hreflang="x-default" href="https://api.tu-zi.com/docs/api/seedance-real-person-video">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Seedance 真人素材视频生成完整教程">
+  <meta property="og:description" content="从真人图片上传、合规审核和素材 UUID 查询，到单图、多图及音视频参考生成，提供完整 curl 调用、参数表、任务轮询和错误排查。">
+  <meta property="og:url" content="https://api.tu-zi.com/docs/api/seedance-real-person-video">
+  <meta property="og:site_name" content="兔子API">
+  <meta property="og:locale" content="zh-CN">
+  <meta property="article:published_time" content="2026-09-20">
+  <meta property="article:modified_time" content="2026-09-20">
+  
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="/docs-assets/53f41dac3af4ed10/docs.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@id":"https://api.tu-zi.com/#organization","@type":"Organization","logo":"https://nav.ourzhishi.top/api/assets/files/c6dea1fd5da9b784beb05b4acb92d432825297bba9bc1c5ee6ca1e6896ffdaf3.png","name":"兔子API","url":"https://api.tu-zi.com"},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://api.tu-zi.com/docs","name":"文档中心","position":1},{"@type":"ListItem","item":"https://api.tu-zi.com/docs#api","name":"API 协议","position":2},{"@type":"ListItem","item":"https://api.tu-zi.com/docs/api/seedance-real-person-video","name":"Seedance 真人素材视频生成完整教程","position":3}]},{"@id":"https://api.tu-zi.com/docs/api/seedance-real-person-video#page","@type":"TechArticle","dateModified":"2026-09-20","datePublished":"2026-09-20","description":"从真人图片上传、合规审核和素材 UUID 查询，到单图、多图及音视频参考生成，提供完整 curl 调用、参数表、任务轮询和错误排查。","headline":"Seedance 真人素材视频生成完整教程","inLanguage":"zh-CN","name":"Seedance 真人素材视频生成完整教程","publisher":{"@id":"https://api.tu-zi.com/#organization"},"url":"https://api.tu-zi.com/docs/api/seedance-real-person-video"},{"@type":"FAQPage","mainEntity":[{"@type":"Question","acceptedAnswer":{"@type":"Answer","text":"上传成功只表示创建了 pending 素材。必须调用 POST /v1/seedance/assets/{id}/compliance，再查询到 status=active。GET 查询和列表接口不会自动启动审核。"},"name":"已上传图片，为什么还不能生成视频？"},{"@type":"Question","acceptedAnswer":{"@type":"Answer","text":"素材库图片分别上传和审核到 active 后，用返回的 asset:// 引用逐项放入 content，type=image_url、role=reference_image；普通图片也可直接传 HTTP(S) URL 或图片 data URI。已审核引用必须属于本次生成的分组，并在当前令牌权限范围内。"},"name":"多张参考图需要怎么处理？"},{"@type":"Question","acceptedAnswer":{"@type":"Answer","text":"可以，content[].image_url.url 支持 HTTP(S) 图片直链和 data:image/...;base64,... 图片，也可与 asset:// 引用混用。网关流式下载或解码并上传图片，直接使用上传 UUID 生成，不调用合规审核。真人图片请先通过素材库审核，再使用 asset://；误传真人图片被上游拒绝时返回上游错误。裸 base64 和视频 data URI 不支持；音频参考支持 MP3/WAV data URI。"},"name":"图片可以直接填写普通 URL 吗？"},{"@type":"Question","acceptedAnswer":{"@type":"Answer","text":"不需要。type=image_url 表示图片，image_url.url 的 asset:// 前缀表示本站素材引用，HTTP(S) 或 data URI 表示原始图片输入；是否已审核由服务端记录决定。role 只表示参考图、首帧或尾帧用途，不表示真人或审核状态。已审核的非真人图片也可使用 asset://，真人照片的 URL 也不会自动变成已审核引用。"},"name":"真人审核素材与普通参考图需要不同的 type 或 role 吗？"},{"@type":"Question","acceptedAnswer":{"@type":"Answer","text":"不是。素材 id 用来查询或删除，reference 用来生成，review_task_id 用来追踪审核日志，视频创建响应的 id 或 task_id 用来查询视频。管理员可在审核任务诊断中查看上游素材 UUID，调用方无需使用它。"},"name":"素材 ID、审核任务 ID 和视频任务 ID 是同一个吗？"},{"@type":"Question","acceptedAnswer":{"@type":"Answer","text":"同分组、素材服务配置未变更时，已审核图片可以用于该分组支持的其他 Seedance 型号，生成时需有目标模型权限。跨分组引用会被拒绝；建议使用固定单分组令牌。"},"name":"可以把一张审核通过的图用于另一个模型或分组吗？"},{"@type":"Question","acceptedAnswer":{"@type":"Answer","text":"使用 /v1/videos，显式设置 refer_model=videoExtend、ratio=adaptive，提供恰好一个 type=video_url 的视频直链，duration 为 4 到 30 秒。省略 refer_model 时，视频输入仍按 referToVideo 参考生成，不会自动延展。视频不能使用图片 asset:// 或 base64。本站只接入 count=1，尚未接入上游的 videoEdit 和 count=2/4，完整示例见 4.5 节。"},"name":"Seedance 2.5 怎么做视频延展？"}]}]}</script>
+  <script defer src="/docs-assets/53f41dac3af4ed10/docs.js"></script>
+  <script defer src="https://umami.tu-zi.com/script.js" data-website-id="2f9fa5de-dd14-4ae8-a2d8-ca702da0b6c8" data-host-url="https://umami.tu-zi.com" data-performance="true"></script>
+</head>
+<body data-docs-lang="zh-CN" data-marketplace-section="api">
+  <a class="skip-link" href="#document-content">跳到正文</a>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="site-brand" href="/">
+        <img src="https://nav.ourzhishi.top/api/assets/files/c6dea1fd5da9b784beb05b4acb92d432825297bba9bc1c5ee6ca1e6896ffdaf3.png" alt="兔子API">
+        <strong>兔子API</strong>
+      </a>
+
+      <nav class="primary-nav" aria-label="主导航">
+        <a class="site-nav-link" href="/">首页</a>
+        <a class="site-nav-link" href="/console">控制台</a>
+        <a class="site-nav-link" href="/open-platform/apps">开放平台</a>
+        <a class="site-nav-link is-active" href="/pricing" aria-current="page">模型广场</a>
+      </nav>
+
+      <div class="site-header-actions">
+        <a class="header-language" href="/en/docs/api/seedance-real-person-video" hreflang="en" data-docs-language-switch data-home-language="en" aria-label="Switch to English">EN</a>
+        <details class="mobile-site-menu">
+          <summary aria-label="打开导航" data-docs-mobile-menu-summary data-open-label="打开导航" data-close-label="关闭导航">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </summary>
+          <nav aria-label="移动端导航">
+            <a href="/">首页</a>
+            <a href="/console">控制台</a>
+            <a href="/open-platform/apps">开放平台</a>
+            <a class="is-active" href="/pricing" aria-current="page">模型广场</a>
+          </nav>
+        </details>
+      </div>
+    </div>
+  </header>
+
+  <div class="hub-nav-shell">
+    <div class="hub-nav-inner">
+      <nav class="hub-nav" aria-label="模型与文档切换">
+        <a href="/pricing"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 8 4.5-8 4.5-8-4.5Z"/><path d="m4 12 8 4.5 8-4.5M4 16.5 12 21l8-4.5"/></svg>模型</a>
+        <a href="/docs/guides"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3Z"/><path d="M8 16h11M9 8h6M9 12h6"/></svg>指南</a>
+        <a href="/docs/api" class="is-active" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>API 文档</a>
+        <a href="/pricing/status"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 12h3l2-7 4 14 2-7h5"/><path d="M4 4v16M20 4v16"/></svg>模型状态监控</a>
+      </nav>
+      <div class="hub-nav-tools">
+        <div class="search-bar">
+          <form class="search-form" action="/docs/search" method="get" role="search" data-docs-search-form>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35m2.1-5.4a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"/></svg>
+            <label class="sr-only" for="docs-search-input">搜索</label>
+            <input id="docs-search-input" name="q" value="" maxlength="100" autocomplete="off" placeholder="搜索模型、API、使用方法或错误码" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="docs-search-suggestions" data-docs-search-input>
+            <div id="docs-search-suggestions" class="search-suggestions" role="listbox" aria-label="搜索建议" aria-live="polite" hidden data-docs-search-suggestions></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main id="main-content" class="page-shell">
+    <aside class="docs-sidebar" aria-label="浏览文档目录">
+      <details class="docs-directory" open>
+        <summary class="directory-toggle">
+          <span>浏览文档目录</span>
+          <svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 7.5 5 5 5-5"/></svg>
+        </summary>
+        <div class="directory-panel">
+          <nav class="docs-tree" aria-label="文档目录">
+            <details class="tree-section" data-docs-tree-section="category">
+              <summary class="tree-heading">
+                <span class="tree-index">01</span>
+                <strong>使用指南</strong>
+                <span class="tree-count">22</span>
+                <svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 7.5 5 5 5-5"/></svg>
+              </summary>
+              <ul class="tree-children">
+                <li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/beginner-guide"><span aria-hidden="true"></span>AI 模型的 API 聚合平台新手指南：从注册到调用与查账</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/getting-started"><span aria-hidden="true"></span>AI API 快速入门：从 API Key 到第一次调用</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/endpoint-matrix"><span aria-hidden="true"></span>本站 API 端点与能力矩阵</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/troubleshooting"><span aria-hidden="true"></span>AI API 通用错误码与排障指南</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/production-reliability"><span aria-hidden="true"></span>AI API 生产可靠性：超时、重试、限流与 SLO</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/streaming"><span aria-hidden="true"></span>SSE 流式响应与 WebSocket 实时连接</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/async-tasks"><span aria-hidden="true"></span>统一异步任务：提交、轮询与结果生命周期</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/files-media"><span aria-hidden="true"></span>文件与媒体输入、输出及生命周期</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/billing-usage"><span aria-hidden="true"></span>计费、用量与成本核对</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/doubao-billing"><span aria-hidden="true"></span>豆包计费：在线、Fast、批量与缓存</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/channel-taxonomy"><span aria-hidden="true"></span>模型原厂、托管云、聚合渠道与本地运行时</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/gateway-operations"><span aria-hidden="true"></span>AI 网关管理员手册：渠道上线、重试与供应商健康</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/media-storage-operations"><span aria-hidden="true"></span>媒体与对象存储管理员手册：Profile、权限和生命周期</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/security-governance"><span aria-hidden="true"></span>AI API 安全、隐私与数据治理</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/evaluation-migration"><span aria-hidden="true"></span>模型评测、灰度与版本迁移</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/text-reasoning"><span aria-hidden="true"></span>通用文本、对话与推理模型指南</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/coding"><span aria-hidden="true"></span>AI 编码模型选择与调用</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/image-generation"><span aria-hidden="true"></span>图像生成与视觉模型指南</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/video-generation"><span aria-hidden="true"></span>视频生成模型与异步 API 指南</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/audio"><span aria-hidden="true"></span>语音、转写与实时音频 API 指南</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/rag"><span aria-hidden="true"></span>RAG、Embedding 与重排模型指南</a></li><li data-docs-tree-item="category"><a class="tree-link" href="/docs/use-cases/agents"><span aria-hidden="true"></span>工具调用与 AI Agent 模型指南</a></li>
+              </ul>
+            </details>
+
+            <details class="tree-section" open data-docs-tree-section="api">
+              <summary class="tree-heading">
+                <span class="tree-index">02</span>
+                <strong>API 协议</strong>
+                <span class="tree-count">13</span>
+                <svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 7.5 5 5 5-5"/></svg>
+              </summary>
+              <ul class="tree-children">
+                <li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/anthropic"><span aria-hidden="true"></span>Anthropic Messages API 调用指南</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/retrieval"><span aria-hidden="true"></span>Embedding 与 Rerank 检索 API</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/gemini"><span aria-hidden="true"></span>Gemini API 调用指南：Interactions 与 GenerateContent</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/kling"><span aria-hidden="true"></span>Kling 风格异步媒体 API</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/midjourney"><span aria-hidden="true"></span>Midjourney 任务兼容协议</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/openai"><span aria-hidden="true"></span>OpenAI 兼容 API 调用指南</a></li><li data-docs-tree-item="api"><a class="tree-link is-active" href="/docs/api/seedance-real-person-video" aria-current="page"><span aria-hidden="true"></span>Seedance 真人素材视频生成完整教程</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/suno"><span aria-hidden="true"></span>Suno 音乐任务代理协议</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/moderation"><span aria-hidden="true"></span>内容 Moderation 安全分类 API</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/images"><span aria-hidden="true"></span>图像生成与编辑 API</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/tools-structured"><span aria-hidden="true"></span>工具调用与结构化输出 API</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/video"><span aria-hidden="true"></span>视频生成任务 API</a></li><li data-docs-tree-item="api"><a class="tree-link" href="/docs/api/audio-realtime"><span aria-hidden="true"></span>音频、转写与 Realtime API</a></li>
+              </ul>
+            </details>
+
+            <details class="tree-section" data-docs-tree-section="provider">
+              <summary class="tree-heading">
+                <span class="tree-index">03</span>
+                <strong>按模型厂商</strong>
+                <span class="tree-count">29</span>
+                <svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 7.5 5 5 5-5"/></svg>
+              </summary>
+              <ul class="tree-children">
+                
+                <li data-docs-tree-item="provider" data-docs-provider="openai">
+                  <a class="tree-link" href="/docs/providers/openai"><span aria-hidden="true"></span>OpenAI</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="anthropic">
+                  <a class="tree-link" href="/docs/providers/anthropic"><span aria-hidden="true"></span>Anthropic Claude</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="google-gemini">
+                  <a class="tree-link" href="/docs/providers/google-gemini"><span aria-hidden="true"></span>Google Gemini</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="doubao">
+                  <a class="tree-link" href="/docs/providers/doubao"><span aria-hidden="true"></span>ByteDance Doubao</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="deepseek">
+                  <a class="tree-link" href="/docs/providers/deepseek"><span aria-hidden="true"></span>DeepSeek</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="minimax">
+                  <a class="tree-link" href="/docs/providers/minimax"><span aria-hidden="true"></span>MiniMax</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="moonshot-kimi">
+                  <a class="tree-link" href="/docs/providers/moonshot-kimi"><span aria-hidden="true"></span>Moonshot Kimi</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="zhipu-glm">
+                  <a class="tree-link" href="/docs/providers/zhipu-glm"><span aria-hidden="true"></span>Zhipu GLM</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="xai">
+                  <a class="tree-link" href="/docs/providers/xai"><span aria-hidden="true"></span>xAI Grok</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="jimeng">
+                  <a class="tree-link" href="/docs/providers/jimeng"><span aria-hidden="true"></span>ByteDance Jimeng</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="meta-llama">
+                  <a class="tree-link" href="/docs/providers/meta-llama"><span aria-hidden="true"></span>Meta Llama</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="jevai">
+                  <a class="tree-link" href="/docs/providers/jevai"><span aria-hidden="true"></span>JevAI 结构化决策模型</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="qwen">
+                  <a class="tree-link" href="/docs/providers/qwen"><span aria-hidden="true"></span>Alibaba Qwen</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="baidu-ernie">
+                  <a class="tree-link" href="/docs/providers/baidu-ernie"><span aria-hidden="true"></span>Baidu ERNIE</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="mistral">
+                  <a class="tree-link" href="/docs/providers/mistral"><span aria-hidden="true"></span>Mistral AI</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="cohere">
+                  <a class="tree-link" href="/docs/providers/cohere"><span aria-hidden="true"></span>Cohere</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="iflytek-spark">
+                  <a class="tree-link" href="/docs/providers/iflytek-spark"><span aria-hidden="true"></span>iFLYTEK Spark</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="tencent-hunyuan">
+                  <a class="tree-link" href="/docs/providers/tencent-hunyuan"><span aria-hidden="true"></span>Tencent Hunyuan</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="jina-ai">
+                  <a class="tree-link" href="/docs/providers/jina-ai"><span aria-hidden="true"></span>Jina AI</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="black-forest-labs">
+                  <a class="tree-link" href="/docs/providers/black-forest-labs"><span aria-hidden="true"></span>Black Forest Labs</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="vidu">
+                  <a class="tree-link" href="/docs/providers/vidu"><span aria-hidden="true"></span>Vidu</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="kling">
+                  <a class="tree-link" href="/docs/providers/kling"><span aria-hidden="true"></span>Kuaishou Kling AI</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="yi">
+                  <a class="tree-link" href="/docs/providers/yi"><span aria-hidden="true"></span>01.AI Yi</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="happyhorse">
+                  <a class="tree-link" href="/docs/providers/happyhorse"><span aria-hidden="true"></span>HappyHorse</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="aws-bedrock">
+                  <a class="tree-link" href="/docs/providers/aws-bedrock"><span aria-hidden="true"></span>AWS Bedrock</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="azure-ai-foundry">
+                  <a class="tree-link" href="/docs/providers/azure-ai-foundry"><span aria-hidden="true"></span>Azure AI Foundry</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="cloudflare-workers-ai">
+                  <a class="tree-link" href="/docs/providers/cloudflare-workers-ai"><span aria-hidden="true"></span>Cloudflare Workers AI</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="ai360-platform">
+                  <a class="tree-link" href="/docs/providers/ai360-platform"><span aria-hidden="true"></span>360 AI Model Platform</a>
+                  
+                  
+                </li>
+                
+                <li data-docs-tree-item="provider" data-docs-provider="ollama">
+                  <a class="tree-link" href="/docs/providers/ollama"><span aria-hidden="true"></span>Ollama</a>
+                  
+                  
+                </li>
+                
+              </ul>
+            </details>
+          </nav>
+        </div>
+      </details>
+    </aside>
+
+    <div class="reading-column" role="region" aria-label="文档正文" tabindex="0">
+      <div class="context-row">
+        
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="/docs">文档中心</a></li><li><a href="/docs#api">API 协议</a></li><li><a href="/docs/api/seedance-real-person-video">Seedance 真人素材视频生成完整教程</a></li>
+          </ol>
+        </nav>
+        
+      </div>
+
+      <article id="document-content" class="document">
+        <header class="document-header">
+          <p class="eyebrow">api</p>
+          <h1>Seedance 真人素材视频生成完整教程</h1>
+          <p class="direct-answer"><span>直接答案</span>使用本站令牌上传图片到 /v1/seedance/assets，主动发起 compliance 审核；等待每张图片的 status 变为 active，再把 reference 放入 /v1/videos 的 content，保存视频任务 ID 并查询到 completed 后下载。</p>
+          <p class="document-dates">更新 <time datetime="2026-09-20">2026-09-20</time> · 审核信息 <time datetime="2026-09-20">2026-09-20</time></p>
+        </header>
+
+        
+          <div class="prose"><blockquote><p><strong>使用真人素材需要管理员开通权限，请联系管理员。</strong></p></blockquote>
+<h2 id="1-流程与调用前准备">1. 流程与调用前准备</h2>
+<p>真人素材建议采用可复用、可追踪的素材库流程：上传真人图片 → 发起审核 → 查询素材直到 <code>active</code> → 使用 <code>asset://</code> 引用创建视频 → 查询视频直到 <code>completed</code> → 下载结果。选择素材库方式的每张图片都要分别完成上传和审核。直接传入 URL/base64 的方式及边界见 1.1 和 4.4 节。</p>
+<figure class="docs-diagram"><div class="diagram-scroll" tabindex="0" role="region" aria-label="真人素材审核与视频生成时序"><img src="/docs-assets/diagrams/273459d92faca486e74186b67240727f4b75bed7f709224f4b529a94ccdbc4b8.svg" alt="真人素材审核与视频生成时序" width="887" height="1099" loading="lazy" decoding="async"></div></figure>
+<p>本文描述本站统一接口。客户端只需要本站 Base URL、API 令牌和模型名称；素材服务由令牌对应的分组自动选择。使用前在<a href="/pricing">模型广场</a>确认模型支持 <code>/v1/videos</code>，令牌有对应模型权限、可用额度，且分组已开通真人素材能力。首次接入和需要稳定复用素材的业务，建议使用固定单分组令牌。</p>
+<p><a href="https://seed.bytedance.com/zh/seedance2_0" rel="noopener noreferrer">Seedance 官方说明</a>介绍了模型的多模态能力；本文接口以本站实现为准。示例使用 <code>doubao-seedance-2-0-260128</code>，实际可用模型以当前令牌及模型广场为准。上传和审核不需要指定生成模型。</p>
+<p>准备 Bash、curl、jq 和有权使用的真人照片。<code>BASE_URL</code> 填站点根地址，不要重复附加 <code>/v1</code>。在自己的终端设置环境变量，密钥不要写入公开代码：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">export BASE_URL=&#34;https://api.tu-zi.com&#34;
+export API_KEY=&#34;替换为你的本站 API 令牌&#34;
+export MODEL=&#34;doubao-seedance-2-0-260128&#34;
+</code></pre>
+<h3 id="1-1-已审核素材与原始图片如何区分">1.1 已审核素材与原始图片如何区分</h3>
+<p><strong>保留相同的 <code>type=image_url</code>，通过 <code>image_url.url</code> 的前缀区分输入来源，通过 <code>role</code> 区分图片用途。</strong> 不需要添加真人标记，也不能由调用方声明某张图片已审核通过。</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">输入来源</th><th scope="col"><code>image_url.url</code> 示例</th><th scope="col">当前处理方式</th></tr></thead><tbody>
+<tr><td>素材库引用</td><td><code>asset://0123456789abcdef0123456789abcdef</code></td><td>校验本站素材归属、分组和 <code>active</code> 状态后复用，不下载或重新上传图片</td></tr>
+<tr><td>图片直链</td><td><code>https://media.example.com/scene.jpg</code></td><td>流式下载并上传，直接使用上传 UUID 生成，不调用审核</td></tr>
+<tr><td>图片 Base64</td><td><code>data:image/png;base64,...</code></td><td>流式解码并上传，直接使用上传 UUID 生成，不调用审核</td></tr>
+</tbody></table></div>
+<p>已审核真人素材作为参考图时：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;reference_image&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;asset://0123456789abcdef0123456789abcdef&#34;}}
+</code></pre>
+<p>普通场景图片作为参考图时：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;reference_image&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;https://media.example.com/scene.jpg&#34;}}
+</code></pre>
+<p>两者的 <code>role</code> 相同，是因为都用作参考图；前缀不同，服务端处理路径就不同。<code>asset://</code> 后面必须是本站上传返回的素材 ID，不能填写上游 UUID，也不能把图片地址改成这个前缀来声明审核通过。上传刚返回的引用可能仍是 <code>pending</code>，必须等到 <code>active</code> 才能生成。</p>
+<p><strong>输入来源不等于是否包含真人。</strong> 已审核的非真人图片也可使用 <code>asset://</code>；HTTP(S)/base64 图片也可能包含真人。真人素材应通过素材库显式上传、审核到 <code>active</code>，再复用返回的引用；直传图片不调用审核，误传真人图片被上游拒绝时返回上游错误。</p>
+<p><strong>生成模式与审核状态独立。</strong> <code>role=reference_image</code> 默认选择 <code>referToVideo</code>；单图驱动画面时使用 <code>role=first_frame</code> 并显式指定顶层 <code>refer_model=imageToVideo</code>。两种用途都能使用已审核素材，不能用模式名称区分真人与非真人。首尾帧和其他模式见 4.2 节。</p>
+<h2 id="2-接口与参数速查">2. 接口与参数速查</h2>
+<p>所有接口使用 <code>Authorization: Bearer $API_KEY</code>。只有上传使用 <code>multipart/form-data</code>，curl 的 <code>-F</code> 会自动设置 boundary，不要手动写上传的 Content-Type。</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">方法</th><th scope="col">路径</th><th scope="col">用途</th></tr></thead><tbody>
+<tr><td>POST</td><td><code>/v1/seedance/assets</code></td><td>上传图片或 MP3/WAV 音频，创建 pending 素材</td></tr>
+<tr><td>POST</td><td><code>/v1/seedance/assets/{id}/compliance</code></td><td>发起审核，无需请求体</td></tr>
+<tr><td>GET</td><td><code>/v1/seedance/assets/{id}</code></td><td>读取素材及持久化审核状态</td></tr>
+<tr><td>GET</td><td><code>/v1/seedance/assets</code></td><td>分页查询当前令牌可访问的素材</td></tr>
+<tr><td>DELETE</td><td><code>/v1/seedance/assets/{id}</code></td><td>删除本站素材记录，使其不可再引用</td></tr>
+<tr><td>POST</td><td><code>/v1/videos</code></td><td>提交视频生成任务，JSON 请求体</td></tr>
+<tr><td>GET</td><td><code>/v1/videos/{task_id}</code></td><td>查询视频状态及结果</td></tr>
+<tr><td>GET</td><td><code>/v1/videos/{task_id}/content</code></td><td>视频完成后获取内容</td></tr>
+</tbody></table></div>
+<p>上传只需传入 <code>file</code>，每次一个图片或音频文件；多个参考素材需要多次调用。</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">参数</th><th scope="col">类型</th><th scope="col">必填</th><th scope="col">说明</th></tr></thead><tbody>
+<tr><td><code>file</code></td><td>二进制文件</td><td>是</td><td>非空图片（最大 30 MiB，支持 JPG、PNG、WebP、GIF、BMP、TIFF）或 MP3/WAV 音频（最大 15 MiB）</td></tr>
+</tbody></table></div>
+<p>审核时将上传返回的素材 ID 放入请求路径，无需请求体。视频不支持通过该素材接口上传；音频可以使用已审核素材引用，也可以在生成请求中提供 HTTP(S) URL 或 MP3/WAV data URI。</p>
+<h2 id="3-上传图片并发起审核">3. 上传图片并发起审核</h2>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">curl --fail-with-body --silent --show-error --max-time 180 \
+  &#34;$BASE_URL/v1/seedance/assets&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34; \
+  -F &#34;file=@./portrait.jpg&#34;
+</code></pre>
+<p>上传响应的关键字段如下，示例 ID 为虚构值。先判断 <code>success</code>，再读取 <code>data.id</code> 和 <code>data.reference</code>：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{
+  &#34;success&#34;: true,
+  &#34;message&#34;: &#34;&#34;,
+  &#34;data&#34;: {
+    &#34;id&#34;: &#34;0123456789abcdef0123456789abcdef&#34;,
+    &#34;reference&#34;: &#34;asset://0123456789abcdef0123456789abcdef&#34;,
+    &#34;asset_type&#34;: &#34;image&#34;,
+    &#34;status&#34;: &#34;pending&#34;,
+    &#34;error_message&#34;: &#34;&#34;,
+    &#34;compliance_started&#34;: false,
+    &#34;review_task_id&#34;: &#34;&#34;,
+    &#34;retry_after&#34;: 5,
+    &#34;created_at&#34;: 1800000000,
+    &#34;updated_at&#34;: 1800000000,
+    &#34;last_polled_at&#34;: 0
+  }
+}
+</code></pre>
+<p>将上传返回的 <code>data.id</code> 放入路径，主动启动审核。<code>{id}</code> 只填 ID，不带 <code>asset://</code> 前缀：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">export ASSET_ID=&#34;替换为上传返回的 data.id&#34;
+curl --fail-with-body --silent --show-error --max-time 180 \
+  -X POST &#34;$BASE_URL/v1/seedance/assets/$ASSET_ID/compliance&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34;
+
+curl --fail-with-body --silent --show-error --max-time 60 \
+  &#34;$BASE_URL/v1/seedance/assets/$ASSET_ID&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34;
+</code></pre>
+<p>发起审核和查询返回相同的素材结构。审核开始后 <code>compliance_started=true</code>，<code>review_task_id</code> 可用于在<a href="/console/task">任务日志</a>中定位记录。服务端后台继续审核，客户端断开后可用原素材 ID 恢复查询，无需重复上传。</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">字段或状态</th><th scope="col">含义与下一步</th></tr></thead><tbody>
+<tr><td><code>pending</code></td><td>未启动或审核中；结合 <code>compliance_started</code> 判断，尚不能生成</td></tr>
+<tr><td><code>active</code></td><td>审核通过，可在所属分组和当前权限范围内引用</td></tr>
+<tr><td><code>failed</code></td><td>审核失败或处理超时，读取 <code>error_message</code>，处理原因后再决定是否重新审核或换图</td></tr>
+<tr><td><code>deleted</code></td><td>删除接口返回的终态；后续查询通常为 404，列表不再显示</td></tr>
+<tr><td><code>reference</code></td><td>生成时使用的完整 <code>asset://...</code> 字符串，不能当作图片下载地址</td></tr>
+<tr><td><code>retry_after</code></td><td>建议查询间隔，当前为 5 秒，可增加随机抖动并设总时限</td></tr>
+<tr><td><code>created_at</code> / <code>updated_at</code> / <code>last_polled_at</code></td><td>Unix 秒时间戳；<code>last_polled_at=0</code> 表示尚未轮询</td></tr>
+<tr><td><code>error_message</code></td><td>素材处理错误说明；以 <code>status</code> 判断是否为终态</td></tr>
+</tbody></table></div>
+<p>素材接口可能返回 HTTP 200 但 <code>success=false</code>，例如 <code>{&#34;success&#34;:false,&#34;message&#34;:&#34;当前令牌未配置可用素材适配器&#34;}</code>。<code>curl --fail-with-body</code> 只能拦截 HTTP 错误，业务代码还必须检查 <code>success</code>。对 <code>pending</code> 只轮询 GET，不要反复 POST 审核。</p>
+<h3 id="3-1-真人照片在远程-url-上时">3.1 真人照片在远程 URL 上时</h3>
+<p>如果照片只有网络地址，先下载为本地文件，再按本节上传和审核。下载图片时不携带本站 API 令牌：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">export IMAGE_URL=&#34;https://media.example.com/portrait.jpg&#34;
+curl --fail-with-body --silent --show-error --location \
+  --proto &#39;=https&#39; --proto-redir &#39;=https&#39; \
+  --connect-timeout 15 --max-time 120 --max-filesize 31457280 \
+  &#34;$IMAGE_URL&#34; --output ./portrait.jpg
+</code></pre>
+<p>替换为自己的图片直链，确认下载成功后，使用第 3 节的 <code>-F &#34;file=@./portrait.jpg&#34;</code> 上传，再发起审核。上传接口接收文件内容，不能把图片 URL 当作 <code>file</code> 字段的值。</p>
+<h2 id="4-使用审核通过的素材生成视频">4. 使用审核通过的素材生成视频</h2>
+<p>图片 URL 字段直接使用状态为 <code>active</code> 的素材响应中的 <code>reference</code>。以下示例将人物作为参考图，显式使用 <code>refer_model=referToVideo</code>；如果需要单图驱动的 <code>imageToVideo</code>，按 1.1 和 4.2 节选择用途。真人图片无需更换专用视频端点：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">export ASSET_REFERENCE=&#34;asset://替换为已通过审核的素材ID&#34;
+jq -n --arg model &#34;$MODEL&#34; --arg ref &#34;$ASSET_REFERENCE&#34; &#39;{
+  model: $model,
+  content: [
+    {type: &#34;text&#34;, text: &#34;参考图中的人物自然看向镜头，用中文说：大家好，很高兴认识你，希望我们一起发现更多精彩。保持人物外貌和服装一致，口型自然。&#34;},
+    {type: &#34;image_url&#34;, role: &#34;reference_image&#34;, image_url: {url: $ref}}
+  ],
+  refer_model: &#34;referToVideo&#34;,
+  duration: 8,
+  ratio: &#34;9:16&#34;,
+  resolution: &#34;720P&#34;,
+  generate_audio: true
+}&#39; &gt; video-request.json
+
+curl --fail-with-body --silent --show-error --max-time 180 \
+  &#34;$BASE_URL/v1/videos&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34; \
+  -H &#34;Content-Type: application/json&#34; \
+  --data-binary @video-request.json
+</code></pre>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">参数</th><th scope="col">类型</th><th scope="col">本教程用法与约束</th></tr></thead><tbody>
+<tr><td><code>model</code></td><td>string</td><td>必填，使用当前令牌有权访问的 Seedance 模型</td></tr>
+<tr><td><code>content</code></td><td>array</td><td>提供非空文本项及参考素材项，按预期参考顺序排列</td></tr>
+<tr><td><code>content[].type</code></td><td>string</td><td><code>text</code>、<code>image_url</code>、<code>video_url</code> 或 <code>audio_url</code></td></tr>
+<tr><td><code>content[].text</code></td><td>string</td><td>文本项提示词，明确人物动作、台词、画面、声音和各参考素材用途</td></tr>
+<tr><td><code>content[].role</code></td><td>string</td><td>参考图用 <code>reference_image</code>，首帧/尾帧用 <code>first_frame</code> / <code>last_frame</code>，视频用 <code>reference_video</code>，音频用 <code>reference_audio</code>；文本项省略。此字段不表示真人属性或审核状态</td></tr>
+<tr><td><code>content[].image_url.url</code></td><td>string</td><td>支持 HTTP(S) 图片直链、标准 <code>data:image/&lt;mime&gt;;base64,...</code> 图片或已审核的 <code>asset://...</code> 引用，可在同一请求中混用；直传流程与上游拒绝处理见 4.4</td></tr>
+<tr><td><code>image</code> / <code>input_reference</code></td><td>string 或 string[]</td><td>顶层图片别名，和 <code>content[].image_url.url</code> 复用相同的来源处理和大小限制；直传不调用审核，素材库引用须为 active；推荐使用 <code>content</code> 以显式表达顺序和 role</td></tr>
+<tr><td><code>images</code> / <code>images_url</code></td><td>string[]</td><td>顶层图片数组，接受相同的 HTTP(S)、图片 data URI 和 <code>asset://</code> 值</td></tr>
+<tr><td><code>content[].video_url.url</code></td><td>string</td><td>可由服务端访问的 HTTP(S) 视频地址，建议 HTTPS，不能使用图片素材 ID</td></tr>
+<tr><td><code>content[].audio_url.url</code></td><td>string</td><td>支持可由服务端访问的 HTTP(S) 音频地址、MP3/WAV <code>data:</code> URI，或已审核的音频 <code>asset://...</code>；不能用图片素材 ID 冒充音频</td></tr>
+<tr><td><code>duration</code></td><td>integer</td><td>视频秒数，例如 <code>8</code>；Seedance 2.0 系列为 4–15 秒、2.5 为 4–30 秒，省略时默认 5 秒</td></tr>
+<tr><td><code>ratio</code></td><td>string</td><td>示例 <code>9:16</code> 竖屏或 <code>16:9</code> 横屏；应显式指定，其他画幅以模型支持为准</td></tr>
+<tr><td><code>resolution</code></td><td>string</td><td>示例和当前默认 <code>720P</code>，其他分辨率以所选模型支持为准</td></tr>
+<tr><td><code>generate_audio</code></td><td>boolean</td><td>是否生成音轨，示例显式 <code>true</code>；<code>false</code> 表示关闭，省略时当前接入默认 <code>true</code></td></tr>
+<tr><td><code>count</code></td><td>integer</td><td>可省略；当前接入只支持 <code>1</code>，多次创作需分别提交任务</td></tr>
+</tbody></table></div>
+<p>使用素材库引用时，必须先完成该素材的上传和审核，且 <code>audio_url</code> 只能引用音频素材、<code>image_url</code> 只能引用图片素材。直接传入原始图片的流程、限制与日志差异见 4.4 节。</p>
+<h3 id="4-1-参数在-v1-videos-中怎么传">4.1 参数在 /v1/videos 中怎么传</h3>
+<p>生成参数放在 JSON 顶层，参考素材放在 <code>content</code>。除上表的常用参数外，还可以指定提示词、参考模式和输出格式：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">参数</th><th scope="col">类型</th><th scope="col">说明</th></tr></thead><tbody>
+<tr><td><code>prompt</code></td><td>string</td><td>可替代 <code>content</code> 中的文本项；两种写法选一种，提示词不能为空</td></tr>
+<tr><td><code>refer_model</code></td><td>string</td><td>指定下表中的生成模式；省略时根据素材推断</td></tr>
+<tr><td><code>output_format</code></td><td>string</td><td>仅 Seedance 2.5 使用，支持 <code>mp4</code> 或 <code>mov</code>；省略时使用默认格式</td></tr>
+</tbody></table></div>
+<p>示例：顶层 <code>prompt</code> 的纯文本写法。填写第 1 节的环境变量后可直接调用，不需要上传图片：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">jq -n --arg model &#34;$MODEL&#34; &#39;{
+  model: $model,
+  prompt: &#34;海边清晨，镜头缓慢推进，保持无字幕。&#34;,
+  resolution: &#34;720P&#34;,
+  ratio: &#34;16:9&#34;,
+  duration: 8,
+  refer_model: &#34;textToVideo&#34;,
+  generate_audio: false,
+  count: 1
+}&#39; | curl --fail-with-body --silent --show-error --max-time 180 \
+  &#34;$BASE_URL/v1/videos&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34; \
+  -H &#34;Content-Type: application/json&#34; \
+  --data-binary @-
+</code></pre>
+<h3 id="4-2-参考模式与分辨率范围">4.2 参考模式与分辨率范围</h3>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col"><code>refer_model</code></th><th scope="col">所需素材</th><th scope="col">2.5 的附加要求</th></tr></thead><tbody>
+<tr><td><code>textToVideo</code></td><td>不携带图片、视频或音频，仍提供非空提示词</td><td>无</td></tr>
+<tr><td><code>referToVideo</code></td><td>至少 1 个参考素材；2.0 系列最多 15 个，2.5 最多 50 个，同时满足各类型数量限制</td><td>无</td></tr>
+<tr><td><code>imageToVideo</code></td><td>恰好 1 张图片，不带其他媒体</td><td><code>ratio=adaptive</code></td></tr>
+<tr><td><code>firstAndLastFrame</code></td><td>恰好 2 张图片，不带其他媒体；按首帧、尾帧顺序排列</td><td><code>ratio=adaptive</code></td></tr>
+<tr><td><code>videoExtend</code></td><td>恰好 1 段视频，仅 Seedance 2.5 支持</td><td>显式设置 <code>refer_model=videoExtend</code>、<code>ratio=adaptive</code>，<code>duration</code> 为 4–30 秒</td></tr>
+</tbody></table></div>
+<p>模式值区分大小写。省略模式时：无素材为文生视频；单张无参考角色的图片为图生视频；两张无参考角色的图片为首尾帧；带 <code>reference_*</code> 角色或音视频素材时为参考生成。多参考图建议显式使用 <code>refer_model=referToVideo</code> 和 <code>role=reference_image</code>。</p>
+<p>视频延展必须显式设置 <code>refer_model=videoExtend</code>；单段视频配合 <code>role=reference_video</code> 并不会自动选择延展。上游提供的 <code>videoEdit</code> 和 <code>count=2/4</code> 尚未接入本站；本站当前只支持 <code>count=1</code>。</p>
+<p>分辨率和画幅按所选模型填写：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">模型系列</th><th scope="col"><code>resolution</code> 候选值</th><th scope="col">其他边界</th></tr></thead><tbody>
+<tr><td>Seedance 2.5</td><td><code>480P</code>、<code>720P</code>、<code>1080P</code></td><td><code>adaptive</code>、<code>21:9</code>、<code>16:9</code>、<code>4:3</code>、<code>1:1</code>、<code>3:4</code>、<code>9:16</code>；可传 <code>output_format</code></td></tr>
+<tr><td>Seedance 2.0</td><td><code>480P</code>、<code>720P</code>、<code>1080P</code>、<code>4K</code>、<code>SUPER_720P</code>、<code>SUPER_1080P</code>、<code>SUPER_4K</code></td><td>画幅为 <code>21:9</code>、<code>16:9</code>、<code>4:3</code>、<code>1:1</code>、<code>3:4</code>、<code>9:16</code></td></tr>
+<tr><td>Seedance 2.0 Fast / Mini</td><td><code>480P</code>、<code>720P</code>、<code>SUPER_720P</code>、<code>SUPER_1080P</code>、<code>SUPER_4K</code></td><td>与 2.0 相同的画幅；<code>SUPER_*</code> 表示超分辨率输出</td></tr>
+</tbody></table></div>
+<p>默认分辨率为 <code>720P</code>；默认画幅在 2.0 系列为 <code>16:9</code>，2.5 为 <code>adaptive</code>。高分辨率和超分辨率需所在分组开通支持。</p>
+<h3 id="4-3-2-5-单图-首尾帧与输出格式示例">4.3 2.5 单图、首尾帧与输出格式示例</h3>
+<p>以下 JSON 展示单张真人图片、无音频、MOV 输出的组合。同分组、素材服务配置未变更时，可复用前面已审核的素材；生成前确认令牌有目标模型权限。</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{
+  &#34;model&#34;: &#34;doubao-seedance-2-5-260628&#34;,
+  &#34;prompt&#34;: &#34;参考图中的人物自然微笑并向镜头挥手，保持外貌一致。&#34;,
+  &#34;content&#34;: [
+    {&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;first_frame&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;asset://0123456789abcdef0123456789abcdef&#34;}}
+  ],
+  &#34;refer_model&#34;: &#34;imageToVideo&#34;,
+  &#34;resolution&#34;: &#34;720P&#34;,
+  &#34;ratio&#34;: &#34;adaptive&#34;,
+  &#34;duration&#34;: 8,
+  &#34;generate_audio&#34;: false,
+  &#34;output_format&#34;: &#34;mov&#34;,
+  &#34;count&#34;: 1
+}
+</code></pre>
+<p>首尾帧则用以下请求，按数组顺序放首帧和尾帧，两张都要完成审核：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{
+  &#34;model&#34;: &#34;doubao-seedance-2-5-260628&#34;,
+  &#34;prompt&#34;: &#34;从首帧自然过渡到尾帧，保持人物身份与服装一致。&#34;,
+  &#34;content&#34;: [
+    {&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;first_frame&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;asset://0123456789abcdef0123456789abcdef&#34;}},
+    {&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;last_frame&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;asset://fedcba9876543210fedcba9876543210&#34;}}
+  ],
+  &#34;refer_model&#34;: &#34;firstAndLastFrame&#34;,
+  &#34;resolution&#34;: &#34;720P&#34;,
+  &#34;ratio&#34;: &#34;adaptive&#34;,
+  &#34;duration&#34;: 8,
+  &#34;generate_audio&#34;: false,
+  &#34;output_format&#34;: &#34;mp4&#34;,
+  &#34;count&#34;: 1
+}
+</code></pre>
+<p>将任一 JSON 保存为 <code>video-request.json</code> 后，使用第 4 节的 <code>curl --data-binary @video-request.json</code> 提交，再用第 5 节查询和下载；MOV 输出保存为 <code>.mov</code>。不要把所有示例参数机械合并，也不要把输出格式字段用于 2.0 系列。</p>
+<h3 id="4-4-普通图片-url-与混合引用">4.4 普通图片 URL 与混合引用</h3>
+<p><code>image_url.url</code> 也支持普通 HTTP(S) 图片直链。以下是直接传 URL 的完整调用示例；请替换为服务端可以直接下载的图片文件地址：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">export IMAGE_URL=&#34;https://media.example.com/scene.jpg&#34;
+jq -n --arg model &#34;$MODEL&#34; --arg image &#34;$IMAGE_URL&#34; &#39;{
+  model: $model,
+  content: [
+    {type: &#34;text&#34;, text: &#34;参考图片中的场景，镜头缓慢推进，保持自然光影。&#34;},
+    {type: &#34;image_url&#34;, role: &#34;reference_image&#34;, image_url: {url: $image}}
+  ],
+  duration: 8,
+  ratio: &#34;16:9&#34;,
+  resolution: &#34;720P&#34;,
+  generate_audio: true
+}&#39; | curl --fail-with-body --silent --show-error --max-time 180 \
+  &#34;$BASE_URL/v1/videos&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34; \
+  -H &#34;Content-Type: application/json&#34; \
+  --data-binary @-
+</code></pre>
+<p><strong>普通图片直传不调用合规审核。</strong> 网关流式下载或解码并上传图片，使用上传返回的 UUID 提交生成，不调用 <code>/openapi/assetLibrary/compliance/check</code>，也不等待审核状态。URL/base64 只是输入来源，不能据此判断图片是否包含真人；真人图片请先通过素材库审核，再使用 <code>asset://</code>。如果误传真人图片导致上游拒绝，接口返回上游错误；异步拒绝会出现在视频任务失败原因中。</p>
+<p>直传方式不会创建本站素材记录或 <code>review_task_id</code>，没有独立的“素材审核”任务，也不会在本次请求超时后后台续接。需要复用素材、等待较长审核或保留审核记录时，按第 3 节显式上传并审核，再使用 <code>asset://</code>。保留 Request-ID，检查提交错误或异步任务失败原因；创建视频返回成功只代表任务已受理，仍需查询到 <code>completed</code>。</p>
+<p>如果素材下载、类型校验、上传或请求体构建失败，视频任务可能尚未创建，但网关仍会写入一条零额度错误使用日志。使用 <code>/log/get-request?id=&lt;Request-ID&gt;</code> 可查询脱敏后的具体原因；这类失败不会产生视频计费。</p>
+<p>下面是直接提交图片 data URI 的完整 JSON。示例中的 <code>iVBORw0KGgo...</code> 仅表示一张标准 PNG 的 Base64 内容，实际请求必须替换为完整编码：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{
+  &#34;model&#34;: &#34;doubao-seedance-2-0-260128&#34;,
+  &#34;content&#34;: [
+    {&#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;保持参考图主体完整，只做轻微镜头推进和自然光影变化。&#34;},
+    {&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;reference_image&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;data:image/png;base64,iVBORw0KGgo...&#34;}}
+  ],
+  &#34;duration&#34;: 4,
+  &#34;ratio&#34;: &#34;16:9&#34;,
+  &#34;resolution&#34;: &#34;480P&#34;,
+  &#34;generate_audio&#34;: false
+}
+</code></pre>
+<p>只接受带 MIME 前缀的图片 data URI：<code>data:image/png;base64,...</code>、<code>data:image/jpeg;base64,...</code> 等；音频参考支持 <code>data:audio/mpeg;base64,...</code> 和 <code>data:audio/wav;base64,...</code>。裸 Base64（没有对应的 <code>data:&lt;mime&gt;;base64,</code> 前缀）以及 <code>data:video/...</code> 均不支持。网关流式解码并直接上传，不把解码结果落盘；解码后的单张图片最多 30 MiB，单个音频最多 15 MiB，同时受 <code>MAX_FILE_DOWNLOAD_MB</code>、单请求远程素材总预算和 <code>/v1/videos</code> 入口请求体上限约束。Base64 编码本身会增大入口请求体，因此小于上述解码限制的内容也可能先触发入口体积限制。</p>
+<p>同一次请求中，可以将已审核的人物素材和普通场景图片 URL 组合使用。下面 JSON 作为第 4 节的请求体：人物引用复用已审核 UUID，场景 URL 上传并检查到 <code>ACTIVE</code> 后使用其 UUID；上游仍可能在提交或生成阶段拒绝素材。</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{
+  &#34;model&#34;: &#34;doubao-seedance-2-0-260128&#34;,
+  &#34;content&#34;: [
+    {&#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;第一张图中的人物在第二张图的场景中自然行走，保持人物外貌一致。&#34;},
+    {&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;reference_image&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;asset://0123456789abcdef0123456789abcdef&#34;}},
+    {&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;reference_image&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;https://media.example.com/scene.jpg&#34;}}
+  ],
+  &#34;duration&#34;: 8,
+  &#34;ratio&#34;: &#34;16:9&#34;,
+  &#34;resolution&#34;: &#34;720P&#34;,
+  &#34;generate_audio&#34;: true
+}
+</code></pre>
+<p>URL 不能是网页地址、Markdown 链接或需要登录的地址；不能携带本站 API 令牌。顶层 <code>image</code>、<code>images</code>、<code>images_url</code>、<code>input_reference</code> 和 <code>content[].image_url.url</code> 的图片值都走同一条处理路径。请确保链接在请求处理期间有效，且符合站点下载策略和 30 MiB 单图限制；data URI 则还要预留 Base64 编码带来的请求体开销。提交成功后的任务查询与下载仍按第 5 节操作。</p>
+<h3 id="4-5-seedance-2-5-视频延展">4.5 Seedance 2.5 视频延展</h3>
+<p>使用已有视频继续创作时，选择 Seedance 2.5 并显式传入 <code>refer_model=videoExtend</code>。先设置第 1 节的 <code>BASE_URL</code>、<code>API_KEY</code>，再将 <code>VIDEO_URL</code> 替换为服务端可直接下载的 HTTPS 视频文件地址：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">export VIDEO_URL=&#34;https://media.example.com/source.mp4&#34;
+jq -n --arg video &#34;$VIDEO_URL&#34; &#39;{
+  model: &#34;doubao-seedance-2-5-260628&#34;,
+  content: [
+    {type: &#34;text&#34;, text: &#34;延续视频中的场景和主体动作，镜头平稳推进，保持画面风格一致。&#34;},
+    {type: &#34;video_url&#34;, role: &#34;reference_video&#34;, video_url: {url: $video}}
+  ],
+  refer_model: &#34;videoExtend&#34;,
+  ratio: &#34;adaptive&#34;,
+  duration: 5,
+  resolution: &#34;480P&#34;,
+  generate_audio: false,
+  output_format: &#34;mp4&#34;,
+  count: 1
+}&#39; | curl --fail-with-body --silent --show-error --max-time 180 \
+  &#34;$BASE_URL/v1/videos&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34; \
+  -H &#34;Content-Type: application/json&#34; \
+  --data-binary @-
+</code></pre>
+<p>本站要求此模式的视频数量恰好为 1、<code>ratio=adaptive</code>，<code>duration</code> 为 4–30 秒；负数（包括 <code>-1</code>）会被拒绝。示例中的 <code>duration=5</code> 是本次生成参数，不据此承诺结果已将原视频和新增内容拼接。图片素材 <code>asset://</code>、裸 Base64 和视频 data URI 均不能作为延展视频输入。省略 <code>refer_model</code> 时仍按 <code>referToVideo</code> 处理。</p>
+<p>下表是上游对输入视频的要求，不代表网关已经在本地逐项探测并校验媒体属性：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">项目</th><th scope="col">上游要求</th></tr></thead><tbody>
+<tr><td>格式与文件大小</td><td>MP4 或 MOV，单段不超过 200 MiB</td></tr>
+<tr><td>时长与帧率</td><td>1–31 秒，不超过 60 fps</td></tr>
+<tr><td>宽和高</td><td>各为 300–6000 像素</td></tr>
+<tr><td>像素面积</td><td>宽 × 高为 409600–8295044</td></tr>
+<tr><td>宽高比</td><td>2:5–5:2</td></tr>
+</tbody></table></div>
+<p>实际可下载大小还受站点 <code>MAX_FILE_DOWNLOAD_MB</code> 和单请求素材总预算限制，站点配置可能小于 200 MiB。提交成功后，保存返回的 <code>id</code> 或 <code>task_id</code>，按第 5 节查询到 <code>completed</code> 后下载；提交受理不代表生成已经完成。</p>
+<h2 id="5-查询生成任务并下载">5. 查询生成任务并下载</h2>
+<p>视频响应与素材响应不同：视频字段位于顶层，没有 <code>data</code> 包装。创建响应示例：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{
+  &#34;id&#34;: &#34;task_example_video&#34;,
+  &#34;task_id&#34;: &#34;task_example_video&#34;,
+  &#34;object&#34;: &#34;video&#34;,
+  &#34;model&#34;: &#34;doubao-seedance-2-0-260128&#34;,
+  &#34;status&#34;: &#34;queued&#34;,
+  &#34;progress&#34;: 0,
+  &#34;created_at&#34;: 0
+}
+</code></pre>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">export VIDEO_TASK_ID=&#34;替换为创建响应的 id 或 task_id&#34;
+curl --fail-with-body --silent --show-error --max-time 60 \
+  &#34;$BASE_URL/v1/videos/$VIDEO_TASK_ID&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34;
+</code></pre>
+<p><code>queued</code> 表示排队，<code>in_progress</code> 表示生成中，<code>completed</code> 表示成功，<code>failed</code> 表示失败。<code>progress</code> 为进度值，不能单独当作成功依据。初次提交响应的 <code>created_at</code> 可能为 <code>0</code>，后续查询以持久化任务信息为准。完成时可取得 <code>video_url</code>、<code>completed_at</code> 等字段；失败时检查响应中的 <code>error</code>（若返回）及任务日志。审核的 <code>active</code>、任务日志的 <code>SUCCESS</code> 和视频 API 的 <code>completed</code> 属于不同状态体系。</p>
+<p>只在 <code>completed</code> 后下载，保存到文件而不是把二进制输出到终端：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">curl --fail-with-body --silent --show-error --location \
+  --max-time 300 --max-filesize 536870912 \
+  &#34;$BASE_URL/v1/videos/$VIDEO_TASK_ID/content&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34; \
+  --output self-introduction.mp4
+</code></pre>
+<p>也可下载响应中的 <code>video_url</code>；下载外部媒体地址时不要附加本站 API 令牌。结果地址可能过期，请及时保存。创建请求超时不等于任务未受理，应先查看<a href="/console/task">任务日志</a>或已保存的任务 ID，避免重复提交及重复费用。</p>
+<h2 id="6-可直接执行的单图与多图完整脚本">6. 可直接执行的单图与多图完整脚本</h2>
+<p>下面脚本串起上传、审核、生成、查询和下载，默认使用当前目录的 <code>portrait.jpg</code>。如需多图，把 <code>IMAGES</code> 改为多个文件路径；脚本逐张上传，全部通过审核后仅提交一次视频任务。先设置第 1 节的三个环境变量；脚本输出的 JSON 是业务记录，包含素材 ID、审核任务 ID 和视频任务 ID，应放在私有目录。</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+: &#34;${BASE_URL:?Set BASE_URL first}&#34;
+: &#34;${API_KEY:?Set API_KEY first}&#34;
+: &#34;${MODEL:?Set MODEL first}&#34;
+BASE_URL=&#34;${BASE_URL%/}&#34;
+IMAGES=(&#34;./portrait.jpg&#34;)
+# Multiple references: IMAGES=(&#34;./front.jpg&#34; &#34;./side.jpg&#34;)
+for image in &#34;${IMAGES[@]}&#34;; do test -f &#34;$image&#34;; done
+WORK_DIR=$(mktemp -d &#34;./seedance-run.XXXXXX&#34;)
+printf &#39;Records: %s\n&#39; &#34;$WORK_DIR&#34;
+
+api() {
+  curl --fail-with-body --silent --show-error \
+    --connect-timeout 15 --max-time 180 \
+    -H &#34;Authorization: Bearer $API_KEY&#34; &#34;$@&#34;
+}
+asset_ok() {
+  jq -e &#39;.success == true and (.data | type == &#34;object&#34;)&#39; &#34;$1&#34; &gt;/dev/null || {
+    jq &#39;{success, message}&#39; &#34;$1&#34; &gt;&amp;2
+    return 1
+  }
+}
+printf &#39;[]\n&#39; &gt; &#34;$WORK_DIR/references.json&#34;
+index=0
+for image in &#34;${IMAGES[@]}&#34;; do
+  index=$((index + 1))
+  record=&#34;$WORK_DIR/asset-$index.json&#34;
+  api &#34;$BASE_URL/v1/seedance/assets&#34; \
+    -F &#34;file=@$image&#34; &gt; &#34;$record&#34;
+  asset_ok &#34;$record&#34;
+  asset_id=$(jq -er &#39;.data.id | select(type == &#34;string&#34; and length &gt; 0)&#39; &#34;$record&#34;)
+  printf &#39;Asset: %s\n&#39; &#34;$asset_id&#34;
+  api -X POST &#34;$BASE_URL/v1/seedance/assets/$asset_id/compliance&#34; \
+    &gt; &#34;$WORK_DIR/review-$index.json&#34;
+  asset_ok &#34;$WORK_DIR/review-$index.json&#34;
+  jq -r &#39;.data.review_task_id&#39; &#34;$WORK_DIR/review-$index.json&#34;
+  deadline=$((SECONDS + 1800))
+  while true; do
+    api &#34;$BASE_URL/v1/seedance/assets/$asset_id&#34; &gt; &#34;$record&#34;
+    asset_ok &#34;$record&#34;
+    state=$(jq -r &#39;.data.status&#39; &#34;$record&#34;)
+    case &#34;$state&#34; in
+      active) break ;;
+      failed|deleted) jq &#39;.data | {id, status, error_message, review_task_id}&#39; &#34;$record&#34; &gt;&amp;2; exit 1 ;;
+      pending) ;;
+      *) printf &#39;Unknown asset state: %s\n&#39; &#34;$state&#34; &gt;&amp;2; exit 1 ;;
+    esac
+    if (( SECONDS &gt;= deadline )); then
+      printf &#39;Review wait timed out; resume GET for %s\n&#39; &#34;$asset_id&#34; &gt;&amp;2
+      exit 1
+    fi
+    sleep $((5 + RANDOM % 3))
+  done
+  reference=$(jq -er &#39;.data.reference&#39; &#34;$record&#34;)
+  jq --arg ref &#34;$reference&#34; &#39;. + [$ref]&#39; &#34;$WORK_DIR/references.json&#34; \
+    &gt; &#34;$WORK_DIR/references.next.json&#34;
+  mv &#34;$WORK_DIR/references.next.json&#34; &#34;$WORK_DIR/references.json&#34;
+done
+
+jq -n --arg model &#34;$MODEL&#34; --slurpfile refs &#34;$WORK_DIR/references.json&#34; &#39;{
+  model: $model,
+  content: ([{type: &#34;text&#34;, text: &#34;参考图中的同一人物自然看向镜头，用中文说：大家好，很高兴认识你，希望我们一起发现更多精彩。保持外貌和服装一致，口型自然。&#34;}]
+    + ($refs[0] | map({type: &#34;image_url&#34;, role: &#34;reference_image&#34;, image_url: {url: .}}))),
+  duration: 8, ratio: &#34;9:16&#34;, resolution: &#34;720P&#34;, generate_audio: true
+}&#39; &gt; &#34;$WORK_DIR/video-request.json&#34;
+api &#34;$BASE_URL/v1/videos&#34; -H &#34;Content-Type: application/json&#34; \
+  --data-binary &#34;@$WORK_DIR/video-request.json&#34; &gt; &#34;$WORK_DIR/video-submit.json&#34;
+task_id=$(jq -er &#39;select(.error == null and .success != false) | (.id // .task_id) | select(type == &#34;string&#34; and length &gt; 0)&#39; &#34;$WORK_DIR/video-submit.json&#34;)
+printf &#39;Video task: %s\n&#39; &#34;$task_id&#34;
+deadline=$((SECONDS + 1800))
+while true; do
+  api &#34;$BASE_URL/v1/videos/$task_id&#34; &gt; &#34;$WORK_DIR/video-status.json&#34;
+  state=$(jq -er &#39;select(.error == null or .status == &#34;failed&#34;) | .status&#39; &#34;$WORK_DIR/video-status.json&#34;)
+  case &#34;$state&#34; in
+    completed) break ;;
+    failed) jq &#39;{id, status, error}&#39; &#34;$WORK_DIR/video-status.json&#34; &gt;&amp;2; exit 1 ;;
+    queued|in_progress) ;;
+    *) printf &#39;Unknown video state: %s\n&#39; &#34;$state&#34; &gt;&amp;2; exit 1 ;;
+  esac
+  if (( SECONDS &gt;= deadline )); then
+    printf &#39;Video wait timed out; resume GET for %s\n&#39; &#34;$task_id&#34; &gt;&amp;2
+    exit 1
+  fi
+  sleep $((5 + RANDOM % 6))
+done
+api --location --max-time 300 --max-filesize 536870912 \
+  &#34;$BASE_URL/v1/videos/$task_id/content&#34; \
+  --output &#34;$WORK_DIR/video.mp4.part&#34;
+mv &#34;$WORK_DIR/video.mp4.part&#34; &#34;$WORK_DIR/video.mp4&#34;
+printf &#39;Completed: %s/video.mp4\n&#39; &#34;$WORK_DIR&#34;
+</code></pre>
+<p>脚本遇到 HTTP 错误、业务错误、审核失败或超时会停止，不会自动重发创建请求。脚本的 30 分钟等待上限只是客户端策略，不是完成时限承诺；超时后保留记录，用原 ID 继续查询。遇到 <code>429</code> 按 <code>Retry-After</code> 等待，恢复 GET 查询，不要为了恢复进度从头运行上传和生成。</p>
+<h2 id="7-多图与音视频混合参考">7. 多图与音视频混合参考</h2>
+<p>通过素材库上传并发起审核的每张图片都有独立的 <code>id</code>、<code>reference</code> 和 <code>review_task_id</code>；直接传 URL/base64 不返回这些本地标识。两张参考图也要显式写 <code>role=reference_image</code>：省略 role 时，当前接入可能把两张图片识别为首尾帧。提示词中说明“第一张图用于人物、第二张图用于服装或场景”；多人物时明确各自的位置与动作，避免描述冲突。</p>
+<p>本流程当前对 Seedance 2.0 接入最多接受 9 张图、3 段视频、3 段音频；2.5 接入分别为 30、10、10。实际组合还受模型、文件大小及分组能力约束，这些上限不是任意组合均能成功的保证。</p>
+<p>参考视频使用 MP4 或 MOV，音频使用 MP3 或 WAV。单张图片最多 30 MiB，2.0 Mini 的参考图片合计不超过 64 MiB；参考音频最多 15 MiB。2.0 系列单段参考视频最多 50 MiB，2.5 最多 200 MiB，还受站点下载上限约束。同一请求的远程素材默认累计上限为 200 MiB；已审核的 <code>asset://</code> 图片不占这项下载预算。请使用符合目标模型要求的图片尺寸、视频帧率及媒体时长。</p>
+<p>保留两张已审核图片，并追加视频和音频参考时，请求结构如下。示例地址和素材 ID 均须替换；纯图片场景直接删除两个音视频项。URL 应是媒体文件地址，不能是网页地址或 Markdown 链接：</p>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-json">{
+  &#34;model&#34;: &#34;doubao-seedance-2-0-260128&#34;,
+  &#34;content&#34;: [
+    {&#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;以第一张图的人物为主角，参考第二张图的服装与场景，参考视频的舞蹈动作及音频节奏，人物在舞台中央自然跳舞，镜头缓慢推进。&#34;},
+    {&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;reference_image&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;asset://0123456789abcdef0123456789abcdef&#34;}},
+    {&#34;type&#34;: &#34;image_url&#34;, &#34;role&#34;: &#34;reference_image&#34;, &#34;image_url&#34;: {&#34;url&#34;: &#34;asset://fedcba9876543210fedcba9876543210&#34;}},
+    {&#34;type&#34;: &#34;video_url&#34;, &#34;role&#34;: &#34;reference_video&#34;, &#34;video_url&#34;: {&#34;url&#34;: &#34;https://media.example.com/dance.mp4&#34;}},
+    {&#34;type&#34;: &#34;audio_url&#34;, &#34;role&#34;: &#34;reference_audio&#34;, &#34;audio_url&#34;: {&#34;url&#34;: &#34;https://media.example.com/music.mp3&#34;}}
+  ],
+  &#34;duration&#34;: 8,
+  &#34;ratio&#34;: &#34;16:9&#34;,
+  &#34;resolution&#34;: &#34;720P&#34;,
+  &#34;generate_audio&#34;: true
+}
+</code></pre>
+<p>将此 JSON 作为 <code>POST /v1/videos</code> 请求体，之后仍按第 5 节查询。<code>generate_audio=true</code> 是输出音轨开关，不要求提供参考音频，也不保证精确复刻音色。</p>
+<h2 id="8-素材列表-复用与删除">8. 素材列表、复用与删除</h2>
+<pre class="code-block"><button type="button" class="copy-code" data-copy-code aria-label="Copy code">Copy</button><code class="language-bash">curl --fail-with-body --silent --show-error --get \
+  &#34;$BASE_URL/v1/seedance/assets&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34; \
+  --data-urlencode &#34;status=active&#34; \
+  --data-urlencode &#34;page=1&#34; --data-urlencode &#34;size=20&#34;
+
+# Delete only when this reference is no longer needed.
+curl --fail-with-body --silent --show-error \
+  -X DELETE &#34;$BASE_URL/v1/seedance/assets/$ASSET_ID&#34; \
+  -H &#34;Authorization: Bearer $API_KEY&#34;
+</code></pre>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">列表参数</th><th scope="col">默认值</th><th scope="col">说明</th></tr></thead><tbody>
+<tr><td><code>status</code></td><td>不筛选</td><td>可选，通常填 <code>pending</code>、<code>active</code> 或 <code>failed</code></td></tr>
+<tr><td><code>page</code></td><td><code>1</code></td><td>从 1 开始的正整数</td></tr>
+<tr><td><code>size</code></td><td><code>20</code></td><td>正整数，最多 <code>100</code></td></tr>
+</tbody></table></div>
+<p>列表返回 <code>data.items</code>、<code>data.total</code>、<code>data.page</code> 和 <code>data.size</code>。素材对象结构与详情一致。删除成功返回 <code>{&#34;success&#34;:true,&#34;message&#34;:&#34;&#34;,&#34;data&#34;:{&#34;id&#34;:&#34;素材ID&#34;,&#34;status&#34;:&#34;deleted&#34;}}</code>；删除不代表已生成的视频被取消或所有外部存储副本被物理清除。</p>
+<p>素材属于上传账户，并受当前令牌的分组权限限制。已审核素材可跨该分组支持的 Seedance 型号复用，生成时校验目标模型权限。素材绑定分组必须等于本次生成最终选择的分组；多分组令牌建议改用固定单分组令牌，以便稳定复用。素材服务配置更换或权限撤销后，可能需要重新上传审核。</p>
+<h2 id="9-审核日志-素材-uuid-与错误排查">9. 审核日志、素材 UUID 与错误排查</h2>
+<p>使用素材库方式并主动发起审核后，打开<a href="/console/task">任务日志</a>，在类型筛选中选择“素材审核”，在任务 ID 筛选中填写素材响应的 <code>review_task_id</code>，即可定位对应审核记录。直接传 URL/base64 不调用审核，因此没有独立审核任务；请保留生成请求的 Request-ID，以及成功受理后的视频任务 ID，通过提交错误或视频任务失败原因排查上游拒绝。</p>
+<p><a href="/console/task">任务日志</a>中的“素材审核”记录会保存审核任务 ID、状态、模型、素材 ID 和 <code>asset://</code> 引用。管理员诊断可查看上游素材 UUID 及审核状态；普通调用方只需持久化以下关联：业务记录 → 素材 <code>id/reference</code> → <code>review_task_id</code> → 视频 <code>id/task_id</code>。不要用审核任务 ID 调用视频查询接口，也不要把管理员诊断中的上游 UUID 拼成本站素材引用。</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th scope="col">现象或错误</th><th scope="col">处理方式</th></tr></thead><tbody>
+<tr><td>HTTP 200 但 <code>success=false</code></td><td>素材业务失败，读取 <code>message</code>，不要继续生成</td></tr>
+<tr><td><code>当前令牌未配置可用素材适配器</code></td><td>确认令牌分组已开通素材能力，由管理员处理配置</td></tr>
+<tr><td><code>pending</code> 且 <code>compliance_started=false</code></td><td>尚未启动审核，调用一次 compliance</td></tr>
+<tr><td>审核 <code>failed</code></td><td>根据 <code>error_message</code> 更换图片或处理服务问题；不要无限重试</td></tr>
+<tr><td>素材不属于当前生成分组</td><td>检查上传与视频实际路由，使用稳定单分组令牌并按需重新上传</td></tr>
+<tr><td>素材配置绑定失效</td><td>在当前配置下重新上传、审核</td></tr>
+<tr><td>401 / 403</td><td>检查令牌有效性、账户和模型权限</td></tr>
+<tr><td>404</td><td>检查使用的是素材 ID 还是视频任务 ID，以及所属账户、当前权限和删除状态</td></tr>
+<tr><td>429</td><td>遵循 <code>Retry-After</code>，降低上传、提交或轮询频率</td></tr>
+<tr><td>图片过大或内容格式无效</td><td>单文件控制在 30 MiB 内，检查真实图片格式，不能只改扩展名</td></tr>
+<tr><td>视频创建报配置或计费规则错误</td><td>保留脱敏错误和 Request-ID 联系管理员</td></tr>
+</tbody></table></div>
+<p>遇到不确定的提交结果，优先查询已有任务，记录响应中的 Request-ID 供排查。图片审核通过只代表素材可用，视频提示词和生成结果仍可能审核失败。更多异步处理和错误说明见<a href="/docs/api/video">视频任务 API</a>、<a href="/docs/use-cases/async-tasks">异步任务指南</a>和<a href="/docs/use-cases/troubleshooting">排障指南</a>。</p>
+</div>
+
+          
+
+          
+          <section class="facts-grid" aria-label="适用场景">
+            <div><h2>适用场景</h2><ul><li>将审核通过的真人照片生成口播或自我介绍视频</li><li>复用多张人物参考图并组合视频、音频参考</li><li>查询审核日志、素材标识和视频生成结果</li></ul></div>
+            <div><h2>API 协议</h2><ul><li><code>/v1/seedance/assets</code></li><li><code>/v1/seedance/assets/{id}</code></li><li><code>/v1/seedance/assets/{id}/compliance</code></li><li><code>/v1/videos</code></li><li><code>/v1/videos/{task_id}</code></li><li><code>/v1/videos/{task_id}/content</code></li></ul></div>
+          </section>
+          
+
+          
+
+          
+          <section class="section-block faq" aria-labelledby="faq-heading">
+            <h2 id="faq-heading">FAQ</h2>
+            <details><summary>已上传图片，为什么还不能生成视频？</summary><p>上传成功只表示创建了 pending 素材。必须调用 POST /v1/seedance/assets/{id}/compliance，再查询到 status=active。GET 查询和列表接口不会自动启动审核。</p></details><details><summary>多张参考图需要怎么处理？</summary><p>素材库图片分别上传和审核到 active 后，用返回的 asset:// 引用逐项放入 content，type=image_url、role=reference_image；普通图片也可直接传 HTTP(S) URL 或图片 data URI。已审核引用必须属于本次生成的分组，并在当前令牌权限范围内。</p></details><details><summary>图片可以直接填写普通 URL 吗？</summary><p>可以，content[].image_url.url 支持 HTTP(S) 图片直链和 data:image/...;base64,... 图片，也可与 asset:// 引用混用。网关流式下载或解码并上传图片，直接使用上传 UUID 生成，不调用合规审核。真人图片请先通过素材库审核，再使用 asset://；误传真人图片被上游拒绝时返回上游错误。裸 base64 和视频 data URI 不支持；音频参考支持 MP3/WAV data URI。</p></details><details><summary>真人审核素材与普通参考图需要不同的 type 或 role 吗？</summary><p>不需要。type=image_url 表示图片，image_url.url 的 asset:// 前缀表示本站素材引用，HTTP(S) 或 data URI 表示原始图片输入；是否已审核由服务端记录决定。role 只表示参考图、首帧或尾帧用途，不表示真人或审核状态。已审核的非真人图片也可使用 asset://，真人照片的 URL 也不会自动变成已审核引用。</p></details><details><summary>素材 ID、审核任务 ID 和视频任务 ID 是同一个吗？</summary><p>不是。素材 id 用来查询或删除，reference 用来生成，review_task_id 用来追踪审核日志，视频创建响应的 id 或 task_id 用来查询视频。管理员可在审核任务诊断中查看上游素材 UUID，调用方无需使用它。</p></details><details><summary>可以把一张审核通过的图用于另一个模型或分组吗？</summary><p>同分组、素材服务配置未变更时，已审核图片可以用于该分组支持的其他 Seedance 型号，生成时需有目标模型权限。跨分组引用会被拒绝；建议使用固定单分组令牌。</p></details><details><summary>Seedance 2.5 怎么做视频延展？</summary><p>使用 /v1/videos，显式设置 refer_model=videoExtend、ratio=adaptive，提供恰好一个 type=video_url 的视频直链，duration 为 4 到 30 秒。省略 refer_model 时，视频输入仍按 referToVideo 参考生成，不会自动延展。视频不能使用图片 asset:// 或 base64。本站只接入 count=1，尚未接入上游的 videoEdit 和 count=2/4，完整示例见 4.5 节。</p></details>
+          </section>
+          
+
+          
+          <section class="section-block" aria-labelledby="related-heading">
+            <h2 id="related-heading">关联指南</h2>
+            <ul class="related-links"><li><a href="/docs/api/video">视频生成任务 API</a><span>POST /v1/videos 创建任务，GET /v1/videos/{task_id} 查询，completed 后再读取内容；视频是异步任务，不能把提交成功当作生成成功。</span></li><li><a href="/docs/use-cases/async-tasks">统一异步任务：提交、轮询与结果生命周期</a><span>对适合后台执行的 POST 请求，可在原路径前加 <code>/async</code> 提交并用 <code>/get-async?id=...</code> 查询；流式、模型列表、Files 和 Realtime 不能这样包装。</span></li><li><a href="/docs/use-cases/files-media">文件与媒体输入、输出及生命周期</a><span>本站 <code>/v1/files</code> 当前未实现；文件必须按目标模型和端点支持的方式随请求提交，所有输入与结果 URL 都应视为有权限和生命周期的外部资源。</span></li><li><a href="/docs/use-cases/troubleshooting">AI API 通用错误码与排障指南</a><span>处理 AI API 错误时应同时解析 HTTP 状态、厂商业务码、错误类型、消息、重试提示和请求 ID；参数、鉴权、余额与硬配额错误先修复根因，只有临时限流、网络错误和确认属于瞬时故障的部分 5xx 才适合有限重试。</span></li></ul>
+          </section>
+          
+
+          
+          <section class="section-block sources" aria-labelledby="sources-heading">
+            <h2 id="sources-heading">官方来源</h2>
+            <ol><li><a href="https://seed.bytedance.com/zh/seedance2_0" rel="noopener noreferrer" data-docs-source>ByteDance Seedance 2.0 模型说明</a> <span>Official</span></li><li><a href="https://api.tu-zi.com/docs/api/video" rel="noopener noreferrer" data-docs-source>兔子 API 视频生成任务协议</a> <span>Official</span></li></ol>
+          </section>
+          
+        
+
+        
+
+        
+
+        
+      </article>
+
+      <footer class="site-footer">
+    <div class="site-footer-balanced-row">
+      <div class="site-footer-balance-spacer" aria-hidden="true"></div>
+      <div class="site-footer-center-content">
+        
+        <p class="site-footer-copyright">© 2026 兔子API · Rabbit AI Technology Co., Limited 兔子科技有限公司. 版权所有</p>
+        
+      </div>
+      <nav class="site-footer-social" aria-label="社交链接">
+        <a class="site-footer-icon-link" href="https://github.com/tu-zi" target="_blank" rel="noopener noreferrer" aria-label="GitHub" title="GitHub">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.596 2 12.267c0 4.537 2.865 8.385 6.839 9.744.5.095.682-.222.682-.494 0-.244-.009-.89-.014-1.747-2.782.619-3.369-1.376-3.369-1.376-.455-1.187-1.11-1.503-1.11-1.503-.908-.637.069-.624.069-.624 1.004.073 1.532 1.057 1.532 1.057.892 1.568 2.341 1.115 2.91.853.091-.663.349-1.115.635-1.371-2.221-.259-4.556-1.14-4.556-5.073 0-1.121.39-2.037 1.029-2.755-.103-.26-.446-1.304.098-2.717 0 0 .84-.276 2.75 1.052A9.303 9.303 0 0 1 12 7.666a9.3 9.3 0 0 1 2.504.346c1.909-1.328 2.748-1.052 2.748-1.052.545 1.413.202 2.457.099 2.717.64.718 1.028 1.634 1.028 2.755 0 3.943-2.339 4.811-4.567 5.065.359.317.679.945.679 1.904 0 1.374-.012 2.483-.012 2.82 0 .274.18.594.688.493C19.137 20.648 22 16.802 22 12.267 22 6.596 17.523 2 12 2Z"/></svg>
+        </a>
+        <details class="site-footer-disclosure" data-footer-disclosure>
+          <summary class="site-footer-icon-link" aria-label="X (Twitter)" title="X (Twitter)">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </summary>
+          <div class="site-footer-popover site-footer-x-menu">
+            <a href="https://x.com/tuzi_ai" target="_blank" rel="noopener noreferrer"><img src="/home/logos/tuzi-ai-avatar.jpg" alt="兔妹_兔子" loading="lazy" decoding="async"><span>兔妹_兔子</span></a>
+            <a href="https://x.com/tuzi_mx" target="_blank" rel="noopener noreferrer"><img src="/home/logos/tuzi-mx-avatar.jpg" alt="月兔_兔子" loading="lazy" decoding="async"><span>月兔_兔子</span></a>
+            <a href="https://x.com/Ben41351613760" target="_blank" rel="noopener noreferrer"><img src="/home/logos/x-learning-rabbit-avatar.png" alt="学习兔" loading="lazy" decoding="async"><span>学习兔</span></a>
+            <a href="https://x.com/happy4it" target="_blank" rel="noopener noreferrer"><img src="/home/logos/x-micro-rabbit-avatar.png" alt="微兔" loading="lazy" decoding="async"><span>微兔</span></a>
+            <a href="https://x.com/northpinguinhu" target="_blank" rel="noopener noreferrer"><img src="/home/logos/x-engineering-rabbit-avatar.png" alt="工程兔" loading="lazy" decoding="async"><span>工程兔</span></a>
+            <a href="https://x.com/szuljq" target="_blank" rel="noopener noreferrer"><img src="/home/logos/x-szuljq-avatar.png" alt="水哥" loading="lazy" decoding="async"><span>水哥</span></a>
+          </div>
+        </details>
+        <details class="site-footer-disclosure" data-footer-disclosure>
+          <summary class="site-footer-icon-link" aria-label="Telegram" title="Telegram">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M23.91 3.79 20.3 20.81c-.27 1.2-.98 1.49-1.98.93l-5.5-4.05-2.65 2.55c-.29.29-.54.54-1.1.54l.39-5.6 10.19-9.2c.44-.39-.1-.61-.69-.22L6.36 13.7.94 12c-1.18-.37-1.2-1.18.25-1.75L22.4 2.08c.98-.36 1.84.22 1.51 1.71Z"/></svg>
+          </summary>
+          <div class="site-footer-popover site-footer-telegram-menu">
+            <img src="https://nav.ourzhishi.top/api/assets/files/dea6edfa380a254f221811e3049efa806ca07167387773ab933eb43f52e3c356.jpg" alt="Telegram 群二维码" loading="lazy" decoding="async">
+            <span>Telegram 用户群</span>
+          </div>
+        </details>
+      </nav>
+    </div>
+      </footer>
+    </div>
+  </main>
+</body>
+</html>

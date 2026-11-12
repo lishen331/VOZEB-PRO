@@ -3,11 +3,14 @@
 import { Popconfirm } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Button, Checkbox, Tag } from "@/components/gamma-ui/gamma-ant";
 import { AudioLines, Eye, Film, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { browserReadableMediaUrl } from "@/lib/browser-media-url";
 import { AdminAccountId } from "@/components/admin/admin-user-identity";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import type { StoredGenerationLog } from "@/lib/server/generation-log-store";
+import type { GenerationLogTrace, GenerationLogTraceStep } from "@/lib/server/generation-log-trace";
+import { buildGenerationLogFlow, type GenerationLogFlowNode } from "./generation-log-flow";
 
 export function GenerationLogAssetPreview({ log }: { log: StoredGenerationLog }) {
     const asset = log.assets[0];
@@ -44,6 +47,8 @@ export function GenerationLogMobileCard({ log, selected, onSelectedChange, onVie
                         </Tag>
                         <span className={generationStatusClass(log.status)}>{generationStatusLabel(log.status)}</span>
                         <span className="text-xs text-[var(--gm-text-3)]">{generationSourceLabel(log.source)}</span>
+                        {log.executionProfile ? <span className="text-xs text-[var(--gm-text-3)]">{generationExecutionProfileLabel(log.executionProfile)}</span> : null}
+                        {log.channelName ? <span className="text-xs text-[var(--gm-text-3)]">{log.channelName}</span> : null}
                     </div>
                     <div className="mt-2 truncate text-sm font-semibold text-[var(--gm-text)]">{log.title}</div>
                     <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-3)]">{log.prompt || log.summary}</div>
@@ -82,7 +87,10 @@ export function GenerationLogDetail({ log }: { log: StoredGenerationLog }) {
                 <InfoBox label="耗时" value={formatAdminLogDuration(log.durationMs)} />
                 <InfoBox label="模型" value={formatGenerationLogModel(log.model)} />
                 <InfoBox label="数量" value={`成功 ${log.successCount} / 失败 ${log.failCount} / 共 ${log.count}`} />
+                <InfoBox label="执行环境" value={generationExecutionProfileLabel(log.executionProfile)} />
+                <InfoBox label="渠道" value={log.channelName || "-"} />
             </div>
+            <GenerationLogTraceSection log={log} />
             <GenerationLogResultSection log={log} />
             <div>
                 <div className="mb-1 text-sm font-semibold text-[var(--gm-text)]">提示词</div>
@@ -98,6 +106,170 @@ export function GenerationLogDetail({ log }: { log: StoredGenerationLog }) {
             ) : null}
         </div>
     );
+}
+
+function GenerationLogTraceSection({ log }: { log: StoredGenerationLog }) {
+    const [trace, setTrace] = useState<GenerationLogTrace | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        if (!log.taskId) return;
+        const controller = new AbortController();
+        setLoading(true);
+        setFailed(false);
+        setTrace(null);
+        void fetch(`/api/admin/generation-logs/${encodeURIComponent(log.id)}/trace`, { signal: controller.signal })
+            .then(async (response) => {
+                if (response.status === 404) return;
+                if (!response.ok) throw new Error(String(response.status));
+                const payload = (await response.json()) as { trace?: GenerationLogTrace };
+                if (!controller.signal.aborted) setTrace(payload.trace ?? null);
+            })
+            .catch((error: unknown) => {
+                if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
+                setFailed(true);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setLoading(false);
+            });
+        return () => controller.abort();
+    }, [log.id, log.taskId]);
+
+    if (!log.taskId) return null;
+    return (
+        <div className="rounded-lg border border-[var(--gm-border)] p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-[var(--gm-text)]">调用链路</div>
+                {trace?.diagnosticsExpired ? <span className="text-xs text-[var(--gm-text-3)]">诊断已过期</span> : null}
+            </div>
+            {loading ? <div className="text-sm text-[var(--gm-text-3)]">正在读取调用链路…</div> : null}
+            {failed ? <div className="text-sm text-[var(--gm-danger)]">调用链路读取失败</div> : null}
+            {!loading && !failed && !trace?.steps.length ? <div className="text-sm text-[var(--gm-text-3)]">{trace?.diagnosticsExpired ? "诊断已过期，链路已清除。" : "这条记录没有采集到调用链路。"}</div> : null}
+            {trace && trace.steps.length ? (
+                <>
+                    <GenerationLogFlow steps={trace.steps} />
+                    <details className="mt-3">
+                        <summary className="cursor-pointer text-xs text-[var(--gm-text-3)]">查看原始事件（{trace.steps.length}）</summary>
+                        <ol className="mt-2 space-y-2">
+                            {trace.steps.map((step, index) => (
+                                <li key={`${step.at}-${step.phase}-${index}`} className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-2">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
+                                        <span className="font-medium text-[var(--gm-text)]">{generationTracePhaseLabel(step.phase)}</span>
+                                        <span className="tabular-nums">{formatTraceTime(step.at)}</span>
+                                        {typeof step.status === "number" ? <span className={step.status >= 400 ? "font-medium text-[var(--gm-danger)]" : ""}>状态 {step.status}</span> : null}
+                                        {typeof step.durationMs === "number" ? <span className="tabular-nums">{formatAdminLogDuration(step.durationMs)}</span> : null}
+                                    </div>
+                                    <GenerationLogTraceStepDetail step={step} />
+                                </li>
+                            ))}
+                        </ol>
+                    </details>
+                </>
+            ) : null}
+        </div>
+    );
+}
+
+const FLOW_TONE = {
+    neutral: { dot: "bg-[var(--gm-text-3)]", border: "border-[var(--gm-border)]" },
+    success: { dot: "bg-[var(--gm-success)]", border: "border-[color-mix(in_srgb,var(--gm-success)_45%,transparent)]" },
+    danger: { dot: "bg-[var(--gm-danger)]", border: "border-[color-mix(in_srgb,var(--gm-danger)_45%,transparent)]" },
+} as const;
+
+function GenerationLogFlow({ steps }: { steps: GenerationLogTraceStep[] }) {
+    const nodes = buildGenerationLogFlow(steps);
+    if (!nodes.length) return null;
+    return (
+        <ol className="flex flex-wrap items-stretch gap-y-3">
+            {nodes.map((node, index) => (
+                <li key={node.key} className="flex items-stretch">
+                    <GenerationLogFlowNodeCard node={node} />
+                    {index < nodes.length - 1 ? <GenerationLogFlowConnector label={node.connector} /> : null}
+                </li>
+            ))}
+        </ol>
+    );
+}
+
+function GenerationLogFlowNodeCard({ node }: { node: GenerationLogFlowNode }) {
+    const tone = FLOW_TONE[node.tone];
+    const detail = [node.model, node.channel].filter(Boolean).join(" · ");
+    return (
+        <div className={`flex w-44 flex-col gap-1 rounded-md border ${tone.border} bg-[var(--gm-wash)] px-3 py-2`}>
+            <div className="flex items-center gap-1.5 text-xs">
+                <span className={`size-1.5 shrink-0 rounded-full ${tone.dot}`} />
+                <span className="font-medium text-[var(--gm-text)]">{node.label}</span>
+                {typeof node.status === "number" ? <span className={`ml-auto tabular-nums ${node.status >= 400 ? "font-medium text-[var(--gm-danger)]" : "text-[var(--gm-text-3)]"}`}>{node.status}</span> : null}
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-[var(--gm-text-3)]">
+                <span className="tabular-nums">{formatTraceTime(node.at)}</span>
+                {typeof node.durationMs === "number" && node.durationMs > 0 ? <span className="tabular-nums">{formatAdminLogDuration(node.durationMs)}</span> : null}
+                {node.state ? <span className="truncate">{node.state}</span> : null}
+            </div>
+            {detail ? <div className="truncate text-[11px] text-[var(--gm-text-2)]">{detail}</div> : null}
+            {node.errorMessage ? <div className="line-clamp-2 break-all text-[11px] leading-4 text-[var(--gm-danger)]">{node.errorMessage}</div> : null}
+        </div>
+    );
+}
+
+function GenerationLogFlowConnector({ label }: { label?: string }) {
+    return (
+        <div className="flex w-14 shrink-0 flex-col items-center justify-center px-1 text-[10px] text-[var(--gm-text-3)]">
+            {label ? <span className="mb-0.5 whitespace-nowrap font-medium text-[var(--gm-warning)]">{label}</span> : null}
+            <span aria-hidden="true">→</span>
+        </div>
+    );
+}
+
+function GenerationLogTraceStepDetail({ step }: { step: GenerationLogTraceStep }) {
+    const parts = [
+        step.model ? `模型 ${step.model}` : "",
+        step.channelName || step.channelId ? `渠道 ${step.channelName || step.channelId}` : "",
+        step.state ? `状态 ${step.state}` : "",
+        typeof step.attemptNo === "number" ? `第 ${step.attemptNo} 次` : "",
+    ].filter(Boolean);
+    if (!parts.length && !step.errorMessage && !step.url) return null;
+    return (
+        <div className="mt-1 space-y-1 text-xs leading-5 text-[var(--gm-text-2)]">
+            {parts.length ? <div>{parts.join(" · ")}</div> : null}
+            {step.url ? <div className="break-all text-[var(--gm-text-3)]">{step.url}</div> : null}
+            {step.errorMessage ? <div className="whitespace-pre-wrap break-all text-[var(--gm-danger)]">{step.errorMessage}</div> : null}
+        </div>
+    );
+}
+
+function generationTracePhaseLabel(phase: string) {
+    const labels: Record<string, string> = {
+        task_created: "建任务",
+        state: "状态",
+        poll: "轮询",
+        provider_start: "开始调用",
+        provider_end: "调用结束",
+        provider_exception: "调用异常",
+        provider_error: "上游错误",
+        upstream_error: "上游错误",
+        upstream_request: "上游请求",
+        upstream_response: "上游响应",
+        upstream_body_first_byte: "首字节",
+        upstream_body_complete: "响应完成",
+        transport_policy: "传输策略",
+        transport_request: "传输请求",
+        transport_response: "传输响应",
+        result_persist_start: "保存结果",
+        result_persist_complete: "结果已保存",
+        result_persist_failed: "保存失败",
+        result_media_start: "读取媒体",
+        result_media_complete: "媒体已读取",
+        recovery_end: "恢复结束",
+    };
+    return labels[phase] || phase;
+}
+
+function formatTraceTime(value: number) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "-";
+    return date.toLocaleTimeString("zh-CN", { hour12: false });
 }
 
 function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
@@ -199,6 +371,12 @@ export function generationSourceLabel(value: string) {
     if (value === "image-workbench") return "图片生成";
     if (value === "practice") return "无限练习";
     return "未知入口";
+}
+
+export function generationExecutionProfileLabel(value: string | undefined) {
+    if (value === "open-source-practice") return "练习";
+    if (value === "production") return "生产";
+    return "-";
 }
 
 export function generationStatusLabel(value: string) {

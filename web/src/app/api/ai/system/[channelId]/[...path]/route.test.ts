@@ -1042,6 +1042,39 @@ describe("async image task protocols", () => {
 
         expect(response.status).toBe(200);
         expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.tu-zi.com/suno/submit/music");
+        // Suno 按次计费，不受字数影响
+        expect(mocks.consumeUserPoints).toHaveBeenCalledWith("user-one", "tuzi-suno", 1, "audio", expect.any(String), expect.any(String));
+    });
+
+    it("bills MiniMax speech per 100 billable characters (Chinese counts double)", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("speech-2.8-hd", "audio", "speech-2.8-hd")],
+            systemChannels: [
+                {
+                    id: "channel-one",
+                    enabled: true,
+                    baseUrl: "https://api.minimaxi.com/v1",
+                    apiKey: "secret",
+                    apiFormat: "openai",
+                    models: ["speech-2.8-hd"],
+                    advancedConfig: { protocol: "auto", createPath: "/t2a_v2", modelConfigs: { "speech-2.8-hd": { capability: "audio", createPath: "/t2a_v2" } } },
+                },
+            ],
+        });
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ data: { audio: "https://cdn.example.com/a.mp3" }, base_resp: { status_code: 0 } }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/t2a_v2", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("speech-2.8-hd", "speech-2.8-hd") },
+                // 120 个汉字 = 240 计费字符 = 3 单位
+                body: JSON.stringify({ model: "speech-2.8-hd", text: "字".repeat(120), output_format: "url" }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["t2a_v2"] }) },
+        );
+
+        expect(response.status).toBe(200);
+        expect(mocks.consumeUserPoints).toHaveBeenCalledWith("user-one", "speech-2.8-hd", 3, "audio", expect.any(String), expect.any(String));
     });
 });
 

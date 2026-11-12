@@ -432,3 +432,5 @@ description: VOZEB PRO 当前版本需要人工或真实环境确认的事项
 - 2026-11-09 页面范围内补充修复：后台无限练习剧本模型字段补上 Form 上下文，保留唯一配置入口。SSR 回归先失败后通过，桌面/390px/430px 专项连同安装测试 6 项通过；真实 Agent overview 的 PostgreSQL 业务在该布局专项中使用明确 mock，不记为持久化验收。完整 Vitest 6116 passed / 36 环境跳过，Web lint/typecheck/format/build 通过。仍不等于全量 Browser E2E 放行；永久生产镜像未发布。
 
 - 2026-11-09 页面表单补充修复已进入测试镜像 `e1a02150`，[测试部署 42557028676](https://github.com/lishen331/VOZEB-PRO/actions/runs/42557028676) 成功；app/worker 版本和 readiness 已核实。生产继续保留先前页面热补丁，PR #71 未合并，永久生产镜像未发布，完整回归阻断仍以 [发布门禁记录](../../../incidents/2026-11-09-page-defects-release-gate.zh-CN.md) 为准。
+- 2026-11-09 页面缺陷 UI-001—UI-012：已实现首页课程大厅/真实案例展示、首页不可用媒体与空分类处理、`/gallery` 统一跳转 `/community`、个人/公共提示词与素材 Tab、IP 详情返回入口、导航和账户选项收敛、教学中心与学校管理 Tab 收敛、剧本练习模块沿用现有持久化开关、体验版文案及用户侧充值入口隐藏。全量 Vitest 6263 项通过、9 项跳过；专项测试 14 个文件/47 项通过；TypeScript、ESLint、Prettier 和生产构建通过；接口索引与开发地图验证通过。仍待在测试环境登录态人工验收导航和响应式；UI-003/UI-013 的具体线上失效媒体记录尚未取得可复现 ID，生产数据修复效果未确认；测试部署与生产发布尚未执行。`production-readiness.mdx` 当前商业上线阻断清单不因入口隐藏/文案调整而改变。
+- 2026-11-09 剧本练习后台开关收敛：移除 Agent 执行就绪卡片中的重复开关，只保留“无限练习”设置里的持久化开关，避免用户误以为两个入口控制不同状态。专项 admin-upstream-sections/admin-practice-section 测试 5 项通过；develop 的后续 staging 验收待完成。

@@ -1,0 +1,573 @@
+{
+  "evidenceAt": "2026-10-21T12:56:58.827241+00:00",
+  "classroomWindowEnd": "2026-10-21T20:51:47+08:00",
+  "taskScope": "six classroom video tasks only",
+  "tasks": [
+    {
+      "id": "67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+      "error": null,
+      "status": "success",
+      "lastPoll": {
+        "at": 1792585112700,
+        "phase": "poll",
+        "state": "api_response:completed"
+      },
+      "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+      "createdAt": "2026-10-21T12:03:26.065+00:00",
+      "projectId": "canvas-Ci7BUuHr1rURJ9N4rJwsf",
+      "updatedAt": "2026-10-21T12:18:32.139+00:00",
+      "resultKeys": [
+        "url",
+        "mimeType",
+        "durationMs"
+      ],
+      "anchorEvents": [
+        {
+          "at": 1792584206071,
+          "model": "doubao-seedance-2-0",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792585109767,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "succeeded",
+          "upstreamTaskId": "task_MghQUBEIhLSfMUf9qZvD7jFuobGBkQpe"
+        },
+        {
+          "at": 1792585109770,
+          "model": "doubao-seedance-2-0",
+          "phase": "recovery_end",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 164
+        },
+        {
+          "at": 1792585110040,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "succeeded",
+          "upstreamTaskId": "task_MghQUBEIhLSfMUf9qZvD7jFuobGBkQpe"
+        },
+        {
+          "at": 1792585112156,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "persisted",
+          "upstreamTaskId": "task_MghQUBEIhLSfMUf9qZvD7jFuobGBkQpe"
+        },
+        {
+          "at": 1792585112159,
+          "model": "doubao-seedance-2-0",
+          "phase": "recovery_end",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 2122
+        }
+      ],
+      "attemptCount": 1,
+      "currentModel": "doubao-seedance-2-0",
+      "logicalModel": "doubao-seedance-2-0",
+      "generationLog": {
+        "id": "video-task:67d370de-324d-4ba8-9b47-dcc3c3d7af2e",
+        "status": "success",
+        "completedAt": "2026-10-21T12:18:32.143+00:00",
+        "elapsedSeconds": 906.078
+      },
+      "executionPhase": "completed",
+      "referenceCount": 0,
+      "resultMimeType": "video/mp4",
+      "upstreamTaskId": "task_MghQUBEIhLSfMUf9qZvD7jFuobGBkQpe",
+      "diagnosticBytes": 21396,
+      "diagnosticCount": 56,
+      "resultDurationMs": 9000,
+      "resultUrlPresent": true,
+      "referencesFieldPresent": false,
+      "resultRemoteUrlPresent": false
+    },
+    {
+      "id": "5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+      "error": null,
+      "status": "success",
+      "lastPoll": {
+        "at": 1792585296178,
+        "phase": "poll",
+        "state": "api_response:completed"
+      },
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "createdAt": "2026-10-21T12:15:58.096+00:00",
+      "projectId": "canvas-Ci7BUuHr1rURJ9N4rJwsf",
+      "updatedAt": "2026-10-21T12:21:33.951+00:00",
+      "resultKeys": [
+        "url",
+        "mimeType",
+        "durationMs"
+      ],
+      "anchorEvents": [
+        {
+          "at": 1792584958101,
+          "model": "official/seedance-2",
+          "phase": "task_created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792585292823,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "succeeded",
+          "upstreamTaskId": "task_Mi2IgePQo18F0YyeGfYl4Ny7m3GsAhZb"
+        },
+        {
+          "at": 1792585292826,
+          "model": "official/seedance-2",
+          "phase": "recovery_end",
+          "state": "result_ready",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 934
+        },
+        {
+          "at": 1792585293097,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "succeeded",
+          "upstreamTaskId": "task_Mi2IgePQo18F0YyeGfYl4Ny7m3GsAhZb"
+        },
+        {
+          "at": 1792585293970,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "persisted",
+          "upstreamTaskId": "task_Mi2IgePQo18F0YyeGfYl4Ny7m3GsAhZb"
+        },
+        {
+          "at": 1792585293974,
+          "model": "official/seedance-2",
+          "phase": "recovery_end",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 882
+        }
+      ],
+      "attemptCount": 1,
+      "currentModel": "official/seedance-2",
+      "logicalModel": "official/seedance-2",
+      "generationLog": {
+        "id": "video-task:5d7717b0-4b08-40ae-b27e-bed51f8e7760",
+        "status": "success",
+        "completedAt": "2026-10-21T12:21:33.957+00:00",
+        "elapsedSeconds": 335.861
+      },
+      "executionPhase": "completed",
+      "referenceCount": 0,
+      "resultMimeType": "video/mp4",
+      "upstreamTaskId": "task_Mi2IgePQo18F0YyeGfYl4Ny7m3GsAhZb",
+      "diagnosticBytes": 21291,
+      "diagnosticCount": 53,
+      "resultDurationMs": 9000,
+      "resultUrlPresent": true,
+      "referencesFieldPresent": false,
+      "resultRemoteUrlPresent": false
+    },
+    {
+      "id": "c0ee98d1-57dd-4550-85f6-5f5484a3b67f",
+      "error": "official/seedance-2 does not accept reference video input",
+      "status": "error",
+      "lastPoll": null,
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "createdAt": "2026-10-21T12:48:32.814+00:00",
+      "projectId": "canvas-Ci7BUuHr1rURJ9N4rJwsf",
+      "updatedAt": "2026-10-21T12:50:35.168+00:00",
+      "resultKeys": null,
+      "anchorEvents": [
+        {
+          "at": 1792586912824,
+          "model": "official/seedance-2",
+          "phase": "task_created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792586912847,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792586912851,
+          "model": "official/seedance-2",
+          "phase": "submit_start",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792587034094,
+          "model": "official/seedance-2",
+          "phase": "transport_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792587034261,
+          "model": "official/seedance-2",
+          "phase": "upstream_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792587035129,
+          "model": "official/seedance-2",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 867,
+          "errorMessage": "official/seedance-2 does not accept reference video input"
+        },
+        {
+          "at": 1792587035150,
+          "model": "official/seedance-2",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 1056,
+          "errorMessage": "official/seedance-2 does not accept reference video input"
+        },
+        {
+          "at": 1792587035154,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "official/seedance-2 does not accept reference video input"
+        },
+        {
+          "at": 1792587035173,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "official/seedance-2 does not accept reference video input"
+        },
+        {
+          "at": 1792587035178,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        }
+      ],
+      "attemptCount": 1,
+      "currentModel": "official/seedance-2",
+      "logicalModel": "official/seedance-2",
+      "generationLog": {
+        "id": "video-task:c0ee98d1-57dd-4550-85f6-5f5484a3b67f",
+        "status": "failed",
+        "completedAt": "2026-10-21T12:50:35.163+00:00",
+        "elapsedSeconds": 122.349
+      },
+      "executionPhase": "completed",
+      "referenceCount": 0,
+      "resultMimeType": null,
+      "upstreamTaskId": null,
+      "diagnosticBytes": 5248,
+      "diagnosticCount": 13,
+      "resultDurationMs": null,
+      "resultUrlPresent": false,
+      "referencesFieldPresent": false,
+      "resultRemoteUrlPresent": false
+    },
+    {
+      "id": "1781e2e9-203f-42aa-af97-643e1c389afc",
+      "error": "official/seedance-2 does not accept reference video input",
+      "status": "error",
+      "lastPoll": null,
+      "channelId": "X9te4qOV0ZaPsJpErRRWS",
+      "createdAt": "2026-10-21T12:51:11.79+00:00",
+      "projectId": "canvas-Ci7BUuHr1rURJ9N4rJwsf",
+      "updatedAt": "2026-10-21T12:52:34.552+00:00",
+      "resultKeys": null,
+      "anchorEvents": [
+        {
+          "at": 1792587071803,
+          "model": "official/seedance-2",
+          "phase": "task_created",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792587071810,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "submitting",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "submitting"
+        },
+        {
+          "at": 1792587071812,
+          "model": "official/seedance-2",
+          "phase": "submit_start",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792587153618,
+          "model": "official/seedance-2",
+          "phase": "transport_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792587153784,
+          "model": "official/seedance-2",
+          "phase": "upstream_request",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS"
+        },
+        {
+          "at": 1792587154514,
+          "model": "official/seedance-2",
+          "phase": "upstream_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 729,
+          "errorMessage": "official/seedance-2 does not accept reference video input"
+        },
+        {
+          "at": 1792587154535,
+          "model": "official/seedance-2",
+          "phase": "transport_response",
+          "status": 400,
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "durationMs": 918,
+          "errorMessage": "official/seedance-2 does not accept reference video input"
+        },
+        {
+          "at": 1792587154537,
+          "model": "official/seedance-2",
+          "phase": "submit_exception",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "official/seedance-2 does not accept reference video input"
+        },
+        {
+          "at": 1792587154557,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "error",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorMessage": "official/seedance-2 does not accept reference video input"
+        },
+        {
+          "at": 1792587154562,
+          "model": "official/seedance-2",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "X9te4qOV0ZaPsJpErRRWS",
+          "errorCode": "create_failed"
+        }
+      ],
+      "attemptCount": 1,
+      "currentModel": "official/seedance-2",
+      "logicalModel": "official/seedance-2",
+      "generationLog": {
+        "id": "video-task:1781e2e9-203f-42aa-af97-643e1c389afc",
+        "status": "failed",
+        "completedAt": "2026-10-21T12:52:34.547+00:00",
+        "elapsedSeconds": 82.757
+      },
+      "executionPhase": "completed",
+      "referenceCount": 0,
+      "resultMimeType": null,
+      "upstreamTaskId": null,
+      "diagnosticBytes": 5247,
+      "diagnosticCount": 13,
+      "resultDurationMs": null,
+      "resultUrlPresent": false,
+      "referencesFieldPresent": false,
+      "resultRemoteUrlPresent": false
+    },
+    {
+      "id": "35a66748-eabf-45f3-825f-a9e93e5404b2",
+      "error": null,
+      "status": "success",
+      "lastPoll": {
+        "at": 1792584256789,
+        "phase": "poll",
+        "state": "api_response:completed"
+      },
+      "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+      "createdAt": "2026-10-21T11:59:34.595+00:00",
+      "projectId": "canvas-QQY68NkAl5JBQl_VsigJh",
+      "updatedAt": "2026-10-21T12:04:15.755+00:00",
+      "resultKeys": [
+        "url",
+        "mimeType",
+        "durationMs"
+      ],
+      "anchorEvents": [
+        {
+          "at": 1792583974599,
+          "model": "doubao-seedance-2-0",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584254791,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "succeeded",
+          "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB"
+        },
+        {
+          "at": 1792584254795,
+          "model": "doubao-seedance-2-0",
+          "phase": "recovery_end",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 148
+        },
+        {
+          "at": 1792584255063,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "succeeded",
+          "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB"
+        },
+        {
+          "at": 1792584255771,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "persisted",
+          "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB"
+        },
+        {
+          "at": 1792584255775,
+          "model": "doubao-seedance-2-0",
+          "phase": "recovery_end",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 715
+        }
+      ],
+      "attemptCount": 1,
+      "currentModel": "doubao-seedance-2-0",
+      "logicalModel": "doubao-seedance-2-0",
+      "generationLog": {
+        "id": "video-task:35a66748-eabf-45f3-825f-a9e93e5404b2",
+        "status": "success",
+        "completedAt": "2026-10-21T12:04:15.759+00:00",
+        "elapsedSeconds": 281.164
+      },
+      "executionPhase": "completed",
+      "referenceCount": 0,
+      "resultMimeType": "video/mp4",
+      "upstreamTaskId": "task_P2YjrZO9GCX9rpY6Ji1ON7cjhwu6HVBB",
+      "diagnosticBytes": 21425,
+      "diagnosticCount": 56,
+      "resultDurationMs": 7000,
+      "resultUrlPresent": true,
+      "referencesFieldPresent": false,
+      "resultRemoteUrlPresent": false
+    },
+    {
+      "id": "0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+      "error": null,
+      "status": "success",
+      "lastPoll": {
+        "at": 1792584199781,
+        "phase": "poll",
+        "state": "pending"
+      },
+      "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+      "createdAt": "2026-10-21T11:59:59.376+00:00",
+      "projectId": "canvas-Ci7BUuHr1rURJ9N4rJwsf",
+      "updatedAt": "2026-10-21T12:04:11.205+00:00",
+      "resultKeys": [
+        "url",
+        "mimeType",
+        "durationMs"
+      ],
+      "anchorEvents": [
+        {
+          "at": 1792583999380,
+          "model": "doubao-seedance-2-0",
+          "phase": "task_created",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK"
+        },
+        {
+          "at": 1792584250079,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "succeeded",
+          "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P"
+        },
+        {
+          "at": 1792584250082,
+          "model": "doubao-seedance-2-0",
+          "phase": "recovery_end",
+          "state": "result_ready",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 147
+        },
+        {
+          "at": 1792584250350,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "persisting",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "succeeded",
+          "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P"
+        },
+        {
+          "at": 1792584251221,
+          "model": "doubao-seedance-2-0",
+          "phase": "state",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "errorCode": "persisted",
+          "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P"
+        },
+        {
+          "at": 1792584251225,
+          "model": "doubao-seedance-2-0",
+          "phase": "recovery_end",
+          "state": "completed",
+          "channelId": "_-eQ3SntRYtuDZz9mJ_OK",
+          "durationMs": 878
+        }
+      ],
+      "attemptCount": 1,
+      "currentModel": "doubao-seedance-2-0",
+      "logicalModel": "doubao-seedance-2-0",
+      "generationLog": {
+        "id": "video-task:0d832b43-a32c-40e2-9e9f-4190ce3ea0e3",
+        "status": "success",
+        "completedAt": "2026-10-21T12:04:11.209+00:00",
+        "elapsedSeconds": 251.833
+      },
+      "executionPhase": "completed",
+      "referenceCount": 0,
+      "resultMimeType": "video/mp4",
+      "upstreamTaskId": "task_n7EQ50T9Ftx9XKK6HcA52JUgv4Bgjv1P",
+      "diagnosticBytes": 21613,
+      "diagnosticCount": 57,
+      "resultDurationMs": 5000,
+      "resultUrlPresent": true,
+      "referencesFieldPresent": false,
+      "resultRemoteUrlPresent": false
+    }
+  ]
+}

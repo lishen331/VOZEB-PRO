@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-22T09:54:58.530146+00:00",
+  "readOnly": true,
+  "files": [
+    {
+      "name": "bounded-classroom-watch-20261022-174844.jsonl",
+      "sha256": "a4369bce01a01ae35f107f056646be30685e613fdac0f346341ab23e50b655a1",
+      "bytes": 2018
+    },
+    {
+      "name": "readonly-incident-audit-20261022-175259.json",
+      "sha256": "6593c344e016d61ec3eee2a678578d8be28bec77001317d04bb5c00f671e69c6",
+      "bytes": 313143
+    },
+    {
+      "name": "bounded-task-follow-20261022-175418.jsonl",
+      "sha256": "4060160271acb04af5c27381940faaf9756e8efeac47bb5f0f5bad3a9ee5193c",
+      "bytes": 555
+    }
+  ]
+}

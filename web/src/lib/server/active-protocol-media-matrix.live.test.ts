@@ -198,7 +198,7 @@ function videoConfig(protocol: SystemChannelProtocol, baseUrl: string, model: st
 }
 
 async function runImageTask(task: ImageTask, protocol: SystemChannelProtocol) {
-    const declarative = protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task";
+    const declarative = protocol === "agnes" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "modelbay-image-task" || protocol === "tuzi-image-task";
     const submitted = declarative ? await runCustomImageTask(task, origin, origin, "", protocol !== "stable-diffusion") : await runOpenAiImageTask(task, origin, origin, "", true);
     return submitted.pending ? pollCustomImageTask(task, submitted.pending.id, submitted.pending.mediaBaseUrl, submitted.pending.pollBaseUrl, "") : submitted;
 }
@@ -241,7 +241,7 @@ function expectVideoRequests(createPath: string, queryPath: string, model: strin
     expect(createRequests[0]?.path).toBe(createPath);
     expect(requestContainsReference(createRequests[0]), referenceRequired ? "reference image was not transmitted to the video provider" : "text-only video request unexpectedly included a reference").toBe(referenceRequired);
     const expectedQuery = queryPath.replace(":model", model).replace(":task_id", taskId);
-    expect(fixture.requests.some((request) => request.method === "GET" && request.path === expectedQuery)).toBe(true);
+    expect(fixture.requests.some((request) => request.method === "GET" && (queryPath.startsWith("/agnesapi") ? request.path === "/agnesapi" : request.path === expectedQuery))).toBe(true);
     expect(fixture.requests.some((request) => request.method === "GET" && request.path === "/media/fixture.mp4")).toBe(true);
 }
 

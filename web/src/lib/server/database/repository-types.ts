@@ -279,6 +279,7 @@ export type AppSettingsRecord = {
     practiceWorkflowModels: JsonValue;
     practiceScriptSettings: JsonValue;
     practiceModuleVisibility: JsonValue;
+    practiceModelPool: JsonValue;
     agentSkills: JsonValue;
     featureModules: JsonValue;
     createdAt: string;
@@ -295,6 +296,7 @@ export type SystemModelChannelRecord = {
     apiFormat: "openai" | "gemini";
     models: JsonValue;
     enabled: boolean;
+    practiceEnabled?: boolean;
     purpose?: SystemChannelPurpose;
     advancedConfig?: JsonValue;
     sortOrder: number;
@@ -455,6 +457,10 @@ export type GenerationLogRecord = {
     assets: GenerationLogAssetRecord[];
     requestSnapshot?: JsonValue;
     taskId?: string;
+    /** Present only when the list was asked to join the task context. */
+    executionProfile?: "production" | "open-source-practice";
+    /** Present only when the list was asked to join the task context. */
+    channelName?: string;
     error?: string;
     createdAt: string;
     updatedAt: string;

@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-21T11:52:56.14715+00:00",
+  "targets": [
+    {
+      "id": "3fb020a5-9a7c-4aba-a79a-90c357435b76",
+      "targetid": null,
+      "created_at": "2026-10-21T11:35:20.136+00:00",
+      "project_id": "canvas-DqaYs2UD9Ru2LLMby3yoG",
+      "targettype": null,
+      "updated_at": "2026-10-21T11:43:26.751+00:00",
+      "imagetaskid": null,
+      "metadatakeys": null,
+      "targetstatus": null,
+      "pendingtaskid": null,
+      "targetmissing": true,
+      "originalnodeid": "image-zIcbxexZlwyIs5cFNhAmE",
+      "targethasserverurl": false,
+      "newertaskssameoriginalnode": 0
+    }
+  ]
+}

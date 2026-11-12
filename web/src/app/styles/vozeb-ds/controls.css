@@ -1,0 +1,165 @@
+/* Buttons */
+.vz-ds .vz-btn {
+    --h: 40px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: var(--h);
+    min-width: 0;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: var(--vz-r-md);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 560;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    isolation: isolate;
+    transition:
+        background var(--vz-dur-2) var(--vz-ease),
+        border-color var(--vz-dur-2) var(--vz-ease),
+        color var(--vz-dur-2) var(--vz-ease),
+        box-shadow var(--vz-dur-2) var(--vz-ease),
+        transform var(--vz-dur-1) var(--vz-ease),
+        opacity var(--vz-dur-2);
+}
+.vz-ds .vz-btn svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+}
+.vz-ds .vz-btn[data-size="sm"] {
+    --h: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+    border-radius: var(--vz-r-sm);
+}
+.vz-ds .vz-btn[data-size="lg"] {
+    --h: 48px;
+    padding: 0 22px;
+    font-size: 15px;
+    border-radius: var(--vz-r-lg);
+}
+.vz-ds .vz-btn:focus-visible,
+.vz-ds .vz-btn[data-force="focus"] {
+    box-shadow: var(--vz-ring);
+}
+.vz-ds .vz-btn:active:not(:disabled),
+.vz-ds .vz-btn[data-force="active"] {
+    transform: scale(0.97);
+}
+.vz-ds .vz-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.42;
+}
+.vz-ds .vz-btn[aria-busy="true"] {
+    cursor: progress;
+}
+
+.vz-ds .vz-btn--primary {
+    color: var(--vz-text-on-brand);
+    background: var(--vz-gradient);
+    box-shadow: var(--vz-highlight), var(--vz-glow-brand);
+}
+.vz-ds .vz-btn--primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 60%);
+    opacity: 0;
+    transition: opacity var(--vz-dur-2);
+}
+.vz-ds .vz-btn--primary:hover:not(:disabled)::after,
+.vz-ds .vz-btn--primary[data-force="hover"]::after {
+    opacity: 1;
+}
+.vz-ds .vz-btn--primary:hover:not(:disabled),
+.vz-ds .vz-btn--primary[data-force="hover"] {
+    box-shadow:
+        var(--vz-highlight),
+        0 14px 36px -10px rgba(110, 92, 255, 0.85);
+}
+.vz-ds .vz-btn--primary:focus-visible,
+.vz-ds .vz-btn--primary[data-force="focus"] {
+    box-shadow: var(--vz-ring), var(--vz-glow-brand);
+}
+
+.vz-ds .vz-btn--secondary {
+    color: var(--vz-text-1);
+    background: var(--vz-surface-3);
+    border-color: var(--vz-control-border);
+    box-shadow: var(--vz-highlight);
+}
+.vz-ds .vz-btn--secondary:hover:not(:disabled),
+.vz-ds .vz-btn--secondary[data-force="hover"] {
+    border-color: var(--vz-text-3);
+    background: color-mix(in srgb, var(--vz-surface-3) 82%, var(--vz-text-1) 8%);
+}
+
+.vz-ds .vz-btn--ghost {
+    color: var(--vz-text-2);
+    background: transparent;
+}
+.vz-ds .vz-btn--ghost:hover:not(:disabled),
+.vz-ds .vz-btn--ghost[data-force="hover"] {
+    color: var(--vz-text-1);
+    background: var(--vz-surface-hover);
+}
+
+.vz-ds .vz-btn--link {
+    --h: auto;
+    padding: 2px 4px;
+    color: var(--vz-brand-text);
+    background: none;
+    border-radius: 6px;
+}
+.vz-ds .vz-btn--link:hover:not(:disabled),
+.vz-ds .vz-btn--link[data-force="hover"] {
+    color: var(--vz-text-1);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.vz-ds .vz-btn--danger {
+    color: var(--vz-danger-text);
+    background: var(--vz-danger-soft);
+    border-color: var(--vz-danger-text);
+}
+.vz-ds .vz-btn--danger:hover:not(:disabled),
+.vz-ds .vz-btn--danger[data-force="hover"] {
+    color: #fff;
+    background: var(--vz-gradient-danger);
+}
+
+.vz-ds .vz-btn--icon {
+    width: var(--h);
+    padding: 0;
+}
+.vz-ds .vz-btn--icon[data-size="sm"] {
+    width: 32px;
+}
+.vz-ds .vz-btn[data-selected="true"] {
+    color: var(--vz-brand-text);
+    background: var(--vz-brand-soft);
+    border-color: var(--vz-focus-color);
+}
+
+.vz-ds .vz-spinner {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    opacity: 0.85;
+    animation: vz-spin 0.7s linear infinite;
+}
+@keyframes vz-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

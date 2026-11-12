@@ -1,0 +1,1070 @@
+[
+  {
+    "type": "image",
+    "model": "gpt-image-2-c",
+    "name": "gpt-image-2-c",
+    "accounts": 26,
+    "referenceTaskCount": 217,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 239,
+    "success": 159,
+    "failure": 80,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 239,
+    "successRatePct": 66.53,
+    "terminalSuccessRatePct": 66.53,
+    "successLatency": {
+      "n": 159,
+      "mean": 126.906,
+      "p95": 261.321,
+      "min": 17.528,
+      "max": 442.431
+    },
+    "failureLatency": {
+      "n": 78,
+      "mean": 197.478,
+      "p95": 366.523,
+      "min": 0.097,
+      "max": 624.965
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": [
+      "846d5467-57ed-4f53-9186-c2269e0d9619",
+      "58ce7c95-baf6-4e2d-a98c-621a2bee0834"
+    ]
+  },
+  {
+    "type": "image",
+    "model": "gpt-image-2-all",
+    "name": "gpt-image-2-all",
+    "accounts": 25,
+    "referenceTaskCount": 211,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 232,
+    "success": 140,
+    "failure": 92,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 232,
+    "successRatePct": 60.34,
+    "terminalSuccessRatePct": 60.34,
+    "successLatency": {
+      "n": 140,
+      "mean": 122.946,
+      "p95": 290.539,
+      "min": 16.607,
+      "max": 348.742
+    },
+    "failureLatency": {
+      "n": 92,
+      "mean": 173.812,
+      "p95": 346.57,
+      "min": 1.811,
+      "max": 539.822
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "image",
+    "model": "gpt-image-2",
+    "name": "gpt-image-2",
+    "accounts": 28,
+    "referenceTaskCount": 205,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 225,
+    "success": 180,
+    "failure": 44,
+    "canceled": 0,
+    "pending": 1,
+    "terminal": 224,
+    "successRatePct": 80,
+    "terminalSuccessRatePct": 80.36,
+    "successLatency": {
+      "n": 180,
+      "mean": 87.681,
+      "p95": 254.537,
+      "min": 20.743,
+      "max": 688.936
+    },
+    "failureLatency": {
+      "n": 42,
+      "mean": 131.273,
+      "p95": 601.014,
+      "min": 9.977,
+      "max": 603.492
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": [
+      "4565b219-aeca-4e56-a4a3-e89f5a44251f",
+      "af53f7fb-b90f-40e5-a3a5-5fbbfcd82e25"
+    ]
+  },
+  {
+    "type": "video",
+    "model": "doubao-seedance-2-0",
+    "name": "doubao-seedance-2-0",
+    "accounts": 22,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 205,
+    "success": 132,
+    "failure": 73,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 205,
+    "successRatePct": 64.39,
+    "terminalSuccessRatePct": 64.39,
+    "successLatency": {
+      "n": 132,
+      "mean": 534.818,
+      "p95": 1054.785,
+      "min": 224.764,
+      "max": 1712.706
+    },
+    "failureLatency": {
+      "n": 73,
+      "mean": 27.661,
+      "p95": 70.246,
+      "min": 0.067,
+      "max": 277.474
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "image",
+    "model": "gpt-image-2-5-sunburst",
+    "name": "gpt-image-2-5-sunburst",
+    "accounts": 18,
+    "referenceTaskCount": 67,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 80,
+    "success": 13,
+    "failure": 67,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 80,
+    "successRatePct": 16.25,
+    "terminalSuccessRatePct": 16.25,
+    "successLatency": {
+      "n": 13,
+      "mean": 16.014,
+      "p95": 19.166,
+      "min": 14.77,
+      "max": 19.166
+    },
+    "failureLatency": {
+      "n": 67,
+      "mean": 10.046,
+      "p95": 31.847,
+      "min": 1.942,
+      "max": 40.691
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "video",
+    "model": "official/seedance-2",
+    "name": "official/seedance-2",
+    "accounts": 16,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 73,
+    "success": 27,
+    "failure": 46,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 73,
+    "successRatePct": 36.99,
+    "terminalSuccessRatePct": 36.99,
+    "successLatency": {
+      "n": 27,
+      "mean": 354.782,
+      "p95": 603.968,
+      "min": 182.942,
+      "max": 627.025
+    },
+    "failureLatency": {
+      "n": 46,
+      "mean": 70.809,
+      "p95": 122.349,
+      "min": 0.323,
+      "max": 1800.03
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "video",
+    "model": "cdance2.0-0807",
+    "name": "天翼云 Seedance 2.0",
+    "accounts": 18,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 69,
+    "success": 39,
+    "failure": 30,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 69,
+    "successRatePct": 56.52,
+    "terminalSuccessRatePct": 56.52,
+    "successLatency": {
+      "n": 39,
+      "mean": 339.756,
+      "p95": 509.659,
+      "min": 152.717,
+      "max": 649.192
+    },
+    "failureLatency": {
+      "n": 30,
+      "mean": 64.021,
+      "p95": 550.961,
+      "min": 5.97,
+      "max": 611.311
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "image",
+    "model": "gpt-image-2-5-flare",
+    "name": "gpt-image-2-5-flare",
+    "accounts": 20,
+    "referenceTaskCount": 38,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 51,
+    "success": 13,
+    "failure": 38,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 51,
+    "successRatePct": 25.49,
+    "terminalSuccessRatePct": 25.49,
+    "successLatency": {
+      "n": 13,
+      "mean": 16.196,
+      "p95": 19.495,
+      "min": 14.756,
+      "max": 19.495
+    },
+    "failureLatency": {
+      "n": 38,
+      "mean": 10.489,
+      "p95": 32.208,
+      "min": 2.028,
+      "max": 96.455
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "video",
+    "model": "doubao-seedance-2-0-260128",
+    "name": "doubao-seedance-2-0-260128",
+    "accounts": 16,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 41,
+    "success": 14,
+    "failure": 27,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 41,
+    "successRatePct": 34.15,
+    "terminalSuccessRatePct": 34.15,
+    "successLatency": {
+      "n": 14,
+      "mean": 239.269,
+      "p95": 371.468,
+      "min": 150.82,
+      "max": 371.468
+    },
+    "failureLatency": {
+      "n": 27,
+      "mean": 40.575,
+      "p95": 75.68,
+      "min": 23.477,
+      "max": 120.161
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "image",
+    "model": "gpt-image-2.5-sunburst",
+    "name": "gpt-image-2.5-sunburst",
+    "accounts": 20,
+    "referenceTaskCount": 21,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 36,
+    "success": 27,
+    "failure": 9,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 36,
+    "successRatePct": 75,
+    "terminalSuccessRatePct": 75,
+    "successLatency": {
+      "n": 27,
+      "mean": 77.597,
+      "p95": 341.959,
+      "min": 21.496,
+      "max": 342.537
+    },
+    "failureLatency": {
+      "n": 9,
+      "mean": 57.68,
+      "p95": 81.968,
+      "min": 10.571,
+      "max": 81.968
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "video",
+    "model": "official/seedance-2-5",
+    "name": "official/seedance-2-5",
+    "accounts": 11,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 25,
+    "success": 9,
+    "failure": 16,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 25,
+    "successRatePct": 36,
+    "terminalSuccessRatePct": 36,
+    "successLatency": {
+      "n": 9,
+      "mean": 265.231,
+      "p95": 588.09,
+      "min": 151.542,
+      "max": 588.09
+    },
+    "failureLatency": {
+      "n": 16,
+      "mean": 22.114,
+      "p95": 68.051,
+      "min": 0.403,
+      "max": 68.051
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "video",
+    "model": "cdance2.0-fast-0807",
+    "name": "天翼云 Seedance 2.0 Fast",
+    "accounts": 11,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 21,
+    "success": 7,
+    "failure": 14,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 21,
+    "successRatePct": 33.33,
+    "terminalSuccessRatePct": 33.33,
+    "successLatency": {
+      "n": 7,
+      "mean": 136.311,
+      "p95": 227.733,
+      "min": 84.826,
+      "max": 227.733
+    },
+    "failureLatency": {
+      "n": 14,
+      "mean": 53.307,
+      "p95": 605.88,
+      "min": 1.597,
+      "max": 605.88
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.6-luna",
+    "name": "gpt-5.6-luna",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 21,
+    "success": 21,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 21,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 21,
+      "mean": 2.247,
+      "p95": 2.455,
+      "min": 1.345,
+      "max": 8.026
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "video",
+    "model": "doubao-seedance-2-5-260628",
+    "name": "doubao-seedance-2-5-260628",
+    "accounts": 10,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 19,
+    "success": 6,
+    "failure": 13,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 19,
+    "successRatePct": 31.58,
+    "terminalSuccessRatePct": 31.58,
+    "successLatency": {
+      "n": 6,
+      "mean": 149.223,
+      "p95": 183.902,
+      "min": 132.128,
+      "max": 183.902
+    },
+    "failureLatency": {
+      "n": 13,
+      "mean": 226.785,
+      "p95": 1800.09,
+      "min": 44.856,
+      "max": 1800.09
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.2",
+    "name": "gpt-5.2",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 1.642,
+      "p95": 2.084,
+      "min": 1.268,
+      "max": 2.084
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.6-terra",
+    "name": "gpt-5.6-terra",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 1.815,
+      "p95": 5.689,
+      "min": 1.144,
+      "max": 5.689
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.1",
+    "name": "gpt-5.1",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 1.23,
+      "p95": 2.003,
+      "min": 1.079,
+      "max": 2.003
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5-mini",
+    "name": "gpt-5-mini",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 3.75,
+      "p95": 4.654,
+      "min": 2.811,
+      "max": 4.654
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.4-mini",
+    "name": "gpt-5.4-mini",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 1.386,
+      "p95": 2.139,
+      "min": 1.008,
+      "max": 2.139
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.4",
+    "name": "gpt-5.4",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 1.925,
+      "p95": 6.209,
+      "min": 1.173,
+      "max": 6.209
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5",
+    "name": "gpt-5",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 6.314,
+      "p95": 13.134,
+      "min": 3.7,
+      "max": 13.134
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.5",
+    "name": "gpt-5.5",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 3.213,
+      "p95": 10.353,
+      "min": 1.497,
+      "max": 10.353
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.6-sol",
+    "name": "gpt-5.6-sol",
+    "accounts": 15,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 17,
+    "failure": 0,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 100,
+    "terminalSuccessRatePct": 100,
+    "successLatency": {
+      "n": 17,
+      "mean": 2.8,
+      "p95": 15.992,
+      "min": 1.251,
+      "max": 15.992
+    },
+    "failureLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "image",
+    "model": "gpt-image-2-text-to-image",
+    "name": "gpt-image-2-text-to-image",
+    "accounts": 15,
+    "referenceTaskCount": 4,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 17,
+    "success": 14,
+    "failure": 3,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 17,
+    "successRatePct": 82.35,
+    "terminalSuccessRatePct": 82.35,
+    "successLatency": {
+      "n": 7,
+      "mean": 104.814,
+      "p95": 129.332,
+      "min": 95.507,
+      "max": 129.332
+    },
+    "failureLatency": {
+      "n": 3,
+      "mean": 0.899,
+      "p95": 1.339,
+      "min": 0.282,
+      "max": 1.339
+    },
+    "successMissingCompletionLog": [
+      "a86eadcf-0ceb-4de7-a631-5b4437fc58b5",
+      "f55ffc3f-a388-472e-9abb-aea586f93f68",
+      "dc9c0f4c-7a20-4cc6-8d0d-377c6143824c",
+      "34caa535-5aa3-48d4-96da-17892d88d4e6",
+      "2e9684d2-90aa-4b01-9ec3-2ade42c010e5",
+      "c9e65990-d3db-4036-b298-8be7dcfbbb4f",
+      "c20d8535-a139-459f-be79-eb1b44e7754d"
+    ],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "video",
+    "model": "cdance2.0-mini-0807",
+    "name": "天翼云 Seedance 2.0 Mini",
+    "accounts": 3,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 7,
+    "success": 1,
+    "failure": 6,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 7,
+    "successRatePct": 14.29,
+    "terminalSuccessRatePct": 14.29,
+    "successLatency": {
+      "n": 1,
+      "mean": 94.786,
+      "p95": 94.786,
+      "min": 94.786,
+      "max": 94.786
+    },
+    "failureLatency": {
+      "n": 6,
+      "mean": 120.715,
+      "p95": 615.983,
+      "min": 6.117,
+      "max": 615.983
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "image",
+    "model": "gpt-image-2-image-to-image",
+    "name": "gpt-image-2-image-to-image",
+    "accounts": 2,
+    "referenceTaskCount": 3,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 3,
+    "success": 0,
+    "failure": 3,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 3,
+    "successRatePct": 0,
+    "terminalSuccessRatePct": 0,
+    "successLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatency": {
+      "n": 3,
+      "mean": 2.471,
+      "p95": 3.777,
+      "min": 1.073,
+      "max": 3.777
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5-pro",
+    "name": "gpt-5-pro",
+    "accounts": 1,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 2,
+    "success": 0,
+    "failure": 2,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 2,
+    "successRatePct": 0,
+    "terminalSuccessRatePct": 0,
+    "successLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatency": {
+      "n": 2,
+      "mean": 2.6,
+      "p95": 2.602,
+      "min": 2.598,
+      "max": 2.602
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.4-pro",
+    "name": "gpt-5.4-pro",
+    "accounts": 1,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 2,
+    "success": 0,
+    "failure": 2,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 2,
+    "successRatePct": 0,
+    "terminalSuccessRatePct": 0,
+    "successLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatency": {
+      "n": 2,
+      "mean": 22.861,
+      "p95": 40.779,
+      "min": 4.942,
+      "max": 40.779
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-6-astra",
+    "name": "gpt-6-astra",
+    "accounts": 1,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 1,
+    "success": 0,
+    "failure": 1,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 1,
+    "successRatePct": 0,
+    "terminalSuccessRatePct": 0,
+    "successLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatency": {
+      "n": 1,
+      "mean": 1.313,
+      "p95": 1.313,
+      "min": 1.313,
+      "max": 1.313
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "gpt-5.5-pro",
+    "name": "gpt-5.5-pro",
+    "accounts": 1,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 1,
+    "success": 0,
+    "failure": 1,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 1,
+    "successRatePct": 0,
+    "terminalSuccessRatePct": 0,
+    "successLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatency": {
+      "n": 1,
+      "mean": 1.63,
+      "p95": 1.63,
+      "min": 1.63,
+      "max": 1.63
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  },
+  {
+    "type": "text",
+    "model": "codex-auto-review",
+    "name": "codex-auto-review",
+    "accounts": 1,
+    "referenceTaskCount": 0,
+    "modelBasis": [
+      "logicalModel-in-task-config"
+    ],
+    "total": 1,
+    "success": 0,
+    "failure": 1,
+    "canceled": 0,
+    "pending": 0,
+    "terminal": 1,
+    "successRatePct": 0,
+    "terminalSuccessRatePct": 0,
+    "successLatency": {
+      "n": 0,
+      "mean": null,
+      "p95": null,
+      "min": null,
+      "max": null
+    },
+    "failureLatency": {
+      "n": 1,
+      "mean": 1.445,
+      "p95": 1.445,
+      "min": 1.445,
+      "max": 1.445
+    },
+    "successMissingCompletionLog": [],
+    "failureMissingCompletionLog": []
+  }
+]

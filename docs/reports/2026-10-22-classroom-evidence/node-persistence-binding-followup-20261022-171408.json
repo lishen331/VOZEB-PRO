@@ -1,0 +1,111 @@
+[
+  {
+    "at": "2026-10-22T09:14:08.203171+00:00",
+    "currentTaskBindings": [
+      {
+        "id": "14d8e975-c332-48b2-a8a8-f7a9d57e12c1",
+        "status": "running",
+        "node_id": "image-ZiO_qYtsccTasORbuQ70G",
+        "task_type": "image",
+        "created_at": "2026-10-22T09:12:46.205+00:00",
+        "project_id": "canvas-HIhgPqlKcYRG39-gqDOFO",
+        "updated_at": "2026-10-22T09:12:46.228+00:00",
+        "node_status": "loading",
+        "bound_task_id": "14d8e975-c332-48b2-a8a8-f7a9d57e12c1",
+        "execution_phase": "submitting",
+        "last_heartbeat_at": "2026-10-22T09:14:01.219+00:00",
+        "matches_bound_task": true
+      },
+      {
+        "id": "b2786bd0-e1cd-42f5-bf3d-f8ea35105d16",
+        "status": "running",
+        "node_id": "image-wQqheSTrsGzHjimr3CwvS",
+        "task_type": "image",
+        "created_at": "2026-10-22T09:12:03.308+00:00",
+        "project_id": "canvas-1tU6waD6q8TwEsffVHJFo",
+        "updated_at": "2026-10-22T09:13:47.363+00:00",
+        "node_status": "loading",
+        "bound_task_id": "b2786bd0-e1cd-42f5-bf3d-f8ea35105d16",
+        "execution_phase": "submitting",
+        "last_heartbeat_at": "2026-10-22T09:13:47.355+00:00",
+        "matches_bound_task": true
+      },
+      {
+        "id": "da9a04b1-30cf-4216-92f1-aa17074406a1",
+        "status": "running",
+        "node_id": "video-_tnz79vbSNMiHb3GaoJAg",
+        "task_type": "video",
+        "created_at": "2026-10-22T09:11:16.394+00:00",
+        "project_id": "canvas-jTx252e1DCoiFxjHHWQ-D",
+        "updated_at": "2026-10-22T09:11:17.05+00:00",
+        "node_status": "loading",
+        "bound_task_id": "da9a04b1-30cf-4216-92f1-aa17074406a1",
+        "execution_phase": "polling",
+        "last_heartbeat_at": "2026-10-22T09:13:45.221+00:00",
+        "matches_bound_task": true
+      },
+      {
+        "id": "5515c7ec-a247-4480-bd2c-f536cb1bcffe",
+        "status": "running",
+        "node_id": "video-Vys6nEbQXPFXeRCal5R_S",
+        "task_type": "video",
+        "created_at": "2026-10-22T09:01:18.85+00:00",
+        "project_id": "canvas-UfRgK6ekfdAlkWYYVj34o",
+        "updated_at": "2026-10-22T09:01:19.339+00:00",
+        "node_status": "loading",
+        "bound_task_id": "5515c7ec-a247-4480-bd2c-f536cb1bcffe",
+        "execution_phase": "polling",
+        "last_heartbeat_at": "2026-10-22T09:14:02.836+00:00",
+        "matches_bound_task": true
+      },
+      {
+        "id": "94fc9d30-4368-4e51-9a28-bb57db8e0d3c",
+        "status": "running",
+        "node_id": "video-nJ4BccNFxGN3rP21AQQey",
+        "task_type": "video",
+        "created_at": "2026-10-22T08:59:09.922+00:00",
+        "project_id": "canvas-oaChn0JKb3_GE_odFPrEV",
+        "updated_at": "2026-10-22T08:59:21.409+00:00",
+        "node_status": "loading",
+        "bound_task_id": "94fc9d30-4368-4e51-9a28-bb57db8e0d3c",
+        "execution_phase": "polling",
+        "last_heartbeat_at": "2026-10-22T09:14:01.31+00:00",
+        "matches_bound_task": true
+      }
+    ]
+  },
+  {
+    "at": "2026-10-22T09:14:08.203171+00:00",
+    "successIdleSample": [
+      {
+        "id": "241e815d-d927-4ddb-85a9-1f0407d0c587",
+        "status": "success",
+        "node_id": "-dwCZtdCJQ8fJT7mEP1RC",
+        "created_at": "2026-10-22T08:49:59.182+00:00",
+        "updated_at": "2026-10-22T08:51:49.614+00:00",
+        "node_status": "idle",
+        "result_keys": [
+          "url"
+        ],
+        "metadata_keys": [
+          "size",
+          "count",
+          "model",
+          "prompt",
+          "status",
+          "quality",
+          "references",
+          "resolution",
+          "isBatchRoot",
+          "sourcePrompt",
+          "generationType",
+          "generationPendingSince",
+          "generationPendingTaskId",
+          "batchUsesReferenceImages"
+        ],
+        "project_updated_at": "2026-10-22T09:13:32.797955+00:00",
+        "newer_task_same_node": false
+      }
+    ]
+  }
+]

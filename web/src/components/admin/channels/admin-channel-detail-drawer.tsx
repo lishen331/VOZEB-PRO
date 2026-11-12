@@ -9,11 +9,11 @@ import { RefreshCw } from "lucide-react";
 import { SystemChannelEditor } from "@/components/admin/admin-system-channel-editor";
 import type { SystemModelChannel } from "@/lib/auth/store";
 import { channelProtocolDefinition, channelRequiresApiKey, channelSupportsModelCatalog } from "@/lib/channel-protocol-registry";
-import { capabilityLabel, channelModelCapability } from "@/lib/model-routing-config";
+import { capabilityLabel, channelModelCapability, channelSwitchState } from "@/lib/model-routing-config";
 
 import { ChannelStatusBadge } from "./admin-channel-status-badge";
 import { channelBindingCount, channelCapabilityLabels, channelProtocolLabel, channelWorkspaceStatus, type ChannelWorkspaceSettings } from "./admin-channel-workspace-model";
-import { ChannelPurposeControl, RunningHubChannelFields } from "./runninghub-channel-fields";
+import { ChannelEnableControls, RunningHubChannelFields } from "./runninghub-channel-fields";
 import { RunningHubWorkflowList } from "./runninghub-workflow-list";
 
 type Props = {
@@ -44,7 +44,8 @@ export function AdminChannelDetailDrawer({ open, channel, settings, fetching, on
                         label: "渠道配置",
                         children: (
                             <div className="space-y-3">
-                                {channel.advancedConfig?.protocol === "runninghub" ? <RunningHubChannelFields channel={channel} /> : <ChannelPurposeControl channel={channel} onChange={onChange} />}
+                                {channel.advancedConfig?.protocol === "runninghub" ? <RunningHubChannelFields channel={channel} /> : null}
+                                <ChannelEnableControls channel={channel} onChange={onChange} />
                                 <SystemChannelEditor
                                     channel={channel}
                                     fetching={fetching}
@@ -93,7 +94,8 @@ function ChannelOverview({ channel, settings, status, onFetchModels, fetching }:
                 <OverviewValue label="Base URL" value={channel.baseUrl || "未配置"} />
                 <OverviewValue label="凭据" value={channelRequiresApiKey(channel) ? (channel.apiKey || channel.hasApiKey ? "已安全保存" : "未配置") : "无需凭据"} />
                 <OverviewValue label="协议" value={channelProtocolLabel(channel)} />
-                <OverviewValue label="用途" value={channel.purpose === "open-source-practice" ? "无限练习" : channel.purpose === "production" ? "正式生产" : "共享"} />
+                <OverviewValue label="正式生产" value={runningHub ? "不参与" : channelSwitchState(channel, "production") ? "已启用" : "未启用"} />
+                <OverviewValue label="无限练习" value={channelSwitchState(channel, "open-source-practice") ? "已启用" : "未启用"} />
                 {!runningHub ? <OverviewValue label="上游模型" value={`${channel.models.length} 个`} /> : null}
                 {!runningHub ? <OverviewValue label="逻辑绑定" value={`${channelBindingCount(channel.id, settings)} 个`} /> : null}
                 <OverviewValue label="验证方式" value="用户工作台真实调用" />

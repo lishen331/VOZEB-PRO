@@ -2,23 +2,29 @@ import type { ModelCatalogEntry } from "@/lib/model-capability";
 import type { SystemChannelModelConfig } from "@/lib/auth/store-types";
 
 const AGNES_MODELS: ModelCatalogEntry[] = [
-    { id: "agnes-2.0-flash", capability: "text", source: "official" },
+    { id: "agnes-2.5-flash", capability: "text", source: "official" },
+    { id: "agnes-2.5-pro", capability: "text", source: "official" },
     { id: "agnes-image-2.0-flash", capability: "image", source: "official" },
     { id: "agnes-image-2.1-flash", capability: "image", source: "official" },
-    { id: "agnes-video-v2.0", capability: "video", source: "official" },
+    { id: "agnes-image-2.5-flash", capability: "image", source: "official" },
+    { id: "agnes-video-2.5", capability: "video", source: "official" },
+    { id: "agnes-video-2.5-flash", capability: "video", source: "official" },
 ];
 
 export const AGNES_RECOMMENDED_CONFIG = {
-    textModel: "agnes-2.0-flash",
-    imageModel: "agnes-image-2.1-flash",
-    videoModel: "agnes-video-v2.0",
+    textModel: "agnes-2.5-flash",
+    imageModel: "agnes-image-2.5-flash",
+    videoModel: "agnes-video-2.5-flash",
 } as const;
 
 export const AGNES_MODEL_CONFIGS: Record<string, SystemChannelModelConfig> = {
-    "agnes-2.0-flash": { capability: "text", source: "official", apiFormat: "openai", protocol: "openai" },
-    "agnes-image-2.0-flash": { capability: "image", source: "official", apiFormat: "openai", protocol: "openai", createPath: "/images/generations" },
-    "agnes-image-2.1-flash": { capability: "image", source: "official", apiFormat: "openai", protocol: "openai", createPath: "/images/generations" },
-    "agnes-video-v2.0": { capability: "video", source: "official", apiFormat: "openai", protocol: "compatible", createPath: "/videos", queryPath: "/agnesapi?video_id=:task_id" },
+    "agnes-2.5-flash": { capability: "text", source: "official", apiFormat: "openai", protocol: "agnes" },
+    "agnes-2.5-pro": { capability: "text", source: "official", apiFormat: "openai", protocol: "agnes" },
+    "agnes-image-2.0-flash": { capability: "image", source: "official", apiFormat: "openai", protocol: "agnes", createPath: "/images/generations" },
+    "agnes-image-2.1-flash": { capability: "image", source: "official", apiFormat: "openai", protocol: "agnes", createPath: "/images/generations" },
+    "agnes-image-2.5-flash": { capability: "image", source: "official", apiFormat: "openai", protocol: "agnes", createPath: "/images/generations" },
+    "agnes-video-2.5": { capability: "video", source: "official", apiFormat: "openai", protocol: "agnes", createPath: "/videos", queryPath: "/agnesapi?video_id=:task_id&model_name=agnes-video-2.5" },
+    "agnes-video-2.5-flash": { capability: "video", source: "official", apiFormat: "openai", protocol: "agnes", createPath: "/videos", queryPath: "/agnesapi?video_id=:task_id&model_name=agnes-video-2.5-flash" },
 };
 
 export function isAgnesApiBaseUrl(baseUrl: string) {

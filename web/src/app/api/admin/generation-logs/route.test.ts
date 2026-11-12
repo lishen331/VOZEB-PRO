@@ -36,6 +36,12 @@ describe("GET /api/admin/generation-logs", () => {
         expect(mocks.listGenerationLogs).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", keyword: "poster" }));
         expect(payload.logs[0]).toMatchObject({ userId: "user-one", accountId: "0001" });
     });
+
+    it("passes the practice filter through and always joins the admin task context", async () => {
+        await GET(request("?executionProfile=open-source-practice"));
+
+        expect(mocks.listGenerationLogs).toHaveBeenCalledWith(expect.objectContaining({ executionProfile: "open-source-practice", includeTaskContext: true }));
+    });
 });
 
 function request(search = "") {

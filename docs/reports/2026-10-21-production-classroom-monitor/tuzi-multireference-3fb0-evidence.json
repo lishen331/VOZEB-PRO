@@ -1,0 +1,187 @@
+{
+  "observedAt": "2026-10-21T11:44:34.033Z",
+  "sampleAt": "2026-10-21T11:44:10.735688+00:00",
+  "task": {
+    "id": "3fb020a5-9a7c-4aba-a79a-90c357435b76",
+    "error": null,
+    "model": "gpt-image-2",
+    "events": [
+      {
+        "at": 1792583006780,
+        "model": "gpt-image-2",
+        "phase": "recovery_end",
+        "state": "completed",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "durationMs": 60
+      },
+      {
+        "at": 1792583006774,
+        "model": "gpt-image-2",
+        "phase": "state",
+        "state": "completed",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "errorCode": "persisted"
+      },
+      {
+        "at": 1792583006739,
+        "model": "gpt-image-2",
+        "phase": "state",
+        "state": "success",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+      },
+      {
+        "at": 1792583006725,
+        "model": "gpt-image-2",
+        "phase": "state",
+        "state": "persisting",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "errorCode": "completed"
+      },
+      {
+        "at": 1792583006380,
+        "model": "gpt-image-2",
+        "phase": "recovery_end",
+        "state": "result_ready",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "durationMs": 486229
+      },
+      {
+        "at": 1792583006378,
+        "model": "gpt-image-2",
+        "phase": "state",
+        "state": "result_ready",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "errorCode": "completed"
+      },
+      {
+        "at": 1792583006373,
+        "model": "gpt-image-2",
+        "phase": "state",
+        "state": "result_ready",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "errorCode": "completed"
+      },
+      {
+        "at": 1792583006289,
+        "model": "gpt-image-2",
+        "phase": "provider_end",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "durationMs": 486123
+      },
+      {
+        "at": 1792583006276,
+        "model": "gpt-image-2",
+        "phase": "transport_response",
+        "status": 200,
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "durationMs": 486072,
+        "contentType": "application/json"
+      },
+      {
+        "at": 1792583006272,
+        "model": "gpt-image-2",
+        "phase": "upstream_body_complete",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "durationMs": 426084,
+        "contentType": "application/json",
+        "responseBytes": 1814898
+      },
+      {
+        "at": 1792582580187,
+        "model": "gpt-image-2",
+        "phase": "upstream_body_first_byte",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "durationMs": 0,
+        "contentType": "application/json",
+        "responseBytes": 13155
+      },
+      {
+        "at": 1792582580184,
+        "model": "gpt-image-2",
+        "phase": "upstream_response",
+        "status": 200,
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "requestId": "202610211135292921424558268d9d6eNG6tVOB",
+        "durationMs": 59868,
+        "contentType": "application/json"
+      },
+      {
+        "at": 1792582520315,
+        "model": "gpt-image-2",
+        "phase": "upstream_request",
+        "method": "POST",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":38714,\"type\":\"image/jpeg\"},{\"size\":1613337,\"type\":\"image/png\"}]}"
+      },
+      {
+        "at": 1792582520207,
+        "model": "gpt-image-2",
+        "phase": "transport_request",
+        "method": "POST",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "parameters": "{\"model\":\"gpt-image-2\",\"size\":\"1824x1024\",\"n\":\"1\",\"response_format\":\"b64_json\",\"output_format\":\"png\",\"files\":[{\"size\":38714,\"type\":\"image/jpeg\"},{\"size\":1613337,\"type\":\"image/png\"}]}"
+      },
+      {
+        "at": 1792582520165,
+        "model": "gpt-image-2",
+        "phase": "provider_start",
+        "protocol": "newapi",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+      },
+      {
+        "at": 1792582520164,
+        "model": "gpt-image-2",
+        "phase": "state",
+        "state": "submitting",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "errorCode": "submitting"
+      },
+      {
+        "at": 1792582520155,
+        "model": "gpt-image-2",
+        "phase": "state",
+        "state": "running",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5"
+      },
+      {
+        "at": 1792582520146,
+        "model": "gpt-image-2",
+        "phase": "state",
+        "state": "created",
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "errorCode": "created"
+      }
+    ],
+    "status": "success",
+    "surface": "canvas",
+    "attempts": [
+      {
+        "error": null,
+        "model": "gpt-image-2",
+        "status": "succeeded",
+        "attemptNo": 1,
+        "channelId": "hr5VKuKJKirZ1-sdRZPY5",
+        "startedAt": 1792582520159,
+        "completedAt": 1792583006751,
+        "upstreamError": null
+      }
+    ],
+    "provider": "newapi",
+    "task_type": "image",
+    "channel_id": "hr5VKuKJKirZ1-sdRZPY5",
+    "created_at": "2026-10-21T11:35:20.136+00:00",
+    "project_id": "canvas-DqaYs2UD9Ru2LLMby3yoG",
+    "updated_at": "2026-10-21T11:43:26.751+00:00",
+    "submitted_at": "2026-10-21T11:43:26.37+00:00",
+    "logical_model": "gpt-image-2",
+    "generation_log": {
+      "id": "image-task:3fb020a5-9a7c-4aba-a79a-90c357435b76",
+      "error": null,
+      "status": "success",
+      "durationMs": 486607,
+      "completedAt": "2026-10-21T11:43:26.744+00:00"
+    },
+    "execution_phase": "completed",
+    "upstream_task_id": null
+  }
+}

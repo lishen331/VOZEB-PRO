@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-10-21T03:13:30.497Z",
+  "productionSha": "2b99976ffff6f6060fd06c07767e56d62eb5a402",
+  "settingsRevision": 93,
+  "firstSubmitAt": "2026-10-21T02:22:49.695Z",
+  "lastSubmitAt": "2026-10-21T02:53:49.044Z",
+  "totalSubmissions": 387,
+  "duplicateIdentityPosts": 0,
+  "totalMappedTasks": 331,
+  "noTaskSubmissions": 56,
+  "success": 252,
+  "failure": 135,
+  "pending": 0,
+  "distinctAccounts": 15,
+  "totalAttempts": 336,
+  "postResponseWithoutReturnedTaskId": 61,
+  "mappedDespiteNoReturnedTaskId": 5,
+  "serverRejectedNoTask": 56,
+  "versionSamples": 33,
+  "dbSnapshotAt": "2026-10-21T02:57:44.532931+00:00",
+  "invariant": {
+    "uniqueNativeRequestIdentities": true,
+    "duplicateIdentityPosts": 0,
+    "uniqueSamples": true,
+    "uniqueProjects": true,
+    "uniqueMappedTasks": true,
+    "pickerMatchesSelectedModel": true,
+    "allStorageUserIdsMatch": true,
+    "allAccountBalancesReconcile": true,
+    "independentRefreshAuditAllSubmissions": true,
+    "noRefreshCreationPosts": true,
+    "all31Rows": true,
+    "allActualAttemptsTerminal": true,
+    "allNoTaskExplicitServerRejection": true,
+    "allFailedNodesDisplayFailure": true,
+    "allQuotasMet": true,
+    "allTerminal": true,
+    "allSuccessRefreshVerified": true,
+    "ambiguousTaskMappings": 0,
+    "noObservedVersionChange": true,
+    "successLatencyNotConfusedWithAttemptProxy": true
+  },
+  "generatedAtBeijing": "2026-10-21 11:13:30 +08:00",
+  "firstSubmitAtBeijing": "2026-10-21 10:22:49 +08:00",
+  "lastSubmitAtBeijing": "2026-10-21 10:53:49 +08:00",
+  "dbSnapshotAtBeijing": "2026-10-21 10:57:44 +08:00",
+  "successWithoutGenerationLogCompletedAt": [
+    {
+      "sample": "matrix-image-7-r1",
+      "taskId": "a33ec1d2-cadb-4c7d-bf24-8905fa56ed17",
+      "model": "gpt-image-2-text-to-image",
+      "attemptTerminalProxySeconds": 116.829
+    },
+    {
+      "sample": "quota-image-7-r2",
+      "taskId": "ea7aeb8a-161c-4c6d-9252-1f31d5a945f8",
+      "model": "gpt-image-2-text-to-image",
+      "attemptTerminalProxySeconds": 104.091
+    }
+  ],
+  "dedupBasis": "payload.config.model + context.clientRequestId; text without clientRequestId uses independent context.projectId"
+}

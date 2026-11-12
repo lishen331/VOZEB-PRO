@@ -21,7 +21,13 @@ CREATE TABLE IF NOT EXISTS custom_voices (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS custom_voices_owner_idx ON custom_voices (owner_user_id, status, tts_model, created_at DESC);
-CREATE INDEX IF NOT EXISTS custom_voices_shared_idx ON custom_voices (shared, status, tts_model) WHERE shared = TRUE;
-CREATE INDEX IF NOT EXISTS custom_voices_expires_idx ON custom_voices (expires_at) WHERE expires_at IS NOT NULL;
+ALTER TABLE custom_voices ADD COLUMN IF NOT EXISTS saved BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE custom_voices ADD COLUMN IF NOT EXISTS source_fingerprint TEXT;
+ALTER TABLE custom_voices ADD COLUMN IF NOT EXISTS consent_at TIMESTAMPTZ;
+ALTER TABLE custom_voices ADD COLUMN IF NOT EXISTS unlocked_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS vozeb_pro_custom_voices_owner_idx ON custom_voices (owner_user_id, status, tts_model, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_custom_voices_shared_idx ON custom_voices (shared, status, tts_model) WHERE shared = TRUE;
+CREATE INDEX IF NOT EXISTS vozeb_pro_custom_voices_expires_idx ON custom_voices (expires_at) WHERE expires_at IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_custom_voices_fingerprint_idx ON custom_voices (owner_user_id, channel_id, source_fingerprint) WHERE source_fingerprint IS NOT NULL;
 `;

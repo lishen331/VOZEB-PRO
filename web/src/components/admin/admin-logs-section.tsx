@@ -29,6 +29,8 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
         setGenerationLogSource,
         generationLogStatus,
         setGenerationLogStatus,
+        generationLogProfile,
+        setGenerationLogProfile,
         generationLogUserId,
         setGenerationLogUserId,
         generationLogStart,
@@ -53,7 +55,7 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
             <PanelHeader title="调用记录" description="查看用户通过创作 Agent、画布和短剧产生的生成任务、入口来源和调用状态。" />
             <div className="space-y-4 p-4 sm:p-5">
                 <div className="grid min-w-0 gap-3 2xl:grid-cols-[minmax(0,1fr)_286px] 2xl:items-start">
-                    <div className="grid min-w-0 grid-cols-2 gap-2.5 xl:grid-cols-[minmax(220px,300px)_118px_138px_118px_minmax(132px,180px)]">
+                    <div className="grid min-w-0 grid-cols-2 gap-2.5 xl:grid-cols-[minmax(180px,280px)_118px_138px_118px_118px_minmax(132px,180px)]">
                         <Input
                             allowClear
                             className="col-span-2 min-w-0 xl:col-span-1"
@@ -112,6 +114,20 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                                 { label: "成功", value: "success" },
                                 { label: "失败", value: "failed" },
                                 { label: "生成中", value: "pending" },
+                            ]}
+                        />
+                        <Select
+                            allowClear
+                            className="min-w-0"
+                            placeholder="执行环境"
+                            value={generationLogProfile || undefined}
+                            onChange={(value) => {
+                                setGenerationLogProfile(value || "");
+                                setGenerationLogPage(1);
+                            }}
+                            options={[
+                                { label: "练习", value: "open-source-practice" },
+                                { label: "生产", value: "production" },
                             ]}
                         />
                         <AdminUserSearchSelect
@@ -192,7 +208,7 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                             selectedRowKeys: selectedGenerationLogIds,
                             onChange: (keys) => setSelectedGenerationLogIds(keys.map(String)),
                         }}
-                        scroll={{ x: 1500 }}
+                        scroll={{ x: 1956 }}
                         size="middle"
                         tableLayout="fixed"
                     />

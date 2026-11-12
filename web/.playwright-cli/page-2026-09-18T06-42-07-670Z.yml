@@ -1,0 +1,49 @@
+- generic [ref=e1]:
+  - main [ref=e3]:
+    - img [ref=e5]
+    - generic [ref=e7]:
+      - generic [ref=e10]:
+        - img "中国动漫集团与 BLUEGAMMA 广东 AIGC 培训产教融合基地联合品牌" [ref=e11]
+        - generic [ref=e12]:
+          - paragraph [ref=e13]: 以热爱，燃未来
+          - heading "AIGC 智能影像教学平台" [level=1] [ref=e14]
+        - generic [ref=e15]:
+          - generic [ref=e16]: 用户名或邮箱
+          - generic [ref=e17]:
+            - img [ref=e19]
+            - textbox "用户名或邮箱" [disabled] [ref=e22]:
+              - /placeholder: 请输入用户名或邮箱
+              - text: laoshi1
+        - generic [ref=e23]:
+          - generic [ref=e24]: 密码
+          - generic [ref=e25]:
+            - img [ref=e27]
+            - textbox "密码 显示" [disabled] [ref=e31]:
+              - /placeholder: 请输入密码
+              - text: "12345678"
+            - button "显示" [disabled] [ref=e33]:
+              - img "eye-invisible" [ref=e34]:
+                - img [ref=e35]
+        - button "loading 登 录" [active] [ref=e69]:
+          - img "loading" [ref=e71]:
+            - img [ref=e72]
+          - generic [ref=e68]: 登 录
+        - generic [ref=e39]:
+          - generic:
+            - checkbox "我已阅读并同意服务条款和隐私政策" [checked] [disabled]
+          - generic [ref=e43]:
+            - text: 我已阅读并同意
+            - link "服务条款" [ref=e44] [cursor=pointer]:
+              - /url: /terms
+            - text: 和
+            - link "隐私政策" [ref=e45] [cursor=pointer]:
+              - /url: /privacy
+      - paragraph [ref=e47]: © 2026 VOZEB PRO. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=e53] [cursor=pointer]:
+    - generic [ref=e63]:
+      - text: Compiling
+      - generic [ref=e64]:
+        - generic [ref=e65]: .
+        - generic [ref=e66]: .
+        - generic [ref=e67]: .
+  - alert [ref=e61]

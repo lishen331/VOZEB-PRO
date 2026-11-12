@@ -5,7 +5,8 @@ import { FileText, Image as ImageIcon, Maximize2, Minimize2, Music2, Sparkles, S
 import { App, Button, Dropdown, Modal, Tooltip } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
-import { audioModelFamily, audioModelPlaceholder, isAudioLyricsMode, minimaxInterjections, minimaxPauseToken } from "@/lib/audio-model-params";
+import { audioModelFamily, audioModelPlaceholder, audioModelPurposeHint, isAudioLyricsMode, minimaxInterjections, minimaxPauseToken } from "@/lib/audio-model-params";
+import { audioModeBlockingReason, resolveAudioMode, shouldSuggestDialog } from "@/lib/audio-node-mode";
 import { generateClientUUID } from "@/lib/client-uuid";
 import { writeLyrics } from "@/services/api/lyrics-writing";
 import { CreditSymbol, formatCreditAmount, requestCreditCost } from "@/constant/credits";
@@ -14,6 +15,7 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasImageReferenceRolesPopover } from "@/components/canvas-image-reference-roles-popover";
+import { AudioDesignVoiceSave } from "@/components/audio-design-voice-save";
 import { CanvasPromptLibrary } from "./canvas-prompt-library";
 import { CanvasAudioSettingsPopover } from "./canvas-audio-settings-popover";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
@@ -24,6 +26,7 @@ import { CanvasNodeType, isCanvasImageNodeType, type CanvasGenerationMode, type 
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasImageConfigPatch, canvasVideoConfigPatch } from "../utils/canvas-node-config";
 import { canvasModelConfigPatch } from "../utils/canvas-model-capabilities";
+import { practiceCanvasModelValue, type PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 import { PANORAMA_IMAGE_SIZE } from "../utils/canvas-panorama";
 
 export type CanvasNodeGenerationMode = CanvasGenerationMode;
@@ -42,14 +45,16 @@ type CanvasNodePromptPanelProps = {
     isRunning: boolean;
     onPromptChange: (nodeId: string, prompt: string) => void;
     onConfigChange: (nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => void;
-    onGenerate: (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => void;
+    onGenerate: (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string, overrides?: Partial<CanvasNodeData["metadata"]>) => void;
     onStop: (nodeId: string) => void;
     mentionReferences?: CanvasResourceReference[];
     onImageSettingsOpenChange?: (open: boolean) => void;
     onRemoveReference?: (sourceNodeId: string) => void;
+    /** 仅练习画布传入。为空时模型下拉保持原有行为。 */
+    practiceModels?: PracticeCanvasModelOptions;
 };
 
-export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], onImageSettingsOpenChange, onRemoveReference }: CanvasNodePromptPanelProps) {
+export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], onImageSettingsOpenChange, onRemoveReference, practiceModels }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const theme = canvasThemes[useCanvasColorTheme().theme];
@@ -63,9 +68,18 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const textReferences = mentionReferences.filter((reference) => reference.active && reference.nodeId !== node.id);
     const [prompt, setPrompt] = useState(canvasNodePrompt(node));
     const [expanded, setExpanded] = useState(false);
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const [writingLyrics, setWritingLyrics] = useState(false);
     const lyricsMode = mode === "audio" && isAudioLyricsMode(config.model, config.audioParams);
+    const audioHint = audioModeHint(node, mode, config.model, mentionReferences, prompt, onConfigChange);
+    // 克隆的参考音频时长：由引用清单的时长得到，太短/太长时禁用生成并说明原因，不等到上游报错。
+    const cloneReference = mentionReferences.find((reference) => reference.kind === "audio" && reference.active && reference.nodeId && reference.nodeId !== node.id);
+    const cloneDurationMs = cloneReference?.durationMs;
+    const audioMode = resolveAudioMode(node.metadata || {}, Boolean(cloneReference));
+    const cloneBlock =
+        audioMode === "clone" && cloneDurationMs !== undefined && cloneDurationMs > 0
+            ? audioModeBlockingReason("clone", { ...node.metadata, audioCloneConsent: true }, { text: prompt, referenceAudioUrl: cloneReference?.storageKey || cloneReference?.previewUrl || "ref", referenceAudioDurationMs: cloneDurationMs })
+            : null;
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
     const credits = requestCreditCost({
         apiSource: config.apiSource,
@@ -115,6 +129,25 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const submit = () => {
         const text = prompt.trim();
         if (!text || isRunning) return false;
+        if (mode === "audio" && cloneBlock) {
+            message.warning(cloneBlock);
+            return false;
+        }
+        if (mode === "audio" && audioMode === "clone" && !node.metadata?.audioCloneConsent) {
+            // 克隆要本人授权：没勾选时先生成前弹窗确认，确认后写入授权并继续。
+            modal.confirm({
+                title: "确认已获得声音本人授权",
+                content: "克隆会用参考音频里的声音朗读这段文本。请确认你已获得该声音本人的授权，同意用于语音合成。",
+                okText: "已获授权，继续生成",
+                cancelText: "取消",
+                onOk: () => {
+                    onConfigChange(node.id, { audioCloneConsent: true });
+                    // 同步把授权作为本次提交的覆盖值传下去：节点状态要下一帧才更新，这里等不到。
+                    onGenerate(node.id, mode, text, { audioCloneConsent: true });
+                },
+            });
+            return true;
+        }
         onGenerate(node.id, mode, text);
         return true;
     };
@@ -207,6 +240,29 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </Tooltip>
                     </div>
                 ) : null}
+                {mode === "audio" && audioModelPurposeHint(config.model) ? (
+                    <div className="px-3 pt-2 text-[11px]" style={{ color: theme.node.muted }}>
+                        {audioModelPurposeHint(config.model)}
+                    </div>
+                ) : null}
+                {mode === "audio" && node.metadata?.audioDesignVoiceId && node.metadata?.status === "success" ? (
+                    <AudioDesignVoiceSave voiceId={node.metadata.audioDesignVoiceId} defaultName={String(node.metadata.audioVoiceDescription || "")} theme={theme} onSaved={() => onConfigChange(node.id, { audioDesignVoiceId: undefined })} />
+                ) : mode === "audio" && audioHint ? (
+                    <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2 text-[11px]" aria-live="polite">
+                        <span style={{ color: theme.node.muted }}>{audioHint.text}</span>
+                        {audioHint.actions.map((action) => (
+                            <button
+                                key={action.label}
+                                type="button"
+                                className="rounded-md border px-1.5 py-0.5 font-medium hover:opacity-75"
+                                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                                onClick={action.run}
+                            >
+                                {action.label}
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
                 <CanvasResourceMentionTextarea
                     autoFocus
                     value={prompt}
@@ -242,7 +298,15 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 <div className="canvas-composer-tools flex min-w-0 flex-1 flex-wrap items-center gap-2">
                     {mode === "image" ? (
                         <>
-                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))} capability="image" onMissingConfig={() => openConfigDialog(true)} />
+                            <ModelPicker
+                                config={config}
+                                value={practiceCanvasModelValue(practiceModels, "image", config.model)}
+                                onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "image"))}
+                                capability="image"
+                                onMissingConfig={() => openConfigDialog(true)}
+                                optionsOverride={practiceModels?.image?.models}
+                                disabled={practiceModels?.image?.locked}
+                            />
                             <CanvasImageSettingsPopover
                                 config={config}
                                 placement="topLeft"
@@ -261,7 +325,15 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </>
                     ) : mode === "video" ? (
                         <>
-                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))} capability="video" onMissingConfig={() => openConfigDialog(true)} />
+                            <ModelPicker
+                                config={config}
+                                value={practiceCanvasModelValue(practiceModels, "video", config.model)}
+                                onChange={(model) => onConfigChange(node.id, canvasModelConfigPatch(config, model, "video"))}
+                                capability="video"
+                                onMissingConfig={() => openConfigDialog(true)}
+                                optionsOverride={practiceModels?.video?.models}
+                                disabled={practiceModels?.video?.locked}
+                            />
                             <CanvasVideoSettingsPopover
                                 config={config}
                                 metadata={node.metadata}
@@ -280,9 +352,14 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="audio" onMissingConfig={() => openConfigDialog(true)} />
                             <CanvasAudioSettingsPopover
                                 config={config}
+                                nodeId={node.id}
+                                metadata={node.metadata}
+                                references={mentionReferences}
+                                dialogText={prompt}
                                 buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS}
                                 onConfigChange={(key, value) => onConfigChange(node.id, canvasAudioConfigPatch(key, value))}
                                 onParamsChange={(audioParams) => onConfigChange(node.id, { audioParams })}
+                                onMetadataChange={(patch) => onConfigChange(node.id, patch)}
                             />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
                                 <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
@@ -290,7 +367,15 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </>
                     ) : (
                         <>
-                            <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} />
+                            <ModelPicker
+                                config={config}
+                                value={practiceCanvasModelValue(practiceModels, "text", config.model)}
+                                onChange={(model) => onConfigChange(node.id, { model })}
+                                capability="text"
+                                onMissingConfig={() => openConfigDialog(true)}
+                                optionsOverride={practiceModels?.text?.models}
+                                disabled={practiceModels?.text?.locked}
+                            />
                             <div className="ml-auto flex shrink-0 items-center gap-1">
                                 <CanvasPromptLibrary onSelect={(selectedPrompt) => updatePrompt(appendCanvasLibraryPrompt(prompt, selectedPrompt))} />
                             </div>
@@ -301,7 +386,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     type="primary"
                     className="canvas-generate-button canvas-metal-button !h-10 !min-w-16 shrink-0 !rounded-full !px-3"
                     data-generating={isRunning ? "true" : undefined}
-                    disabled={!isRunning && !prompt.trim()}
+                    disabled={!isRunning && (!prompt.trim() || Boolean(cloneBlock))}
+                    title={cloneBlock || undefined}
                     onClick={() => (isRunning ? onStop(node.id) : submit())}
                     aria-label={isRunning ? "停止生成" : "生成"}
                 >
@@ -434,6 +520,34 @@ export function appendCanvasLibraryPrompt(currentPrompt: string, selectedPrompt:
     if (!selected) return currentPrompt;
     const current = currentPrompt.trimEnd();
     return current ? `${current}\n\n${selected}` : selected;
+}
+
+/**
+ * 音频节点输入框上方的模式提示（spec §3.2）：
+ * - 连入音频节点后自动切到克隆，给一次撤销；
+ * - 文本里出现多个角色时只提示，用户点「切换」才进多人对话，点「不用」后该节点不再提示。
+ */
+function audioModeHint(node: CanvasNodeData, mode: CanvasNodeGenerationMode, model: string, references: CanvasResourceReference[], prompt: string, onConfigChange: (nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => void) {
+    const metadata = node.metadata || {};
+    if (mode !== "audio") return null;
+    const family = audioModelFamily(model);
+    if (family !== "qwen" && family !== "minimax") return null;
+    const hasReferenceAudio = references.some((reference) => reference.kind === "audio" && reference.active && reference.nodeId && reference.nodeId !== node.id);
+    const audioMode = resolveAudioMode(metadata, hasReferenceAudio);
+    // 多人对话提示优先：输入框里已经写了「名字：台词」时，先问要不要切成多人对话。
+    const suggestedRoles = shouldSuggestDialog(metadata, audioMode, prompt);
+    if (suggestedRoles && audioMode !== "dialog") {
+        return {
+            text: `检测到 ${suggestedRoles.length} 个角色（${suggestedRoles.slice(0, 3).join("、")}${suggestedRoles.length > 3 ? " 等" : ""}），要切到多人对话吗？`,
+            actions: [
+                { label: "切换", run: () => onConfigChange(node.id, { audioMode: "dialog", audioModeManual: true }) },
+                { label: "不用", run: () => onConfigChange(node.id, { audioDialogSuggestDismissed: true }) },
+            ],
+        };
+    }
+    // 连入音频节点后已经自动切到克隆：设置按钮上就写着「克隆 · 音频1」，
+    // 不再重复提示一次；要改回合成直接在设置里选即可。
+    return null;
 }
 
 function defaultMode(type: CanvasNodeData["type"]): CanvasNodeGenerationMode {
