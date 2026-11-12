@@ -58,6 +58,12 @@ export type SystemChannelModelConfig = {
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
+    /**
+     * Some upstreams reject a request that mixes keyframes (`image_url`/`end_image_url`)
+     * with multi-image references (`image_urls`). Setting this makes the video request
+     * send exactly one of the two groups, chosen by what the task actually carries.
+     */
+    referenceModeExclusive?: boolean;
     imageResponseFormat?: "url" | "b64_json";
     streaming?: SystemChannelStreamingConfig;
 };
