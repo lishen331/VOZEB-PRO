@@ -50,12 +50,14 @@ test("administrator Canvas child controls persist and independently gate image a
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
         await openImage().click();
         await expect(page.getByRole("button", { name: "打开图片自定义像素尺寸", exact: true })).toBeVisible();
-        await expect(page.getByRole("button", { name: "选择图片清晰度 4K", exact: true })).toHaveAttribute("aria-pressed", "true");
+        await expect(page.getByRole("button", { name: "选择图片清晰度 4K", exact: true })).toHaveCount(0);
+        await expect(openImage()).toContainText("4K");
         await openImage().click();
         await openVideo().click();
         await expect(page.getByRole("button", { name: "打开视频自定义像素尺寸", exact: true })).toHaveCount(0);
         await expect(page.getByRole("textbox", { name: "输入自定义视频清晰度" })).toHaveCount(0);
         await expect(page.getByRole("button", { name: "选择视频清晰度 720P", exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "选择视频清晰度 1080P", exact: true })).toHaveCount(0);
         await page.goto("/admin?section=plugins", { waitUntil: "domcontentloaded" });
         await changeFlag("图片节点自定义清晰度", false);
         await changeFlag("视频节点自定义清晰度", true);
@@ -1272,4 +1274,41 @@ async function expectCanvasAgentUnavailable(page: Page) {
     await expect(page.getByRole("button", { name: "Agent（敬请期待）", exact: true })).toBeDisabled();
     await expect(page.getByLabel("Canvas Agent 对话面板")).toHaveCount(0);
     await expect(page.getByPlaceholder("描述你想让 Agent 如何操作画布")).toHaveCount(0);
+}
+
+for (const mode of ["image", "video"] as const) {
+    test(`Canvas ${mode} submission stays non-stoppable after changing the next generation mode`, async ({ page, request }) => {
+        const project = await createCanvasProject(request, {
+            title: `Canvas non-stoppable ${mode} ${randomUUID()}`,
+            viewport: { x: 40, y: 40, k: 1 },
+            nodes: [node("running-config", "config", 50, 50, 300, 180, { generationMode: mode, composerContent: "A mountain landscape", model: `e2e-${mode}` })],
+            connections: [],
+        });
+        let submitted = 0;
+        await page.route(mode === "image" ? "**/api/image-tasks" : "**/api/video-generation-tasks", async (route) => {
+            if (route.request().method() !== "POST") return route.abort();
+            submitted++;
+            await route.fulfill({ json: { task: { id: `non-stoppable-${mode}`, model: `e2e-${mode}`, status: "running", durationSeconds: 5 } } });
+        });
+        await page.route(mode === "image" ? "**/api/image-tasks/*" : "**/api/video-tasks/**", (route) => route.fulfill({ json: { task: { id: `non-stoppable-${mode}`, status: "running" } } }));
+        try {
+            await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+            const config = page.locator('[data-node-id="running-config"]');
+            await config.getByRole("button", { name: "开始生成" }).click();
+            await expect.poll(() => submitted).toBe(1);
+            await expect(config.getByRole("button", { name: "生成中", exact: true })).toBeDisabled();
+            await config.getByRole("button", { name: /^切换生成类型/ }).click();
+            await page.getByRole("menuitem", { name: "文本", exact: true }).click();
+            await expect(config.getByRole("button", { name: "生成中", exact: true })).toBeDisabled();
+            await expect(config.getByRole("button", { name: "停止", exact: true })).toHaveCount(0);
+            await expect(page.getByRole("dialog", { name: "停止生成？" })).toHaveCount(0);
+            await expectCanvasSaved(page);
+            const saved = await readCanvasProject(request, `/api/canvas/projects/${project.id}`);
+            expect(saved.nodes.some((item) => item.metadata?.[mode === "image" ? "imageTask" : "videoTask"])).toBe(true);
+            expect(submitted).toBe(1);
+        } finally {
+            await page.goto("/canvas", { waitUntil: "domcontentloaded" });
+            await deleteCanvasProject(request, project.id);
+        }
+    });
 }

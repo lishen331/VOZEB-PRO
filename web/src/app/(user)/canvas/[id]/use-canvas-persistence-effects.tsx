@@ -285,7 +285,7 @@ export function useCanvasPersistenceEffects({ state, tasks, practiceModels }: { 
             const metadata = node.metadata;
             const review = canvasGenerationPendingState(node)?.review === true;
             resumingRef.current.add(node.id);
-            const controller = startGenerationRequest(node.id, node.id, node.id);
+            const controller = startGenerationRequest(node.id, node.id, node.id, undefined, kind);
             const generationConfig = buildGenerationConfig(effectiveConfig, node, kind, kind === "audio" ? undefined : practiceModels?.[kind]?.models);
             setRunningNodeId((current) => current || node.id);
             const run = async () => {

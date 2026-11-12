@@ -40,6 +40,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
         <CreativeGenerationPreferences
             capability="image"
             allowCustomResolution={customResolutionEnabled}
+            canvasResolutionPresets
             preferences={preferences}
             capabilityProfile={canvasModelCapabilityProfile(config)}
             triggerLabel={summary}

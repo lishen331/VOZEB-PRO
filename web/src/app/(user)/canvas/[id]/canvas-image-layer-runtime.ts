@@ -100,7 +100,7 @@ export async function runCanvasImageLayerTask({
 }) {
     const { setConnections, setNodes, nodesRef } = state;
     const { finishGenerationRequest, startAndCompleteImageTask, startGenerationRequest } = tasks;
-    const controller = startGenerationRequest(targetNode.id, sourceNode.id, sourceNode.id);
+    const controller = startGenerationRequest(targetNode.id, sourceNode.id, sourceNode.id, undefined, "image");
     try {
         await startAndCompleteImageTask(targetNode.id, config, prompt, [source], undefined, controller, { outputBackground, layerBatch });
         return "completed" as const;

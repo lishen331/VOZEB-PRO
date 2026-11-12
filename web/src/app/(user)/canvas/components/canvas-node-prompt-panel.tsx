@@ -43,6 +43,7 @@ const COMPOSER_PRIMARY_BUTTON_CLASS = "canvas-composer-settings !h-10 !min-w-[9r
 type CanvasNodePromptPanelProps = {
     node: CanvasNodeData;
     isRunning: boolean;
+    canStop: boolean;
     onPromptChange: (nodeId: string, prompt: string) => void;
     onConfigChange: (nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => void;
     onGenerate: (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string, overrides?: Partial<CanvasNodeData["metadata"]>) => void;
@@ -54,7 +55,7 @@ type CanvasNodePromptPanelProps = {
     practiceModels?: PracticeCanvasModelOptions;
 };
 
-export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], onImageSettingsOpenChange, onRemoveReference, practiceModels }: CanvasNodePromptPanelProps) {
+export function CanvasNodePromptPanel({ node, isRunning, canStop, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], onImageSettingsOpenChange, onRemoveReference, practiceModels }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const theme = canvasThemes[useCanvasColorTheme().theme];
@@ -386,16 +387,16 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     type="primary"
                     className="canvas-generate-button canvas-metal-button !h-10 !min-w-16 shrink-0 !rounded-full !px-3"
                     data-generating={isRunning ? "true" : undefined}
-                    disabled={!isRunning && (!prompt.trim() || Boolean(cloneBlock))}
+                    disabled={isRunning ? !canStop : !prompt.trim() || Boolean(cloneBlock)}
                     title={cloneBlock || undefined}
-                    onClick={() => (isRunning ? onStop(node.id) : submit())}
-                    aria-label={isRunning ? "停止生成" : "生成"}
+                    onClick={() => (isRunning ? canStop && onStop(node.id) : submit())}
+                    aria-label={isRunning ? (canStop ? "停止生成" : "生成中") : "生成"}
                 >
                     <span className="relative z-10 flex items-center gap-1.5">
                         {isRunning ? (
                             <>
-                                <Square className="size-3.5 fill-current" />
-                                <span className="text-xs font-medium">停止</span>
+                                {canStop ? <Square className="size-3.5 fill-current" /> : null}
+                                <span className="text-xs font-medium">{canStop ? "停止" : "生成中"}</span>
                             </>
                         ) : (
                             <>
@@ -497,8 +498,14 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         <Button icon={<Minimize2 className="size-4" />} onClick={() => setExpanded(false)} aria-label="收起提示词输入">
                             收起
                         </Button>
-                        <Button type="primary" danger={isRunning} disabled={!isRunning && !prompt.trim()} onClick={() => (isRunning ? onStop(node.id) : submitExpanded())} aria-label={isRunning ? "停止生成" : "生成"}>
-                            {isRunning ? "停止生成" : "生成"}
+                        <Button
+                            type="primary"
+                            danger={isRunning && canStop}
+                            disabled={isRunning ? !canStop : !prompt.trim()}
+                            onClick={() => (isRunning ? canStop && onStop(node.id) : submitExpanded())}
+                            aria-label={isRunning ? (canStop ? "停止生成" : "生成中") : "生成"}
+                        >
+                            {isRunning ? (canStop ? "停止生成" : "生成中") : "生成"}
                         </Button>
                     </div>
                 </Modal>
