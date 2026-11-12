@@ -2,14 +2,14 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "4bd8b2de163072fa193f6c555817323dd2c559f5",
-    "syncedAt": "2026-11-11T11:12:16.255Z",
+    "sourceCommit": "7eb1bcc6470bb8fefb7ec3f79e57891923ce9e8b",
+    "syncedAt": "2026-11-12T04:36:05.932Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
         {
             "path": "[id]/canvas-client-page.tsx",
-            "sha256": "b5259380bb28ec3b55230201bdec913b0771e6310d605a1ded9a97249e8b406b"
+            "sha256": "7a22b7fdec3c6a2cab3f51ef5e1d3be30c76b980795524c949bb0096bcc618f0"
         },
         {
             "path": "[id]/canvas-generation-feedback.ts",
@@ -25,7 +25,7 @@
         },
         {
             "path": "[id]/canvas-image-layer-runtime.ts",
-            "sha256": "fdad4ec836f61b75fbea63c7f542b1bdf1f82578edbea0628d803c406f2961e1"
+            "sha256": "5c974cba74fee9d0f1b981516b5b21852f017b8f01334f62c574d4b4e4d9937f"
         },
         {
             "path": "[id]/canvas-image-task-results.ts",
@@ -33,11 +33,11 @@
         },
         {
             "path": "[id]/canvas-page-elements.tsx",
-            "sha256": "7fa47fbee3e40b7587f4f420598f7371ffbe2adf1609ee73e52a22ce905cc333"
+            "sha256": "88cd982e9a7747e843d6036f93202d35eec5fe3cbc2ce0a70501fa49856713c6"
         },
         {
             "path": "[id]/canvas-page-utils.ts",
-            "sha256": "b45fdacc404ab75f4b1715ac6aaa097a988c744c99e8d3627371ee326f2a9556"
+            "sha256": "5c66231c3c9511e28ebbc2f514091ca1e9fcbc1e3f86d29f251f25332db27070"
         },
         {
             "path": "[id]/canvas-video-task-recovery.ts",
@@ -49,7 +49,7 @@
         },
         {
             "path": "[id]/use-canvas-generation-actions.tsx",
-            "sha256": "6c1e82eb36c658d0d0100402bf6f8c2f33e229b9b4965c92cd0a9ff27f3c017d"
+            "sha256": "682ca540a18efb059a9eb0a17ced66f676cfed61ef029997de6ab62acfc08f8d"
         },
         {
             "path": "[id]/use-canvas-image-layer-actions.tsx",
@@ -81,7 +81,7 @@
         },
         {
             "path": "[id]/use-canvas-node-media-actions.tsx",
-            "sha256": "73c4d2c11e2e7e6dc1a61ebe5f5ebabe05ecd9e3536d653f513d03989bb47f6e"
+            "sha256": "420ae24a83853e06903fe88ae931e60efae2cd12242fdbd1a1ef4f42a80c2337"
         },
         {
             "path": "[id]/use-canvas-page-controller.tsx",
@@ -93,11 +93,11 @@
         },
         {
             "path": "[id]/use-canvas-persistence-effects.tsx",
-            "sha256": "4b24b819bd6dbe86755fd344d665b525026d0ba77dd9e7921b4e007ef5e69659"
+            "sha256": "bf8d7c9a8c6cf0727a49e7fe7005e88cd21b11c6b426a853a189a714d0d777a0"
         },
         {
             "path": "[id]/use-canvas-task-runtime.tsx",
-            "sha256": "d95b7cfd1c2eab35a64be16e66e52d8496b149db9bdb89a26a42b70338b43b49"
+            "sha256": "cab0bba970d0702f2989296b94ffdf4f9d67c60f8ff9587881eb7786cdf922e0"
         },
         {
             "path": "components/canvas-agent-chat-ui.tsx",
@@ -173,7 +173,7 @@
         },
         {
             "path": "components/canvas-config-node-panel.tsx",
-            "sha256": "1d935ccaf57750b5f9f5a8769e3bc5d6886bbdcc3298758b18f288011f0476c8"
+            "sha256": "64e6e2d48a2d3ca3300e9ffcce8109e52ced4fa0ea66a5b9bd989f47dc1f8eb3"
         },
         {
             "path": "components/canvas-context-menu.tsx",
@@ -184,8 +184,12 @@
             "sha256": "492fe18a03f3e5d629f7f7a4271ccc619c12453f273dce7e6e82ae2133943939"
         },
         {
+            "path": "components/canvas-generation-stop-policy.ts",
+            "sha256": "f95612a098aaef311a1a6f6977d268b3c7639fee2b76b99fc7f77760079cea2e"
+        },
+        {
             "path": "components/canvas-image-settings-popover.tsx",
-            "sha256": "d147ed50fdce183d9c952fcc66692fa5b3b9fe729098d15a11380277ca458e8b"
+            "sha256": "f4a5acd7e012f4ea3b94863b2c188c49d1cbae25a39a88c64c4b8e7120e85946"
         },
         {
             "path": "components/canvas-image-toolbar-settings-modal.tsx",
@@ -225,7 +229,7 @@
         },
         {
             "path": "components/canvas-node-prompt-panel.tsx",
-            "sha256": "7d2224ab012aea96e78a6859f22830d96686aebaf861a246e5ceeaea3c3f0d1b"
+            "sha256": "bd0bd81c889bc2f2b67a211c03cd9061110c0d1d5f3765bef85a194738f54f48"
         },
         {
             "path": "components/canvas-node-split-dialog.tsx",
@@ -285,7 +289,7 @@
         },
         {
             "path": "components/canvas-video-settings-popover.tsx",
-            "sha256": "cafb2205c26b8c4f0a16b529b9f55476ceb67be7377e073e494da49726fdb68f"
+            "sha256": "59d8ff85921e7d1418b396c1dd9ce77262f695be41a18bd06badc0fbcb841c2f"
         },
         {
             "path": "components/canvas-zoom-controls.tsx",
@@ -397,7 +401,7 @@
         },
         {
             "path": "utils/canvas-node-size.ts",
-            "sha256": "aa607a08976a3bdc35984cab8361b1b94ad997528f73e78d2e279cbf4cc928a7"
+            "sha256": "006f0ff3174f2a786ef3bc3f618a2130b14d81cae4f96b8e72722235ff4d5c24"
         },
         {
             "path": "utils/canvas-panel-placement.ts",

@@ -37,6 +37,7 @@ export type CanvasGenerationRequest = {
     targetNodeId: string;
     originNodeId: string;
     runningNodeId: string;
+    mode?: import("../types").CanvasGenerationMode;
     controller: AbortController;
 };
 

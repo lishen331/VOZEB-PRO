@@ -54,6 +54,7 @@ export function CanvasVideoSettingsPopover({ config, metadata, references, onCon
         <CreativeGenerationPreferences
             capability="video"
             allowCustomResolution={customResolutionEnabled}
+            canvasResolutionPresets
             preferences={preferences}
             capabilityProfile={canvasModelCapabilityProfile(config)}
             triggerLabel={summary}
