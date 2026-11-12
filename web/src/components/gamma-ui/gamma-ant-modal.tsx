@@ -250,6 +250,7 @@ function ModalBase({
         <DialogPrimitive.Root modal={showMask} open={open} onOpenChange={(next) => (next ? undefined : onCancel?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
                 <div className="ant-modal-root">
+                    {/* Do not retain Overlay: its RemoveScroll must release the body lock when closed. */}
                     {showMask && (open || !keepMounted) ? (
                         <DialogPrimitive.Overlay
                             style={styles?.mask}
@@ -393,6 +394,7 @@ export function Drawer({
         <DialogPrimitive.Root modal={mask !== false} open={open} onOpenChange={(next) => (next ? undefined : onClose?.())}>
             <DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>
                 <div className="ant-drawer-root">
+                    {/* Retain business content, never the Overlay scroll-lock effect. */}
                     {mask !== false && (open || !keepMounted) ? (
                         <DialogPrimitive.Overlay
                             style={styles?.mask}

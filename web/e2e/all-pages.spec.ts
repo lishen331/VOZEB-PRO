@@ -191,7 +191,12 @@ async function verifyRoute(page: Page, route: RouteCase, label: string) {
     page.on("response", onResponse);
     try {
         const response = await page.goto(route.path, { waitUntil: "domcontentloaded" });
-        if (route.expectedStatus !== undefined) expect(response?.status()).toBe(route.expectedStatus);
+        if (route.expectedStatus === 404) {
+            // Next streams the layout before notFound(): HTTP can be 200, but the denied page must stay a real noindex not-found UI.
+            expect([200, 404]).toContain(response?.status());
+            await expect(page.getByRole("heading", { name: "页面不存在", exact: true })).toBeVisible();
+            await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
+        } else if (route.expectedStatus !== undefined) expect(response?.status()).toBe(route.expectedStatus);
         else if (route.path.startsWith("/share/")) expect(response?.status()).toBe(404);
         else expect(response?.status() || 200, `${label} ${route.path} document status`).toBeLessThan(500);
         await expect(page.locator("main").first()).toBeVisible();

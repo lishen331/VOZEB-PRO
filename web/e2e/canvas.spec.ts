@@ -9,6 +9,74 @@ import { CANVAS_AGENT_ENABLED } from "../src/app/(user)/canvas/constants";
 
 test.describe.configure({ mode: "serial" });
 
+test("administrator Canvas child controls persist and independently gate image and video custom resolution", async ({ page, request }) => {
+    const settingsResponse = await request.get("/api/admin/settings");
+    expect(settingsResponse.ok()).toBe(true);
+    const settingsJson = await settingsResponse.json();
+    const original = (settingsJson.settings || settingsJson).featureModules;
+    const imageKey = "canvas-ui-image-custom-resolution";
+    const videoKey = "canvas-ui-video-custom-resolution";
+    const project = await createCanvasProject(request, {
+        title: `Canvas 自定义参数 ${randomUUID().slice(0, 8)}`,
+        viewport: { x: 80, y: 80, k: 1 },
+        nodes: [
+            node("image-config", "config", 100, 100, 300, 180, { generationMode: "image", resolution: "4k", size: "16:9", quality: "medium" }),
+            node("video-config", "config", 500, 100, 300, 180, { generationMode: "video", vquality: "720", size: "16:9" }),
+        ],
+        connections: [],
+    });
+    const openImage = () => page.locator('[data-node-id="image-config"]').getByRole("button", { name: /^图片设置：/ });
+    const openVideo = () => page.locator('[data-node-id="video-config"]').getByRole("button", { name: /^视频设置：/ });
+    const changeFlag = async (label: string, enabled: boolean) => {
+        const control = page.getByRole("switch", { name: `${label}显示状态`, exact: true });
+        await expect(control).toBeVisible();
+        if ((await control.getAttribute("aria-checked")) !== String(enabled)) {
+            const saved = page.waitForResponse((r) => r.request().method() === "PATCH" && new URL(r.url()).pathname === "/api/admin/settings");
+            await control.click();
+            const response = await saved;
+            expect(response.ok(), await response.text()).toBe(true);
+        }
+        await expect(control).toHaveAttribute("aria-checked", String(enabled));
+    };
+    try {
+        const setup = await request.patch("/api/admin/settings", { data: { featureModules: { ...original, canvas: true, [imageKey]: false, [videoKey]: false } } });
+        expect(setup.ok(), await setup.text()).toBe(true);
+        await page.goto("/admin?section=plugins", { waitUntil: "domcontentloaded" });
+        await changeFlag("图片节点自定义清晰度", true);
+        await changeFlag("视频节点自定义清晰度", false);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("switch", { name: "图片节点自定义清晰度显示状态", exact: true })).toHaveAttribute("aria-checked", "true");
+        await expect(page.getByRole("switch", { name: "视频节点自定义清晰度显示状态", exact: true })).toHaveAttribute("aria-checked", "false");
+        await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+        await openImage().click();
+        await expect(page.getByRole("button", { name: "打开图片自定义像素尺寸", exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "选择图片清晰度 4K", exact: true })).toHaveCount(0);
+        await expect(openImage()).toContainText("4K");
+        await openImage().click();
+        await openVideo().click();
+        await expect(page.getByRole("button", { name: "打开视频自定义像素尺寸", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("textbox", { name: "输入自定义视频清晰度" })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "选择视频清晰度 720P", exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "选择视频清晰度 1080P", exact: true })).toHaveCount(0);
+        await page.goto("/admin?section=plugins", { waitUntil: "domcontentloaded" });
+        await changeFlag("图片节点自定义清晰度", false);
+        await changeFlag("视频节点自定义清晰度", true);
+        await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+        await openImage().click();
+        await expect(page.getByRole("button", { name: "打开图片自定义像素尺寸", exact: true })).toHaveCount(0);
+        await openImage().click();
+        await openVideo().click();
+        await expect(page.getByRole("button", { name: "打开视频自定义像素尺寸", exact: true })).toBeVisible();
+        await expect(page.getByRole("textbox", { name: "输入自定义视频清晰度" })).toBeVisible();
+        const stored = await readCanvasProject(request, `/api/canvas/projects/${project.id}`);
+        expect(stored.nodes.find((n) => n.id === "image-config")?.metadata).toMatchObject({ resolution: "4k", size: "16:9", quality: "medium" });
+    } finally {
+        const restored = await request.patch("/api/admin/settings", { data: { featureModules: original } });
+        expect(restored.ok(), await restored.text()).toBe(true);
+        await deleteCanvasProject(request, project.id);
+    }
+});
+
 test("canvas keeps editing, selection, linking and persistence fluid", async ({ page, request }) => {
     const project = await createCanvasProject(request, {
         title: `Canvas 交互回归 ${randomUUID().slice(0, 8)}`,
@@ -1206,4 +1274,44 @@ async function expectCanvasAgentUnavailable(page: Page) {
     await expect(page.getByRole("button", { name: "Agent（敬请期待）", exact: true })).toBeDisabled();
     await expect(page.getByLabel("Canvas Agent 对话面板")).toHaveCount(0);
     await expect(page.getByPlaceholder("描述你想让 Agent 如何操作画布")).toHaveCount(0);
+}
+
+for (const mode of ["image", "video"] as const) {
+    test(`Canvas ${mode} submission stays non-stoppable after changing the next generation mode`, async ({ page, request }) => {
+        const project = await createCanvasProject(request, {
+            title: `Canvas non-stoppable ${mode} ${randomUUID()}`,
+            viewport: { x: 40, y: 40, k: 1 },
+            nodes: [node("running-config", "config", 50, 50, 300, 180, { generationMode: mode, composerContent: "A mountain landscape", model: `e2e-${mode}` })],
+            connections: [],
+        });
+        let submitted = 0;
+        await page.route(mode === "image" ? "**/api/image-tasks" : "**/api/video-generation-tasks", async (route) => {
+            if (route.request().method() !== "POST") return route.abort();
+            submitted++;
+            await route.fulfill({ json: { task: { id: `non-stoppable-${mode}`, model: `e2e-${mode}`, status: "running", durationSeconds: 5 } } });
+        });
+        await page.route(mode === "image" ? "**/api/image-tasks/*" : "**/api/video-tasks/**", (route) => route.fulfill({ json: { task: { id: `non-stoppable-${mode}`, status: "running" } } }));
+        try {
+            await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+            const config = page.locator('[data-node-id="running-config"]');
+            await config.getByRole("button", { name: "开始生成" }).click();
+            await expect.poll(() => submitted).toBe(1);
+            const runningButton = config.getByRole("button", { name: "生成中", exact: true });
+            await expect(runningButton).toBeDisabled();
+            await expect(runningButton).not.toHaveClass(/ant-btn-dangerous/);
+            await config.getByRole("button", { name: /^切换生成类型/ }).click();
+            await page.getByRole("menuitem", { name: "文本", exact: true }).click();
+            await expect(runningButton).toBeDisabled();
+            await expect(runningButton).not.toHaveClass(/ant-btn-dangerous/);
+            await expect(config.getByRole("button", { name: "停止", exact: true })).toHaveCount(0);
+            await expect(page.getByRole("dialog", { name: "停止生成？" })).toHaveCount(0);
+            await expectCanvasSaved(page);
+            const saved = await readCanvasProject(request, `/api/canvas/projects/${project.id}`);
+            expect(saved.nodes.some((item) => item.metadata?.[mode === "image" ? "imageTask" : "videoTask"])).toBe(true);
+            expect(submitted).toBe(1);
+        } finally {
+            await page.goto("/canvas", { waitUntil: "domcontentloaded" });
+            await deleteCanvasProject(request, project.id);
+        }
+    });
 }

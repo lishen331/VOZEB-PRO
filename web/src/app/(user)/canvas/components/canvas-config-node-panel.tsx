@@ -22,6 +22,7 @@ import { practiceCanvasModelValue, type PracticeCanvasModelOptions } from "../ut
 type CanvasConfigNodePanelProps = {
     node: CanvasNodeData;
     isRunning: boolean;
+    canStop: boolean;
     inputSummary: { textCount: number; imageCount: number; videoCount: number; audioCount: number };
     references: CanvasResourceReference[];
     onConfigChange: (nodeId: string, patch: Partial<CanvasNodeMetadata>) => void;
@@ -32,7 +33,7 @@ type CanvasConfigNodePanelProps = {
     practiceModels?: PracticeCanvasModelOptions;
 };
 
-export function CanvasConfigNodePanel({ node, isRunning, inputSummary, references, onConfigChange, onGenerate, onStop, onComposerToggle, practiceModels }: CanvasConfigNodePanelProps) {
+export function CanvasConfigNodePanel({ node, isRunning, canStop, inputSummary, references, onConfigChange, onGenerate, onStop, onComposerToggle, practiceModels }: CanvasConfigNodePanelProps) {
     const [detailsOpen, setDetailsOpen] = useState(node.metadata?.configDetailsOpen === true);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
     const globalConfig = useEffectiveConfig();
@@ -241,24 +242,24 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
             <Button
                 type="primary"
                 className="canvas-generate-button mt-auto !h-9 !w-full !cursor-pointer !rounded-xl !border !text-[13px] !font-semibold"
-                danger={isRunning}
-                disabled={!isRunning && !canGenerate}
+                danger={isRunning && canStop}
+                disabled={isRunning ? !canStop : !canGenerate}
                 style={
-                    isRunning
+                    isRunning && canStop
                         ? { background: theme.node.danger, borderColor: theme.node.danger, color: theme.node.actionDangerText }
-                        : canGenerate
+                        : !isRunning && canGenerate
                           ? { background: theme.node.action, borderColor: theme.node.action, color: theme.node.actionText }
                           : { background: theme.toolbar.itemHover, borderColor: theme.node.stroke, color: theme.node.muted }
                 }
                 onMouseDown={(event) => event.stopPropagation()}
-                onClick={() => (isRunning ? onStop(node.id) : onGenerate(node.id))}
+                onClick={() => (isRunning ? canStop && onStop(node.id) : onGenerate(node.id))}
             >
                 <span className="inline-flex items-center gap-1.5">
                     {isRunning ? (
                         <>
                             <LoaderCircle className="size-4 animate-spin" />
-                            <Square className="size-3.5 fill-current" />
-                            <span>停止</span>
+                            {canStop ? <Square className="size-3.5 fill-current" /> : null}
+                            <span>{canStop ? "停止" : "生成中"}</span>
                         </>
                     ) : (
                         <>

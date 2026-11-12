@@ -92,6 +92,37 @@ describe("gamma-ui 浮层与弹窗的层级关系", () => {
     });
 });
 
+/*
+ * 回归：打开过一次弹窗之后，整个页面滚不动、换页也跟着卡死，只能刷新恢复。
+ *
+ * radix 的 DialogOverlay 内部无条件包了 RemoveScroll（默认 enabled: true），它一挂载就给
+ * body 加 data-scroll-locked，把 overflow 锁成 hidden !important。而 Modal/Drawer 关闭后
+ * 仍按 antd 语义保留弹窗 DOM，如果遮罩层也跟着 forceMount 常驻，这把锁就永远不会释放。
+ */
+describe("遮罩层不得常驻挂载（否则 body 滚动锁永不释放）", () => {
+    it("mounts the mask without forceMount in both Modal and Drawer", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");
+        const overlayTags = [...source.matchAll(/<DialogPrimitive\.Overlay[\s\S]*?\/>/g)].map((match) => match[0]);
+        expect(overlayTags.length, "应能找到 Modal 与 Drawer 两处遮罩").toBeGreaterThanOrEqual(2);
+        for (const tag of overlayTags) {
+            expect(tag, "遮罩层挂 forceMount 会让 RemoveScroll 常驻，锁死整页滚动").not.toContain("forceMount");
+        }
+    });
+
+    it("keeps business content in a stable portal without retaining Radix isolation effects", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");
+        expect(source).toContain('const [host] = useState(() => document.createElement("div"))');
+        expect(source).toContain("parking.current?.appendChild(host)");
+        expect(source).toContain("node.appendChild(host)");
+        expect(source).toContain("{createPortal(");
+        expect(source).toContain("{open ? (");
+        expect(source).toContain("<DialogPrimitive.Portal forceMount={keepMounted ? true : undefined}>");
+        const contentTags = [...source.matchAll(/<DialogPrimitive\.Content[\s\S]*?>/g)].map((match) => match[0]);
+        expect(contentTags).toHaveLength(1);
+        expect(contentTags[0]).not.toContain("forceMount");
+    });
+});
+
 describe("closed retained dialogs release modal side effects", () => {
     it("only isolates the rest of the page while the modal or masked drawer is open", async () => {
         const source = await readFile(resolve(process.cwd(), "src/components/gamma-ui/gamma-ant-modal.tsx"), "utf8");

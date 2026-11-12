@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminCanvasFeatureControls } from "./admin-canvas-feature-controls";
+import type { CanvasUiFeatureId } from "@/lib/canvas-ui-features";
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AgentSkillCreateModal } from "@/components/admin/agent-skill-create-modal";
 import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel-workspace";
@@ -12,17 +14,7 @@ import { useState } from "react";
 import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
-
-const DEFAULT_PRACTICE_MODULE_VISIBILITY: PracticeModuleVisibility = {
-    canvas: false,
-    drama: false,
-    character: true,
-    scene: true,
-    prop: true,
-    "storyboard-image": true,
-    "storyboard-video": true,
-    dubbing: true,
-};
+import { applyPracticeVisibilityToggle, practiceVisibilityMerged } from "./admin-practice-visibility";
 
 const PRACTICE_VISIBILITY_FIELDS = [
     ["canvas", "无限画布", "暂未开放的节点式创作入口"],
@@ -328,7 +320,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
     const { settings, settingsLoading, activeSection, saveSettings } = controller;
     if (activeSection !== "plugins") return null;
 
-    const toggle = (id: FeatureModuleId, enabled: boolean) => saveSettings((current) => ({ featureModules: { ...current.featureModules, [id]: enabled } }), "插件状态已更新");
+    const toggle = (id: FeatureModuleId | CanvasUiFeatureId, enabled: boolean) => saveSettings((current) => ({ featureModules: { ...current.featureModules, [id]: enabled } }), "插件状态已更新");
 
     return (
         <Panel>
@@ -344,7 +336,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
 
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {PRACTICE_VISIBILITY_FIELDS.map(([key, label, description]) => {
-                        const enabled = (settings.practiceModuleVisibility || DEFAULT_PRACTICE_MODULE_VISIBILITY)[key];
+                        const enabled = practiceVisibilityMerged(settings.practiceModuleVisibility)[key];
                         return (
                             <div key={key} className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2.5">
                                 <div className="min-w-0">
@@ -358,11 +350,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                                     onChange={(next) =>
                                         void saveSettings(
                                             (current) => ({
-                                                practiceModuleVisibility: {
-                                                    ...DEFAULT_PRACTICE_MODULE_VISIBILITY,
-                                                    ...current.practiceModuleVisibility,
-                                                    [key]: next,
-                                                },
+                                                practiceModuleVisibility: applyPracticeVisibilityToggle(current.practiceModuleVisibility, key, next),
                                             }),
                                             `${label}${next ? "已显示" : "已隐藏"}`,
                                         )
@@ -396,6 +384,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                                 <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onClick={() => undefined} onChange={(next) => void toggle(plugin.id, next)} />
                             </div>
                             <p className="mt-3 line-clamp-2 text-sm leading-5 text-[var(--gm-text-2)]">{plugin.description}</p>
+                            {plugin.id === "canvas" ? <AdminCanvasFeatureControls featureModules={settings.featureModules} loading={settingsLoading} onChange={(id, next) => void toggle(id, next)} /> : null}
                             <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
                                 {plugin.pathPrefixes.map((path) => (
                                     <Tag key={path}>{path}</Tag>

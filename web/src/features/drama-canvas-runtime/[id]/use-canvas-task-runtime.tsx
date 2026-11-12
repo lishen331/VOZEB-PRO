@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
+import { canvasRunningGenerationCanStop } from "../components/canvas-generation-stop-policy";
+import type { CanvasGenerationMode } from "../types";
 
 import { createFreshGenerationTaskContext } from "@/lib/generation-request-context";
 import { recoverAudioGenerationTask, storeGeneratedAudio, waitForAudioGenerationTask } from "@/services/api/audio";
@@ -165,10 +167,10 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
         [activeChatId, backgroundMode, chatSessions, showImageInfo],
     );
 
-    const startGenerationRequest = useCallback((targetNodeId: string, originNodeId: string, runningId = originNodeId, controller = new AbortController()) => {
+    const startGenerationRequest = useCallback((targetNodeId: string, originNodeId: string, runningId = originNodeId, controller = new AbortController(), mode?: CanvasGenerationMode) => {
         const previous = generationRequestsRef.current.get(targetNodeId);
         if (previous?.controller !== controller) previous?.controller.abort();
-        generationRequestsRef.current.set(targetNodeId, { targetNodeId, originNodeId, runningNodeId: runningId, controller });
+        generationRequestsRef.current.set(targetNodeId, { targetNodeId, originNodeId, runningNodeId: runningId, mode, controller });
         return controller;
     }, []);
 
@@ -177,28 +179,35 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
         if (request?.controller === controller) generationRequestsRef.current.delete(targetNodeId);
     }, []);
 
-    const stopGenerationByRunningId = useCallback((runningId: string) => {
-        const affectedNodeIds = new Set<string>();
-        generationRequestsRef.current.forEach((request) => {
-            if (request.runningNodeId !== runningId) return;
-            request.controller.abort();
-            generationRequestsRef.current.delete(request.targetNodeId);
-            affectedNodeIds.add(request.targetNodeId);
-            affectedNodeIds.add(request.originNodeId);
-        });
-        setRunningNodeId((current) => (current === runningId ? null : current));
-        if (!affectedNodeIds.size) return;
-        setNodes((prev) =>
-            prev.map((node) =>
-                affectedNodeIds.has(node.id) && node.metadata?.status === NODE_STATUS_LOADING
-                    ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined, videoTask: undefined, imageTask: undefined, textTask: undefined, audioTask: undefined } }
-                    : node,
-            ),
-        );
-    }, []);
+    const canStopGeneration = useCallback((runningId: string) => canvasRunningGenerationCanStop(generationRequestsRef.current.values(), runningId), [generationRequestsRef]);
+
+    const stopGenerationByRunningId = useCallback(
+        (runningId: string) => {
+            if (!canStopGeneration(runningId)) return;
+            const affectedNodeIds = new Set<string>();
+            generationRequestsRef.current.forEach((request) => {
+                if (request.runningNodeId !== runningId) return;
+                request.controller.abort();
+                generationRequestsRef.current.delete(request.targetNodeId);
+                affectedNodeIds.add(request.targetNodeId);
+                affectedNodeIds.add(request.originNodeId);
+            });
+            setRunningNodeId((current) => (current === runningId ? null : current));
+            if (!affectedNodeIds.size) return;
+            setNodes((prev) =>
+                prev.map((node) =>
+                    affectedNodeIds.has(node.id) && node.metadata?.status === NODE_STATUS_LOADING
+                        ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined, videoTask: undefined, imageTask: undefined, textTask: undefined, audioTask: undefined } }
+                        : node,
+                ),
+            );
+        },
+        [canStopGeneration, generationRequestsRef, setNodes, setRunningNodeId],
+    );
 
     const confirmStopGeneration = useCallback(
         (nodeId: string) => {
+            if (!canStopGeneration(nodeId)) return;
             modal.confirm({
                 title: "停止生成？",
                 content: "当前生成请求会被中断，已经生成完成的内容会保留。",
@@ -208,7 +217,7 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
                 onOk: () => stopGenerationByRunningId(nodeId),
             });
         },
-        [modal, stopGenerationByRunningId],
+        [modal, stopGenerationByRunningId, canStopGeneration],
     );
 
     const completeVideoTask = useCallback(async (nodeId: string, generationConfig: AiConfig, task: NonNullable<CanvasNodeMetadata["videoTask"]>, controller: AbortController, prompt?: string) => {
@@ -442,6 +451,7 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
         startGenerationRequest,
         finishGenerationRequest,
         stopGenerationByRunningId,
+        canStopGeneration,
         confirmStopGeneration,
         completeVideoTask,
         recoverAndCompleteVideoTask,

@@ -1,3 +1,4 @@
+import { DEFAULT_CANVAS_UI_FEATURES } from "@/lib/canvas-ui-features";
 import { ECOMMERCE_IMAGE_SKILL } from "@/lib/server/agent-skills/ecommerce-image";
 import { YANAI_BEAUTY_SKILL } from "@/lib/server/agent-skills/yanai-beauty";
 import { DEFAULT_CREATIVE_SHORTCUT_SKILLS } from "@/lib/server/agent-skills/creative-shortcuts";
@@ -235,7 +236,7 @@ export const DEFAULT_SETTINGS: AuthSettings = {
         { ...YANAI_BEAUTY_SKILL, keywords: [...YANAI_BEAUTY_SKILL.keywords], workspaces: [...YANAI_BEAUTY_SKILL.workspaces] },
         ...DEFAULT_CREATIVE_SHORTCUT_SKILLS.map((skill) => ({ ...skill, keywords: [...skill.keywords], workspaces: [...skill.workspaces] })),
     ],
-    featureModules: { ...DEFAULT_FEATURE_MODULE_SETTINGS, ...DEFAULT_DRAMA_LAB_UI_FEATURES },
+    featureModules: { ...DEFAULT_FEATURE_MODULE_SETTINGS, ...DEFAULT_DRAMA_LAB_UI_FEATURES, ...DEFAULT_CANVAS_UI_FEATURES },
     voicePricing: { usdToCny: 7.2, pointsPerYuan: 100 },
 };
 export const AUTH_DATA_FILE = "auth.json";

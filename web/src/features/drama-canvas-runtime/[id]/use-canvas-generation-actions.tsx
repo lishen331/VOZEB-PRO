@@ -185,7 +185,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
             }
 
             setRunningNodeId(nodeId);
-            const runController = startGenerationRequest(nodeId, nodeId, nodeId);
+            const runController = startGenerationRequest(nodeId, nodeId, nodeId, undefined, mode);
             const sourceTextContent = sourceNode?.type === CanvasNodeType.Text ? sourceNode.metadata?.content?.trim() || "" : "";
             const editingTextNode = mode === "text" && Boolean(sourceTextContent);
             const rawGenerationContext = buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, editingTextNode ? `请根据要求修改以下文本。\n\n原文：\n${sourceTextContent}\n\n修改要求：\n${prompt}` : prompt);
@@ -342,8 +342,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                     setDialogNodeId(nodeId);
 
                     const controller = runController;
-                    targetIds.forEach((targetId) => startGenerationRequest(targetId, nodeId, nodeId, controller));
-                    if (count > 1) startGenerationRequest(rootId, nodeId, nodeId, controller);
+                    targetIds.forEach((targetId) => startGenerationRequest(targetId, nodeId, nodeId, controller, mode));
+                    if (count > 1) startGenerationRequest(rootId, nodeId, nodeId, controller, mode);
                     let hasSuccess = false;
                     let hasPending = false;
                     let failureMessage = "";
@@ -431,7 +431,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                             : [...prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), videoNode],
                     );
                     if (!isEmptyVideoNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: videoId }]);
-                    const controller = startGenerationRequest(videoId, nodeId, nodeId, runController);
+                    const controller = startGenerationRequest(videoId, nodeId, nodeId, runController, mode);
                     try {
                         const task = await createServerVideoGenerationTask(generationConfig, effectivePrompt, videoReferences.images, videoReferences.videos, videoReferences.audios, {
                             signal: controller.signal,
@@ -485,7 +485,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                             : [...prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), audioNode],
                     );
                     if (!isEmptyAudioNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: audioId }]);
-                    const controller = startGenerationRequest(audioId, nodeId, nodeId, runController);
+                    const controller = startGenerationRequest(audioId, nodeId, nodeId, runController, mode);
                     try {
                         const task = await createAudioGenerationTask(generationConfig, effectivePrompt, {
                             signal: controller.signal,
@@ -532,7 +532,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
 
                 const controller = runController;
                 const textTargetIds = childIds.length ? childIds : [nodeId];
-                textTargetIds.forEach((targetNodeId) => startGenerationRequest(targetNodeId, nodeId, nodeId, controller));
+                textTargetIds.forEach((targetNodeId) => startGenerationRequest(targetNodeId, nodeId, nodeId, controller, mode));
                 const answers = await Promise.all(
                     textTargetIds.map(async (targetNodeId) => {
                         try {
@@ -694,6 +694,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                           ...effectiveConfig,
                           model: savedImageMetadata.model || effectiveConfig.imageModel || effectiveConfig.model,
                           quality: savedImageMetadata.quality || effectiveConfig.quality,
+                          imageResolution: savedImageMetadata.resolution || effectiveConfig.imageResolution,
                           size: savedImageMetadata.size || effectiveConfig.size,
                           count: "1",
                       }
@@ -737,7 +738,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
 
             setRunningNodeId(node.id);
             setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : item)));
-            const controller = startGenerationRequest(node.id, sourceNode.id, node.id);
+            const controller = startGenerationRequest(node.id, sourceNode.id, node.id, undefined, retryMode);
 
             try {
                 if (node.type === CanvasNodeType.Text) {
@@ -791,7 +792,15 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                 }
 
                 const generationMetadata = savedImageMetadata?.generationType
-                    ? { generationType: savedImageMetadata.generationType, model: generationConfig.model, size: generationConfig.size, quality: generationConfig.quality, count: savedImageMetadata.count || 1, references: savedImageMetadata.references }
+                    ? {
+                          generationType: savedImageMetadata.generationType,
+                          model: generationConfig.model,
+                          size: generationConfig.size,
+                          quality: generationConfig.quality,
+                          resolution: generationConfig.imageResolution,
+                          count: savedImageMetadata.count || 1,
+                          references: savedImageMetadata.references,
+                      }
                     : buildImageGenerationMetadata(useReferenceImages ? "edit" : "generation", generationConfig, 1, retryImages);
                 setNodes((prev) =>
                     prev.map((item) =>

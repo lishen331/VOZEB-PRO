@@ -32,6 +32,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Validate shared staging baseline
+        shell: bash
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [ "$RELEASE_REF" = refs/heads/develop ] || { printf 'Shared staging only accepts develop. Use an isolated environment for production candidates.\n' >&2; exit 1; }
+          git fetch --no-tags origin develop
+          [ "$(git rev-parse FETCH_HEAD)" = "$CANDIDATE_SHA" ] || { printf 'A newer develop exists; refusing an outdated deploy.\n' >&2; exit 1; }
 
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -117,6 +130,11 @@ jobs:
             proxy_image="${STAGING_IMAGE_PROXY}/${IMAGE_NAME#ghcr.io/}@${digest}"
           fi
           ssh_opts=(-i "$key_file" -p "$STAGING_SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts_file" -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
+
+          # Recheck immediately before touching the shared environment, including its running history.
+          git fetch --no-tags origin develop
+          deployed_image="$(ssh "${ssh_opts[@]}" "$STAGING_SSH_USER@$STAGING_SSH_HOST" "docker inspect --format '{{.Config.Image}}' vozeb-staging-app-1")"
+          RELEASE_REF="${{ github.ref }}" CANDIDATE_SHA="${{ github.sha }}" DEVELOP_SHA="$(git rev-parse FETCH_HEAD)" DEPLOYED_IMAGE="$deployed_image" bash scripts/staging-release-guard.sh
 
           # Pull the image on the staging server straight from GHCR (the package is
           # public, so no registry login is needed there). This replaces pushing the

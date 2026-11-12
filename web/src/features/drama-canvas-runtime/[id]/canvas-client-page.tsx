@@ -55,7 +55,7 @@ const EMPTY_MENTION_REFERENCES: CanvasResourceReference[] = [];
 export function VozebProCanvasPage({ executionProfile }: { executionProfile?: "open-source-practice" } = {}) {
     const [nodeCreatePosition, setNodeCreatePosition] = useState<Position | null>(null);
     const [interactionMode, setInteractionMode] = useState<CanvasInteractionMode>("pan");
-    const controller = useCanvasPageController();
+    const controller = useCanvasPageController(executionProfile);
     const searchParams = useSearchParams();
     const focusShotId = searchParams.get("shotId") || "";
     const focusAssetType = searchParams.get("assetType") || "";
@@ -196,6 +196,7 @@ export function VozebProCanvasPage({ executionProfile }: { executionProfile?: "o
         finishGenerationRequest,
         stopGenerationByRunningId,
         confirmStopGeneration,
+        canStopGeneration,
         completeVideoTask,
         completeImageTask,
         startAndCompleteImageTask,
@@ -424,6 +425,7 @@ export function VozebProCanvasPage({ executionProfile }: { executionProfile?: "o
                 <CanvasNodePromptPanel
                     node={panelNode}
                     isRunning={runningNodeId === panelNode.id}
+                    canStop={canStopGeneration(panelNode.id)}
                     mentionReferences={mentionReferencesByNodeId.get(panelNode.id) || EMPTY_MENTION_REFERENCES}
                     practiceModels={practiceModels}
                     onPromptChange={handleNodePromptChange}
@@ -448,6 +450,7 @@ export function VozebProCanvasPage({ executionProfile }: { executionProfile?: "o
             handleConfigNodeChange,
             handleGenerateNode,
             confirmStopGeneration,
+            canStopGeneration,
             setDialogNodeId,
             setNodeImageSettingsOpen,
             setToolbarNodeId,
@@ -461,6 +464,7 @@ export function VozebProCanvasPage({ executionProfile }: { executionProfile?: "o
             <CanvasConfigNodePanel
                 node={contentNode}
                 isRunning={runningNodeId === contentNode.id}
+                canStop={canStopGeneration(contentNode.id)}
                 inputSummary={getInputSummary(configInputsById.get(contentNode.id) || [])}
                 references={mentionReferencesByNodeId.get(contentNode.id) || EMPTY_MENTION_REFERENCES}
                 practiceModels={practiceModels}
@@ -473,7 +477,7 @@ export function VozebProCanvasPage({ executionProfile }: { executionProfile?: "o
                 }}
             />
         ),
-        [runningNodeId, configInputsById, mentionReferencesByNodeId, handleConfigNodeChange, confirmStopGeneration, setDialogNodeId, nodesRef, handleGenerateNode, practiceModels],
+        [runningNodeId, canStopGeneration, configInputsById, mentionReferencesByNodeId, handleConfigNodeChange, confirmStopGeneration, setDialogNodeId, nodesRef, handleGenerateNode, practiceModels],
     );
     const handleNodeContextMenu = useCallback(
         (event: React.MouseEvent, id: string) => {

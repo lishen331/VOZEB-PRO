@@ -48,6 +48,12 @@ export type SystemChannelModelConfig = {
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate?: string;
+    /**
+     * Some image upstreams take a different body for edits than for generation
+     * (MiniMax sends reference images as `images:[{image_url}]` on `/images/edits`).
+     * When set, edit tasks render this template instead of `requestTemplate`.
+     */
+    editRequestTemplate?: string;
     taskIdField?: string;
     resultField?: string;
     statusField?: string;
@@ -58,6 +64,12 @@ export type SystemChannelModelConfig = {
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
+    /**
+     * Some upstreams reject a request that mixes keyframes (`image_url`/`end_image_url`)
+     * with multi-image references (`image_urls`). Setting this makes the video request
+     * send exactly one of the two groups, chosen by what the task actually carries.
+     */
+    referenceModeExclusive?: boolean;
     imageResponseFormat?: "url" | "b64_json";
     streaming?: SystemChannelStreamingConfig;
 };
@@ -208,6 +220,8 @@ export type SystemChannelAdvancedConfig = {
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate: string;
+    /** Channel-level fallback for the per-model edit template; see `SystemChannelModelConfig.editRequestTemplate`. */
+    editRequestTemplate?: string;
     taskIdField?: string;
     resultField: string;
     statusField: string;

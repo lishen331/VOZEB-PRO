@@ -11,6 +11,8 @@
 - 发布后检查实际App/Worker镜像、ready、已部署normalizer原字节保留和静态资源；不把旧裁图的预览当成修复验收。
 
 本文件记录发布准备，不冒称已完成部署；最终环境SHA、Actions及验证结果另写交付记录。
+
+本文件记录发布准备，不冒称已完成部署；最终环境SHA、Actions及验证结果另写交付记录。
 ## 测试环境正式验收通过
 
 - develop：24de35a8b9028d37053a8b34a4aa03991c50903b；Actions42052518138 completed/success。

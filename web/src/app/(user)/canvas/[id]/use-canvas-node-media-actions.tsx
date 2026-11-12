@@ -451,7 +451,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions, practice
             setSelectedNodeIds(new Set([childId]));
             setSelectedConnectionId(null);
             setDialogNodeId(childId);
-            const controller = startGenerationRequest(childId, node.id, childId);
+            const controller = startGenerationRequest(childId, node.id, childId, undefined, "image");
             try {
                 await startAndCompleteImageTask(childId, generationConfig, prompt, [source], { id: `${node.id}-mask`, name: "mask.png", type: "image/png", dataUrl: payload.maskDataUrl }, controller);
             } catch (error) {
@@ -494,7 +494,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions, practice
             setSelectedNodeIds(new Set([childId]));
             setSelectedConnectionId(null);
             setDialogNodeId(childId);
-            const controller = startGenerationRequest(childId, node.id, childId);
+            const controller = startGenerationRequest(childId, node.id, childId, undefined, "image");
             try {
                 await startAndCompleteImageTask(childId, generationConfig, payload.prompt, [source], undefined, controller);
             } catch (error) {
@@ -550,7 +550,7 @@ export function useCanvasNodeMediaActions({ state, tasks, interactions, practice
             setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
             setSelectedNodeIds(new Set([childId]));
             setDialogNodeId(childId);
-            const controller = startGenerationRequest(childId, node.id, childId);
+            const controller = startGenerationRequest(childId, node.id, childId, undefined, "image");
             try {
                 await startAndCompleteImageTask(childId, generationConfig, prompt, [canvasNodeReferenceImage(node)], undefined, controller);
             } catch (error) {

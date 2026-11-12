@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CanvasNodeType, type CanvasAssistantSession, type CanvasNodeData } from "../types";
 import { CANVAS_CONFIG_NODE_HEIGHT } from "../constants";
+import { defaultConfig } from "@/stores/use-config-store";
 
 const mocks = vi.hoisted(() => ({
     readImageMeta: vi.fn(),
@@ -18,6 +19,8 @@ vi.mock("@/services/image-storage", async (importOriginal) => ({
 
 import {
     applyNodeConfigPatch,
+    buildGenerationConfig,
+    buildImageGenerationMetadata,
     expandContainerConnection,
     getGenerationCount,
     hydrateAssistantImages,
@@ -175,6 +178,16 @@ describe("生成组 output wires", () => {
     });
 });
 
+describe("Canvas image resolution persistence", () => {
+    it.each([CanvasNodeType.Image, CanvasNodeType.Config])("keeps a selected 4K tier in the %s generation config and output snapshot", (type) => {
+        const source = { ...configNode(320), type, metadata: { resolution: "4k", quality: "medium", background: "transparent" } };
+        const config = buildGenerationConfig({ ...defaultConfig, imageResolution: "2k" }, source, "image");
+        expect(config.imageResolution).toBe("4k");
+        expect(config.imageBackground).toBe("transparent");
+        expect(config.quality).toBe("medium");
+        expect(buildImageGenerationMetadata("generation", config, 1, [])).toMatchObject({ resolution: "4k", quality: "medium" });
+    });
+});
 describe("Canvas config node layout", () => {
     it("keeps the persisted details state and node hit box in sync", () => {
         const collapsed = normalizeCanvasConfigNodeLayout(configNode(320));

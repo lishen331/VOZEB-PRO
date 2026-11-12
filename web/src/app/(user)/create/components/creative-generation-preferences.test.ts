@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { normalizePositiveInteger, normalizePositiveNumber, normalizeVideoQuality } from "@/components/creative-generation-preference-fields";
-import { generationPreferenceSummary, generationRatioOptions, generationResolutionOptions, normalizeGenerationCount } from "@/components/creative-generation-preferences";
+import { canvasVisibleResolutionOptions, generationPreferenceSummary, generationRatioOptions, generationResolutionOptions, normalizeGenerationCount } from "@/components/creative-generation-preferences";
 
 describe("generationPreferenceSummary", () => {
     it("keeps image, video and audio settings readable in one compact label", () => {
@@ -35,6 +35,24 @@ describe("generationPreferenceSummary", () => {
     it("keeps intelligent ratio and quality available when a model declares fixed capabilities", () => {
         expect(generationRatioOptions("image", { aspectRatios: ["9:16"] }).map((option) => option.value)).toEqual(["auto", "9:16", "1152x2048", "2160x3840"]);
         expect(generationResolutionOptions("video", { resolutions: ["1080P"] }).map((option) => option.value)).toEqual(["auto", "1080P"]);
+    });
+
+    it("hides only the selected Canvas resolution presets without changing source options", () => {
+        const image = [
+            { value: "1k", label: "1K" },
+            { value: "2k", label: "2K" },
+            { value: "4k", label: "4K" },
+        ];
+        const video = [
+            { value: "auto", label: "智能" },
+            { value: "720", label: "720P" },
+            { value: "1080P", label: "1080P" },
+            { value: "1440", label: "1440P" },
+        ];
+        expect(canvasVisibleResolutionOptions("image", image).map((option) => option.value)).toEqual(["1k", "2k"]);
+        expect(canvasVisibleResolutionOptions("video", video).map((option) => option.value)).toEqual(["auto", "720", "1440"]);
+        expect(image.map((option) => option.value)).toEqual(["1k", "2k", "4k"]);
+        expect(video.map((option) => option.value)).toEqual(["auto", "720", "1080P", "1440"]);
     });
 
     it("keeps high-resolution image presets for a declared image ratio", () => {
@@ -69,4 +87,11 @@ describe("generationPreferenceSummary", () => {
         expect(source.indexOf("availableCapabilities.map")).toBeLessThan(source.indexOf("<PreferencePanel"));
         expect(source.indexOf("比例")).toBeLessThan(source.indexOf("自定义像素尺寸"));
     });
+});
+
+it("hides video quality custom entry while retaining preset selection and image custom sizes", async () => {
+    const source = await readFile(resolve(process.cwd(), "src/components/creative-generation-preferences.tsx"), "utf8");
+    expect(source).toContain("allowCustom={allowCustomResolution === true && !capabilityProfile?.resolutions?.length}");
+    expect(source).toContain("onChange={(quality) => onChange({ quality })}");
+    expect(source).toContain('aria-label={`打开${capability === "image" ? "图片" : "视频"}自定义像素尺寸`}');
 });

@@ -8,17 +8,18 @@ const protocolFixturePort = Number(process.env.VOZEB_PRO_PROTOCOL_FIXTURE_PORT |
 const paymentFixturePort = Number(process.env.VOZEB_PRO_PAYMENT_FIXTURE_PORT || 4020);
 const runningHubFixturePort = Number(process.env.VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT || 4030);
 const databaseUrl = process.env.VOZEB_PRO_E2E_DATABASE_URL?.trim() || "";
-const storageState = path.join(process.cwd(), ".e2e-data", "admin-state.json");
+const e2eDataDir = process.env.VOZEB_PRO_E2E_DATA_DIR || ".e2e-data";
+const storageState = path.resolve(process.cwd(), e2eDataDir, "admin-state.json");
 
 export default defineConfig({
     testDir: "./e2e",
-    outputDir: ".e2e-artifacts",
+    outputDir: process.env.VOZEB_PRO_E2E_OUTPUT_DIR || ".e2e-artifacts",
     fullyParallel: false,
     timeout: 120_000,
     forbidOnly: Boolean(process.env.CI),
     retries: process.env.CI ? 1 : 0,
     workers: process.env.CI || !databaseUrl ? 1 : undefined,
-    reporter: process.env.CI ? [["github"], ["html", { open: "never", outputFolder: "playwright-report" }]] : "list",
+    reporter: process.env.CI ? [["github"], ["html", { open: "never", outputFolder: process.env.VOZEB_PRO_E2E_REPORT_DIR || "playwright-report" }]] : "list",
     use: {
         baseURL,
         trace: "retain-on-failure",
@@ -30,7 +31,7 @@ export default defineConfig({
         {
             name: "chromium",
             testMatch: [
-                /(?:course-cover-cards|admin-official-work-publishing|admin-runninghub-workflow(?:-test|-discovery)?|admin-school-member-points|all-pages|canvas|commerce|core|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|infinite-practice-runninghub-workflow|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+                /(?:course-cover-cards|admin-practice-model-pool|admin-official-work-publishing|admin-runninghub-workflow(?:-test|-discovery)?|admin-school-member-points|all-pages|canvas|commerce|core|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|infinite-practice-runninghub-workflow|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             ],
             dependencies: ["setup"],
             use: { ...devices["Desktop Chrome"], storageState },
@@ -80,7 +81,7 @@ export default defineConfig({
                 PORT: String(port),
                 NEXT_PUBLIC_SITE_URL: baseURL,
                 VOZEB_PRO_DATABASE_PROVIDER: databaseUrl ? "postgres" : "file",
-                VOZEB_PRO_DATA_DIR: path.join(process.cwd(), ".e2e-data"),
+                VOZEB_PRO_DATA_DIR: path.resolve(process.cwd(), e2eDataDir),
                 VOZEB_PRO_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                 VOZEB_PRO_INSTALL_TOKEN: "vozeb-pro-e2e-install-token-32chars",
                 VOZEB_PRO_MAINTENANCE_TOKEN: "vozeb-pro-e2e-maintenance-token-32chars",

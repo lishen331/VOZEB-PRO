@@ -67,10 +67,10 @@ test("admin site form persists social addresses, publishes them to the home foot
 
         await page.goto("/admin?section=site", { waitUntil: "domcontentloaded" });
         await expect(page.locator(".admin-dashboard-shell")).toHaveAttribute("data-hydrated", "true");
-        const emailInput = page.getByPlaceholder("name@example.com");
-        const telegramInput = page.getByPlaceholder("https://t.me/username 或 @username");
-        const xInput = page.getByPlaceholder("https://x.com/username 或 @username");
-        const instagramInput = page.getByPlaceholder("https://instagram.com/username 或 @username");
+        const emailInput = page.getByPlaceholder("name@example.com").filter({ visible: true });
+        const telegramInput = page.getByPlaceholder("https://t.me/username 或 @username").filter({ visible: true });
+        const xInput = page.getByPlaceholder("https://x.com/username 或 @username").filter({ visible: true });
+        const instagramInput = page.getByPlaceholder("https://instagram.com/username 或 @username").filter({ visible: true });
         await expect(emailInput).toBeVisible();
         await expect(emailInput).toHaveValue("mailto:before@example.com");
         await emailInput.fill("owner@example.com");
