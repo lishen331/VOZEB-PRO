@@ -72,13 +72,15 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         )
     ).filter(Boolean);
     const outputCount = config.outputMode === "layers" ? undefined : 1;
-    // MiniMax 图片编辑只认 `images:[{image_url}]`；千问的 content 数组要 `{"image":url}`；
-    // 千问 `size` 还只认 `<宽>*<高>`。三个都按渠道配置的模板取用，未使用的渠道无副作用。
+    // MiniMax 图片编辑只认 `images:[{image_url}]`；千问的 content 数组要 `{"image":url}` 且最后必须带文本项
+    //（无参考图时上游会报 content list cannot be empty）；千问 `size` 还只认 `<宽>*<高>`。
+    // 三个都按渠道配置的模板取用，未使用的渠道无副作用。
+    const prompt = task.upstreamPrompt || withSystemPrompt(config, withImageOutputInstructions(config, task.prompt));
     const imageObjects = images.map((imageUrl) => ({ image_url: imageUrl }));
-    const imageContent = images.map((imageUrl) => ({ image: imageUrl }));
+    const contentParts = [...images.map((imageUrl) => ({ image: imageUrl })), { text: prompt }];
     const values = {
         model: config.model,
-        prompt: task.upstreamPrompt || withSystemPrompt(config, withImageOutputInstructions(config, task.prompt)),
+        prompt,
         size,
         size_star: size ? size.replace(/\s*[x×]\s*/i, "*") : "",
         ratio: imageRequestAspectRatio(config.size || "auto"),
@@ -96,7 +98,7 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         image: images[0] || "",
         images,
         image_objects: imageObjects,
-        image_content: imageContent,
+        image_content: contentParts,
     };
     // 编辑与生成报文不同的渠道（如 MiniMax 的 /images/edits）用 editRequestTemplate 覆盖。
     const requestTemplate = task.kind === "edit" ? advanced.editRequestTemplate || advanced.requestTemplate : advanced.requestTemplate;

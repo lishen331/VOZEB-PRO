@@ -268,7 +268,7 @@ describe("declarative image request size", () => {
                     protocol: "custom",
                     createPath: "/services/aigc/multimodal-generation/generation",
                     resultField: "output.choices[0].message.content[0].image",
-                    requestTemplate: '{"model":"{{model}}","input":{"messages":[{"role":"user","content":[{"image":"{{image}}"},{"text":"{{prompt}}"}]}]},"parameters":{"n":1,"size":"{{size_star}}"}}',
+                    requestTemplate: '{"model":"{{model}}","input":{"messages":[{"role":"user","content":"{{image_content}}"}]},"parameters":{"n":1,"size":"{{size_star}}"}}',
                 },
             },
         } as unknown as ImageTask;
