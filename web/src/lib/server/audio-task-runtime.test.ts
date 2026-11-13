@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: vi.fn(), getPublicUsersByIds: mocks.getUsers }));
 vi.mock("@/lib/server/generation-log-task-service", () => ({ recordGenerationTaskLogResult: mocks.recordLog }));
-vi.mock("@/lib/server/generation-log-store", () => ({ getGenerationLogForUser: mocks.getLog }));
+vi.mock("@/lib/server/generation-log-store", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/server/generation-log-store")>()), getGenerationLogForUser: mocks.getLog }));
 vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refund }));
 vi.mock("@/lib/server/audio-task-store", () => ({
     getAudioTask: mocks.getTask,
@@ -314,6 +314,42 @@ describe("audio task runtime submission safety", () => {
 
         expect(mocks.recordLog).not.toHaveBeenCalled();
         expect(mocks.getUsers).not.toHaveBeenCalled();
+    });
+
+    it("writes a canvas audio call log so admin statistics are not empty", async () => {
+        const task = { ...audioTask(), status: "success" as const, source: "canvas", result: { url: "/api/reference-assets/audio.flac", mimeType: "audio/flac" } };
+
+        const { ensureAudioGenerationLog } = await import("./audio-task-runtime");
+        await ensureAudioGenerationLog(task, "success");
+
+        expect(mocks.recordLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                taskId: "audio-one",
+                kind: "audio",
+                source: "canvas",
+                status: "success",
+                title: "test",
+                asset: { type: "audio", url: "/api/reference-assets/audio.flac", mimeType: "audio/flac" },
+            }),
+        );
+    });
+
+    it("falls back to unknown for audio tasks without a recognized source", async () => {
+        const task = { ...audioTask(), status: "error" as const, source: "legacy-import" as string };
+
+        const { ensureAudioGenerationLog } = await import("./audio-task-runtime");
+        await ensureAudioGenerationLog(task, "failed", "上游超时");
+
+        expect(mocks.recordLog).toHaveBeenCalledWith(expect.objectContaining({ source: "unknown", status: "failed", error: "上游超时" }));
+    });
+
+    it("keeps practice dubbing logs labelled as practice", async () => {
+        const task = { ...audioTask(), status: "success" as const, source: "canvas", executionProfile: "open-source-practice" as const, businessCode: "dubbing" as const };
+
+        const { ensureAudioGenerationLog } = await import("./audio-task-runtime");
+        await ensureAudioGenerationLog(task, "success");
+
+        expect(mocks.recordLog).toHaveBeenCalledWith(expect.objectContaining({ source: "practice", summary: "配音练习完成" }));
     });
 
     it("keeps the original candidate when the request connection is interrupted", async () => {

@@ -1314,6 +1314,25 @@ describe("system proxy authorization", () => {
         expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
     });
 
+    it("accepts a practice-only channel for practice calls and keeps it out of production", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("writer", "text", "vendor-text")],
+            // 生产开关关闭、只开练习：渠道在正式生产里必须被当成"未配置"。
+            systemChannels: [{ id: "channel-one", enabled: false, practiceEnabled: true, purpose: "open-source-practice", baseUrl: "https://api.example.com/v1", apiKey: "shared-secret", apiFormat: "openai", models: ["vendor-text"] }],
+        });
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ choices: [{ message: { content: "OK" } }] }));
+        const practiceHeaders = new Headers({ "content-type": "application/json", ...systemAiBillingHeaders("writer", "practice-one", "vendor-text", "open-source-practice") });
+
+        const practiceResponse = await POST(new Request("http://localhost/api/ai/system/channel-one/chat/completions", { method: "POST", headers: practiceHeaders, body: JSON.stringify({ model: "vendor-text", messages: [] }) }), textContext());
+        expect(practiceResponse.status).toBe(200);
+
+        fetchMock.mockClear();
+        const productionResponse = await POST(chatRequest({ model: "vendor-text", messages: [] }), textContext());
+        expect(productionResponse.status).toBe(404);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it("rejects a client that changes a production signature to practice", async () => {
         mocks.getAuthSettings.mockResolvedValue({
             generationPointMultipliers: {},

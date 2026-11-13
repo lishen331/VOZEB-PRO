@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { LogicalModel, SystemModelChannel } from "@/lib/auth/store";
 import {
     channelDetectedCapabilities,
+    channelEnabledForSurface,
     channelModelCapability,
     deriveLogicalModelsConfig,
     isLogicalModelResolvable,
@@ -406,5 +407,15 @@ describe("model routing config", () => {
         ];
 
         expect(logicalModelSupportsImageInput(models, [primary, backup], "text", "gpt-5.6-sol")).toBe(true);
+    });
+
+    it("keeps a practice-only channel out of production and available to practice", () => {
+        const practiceOnly = { ...channel("minimax", ["MiniMax-H3-Image"], false), practiceEnabled: true, purpose: "open-source-practice" as const };
+        expect(channelEnabledForSurface(practiceOnly, "production")).toBe(false);
+        expect(channelEnabledForSurface(practiceOnly, "open-source-practice")).toBe(true);
+
+        const productionOnly = { ...channel("prod", ["gpt-image-2"], true), practiceEnabled: false, purpose: "production" as const };
+        expect(channelEnabledForSurface(productionOnly, "production")).toBe(true);
+        expect(channelEnabledForSurface(productionOnly, "open-source-practice")).toBe(false);
     });
 });
