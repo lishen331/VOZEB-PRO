@@ -1314,6 +1314,21 @@ describe("system proxy authorization", () => {
         expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
     });
 
+    it("lets the signed media claim read results from a practice-only channel", async () => {
+        const practiceChannel = { id: "channel-one", enabled: false, practiceEnabled: true, purpose: "open-source-practice" as const, baseUrl: "https://api.example.com/v1", apiKey: "shared-secret", apiFormat: "openai" as const, models: ["vendor-text"] };
+        mocks.getAuthSettings.mockResolvedValue({ generationPointMultipliers: {}, logicalModels: [logicalModel("writer", "text", "vendor-text")], systemChannels: [practiceChannel] });
+        mocks.mediaClaim.mockReturnValue({ taskId: "task-one", taskType: "image", upstreamModel: "vendor/image" });
+        mocks.mediaRecord.mockResolvedValue({ channelId: "channel-one", payload: { source: "canvas", config: { model: "vendor/image" } } });
+        const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(pngBytes(), { headers: { "content-type": "image/png" } }));
+
+        const response = await GET(request("https://cdn.example/result.png"), context);
+        await response.body?.cancel();
+
+        // 结果读取由服务端自己发起，不带执行档案；渠道只在练习侧开启时仍然要能读到。
+        expect(response.status).toBe(200);
+        expect(fetcher).toHaveBeenCalled();
+    });
+
     it("accepts a practice-only channel for practice calls and keeps it out of production", async () => {
         mocks.getAuthSettings.mockResolvedValue({
             generationPointMultipliers: {},
