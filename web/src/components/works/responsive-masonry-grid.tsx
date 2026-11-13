@@ -10,6 +10,10 @@ export function masonryRowSpan(contentHeight: number, rowHeight: number, rowGap:
     return Math.max(1, Math.ceil((contentHeight + rowGap) / (rowHeight + rowGap)));
 }
 
+export function masonryGridWidthChanged(previousWidth: number, nextWidth: number) {
+    return previousWidth < 0 || Math.abs(previousWidth - nextWidth) >= 0.5;
+}
+
 export function masonryPlacements(rowSpans: number[], columnCount: number) {
     const columnEnds = Array.from({ length: Math.max(1, Math.floor(columnCount)) }, () => 0);
     return rowSpans.map((value) => {
@@ -63,7 +67,13 @@ export function ResponsiveMasonryGrid({ children, className, ariaLabel }: { chil
             if (content) contentObserver.observe(content);
         });
 
-        const gridObserver = new ResizeObserver(scheduleLayout);
+        let lastGridWidth = -1;
+        const gridObserver = new ResizeObserver((entries) => {
+            const nextWidth = entries[0]?.contentRect.width ?? grid.getBoundingClientRect().width;
+            if (!masonryGridWidthChanged(lastGridWidth, nextWidth)) return;
+            lastGridWidth = nextWidth;
+            scheduleLayout();
+        });
         gridObserver.observe(grid);
         return () => {
             cancelAnimationFrame(frame);

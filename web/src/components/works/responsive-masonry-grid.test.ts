@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { masonryPlacements, masonryRowSpan } from "./responsive-masonry-grid";
+import { masonryGridWidthChanged, masonryPlacements, masonryRowSpan } from "./responsive-masonry-grid";
 
 describe("responsive masonry grid", () => {
+    it("ignores ResizeObserver callbacks caused only by row placement", () => {
+        expect(masonryGridWidthChanged(-1, 960)).toBe(true);
+        expect(masonryGridWidthChanged(960, 960)).toBe(false);
+        expect(masonryGridWidthChanged(960, 960.25)).toBe(false);
+        expect(masonryGridWidthChanged(960, 961)).toBe(true);
+    });
     it("calculates the grid span from the rendered card height and row gap", () => {
         expect(masonryRowSpan(640, 4, 8)).toBe(54);
         expect(masonryRowSpan(360, 4, 12)).toBe(24);
