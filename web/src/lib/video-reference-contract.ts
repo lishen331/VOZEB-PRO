@@ -12,6 +12,7 @@ export type VideoGenerationReference = {
     url: string;
     role?: VideoReferenceRole;
     inputKey?: string;
+    resizeConfirmed?: boolean;
 };
 
 export function normalizeVideoReferenceRole(value: unknown): VideoReferenceRole | undefined {
@@ -31,7 +32,7 @@ export function normalizeVideoGenerationReferences(value: unknown): VideoGenerat
         if (!type || !url || !role) throw new Error("视频参考素材类型、地址或角色不正确");
         if (role !== "reference" && type !== "image") throw new Error("视频首尾帧只能使用图片素材");
         const inputKey = typeof source.inputKey === "string" && ["image", "audio"].includes(source.inputKey.trim()) ? source.inputKey.trim() : undefined;
-        references.push({ type, url, role, ...(inputKey ? { inputKey } : {}) });
+        references.push({ type, url, role, ...(inputKey ? { inputKey } : {}), ...(type === "image" && source.resizeConfirmed === true ? { resizeConfirmed: true } : {}) });
     }
     const firstFrames = references.filter((reference) => reference.role === "first_frame");
     const lastFrames = references.filter((reference) => reference.role === "last_frame");

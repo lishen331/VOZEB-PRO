@@ -79,8 +79,8 @@ export function CanvasVideoReferenceSettings({
                 {sizeIssues.length ? (
                     <p data-canvas-video-reference-size-warning className="rounded-md border px-2 py-1.5 text-[11px] leading-4" style={{ background: theme.node.warningSurface, borderColor: theme.node.warningBorder, color: theme.node.warningText }}>
                         {sizeIssues.map((issue) => `图片${issue.index}（${issue.width}×${issue.height}）`).join("、")}
-                        不在视频模型要求的每边 {VIDEO_REFERENCE_MIN_SIDE}–{VIDEO_REFERENCE_MAX_SIDE} 像素内，
-                        {sizeIssues.some((issue) => issue.target === "impossible") ? "比例过于狭长，请先裁剪。" : "提交时会自动调整尺寸，放大会降低清晰度。"}
+                        不在视频模型要求的每边 {VIDEO_REFERENCE_MIN_SIDE}–{VIDEO_REFERENCE_MAX_SIDE} 像素或 0.4–2.5 宽高比范围内，
+                        {sizeIssues.some((issue) => issue.target === "impossible") ? "比例过于狭长，请先裁剪。" : "生成前会提醒并征求同意；确认后等比缩放并补边，放大可能降低清晰度。"}
                     </p>
                 ) : null}
             </section>

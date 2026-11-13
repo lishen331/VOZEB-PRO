@@ -167,6 +167,30 @@ describe("video API service", () => {
         expect(fetchMock).toHaveBeenCalledOnce();
     });
 
+    it("cancels an out-of-ratio image before any upload or generation request", async () => {
+        const fetchMock = vi.fn();
+        const confirm = vi.fn().mockReturnValue(false);
+        vi.stubGlobal("fetch", fetchMock);
+        vi.stubGlobal("window", { confirm });
+        const reference = { id: "wide", name: "超宽参考图", type: "image/png", dataUrl: "https://cdn.example.com/wide.png", width: 900, height: 300 };
+        await expect(createServerVideoGenerationTask(config, "生成视频", [reference])).rejects.toMatchObject({ name: "AbortError" });
+        expect(confirm).toHaveBeenCalledOnce();
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(reference).not.toHaveProperty("videoResizeConfirmed");
+    });
+
+    it("transmits consent and frame roles after the user accepts padding", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(json({ task: { id: "video-consented", model: "video-v1" } }));
+        const confirm = vi.fn().mockReturnValue(true);
+        vi.stubGlobal("fetch", fetchMock);
+        vi.stubGlobal("window", { confirm });
+        const reference: ReferenceImage = { id: "wide", name: "超宽首帧", type: "image/png", dataUrl: "https://cdn.example.com/wide.png", width: 900, height: 300, videoRole: "first_frame" };
+        await createServerVideoGenerationTask(config, "生成视频", [reference]);
+        const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+        expect(body.references).toEqual([{ type: "image", role: "first_frame", url: "https://cdn.example.com/wide.png", resizeConfirmed: true }]);
+        expect(reference).not.toHaveProperty("videoResizeConfirmed");
+    });
+
     it("preserves explicit first and last frame roles in the server payload", async () => {
         const fetchMock = vi.fn().mockResolvedValue(json({ task: { id: "video-task-frames", model: "video-v1" } }));
         vi.stubGlobal("fetch", fetchMock);

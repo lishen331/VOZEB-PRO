@@ -83,7 +83,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
     const { startGenerationRequest, finishGenerationRequest, completeVideoTask, startAndCompleteImageTask, completeTextTask, completeAudioTask } = tasks;
     // 参考图不在视频上游 300–6000px 范围内：超窄图直接拦截；其余先让用户确认放大/缩小会影响清晰度。
     const confirmVideoReferenceSizes = useCallback(
-        (images: Array<{ width?: number; height?: number }>) => {
+        (images: Array<{ width?: number; height?: number; videoResizeConfirmed?: boolean }>) => {
             const issues = videoReferenceSizeIssues(images);
             if (!issues.length) return Promise.resolve(true);
             const blocked = issues.find((issue) => issue.target === "impossible");
@@ -93,27 +93,30 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
             }
             const lines = issues.map((issue) => {
                 const target = issue.target as { width: number; height: number };
-                return `图片${issue.index}：${issue.width}×${issue.height} → ${target.width}×${target.height}（${target.width > issue.width ? "放大" : "缩小"}）`;
+                return `图片${issue.index}：${issue.width}×${issue.height} → ${target.width}×${target.height}（${issue.reason !== "size" ? "等比缩放并补边" : target.width > issue.width ? "放大" : "缩小"}）`;
             });
             return new Promise<boolean>((resolve) => {
                 modal.confirm({
-                    title: "参考图尺寸不符合视频模型要求",
+                    title: "参考图比例或尺寸可能不符合视频模型要求",
                     content: (
                         <div className="space-y-2 text-sm">
                             <p>
-                                视频模型要求参考图每边在 {VIDEO_REFERENCE_MIN_SIDE}–{VIDEO_REFERENCE_MAX_SIDE} 像素之间，提交时将自动等比调整：
+                                视频模型要求参考图每边在 {VIDEO_REFERENCE_MIN_SIDE}–{VIDEO_REFERENCE_MAX_SIDE} 像素、宽高比在 0.4–2.5 之间；你同意后提交时将自动缩放到可接受范围：
                             </p>
                             <ul className="list-disc pl-5">
                                 {lines.map((line) => (
                                     <li key={line}>{line}</li>
                                 ))}
                             </ul>
-                            <p>放大会降低参考图清晰度，可能影响视频效果。也可以取消后更换更清晰的图片。</p>
+                            <p>比例超限可能生成失败，同意后将等比缩放并补边，不裁切、不拉伸；放大可能降低清晰度。点击“取消”将不提交、不处理原图。</p>
                         </div>
                     ),
-                    okText: "继续生成",
+                    okText: "同意缩放并生成",
                     cancelText: "取消",
-                    onOk: () => resolve(true),
+                    onOk: () => {
+                        for (const issue of issues) images[issue.index - 1].videoResizeConfirmed = true;
+                        resolve(true);
+                    },
                     onCancel: () => resolve(false),
                 });
             });
@@ -400,7 +403,10 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                         if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node)));
                         return;
                     }
-                    if (!(await confirmVideoReferenceSizes(videoReferences.images))) return;
+                    if (!(await confirmVideoReferenceSizes(videoReferences.images))) {
+                        if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node)));
+                        return;
+                    }
                     const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
                     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
                     const videoId = isEmptyVideoNode ? nodeId : nanoid();
@@ -766,6 +772,10 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                         setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR } } : item)));
                         return;
                     }
+                    if (!(await confirmVideoReferenceSizes(videoReferences.images))) {
+                        setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR } } : item)));
+                        return;
+                    }
                     const task = await createServerVideoGenerationTask(generationConfig, prompt, videoReferences.images, videoReferences.videos, videoReferences.audios, {
                         signal: controller.signal,
                         conversationId: currentProject?.creativeConversationId,
@@ -830,6 +840,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
         [
             applyAgentOps,
             blockUnsupportedReferences,
+            confirmVideoReferenceSizes,
             completeAudioTask,
             completeTextTask,
             completeVideoTask,

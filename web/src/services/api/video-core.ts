@@ -1,6 +1,7 @@
 import axios from "axios";
 
 import { dataUrlToFile } from "@/lib/image-utils";
+import { VIDEO_REFERENCE_MAX_RATIO, VIDEO_REFERENCE_MIN_RATIO } from "@/lib/video-reference-size";
 import { browserReadableMediaUrl } from "@/lib/browser-media-url";
 import { originalImageSourceUrl } from "@/lib/media-image-url";
 import { resolveGeneratedMediaUrl } from "@/lib/media-url";
@@ -145,8 +146,23 @@ export async function createServerVideoGenerationTask(
 ): Promise<VideoGenerationTask> {
     const selectedModel = (config.model || config.videoModel).trim();
     const requestConfig = resolveModelRequestConfig(config, selectedModel);
+    const referencesForRequest = references.map((reference) => ({ ...reference }));
+    const unconfirmedRatioReferences = referencesForRequest.filter(
+        (reference) => reference.width && reference.height && (reference.width / reference.height < VIDEO_REFERENCE_MIN_RATIO || reference.width / reference.height > VIDEO_REFERENCE_MAX_RATIO) && !reference.videoResizeConfirmed,
+    );
+    if (unconfirmedRatioReferences.length) {
+        const summary = unconfirmedRatioReferences.map((reference) => `${reference.name || "参考图"} ${reference.width}×${reference.height}`).join("、");
+        if (
+            typeof window === "undefined" ||
+            !window.confirm(`参考图片宽高比必须在 0.4–2.5 之间，超范围可能导致视频生成失败。点击“确定”将通过补边缩放（不裁切、不拉伸原图）后继续：${summary}
+
+点击“取消”将不提交视频任务。`)
+        )
+            throw new DOMException("Video reference resizing was cancelled", "AbortError");
+        for (const reference of unconfirmedRatioReferences) reference.videoResizeConfirmed = true;
+    }
     const serverReferences = await Promise.all([
-        ...references.map(async (item) => ({ type: "image", role: item.videoRole || "reference", url: await providerImageReferenceUrl(item) })),
+        ...referencesForRequest.map(async (item) => ({ type: "image", role: item.videoRole || "reference", url: await providerImageReferenceUrl(item), ...(item.videoResizeConfirmed ? { resizeConfirmed: true } : {}) })),
         ...videoReferences.map(async (item) => ({ type: "video", role: "reference", url: await providerMediaReferenceUrl("video", item) })),
         ...audioReferences.map(async (item) => ({ type: "audio", role: "reference", url: await providerMediaReferenceUrl("audio", item) })),
     ]);
