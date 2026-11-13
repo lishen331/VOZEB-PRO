@@ -788,6 +788,26 @@ test("canvas separates project management from the command menu and keeps assets
     });
 
     try {
+        // 公共素材标签依赖真实公共作品数据：CI 库为空时标签下没有任何条目，390px 段会等不到网格。
+        // 与同文件另一条资源侧栏用例一致，直接给出固定的公开素材。
+        await page.route("**/api/public/gallery?**", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ code: 0, data: { items: [{ slug: "public-demo", title: "公开示例", category: "测试", preview: { id: "public-image", mediaType: "image", mimeType: "image/png", url: "/logo.svg" } }] }, msg: "OK" }),
+            });
+        });
+        await page.route("**/api/public/works/public-demo", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    code: 0,
+                    data: { work: { slug: "public-demo", title: "公开示例", category: "测试", assets: [{ id: "public-image", mediaType: "image", mimeType: "image/png", role: "content", sortOrder: 0, metadata: {}, url: "/logo.svg" }] } },
+                    msg: "OK",
+                }),
+            });
+        });
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
         const surface = page.locator("[data-canvas-surface]");
