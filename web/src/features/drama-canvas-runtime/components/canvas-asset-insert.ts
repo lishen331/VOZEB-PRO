@@ -2,7 +2,7 @@ import type { Asset } from "@/lib/library-asset-contract";
 
 export type InsertAssetPayload =
     | { kind: "text"; content: string; title: string }
-    | { kind: "image"; dataUrl: string; title: string; storageKey?: string; remoteUrl?: string; serverUrl?: string }
+    | { kind: "image"; dataUrl: string; title: string; storageKey?: string; remoteUrl?: string; serverUrl?: string; externalReference?: boolean }
     | { kind: "video"; url: string; title: string; storageKey?: string; remoteUrl?: string; serverUrl?: string; width?: number; height?: number }
     | { kind: "audio"; url: string; title: string; storageKey?: string; remoteUrl?: string; serverUrl?: string; durationMs?: number };
 

@@ -359,7 +359,7 @@ test("canvas video warns about undersized reference images and asks before upsca
         await expect(warning).toBeVisible();
         await expect(warning).toContainText("444×283");
         await expect(warning).not.toContainText("1824×1024");
-        await expect(warning).toContainText("放大会降低清晰度");
+        await expect(warning).toContainText("放大可能降低清晰度");
         await settingsTrigger.click();
 
         const generate = configNode.getByRole("button", { name: "开始生成" });
@@ -370,7 +370,15 @@ test("canvas video warns about undersized reference images and asks before upsca
         await expect(dialog).toContainText("900×300 → 900×360（等比缩放并补边）");
         await expect(dialog).toContainText("0.4–2.5");
         await expect(dialog).toContainText("放大可能降低清晰度");
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect
+            .poll(async () => {
+                const box = await dialog.boundingBox();
+                return Boolean(box && box.x >= 0 && box.x + box.width <= 391);
+            })
+            .toBe(true);
         await dialog.getByRole("button", { name: /取\s*消/ }).click();
+        await page.setViewportSize({ width: 1280, height: 900 });
         await expect(dialog).toBeHidden();
         expect(submitted).toHaveLength(0);
         await expectCanvasSaved(page);
