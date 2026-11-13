@@ -1,7 +1,6 @@
 import { isOfficialWorkflowQueryPath, queryRunningHubTask } from "./runninghub-provider";
 import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { fileTypeFromBuffer } from "file-type";
-import { mediaTaskSource } from "@/lib/media-management-contract";
 import { audioTaskRefundIdempotencyKey, refundAudioTask } from "@/lib/server/audio-task-refund";
 import { getAudioTask, transitionAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
@@ -29,6 +28,7 @@ import { randomUUID } from "node:crypto";
 import type { SystemModelChannel } from "@/lib/auth/store";
 import { normalizeVoiceCustomization, type VoiceCustomizationConfig } from "@/lib/custom-voice-config";
 import { queryQwenVoiceStatus, submitMinimaxVoiceDesign, submitQwenVoiceClone, submitQwenVoiceDesign, upstreamVoicePrefix } from "@/lib/server/custom-voice-upstream";
+import { mediaTaskSource } from "@/lib/media-management-contract";
 import { concatAudioWithGaps, validateDialog } from "@/lib/server/audio-dialog-service";
 import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
 import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
@@ -683,7 +683,9 @@ async function completeAudioTask(task: AudioTask, url: string, mimeType: string)
 export async function ensureAudioGenerationLog(task: AudioTask, status: "success" | "failed", error?: string) {
     const practiceDubbing = task.executionProfile === "open-source-practice" && task.businessCode === "dubbing";
     try {
-        if (await getGenerationLogForUser(task.userId, `audio-task:${task.id}`)) return;
+        // 已有记录且来源已确定就不再重写；来源是 unknown 的（修复前写入）要按任务上下文修正。
+        const existing = await getGenerationLogForUser(task.userId, `audio-task:${task.id}`);
+        if (existing && existing.source !== "unknown") return;
         const user = (await getPublicUsersByIds([task.userId]))[0];
         if (!user) return;
         await recordGenerationTaskLogResult({
@@ -692,7 +694,7 @@ export async function ensureAudioGenerationLog(task: AudioTask, status: "success
             username: user.username,
             displayName: user.displayName,
             kind: "audio",
-            source: practiceDubbing ? "practice" : isGenerationSource(task.source) ? (task.source as GenerationLogSource) : "unknown",
+            source: audioLogSource(task, practiceDubbing),
             status,
             title: task.prompt.slice(0, 80) || (practiceDubbing ? "配音练习" : "生成音频"),
             prompt: task.prompt,
@@ -710,6 +712,16 @@ export async function ensureAudioGenerationLog(task: AudioTask, status: "success
 
 /** 兼容旧调用名：练习会话服务仍按这个名字调用。 */
 export const ensurePracticeAudioGenerationLog = ensureAudioGenerationLog;
+
+/**
+ * 音频任务的日志来源。任务上的 source 有的是 audio-task 或空字符串（不在日志来源枚举里），
+ * 所以和图片/视频一样按 surface 兜底：canvas/drama 直取，chat 按 clientRequestId 区分工作台与 Agent。
+ */
+function audioLogSource(task: AudioTask, practiceDubbing: boolean): GenerationLogSource {
+    if (practiceDubbing) return "practice";
+    const source = mediaTaskSource(task.source, { surface: task.surface, clientRequestId: task.clientRequestId }, "unknown");
+    return isGenerationSource(source) ? source : "unknown";
+}
 
 function normalizeAudioResultUrl(value: string) {
     try {
