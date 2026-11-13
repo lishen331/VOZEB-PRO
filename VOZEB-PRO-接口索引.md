@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-11-13。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **444** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-11-13。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **445** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**444**
-- 方法出现次数：DELETE 66、GET 226、HEAD 6、PATCH 63、POST 246、PUT 18
-- 一级域：`admin` 137、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 26、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**445**
+- 方法出现次数：DELETE 66、GET 226、HEAD 6、PATCH 63、POST 247、PUT 18
+- 一级域：`admin` 137、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 7、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 26、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -431,13 +431,14 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/login-page-media/[fileName]` | 公开 | [route.ts](web/src/app/api/login-page-media/[fileName]/route.ts) | [local-media-response](web/src/lib/server/local-media-response.ts)<br>[login-page-media](web/src/lib/server/login-page-media.ts) | PostgreSQL | login-page-media / [fileName]：查询 |
 
-### `maintenance`（6）
+### `maintenance`（7）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | POST | `/api/maintenance/billing-orders/expire` | 维护 | [route.ts](web/src/app/api/maintenance/billing-orders/expire/route.ts) | [billing-order-expiration-service](web/src/lib/server/billing-order-expiration-service.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | 维护 Token、PostgreSQL | 后台维护 / 计费订单 / 过期处理：提交/执行 |
 | POST | `/api/maintenance/billing-refunds/run` | Worker | [route.ts](web/src/app/api/maintenance/billing-refunds/run/route.ts) | [billing-refund-orchestration-service](web/src/lib/server/billing-refund-orchestration-service.ts)<br>[install-status](web/src/lib/server/install-status.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | Worker Token、PostgreSQL、支付退款 | 后台维护 / 计费退款 / 执行：提交/执行 |
 | POST | `/api/maintenance/data-lifecycle/run` | 维护 | [route.ts](web/src/app/api/maintenance/data-lifecycle/run/route.ts) | [data-lifecycle-service](web/src/lib/server/data-lifecycle-service.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | 维护 Token、PostgreSQL | 后台维护 / 数据生命周期 / 执行：提交/执行 |
+| POST | `/api/maintenance/generation-logs/backfill-audio` | 维护 | [route.ts](web/src/app/api/maintenance/generation-logs/backfill-audio/route.ts) | [audio-generation-log-backfill](web/src/lib/server/audio-generation-log-backfill.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | 维护 Token、PostgreSQL | 后台维护 / 生成日志 / backfill-audio：提交/执行 |
 | POST | `/api/maintenance/generation-tasks/heartbeat` | Worker | [route.ts](web/src/app/api/maintenance/generation-tasks/heartbeat/route.ts) | [generation-worker-heartbeat](web/src/lib/server/generation-worker-heartbeat.ts)<br>[install-status](web/src/lib/server/install-status.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | Worker Token、PostgreSQL、模型上游 | 后台维护 / 生成任务 / 心跳：提交/执行 |
 | POST | `/api/maintenance/generation-tasks/run` | Worker | [route.ts](web/src/app/api/maintenance/generation-tasks/run/route.ts) | [generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[media-task-diagnostic-store](web/src/lib/server/media-task-diagnostic-store.ts)<br>[generation-task-needs-review-sweep](web/src/lib/server/generation-task-needs-review-sweep.ts) | Worker Token、PostgreSQL、模型上游 | 后台维护 / 生成任务 / 执行：提交/执行 |
 | POST | `/api/maintenance/referrals/settle` | 维护 | [route.ts](web/src/app/api/maintenance/referrals/settle/route.ts) | [referral-service](web/src/lib/server/referral-service.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | 维护 Token、PostgreSQL | 后台维护 / 邀请返利 / 结算：提交/执行 |
