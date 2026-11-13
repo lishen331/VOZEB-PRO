@@ -593,7 +593,7 @@ function PublicCanvasAssets({
 }
 
 function PublicCanvasAssetThumbnail({ asset }: { asset: PublicCanvasAsset }) {
-    if (asset.kind === "image") return <img src={imagePreviewUrl(asset.url, 320)} alt={asset.title} className="size-full object-cover" loading="lazy" />;
+    if (asset.kind === "image") return <img src={imagePreviewUrl(asset.url, 320)} alt={asset.title} className="size-full object-cover" loading="eager" />;
     if (asset.kind === "video") return <video src={asset.url} aria-label={asset.title} className="pointer-events-none size-full object-cover" muted playsInline preload="metadata" />;
     return <FallbackThumbnail icon={<FileAudio className="size-5" />} />;
 }
@@ -637,7 +637,7 @@ function PromptAssets({
                 <div className="grid grid-cols-4 gap-2 pb-3" data-testid="canvas-prompt-assets-grid">
                     {collection.items.map((item) => (
                         <ThumbnailActionCard key={item.id} title={item.title} action="插入" onAction={() => onInsert(item.prompt)} onPreview={item.coverUrl ? () => onPreview({ kind: "image", title: item.title, url: item.coverUrl }) : undefined}>
-                            {item.coverUrl ? <img src={imagePreviewUrl(item.coverUrl, 320)} alt={item.title} className="size-full object-cover" loading="lazy" /> : <FallbackThumbnail icon={<Sparkles className="size-5" />} />}
+                            {item.coverUrl ? <img src={imagePreviewUrl(item.coverUrl, 320)} alt={item.title} className="size-full object-cover" loading="eager" /> : <FallbackThumbnail icon={<Sparkles className="size-5" />} />}
                         </ThumbnailActionCard>
                     ))}
                 </div>
@@ -771,14 +771,14 @@ function MediaKindSwitch({ kind, imageCount, videoCount, onChange }: { kind: Cur
     );
 }
 
-function MediaThumbnail({ kind, url, title, posterUrl }: { kind: CurrentMediaKind; url: string; title: string; posterUrl?: string }) {
-    if (kind === "image") return <img src={imagePreviewUrl(url, 320)} alt={title} className="size-full object-cover" loading="lazy" />;
+function MediaThumbnail({ kind, url, title, posterUrl, loading = "lazy" }: { kind: CurrentMediaKind; url: string; title: string; posterUrl?: string; loading?: "eager" | "lazy" }) {
+    if (kind === "image") return <img src={imagePreviewUrl(url, 320)} alt={title} className="size-full object-cover" loading={loading} />;
     return <video src={url} poster={posterUrl ? imagePreviewUrl(posterUrl, 320) : undefined} aria-label={title} className="pointer-events-none size-full object-cover" muted playsInline preload="metadata" />;
 }
 
 function LibraryAssetThumbnail({ asset }: { asset: Asset }) {
     const preview = assetPreview(asset);
-    if (preview) return <MediaThumbnail {...preview} />;
+    if (preview) return <MediaThumbnail {...preview} loading="eager" />;
     if (asset.kind === "audio") return <FallbackThumbnail icon={<FileAudio className="size-5" />} />;
     return <FallbackThumbnail icon={<FileText className="size-5" />} />;
 }

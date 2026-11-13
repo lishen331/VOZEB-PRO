@@ -890,10 +890,46 @@ test("Canvas asset rail groups private/public assets and personal/library prompt
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
         await expect(page.locator("[data-canvas-surface]")).toBeVisible({ timeout: 20_000 });
         await page.route("**/api/prompts**", async (route) => {
-            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], categories: [], tags: [], total: 0 }) });
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    items: [{ id: "prompt-one", title: "公开提示词封面", coverUrl: "/logo.svg", prompt: "test", tags: [], category: "测试", preview: "", createdAt: "2026-01-01", updatedAt: "2026-01-01" }],
+                    categories: [],
+                    tags: [],
+                    total: 1,
+                }),
+            });
         });
         await page.route("**/api/my-prompts?**", async (route) => {
             await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], categories: [], tags: [], total: 0 }) });
+        });
+        await page.route("**/api/library-assets?**", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    code: 0,
+                    data: {
+                        assets: [
+                            {
+                                id: "my-image",
+                                kind: "image",
+                                title: "我的素材图片",
+                                coverUrl: "/logo.svg",
+                                tags: [],
+                                createdAt: "2026-01-01",
+                                updatedAt: "2026-01-01",
+                                data: { dataUrl: "/logo.svg", width: 320, height: 180, bytes: 1, mimeType: "image/png" },
+                            },
+                        ],
+                        total: 1,
+                        page: 1,
+                        pageSize: 16,
+                    },
+                    msg: "OK",
+                }),
+            });
         });
         await page.route("**/api/public/gallery?**", async (route) => {
             await route.fulfill({
@@ -918,14 +954,23 @@ test("Canvas asset rail groups private/public assets and personal/library prompt
         await panel.getByRole("tab", { name: "素材" }).click();
         await expect(panel.getByRole("tab", { name: "我的素材" })).toBeVisible();
         await expect(panel.getByRole("tab", { name: "公共素材" })).toBeVisible();
+        const myAssetThumb = panel.getByTestId("canvas-library-assets-grid").locator("img");
+        await expect(myAssetThumb).toHaveJSProperty("loading", "eager");
+        await expect.poll(() => myAssetThumb.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
         await panel.getByRole("tab", { name: "公共素材" }).click();
         await expect(panel.getByTestId("canvas-public-assets-grid")).toBeVisible();
+        const publicAssetThumb = panel.getByTestId("canvas-public-assets-grid").locator("img");
+        await expect(publicAssetThumb).toHaveJSProperty("loading", "eager");
+        await expect.poll(() => publicAssetThumb.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
         await expect(panel.getByRole("button", { name: "插入公开示例" })).toBeVisible();
         await panel.getByRole("tab", { name: "提示词" }).click();
         await expect(panel.getByRole("tab", { name: "我的提示词" })).toBeVisible();
         await expect(panel.getByRole("tab", { name: "词库" })).toBeVisible();
         await panel.getByRole("tab", { name: "词库" }).click();
         await expect(panel.getByRole("tab", { name: "词库" })).toHaveAttribute("aria-selected", "true");
+        const promptThumb = panel.getByTestId("canvas-prompt-assets-grid").locator("img");
+        await expect(promptThumb).toHaveJSProperty("loading", "eager");
+        await expect.poll(() => promptThumb.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
 
         await page.setViewportSize({ width: 390, height: 844 });
         const mobilePanel = page.getByLabel("Canvas 资产面板");
