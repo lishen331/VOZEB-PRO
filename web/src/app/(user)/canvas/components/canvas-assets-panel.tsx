@@ -5,12 +5,15 @@ import { ChevronDown, FileAudio, FileText, FolderOpen, ImageIcon, LayoutGrid, Li
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import type { Asset, AssetKind } from "@/lib/library-asset-contract";
+import type { PublicWorkPublication } from "@/services/api/work-publications";
 import { IpReferencePicker } from "@/components/ip-library/ip-reference-picker";
 import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listMyPrompts } from "@/services/api/my-prompts";
+import { getPublicWorkPublication } from "@/services/api/work-publications";
+import { listPublicGallery } from "@/services/api/work-governance";
 import { ALL_PROMPTS_OPTION, fetchPrompts, promptCategoryLabel, type Prompt } from "@/services/api/prompts";
 import { useCanvasColorTheme } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -18,13 +21,30 @@ import { useCanvasStore } from "../stores/use-canvas-store";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { libraryAssetToInsertPayload, type InsertAssetPayload } from "./canvas-asset-insert";
 
-type PanelTab = "current" | "assets" | "my" | "library" | "ip";
+type PanelTab = "current" | "assets" | "prompts" | "ip";
+type AssetSource = "my" | "public";
+type PromptSource = "my" | "library";
 type CurrentMediaKind = "image" | "video";
+type PublicMediaKind = "image" | "video" | "audio";
 type CurrentMedia = { id: string; title: string; kind: CurrentMediaKind; url: string };
-type MediaPreview = { kind: CurrentMediaKind; title: string; url: string; posterUrl?: string };
+type PublicCanvasAsset = { id: string; slug: string; title: string; category: string; kind: PublicMediaKind; url: string; mimeType: string };
+type VisualMediaPreview = { kind: CurrentMediaKind; title: string; url: string; posterUrl?: string };
+type MediaPreview = VisualMediaPreview | { kind: "audio"; title: string; url: string };
 type PagedCollection<T> = { items: T[]; page: number; total: number; loading: boolean; loaded: boolean; error: string; categories: string[] };
 
 const emptyCollection = <T,>(): PagedCollection<T> => ({ items: [], page: 0, total: 0, loading: false, loaded: false, error: "", categories: [] });
+
+export function mapPublicWorkAssetsToCanvasItems(work: Pick<PublicWorkPublication, "slug" | "title" | "category" | "assets">): PublicCanvasAsset[] {
+    return work.assets
+        .filter((asset) => asset.role === "content" && (asset.mediaType === "image" || asset.mediaType === "video" || asset.mediaType === "audio") && Boolean(asset.url))
+        .map((asset) => ({ id: `${work.slug}:${asset.id}`, slug: work.slug, title: work.title, category: work.category, kind: asset.mediaType, url: asset.url, mimeType: asset.mimeType }));
+}
+
+export function publicCanvasAssetToInsertPayload(asset: PublicCanvasAsset): InsertAssetPayload {
+    if (asset.kind === "image") return { kind: "image", title: asset.title, dataUrl: asset.url, remoteUrl: asset.url, externalReference: true };
+    if (asset.kind === "video") return { kind: "video", title: asset.title, url: asset.url, remoteUrl: asset.url };
+    return { kind: "audio", title: asset.title, url: asset.url, remoteUrl: asset.url };
+}
 
 export function collectCanvasPanelMedia(nodes: CanvasNodeData[]): CurrentMedia[] {
     return nodes.reduce<CurrentMedia[]>((items, node) => {
@@ -75,10 +95,17 @@ export function CanvasAssetsPanel({
     const project = useCanvasStore((state) => state.projects.find((item) => item.id === projectId));
     const updateProject = useCanvasStore((state) => state.updateProject);
     const [activeTab, setActiveTab] = useState<PanelTab>("current");
+    const [assetSource, setAssetSource] = useState<AssetSource>("my");
+    const [promptSource, setPromptSource] = useState<PromptSource>("my");
     const [assetKind, setAssetKind] = useState<AssetKind | "all">("all");
     const [assetKeyword, setAssetKeyword] = useState("");
     const [assetSearch, setAssetSearch] = useState("");
     const [assets, setAssets] = useState<PagedCollection<Asset>>(emptyCollection);
+    const [publicAssets, setPublicAssets] = useState<PagedCollection<PublicCanvasAsset>>(emptyCollection);
+    const [publicAssetKind, setPublicAssetKind] = useState<PublicMediaKind | "all">("all");
+    const [publicAssetKeyword, setPublicAssetKeyword] = useState("");
+    const [publicAssetSearch, setPublicAssetSearch] = useState("");
+    const [publicNextCursor, setPublicNextCursor] = useState<string>();
     const [myPrompts, setMyPrompts] = useState<PagedCollection<Prompt>>(emptyCollection);
     const [libraryPrompts, setLibraryPrompts] = useState<PagedCollection<Prompt>>(emptyCollection);
     const [myCategory, setMyCategory] = useState(ALL_PROMPTS_OPTION);
@@ -88,7 +115,7 @@ export function CanvasAssetsPanel({
     const [mySearch, setMySearch] = useState("");
     const [librarySearch, setLibrarySearch] = useState("");
     const [preview, setPreview] = useState<MediaPreview>();
-    const requestVersions = useRef({ assets: 0, my: 0, library: 0 });
+    const requestVersions = useRef({ assets: 0, publicAssets: 0, my: 0, library: 0 });
     const currentMedia = useMemo(() => collectCanvasPanelMedia(nodes), [nodes]);
 
     const loadAssets = useCallback(async (page: number, kind: AssetKind | "all", keyword: string) => {
@@ -103,6 +130,28 @@ export function CanvasAssetsPanel({
             setAssets((current) => ({ ...current, loading: false, loaded: true, error: error instanceof Error ? error.message : "素材加载失败" }));
         }
     }, []);
+
+    const loadPublicAssetPage = useCallback(
+        async (cursor?: string, append = false, keyword = publicAssetKeyword) => {
+            const requestId = ++requestVersions.current.publicAssets;
+            setPublicAssets((current) => ({ ...current, loading: true, error: "" }));
+            try {
+                const page = await listPublicGallery({ limit: 24, sort: "featured", cursor, keyword: keyword || undefined });
+                const works = await Promise.allSettled(page.items.map((item) => getPublicWorkPublication(item.slug)));
+                const items = works.flatMap((result) => (result.status === "fulfilled" ? mapPublicWorkAssetsToCanvasItems(result.value) : []));
+                if (requestVersions.current.publicAssets !== requestId) return;
+                setPublicNextCursor(page.nextCursor);
+                setPublicAssets((current) => {
+                    const nextItems = append ? uniqueById([...current.items, ...items]) : items;
+                    return { items: nextItems, page: append ? current.page + 1 : 1, total: page.nextCursor ? nextItems.length + 1 : nextItems.length, loading: false, loaded: true, error: "", categories: [] };
+                });
+            } catch (error) {
+                if (requestVersions.current.publicAssets !== requestId) return;
+                setPublicAssets((current) => ({ ...current, loading: false, loaded: true, error: error instanceof Error ? error.message : "公共素材加载失败" }));
+            }
+        },
+        [publicAssetKeyword],
+    );
 
     const loadPromptPage = useCallback(async (kind: "my" | "library", page: number, category: string, keyword: string) => {
         const requestId = ++requestVersions.current[kind];
@@ -127,8 +176,10 @@ export function CanvasAssetsPanel({
     }, []);
 
     useEffect(() => {
-        requestVersions.current = { assets: requestVersions.current.assets + 1, my: requestVersions.current.my + 1, library: requestVersions.current.library + 1 };
+        requestVersions.current = { assets: requestVersions.current.assets + 1, publicAssets: requestVersions.current.publicAssets + 1, my: requestVersions.current.my + 1, library: requestVersions.current.library + 1 };
         setAssets(emptyCollection());
+        setPublicAssets(emptyCollection());
+        setPublicNextCursor(undefined);
         setMyPrompts(emptyCollection());
         setLibraryPrompts(emptyCollection());
     }, [userId]);
@@ -138,12 +189,17 @@ export function CanvasAssetsPanel({
     }, [activeTab, assetKind, assetKeyword, assets.loaded, assets.loading, loadAssets, open]);
 
     useEffect(() => {
-        if (!open || (activeTab !== "my" && activeTab !== "library")) return;
-        const collection = activeTab === "my" ? myPrompts : libraryPrompts;
-        const category = activeTab === "my" ? myCategory : libraryCategory;
-        const keyword = activeTab === "my" ? myKeyword : libraryKeyword;
-        if (!collection.loaded && !collection.loading) void loadPromptPage(activeTab, 1, category, keyword);
-    }, [activeTab, libraryCategory, libraryKeyword, libraryPrompts, loadPromptPage, myCategory, myKeyword, myPrompts, open]);
+        if (!open || activeTab !== "assets" || assetSource !== "public" || publicAssets.loaded || publicAssets.loading) return;
+        void loadPublicAssetPage();
+    }, [activeTab, assetSource, loadPublicAssetPage, open, publicAssets.loaded, publicAssets.loading]);
+
+    useEffect(() => {
+        if (!open || activeTab !== "prompts") return;
+        const collection = promptSource === "my" ? myPrompts : libraryPrompts;
+        const category = promptSource === "my" ? myCategory : libraryCategory;
+        const keyword = promptSource === "my" ? myKeyword : libraryKeyword;
+        if (!collection.loaded && !collection.loading) void loadPromptPage(promptSource, 1, category, keyword);
+    }, [activeTab, libraryCategory, libraryKeyword, libraryPrompts, loadPromptPage, myCategory, myKeyword, myPrompts, open, promptSource]);
 
     const projectOptions = useMemo(() => {
         const options = projectSummaries.map((project) => ({ id: project.id, title: project.title, nodeCount: project.nodeCount }));
@@ -206,81 +262,128 @@ export function CanvasAssetsPanel({
                         新建
                     </button>
                 </div>
-                <div className={IP_REFERENCE_ENTRY_VISIBLE ? "grid grid-cols-5" : "grid grid-cols-4"} role="tablist" aria-label="资产分类">
+                <div className={IP_REFERENCE_ENTRY_VISIBLE ? "grid grid-cols-4" : "grid grid-cols-3"} role="tablist" aria-label="资源分类">
                     <PanelTabButton label="当前" active={activeTab === "current"} count={currentMedia.length} onClick={() => setActiveTab("current")} />
                     <PanelTabButton label="素材" active={activeTab === "assets"} count={assets.loaded ? assets.total : undefined} onClick={() => setActiveTab("assets")} />
-                    <PanelTabButton label="提示词" active={activeTab === "my"} count={myPrompts.loaded ? myPrompts.total : undefined} onClick={() => setActiveTab("my")} />
-                    <PanelTabButton label="词库" active={activeTab === "library"} count={libraryPrompts.loaded ? libraryPrompts.total : undefined} onClick={() => setActiveTab("library")} />
+                    <PanelTabButton label="提示词" active={activeTab === "prompts"} onClick={() => setActiveTab("prompts")} />
                     {IP_REFERENCE_ENTRY_VISIBLE ? <PanelTabButton label="IP" active={activeTab === "ip"} count={project?.ipReferences?.length} onClick={() => setActiveTab("ip")} /> : null}
                 </div>
             </header>
-            <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 {activeTab === "current" ? <CurrentCanvasAssets items={currentMedia} onLocate={onLocateNode} onPreview={setPreview} /> : null}
                 {activeTab === "assets" ? (
-                    <LibraryAssets
-                        collection={assets}
-                        kind={assetKind}
-                        keyword={assetSearch}
-                        onKeywordChange={setAssetSearch}
-                        onSearch={(keyword) => {
-                            requestVersions.current.assets += 1;
-                            setAssetKeyword(keyword);
-                            setAssets(emptyCollection());
-                        }}
-                        onKindChange={(kind) => {
-                            requestVersions.current.assets += 1;
-                            setAssetKind(kind);
-                            setAssets(emptyCollection());
-                        }}
-                        onInsert={(asset) => onInsertAsset(libraryAssetToInsertPayload(asset))}
-                        onPreview={setPreview}
-                        onRetry={() => void loadAssets(1, assetKind, assetKeyword)}
-                        onLoadMore={() => void loadAssets(assets.page + 1, assetKind, assetKeyword)}
-                    />
+                    <>
+                        <PanelSubTabButtonGroup
+                            label="素材来源"
+                            value={assetSource}
+                            items={[
+                                { value: "my", label: "我的素材", count: assets.loaded ? assets.total : undefined },
+                                { value: "public", label: "公共素材", count: publicAssets.loaded ? publicAssets.items.length : undefined },
+                            ]}
+                            onChange={(value) => setAssetSource(value as AssetSource)}
+                        />
+                        <div className="min-h-0 flex-1 overflow-hidden">
+                            {assetSource === "my" ? (
+                                <LibraryAssets
+                                    collection={assets}
+                                    kind={assetKind}
+                                    keyword={assetSearch}
+                                    onKeywordChange={setAssetSearch}
+                                    onSearch={(keyword) => {
+                                        requestVersions.current.assets += 1;
+                                        setAssetKeyword(keyword);
+                                        setAssets(emptyCollection());
+                                    }}
+                                    onKindChange={(kind) => {
+                                        requestVersions.current.assets += 1;
+                                        setAssetKind(kind);
+                                        setAssets(emptyCollection());
+                                    }}
+                                    onInsert={(asset) => onInsertAsset(libraryAssetToInsertPayload(asset))}
+                                    onPreview={setPreview}
+                                    onRetry={() => void loadAssets(1, assetKind, assetKeyword)}
+                                    onLoadMore={() => void loadAssets(assets.page + 1, assetKind, assetKeyword)}
+                                />
+                            ) : (
+                                <PublicCanvasAssets
+                                    collection={publicAssets}
+                                    kind={publicAssetKind}
+                                    keyword={publicAssetSearch}
+                                    nextCursor={publicNextCursor}
+                                    onKeywordChange={setPublicAssetSearch}
+                                    onSearch={(keyword) => {
+                                        requestVersions.current.publicAssets += 1;
+                                        setPublicAssetKeyword(keyword);
+                                        setPublicNextCursor(undefined);
+                                        setPublicAssets(emptyCollection());
+                                    }}
+                                    onKindChange={setPublicAssetKind}
+                                    onInsert={(asset) => onInsertAsset(publicCanvasAssetToInsertPayload(asset))}
+                                    onPreview={setPreview}
+                                    onRetry={() => void loadPublicAssetPage(undefined, false, publicAssetKeyword)}
+                                    onLoadMore={() => void loadPublicAssetPage(publicNextCursor, true, publicAssetKeyword)}
+                                />
+                            )}
+                        </div>
+                    </>
                 ) : null}
-                {activeTab === "my" ? (
-                    <PromptAssets
-                        collection={myPrompts}
-                        category={myCategory}
-                        keyword={mySearch}
-                        onKeywordChange={setMySearch}
-                        onSearch={(keyword) => {
-                            requestVersions.current.my += 1;
-                            setMyKeyword(keyword);
-                            setMyPrompts((current) => ({ ...emptyCollection(), categories: current.categories }));
-                        }}
-                        onCategoryChange={(category) => {
-                            requestVersions.current.my += 1;
-                            setMyCategory(category);
-                            setMyPrompts((current) => ({ ...emptyCollection(), categories: current.categories }));
-                        }}
-                        onInsert={onInsertPrompt}
-                        onPreview={setPreview}
-                        onRetry={() => void loadPromptPage("my", 1, myCategory, myKeyword)}
-                        onLoadMore={() => void loadPromptPage("my", myPrompts.page + 1, myCategory, myKeyword)}
-                    />
-                ) : null}
-                {activeTab === "library" ? (
-                    <PromptAssets
-                        collection={libraryPrompts}
-                        category={libraryCategory}
-                        keyword={librarySearch}
-                        onKeywordChange={setLibrarySearch}
-                        onSearch={(keyword) => {
-                            requestVersions.current.library += 1;
-                            setLibraryKeyword(keyword);
-                            setLibraryPrompts((current) => ({ ...emptyCollection(), categories: current.categories }));
-                        }}
-                        onCategoryChange={(category) => {
-                            requestVersions.current.library += 1;
-                            setLibraryCategory(category);
-                            setLibraryPrompts((current) => ({ ...emptyCollection(), categories: current.categories }));
-                        }}
-                        onInsert={onInsertPrompt}
-                        onPreview={setPreview}
-                        onRetry={() => void loadPromptPage("library", 1, libraryCategory, libraryKeyword)}
-                        onLoadMore={() => void loadPromptPage("library", libraryPrompts.page + 1, libraryCategory, libraryKeyword)}
-                    />
+                {activeTab === "prompts" ? (
+                    <>
+                        <PanelSubTabButtonGroup
+                            label="提示词来源"
+                            value={promptSource}
+                            items={[
+                                { value: "my", label: "我的提示词", count: myPrompts.loaded ? myPrompts.total : undefined },
+                                { value: "library", label: "词库", count: libraryPrompts.loaded ? libraryPrompts.total : undefined },
+                            ]}
+                            onChange={(value) => setPromptSource(value as PromptSource)}
+                        />
+                        <div className="min-h-0 flex-1 overflow-hidden">
+                            {promptSource === "my" ? (
+                                <PromptAssets
+                                    collection={myPrompts}
+                                    category={myCategory}
+                                    keyword={mySearch}
+                                    onKeywordChange={setMySearch}
+                                    onSearch={(keyword) => {
+                                        requestVersions.current.my += 1;
+                                        setMyKeyword(keyword);
+                                        setMyPrompts((current) => ({ ...emptyCollection(), categories: current.categories }));
+                                    }}
+                                    onCategoryChange={(category) => {
+                                        requestVersions.current.my += 1;
+                                        setMyCategory(category);
+                                        setMyPrompts((current) => ({ ...emptyCollection(), categories: current.categories }));
+                                    }}
+                                    onInsert={onInsertPrompt}
+                                    onPreview={setPreview}
+                                    onRetry={() => void loadPromptPage("my", 1, myCategory, myKeyword)}
+                                    onLoadMore={() => void loadPromptPage("my", myPrompts.page + 1, myCategory, myKeyword)}
+                                />
+                            ) : (
+                                <PromptAssets
+                                    collection={libraryPrompts}
+                                    category={libraryCategory}
+                                    keyword={librarySearch}
+                                    onKeywordChange={setLibrarySearch}
+                                    onSearch={(keyword) => {
+                                        requestVersions.current.library += 1;
+                                        setLibraryKeyword(keyword);
+                                        setLibraryPrompts((current) => ({ ...emptyCollection(), categories: current.categories }));
+                                    }}
+                                    onCategoryChange={(category) => {
+                                        requestVersions.current.library += 1;
+                                        setLibraryCategory(category);
+                                        setLibraryPrompts((current) => ({ ...emptyCollection(), categories: current.categories }));
+                                    }}
+                                    onInsert={onInsertPrompt}
+                                    onPreview={setPreview}
+                                    onRetry={() => void loadPromptPage("library", 1, libraryCategory, libraryKeyword)}
+                                    onLoadMore={() => void loadPromptPage("library", libraryPrompts.page + 1, libraryCategory, libraryKeyword)}
+                                />
+                            )}
+                        </div>
+                    </>
                 ) : null}
                 {IP_REFERENCE_ENTRY_VISIBLE && activeTab === "ip" ? (
                     <PanelScroll>
@@ -330,6 +433,31 @@ function PanelTabButton({ label, count, active, onClick }: { label: string; coun
             {label}
             {typeof count === "number" ? <span className="text-[10px] font-normal opacity-45">{count}</span> : null}
         </button>
+    );
+}
+
+function PanelSubTabButtonGroup({ label, value, items, onChange }: { label: string; value: string; items: Array<{ value: string; label: string; count?: number }>; onChange: (value: string) => void }) {
+    const theme = canvasThemes[useCanvasColorTheme().theme];
+    return (
+        <div className="grid shrink-0 grid-cols-2 gap-1 border-b px-3 py-1.5" role="tablist" aria-label={label} style={{ borderColor: theme.toolbar.border }}>
+            {items.map((item) => {
+                const active = item.value === value;
+                return (
+                    <button
+                        key={item.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        className="flex h-8 min-w-0 items-center justify-center gap-1 rounded-md px-2 text-xs font-medium transition hover:opacity-80"
+                        style={{ background: active ? theme.toolbar.itemHover : "transparent", color: active ? theme.node.text : theme.node.muted }}
+                        onClick={() => onChange(item.value)}
+                    >
+                        <span className="truncate">{item.label}</span>
+                        {typeof item.count === "number" ? <span className="shrink-0 text-[10px] font-normal opacity-45">{item.count}</span> : null}
+                    </button>
+                );
+            })}
+        </div>
     );
 }
 
@@ -404,6 +532,70 @@ function LibraryAssets({
             <LoadMore collection={collection} onLoadMore={onLoadMore} />
         </PanelScroll>
     );
+}
+
+function PublicCanvasAssets({
+    collection,
+    kind,
+    keyword,
+    nextCursor,
+    onKeywordChange,
+    onSearch,
+    onKindChange,
+    onInsert,
+    onPreview,
+    onRetry,
+    onLoadMore,
+}: {
+    collection: PagedCollection<PublicCanvasAsset>;
+    kind: PublicMediaKind | "all";
+    keyword: string;
+    nextCursor?: string;
+    onKeywordChange: (value: string) => void;
+    onSearch: (value: string) => void;
+    onKindChange: (value: PublicMediaKind | "all") => void;
+    onInsert: (asset: PublicCanvasAsset) => void;
+    onPreview: (preview: MediaPreview) => void;
+    onRetry: () => void;
+    onLoadMore: () => void;
+}) {
+    const kindLabels: Record<PublicMediaKind | "all", string> = { all: "全部", image: "图片", video: "视频", audio: "音频" };
+    const visible = collection.items.filter((asset) => kind === "all" || asset.kind === kind);
+    return (
+        <PanelScroll>
+            <PanelFilters
+                keyword={keyword}
+                onKeywordChange={onKeywordChange}
+                onSearch={onSearch}
+                filterLabel={kindLabels[kind]}
+                filterItems={(Object.keys(kindLabels) as Array<PublicMediaKind | "all">).map((value) => ({ key: value, label: kindLabels[value] }))}
+                onFilterChange={(value) => onKindChange(value as PublicMediaKind | "all")}
+            />
+            {collection.items.length === 0 ? <CollectionState collection={collection} emptyText="没有找到公共素材" onRetry={onRetry} /> : null}
+            {collection.items.length > 0 && visible.length === 0 ? <PanelEmpty icon={<Search className="size-5" />} text="没有符合类型的公共素材" /> : null}
+            {visible.length ? (
+                <div className="grid grid-cols-4 gap-2 pb-3" data-testid="canvas-public-assets-grid">
+                    {visible.map((asset) => (
+                        <ThumbnailActionCard key={asset.id} title={`${asset.title} · ${asset.category}`} action="插入" onAction={() => onInsert(asset)} onPreview={() => onPreview({ kind: asset.kind, title: asset.title, url: asset.url })}>
+                            <PublicCanvasAssetThumbnail asset={asset} />
+                        </ThumbnailActionCard>
+                    ))}
+                </div>
+            ) : null}
+            {nextCursor && collection.items.length ? (
+                <button type="button" className="mb-4 flex h-8 w-full items-center justify-center gap-1.5 rounded-md text-xs transition hover:opacity-70" onClick={onLoadMore} disabled={collection.loading}>
+                    {collection.loading ? <Spin size="small" /> : null}
+                    加载更多公共素材
+                </button>
+            ) : null}
+        </PanelScroll>
+    );
+}
+
+function PublicCanvasAssetThumbnail({ asset }: { asset: PublicCanvasAsset }) {
+    if (asset.kind === "image") return <img src={imagePreviewUrl(asset.url, 320)} alt={asset.title} className="size-full object-cover" loading="lazy" />;
+    if (asset.kind === "video") return <video src={asset.url} aria-label={asset.title} className="pointer-events-none size-full object-cover" muted playsInline preload="metadata" />;
+    return <FallbackThumbnail icon={<FileAudio className="size-5" />} />;
 }
 
 function PromptAssets({
@@ -637,6 +829,7 @@ function MediaPreviewModal({ preview, onClose }: { preview?: MediaPreview; onClo
     return (
         <Modal open={Boolean(preview)} onCancel={onClose} footer={null} centered width="auto" destroyOnHidden title={null} styles={{ body: { padding: 0, display: "flex", justifyContent: "center", alignItems: "center", maxHeight: "82dvh" } }}>
             {preview?.kind === "image" ? <img src={imagePreviewUrl(preview.url, 1920)} alt={preview.title} className="block max-h-[82dvh] max-w-[min(88vw,1100px)] rounded-lg object-contain" /> : null}
+            {preview?.kind === "audio" ? <audio src={preview.url} aria-label={preview.title} controls autoPlay className="max-w-[min(88vw,640px)]" /> : null}
             {preview?.kind === "video" ? (
                 <video
                     src={preview.url}
@@ -652,7 +845,7 @@ function MediaPreviewModal({ preview, onClose }: { preview?: MediaPreview; onClo
     );
 }
 
-function assetPreview(asset: Asset): MediaPreview | undefined {
+function assetPreview(asset: Asset): VisualMediaPreview | undefined {
     if (asset.kind === "image") return { kind: "image", title: asset.title, url: asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl };
     if (asset.kind === "video") return { kind: "video", title: asset.title, url: asset.data.serverUrl || asset.data.remoteUrl || asset.data.url, posterUrl: asset.coverUrl || undefined };
     return undefined;

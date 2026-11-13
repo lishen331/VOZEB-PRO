@@ -6,7 +6,7 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import type { Asset } from "@/lib/library-asset-contract";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { libraryAssetToInsertPayload } from "./canvas-asset-insert";
-import { canvasProjectMenuItemStyle, collectCanvasPanelMedia } from "./canvas-assets-panel";
+import { canvasProjectMenuItemStyle, collectCanvasPanelMedia, mapPublicWorkAssetsToCanvasItems, publicCanvasAssetToInsertPayload } from "./canvas-assets-panel";
 
 describe("Canvas assets panel", () => {
     it("keeps only displayable image and video nodes in canvas order", () => {
@@ -30,6 +30,28 @@ describe("Canvas assets panel", () => {
         expect(libraryAssetToInsertPayload(asset("audio"))).toMatchObject({ kind: "audio", title: "audio", url: "/audio.mp3", durationMs: 3000 });
     });
 
+    it("maps only published public content media into insertable canvas assets", () => {
+        const assets = mapPublicWorkAssetsToCanvasItems({
+            slug: "public-story",
+            title: "公开作品",
+            category: "短片",
+            assets: [
+                { id: "cover", role: "cover", mediaType: "image", mimeType: "image/png", url: "/cover.png", sortOrder: 0, metadata: {} },
+                { id: "image", role: "content", mediaType: "image", mimeType: "image/webp", url: "/public-image.webp", sortOrder: 1, metadata: {} },
+                { id: "video", role: "content", mediaType: "video", mimeType: "video/mp4", url: "/public-video.mp4", sortOrder: 2, metadata: {} },
+                { id: "audio", role: "content", mediaType: "audio", mimeType: "audio/mpeg", url: "/public-audio.mp3", sortOrder: 3, metadata: {} },
+            ],
+        });
+
+        expect(assets.map(({ id, kind }) => ({ id, kind }))).toEqual([
+            { id: "public-story:image", kind: "image" },
+            { id: "public-story:video", kind: "video" },
+            { id: "public-story:audio", kind: "audio" },
+        ]);
+        expect(publicCanvasAssetToInsertPayload(assets[0])).toEqual({ kind: "image", title: "公开作品", dataUrl: "/public-image.webp", remoteUrl: "/public-image.webp", externalReference: true });
+        expect(publicCanvasAssetToInsertPayload(assets[1])).toEqual({ kind: "video", title: "公开作品", url: "/public-video.mp4", remoteUrl: "/public-video.mp4" });
+        expect(publicCanvasAssetToInsertPayload(assets[2])).toEqual({ kind: "audio", title: "公开作品", url: "/public-audio.mp3", remoteUrl: "/public-audio.mp3" });
+    });
     it("keeps canvas dropdown items transparent until pointer or keyboard focus moves onto them", () => {
         expect(canvasProjectMenuItemStyle(canvasThemes.light)).toEqual({ background: "transparent", color: canvasThemes.light.node.text });
         expect(canvasProjectMenuItemStyle(canvasThemes.dark)).toEqual({ background: "transparent", color: canvasThemes.dark.node.text });
@@ -38,7 +60,7 @@ describe("Canvas assets panel", () => {
     it("keeps stable IP references behind the dormant entry flag", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/canvas/components/canvas-assets-panel.tsx"), "utf8");
 
-        expect(source).toContain('type PanelTab = "current" | "assets" | "my" | "library" | "ip"');
+        expect(source).toContain('type PanelTab = "current" | "assets" | "prompts" | "ip"');
         expect(source).toContain('IP_REFERENCE_ENTRY_VISIBLE ? <PanelTabButton label="IP"');
         expect(source).toContain('IP_REFERENCE_ENTRY_VISIBLE && activeTab === "ip"');
         expect(source).toContain("<IpReferencePicker");
