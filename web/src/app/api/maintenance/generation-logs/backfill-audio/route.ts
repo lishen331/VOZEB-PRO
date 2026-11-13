@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { readJsonBody } from "@/lib/auth/request";
 import { backfillAudioGenerationLogs } from "@/lib/server/audio-generation-log-backfill";
 import { isAuthorizedMaintenanceRequest, isMaintenanceTokenConfigured } from "@/lib/server/maintenance-auth";
 
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     if (!isAuthorizedMaintenanceRequest(request)) return NextResponse.json({ code: 401, data: null, msg: "维护任务认证失败" }, { status: 401 });
 
     try {
-        const body = (await request.json().catch(() => ({}))) as { dryRun?: unknown; limit?: unknown };
+        const body = await readJsonBody<{ dryRun?: unknown; limit?: unknown }>(request).catch(() => ({}) as { dryRun?: unknown; limit?: unknown });
         const result = await backfillAudioGenerationLogs({ dryRun: body.dryRun !== false, limit: Number(body.limit) || undefined });
         return NextResponse.json({ code: 0, data: result, msg: result.dryRun ? `预演：发现 ${result.missing} 条缺失音频记录` : `已补写 ${result.written} 条音频记录` });
     } catch (error) {
