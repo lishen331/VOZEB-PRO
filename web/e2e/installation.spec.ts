@@ -66,7 +66,7 @@ test("initialization rejects a wrong token and creates the first administrator o
     await page.goto("/install");
     await expect(page).toHaveURL(/\/(?:$|\?)/);
 
-    const statePath = path.join(process.cwd(), ".e2e-data", "admin-state.json");
+    const statePath = path.resolve(process.cwd(), process.env.VOZEB_PRO_E2E_DATA_DIR || ".e2e-data", "admin-state.json");
     await mkdir(path.dirname(statePath), { recursive: true });
     await request.storageState({ path: statePath });
 });

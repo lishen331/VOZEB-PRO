@@ -22,7 +22,7 @@ import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 import { recordGenerationTaskLogResult } from "@/lib/server/generation-log-task-service";
-import { getGenerationLogForUser } from "@/lib/server/generation-log-store";
+import { getGenerationLogForUser, isGenerationSource } from "@/lib/server/generation-log-store";
 import { audioModelFamily, audioUpstreamFields, parseCustomVoiceId } from "@/lib/audio-model-params";
 import { createCustomVoice, getCustomVoice, listCustomVoices, updateCustomVoice } from "@/lib/server/custom-voice-store";
 import { randomUUID } from "node:crypto";
@@ -34,6 +34,7 @@ import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
 import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
 import type { ReferenceAudioInput } from "@/lib/server/custom-voice-upstream";
 import type { AudioTaskConfig } from "@/lib/server/audio-task-store";
+import type { GenerationLogSource } from "@/lib/server/generation-log-types";
 
 export type AudioUpstreamStep =
     | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
@@ -571,7 +572,7 @@ export async function markAudioTaskFailed(task: AudioTask, error: string) {
     }
     await updateAudioTask(current.id, { attempts, candidateConfigs: [], attemptNo: attempts.at(-1)?.attemptNo });
     const latest = (await getAudioTask(current.id)) || failed;
-    await ensurePracticeAudioGenerationLog(latest, "failed", error);
+    await ensureAudioGenerationLog(latest, "failed", error);
     return refundAudioTask(latest);
 }
 
@@ -663,7 +664,7 @@ async function completeAudioTask(task: AudioTask, url: string, mimeType: string)
         if (latest?.status === "cancelled") await refundAudioTask(latest);
         return latest;
     }
-    await ensurePracticeAudioGenerationLog(completed, "success");
+    await ensureAudioGenerationLog(completed, "success");
     await registerGenerationTaskAssetsForUser(completed.userId, {
         ...completed,
         taskId: completed.id,
@@ -673,8 +674,14 @@ async function completeAudioTask(task: AudioTask, url: string, mimeType: string)
     return completed;
 }
 
-export async function ensurePracticeAudioGenerationLog(task: AudioTask, status: "success" | "failed", error?: string) {
-    if (task.executionProfile !== "open-source-practice" || task.businessCode !== "dubbing") return;
+/**
+ * 音频任务终态写调用记录。画布、统一 Agent、短剧、无限练习都写，口径与视频一致：
+ * source 用任务真实来源（画布 / Agent / 短剧 / 练习），练习配音保留原有标题文案。
+ * 只有练习配音（executionProfile=open-source-practice 且 businessCode=dubbing）以前会写，
+ * 其余来源此前完全没有调用记录，导致后台音频统计和成功率恒为 0。
+ */
+export async function ensureAudioGenerationLog(task: AudioTask, status: "success" | "failed", error?: string) {
+    const practiceDubbing = task.executionProfile === "open-source-practice" && task.businessCode === "dubbing";
     try {
         if (await getGenerationLogForUser(task.userId, `audio-task:${task.id}`)) return;
         const user = (await getPublicUsersByIds([task.userId]))[0];
@@ -685,21 +692,24 @@ export async function ensurePracticeAudioGenerationLog(task: AudioTask, status: 
             username: user.username,
             displayName: user.displayName,
             kind: "audio",
-            source: "practice",
+            source: practiceDubbing ? "practice" : isGenerationSource(task.source) ? (task.source as GenerationLogSource) : "unknown",
             status,
-            title: task.prompt.slice(0, 80) || "配音练习",
+            title: task.prompt.slice(0, 80) || (practiceDubbing ? "配音练习" : "生成音频"),
             prompt: task.prompt,
             model: generationModelId(task.config),
-            summary: status === "success" ? "配音练习完成" : "配音练习失败",
+            summary: practiceDubbing ? (status === "success" ? "配音练习完成" : "配音练习失败") : status === "success" ? "音频生成完成" : "音频生成失败",
             durationMs: Math.max(0, task.updatedAt - task.createdAt),
             asset: status === "success" && task.result ? { type: "audio", url: normalizeAudioResultUrl(task.result.url), mimeType: task.result.mimeType } : undefined,
             error,
             createdAt: task.createdAt,
         });
     } catch (logError) {
-        console.error("Practice audio generation log failed", { taskId: task.id, error: logError });
+        console.error("Audio generation log failed", { taskId: task.id, error: logError });
     }
 }
+
+/** 兼容旧调用名：练习会话服务仍按这个名字调用。 */
+export const ensurePracticeAudioGenerationLog = ensureAudioGenerationLog;
 
 function normalizeAudioResultUrl(value: string) {
     try {

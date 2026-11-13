@@ -113,10 +113,15 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     // reverse). Pick the channel by the surface this request runs on, otherwise a practice-only
     // channel looks "not configured or disabled" and every practice call fails with 404.
     const requestProfile = request.headers.get(SYSTEM_AI_EXECUTION_PROFILE_HEADER)?.trim() === "open-source-practice" ? ("open-source-practice" as const) : ("production" as const);
-    const channel = settings.systemChannels.find((item) => item.id === channelId && channelEnabledForSurface(item, requestProfile));
+    // Result-media reads come from the server's own fetcher and carry no execution profile, yet the
+    // task they belong to may have run on a practice-only channel. The signed media claim below is
+    // what proves ownership, so accept a channel enabled on either surface and let that check decide.
+    // Scoped to the media path so generation routing is untouched.
+    const mediaPath = isMediaProxyPath(path);
+    const channel = settings.systemChannels.find((item) => item.id === channelId && (mediaPath ? channelEnabledForSurface(item, "production") || channelEnabledForSurface(item, "open-source-practice") : channelEnabledForSurface(item, requestProfile)));
     if (!channel || !channelConnectionReady(channel)) return NextResponse.json({ error: "默认接口未配置或已停用" }, { status: 404 });
 
-    if (isMediaProxyPath(path)) {
+    if (mediaPath) {
         const rate = await checkMediaProxyRateLimit(userId, request);
         if (!rate.allowed) return NextResponse.json({ error: "媒体访问过于频繁，请稍后重试" }, { status: 429, headers: rateLimitHeaders(rate) });
         return proxySystemMediaRequest(request, channel, userId);

@@ -777,7 +777,8 @@ test("canvas keeps project chat state isolated during client-side project naviga
     }
 });
 
-test("canvas separates project management from the command menu and keeps assets in a four-column rail", async ({ page, request }) => {
+test("canvas separates project management from the command menu and keeps assets in a four-column rail", async ({ page }) => {
+    const request = page.request;
     const targetTitle = `Canvas 切换目标 ${randomUUID().slice(0, 8)}`;
     const target = await createCanvasProject(request, { title: targetTitle, nodes: [], connections: [] });
     const project = await createCanvasProject(request, {
@@ -864,11 +865,128 @@ test("canvas separates project management from the command menu and keeps assets
                 expect(mobileBounds!.x).toBeGreaterThanOrEqual(0);
                 expect(mobileBounds!.x + mobileBounds!.width).toBeLessThanOrEqual(width + 1);
                 await expectNoHorizontalOverflow(page, "Canvas 资产侧栏 390px");
+                await mobilePanel.getByRole("tab", { name: "素材" }).click();
+                await mobilePanel.getByRole("tab", { name: "公共素材" }).click();
+                await expect(mobilePanel.getByTestId("canvas-public-assets-grid")).toBeVisible();
+                const mobilePanelWidth = await mobilePanel.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
+                expect(mobilePanelWidth.scroll).toBeLessThanOrEqual(mobilePanelWidth.client + 1);
+                await mobilePanel.getByRole("tab", { name: "提示词" }).click();
+                await mobilePanel.getByRole("tab", { name: "词库" }).click();
+                const mobilePromptPanelWidth = await mobilePanel.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
+                expect(mobilePromptPanelWidth.scroll).toBeLessThanOrEqual(mobilePromptPanelWidth.client + 1);
             }
         }
     } finally {
         await deleteCanvasProject(request, project.id);
         await deleteCanvasProject(request, target.id);
+    }
+});
+
+test("Canvas asset rail groups private/public assets and personal/library prompts on desktop and mobile", async ({ page }) => {
+    const request = page.request;
+    const project = await createCanvasProject(request, { title: `Canvas 素材分类 ${randomUUID().slice(0, 8)}`, nodes: [], connections: [] });
+    try {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+        await expect(page.locator("[data-canvas-surface]")).toBeVisible({ timeout: 20_000 });
+        await page.route("**/api/prompts**", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    items: [{ id: "prompt-one", title: "公开提示词封面", coverUrl: "/logo.svg", prompt: "test", tags: [], category: "测试", preview: "", createdAt: "2026-01-01", updatedAt: "2026-01-01" }],
+                    categories: [],
+                    tags: [],
+                    total: 1,
+                }),
+            });
+        });
+        await page.route("**/api/my-prompts?**", async (route) => {
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], categories: [], tags: [], total: 0 }) });
+        });
+        await page.route("**/api/library-assets?**", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    code: 0,
+                    data: {
+                        assets: [
+                            {
+                                id: "my-image",
+                                kind: "image",
+                                title: "我的素材图片",
+                                coverUrl: "/logo.svg",
+                                tags: [],
+                                createdAt: "2026-01-01",
+                                updatedAt: "2026-01-01",
+                                data: { dataUrl: "/logo.svg", width: 320, height: 180, bytes: 1, mimeType: "image/png" },
+                            },
+                        ],
+                        total: 1,
+                        page: 1,
+                        pageSize: 16,
+                    },
+                    msg: "OK",
+                }),
+            });
+        });
+        await page.route("**/api/public/gallery?**", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ code: 0, data: { items: [{ slug: "public-demo", title: "公开示例", category: "测试", preview: { id: "public-image", mediaType: "image", mimeType: "image/png", url: "/logo.svg" } }] }, msg: "OK" }),
+            });
+        });
+        await page.route("**/api/public/works/public-demo", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    code: 0,
+                    data: { work: { slug: "public-demo", title: "公开示例", category: "测试", assets: [{ id: "public-image", mediaType: "image", mimeType: "image/png", role: "content", sortOrder: 0, metadata: {}, url: "/logo.svg" }] } },
+                    msg: "OK",
+                }),
+            });
+        });
+        await page.getByRole("button", { name: "打开资产面板" }).click();
+        const panel = page.getByLabel("Canvas 资产面板");
+        await panel.getByRole("tab", { name: "素材" }).click();
+        await expect(panel.getByRole("tab", { name: "我的素材" })).toBeVisible();
+        await expect(panel.getByRole("tab", { name: "公共素材" })).toBeVisible();
+        const myAssetThumb = panel.getByTestId("canvas-library-assets-grid").locator("img");
+        await expect(myAssetThumb).toHaveJSProperty("loading", "eager");
+        await expect.poll(() => myAssetThumb.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+        await panel.getByRole("tab", { name: "公共素材" }).click();
+        await expect(panel.getByTestId("canvas-public-assets-grid")).toBeVisible();
+        const publicAssetThumb = panel.getByTestId("canvas-public-assets-grid").locator("img");
+        await expect(publicAssetThumb).toHaveJSProperty("loading", "eager");
+        await expect.poll(() => publicAssetThumb.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+        await expect(panel.getByRole("button", { name: "插入公开示例" })).toBeVisible();
+        await panel.getByRole("tab", { name: "提示词" }).click();
+        await expect(panel.getByRole("tab", { name: "我的提示词" })).toBeVisible();
+        await expect(panel.getByRole("tab", { name: "词库" })).toBeVisible();
+        await panel.getByRole("tab", { name: "词库" }).click();
+        await expect(panel.getByRole("tab", { name: "词库" })).toHaveAttribute("aria-selected", "true");
+        const promptThumb = panel.getByTestId("canvas-prompt-assets-grid").locator("img");
+        await expect(promptThumb).toHaveJSProperty("loading", "eager");
+        await expect.poll(() => promptThumb.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        const mobilePanel = page.getByLabel("Canvas 资产面板");
+        await expect(mobilePanel).toBeVisible();
+        await expectNoHorizontalOverflow(page, "Canvas 资源栏 390px");
+        await mobilePanel.getByRole("tab", { name: "素材" }).click();
+        await mobilePanel.getByRole("tab", { name: "公共素材" }).click();
+        await expect(mobilePanel.getByTestId("canvas-public-assets-grid")).toBeVisible();
+        const publicPanelWidth = await mobilePanel.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
+        expect(publicPanelWidth.scroll).toBeLessThanOrEqual(publicPanelWidth.client + 1);
+        await mobilePanel.getByRole("tab", { name: "提示词" }).click();
+        await mobilePanel.getByRole("tab", { name: "词库" }).click();
+        const promptPanelWidth = await mobilePanel.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
+        expect(promptPanelWidth.scroll).toBeLessThanOrEqual(promptPanelWidth.client + 1);
+    } finally {
+        await request.delete("/api/canvas/projects", { data: { ids: [project.id] }, timeout: 5_000 }).catch(() => undefined);
     }
 });
 

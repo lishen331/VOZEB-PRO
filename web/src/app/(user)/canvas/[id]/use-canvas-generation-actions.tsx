@@ -964,8 +964,26 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                     },
                 ]);
                 setSelectedNodeIds(new Set([id]));
+            } else if (payload.externalReference) {
+                const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
+                const center = screenToCanvas((containerRef.current?.getBoundingClientRect().left || 0) + size.width / 2, (containerRef.current?.getBoundingClientRect().top || 0) + size.height / 2);
+                const id = `image-${nanoid()}`;
+                setNodes((prev) => [
+                    ...prev,
+                    {
+                        id,
+                        type: CanvasNodeType.Image,
+                        title: payload.title,
+                        position: { x: center.x - spec.width / 2, y: center.y - spec.height / 2 },
+                        width: spec.width,
+                        height: spec.height,
+                        metadata: { content: payload.dataUrl, remoteUrl: payload.remoteUrl || payload.dataUrl, status: NODE_STATUS_SUCCESS },
+                    },
+                ]);
+                setSelectedNodeIds(new Set([id]));
+                setSelectedConnectionId(null);
             } else {
-                insertAssistantImage({ id: `asset-${Date.now()}`, prompt: payload.title, dataUrl: payload.dataUrl, storageKey: payload.storageKey, remoteUrl: payload.remoteUrl, serverUrl: payload.serverUrl });
+                void insertAssistantImage({ id: `asset-${Date.now()}`, prompt: payload.title, dataUrl: payload.dataUrl, storageKey: payload.storageKey, remoteUrl: payload.remoteUrl, serverUrl: payload.serverUrl });
             }
         },
         [insertAssistantImage, insertAssistantText, screenToCanvas, size.height, size.width],
