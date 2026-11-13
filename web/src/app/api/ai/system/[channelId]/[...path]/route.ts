@@ -37,6 +37,7 @@ import { chargeGeneration, refundGenerationCharge } from "@/lib/server/generatio
 import { resolveGenerationExecutionPolicy } from "@/lib/server/generation-execution-policy";
 import { isAgnesApiBaseUrl } from "@/lib/agnes-model-catalog";
 import { channelConnectionReady, protocolAuthHeaders, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
+import { channelEnabledForSurface } from "@/lib/model-routing-config";
 import { normalizeYumengModelCenterBaseUrl } from "@/lib/yumeng-model-center";
 import { imageResolutionFromRequestValue } from "@/lib/image-generation-params";
 import { authorizedWorkerUserId } from "@/lib/server/maintenance-auth";
@@ -108,7 +109,11 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     } catch (error) {
         return NextResponse.json({ error: error instanceof Error ? error.message : "绑定验证授权失败" }, { status: 403 });
     }
-    const channel = settings.systemChannels.find((item) => item.id === channelId && item.enabled);
+    // A channel can be switched on for one surface only (practiceEnabled without enabled, or the
+    // reverse). Pick the channel by the surface this request runs on, otherwise a practice-only
+    // channel looks "not configured or disabled" and every practice call fails with 404.
+    const requestProfile = request.headers.get(SYSTEM_AI_EXECUTION_PROFILE_HEADER)?.trim() === "open-source-practice" ? ("open-source-practice" as const) : ("production" as const);
+    const channel = settings.systemChannels.find((item) => item.id === channelId && channelEnabledForSurface(item, requestProfile));
     if (!channel || !channelConnectionReady(channel)) return NextResponse.json({ error: "默认接口未配置或已停用" }, { status: 404 });
 
     if (isMediaProxyPath(path)) {
