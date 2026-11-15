@@ -45,6 +45,16 @@ describe("audio generation log backfill", () => {
         expect(result).toMatchObject({ missing: 1, written: 1, failed: 0 });
     });
 
+    it("picks up tasks whose log source is still unknown so it can be rewritten", async () => {
+        mocks.listRecords.mockResolvedValueOnce(listing([record("t1", "success"), record("t2", "success")])).mockResolvedValueOnce(listing([]));
+        mocks.getLog.mockImplementation(async (_userId: string, id: string) => (id === "audio-task:t1" ? { id, source: "unknown" } : { id, source: "canvas" }));
+
+        const result = await backfillAudioGenerationLogs({ dryRun: true });
+
+        expect(result.missing).toBe(1);
+        expect(result.sample[0]?.taskId).toBe("t1");
+    });
+
     it("counts a write as failed when the log still cannot be read back", async () => {
         mocks.listRecords.mockResolvedValueOnce(listing([])).mockResolvedValueOnce(listing([record("t9", "error")]));
         mocks.getTask.mockResolvedValue({ id: "t9", userId: "user-one", prompt: "prompt t9", error: "上游超时", status: "error" });

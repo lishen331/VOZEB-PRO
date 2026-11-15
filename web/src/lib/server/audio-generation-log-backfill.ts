@@ -50,7 +50,10 @@ export async function backfillAudioGenerationLogs(input: { dryRun?: boolean; lim
     return result;
 }
 
-/** 分页扫描某状态的音频任务，只产出「还没有 audio-task:<id> 日志」的那些，凑够 limit 就停。 */
+/**
+ * 分页扫描某状态的音频任务，产出「没有 audio-task:<id> 日志」以及「日志来源还是 unknown」的那些，
+ * 凑够 limit 就停。后者是修复前写入的，来源当时按任务字段取不到，需要按 surface 重写。
+ */
 async function* missingAudioTaskRecords(status: "success" | "error", limit: number, result: AudioLogBackfillResult): AsyncGenerator<StoredGenerationTaskRecord> {
     let found = 0;
     let page = 1;
@@ -59,7 +62,8 @@ async function* missingAudioTaskRecords(status: "success" | "error", limit: numb
         if (!listing.items.length) return;
         for (const record of listing.items) {
             result.scanned += 1;
-            if (await getGenerationLogForUser(record.userId, `audio-task:${record.id}`)) continue;
+            const existing = await getGenerationLogForUser(record.userId, `audio-task:${record.id}`);
+            if (existing && existing.source !== "unknown") continue;
             yield record;
             found += 1;
             if (found >= limit) return;

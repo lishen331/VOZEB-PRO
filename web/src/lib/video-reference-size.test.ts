@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitVideoReferenceSize, videoReferenceSizeIssues } from "@/lib/video-reference-size";
+import { fitVideoReferenceForVideo, fitVideoReferenceSize, videoReferenceSizeIssues } from "@/lib/video-reference-size";
 
 describe("fitVideoReferenceSize", () => {
     it("upscales the short side to 300 keeping ratio", () => {
@@ -15,6 +15,16 @@ describe("fitVideoReferenceSize", () => {
     });
     it("rejects ratios wider than 20:1", () => {
         expect(fitVideoReferenceSize(6100, 300)).toBe("impossible");
+    });
+    it("pads rather than stretches a wide image to ratio 2.5", () => {
+        expect(fitVideoReferenceForVideo(900, 300)).toEqual({ width: 900, height: 360 });
+    });
+    it("pads rather than stretches a tall image to ratio 0.4", () => {
+        expect(fitVideoReferenceForVideo(200, 800)).toEqual({ width: 320, height: 800 });
+    });
+    it("keeps the padded canvas within the upstream maximum size", () => {
+        expect(fitVideoReferenceForVideo(90000, 300)).toEqual({ width: 6000, height: 2400 });
+        expect(fitVideoReferenceForVideo(300, 90000)).toEqual({ width: 2400, height: 6000 });
     });
     it("numbers issues from 1 like the prompt labels", () => {
         expect(

@@ -36,6 +36,27 @@ describe("video provider image references", () => {
         expect(mocks.writeReference).not.toHaveBeenCalled();
     });
 
+    it("requires explicit consent before altering an out-of-ratio reference", async () => {
+        const png = await sharp({ create: { width: 900, height: 300, channels: 3, background: "red" } })
+            .png()
+            .toBuffer();
+        mocks.fetchExternal.mockResolvedValue(new Response(png));
+        await expect(normalize([image("https://cdn.example.com/wide.png")])).rejects.toThrow("请先确认补边缩放");
+        expect(mocks.writeReference).not.toHaveBeenCalled();
+    });
+
+    it("pads a consented wide reference without stretching or cropping the original", async () => {
+        const png = await sharp({ create: { width: 900, height: 300, channels: 3, background: "red" } })
+            .png()
+            .toBuffer();
+        mocks.fetchExternal.mockResolvedValue(new Response(png));
+        await normalize([{ ...image("https://cdn.example.com/wide.png"), resizeConfirmed: true }]);
+        const dataUrl = mocks.writeReference.mock.calls[0]?.[0] as string;
+        const bytes = Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
+        await expect(sharp(bytes).metadata()).resolves.toMatchObject({ width: 900, height: 360 });
+        await expect(sharp(png).metadata()).resolves.toMatchObject({ width: 900, height: 300 });
+    });
+
     it("upscales a reference whose short side is below 300px", async () => {
         const png = await sharp({ create: { width: 444, height: 283, channels: 3, background: "red" } })
             .png()
@@ -91,7 +112,7 @@ describe("video provider image references", () => {
     });
 });
 
-function normalize(references: Array<{ type: "image"; role: "reference"; url: string }>) {
+function normalize(references: Array<{ type: "image"; role: "reference"; url: string; resizeConfirmed?: boolean }>) {
     return normalizeVideoProviderImageReferences({ references, userId: "user-one", internalOrigin: "http://internal", publicOrigin: "https://site.example" });
 }
 

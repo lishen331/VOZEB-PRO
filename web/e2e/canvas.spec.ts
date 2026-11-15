@@ -328,7 +328,7 @@ test("canvas video warns about undersized reference images and asks before upsca
         viewport: { x: 36, y: 110, k: 1 },
         nodes: [
             { ...node("small-ref", "image", 430, 60, 222, 141, { content: "https://cdn.example.com/canvas-small.png", remoteUrl: "https://cdn.example.com/canvas-small.png", naturalWidth: 444, naturalHeight: 283 }), title: "小截图" },
-            { ...node("large-ref", "image", 430, 260, 220, 124, { content: "https://cdn.example.com/canvas-large.png", remoteUrl: "https://cdn.example.com/canvas-large.png", naturalWidth: 1824, naturalHeight: 1024 }), title: "正常图" },
+            { ...node("large-ref", "image", 430, 260, 220, 124, { content: "https://cdn.example.com/canvas-large.png", remoteUrl: "https://cdn.example.com/canvas-large.png", naturalWidth: 900, naturalHeight: 300 }), title: "超宽图" },
             node("size-config", "config", 20, 90, 300, 180, { generationMode: "video", composerContent: "让小猫在广场上奔跑", size: "1280x720", seconds: "5", vquality: "720" }),
         ],
         connections: [
@@ -359,26 +359,37 @@ test("canvas video warns about undersized reference images and asks before upsca
         await expect(warning).toBeVisible();
         await expect(warning).toContainText("444×283");
         await expect(warning).not.toContainText("1824×1024");
-        await expect(warning).toContainText("放大会降低清晰度");
+        await expect(warning).toContainText("放大可能降低清晰度");
         await settingsTrigger.click();
 
         const generate = configNode.getByRole("button", { name: "开始生成" });
         await generate.click();
-        let dialog = page.getByRole("dialog").filter({ hasText: "参考图尺寸不符合视频模型要求" });
+        let dialog = page.getByRole("dialog").filter({ hasText: "参考图比例或尺寸可能不符合视频模型要求" });
         await expect(dialog).toBeVisible();
         await expect(dialog).toContainText("444×283 → 471×300（放大）");
-        await expect(dialog).toContainText("放大会降低参考图清晰度");
+        await expect(dialog).toContainText("900×300 → 900×360（等比缩放并补边）");
+        await expect(dialog).toContainText("0.4–2.5");
+        await expect(dialog).toContainText("放大可能降低清晰度");
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect
+            .poll(async () => {
+                const box = await dialog.boundingBox();
+                return Boolean(box && box.x >= 0 && box.x + box.width <= 391);
+            })
+            .toBe(true);
         await dialog.getByRole("button", { name: /取\s*消/ }).click();
+        await page.setViewportSize({ width: 1280, height: 900 });
         await expect(dialog).toBeHidden();
         expect(submitted).toHaveLength(0);
         await expectCanvasSaved(page);
         expect((await readCanvasProject(request, `/api/canvas/projects/${project.id}`)).nodes.some((item) => item.type === "video")).toBe(false);
 
         await generate.click();
-        dialog = page.getByRole("dialog").filter({ hasText: "参考图尺寸不符合视频模型要求" });
+        dialog = page.getByRole("dialog").filter({ hasText: "参考图比例或尺寸可能不符合视频模型要求" });
         await expect(dialog).toBeVisible();
-        await dialog.getByRole("button", { name: "继续生成" }).click();
+        await dialog.getByRole("button", { name: "同意缩放并生成" }).click();
         await expect.poll(() => submitted.length).toBe(1);
+        expect(submitted[0]).toMatchObject({ references: [expect.objectContaining({ resizeConfirmed: true }), expect.objectContaining({ resizeConfirmed: true })] });
     } finally {
         await deleteCanvasProject(request, project.id);
     }
@@ -788,6 +799,26 @@ test("canvas separates project management from the command menu and keeps assets
     });
 
     try {
+        // 公共素材标签依赖真实公共作品数据：CI 库为空时标签下没有任何条目，390px 段会等不到网格。
+        // 与同文件另一条资源侧栏用例一致，直接给出固定的公开素材。
+        await page.route("**/api/public/gallery?**", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ code: 0, data: { items: [{ slug: "public-demo", title: "公开示例", category: "测试", preview: { id: "public-image", mediaType: "image", mimeType: "image/png", url: "/logo.svg" } }] }, msg: "OK" }),
+            });
+        });
+        await page.route("**/api/public/works/public-demo", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    code: 0,
+                    data: { work: { slug: "public-demo", title: "公开示例", category: "测试", assets: [{ id: "public-image", mediaType: "image", mimeType: "image/png", role: "content", sortOrder: 0, metadata: {}, url: "/logo.svg" }] } },
+                    msg: "OK",
+                }),
+            });
+        });
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
         const surface = page.locator("[data-canvas-surface]");

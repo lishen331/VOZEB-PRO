@@ -8,7 +8,7 @@ import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-acce
 import { writeReferenceMediaDataUrl } from "@/lib/server/reference-asset-store";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import type { VideoGenerationReference } from "@/lib/video-reference-contract";
-import { fitVideoReferenceSize, VIDEO_REFERENCE_MAX_SIDE, VIDEO_REFERENCE_MIN_SIDE } from "@/lib/video-reference-size";
+import { fitVideoReferenceForVideo, fitVideoReferenceSize, VIDEO_REFERENCE_MAX_SIDE, VIDEO_REFERENCE_MIN_SIDE } from "@/lib/video-reference-size";
 
 const UPSTREAM_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg"]);
 
@@ -24,11 +24,14 @@ async function normalizeReference(reference: VideoGenerationReference, context: 
     const image = sharp(source.bytes, { failOn: "error" }).rotate();
     const { width = 0, height = 0, orientation } = await image.metadata();
     const [w, h] = orientation && orientation >= 5 ? [height, width] : [width, height];
-    const fitted = fitVideoReferenceSize(w, h);
-    if (fitted === "impossible") throw new Error(`参考图比例过于狭长（${w}×${h}），无法满足视频模型每边 ${VIDEO_REFERENCE_MIN_SIDE}–${VIDEO_REFERENCE_MAX_SIDE} 像素的要求，请先裁剪`);
+    const ratio = w / h;
+    const outOfRatio = ratio < 0.4 || ratio > 2.5;
+    if (outOfRatio && reference.resizeConfirmed !== true) throw new Error("参考图片宽高比必须在 0.4–2.5 之间，请先确认补边缩放后再生成视频");
+    const fitted = outOfRatio ? fitVideoReferenceForVideo(w, h) : fitVideoReferenceSize(w, h);
+    if (fitted === "impossible") throw new Error(`参考图尺寸（${w}×${h}）无法满足视频模型每边 ${VIDEO_REFERENCE_MIN_SIDE}–${VIDEO_REFERENCE_MAX_SIDE} 像素的要求`);
     if (!fitted && UPSTREAM_IMAGE_MIME_TYPES.has(source.mimeType)) return sourceReference;
 
-    const png = await (fitted ? image.resize(fitted.width, fitted.height, { fit: "fill" }) : image).png().toBuffer();
+    const png = await (fitted ? image.resize(fitted.width, fitted.height, outOfRatio ? { fit: "contain", background: { r: 0, g: 0, b: 0 } } : { fit: "fill" }) : image).png().toBuffer();
     const asset = await writeReferenceMediaDataUrl(`data:image/png;base64,${png.toString("base64")}`, "image", {
         ownerUserId: context.userId,
         source: "video-reference-normalization",

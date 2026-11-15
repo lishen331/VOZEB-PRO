@@ -8,6 +8,11 @@ describe("video reference contract", () => {
         expect(normalizeVideoGenerationReferences([{ type: "image", url: "https://cdn.example.com/reference.png" }])).toEqual([{ type: "image", url: "https://cdn.example.com/reference.png", role: "reference" }]);
     });
 
+    it("preserves explicit image resize consent in the validated request", () => {
+        expect(normalizeVideoGenerationReferences([{ type: "image", url: "https://cdn.example.com/wide.png", resizeConfirmed: true }])).toEqual([{ type: "image", url: "https://cdn.example.com/wide.png", role: "reference", resizeConfirmed: true }]);
+        expect(normalizeVideoGenerationReferences([{ type: "image", url: "https://cdn.example.com/wide.png", resizeConfirmed: "true" }])).not.toContainEqual(expect.objectContaining({ resizeConfirmed: true }));
+    });
+
     it("accepts one distinct first and last frame", () => {
         expect(
             normalizeVideoGenerationReferences([

@@ -2,8 +2,8 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "dad028ad7d2e865e4792c726c3897acd6a5e250a",
-    "syncedAt": "2026-11-12T09:33:17.051Z",
+    "sourceCommit": "ebb049666a0ccc6bc0b057bacd4828e85f60021d",
+    "syncedAt": "2026-11-13T10:29:07.264Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
@@ -49,7 +49,7 @@
         },
         {
             "path": "[id]/use-canvas-generation-actions.tsx",
-            "sha256": "682ca540a18efb059a9eb0a17ced66f676cfed61ef029997de6ab62acfc08f8d"
+            "sha256": "306790a4887c5128dce85a02d3c487e06ad61b04d6bd297eae7989dcf69c46e7"
         },
         {
             "path": "[id]/use-canvas-image-layer-actions.tsx",
@@ -137,11 +137,11 @@
         },
         {
             "path": "components/canvas-asset-insert.ts",
-            "sha256": "5dd2b46a5b802423660f0fa2b0ebaa89506fdf0fe6cfa15369a6f571826730bc"
+            "sha256": "fec962c5c98467496d779aa7f359bcb2544bc76f362e13a7fde15f8f05b95ea3"
         },
         {
             "path": "components/canvas-assets-panel.tsx",
-            "sha256": "62d8fb243d9ef15f3755b592e1711d21dcb01698ca0b1c160703d4cec1c20130"
+            "sha256": "c231689f37677488f0640e0c365eb31141f769e361a1dc5baa1396ed216ab705"
         },
         {
             "path": "components/canvas-assistant-elements.tsx",
@@ -285,7 +285,7 @@
         },
         {
             "path": "components/canvas-video-reference-settings.tsx",
-            "sha256": "c5f9a67604ac385b7742e52979728eb7c2cf0bd7b46be4c27e72e18deff9fd54"
+            "sha256": "a950d984b2367ea11640fe082c0e740d52b4a0100172b2b845a9491d61a144e0"
         },
         {
             "path": "components/canvas-video-settings-popover.tsx",
