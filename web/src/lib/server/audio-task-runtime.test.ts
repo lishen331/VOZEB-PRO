@@ -343,6 +343,27 @@ describe("audio task runtime submission safety", () => {
         expect(mocks.recordLog).toHaveBeenCalledWith(expect.objectContaining({ source: "unknown", status: "failed", error: "上游超时" }));
     });
 
+    it("derives the log source from the task surface when source is not a log source", async () => {
+        // 创建音频任务时 source 常被写成 audio-task，直接当日志来源会被判成 unknown。
+        const canvasTask = { ...audioTask(), status: "success" as const, source: "audio-task", surface: "canvas" as const };
+        const { ensureAudioGenerationLog } = await import("./audio-task-runtime");
+        await ensureAudioGenerationLog(canvasTask, "success");
+
+        expect(mocks.recordLog).toHaveBeenCalledWith(expect.objectContaining({ source: "canvas" }));
+    });
+
+    it("rewrites a log whose source was recorded as unknown", async () => {
+        // 只消费一次查询：recordLog 是 mock，写后不会再查，剩下一旦排进队列会污染后续用例。
+        mocks.getLog.mockResolvedValueOnce({ id: "audio-task:audio-one", source: "unknown" });
+        const task = { ...audioTask(), status: "success" as const, source: "", surface: "drama" as const };
+
+        const { ensureAudioGenerationLog } = await import("./audio-task-runtime");
+        await ensureAudioGenerationLog(task, "success");
+
+        expect(mocks.recordLog).toHaveBeenCalledWith(expect.objectContaining({ source: "drama" }));
+        mocks.getLog.mockReset();
+    });
+
     it("keeps practice dubbing logs labelled as practice", async () => {
         const task = { ...audioTask(), status: "success" as const, source: "canvas", executionProfile: "open-source-practice" as const, businessCode: "dubbing" as const };
 
