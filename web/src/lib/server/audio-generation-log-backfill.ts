@@ -41,9 +41,10 @@ export async function backfillAudioGenerationLogs(input: { dryRun?: boolean; lim
                 continue;
             }
             await ensureAudioGenerationLog(task, record.status === "success" ? "success" : "failed", task.error);
-            // ensureAudioGenerationLog 内部吞掉写库异常，用一次回读确认真的写进去了。
+            // ensureAudioGenerationLog 内部吞掉写库异常，用一次回读确认真的写进去了；
+            // 之前来源是 unknown 的记录，还要确认来源已经被改写，否则等于没补。
             const written = await getGenerationLogForUser(record.userId, `audio-task:${record.id}`);
-            if (written) result.written += 1;
+            if (written && written.source !== "unknown") result.written += 1;
             else result.failed += 1;
         }
     }

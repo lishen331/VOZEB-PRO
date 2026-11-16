@@ -520,6 +520,8 @@ export class GenerationLogsRepository {
                 conversation_id = EXCLUDED.conversation_id,
                 username = EXCLUDED.username,
                 display_name = EXCLUDED.display_name,
+                -- source 必须一起更新：修复前写入的记录来源是 unknown，回填要靠重写把它改成真实入口。
+                source = EXCLUDED.source,
                 status = EXCLUDED.status,
                 title = EXCLUDED.title,
                 prompt = EXCLUDED.prompt,
