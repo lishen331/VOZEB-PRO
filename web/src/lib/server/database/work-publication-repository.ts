@@ -410,7 +410,7 @@ export class WorkPublicationRepository {
         const keyword = input.keyword?.trim().toLowerCase() || "";
         const table = input.sourceType === "media" ? "library_assets" : input.sourceType === "canvas" ? "canvas_projects" : "drama_projects";
         const kindProjection = input.sourceType === "media" ? "kind" : "NULL::text AS kind";
-        const sourceFilter = input.sourceType === "media" ? "AND kind IN ('image', 'video')" : input.sourceType === "canvas" ? "AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
+        const sourceFilter = input.sourceType === "media" ? "AND kind = 'image'" : input.sourceType === "canvas" ? "AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
         const result = await this.db.query(
             `SELECT id, title, ${kindProjection}, updated_at, count(*) OVER() AS total_count
              FROM ${table}
