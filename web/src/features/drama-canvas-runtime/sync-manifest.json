@@ -2,8 +2,8 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "196d00f9a534640c01d6c29bc57674458aa6d057",
-    "syncedAt": "2026-11-17T07:26:24.281Z",
+    "sourceCommit": "d1ec8bcc84a1f8e33709f0d2ebc801d441d425d4",
+    "syncedAt": "2026-11-17T08:26:13.650Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
@@ -201,7 +201,7 @@
         },
         {
             "path": "components/canvas-node-angle-dialog.tsx",
-            "sha256": "71babd5d58d9c35ceef628463938c9a783bba4cbebe409561b9f98e82535cb9a"
+            "sha256": "fc57f9f42629afb6895d481cecb77874a707099899bd8fad440551f511146200"
         },
         {
             "path": "components/canvas-node-content.tsx",

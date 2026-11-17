@@ -156,9 +156,7 @@ function PresetTab({ active, onClick, children }: { active: boolean; onClick: ()
             type="button"
             aria-pressed={active}
             onClick={onClick}
-            className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                active ? "border-[var(--gm-accent)] bg-[var(--gm-accent)]/10 text-[var(--gm-accent)]" : "border-[var(--gm-border)] text-[var(--gm-text-2)] hover:bg-[var(--gm-bg-2)]"
-            }`}
+            className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${active ? "border-blue-500 bg-blue-500/10 text-blue-500" : "border-current/20 opacity-70 hover:bg-[var(--canvas-tool-hover)] hover:opacity-100"}`}
         >
             {children}
         </button>
@@ -201,12 +199,12 @@ function AngleSphereGizmo({ dataUrl, params }: { dataUrl: string; params: Canvas
     const thumb = Math.max(20, Math.min(34, 34 - (shotSizeDistance(params.shotSize) - 2.6) * 2.2));
     return (
         <svg viewBox="0 0 200 200" className="h-56 w-56" role="img" aria-label="机位球面示意">
-            <circle cx="100" cy="100" r={SPHERE_RADIUS} className="fill-transparent stroke-[var(--gm-border-strong)]" strokeWidth="1" />
+            <circle cx="100" cy="100" r={SPHERE_RADIUS} className="fill-transparent stroke-current" strokeOpacity={0.45} strokeWidth="1" />
             {[0, 1, 2, 3].map((index) => (
-                <ellipse key={`lat-${index}`} cx="100" cy="100" rx={SPHERE_RADIUS} ry={SPHERE_RADIUS * Math.abs(Math.sin(((index + 1) * Math.PI) / 5))} className="fill-none stroke-[var(--gm-border)]" strokeWidth="0.8" />
+                <ellipse key={`lat-${index}`} cx="100" cy="100" rx={SPHERE_RADIUS} ry={SPHERE_RADIUS * Math.abs(Math.sin(((index + 1) * Math.PI) / 5))} className="fill-none stroke-current" strokeOpacity={0.2} strokeWidth="0.8" />
             ))}
             {[0, 1, 2, 3].map((index) => (
-                <ellipse key={`lon-${index}`} cx="100" cy="100" rx={SPHERE_RADIUS * Math.abs(Math.cos((index * Math.PI) / 4))} ry={SPHERE_RADIUS} className="fill-none stroke-[var(--gm-border)]" strokeWidth="0.8" />
+                <ellipse key={`lon-${index}`} cx="100" cy="100" rx={SPHERE_RADIUS * Math.abs(Math.cos((index * Math.PI) / 4))} ry={SPHERE_RADIUS} className="fill-none stroke-current" strokeOpacity={0.2} strokeWidth="0.8" />
             ))}
             <defs>
                 <clipPath id="angle-sphere-thumb">
@@ -214,9 +212,9 @@ function AngleSphereGizmo({ dataUrl, params }: { dataUrl: string; params: Canvas
                 </clipPath>
             </defs>
             <image href={imagePreviewUrl(dataUrl, 256)} x={100 - thumb} y={100 - thumb} width={thumb * 2} height={thumb * 2} preserveAspectRatio="xMidYMid slice" clipPath="url(#angle-sphere-thumb)" />
-            <circle cx="100" cy="100" r={thumb} className="fill-none stroke-[var(--gm-border-strong)]" strokeWidth="1" />
-            <line x1="100" y1="100" x2={marker.cx} y2={marker.cy} className="stroke-[var(--gm-accent)]" strokeWidth="1.4" strokeDasharray="3 3" />
-            <circle cx={marker.cx} cy={marker.cy} r={marker.depth >= 0 ? 6 : 4.5} className="fill-[var(--gm-accent)]" opacity={marker.depth >= 0 ? 1 : 0.6} />
+            <circle cx="100" cy="100" r={thumb} className="fill-none stroke-current" strokeOpacity={0.45} strokeWidth="1" />
+            <line x1="100" y1="100" x2={marker.cx} y2={marker.cy} className="stroke-blue-500" strokeWidth="1.4" strokeDasharray="3 3" />
+            <circle cx={marker.cx} cy={marker.cy} r={marker.depth >= 0 ? 6 : 4.5} className="fill-blue-500" opacity={marker.depth >= 0 ? 1 : 0.6} />
         </svg>
     );
 }
@@ -245,11 +243,7 @@ function AngleCubeGizmo({ dataUrl, params }: { dataUrl: string; params: CanvasIm
                 }}
             >
                 {faces.map((face) => (
-                    <div
-                        key={face.key}
-                        className="absolute inset-0 border border-[color-mix(in_srgb,var(--gm-accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--gm-accent)_8%,transparent)]"
-                        style={{ transform: face.transform, backfaceVisibility: "hidden" }}
-                    >
+                    <div key={face.key} className="absolute inset-0 border border-blue-500/45 bg-blue-500/10" style={{ transform: face.transform, backfaceVisibility: "hidden" }}>
                         {face.image ? <img src={imagePreviewUrl(dataUrl, 256)} alt="" className="size-full object-cover" draggable={false} /> : null}
                     </div>
                 ))}
