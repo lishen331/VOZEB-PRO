@@ -368,14 +368,19 @@ export default function AssetsPage() {
 
             <Modal title={editingAsset ? "编辑素材" : "新增素材"} open={isAssetOpen} width={980} onCancel={() => setIsAssetOpen(false)} onOk={() => void saveAsset()} confirmLoading={saving} okText="保存" cancelText="取消" destroyOnHidden>
                 <div className="grid gap-3 pt-1 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <Form form={form} layout="vertical" requiredMark={false} initialValues={{ kind: "text", tags: [] }}>
+                    {/* 不用 initialValues：Modal 是 destroyOnHidden，每次打开 Form 都会重新挂载，
+                        mount 时 seed(initialValues) 会把 openEdit/openCreate 刚写入的值全部重置掉，
+                        表现就是「保存过再打开，里面是空的」。初值统一由两个 open 函数显式 setFieldsValue。 */}
+                    <Form form={form} layout="vertical" requiredMark={false}>
                         <Form.Item name="kind" label="类型">
                             <Select
                                 options={[
                                     { label: "文本", value: "text" },
                                     { label: "图片", value: "image" },
-                                    { label: "视频", value: "video" },
-                                    { label: "音频", value: "audio" },
+                                    // 视频 / 音频：实现全部保留，现阶段先不露出。
+                                    // 发布链路只跑通图片，等视频/音频入口补齐后把这两项加回来即可。
+                                    // { label: "视频", value: "video" },
+                                    // { label: "音频", value: "audio" },
                                 ]}
                                 onChange={(value: AssetKind) => {
                                     setFormKind(value);

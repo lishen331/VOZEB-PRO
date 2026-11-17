@@ -232,6 +232,11 @@ export function revokeWorkPublication(id: string) {
     return requestWorkPublication<{ work: WorkPublication }>(`/api/works/${encodeURIComponent(id)}/revoke`, { method: "POST" }).then((data) => data.work);
 }
 
+/** 撤回审核：pending → draft，撤回后可以继续编辑再提交 */
+export function withdrawWorkPublication(id: string) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/works/${encodeURIComponent(id)}/withdraw`, { method: "POST" }).then((data) => data.work);
+}
+
 export function relistWorkPublication(id: string) {
     return requestWorkPublication<{ work: WorkPublication }>(`/api/works/${encodeURIComponent(id)}/relist`, { method: "POST" }).then((data) => data.work);
 }

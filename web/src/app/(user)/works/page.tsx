@@ -5,7 +5,7 @@ import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
-import { ArrowUpFromLine, Ban, Compass, Copy, Eye, Film, GalleryVerticalEnd, Image as ImageIcon, Pencil, Plus, RefreshCw, Scale, Search, Send, Trash2 } from "lucide-react";
+import { ArrowUpFromLine, Ban, Compass, Copy, Eye, Film, GalleryVerticalEnd, Image as ImageIcon, Pencil, Plus, RefreshCw, RotateCcw, Scale, Search, Send, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -17,12 +17,14 @@ import {
     listWorkPublications,
     relistWorkPublication,
     revokeWorkPublication,
+    withdrawWorkPublication,
     submitWorkPublication,
     type WorkPublication,
     type WorkPublicationModerationStatus,
     type WorkPublicationSourceType,
 } from "@/services/api/work-publications";
 import { submitWorkAppeal } from "@/services/api/work-governance";
+import { PublicWorkPreviewModal } from "@/components/works/public-work-preview-modal";
 import { WorkPublicationEditor } from "./components/work-publication-editor";
 import { formatWorkTime, SOURCE_TYPE_LABELS, VISIBILITY_LABELS, workSharePath, workStatusLabel, WORK_STATUS_OPTIONS } from "./work-publication-values";
 
@@ -48,6 +50,9 @@ export default function WorksPage() {
     const [editingWorkId, setEditingWorkId] = useState<string>();
     const [appealWork, setAppealWork] = useState<WorkPublication>();
     const [appealDescription, setAppealDescription] = useState("");
+    // 预览改在页内弹窗打开：此前用 window.open 跳到 /share/<slug>，等于把人踢出工作区，
+    // 关掉新标签页才回得来，是遗留毛病
+    const [previewSlug, setPreviewSlug] = useState("");
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedKeyword(keyword.trim()), 300);
@@ -100,6 +105,28 @@ export default function WorksPage() {
         } finally {
             setActionId("");
         }
+    };
+
+    const withdraw = (work: WorkPublication) => {
+        modal.confirm({
+            title: "撤回审核？",
+            content: "作品会退回草稿状态，你可以继续修改后重新提交。已经上线的旧版本不受影响。",
+            okText: "撤回修改",
+            cancelText: "继续等待审核",
+            onOk: async () => {
+                setActionId(work.id);
+                try {
+                    await withdrawWorkPublication(work.id);
+                    message.success("已撤回审核，可以继续修改");
+                    await load();
+                } catch (withdrawError) {
+                    message.error(withdrawError instanceof Error ? withdrawError.message : "撤回失败");
+                    throw withdrawError;
+                } finally {
+                    setActionId("");
+                }
+            },
+        });
     };
 
     const takeDown = (work: WorkPublication) => {
@@ -267,11 +294,12 @@ export default function WorksPage() {
                                     setEditorOpen(true);
                                 }}
                                 onSubmit={() => void submit(work)}
+                                onWithdraw={() => withdraw(work)}
                                 onTakeDown={() => takeDown(work)}
                                 onRelist={() => relist(work)}
                                 onDelete={() => remove(work)}
                                 onCopy={() => copyText(new URL(workSharePath(work.slug), window.location.origin).toString(), "作品链接已复制")}
-                                onPreview={() => window.open(workSharePath(work.slug), "_blank", "noopener,noreferrer")}
+                                onPreview={() => setPreviewSlug(work.slug)}
                                 onAppeal={() => {
                                     setAppealDescription("");
                                     setAppealWork(work);
@@ -306,6 +334,7 @@ export default function WorksPage() {
                     void load();
                 }}
             />
+            <PublicWorkPreviewModal slug={previewSlug || undefined} onClose={() => setPreviewSlug("")} />
             <Modal
                 title="申诉恢复作品"
                 open={Boolean(appealWork)}
@@ -328,6 +357,7 @@ function WorkListItem({
     busy,
     onEdit,
     onSubmit,
+    onWithdraw,
     onTakeDown,
     onRelist,
     onDelete,
@@ -339,6 +369,7 @@ function WorkListItem({
     busy: boolean;
     onEdit: () => void;
     onSubmit: () => void;
+    onWithdraw: () => void;
     onTakeDown: () => void;
     onRelist: () => void;
     onDelete: () => void;
@@ -401,6 +432,12 @@ function WorkListItem({
                     {canSubmit ? (
                         <Button size="small" type="primary" icon={<Send className="size-3.5" />} onClick={onSubmit} loading={busy}>
                             提交审核
+                        </Button>
+                    ) : null}
+                    {/* 审核中也能改：撤回后退回草稿，不必等管理员驳回 */}
+                    {active && version.moderationStatus === "pending" ? (
+                        <Button size="small" icon={<RotateCcw className="size-3.5" />} onClick={onWithdraw} disabled={busy}>
+                            撤回修改
                         </Button>
                     ) : null}
                     {active && work.publishedVersionId ? (
