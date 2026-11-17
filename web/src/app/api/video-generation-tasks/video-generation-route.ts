@@ -560,26 +560,31 @@ export async function createUpstream(
     const lastFrameUrl = lastFrame?.url || "";
     const dimensions = videoDimensions(raw.size, raw.vquality);
     const generateAudio = raw.videoGenerateAudio !== false && raw.videoGenerateAudio !== "false";
+    const promptExpansion = resolvePromptExpansionMode(raw.videoPromptExpansion, channel.capabilityProfile?.promptExpansionModes);
     if (isGeminiVideoChannel(channel)) {
         return createGeminiVideoUpstream({ userId, origin, cookie, channel, prompt, raw, references, generateAudio, multipliers, billingRequestId, billingContext, executionProfile });
     }
     if (isAgnesVideoChannel(channel.baseUrl, channel.model, channel.advancedConfig?.protocol)) {
         return createAgnesVideoUpstream({ origin, cookie, channel, prompt, raw, references, multipliers, billingRequestId, billingContext, executionProfile });
     }
+    // `adaptive_in_keyframe`: the upstream derives the ratio from the input frames, so a
+    // keyframe request must send `adaptive`; a text-to-video request still uses the picker.
+    const requestedRatio = resolveVideoRequestRatio(channel, raw.size, Boolean(firstFrameUrl));
     const values = {
         model: channel.model,
         prompt,
         duration: duration(raw.videoSeconds),
         seconds: duration(raw.videoSeconds),
-        ratio: ratio(raw.size),
-        aspect_ratio: ratio(raw.size),
-        size: sizeValue(raw.size),
+        ratio: requestedRatio,
+        aspect_ratio: requestedRatio,
+        size: requestedRatio === "adaptive" ? "adaptive" : sizeValue(raw.size),
         resolution: resolution(raw.vquality),
         quality: resolution(raw.vquality),
         width: dimensions.width,
         height: dimensions.height,
         generate_audio: generateAudio,
         watermark: booleanValue(raw.videoWatermark),
+        prompt_expansion_mode: promptExpansion,
         images: requestImages,
         videos,
         audios,
@@ -612,6 +617,7 @@ export async function createUpstream(
         quality: values.quality,
         generate_audio: generateAudio,
         watermark: booleanValue(raw.videoWatermark),
+        ...(promptExpansion ? { prompt_expansion_mode: promptExpansion } : {}),
         ...(requestImage ? { image: requestImage } : {}),
         ...(requestImages.length ? { images: requestImages, image_urls: requestImages, reference_images: requestImages } : {}),
         ...(videos.length ? { video: videos[0], videos, reference_videos: videos } : {}),
@@ -1037,13 +1043,41 @@ function referenceUrls(items: readonly VideoGenerationReference[], type: VideoGe
     return unique(items.filter((item) => item.type === type).map((item) => clean(item.url)));
 }
 
+/** The subset of a capability profile that changes how the request body is built. */
+type VideoCapabilityHints = {
+    videoRatioMode?: "adaptive_in_keyframe";
+    keyframeReferenceExclusive?: boolean;
+    promptExpansionModes?: string[];
+};
+
 /**
- * Only models that explicitly declare `referenceModeExclusive` get the keyframe/multi-image
- * split. Everything else keeps the historical "send whatever the template declares" behaviour.
+ * Only models that explicitly declare `referenceModeExclusive` (model config) or
+ * `keyframeReferenceExclusive` (capability profile) get the keyframe/multi-image split.
+ * Everything else keeps the historical "send whatever the template declares" behaviour.
  */
-function resolveReferenceModeExclusive(channel: NonNullable<ReturnType<typeof toSystemGenerationChannel>>, model: string) {
+function resolveReferenceModeExclusive(channel: { advancedConfig?: NonNullable<ReturnType<typeof toSystemGenerationChannel>>["advancedConfig"]; capabilityProfile?: VideoCapabilityHints }, model: string) {
+    if (channel.capabilityProfile?.keyframeReferenceExclusive === true) return true;
     const modelConfig = resolveChannelModelConfig(channel.advancedConfig, model);
     return modelConfig?.referenceModeExclusive === true;
+}
+
+/**
+ * Prompt expansion is opt-in per model: only a model that declares the accepted levels gets
+ * the field, and the value must be one of them, otherwise the declared default is sent.
+ */
+export function resolvePromptExpansionMode(value: unknown, modes: readonly string[] | undefined) {
+    if (!modes?.length) return undefined;
+    const selected = clean(value);
+    return selected && modes.includes(selected) ? selected : modes.includes("balanced") ? "balanced" : modes[0];
+}
+
+/**
+ * `adaptive_in_keyframe` models derive the ratio from the input frames: a keyframe request
+ * must send `adaptive`, while a text-to-video request keeps whatever the user picked.
+ */
+export function resolveVideoRequestRatio(channel: { capabilityProfile?: VideoCapabilityHints }, size: unknown, hasFirstFrame: boolean) {
+    if (channel.capabilityProfile?.videoRatioMode === "adaptive_in_keyframe" && hasFirstFrame) return "adaptive";
+    return ratio(size);
 }
 
 function videoReferenceContent(prompt: string, references: readonly VideoGenerationReference[]) {

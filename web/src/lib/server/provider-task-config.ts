@@ -43,6 +43,10 @@ export function buildVideoProviderRequest(template: string | undefined, defaults
  * (`image_url` / `end_image_url`) and multi-image references (`image_urls`). Pick one group
  * from what the task actually has: a first frame means keyframe mode, otherwise multi-image.
  * Channels without the flag are returned untouched, so their behaviour cannot change.
+ *
+ * The same split applies to the `content` array (`videoReferenceContent`): MiniMax H3 rejects
+ * `first_frame` / `last_frame` mixed with `reference_image` / `reference_video` /
+ * `reference_audio`, and the flat-key cleanup cannot reach inside that array.
  */
 export function applyExclusiveVideoReferenceMode<T extends TemplateValues>(values: T, options: { exclusive: boolean; hasFirstFrame: boolean; hasLastFrame?: boolean }): T {
     if (!options.exclusive) return values;
@@ -52,15 +56,28 @@ export function applyExclusiveVideoReferenceMode<T extends TemplateValues>(value
         if (!options.hasLastFrame) {
             for (const key of LAST_FRAME_REFERENCE_KEYS) delete next[key];
         }
+        retainContentRoles(next, KEYFRAME_CONTENT_ROLES);
         return next as T;
     }
     for (const key of KEYFRAME_REFERENCE_KEYS) delete next[key];
+    retainContentRoles(next, REFERENCE_CONTENT_ROLES);
     return next as T;
 }
 
 const MULTI_IMAGE_REFERENCE_KEYS = ["images", "image_urls", "reference_images"] as const;
 const LAST_FRAME_REFERENCE_KEYS = ["end_image_url", "last_frame", "last_frame_url"] as const;
 const KEYFRAME_REFERENCE_KEYS = ["image_url", "image", "first_frame", "first_frame_url", ...LAST_FRAME_REFERENCE_KEYS] as const;
+const KEYFRAME_CONTENT_ROLES = new Set(["first_frame", "last_frame"]);
+const REFERENCE_CONTENT_ROLES = new Set(["reference_image", "reference_video", "reference_audio"]);
+
+/** Drops `content` items whose `role` belongs to the other reference family; unroled items (text) stay. */
+function retainContentRoles(values: TemplateValues, roles: ReadonlySet<string>) {
+    if (!Array.isArray(values.content)) return;
+    values.content = values.content.filter((item) => {
+        const role = item && typeof item === "object" ? (item as { role?: unknown }).role : undefined;
+        return typeof role !== "string" || roles.has(role);
+    });
+}
 
 export function assertReferenceUrls(config: SystemChannelAdvancedConfig | undefined, references: Array<{ url?: string }>, publicUrlRequired = false) {
     if (!references.length) return;
