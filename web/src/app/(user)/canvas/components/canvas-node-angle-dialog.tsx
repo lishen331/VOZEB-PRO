@@ -244,7 +244,7 @@ function AngleCubeGizmo({ dataUrl, params }: { dataUrl: string; params: CanvasIm
                 }}
             >
                 {faces.map((face) => (
-                    <div key={face.key} className="absolute inset-0 border" style={{ borderColor: "rgba(56,189,248,0.45)", backgroundColor: "rgba(56,189,248,0.08)" }} style={{ transform: face.transform, backfaceVisibility: "hidden" }}>
+                    <div key={face.key} className="absolute inset-0 border" style={{ borderColor: "rgba(56,189,248,0.45)", backgroundColor: "rgba(56,189,248,0.08)", transform: face.transform, backfaceVisibility: "hidden" }}>
                         {face.image ? <img src={imagePreviewUrl(dataUrl, 256)} alt="" className="size-full object-cover" draggable={false} /> : null}
                     </div>
                 ))}
