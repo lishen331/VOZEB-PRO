@@ -78,7 +78,7 @@ export async function listWorkPublicationsForUser(userId: string, input: { page?
     await assertWorkPublicationReady();
     const status = moderationStatus(input.status);
     const takenDown = status === "taken_down";
-    return createPostgresRepositories().workPublications.listWorks({
+    const page = await createPostgresRepositories().workPublications.listWorks({
         ownerUserId: requiredId(userId, "用户"),
         moderationStatus: takenDown ? undefined : status,
         lifecycleStatus: status && !takenDown ? "active" : undefined,
@@ -87,6 +87,16 @@ export async function listWorkPublicationsForUser(userId: string, input: { page?
         page: input.page,
         pageSize: input.pageSize,
     });
+    const registrations = await getLocalMediaRegistrations(page.items.flatMap((work) => (work.currentPreview ? [work.currentPreview.storageKey] : [])));
+    const registrationByKey = new Map(registrations.map((registration) => [registration.storageKey, registration]));
+    return {
+        ...page,
+        items: page.items.map((work) => {
+            if (!work.currentPreview) return work;
+            const registration = registrationByKey.get(work.currentPreview.storageKey);
+            return { ...work, currentPreview: { ...work.currentPreview, previewUrl: registration ? privateAssetUrl(registration) : undefined } };
+        }),
+    };
 }
 
 export async function listWorkPublicationsForAdmin(input: { page?: number; pageSize?: number; status?: unknown; lifecycleStatus?: unknown; origin?: unknown; keyword?: unknown } = {}) {
@@ -351,6 +361,28 @@ export async function submitWorkPublication(userIdValue: unknown, workIdValue: u
     });
 }
 
+/**
+ * 撤回审核：pending → draft，让作者在等审核期间就能改内容。
+ * 已通过的版本不走这里（要改就创建新版本），已下架的也不走（要先编辑）。
+ */
+export async function withdrawWorkPublication(userIdValue: unknown, workIdValue: unknown) {
+    await assertWorkPublicationReady();
+    const userId = requiredId(userIdValue, "用户");
+    const workId = requiredId(workIdValue, "作品");
+    return withPostgresTransaction(async (client) => {
+        const repos = createPostgresRepositories(client);
+        const work = await repos.workPublications.getWorkById(workId, userId, true);
+        if (!work) throw new WorkPublicationServiceError("作品不存在", 404);
+        if (!work.currentVersionId) throw new WorkPublicationServiceError("作品当前版本不存在", 409);
+        const version = await repos.workPublications.getVersionById(work.currentVersionId, true);
+        if (!version || version.workId !== work.id) throw new WorkPublicationServiceError("作品版本不存在", 404);
+        if (version.moderationStatus === "draft") return requiredWorkDetail(repos, work.id, userId);
+        if (version.moderationStatus !== "pending") throw new WorkPublicationServiceError("只有审核中的版本可以撤回", 409);
+        if (!(await repos.workPublications.withdrawVersion(version.id))) throw new WorkPublicationServiceError("作品状态已变化，请刷新后重试", 409);
+        return requiredWorkDetail(repos, work.id, userId);
+    });
+}
+
 export async function revokeWorkPublication(userIdValue: unknown, workIdValue: unknown) {
     await assertWorkPublicationReady();
     const userId = requiredId(userIdValue, "用户");
@@ -533,18 +565,26 @@ async function assertWorkPublicationReady() {
     await ensurePostgresSchema();
 }
 
+/** 现阶段用户投稿允许发布的媒体类型：只开图片，视频/音频等入口补齐后再加回来 */
+const PUBLISHABLE_USER_MEDIA_TYPES: readonly ("image" | "video")[] = ["image"];
+
+/** 用户投稿的素材来源暂不开放短剧（代码保留，前端入口隐藏） */
 async function resolveSource(repos: WorkPublicationRepositories, userId: string, sourceType: PublishedWorkSourceType, sourceId: string) {
     const source = await repos.workPublications.getSourceJson(userId, sourceType, sourceId);
     if (!source) throw new WorkPublicationServiceError("发布来源不存在", 404);
     const storageKeys = collectLocalMediaStorageKeys(source.value).slice(0, 200);
     const registrations = await getLocalMediaRegistrations(storageKeys);
     const sourceKeySet = new Set(storageKeys);
-    const candidates = registrations
+    const media = registrations
         .filter((item) => sourceKeySet.has(item.storageKey) && item.ownerUserId === userId && item.storageClass === "permanent")
         .filter((item): item is LocalMediaRegistration & { type: "image" | "video" } => item.type === "image" || item.type === "video")
-        .map(mediaCandidate)
         .sort((left, right) => storageKeys.indexOf(left.storageKey) - storageKeys.indexOf(right.storageKey));
-    if (!candidates.length) throw new WorkPublicationServiceError("该来源没有可公开的永久媒体", 409);
+    // 现阶段用户投稿只开放图片。视频/音频的解析与官方通路都还在，等前端入口补齐后
+    // 把对应类型加进 PUBLISHABLE_USER_MEDIA_TYPES 即可放开，不需要改这里的逻辑。
+    const candidates = media.filter((item) => PUBLISHABLE_USER_MEDIA_TYPES.includes(item.type)).map(mediaCandidate);
+    if (!candidates.length) {
+        throw new WorkPublicationServiceError(media.length ? "当前仅支持发布图片作品，视频与音频暂未开放" : "该来源没有可公开的永久媒体", 409);
+    }
     return {
         sourceType,
         sourceId,

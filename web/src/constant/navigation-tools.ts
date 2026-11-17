@@ -14,7 +14,8 @@ export const navigationGroups = [
 export const landingNavigationTools = [
     { slug: "create", label: "Agent" },
     { slug: "drama", label: "短剧" },
-    { slug: "gallery", label: "广场" },
+    // gallery slug 已废弃：/gallery 做了 permanentRedirect → /community，不再需要独立入口
+    // { slug: "gallery", label: "广场" },
 ] as const;
 
 export const navigationTools = [

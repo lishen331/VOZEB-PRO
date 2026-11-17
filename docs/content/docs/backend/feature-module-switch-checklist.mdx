@@ -1,0 +1,100 @@
+# 功能模块开关清单
+
+> 建立于 2026-11-17。每次新增或下线一个前台功能模块时，对照本清单逐项核查。
+>
+> **反例**：2026-11-17 IP 库/广场排查中发现，`/gallery` 路径和首页作品区的入口长期不受「广场」开关控制，根本原因是新增模块时只更新了部分位置。
+
+---
+
+## 必须同步的 5 处
+
+### 1. `FEATURE_MODULES` 定义
+
+**文件**：`web/src/lib/feature-modules.ts`
+
+每个模块必须有：
+- `id`：全局唯一的模块标识符
+- `pathPrefixes`：**该模块下所有路径前缀，包括旧路径/别名**（例如 `/gallery` 是 `/community` 的旧路径，必须一并列入，否则旧路径不受开关控制）
+- `routeRoot`：用于 `featureModuleForPathname` 映射
+- `group`、`icon`、`name`、`description`
+
+```ts
+// 示例（community 模块同时包含 /gallery 旧路径）
+{ id: "community", pathPrefixes: ["/community", "/gallery"], routeRoot: "community", ... }
+```
+
+---
+
+### 2. `USER_NAVIGATION_MENU_PERMISSION_GROUPS` 分组
+
+**文件**：`web/src/lib/feature-modules.ts`，`USER_NAVIGATION_MENU_PERMISSION_GROUPS` 常量。
+
+新模块必须加入对应的分组，否则：
+- 后台「角色权限」页面不会显示这个开关
+- `DEFAULT_USER_NAVIGATION_MENU_PERMISSIONS` 不包含它，所有用户默认无权限
+
+---
+
+### 3. 后台开关卡片
+
+**文件**：`web/src/components/admin/admin-upstream-sections.tsx`，第 365 行附近。
+
+这里遍历 `FEATURE_MODULES` 生成开关卡片，通常不需要额外改动。
+但如果模块有特殊行为（如 `drama-lab` 点击跳到专属配置页），需要在 `onClick` 处补充逻辑。
+
+---
+
+### 4. `isUserNavigationPathAllowed` 特殊分支
+
+**文件**：`web/src/lib/feature-modules.ts`，`isUserNavigationPathAllowed` 函数。
+
+默认逻辑是：查 `featureModules[moduleId]` 和 `menuPermissions.includes(moduleId)`。
+以下情况需要额外分支：
+- 路径有多个并存入口（例如 `/school/join` 不需要老师身份也可访问）
+- 权限不走 `menuPermissions`（例如 `school-management` 走 `canManageSchool`）
+- 有子路径需要差异化处理
+
+---
+
+### 5. 首页和侧栏所有入口的条件渲染
+
+模块开关只控制「路由是否可访问」，**不会自动隐藏页面上的入口链接**。
+必须手动检查以下文件并加 `featureModules["<id>"] !== false` 条件：
+
+| 文件 | 覆盖内容 |
+|---|---|
+| `web/src/app/home/gamma-home-view.tsx` | 首页整体布局，作品区、广场区块 |
+| `web/src/app/home/gamma-home-cases.tsx` | 首页「画布创作案例」里的「全部作品 →」链接 |
+| `web/src/app/home/gamma-home-gallery.tsx` | 首页作品广场区（整个组件） |
+| `web/src/components/layout/workspace-navigation.ts` | 侧栏导航项（通过 `workspaceNavItems` 自动过滤） |
+| `web/src/components/layout/app-workspace-shell.tsx` | 工作空间外壳，确认侧栏接到了 featureModules |
+
+---
+
+## 新增模块操作步骤
+
+1. `feature-modules.ts` → 加 `FEATURE_MODULES` 条目（包含所有路径别名）
+2. `feature-modules.ts` → 加入 `USER_NAVIGATION_MENU_PERMISSION_GROUPS` 对应分组
+3. `workspace-navigation.ts` → 加 `ENTRIES` 条目（侧栏自动过滤，通常不需要额外改）
+4. `isUserNavigationPathAllowed` → 确认默认逻辑够用，不够则加分支
+5. 首页 `gamma-home-view.tsx` → 若有入口区块，加条件渲染
+6. 其他入口页面 → grep 新模块路径，确认所有硬编码链接都有条件保护
+
+## 下线/隐藏模块操作步骤
+
+1. 在 `VISIBLE_SOURCE_TYPES` 或类似常量里注释掉（只隐藏，保留实现）
+2. 对应的入口链接/按钮加注释说明为什么隐藏
+3. 不要删除 `FEATURE_MODULES` 条目（后台开关仍需正常展示）
+4. 不要删除 `pathPrefixes` 里的旧路径（redirect 仍需正常工作）
+
+---
+
+## 本次修复案例（2026-11-17）
+
+**问题**：后台关掉「广场」开关后，首页作品区和「全部作品 →」链接仍然可见；`/gallery` 路径不受开关控制（`featureModuleForPathname("/gallery")` 返回 `undefined`，`isUserNavigationPathAllowed` 直接放行）。
+
+**修复**：
+- `feature-modules.ts`：`community` 模块的 `pathPrefixes` 加入 `/gallery`
+- `gamma-home-view.tsx`：`GammaHomeGallery` 加 `featureModules["community"] !== false` 条件渲染
+- `gamma-home-cases.tsx`：「全部作品 →」链接受 `communityEnabled` prop 控制
+- `navigation-tools.ts`：废弃的 `gallery` slug 注释掉

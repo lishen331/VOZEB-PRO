@@ -213,4 +213,31 @@ describe("exclusive video reference mode", () => {
         expect(result).not.toHaveProperty("image_urls");
         expect(result).not.toHaveProperty("images");
     });
+
+    // MiniMax H3 shape: keyframes and reference materials share one `content` array and the
+    // upstream rejects both families in the same request, so the array needs the same split.
+    const h3Content = [
+        { type: "text", text: "test" },
+        { type: "image_url", role: "first_frame", image_url: { url: "https://cdn.example/first.png" } },
+        { type: "image_url", role: "last_frame", image_url: { url: "https://cdn.example/last.png" } },
+        { type: "image_url", role: "reference_image", image_url: { url: "https://cdn.example/a.png" } },
+        { type: "video_url", role: "reference_video", video_url: { url: "https://cdn.example/v.mp4" } },
+        { type: "audio_url", role: "reference_audio", audio_url: { url: "https://cdn.example/a.mp3" } },
+    ];
+
+    it("drops reference materials from content when the task carries keyframes", () => {
+        const result = applyExclusiveVideoReferenceMode({ ...both, content: h3Content.map((item) => ({ ...item })) }, { exclusive: true, hasFirstFrame: true, hasLastFrame: true });
+        expect(result.content).toEqual([h3Content[0], h3Content[1], h3Content[2]]);
+    });
+
+    it("drops keyframes from content when the task carries only reference materials", () => {
+        const result = applyExclusiveVideoReferenceMode({ ...both, content: h3Content.map((item) => ({ ...item })) }, { exclusive: true, hasFirstFrame: false });
+        expect(result.content).toEqual([h3Content[0], h3Content[3], h3Content[4], h3Content[5]]);
+    });
+
+    it("leaves content untouched for channels that did not opt in", () => {
+        const content = h3Content.map((item) => ({ ...item }));
+        const result = applyExclusiveVideoReferenceMode({ ...both, content }, { exclusive: false, hasFirstFrame: true, hasLastFrame: true });
+        expect(result.content).toEqual(h3Content);
+    });
 });

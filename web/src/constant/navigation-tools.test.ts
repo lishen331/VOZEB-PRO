@@ -7,10 +7,10 @@ import { normalizeFeatureModuleSettings } from "@/lib/feature-modules";
 
 describe("user navigation order", () => {
     it("keeps the landing page entries in their dedicated order", () => {
+        // gallery slug 已废弃（/gallery 做了 permanentRedirect → /community），落地页不再有独立广场入口
         expect(landingNavigationTools).toEqual([
             { slug: "create", label: "Agent" },
             { slug: "drama", label: "短剧" },
-            { slug: "gallery", label: "广场" },
         ]);
     });
 

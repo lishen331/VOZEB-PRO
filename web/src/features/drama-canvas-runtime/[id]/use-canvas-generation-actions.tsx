@@ -21,7 +21,7 @@ import { applyCameraPrompt } from "../utils/canvas-camera";
 import { canvasContainerChildIds, canvasContainerGeneratableIds, canvasNodeGenerationMode } from "../utils/canvas-container-group";
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
 import { buildPanoramaPrompt } from "../utils/canvas-panorama";
-import { canvasVideoReferenceMetadata, normalizeCanvasVideoGenerationMode, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
+import { canvasVideoReferenceCounts, canvasVideoReferenceMetadata, normalizeCanvasVideoGenerationMode, resolveCanvasVideoGenerationReferences, restoreCanvasVideoGenerationReferences } from "../utils/canvas-video-references";
 import { canvasUnsupportedReferenceIssues } from "../utils/canvas-model-capabilities";
 
 import { NODE_STATUS_ERROR, NODE_STATUS_IDLE, NODE_STATUS_LOADING, NODE_STATUS_SUCCESS, VIDEO_NODE_MAX_HEIGHT, VIDEO_NODE_MAX_WIDTH, createCanvasNode } from "./canvas-page-elements";
@@ -399,7 +399,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                         availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(nodeId, nodesRef.current, connectionsRef.current),
                         sourceImage: !isTextToVideo && sourceNode && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                     });
-                    if (blockUnsupportedReferences(generationConfig.model, { images: videoReferences.images.length, videos: videoReferences.videos.length, audios: videoReferences.audios.length })) {
+                    if (blockUnsupportedReferences(generationConfig.model, canvasVideoReferenceCounts(videoReferences))) {
                         if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node)));
                         return;
                     }
@@ -768,7 +768,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                             availableInputs: isTextToVideo ? [] : buildNodeGenerationInputs(sourceNode.id, nodesRef.current, connectionsRef.current),
                             sourceImage: !isTextToVideo && isCanvasImageNodeType(sourceNode.type) && sourceNode.metadata?.content ? canvasNodeReferenceImage(sourceNode) : undefined,
                         });
-                    if (blockUnsupportedReferences(generationConfig.model, { images: videoReferences.images.length, videos: videoReferences.videos.length, audios: videoReferences.audios.length })) {
+                    if (blockUnsupportedReferences(generationConfig.model, canvasVideoReferenceCounts(videoReferences))) {
                         setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR } } : item)));
                         return;
                     }

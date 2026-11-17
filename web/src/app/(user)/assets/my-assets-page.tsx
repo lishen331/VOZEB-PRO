@@ -42,7 +42,7 @@ type MediaDraft = ImageAsset["data"] | VideoAsset["data"] | AudioAsset["data"] |
 
 const kindOptions = [
     { label: "全部", value: "all" },
-    { label: "文本", value: "text" },
+    // 文本类型已移出素材，改用「我的提示词」模块管理；代码保留，只隐藏入口
     { label: "图片", value: "image" },
     { label: "视频", value: "video" },
     { label: "音频", value: "audio" },
@@ -88,8 +88,8 @@ export default function AssetsPage() {
     const openCreate = () => {
         setEditingAsset(null);
         setMediaDraft(null);
-        setFormKind("text");
-        form.setFieldsValue({ kind: "text", title: "", coverUrl: "", tags: [], source: "手动添加", note: "", content: "" });
+        setFormKind("image");
+        form.setFieldsValue({ kind: "image", title: "", coverUrl: "", tags: [], source: "手动添加", note: "", content: "" });
         setIsAssetOpen(true);
     };
 
@@ -368,14 +368,19 @@ export default function AssetsPage() {
 
             <Modal title={editingAsset ? "编辑素材" : "新增素材"} open={isAssetOpen} width={980} onCancel={() => setIsAssetOpen(false)} onOk={() => void saveAsset()} confirmLoading={saving} okText="保存" cancelText="取消" destroyOnHidden>
                 <div className="grid gap-3 pt-1 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <Form form={form} layout="vertical" requiredMark={false} initialValues={{ kind: "text", tags: [] }}>
+                    {/* 不用 initialValues：Modal 是 destroyOnHidden，每次打开 Form 都会重新挂载，
+                        mount 时 seed(initialValues) 会把 openEdit/openCreate 刚写入的值全部重置掉，
+                        表现就是「保存过再打开，里面是空的」。初值统一由两个 open 函数显式 setFieldsValue。 */}
+                    <Form form={form} layout="vertical" requiredMark={false}>
                         <Form.Item name="kind" label="类型">
                             <Select
                                 options={[
-                                    { label: "文本", value: "text" },
+                                    // 文本类型已移出素材，改用「我的提示词」管理
+                                    // { label: "文本", value: "text" },
                                     { label: "图片", value: "image" },
-                                    { label: "视频", value: "video" },
-                                    { label: "音频", value: "audio" },
+                                    // 视频 / 音频：实现全部保留，现阶段先不露出。
+                                    // { label: "视频", value: "video" },
+                                    // { label: "音频", value: "audio" },
                                 ]}
                                 onChange={(value: AssetKind) => {
                                     setFormKind(value);
@@ -386,27 +391,30 @@ export default function AssetsPage() {
                         <Form.Item name="title" label="标题" rules={[{ required: true, message: "请输入标题" }]}>
                             <Input size="large" placeholder="给素材起一个容易检索的名字" />
                         </Form.Item>
-                        <Form.Item label="封面 URL">
-                            <div
-                                className={cn("rounded-md transition", isCoverDragActive && "ring-2 ring-[var(--gm-accent)] ring-offset-2 ring-offset-[var(--gm-surface)]")}
-                                onDragEnter={handleCoverDragOver}
-                                onDragOver={handleCoverDragOver}
-                                onDragLeave={handleCoverDragLeave}
-                                onDrop={handleCoverDrop}
-                            >
-                                <Form.Item name="coverUrl" noStyle>
-                                    <Input
-                                        placeholder="可粘贴图片 URL，也可以上传本地封面"
-                                        addonAfter={
-                                            <button type="button" className="-mx-2.5 inline-flex h-full items-center gap-1.5 px-2.5 transition-colors hover:text-[var(--gm-accent)]" onClick={() => coverInputRef.current?.click()}>
-                                                <Upload className="size-3.5" />
-                                                上传
-                                            </button>
-                                        }
-                                    />
-                                </Form.Item>
-                            </div>
-                        </Form.Item>
+                        {/* 封面 URL：只在非图片类型显示（图片类型直接用图片内容作封面） */}
+                        {formKind !== "image" ? (
+                            <Form.Item label="封面 URL">
+                                <div
+                                    className={cn("rounded-md transition", isCoverDragActive && "ring-2 ring-[var(--gm-accent)] ring-offset-2 ring-offset-[var(--gm-surface)]")}
+                                    onDragEnter={handleCoverDragOver}
+                                    onDragOver={handleCoverDragOver}
+                                    onDragLeave={handleCoverDragLeave}
+                                    onDrop={handleCoverDrop}
+                                >
+                                    <Form.Item name="coverUrl" noStyle>
+                                        <Input
+                                            placeholder="可粘贴图片 URL，也可以上传本地封面"
+                                            addonAfter={
+                                                <button type="button" className="-mx-2.5 inline-flex h-full items-center gap-1.5 px-2.5 transition-colors hover:text-[var(--gm-accent)]" onClick={() => coverInputRef.current?.click()}>
+                                                    <Upload className="size-3.5" />
+                                                    上传
+                                                </button>
+                                            }
+                                        />
+                                    </Form.Item>
+                                </div>
+                            </Form.Item>
+                        ) : null}
                         <Form.Item name="tags" label="标签">
                             <Select mode="tags" tokenSeparators={[",", "，"]} placeholder="输入标签后回车" />
                         </Form.Item>
@@ -422,8 +430,36 @@ export default function AssetsPage() {
                             <Form.Item name="content" label="文本内容" rules={[{ required: true, message: "请输入文本内容" }]}>
                                 <Input.TextArea rows={8} placeholder="保存提示词、说明文案、参考描述等文本素材" />
                             </Form.Item>
+                        ) : formKind === "image" ? (
+                            <Form.Item label="图片内容" required>
+                                <div
+                                    className={cn(
+                                        "relative overflow-hidden rounded-lg border border-dashed border-[var(--gm-border-strong)] transition",
+                                        isImageDragActive && "border-[var(--gm-accent)] bg-[var(--gm-accent-soft)] ring-1 ring-[var(--gm-accent-ring)]",
+                                    )}
+                                    onDragEnter={handleImageDragOver}
+                                    onDragOver={handleImageDragOver}
+                                    onDragLeave={handleImageDragLeave}
+                                    onDrop={handleImageDrop}
+                                >
+                                    {mediaDraft && "dataUrl" in mediaDraft ? (
+                                        <div className="relative group cursor-pointer" onClick={() => imageInputRef.current?.click()}>
+                                            <img src={imagePreviewUrl(mediaDraft.dataUrl, 960)} alt="" className="aspect-[4/3] w-full object-cover" />
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 opacity-0 transition group-hover:opacity-100">
+                                                <Upload className="size-6 text-white" />
+                                                <span className="text-xs text-white">重新上传</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button type="button" className="flex w-full flex-col items-center justify-center gap-3 py-10 text-[var(--gm-text-3)] hover:text-[var(--gm-text-2)]" onClick={() => imageInputRef.current?.click()}>
+                                            <Upload className="size-8" />
+                                            <span className="text-sm">点击上传图片，或拖拽到此处</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </Form.Item>
                         ) : (
-                            <Form.Item label={`${formKind === "image" ? "图片" : formKind === "video" ? "视频" : "音频"}内容`} required>
+                            <Form.Item label={`${formKind === "video" ? "视频" : "音频"}内容`} required>
                                 <div
                                     className={cn("rounded-lg border border-dashed border-[var(--gm-border-strong)] p-4 transition", isImageDragActive && "border-[var(--gm-accent)] bg-[var(--gm-accent-soft)] ring-1 ring-[var(--gm-accent-ring)]")}
                                     onDragEnter={handleImageDragOver}
@@ -432,7 +468,7 @@ export default function AssetsPage() {
                                     onDrop={handleImageDrop}
                                 >
                                     <Button icon={<Upload className="size-4" />} onClick={() => imageInputRef.current?.click()}>
-                                        选择{formKind === "image" ? "图片" : formKind === "video" ? "视频" : "音频"}文件
+                                        选择{formKind === "video" ? "视频" : "音频"}文件
                                     </Button>
                                     {mediaDraft ? (
                                         <Typography.Text type="secondary" className="ml-3 text-xs">

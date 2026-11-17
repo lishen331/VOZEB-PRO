@@ -17,6 +17,19 @@ export const SOURCE_TYPE_LABELS: Record<WorkPublicationSourceType, string> = {
     drama: "短剧",
 };
 
+/**
+ * 当前对外可见的发布来源（只控制显示，不删除实现）。
+ *
+ * 短剧、视频、音频的代码与接口都还在，只是先不露出；
+ * 后续功能补齐后把对应值加回这个数组即可重新开放。
+ * 现阶段的目标是先跑通「图片发布」这一条最小链路。
+ */
+export const VISIBLE_SOURCE_TYPES: readonly WorkPublicationSourceType[] = ["media", "canvas"];
+
+export function visibleSourceTypeOptions() {
+    return VISIBLE_SOURCE_TYPES.map((value) => ({ value, label: SOURCE_TYPE_LABELS[value] }));
+}
+
 export const VISIBILITY_LABELS: Record<WorkPublicationVisibility, string> = {
     private: "仅自己可见",
     unlisted: "仅链接分享（不进入广场）",

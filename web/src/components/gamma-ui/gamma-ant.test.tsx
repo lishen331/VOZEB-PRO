@@ -83,6 +83,7 @@ describe("gamma-ant 兼容层：与 antd 同 API", () => {
         expect(html(<Input.TextArea rows={3} value="t" onChange={() => {}} />)).toMatch(/<textarea[^>]*rows="3"/);
         expect(html(<InputNumber value={2.5} precision={2} onChange={() => {}} />)).toContain('value="2.50"');
         expect(html(<InputNumber value={null} onChange={() => {}} />)).toContain('value=""');
+        expect(html(<InputNumber value={"" as never} precision={2} onChange={() => {}} />)).toContain('value=""');
     });
 
     it("Tooltip：空 title 只渲染子元素，禁用子元素外包 span", () => {

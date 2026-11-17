@@ -26,7 +26,7 @@ import {
     type WorkPublicationSourceType,
     type WorkPublicationVisibility,
 } from "@/services/api/work-publications";
-import { SOURCE_TYPE_LABELS, VISIBILITY_LABELS, WORK_CATEGORY_OPTIONS } from "../work-publication-values";
+import { SOURCE_TYPE_LABELS, VISIBILITY_LABELS, visibleSourceTypeOptions, WORK_CATEGORY_OPTIONS } from "../work-publication-values";
 
 type EditorValues = {
     sourceType: WorkPublicationSourceType;
@@ -41,9 +41,36 @@ type EditorValues = {
     authorName?: string;
 };
 
-type SourceListState = WorkPublicationSourcePage & { keyword: string; loaded: boolean; loading: boolean };
+type SourceListState = WorkPublicationSourcePage & { keyword: string; loaded: boolean; loading: boolean; error: string };
 
-const emptySourceList = (): SourceListState => ({ items: [], total: 0, page: 1, pageSize: 0, keyword: "", loaded: false, loading: false });
+const emptySourceList = (): SourceListState => ({ items: [], total: 0, page: 1, pageSize: 0, keyword: "", loaded: false, loading: false, error: "" });
+
+/**
+ * 来源下拉的空状态。三种情况必须分开，否则用户只会看到「暂无可发布来源」，
+ * 分不清是自己没传素材、还是接口挂了——这正是之前「来源里没有任何选项」难以排查的原因。
+ */
+function sourceSelectorEmptyState(list: SourceListState, sourceType: WorkPublicationSourceType) {
+    if (list.loading) return "正在加载";
+    if (list.error) {
+        return (
+            <div className="px-1 py-2 text-xs leading-5">
+                <p className="text-[var(--gm-danger)]">来源加载失败：{list.error}</p>
+                <p className="mt-1 text-[var(--gm-text-3)]">请关闭后重新打开发布窗口重试</p>
+            </div>
+        );
+    }
+    if (sourceType === "media") {
+        return (
+            <div className="px-1 py-2 text-xs leading-5">
+                <p className="text-[var(--gm-text-2)]">你还没有可发布的图片素材</p>
+                <a href="/assets" className="mt-1 inline-block text-[var(--gm-accent)] underline-offset-2 hover:underline">
+                    去「我的素材」上传图片 →
+                </a>
+            </div>
+        );
+    }
+    return <div className="px-1 py-2 text-xs text-[var(--gm-text-3)]">还没有可发布的项目</div>;
+}
 const emptySourceLists = (): Record<WorkPublicationSourceType, SourceListState> => ({ media: emptySourceList(), canvas: emptySourceList(), drama: emptySourceList() });
 
 export function WorkPublicationEditor({
@@ -59,7 +86,7 @@ export function WorkPublicationEditor({
     onCancel: () => void;
     onSaved: (work: WorkPublication) => void;
 }) {
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const [form] = Form.useForm<EditorValues>();
     const sourceType = Form.useWatch("sourceType", form) || "media";
     const authorDisplay = Form.useWatch("authorDisplay", form) || "profile";
@@ -71,6 +98,8 @@ export function WorkPublicationEditor({
     const [loading, setLoading] = useState(false);
     const [sourceLoading, setSourceLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    // 有未保存的改动时，关闭前先确认，避免点了遮罩或 ESC 就把填的内容丢掉
+    const [dirty, setDirty] = useState(false);
     const sourceListRequestIds = useRef<Record<WorkPublicationSourceType, number>>({ media: 0, canvas: 0, drama: 0 });
     const sourceDetailRequestId = useRef(0);
 
@@ -102,8 +131,10 @@ export function WorkPublicationEditor({
                 }));
             } catch (error) {
                 if (sourceListRequestIds.current[nextType] !== requestId) return;
-                setSourceLists((current) => ({ ...current, [nextType]: { ...current[nextType], loaded: true, loading: false } }));
-                message.error(error instanceof Error ? error.message : "来源列表加载失败");
+                const text = error instanceof Error ? error.message : "来源列表加载失败";
+                // 记住失败原因：弹 toast 会消失，下拉里必须能一直看到"是失败了"而不是"你没有素材"
+                setSourceLists((current) => ({ ...current, [nextType]: { ...current[nextType], loaded: true, loading: false, error: text } }));
+                message.error(text);
             }
         },
         [message],
@@ -118,6 +149,7 @@ export function WorkPublicationEditor({
         sourceDetailRequestId.current += 1;
         setLoading(true);
         setSourceLists(emptySourceLists());
+        setDirty(false);
         setSource(null);
         setSelectedKeys([]);
         setCoverKey("");
@@ -238,7 +270,19 @@ export function WorkPublicationEditor({
             keyboard={!saving}
             destroyOnHidden
             onOk={() => form.submit()}
-            onCancel={onCancel}
+            onCancel={() => {
+                if (saving) return;
+                // 有未保存改动时问一句，避免误点遮罩 / ESC 丢掉刚填的内容
+                if (!dirty) return onCancel();
+                modal.confirm({
+                    title: "放弃这次编辑？",
+                    content: "当前填写的内容还没有保存为草稿，关闭后会丢失。",
+                    okText: "放弃并关闭",
+                    cancelText: "继续编辑",
+                    okButtonProps: { danger: true },
+                    onOk: onCancel,
+                });
+            }}
         >
             {loading ? (
                 <div className="grid min-h-72 place-items-center text-sm text-[var(--gm-text-2)]">
@@ -247,7 +291,7 @@ export function WorkPublicationEditor({
                     </span>
                 </div>
             ) : (
-                <Form form={form} layout="vertical" requiredMark={false} onFinish={(values) => void save(values)}>
+                <Form form={form} layout="vertical" requiredMark={false} onValuesChange={() => setDirty(true)} onFinish={(values) => void save(values)}>
                     <div className="max-h-[min(70dvh,760px)] min-w-0 space-y-4 overflow-y-auto pr-1">
                         <section className="rounded-lg border border-[var(--gm-border)] p-3 sm:p-4">
                             <div className="mb-3 text-sm font-semibold text-[var(--gm-text)]">选择发布来源</div>
@@ -256,7 +300,7 @@ export function WorkPublicationEditor({
                                     <Segmented
                                         block
                                         disabled={Boolean(workId)}
-                                        options={Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+                                        options={visibleSourceTypeOptions()}
                                         onChange={(value) => {
                                             const nextType = value as WorkPublicationSourceType;
                                             sourceDetailRequestId.current += 1;
@@ -276,7 +320,7 @@ export function WorkPublicationEditor({
                                         disabled={Boolean(workId)}
                                         filterOption={false}
                                         loading={sourceLoading || sourceList.loading}
-                                        notFoundContent={sourceList.loading ? "正在加载" : "暂无可发布来源"}
+                                        notFoundContent={sourceSelectorEmptyState(sourceList, sourceType)}
                                         placeholder="选择本人素材或项目"
                                         options={sourceOptions}
                                         onOpenChange={(nextOpen) => {
@@ -354,11 +398,16 @@ export function WorkPublicationEditor({
                                     <Select options={WORK_CATEGORY_OPTIONS} />
                                 </Form.Item>
                             </div>
-                            <Form.Item label="作品说明" name="description" rules={[{ max: 2000 }]}>
-                                <Input.TextArea rows={4} maxLength={2000} showCount placeholder="说明创作主题、内容和适合的观看方式" />
+                            <Form.Item label="作品介绍" name="description" rules={[{ max: 2000 }]}>
+                                <Input.TextArea rows={4} maxLength={2000} showCount placeholder="介绍这个作品的主题、创作背景或展示意图，供观众了解作品内容（非必填）" />
                             </Form.Item>
-                            <Form.Item label="作品提示词" name="publicPrompt" rules={[{ required: true, whitespace: true, message: "请填写作品提示词" }, { max: 8000 }]} extra="选择来源后会自动读取项目中可见的创作提示词；你可以在发布前继续修改。">
-                                <Input.TextArea rows={5} maxLength={8000} showCount placeholder="填写观众可查看、复制和用于做同款的提示词" />
+                            <Form.Item
+                                label="生成提示词"
+                                name="publicPrompt"
+                                rules={[{ required: true, whitespace: true, message: "请填写生成提示词" }, { max: 8000 }]}
+                                extra="填写生成这张/组图片所用的 AI 提示词，观众可以复制后直接做同款。选择来源后会自动从项目中读取，可在发布前修改。"
+                            >
+                                <Input.TextArea rows={5} maxLength={8000} showCount placeholder="粘贴或输入生成本作品所用的完整提示词" />
                             </Form.Item>
                             <Form.Item label="标签" name="tags">
                                 <Select mode="tags" maxCount={10} maxTagCount="responsive" tokenSeparators={[",", "，"]} placeholder="输入标签后回车，最多 10 个" />

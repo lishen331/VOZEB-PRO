@@ -5,7 +5,7 @@ import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
-import { ArrowUpFromLine, Ban, Compass, Copy, Eye, Film, GalleryVerticalEnd, Image as ImageIcon, Pencil, Plus, RefreshCw, Scale, Search, Send, Trash2 } from "lucide-react";
+import { ArrowUpFromLine, Ban, Compass, Copy, Eye, Film, GalleryVerticalEnd, Image as ImageIcon, Pencil, Plus, RefreshCw, RotateCcw, Scale, Search, Send, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -17,12 +17,14 @@ import {
     listWorkPublications,
     relistWorkPublication,
     revokeWorkPublication,
+    withdrawWorkPublication,
     submitWorkPublication,
     type WorkPublication,
     type WorkPublicationModerationStatus,
     type WorkPublicationSourceType,
 } from "@/services/api/work-publications";
 import { submitWorkAppeal } from "@/services/api/work-governance";
+import { PublicWorkPreviewModal } from "@/components/works/public-work-preview-modal";
 import { WorkPublicationEditor } from "./components/work-publication-editor";
 import { formatWorkTime, SOURCE_TYPE_LABELS, VISIBILITY_LABELS, workSharePath, workStatusLabel, WORK_STATUS_OPTIONS } from "./work-publication-values";
 
@@ -48,6 +50,9 @@ export default function WorksPage() {
     const [editingWorkId, setEditingWorkId] = useState<string>();
     const [appealWork, setAppealWork] = useState<WorkPublication>();
     const [appealDescription, setAppealDescription] = useState("");
+    // 预览改在页内弹窗打开：此前用 window.open 跳到 /share/<slug>，等于把人踢出工作区，
+    // 关掉新标签页才回得来，是遗留毛病
+    const [previewSlug, setPreviewSlug] = useState("");
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedKeyword(keyword.trim()), 300);
@@ -100,6 +105,28 @@ export default function WorksPage() {
         } finally {
             setActionId("");
         }
+    };
+
+    const withdraw = (work: WorkPublication) => {
+        modal.confirm({
+            title: "撤回审核？",
+            content: "作品会退回草稿状态，你可以继续修改后重新提交。已经上线的旧版本不受影响。",
+            okText: "撤回修改",
+            cancelText: "继续等待审核",
+            onOk: async () => {
+                setActionId(work.id);
+                try {
+                    await withdrawWorkPublication(work.id);
+                    message.success("已撤回审核，可以继续修改");
+                    await load();
+                } catch (withdrawError) {
+                    message.error(withdrawError instanceof Error ? withdrawError.message : "撤回失败");
+                    throw withdrawError;
+                } finally {
+                    setActionId("");
+                }
+            },
+        });
     };
 
     const takeDown = (work: WorkPublication) => {
@@ -256,7 +283,7 @@ export default function WorksPage() {
                 ) : loading && !items.length ? (
                     <section className="grid min-h-40 place-items-center text-sm text-[var(--gm-text-3)]">正在加载作品...</section>
                 ) : items.length ? (
-                    <section className="grid min-w-0 gap-2 py-3 sm:gap-3 sm:py-5">
+                    <section className="grid min-w-0 grid-cols-2 gap-3 py-3 sm:grid-cols-3 sm:gap-4 sm:py-5 lg:grid-cols-4">
                         {items.map((work) => (
                             <WorkListItem
                                 key={work.id}
@@ -267,11 +294,12 @@ export default function WorksPage() {
                                     setEditorOpen(true);
                                 }}
                                 onSubmit={() => void submit(work)}
+                                onWithdraw={() => withdraw(work)}
                                 onTakeDown={() => takeDown(work)}
                                 onRelist={() => relist(work)}
                                 onDelete={() => remove(work)}
                                 onCopy={() => copyText(new URL(workSharePath(work.slug), window.location.origin).toString(), "作品链接已复制")}
-                                onPreview={() => window.open(workSharePath(work.slug), "_blank", "noopener,noreferrer")}
+                                onPreview={() => setPreviewSlug(work.slug)}
                                 onAppeal={() => {
                                     setAppealDescription("");
                                     setAppealWork(work);
@@ -306,6 +334,7 @@ export default function WorksPage() {
                     void load();
                 }}
             />
+            <PublicWorkPreviewModal slug={previewSlug || undefined} onClose={() => setPreviewSlug("")} />
             <Modal
                 title="申诉恢复作品"
                 open={Boolean(appealWork)}
@@ -323,11 +352,20 @@ export default function WorksPage() {
     );
 }
 
+/** 时间线节点颜色：已达到的节点高亮，未到的用 muted */
+function dotClass(status: WorkPublicationModerationStatus, step: "created" | "submitted" | "reviewed") {
+    const reached = step === "created" || (step === "submitted" && status !== "draft") || step === "reviewed";
+    const danger = step === "reviewed" && (status === "rejected" || status === "taken_down");
+    const success = step === "reviewed" && status === "approved";
+    return `inline-block size-1.5 rounded-full ${danger ? "bg-[var(--gm-danger)]" : success ? "bg-[var(--gm-success)]" : reached ? "bg-[var(--gm-accent)]" : "bg-[var(--gm-text-3)]"}`;
+}
+
 function WorkListItem({
     work,
     busy,
     onEdit,
     onSubmit,
+    onWithdraw,
     onTakeDown,
     onRelist,
     onDelete,
@@ -339,6 +377,7 @@ function WorkListItem({
     busy: boolean;
     onEdit: () => void;
     onSubmit: () => void;
+    onWithdraw: () => void;
     onTakeDown: () => void;
     onRelist: () => void;
     onDelete: () => void;
@@ -346,41 +385,99 @@ function WorkListItem({
     onPreview: () => void;
     onAppeal: () => void;
 }) {
+    const [detailOpen, setDetailOpen] = useState(false);
     const version = work.currentVersion;
     if (!version) return null;
     const active = work.lifecycleStatus === "active";
     const canSubmit = active && (version.moderationStatus === "draft" || version.moderationStatus === "rejected");
     const canEdit = active && version.moderationStatus !== "pending";
     const shareable = active && Boolean(work.publishedVersionId) && work.publishedVersion?.visibility !== "private";
-    const sourceIcon = work.sourceType === "media" ? <ImageIcon className="size-4" /> : work.sourceType === "canvas" ? <GalleryVerticalEnd className="size-4" /> : <Film className="size-4" />;
+    const coverUrl = work.currentPreview?.previewUrl;
+
     return (
-        <article className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3.5 text-card-foreground transition hover:border-foreground/20 sm:p-4">
-            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]">{sourceIcon}</span>
-                    <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                            <h2 className="min-w-0 max-w-full truncate text-sm font-semibold">{version.title}</h2>
-                            <span className={`inline-flex h-6 items-center rounded-md border px-2 text-xs font-medium leading-none ${workStatusToneClass(active ? version.moderationStatus : "revoked")}`}>
-                                {active ? workStatusLabel(version.moderationStatus) : "已下架"}
-                            </span>
-                            {work.publishedVersion && work.publishedVersion.id !== version.id ? <Tag color="success">线上 v{work.publishedVersion.versionNumber}</Tag> : null}
-                        </div>
-                        <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-[var(--gm-text-3)]">{version.description || "暂未填写作品说明"}</p>
-                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--gm-text-3)]">
-                            <span>{SOURCE_TYPE_LABELS[work.sourceType]}来源</span>
-                            <span>v{version.versionNumber}</span>
-                            <span>{VISIBILITY_LABELS[version.visibility]}</span>
-                            <span>{work.viewCount} 次访问</span>
-                            <span>更新于 {formatWorkTime(work.updatedAt)}</span>
-                        </div>
-                        {version.rejectionReason ? <div className="mt-1.5 border-l-2 border-[var(--gm-danger)] pl-2 text-xs leading-5 text-[var(--gm-danger)]">驳回原因：{version.rejectionReason}</div> : null}
-                    </div>
+        <>
+            <article className="group min-w-0 cursor-pointer overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] transition hover:border-[var(--gm-border-strong)] hover:shadow-md" onClick={() => setDetailOpen(true)}>
+                {/* 封面图区 */}
+                <div className="relative aspect-square w-full overflow-hidden bg-[var(--gm-wash)]">
+                    {coverUrl ? (
+                        <img src={coverUrl} alt={version.title} className="size-full object-cover transition group-hover:scale-105" loading="lazy" />
+                    ) : (
+                        <div className="grid size-full place-items-center text-[var(--gm-text-3)]">{work.sourceType === "canvas" ? <GalleryVerticalEnd className="size-10 opacity-30" /> : <ImageIcon className="size-10 opacity-30" />}</div>
+                    )}
+                    {/* 状态角标 */}
+                    <span className={`absolute right-2 top-2 inline-flex h-5 items-center rounded border px-1.5 text-[10px] font-medium leading-none backdrop-blur-sm ${workStatusToneClass(active ? version.moderationStatus : "revoked")}`}>
+                        {active ? workStatusLabel(version.moderationStatus) : "已下架"}
+                    </span>
                 </div>
-                <div className="flex min-w-0 flex-wrap gap-1.5 border-t border-[var(--gm-border)] pt-3 md:max-w-md md:shrink-0 md:justify-end md:border-t-0 md:pt-0">
+
+                {/* 卡片信息 */}
+                <div className="p-2.5 sm:p-3">
+                    <h2 className="truncate text-sm font-semibold leading-5">{version.title}</h2>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-[var(--gm-text-3)]">{version.publicPrompt || version.description || "暂无提示词"}</p>
+                </div>
+            </article>
+
+            {/* 详情弹窗 */}
+            <Modal title={version.title} open={detailOpen} onCancel={() => setDetailOpen(false)} footer={null} width={520} destroyOnHidden>
+                {/* 封面大图 */}
+                {coverUrl ? (
+                    <div className="mb-4 aspect-video w-full overflow-hidden rounded-lg bg-[var(--gm-wash)]">
+                        <img src={coverUrl} alt={version.title} className="size-full object-contain" />
+                    </div>
+                ) : null}
+
+                {/* 状态 + 元信息 */}
+                <div className="mb-3 flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-[var(--gm-text-3)]">
+                    <span className={`inline-flex h-5 items-center rounded border px-1.5 text-[11px] font-medium leading-none ${workStatusToneClass(active ? version.moderationStatus : "revoked")}`}>
+                        {active ? workStatusLabel(version.moderationStatus) : "已下架"}
+                    </span>
+                    {work.publishedVersion && work.publishedVersion.id !== version.id ? <Tag color="success">线上 v{work.publishedVersion.versionNumber}</Tag> : null}
+                    <span>{SOURCE_TYPE_LABELS[work.sourceType]}来源</span>
+                    <span>v{version.versionNumber}</span>
+                    <span>{VISIBILITY_LABELS[version.visibility]}</span>
+                    <span>{work.viewCount} 次访问</span>
+                </div>
+
+                {/* 提示词全文 */}
+                {version.publicPrompt || version.description ? (
+                    <div className="mb-3 rounded-md bg-[var(--gm-wash)] px-3 py-2.5 text-sm leading-6 text-[var(--gm-text-2)] whitespace-pre-wrap break-words">{version.publicPrompt || version.description}</div>
+                ) : null}
+
+                {/* 驳回原因 */}
+                {version.rejectionReason ? <div className="mb-3 border-l-2 border-[var(--gm-danger)] pl-3 text-sm leading-5 text-[var(--gm-danger)]">驳回：{version.rejectionReason}</div> : null}
+
+                {/* 时间线 */}
+                <div className="mb-4 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-5 text-[var(--gm-text-3)]">
+                    <span className="inline-flex items-center gap-1">
+                        <span className={dotClass(version.moderationStatus, "created")} />
+                        创建 {formatWorkTime(work.createdAt)}
+                    </span>
+                    {version.submittedAt ? (
+                        <span className="inline-flex items-center gap-1">
+                            <span className={dotClass(version.moderationStatus, "submitted")} />
+                            提交审核 {formatWorkTime(version.submittedAt)}
+                        </span>
+                    ) : null}
+                    {version.reviewedAt ? (
+                        <span className="inline-flex items-center gap-1">
+                            <span className={dotClass(version.moderationStatus, "reviewed")} />
+                            {version.moderationStatus === "approved" ? "审核通过" : version.moderationStatus === "rejected" ? "已驳回" : "审核完成"} {formatWorkTime(version.reviewedAt)}
+                        </span>
+                    ) : null}
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="flex min-w-0 flex-wrap gap-2">
                     {shareable ? (
                         <>
-                            <Button size="small" icon={<Eye className="size-3.5" />} onClick={onPreview}>
+                            <Button
+                                size="small"
+                                icon={<Eye className="size-3.5" />}
+                                onClick={() => {
+                                    setDetailOpen(false);
+                                    onPreview();
+                                }}
+                            >
                                 预览
                             </Button>
                             <Button size="small" icon={<Copy className="size-3.5" />} onClick={onCopy}>
@@ -389,12 +486,28 @@ function WorkListItem({
                         </>
                     ) : null}
                     {canEdit ? (
-                        <Button size="small" icon={<Pencil className="size-3.5" />} onClick={onEdit} disabled={busy}>
+                        <Button
+                            size="small"
+                            icon={<Pencil className="size-3.5" />}
+                            onClick={() => {
+                                setDetailOpen(false);
+                                onEdit();
+                            }}
+                            disabled={busy}
+                        >
                             {version.moderationStatus === "approved" ? "创建新版本" : "编辑"}
                         </Button>
                     ) : null}
                     {active && version.moderationStatus === "taken_down" ? (
-                        <Button size="small" icon={<Scale className="size-3.5" />} onClick={onAppeal} disabled={busy}>
+                        <Button
+                            size="small"
+                            icon={<Scale className="size-3.5" />}
+                            onClick={() => {
+                                setDetailOpen(false);
+                                onAppeal();
+                            }}
+                            disabled={busy}
+                        >
                             提交申诉
                         </Button>
                     ) : null}
@@ -403,8 +516,22 @@ function WorkListItem({
                             提交审核
                         </Button>
                     ) : null}
+                    {active && version.moderationStatus === "pending" ? (
+                        <Button size="small" icon={<RotateCcw className="size-3.5" />} onClick={onWithdraw} disabled={busy}>
+                            撤回修改
+                        </Button>
+                    ) : null}
                     {active && work.publishedVersionId ? (
-                        <Button size="small" danger icon={<Ban className="size-3.5" />} onClick={onTakeDown} disabled={busy}>
+                        <Button
+                            size="small"
+                            danger
+                            icon={<Ban className="size-3.5" />}
+                            onClick={() => {
+                                setDetailOpen(false);
+                                onTakeDown();
+                            }}
+                            disabled={busy}
+                        >
                             下架
                         </Button>
                     ) : null}
@@ -413,14 +540,23 @@ function WorkListItem({
                             <Button size="small" type="primary" icon={<ArrowUpFromLine className="size-3.5" />} onClick={onRelist} loading={busy}>
                                 上架
                             </Button>
-                            <Button size="small" danger icon={<Trash2 className="size-3.5" />} onClick={onDelete} disabled={busy}>
+                            <Button
+                                size="small"
+                                danger
+                                icon={<Trash2 className="size-3.5" />}
+                                onClick={() => {
+                                    setDetailOpen(false);
+                                    onDelete();
+                                }}
+                                disabled={busy}
+                            >
                                 删除
                             </Button>
                         </>
                     ) : null}
                 </div>
-            </div>
-        </article>
+            </Modal>
+        </>
     );
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { IpReference } from "@/lib/ip-library-domain";
-import { PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, PRACTICE_SCRIPT_ENTRY, practiceProjectPath, practiceModulePath } from "./practice-home";
+import { PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, PRACTICE_SCRIPT_ENTRY, PRACTICE_SINGLE_ENTRY, practiceProjectPath, practiceModulePath } from "./practice-home";
 
 describe("practice home contract", () => {
     it("exposes the six Demo-aligned modules and keeps project cards separately controllable", () => {
@@ -12,9 +12,15 @@ describe("practice home contract", () => {
         expect(PRACTICE_SCRIPT_ENTRY.title).toBe("剧本");
         expect(PRACTICE_SCRIPT_ENTRY.description).toContain("单人");
     });
+    it("uses a single-item practice entry for the six module workspaces", () => {
+        expect(PRACTICE_SINGLE_ENTRY.title).toBe("单项练习");
+        expect(PRACTICE_SINGLE_ENTRY.description).toContain("角色");
+    });
     it("guards the script entry with the admin-controlled script flag", async () => {
         const source = await (await import("node:fs/promises")).readFile(new URL("./practice-home.tsx", import.meta.url), "utf8");
         expect(source).toContain("scriptEnabled ? (");
+        expect(source).toContain("PRACTICE_SINGLE_ENTRY");
+        expect(source).not.toContain("moduleCards.map");
     });
     it("routes project and module actions to stable workspaces", () => {
         expect(practiceProjectPath("canvas", "canvas-practice-1")).toBe("/practice/canvas/canvas-practice-1");

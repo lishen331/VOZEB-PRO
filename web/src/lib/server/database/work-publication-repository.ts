@@ -211,6 +211,18 @@ export class WorkPublicationRepository {
         return result.rows[0] ? mapPublishedWorkVersion(result.rows[0]) : null;
     }
 
+    /** 撤回审核：只允许 pending → draft。作者在等审核期间想改内容时用，不必等管理员驳回。 */
+    async withdrawVersion(id: string) {
+        const result = await this.db.query(
+            `UPDATE published_work_versions
+             SET moderation_status = 'draft', submitted_at = NULL, reviewed_at = NULL, reviewed_by_user_id = NULL, rejection_reason = NULL
+             WHERE id = $1 AND moderation_status = 'pending'
+             RETURNING *`,
+            [id],
+        );
+        return result.rows[0] ? mapPublishedWorkVersion(result.rows[0]) : null;
+    }
+
     async approveOfficialVersion(id: string, input: { reviewedAt: string; reviewedByUserId: string }) {
         const result = await this.db.query(
             `UPDATE published_work_versions SET moderation_status = 'approved', rejection_reason = NULL, submitted_at = $2, reviewed_at = $2, reviewed_by_user_id = $3
@@ -398,7 +410,7 @@ export class WorkPublicationRepository {
         const keyword = input.keyword?.trim().toLowerCase() || "";
         const table = input.sourceType === "media" ? "library_assets" : input.sourceType === "canvas" ? "canvas_projects" : "drama_projects";
         const kindProjection = input.sourceType === "media" ? "kind" : "NULL::text AS kind";
-        const sourceFilter = input.sourceType === "media" ? "AND kind IN ('image', 'video')" : input.sourceType === "canvas" ? "AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
+        const sourceFilter = input.sourceType === "media" ? "AND kind = 'image'" : input.sourceType === "canvas" ? "AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
         const result = await this.db.query(
             `SELECT id, title, ${kindProjection}, updated_at, count(*) OVER() AS total_count
              FROM ${table}

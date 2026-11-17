@@ -11,7 +11,7 @@ import { imagePreviewUrl } from "@/lib/media-image-url";
 import { listPublicGallery, type PublicGalleryItem } from "@/services/api/work-governance";
 import { filterVisibleGalleryItems } from "./gallery-visible-items";
 
-export function GammaHomeCases() {
+export function GammaHomeCases({ communityEnabled = true }: { communityEnabled?: boolean }) {
     const [items, setItems] = useState<PublicGalleryItem[]>([]);
     const [failed, setFailed] = useState<Set<string>>(() => new Set());
     const [loading, setLoading] = useState(true);
@@ -42,9 +42,11 @@ export function GammaHomeCases() {
                     </h2>
                     <p className="mt-0.5 text-xs text-[var(--gm-text-3)]">来自平台真实公开作品，点击可查看详情与提示词</p>
                 </div>
-                <Link href="/community" className="shrink-0 rounded-md px-2 py-1 text-xs text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
-                    全部作品 →
-                </Link>
+                {communityEnabled ? (
+                    <Link href="/community" className="shrink-0 rounded-md px-2 py-1 text-xs text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]">
+                        全部作品 →
+                    </Link>
+                ) : null}
             </div>
             {error ? (
                 <GammaEmptyState
