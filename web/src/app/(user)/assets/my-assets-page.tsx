@@ -42,7 +42,7 @@ type MediaDraft = ImageAsset["data"] | VideoAsset["data"] | AudioAsset["data"] |
 
 const kindOptions = [
     { label: "全部", value: "all" },
-    { label: "文本", value: "text" },
+    // 文本类型已移出素材，改用「我的提示词」模块管理；代码保留，只隐藏入口
     { label: "图片", value: "image" },
     { label: "视频", value: "video" },
     { label: "音频", value: "audio" },
@@ -88,8 +88,8 @@ export default function AssetsPage() {
     const openCreate = () => {
         setEditingAsset(null);
         setMediaDraft(null);
-        setFormKind("text");
-        form.setFieldsValue({ kind: "text", title: "", coverUrl: "", tags: [], source: "手动添加", note: "", content: "" });
+        setFormKind("image");
+        form.setFieldsValue({ kind: "image", title: "", coverUrl: "", tags: [], source: "手动添加", note: "", content: "" });
         setIsAssetOpen(true);
     };
 
@@ -375,10 +375,10 @@ export default function AssetsPage() {
                         <Form.Item name="kind" label="类型">
                             <Select
                                 options={[
-                                    { label: "文本", value: "text" },
+                                    // 文本类型已移出素材，改用「我的提示词」管理
+                                    // { label: "文本", value: "text" },
                                     { label: "图片", value: "image" },
                                     // 视频 / 音频：实现全部保留，现阶段先不露出。
-                                    // 发布链路只跑通图片，等视频/音频入口补齐后把这两项加回来即可。
                                     // { label: "视频", value: "video" },
                                     // { label: "音频", value: "audio" },
                                 ]}
