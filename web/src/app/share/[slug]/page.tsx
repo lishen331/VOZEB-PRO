@@ -181,14 +181,14 @@ export default async function SharePage({ params }: SharePageProps) {
                             ) : null}
 
                             <section className="mt-5">
-                                <h2 className="text-sm font-semibold">公开提示词</h2>
+                                <h2 className="text-sm font-semibold">生成提示词</h2>
                                 {work.publicPrompt ? (
                                     <>
                                         <pre className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-[var(--gm-wash)] p-3 font-sans text-sm leading-6 text-[var(--gm-text)]">{work.publicPrompt}</pre>
                                         <WorkPromptActions prompt={work.publicPrompt} createHref={createHref} />
                                     </>
                                 ) : (
-                                    <p className="mt-2 text-sm leading-6 text-[var(--gm-text-3)]">作者没有公开提示词。</p>
+                                    <p className="mt-2 text-sm leading-6 text-[var(--gm-text-3)]">作者没有公开生成提示词。</p>
                                 )}
                             </section>
 
