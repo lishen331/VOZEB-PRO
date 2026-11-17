@@ -181,6 +181,7 @@ export async function createServerVideoGenerationTask(
                 videoSeconds: requestConfig.videoSeconds,
                 videoGenerateAudio: requestConfig.videoGenerateAudio,
                 videoWatermark: requestConfig.videoWatermark,
+                ...(requestConfig.videoPromptExpansion ? { videoPromptExpansion: requestConfig.videoPromptExpansion } : {}),
             },
             prompt,
             references: serverReferences,

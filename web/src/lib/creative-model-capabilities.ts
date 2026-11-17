@@ -4,7 +4,7 @@ import { isCreativeAutoValue, type CreativeGenerationPreferences } from "@/lib/c
 export type CreativeMediaCapability = "image" | "video" | "audio";
 export type CreativeModelCapabilityProfile = Pick<
     LogicalModelCapabilityProfile,
-    "aspectRatios" | "resolutions" | "durationSeconds" | "minDurationSeconds" | "maxDurationSeconds" | "maxBatchSize" | "supportsAudioGeneration" | "supportsReferenceImage" | "supportsReferenceVideo" | "supportsReferenceAudio" | "maxReferenceImages"
+    "aspectRatios" | "resolutions" | "durationSeconds" | "minDurationSeconds" | "maxDurationSeconds" | "maxBatchSize" | "supportsAudioGeneration" | "supportsReferenceImage" | "supportsReferenceVideo" | "supportsReferenceAudio" | "maxReferenceImages" | "videoRatioMode" | "keyframeReferenceExclusive" | "promptExpansionModes" | "supportsVoiceReference"
 >;
 export type CreativeModelCapabilityOption = {
     id: string;
@@ -25,6 +25,9 @@ export function creativeModelProfileForLogicalModel(model: LogicalModelLike | un
     // 服务端会换下一个绑定，所以只有全部绑定都明确不支持才算不支持；没配置的一律当支持。
     const referenceSupport = (key: "supportsReferenceImage" | "supportsReferenceVideo" | "supportsReferenceAudio") => (bindings.every((binding) => binding.capabilityProfile?.[key] === false) ? false : undefined);
     const referenceLimits = bindings.map((binding) => binding.capabilityProfile?.maxReferenceImages);
+    // H3-style switches must hold for every declared binding: a failover to another upstream
+    // that does not share the rule would otherwise break the request.
+    const allBindings = (predicate: (profile: LogicalModelCapabilityProfile) => boolean) => (profiles.every(predicate) ? true : undefined);
     return compactProfile({
         aspectRatios: unionTextLists(profiles.map((profile) => profile.aspectRatios)),
         resolutions: unionTextLists(profiles.map((profile) => profile.resolutions)),
@@ -37,10 +40,14 @@ export function creativeModelProfileForLogicalModel(model: LogicalModelLike | un
         supportsReferenceVideo: referenceSupport("supportsReferenceVideo"),
         supportsReferenceAudio: referenceSupport("supportsReferenceAudio"),
         maxReferenceImages: referenceLimits.every((limit) => limit) ? maximum(referenceLimits) : undefined,
+        videoRatioMode: allBindings((profile) => profile.videoRatioMode === "adaptive_in_keyframe") ? "adaptive_in_keyframe" : undefined,
+        keyframeReferenceExclusive: allBindings((profile) => profile.keyframeReferenceExclusive === true),
+        promptExpansionModes: intersectTextLists(profiles.map((profile) => profile.promptExpansionModes)),
+        supportsVoiceReference: profiles.some((profile) => profile.supportsVoiceReference) || undefined,
     });
 }
 
-export type CreativeReferenceCounts = { images: number; videos: number; audios: number };
+export type CreativeReferenceCounts = { images: number; videos: number; audios: number; keyframes?: number };
 
 /** Reference materials the model's admin config explicitly rejects; empty when the request may be submitted. */
 export function unsupportedReferenceIssues(profile: CreativeModelCapabilityProfile | undefined, counts: CreativeReferenceCounts, modelName = "该模型") {
@@ -50,6 +57,10 @@ export function unsupportedReferenceIssues(profile: CreativeModelCapabilityProfi
     else if (counts.images && profile.maxReferenceImages && counts.images > profile.maxReferenceImages) issues.push(`${modelName} 最多支持 ${profile.maxReferenceImages} 张参考图，当前连接了 ${counts.images} 张。`);
     if (counts.videos && profile.supportsReferenceVideo === false) issues.push(`${modelName} 不支持参考视频。请断开参考视频，或换一个支持参考视频的模型。`);
     if (counts.audios && profile.supportsReferenceAudio === false) issues.push(`${modelName} 不支持参考音频。请断开参考音频，或换一个支持参考音频的模型。`);
+    // 首/尾帧与参考素材是两套互斥的输入家族：不静默丢弃任何一组，直接拦住本次提交。
+    if (profile.keyframeReferenceExclusive && counts.keyframes && (counts.images || counts.videos || counts.audios)) {
+        issues.push(`${modelName} 的首帧/尾帧与参考图、参考视频、参考音频不能同时使用。请改用「首尾帧」模式只保留帧，或改用「全能参考」模式断开首尾帧。`);
+    }
     return issues;
 }
 

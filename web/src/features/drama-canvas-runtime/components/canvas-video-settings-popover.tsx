@@ -1,5 +1,7 @@
 "use client";
 
+import { App } from "antd";
+
 import { CANVAS_UI_FEATURES, isCanvasUiFeatureEnabled } from "@/lib/canvas-ui-features";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 
@@ -34,6 +36,9 @@ export function CanvasVideoSettingsPopover({ config, metadata, references, onCon
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const responsivePlacement = useCreativeComposerPopoverPlacement(placement);
     const customResolutionEnabled = usePublicSessionStore((state) => isCanvasUiFeatureEnabled(state.payload?.settings?.featureModules, CANVAS_UI_FEATURES.videoCustomResolution));
+    const { modal } = App.useApp();
+    const capabilityProfile = canvasModelCapabilityProfile(config);
+
     const preferences: GenerationPreferences = {
         mode: "video",
         video: {
@@ -50,13 +55,24 @@ export function CanvasVideoSettingsPopover({ config, metadata, references, onCon
     const fullSummary = generationPreferenceSummary("video", preferences);
     const referenceLabel = canvasVideoReferenceModeLabel(metadata?.videoReferenceMode);
 
+    const showConflictNotice = (message: string) => {
+        modal.info({ title: "注意", content: message, okText: "知道了" });
+    };
+
+    // Prompt expansion: show switch only for H3 models that declare the modes.
+    const promptExpansionModes = capabilityProfile?.promptExpansionModes;
+    const promptExpansionContent =
+        promptExpansionModes?.length ? (
+            <PromptExpansionSwitch modes={promptExpansionModes} value={config.videoPromptExpansion || ""} onChange={(v) => onConfigChange("videoPromptExpansion", v)} />
+        ) : null;
+
     return (
         <CreativeGenerationPreferences
             capability="video"
             allowCustomResolution={customResolutionEnabled}
             canvasResolutionPresets
             preferences={preferences}
-            capabilityProfile={canvasModelCapabilityProfile(config)}
+            capabilityProfile={capabilityProfile}
             triggerLabel={summary}
             triggerAriaLabel={`视频设置：${referenceLabel} · ${fullSummary}`}
             triggerIcon={<SlidersHorizontal className="size-4" />}
@@ -66,9 +82,37 @@ export function CanvasVideoSettingsPopover({ config, metadata, references, onCon
             autoAdjustOverflow
             showCount={false}
             videoReferenceContent={<CanvasVideoReferenceSettings metadata={metadata} references={references} theme={theme} compact onChange={onMetadataChange} />}
-            videoModeContent={<CanvasVideoModeSelector metadata={metadata} onChange={onMetadataChange} />}
+            videoModeContent={
+                <>
+                    <CanvasVideoModeSelector metadata={metadata} capabilityProfile={capabilityProfile} onChange={onMetadataChange} onConflict={showConflictNotice} />
+                    {promptExpansionContent}
+                </>
+            }
             onChange={(patch) => applyVideoPreferencePatch(patch, onConfigChange)}
         />
+    );
+}
+
+function PromptExpansionSwitch({ modes, value, onChange }: { modes: string[]; value: string; onChange: (v: string) => void }) {
+    const labels: Record<string, string> = { disabled: "关闭扩写", balanced: "均衡扩写", quality: "质量优先" };
+    const current = modes.includes(value) ? value : modes.includes("balanced") ? "balanced" : modes[0];
+    return (
+        <div className="mt-1.5 grid gap-1.5">
+            <p className="text-[11px] font-medium text-[#7b8591] dark:text-[#98a2ae]">提示词扩写（H3 专属）</p>
+            <div className="flex gap-1.5">
+                {modes.map((mode) => (
+                    <button
+                        key={mode}
+                        type="button"
+                        className={`h-7 flex-1 rounded-lg px-1 text-[11px] transition ${current === mode ? "bg-[#eaf1f5] font-medium text-[#315d78] dark:bg-[#2a3b46] dark:text-[#a8c8dc]" : "bg-[#f5f6f7] text-[#687481] hover:bg-[#edf0f2] dark:bg-[#24282e] dark:text-[#a6afb9] dark:hover:bg-[#30363e]"}`}
+                        onClick={() => onChange(mode)}
+                        aria-pressed={current === mode}
+                    >
+                        {labels[mode] ?? mode}
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 }
 

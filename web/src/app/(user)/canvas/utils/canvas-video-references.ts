@@ -144,6 +144,12 @@ export function resolveCanvasVideoGenerationReferences({
     return resolvedVideoReferences(mode, [...frameImages, ...regularImages], context.referenceVideos, context.referenceAudios, firstFrame, lastFrame);
 }
 
+/** Counts split by input family: keyframes are not "reference images" for capability checks. */
+export function canvasVideoReferenceCounts(references: ResolvedCanvasVideoReferences) {
+    const keyframes = references.images.filter((image) => image.videoRole === "first_frame" || image.videoRole === "last_frame").length;
+    return { images: references.images.length - keyframes, videos: references.videos.length, audios: references.audios.length, keyframes };
+}
+
 export function restoreCanvasVideoGenerationReferences(metadata: CanvasNodeMetadata | undefined): ResolvedCanvasVideoReferences | null {
     if (!Array.isArray(metadata?.videoReferences)) return null;
     const images: ReferenceImage[] = [];
