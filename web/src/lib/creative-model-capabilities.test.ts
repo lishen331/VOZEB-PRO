@@ -104,4 +104,48 @@ describe("reference material capabilities", () => {
         expect(unsupportedReferenceIssues({ maxReferenceImages: 4 }, { ...none, images: 6 })).toEqual(["该模型 最多支持 4 张参考图，当前连接了 6 张。"]);
         expect(unsupportedReferenceIssues({ maxReferenceImages: 4 }, { ...none, images: 4 })).toEqual([]);
     });
+
+    it("blocks H3 keyframe+reference family conflict when every binding declares it exclusive", () => {
+        const profile = creativeModelProfileForLogicalModel({
+            id: "h3",
+            bindings: [
+                { enabled: true, capabilityProfile: { keyframeReferenceExclusive: true } },
+                { enabled: true, capabilityProfile: { keyframeReferenceExclusive: true } },
+            ],
+        });
+        expect(profile?.keyframeReferenceExclusive).toBe(true);
+
+        // keyframes + reference images → conflict
+        const issue = unsupportedReferenceIssues({ keyframeReferenceExclusive: true }, { images: 1, videos: 0, audios: 0, keyframes: 1 }, "H3");
+        expect(issue.length).toBe(1);
+        expect(issue[0]).toContain("首帧/尾帧");
+        expect(issue[0]).toContain("参考图");
+
+        // keyframes only → fine
+        expect(unsupportedReferenceIssues({ keyframeReferenceExclusive: true }, { images: 0, videos: 0, audios: 0, keyframes: 1 }, "H3")).toEqual([]);
+        // reference materials only → fine
+        expect(unsupportedReferenceIssues({ keyframeReferenceExclusive: true }, { images: 2, videos: 1, audios: 0, keyframes: 0 }, "H3")).toEqual([]);
+        // flag not declared → no issue
+        expect(unsupportedReferenceIssues({}, { images: 1, videos: 0, audios: 0, keyframes: 1 })).toEqual([]);
+    });
+
+    it("only marks keyframeReferenceExclusive when ALL enabled bindings opt in", () => {
+        const mixedProfile = creativeModelProfileForLogicalModel({
+            id: "mixed",
+            bindings: [
+                { enabled: true, capabilityProfile: { keyframeReferenceExclusive: true } },
+                { enabled: true, capabilityProfile: {} },
+            ],
+        });
+        expect(mixedProfile?.keyframeReferenceExclusive).toBeUndefined();
+
+        const allOptIn = creativeModelProfileForLogicalModel({
+            id: "all",
+            bindings: [
+                { enabled: true, capabilityProfile: { keyframeReferenceExclusive: true } },
+                { enabled: true, capabilityProfile: { keyframeReferenceExclusive: true } },
+            ],
+        });
+        expect(allOptIn?.keyframeReferenceExclusive).toBe(true);
+    });
 });

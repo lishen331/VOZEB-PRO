@@ -123,6 +123,7 @@ export type AiConfig = {
     vquality: string;
     videoGenerateAudio: string;
     videoWatermark: string;
+    videoPromptExpansion: string;
     systemPrompt: string;
     models: string[];
     imageModels: string[];
@@ -208,6 +209,7 @@ export const defaultConfig: AiConfig = {
     vquality: "720",
     videoGenerateAudio: "true",
     videoWatermark: "false",
+    videoPromptExpansion: "",
     systemPrompt: "",
     models: [],
     imageModels: [],

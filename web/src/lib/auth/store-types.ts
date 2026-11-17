@@ -294,6 +294,22 @@ export type LogicalModelCapabilityProfile = {
     minDurationSeconds?: number;
     maxDurationSeconds?: number;
     maxBatchSize?: number;
+    /**
+     * How the upstream treats the aspect ratio when the request carries keyframes.
+     * `adaptive_in_keyframe` means the ratio is decided by the input frames, so the
+     * request must send `adaptive` instead of the user's picked ratio (MiniMax H3).
+     */
+    videoRatioMode?: "adaptive_in_keyframe";
+    /**
+     * The upstream rejects keyframes (`first_frame`/`last_frame`) mixed with reference
+     * materials (`reference_image`/`reference_video`/`reference_audio`). Only the family
+     * the task actually carries may be sent.
+     */
+    keyframeReferenceExclusive?: boolean;
+    /** Prompt-expansion levels the upstream accepts, e.g. `disabled` / `balanced` / `quality`. */
+    promptExpansionModes?: string[];
+    /** Reference audio may drive a cloned voice / spoken line, not just background sound. */
+    supportsVoiceReference?: boolean;
     supportsAsync?: boolean;
     supportsCancel?: boolean;
     supportsWebhook?: boolean;
