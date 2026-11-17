@@ -352,6 +352,14 @@ export default function WorksPage() {
     );
 }
 
+/** 时间线节点颜色：已达到的节点高亮，未到的用 muted */
+function dotClass(status: WorkPublicationModerationStatus, step: "created" | "submitted" | "reviewed") {
+    const reached = step === "created" || (step === "submitted" && status !== "draft") || step === "reviewed";
+    const danger = step === "reviewed" && (status === "rejected" || status === "taken_down");
+    const success = step === "reviewed" && status === "approved";
+    return `inline-block size-1.5 rounded-full ${danger ? "bg-[var(--gm-danger)]" : success ? "bg-[var(--gm-success)]" : reached ? "bg-[var(--gm-accent)]" : "bg-[var(--gm-text-3)]"}`;
+}
+
 function WorkListItem({
     work,
     busy,
@@ -404,6 +412,12 @@ function WorkListItem({
                             <span>{VISIBILITY_LABELS[version.visibility]}</span>
                             <span>{work.viewCount} 次访问</span>
                             <span>更新于 {formatWorkTime(work.updatedAt)}</span>
+                        </div>
+                        {/* 审核时间线：从已有字段算出，不查审计表 */}
+                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-5 text-[var(--gm-text-3)]">
+                            <span className="inline-flex items-center gap-0.5"><span className={dotClass(version.moderationStatus, "created")} />创建 {formatWorkTime(work.createdAt)}</span>
+                            {version.submittedAt ? <span className="inline-flex items-center gap-0.5"><span className={dotClass(version.moderationStatus, "submitted")} />提交审核 {formatWorkTime(version.submittedAt)}</span> : null}
+                            {version.reviewedAt ? <span className="inline-flex items-center gap-0.5"><span className={dotClass(version.moderationStatus, "reviewed")} />{version.moderationStatus === "approved" ? "审核通过" : version.moderationStatus === "rejected" ? "已驳回" : version.moderationStatus === "taken_down" ? "已下架" : "审核完成"} {formatWorkTime(version.reviewedAt)}</span> : null}
                         </div>
                         {version.rejectionReason ? <div className="mt-1.5 border-l-2 border-[var(--gm-danger)] pl-2 text-xs leading-5 text-[var(--gm-danger)]">驳回原因：{version.rejectionReason}</div> : null}
                     </div>
