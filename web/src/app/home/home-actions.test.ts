@@ -32,7 +32,8 @@ describe("homepage capability entry points", () => {
     it("opens the real course catalog directly and replaces unsupported professional shortcuts with published cases", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/home/gamma-home-view.tsx"), "utf8");
         expect(source).toContain('openProtectedPath("/teaching?tab=catalog")');
-        expect(source).toContain("<GammaHomeCases />");
+        // GammaHomeCases 现在接收 communityEnabled prop（受广场开关控制），不再是无参调用
+        expect(source).toMatch(/<GammaHomeCases\s+communityEnabled=/);
         expect(source).not.toContain("GAMMA_SUBJECTS");
         expect(source).not.toContain("GammaToolRow");
         expect(source).not.toContain("openBillingPlans");
