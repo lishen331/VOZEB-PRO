@@ -398,11 +398,16 @@ export function WorkPublicationEditor({
                                     <Select options={WORK_CATEGORY_OPTIONS} />
                                 </Form.Item>
                             </div>
-                            <Form.Item label="作品说明" name="description" rules={[{ max: 2000 }]}>
-                                <Input.TextArea rows={4} maxLength={2000} showCount placeholder="说明创作主题、内容和适合的观看方式" />
+                            <Form.Item label="作品介绍" name="description" rules={[{ max: 2000 }]}>
+                                <Input.TextArea rows={4} maxLength={2000} showCount placeholder="介绍这个作品的主题、创作背景或展示意图，供观众了解作品内容（非必填）" />
                             </Form.Item>
-                            <Form.Item label="作品提示词" name="publicPrompt" rules={[{ required: true, whitespace: true, message: "请填写作品提示词" }, { max: 8000 }]} extra="选择来源后会自动读取项目中可见的创作提示词；你可以在发布前继续修改。">
-                                <Input.TextArea rows={5} maxLength={8000} showCount placeholder="填写观众可查看、复制和用于做同款的提示词" />
+                            <Form.Item
+                                label="生成提示词"
+                                name="publicPrompt"
+                                rules={[{ required: true, whitespace: true, message: "请填写生成提示词" }, { max: 8000 }]}
+                                extra="填写生成这张/组图片所用的 AI 提示词，观众可以复制后直接做同款。选择来源后会自动从项目中读取，可在发布前修改。"
+                            >
+                                <Input.TextArea rows={5} maxLength={8000} showCount placeholder="粘贴或输入生成本作品所用的完整提示词" />
                             </Form.Item>
                             <Form.Item label="标签" name="tags">
                                 <Select mode="tags" maxCount={10} maxTagCount="responsive" tokenSeparators={[",", "，"]} placeholder="输入标签后回车，最多 10 个" />
