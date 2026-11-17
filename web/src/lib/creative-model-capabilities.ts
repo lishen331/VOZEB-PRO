@@ -4,7 +4,21 @@ import { isCreativeAutoValue, type CreativeGenerationPreferences } from "@/lib/c
 export type CreativeMediaCapability = "image" | "video" | "audio";
 export type CreativeModelCapabilityProfile = Pick<
     LogicalModelCapabilityProfile,
-    "aspectRatios" | "resolutions" | "durationSeconds" | "minDurationSeconds" | "maxDurationSeconds" | "maxBatchSize" | "supportsAudioGeneration" | "supportsReferenceImage" | "supportsReferenceVideo" | "supportsReferenceAudio" | "maxReferenceImages" | "videoRatioMode" | "keyframeReferenceExclusive" | "promptExpansionModes" | "supportsVoiceReference"
+    | "aspectRatios"
+    | "resolutions"
+    | "durationSeconds"
+    | "minDurationSeconds"
+    | "maxDurationSeconds"
+    | "maxBatchSize"
+    | "supportsAudioGeneration"
+    | "supportsReferenceImage"
+    | "supportsReferenceVideo"
+    | "supportsReferenceAudio"
+    | "maxReferenceImages"
+    | "videoRatioMode"
+    | "keyframeReferenceExclusive"
+    | "promptExpansionModes"
+    | "supportsVoiceReference"
 >;
 export type CreativeModelCapabilityOption = {
     id: string;

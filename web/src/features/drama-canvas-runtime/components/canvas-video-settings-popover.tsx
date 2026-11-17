@@ -61,10 +61,7 @@ export function CanvasVideoSettingsPopover({ config, metadata, references, onCon
 
     // Prompt expansion: show switch only for H3 models that declare the modes.
     const promptExpansionModes = capabilityProfile?.promptExpansionModes;
-    const promptExpansionContent =
-        promptExpansionModes?.length ? (
-            <PromptExpansionSwitch modes={promptExpansionModes} value={config.videoPromptExpansion || ""} onChange={(v) => onConfigChange("videoPromptExpansion", v)} />
-        ) : null;
+    const promptExpansionContent = promptExpansionModes?.length ? <PromptExpansionSwitch modes={promptExpansionModes} value={config.videoPromptExpansion || ""} onChange={(v) => onConfigChange("videoPromptExpansion", v)} /> : null;
 
     return (
         <CreativeGenerationPreferences
