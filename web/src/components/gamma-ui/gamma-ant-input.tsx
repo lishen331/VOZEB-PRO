@@ -471,7 +471,7 @@ export interface InputNumberProps extends Omit<InputHTMLAttributes<HTMLInputElem
 
 const clampNumber = (value: number, min?: number, max?: number) => Math.min(max ?? Infinity, Math.max(min ?? -Infinity, value));
 const roundTo = (value: number, precision?: number) => (precision === undefined ? value : Number(value.toFixed(precision)));
-const formatNumber = (value: number | null | undefined, precision?: number) => (value === null || value === undefined || Number.isNaN(value) ? "" : precision === undefined ? String(value) : value.toFixed(precision));
+const formatNumber = (value: number | null | undefined, precision?: number) => (typeof value !== "number" || Number.isNaN(value) ? "" : precision === undefined ? String(value) : value.toFixed(precision));
 
 /**
  * 与 antd InputNumber 同 API：输入时只回调可解析的数字（空串回调 null），失焦时按 min / max / precision 规整；

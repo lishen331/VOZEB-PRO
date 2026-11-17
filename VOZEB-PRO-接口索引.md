@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-11-15。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **445** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-11-17。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **446** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**445**
-- 方法出现次数：DELETE 66、GET 226、HEAD 6、PATCH 63、POST 247、PUT 18
-- 一级域：`admin` 137、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 7、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 26、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**446**
+- 方法出现次数：DELETE 66、GET 226、HEAD 6、PATCH 63、POST 248、PUT 18
+- 一级域：`admin` 137、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 7、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 26、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 8
 
 ## 按业务域索引
 
@@ -692,7 +692,7 @@
 | POST | `/api/video-tasks` | 公开 | [route.ts](web/src/app/api/video-tasks/route.ts) | Route 内部实现 | PostgreSQL、积分、模型上游、媒体 | 已停用旧视频任务入口：固定返回 410 |
 | GET, PATCH, POST | `/api/video-tasks/[id]` | 混合 | [route.ts](web/src/app/api/video-tasks/[id]/route.ts) | [generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 视频任务 / 单项：查询、更新、提交/执行 |
 
-### `works`（7）
+### `works`（8）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -702,6 +702,7 @@
 | POST | `/api/works/[id]/relist` | 用户 | [route.ts](web/src/app/api/works/[id]/relist/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 作品 / 单项 / 重新上架：提交/执行 |
 | POST | `/api/works/[id]/revoke` | 用户 | [route.ts](web/src/app/api/works/[id]/revoke/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 作品 / 单项 / 撤回：提交/执行 |
 | POST | `/api/works/[id]/submit` | 用户 | [route.ts](web/src/app/api/works/[id]/submit/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 作品 / 单项 / 提交审核：提交/执行 |
+| POST | `/api/works/[id]/withdraw` | 用户 | [route.ts](web/src/app/api/works/[id]/withdraw/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 作品 / 单项 / withdraw：提交/执行 |
 | GET | `/api/works/sources` | 用户 | [route.ts](web/src/app/api/works/sources/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 作品 / 发布来源：查询 |
 
 ## 维护规则

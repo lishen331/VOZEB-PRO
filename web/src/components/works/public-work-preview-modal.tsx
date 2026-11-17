@@ -246,7 +246,7 @@ export function PublicWorkPreviewModal({
                             ) : null}
 
                             <section className="mt-3.5">
-                                <h3 className="text-xs font-semibold">作品提示词</h3>
+                                <h3 className="text-xs font-semibold">生成提示词</h3>
                                 <pre className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-[var(--gm-wash)] p-2.5 font-sans text-[13px] leading-5 text-[var(--gm-text)]">
                                     {hasPublicPrompt ? work.publicPrompt : "该作品暂无可公开提示词"}
                                 </pre>

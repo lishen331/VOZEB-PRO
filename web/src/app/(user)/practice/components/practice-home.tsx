@@ -8,7 +8,7 @@ import { GammaStatCard } from "@/components/gamma-ui/gamma-cards";
 import { GammaBadge } from "@/components/gamma-ui/gamma-controls";
 import { GammaStagger, GammaStaggerItem } from "@/components/gamma-ui/gamma-motion";
 import { SUBJECT_ACCENT, type SubjectAccent } from "@/components/gamma-ui/gamma-subjects";
-import { Box, Clapperboard, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScrollText, UserRound, type LucideIcon, Sparkles } from "lucide-react";
+import { Box, Clapperboard, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScrollText, UserRound, type LucideIcon, Sparkles, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
@@ -35,6 +35,8 @@ export const PRACTICE_PROJECT_CARDS: Array<{ kind: PracticeProjectKind; title: s
 ];
 
 export const PRACTICE_SCRIPT_ENTRY = { title: "剧本", description: "从创意到剧本文本的单人练习。", icon: ScrollText, accent: "teal" as SubjectAccent, tag: "单人 · 文本" } as const;
+
+export const PRACTICE_SINGLE_ENTRY = { title: "单项练习", description: "角色、场景、道具、分镜图、分镜视频与音频，各自进入独立练习页面。", icon: Sparkles, accent: "blue" as SubjectAccent } as const;
 
 export const PRACTICE_MODULES: Array<{ module: PracticeModuleKind; title: string; description: string; icon: LucideIcon; accent: SubjectAccent }> = [
     { module: "character", title: "角色", description: "生成角色主体图，并继续扩展多视角设定。", icon: UserRound, accent: "violet" },
@@ -198,21 +200,20 @@ export default function PracticeHome() {
                     </section>
                 ) : null}
 
-                {/* 练习模块 */}
-                <section className="mt-10" aria-labelledby="practice-modules-heading">
-                    <SectionHeading id="practice-modules-heading" title="练习模块" hint="单块技能专项训练，每个模块独立，互不串联" />
-                    <div className="mt-1.5">
-                        <GuideLink section="agent" label="第一次用？看练习入门说明" />
-                    </div>
-                    <GammaStagger className={cn("mt-4 grid gap-4", moduleGridClass)}>
-                        {moduleCards.map((card) => (
-                            <GammaStaggerItem key={card.module} className="h-full">
-                                <ModuleCard card={card} onClick={() => router.push(practiceModulePath(card.module, ipReference ? { reference: ipReference } : undefined))} />
+                {/* 六类模块合并为单项练习入口，后台隐藏状态仍决定是否展示 */}
+                {moduleCards.length ? (
+                    <section className="mt-10" aria-labelledby="practice-modules-heading">
+                        <SectionHeading id="practice-modules-heading" title="单项练习" hint="六类专项能力，各自进入独立练习页面" />
+                        <div className="mt-1.5">
+                            <GuideLink section="agent" label="第一次用？看练习入门说明" />
+                        </div>
+                        <GammaStagger className="mt-4 grid gap-4">
+                            <GammaStaggerItem>
+                                <SinglePracticeEntry onClick={() => router.push(practiceModulePath(moduleCards[0].module, ipReference ? { reference: ipReference } : undefined))} moduleCount={moduleCards.length} />
                             </GammaStaggerItem>
-                        ))}
-                    </GammaStagger>
-                </section>
-
+                        </GammaStagger>
+                    </section>
+                ) : null}
                 {/* 最近练习记录 */}
                 {sessions.length ? (
                     <section className="mt-10" aria-labelledby="practice-history-heading">
@@ -345,24 +346,33 @@ function ScriptEntry({ onClick }: { onClick: () => void }) {
     );
 }
 
-/** 练习模块卡：6 张同规格，描述两行截断，内容基线一致 */
-function ModuleCard({ card, onClick }: { card: (typeof PRACTICE_MODULES)[number]; onClick: () => void }) {
-    const Icon = card.icon;
-    const accent = SUBJECT_ACCENT[card.accent];
+/** 单入口收纳六类独立练习页面 */
+function SinglePracticeEntry({ onClick, moduleCount }: { onClick: () => void; moduleCount: number }) {
+    const Icon = PRACTICE_SINGLE_ENTRY.icon;
+    const accent = SUBJECT_ACCENT[PRACTICE_SINGLE_ENTRY.accent];
     return (
         <button
             type="button"
             onClick={onClick}
-            data-practice-module={card.module}
-            className="group flex h-full w-full flex-col rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)]"
+            data-practice-single-entry
+            className="group flex min-h-36 w-full items-center justify-between gap-5 rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] sm:p-6"
         >
-            <div className="flex items-start justify-between gap-3">
-                <span className={cn("grid size-11 shrink-0 place-items-center rounded-[var(--gm-radius-lg)]", accent.chip)}>
-                    <Icon className={cn("size-5", accent.text)} />
+            <span className="flex min-w-0 items-center gap-4">
+                <span className={cn("grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-lg)]", accent.chip)}>
+                    <Icon className={cn("size-7", accent.text)} />
                 </span>
-            </div>
-            <h3 className="mt-4 text-base font-semibold text-[var(--gm-text)]">{card.title}</h3>
-            <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--gm-text-2)]">{card.description}</p>
+                <span className="min-w-0">
+                    <span className="block text-base font-semibold text-[var(--gm-text)]">{PRACTICE_SINGLE_ENTRY.title}</span>
+                    <span className="mt-1 block text-sm leading-6 text-[var(--gm-text-2)]">{PRACTICE_SINGLE_ENTRY.description}</span>
+                    <span className="mt-3 flex flex-wrap gap-2">
+                        <GammaBadge tone="neutral">{moduleCount} 类练习</GammaBadge>
+                        <GammaBadge tone="neutral">独立页面与记录</GammaBadge>
+                    </span>
+                </span>
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--gm-blue)] px-4 py-2 text-sm font-semibold text-white shadow-[var(--gm-shadow)]">
+                进入练习 <ArrowRight className="size-4" />
+            </span>
         </button>
     );
 }

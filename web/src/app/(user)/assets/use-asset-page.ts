@@ -39,8 +39,10 @@ export function useAssetPage(input: { userId: string; page: number; pageSize: nu
             controller.signal,
         )
             .then((result) => {
-                setAssets(result.assets);
-                setTotal(result.total);
+                // 文本类型已移出素材模块，前端过滤掉存量文本素材
+                const nonTextAssets = result.assets.filter((asset) => asset.kind !== "text");
+                setAssets(nonTextAssets);
+                setTotal(result.total - (result.assets.length - nonTextAssets.length));
             })
             .catch((reason) => {
                 if (reason instanceof DOMException && reason.name === "AbortError") return;

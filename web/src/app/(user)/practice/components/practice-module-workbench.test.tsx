@@ -29,6 +29,12 @@ describe("practice module workbench contract", () => {
         expect(isDiscardablePracticeSessionError(new Error("网络暂时不可用"))).toBe(false);
         expect(isDiscardablePracticeSessionError(new Error("服务器内部错误"))).toBe(false);
     });
+    it("switches the single-practice workspace through visible dedicated module routes", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-module-workbench.tsx"), "utf8");
+        expect(source).toContain('aria-label="单项练习模块切换"');
+        expect(source).toContain("PRACTICE_MODULES.filter((item) => availableModules.includes(item.module))");
+        expect(source).toContain("router.push(practiceModulePath(item.module, ipReferences[0]))");
+    });
     it("sends only user content, public references and a fresh request id", () => {
         const input = buildPracticeSessionInput("script", "一场雨中的重逢", ["asset-1"]);
         expect(input).toMatchObject({ module: "script", title: "单项练习", input: { prompt: "一场雨中的重逢" }, references: [{ type: "asset", id: "asset-1" }] });

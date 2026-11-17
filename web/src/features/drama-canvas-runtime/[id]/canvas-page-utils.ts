@@ -498,12 +498,17 @@ export function isHiddenBatchConnectionEndpoint(node: CanvasNodeData, nodes: Can
     return Boolean(root && !root.metadata?.imageBatchExpanded);
 }
 
+const SHOT_SIZE_LABELS: Record<CanvasImageAngleParams["shotSize"], string> = { closeup: "特写", near: "近景", medium: "中景", wide: "全景", far: "远景" };
+
 export function buildAngleLabel(params: CanvasImageAngleParams) {
-    const horizontal = params.horizontalAngle === 0 ? "正面视角" : params.horizontalAngle > 0 ? `向右旋转 ${params.horizontalAngle} 度` : `向左旋转 ${Math.abs(params.horizontalAngle)} 度`;
+    const horizontal =
+        params.horizontalAngle === 0 ? "正面视角" : Math.abs(params.horizontalAngle) === 180 ? "背面视角（向右旋转 180 度）" : params.horizontalAngle > 0 ? `向右旋转 ${params.horizontalAngle} 度` : `向左旋转 ${Math.abs(params.horizontalAngle)} 度`;
     const pitch = params.pitchAngle === 0 ? "水平视角" : params.pitchAngle > 0 ? `俯视 ${params.pitchAngle} 度` : `仰视 ${Math.abs(params.pitchAngle)} 度`;
-    return `AI 多角度：${horizontal}，${pitch}，镜头距离 ${params.cameraDistance.toFixed(1)}，${params.wideAngle ? "广角" : "标准"}镜头`;
+    const shotSize = params.usePrompt ? SHOT_SIZE_LABELS[params.shotSize] : "";
+    return ["AI 多角度", horizontal, pitch, shotSize, params.wideAngle ? "广角" : "标准镜头"].filter(Boolean).join("，");
 }
 
 export function buildAnglePrompt(params: CanvasImageAngleParams) {
-    return `基于参考图重新生成同一主体的新视角，保持主体、颜色、材质和画面风格一致，不要只做透视变形。${buildAngleLabel(params)}。`;
+    const shotSize = params.usePrompt ? `景别${SHOT_SIZE_LABELS[params.shotSize]}，` : "";
+    return `基于参考图重新生成同一主体的新视角，保持主体、颜色、材质和画面风格一致，不要只做透视变形。${buildAngleLabel(params)}。${shotSize ? `${shotSize}镜头不做裁切外的额外变形。` : ""}`;
 }

@@ -78,7 +78,7 @@ export const FEATURE_MODULES: readonly FeatureModuleDefinition[] = [
     { id: "assets", name: "素材", description: "图片、视频、音频和素材库", group: "assets", icon: Images, pathPrefixes: ["/assets"], routeRoot: "assets" },
     { id: "my-prompts", name: "提示词", description: "个人提示词管理", group: "assets", icon: BookMarked, pathPrefixes: ["/my-prompts"], routeRoot: "my-prompts" },
     { id: "prompt-library", name: "词库", description: "公共提示词库", group: "assets", icon: FileText, pathPrefixes: ["/prompts"], routeRoot: "prompts" },
-    { id: "community", name: "广场", description: "公共作品与社区内容", group: "community", icon: Compass, pathPrefixes: ["/community"], routeRoot: "community" },
+    { id: "community", name: "广场", description: "公共作品与社区内容", group: "community", icon: Compass, pathPrefixes: ["/community", "/gallery"], routeRoot: "community" },
     { id: "ip-library", name: "IP 库", description: "公共和学校 IP 内容", group: "community", icon: Library, pathPrefixes: ["/ip-library"], routeRoot: "ip-library" },
     { id: "creator-home", name: "主页", description: "个人发布与收藏内容", group: "community", icon: UserRound, pathPrefixes: ["/me"], routeRoot: "me" },
     { id: "teaching", name: "教学中心", description: "教师课程、班级与批改", group: "school", icon: Presentation, pathPrefixes: ["/teaching"], routeRoot: "teaching" },
