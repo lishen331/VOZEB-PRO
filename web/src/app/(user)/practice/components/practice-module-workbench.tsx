@@ -25,8 +25,9 @@ import PracticeScenePanel from "./practice-scene-panel";
 import PracticePropPanel from "./practice-prop-panel";
 import { PracticeSessionResult as SessionResult } from "./practice-session-result";
 import PracticeSessionHistory from "./practice-session-history";
-import { PRACTICE_MODULES } from "./practice-home";
+import { PRACTICE_MODULES, practiceModulePath } from "./practice-home";
 import { practiceSessionCanRetry } from "./practice-session-status";
+import { cn } from "@/lib/utils";
 export { PRACTICE_MODULES } from "./practice-home";
 
 export function buildPracticeSessionInput(module: PracticeModuleKind, prompt: string, referenceIds: string[], ipReferences: IpReference[] = []): PracticeSessionInput {
@@ -80,6 +81,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     const { message } = App.useApp();
     const [draftVersion, setDraftVersion] = useState(0);
     const [capability, setCapability] = useState<PracticeModuleCapability>();
+    const [availableModules, setAvailableModules] = useState<PracticeModuleKind[]>([]);
     const [historyPage, setHistoryPage] = useState(1);
     const [historyTotal, setHistoryTotal] = useState(0);
     const [historyBusy, setHistoryBusy] = useState(false);
@@ -116,7 +118,10 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
         void practiceApi
             .listModules()
             .then((modules) => {
-                if (active) setCapability(modules.modules.find((item) => item.module === module));
+                if (active) {
+                    setAvailableModules(modules.modules.map((item) => item.module));
+                    setCapability(modules.modules.find((item) => item.module === module));
+                }
             })
             .catch((error) => active && message.error(error instanceof Error ? error.message : "练习模块加载失败"))
             .finally(() => active && setLoading(false));
@@ -322,6 +327,28 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                         </div>
                     </div>
                 </header>
+                <nav className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-3" aria-label="单项练习模块切换" role="tablist">
+                    {PRACTICE_MODULES.filter((item) => availableModules.includes(item.module)).map((item) => {
+                        const TabIcon = item.icon;
+                        const active = item.module === module;
+                        return (
+                            <button
+                                key={item.module}
+                                type="button"
+                                role="tab"
+                                aria-selected={active}
+                                onClick={() => {
+                                    if (active) return;
+                                    router.push(practiceModulePath(item.module, ipReferences[0]));
+                                }}
+                                className={cn("inline-flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm transition-colors", active ? "border-blue-300 bg-blue-50 font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300" : "border-transparent bg-[var(--gm-surface-2)] text-[var(--gm-text-2)] hover:border-[var(--gm-border-strong)] hover:text-[var(--gm-text)]")}
+                            >
+                                <TabIcon className="size-4" />
+                                {item.title}
+                            </button>
+                        );
+                    })}
+                </nav>
                 <div className={styles.grid}>
                     <section className={`${styles.input} rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-6`} aria-label="练习工具">
                         <div className="mb-5 flex items-center gap-2 border-b border-[var(--gm-border)] pb-3">
