@@ -341,7 +341,12 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                                     if (active) return;
                                     router.push(practiceModulePath(item.module, ipReferences[0]));
                                 }}
-                                className={cn("inline-flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm transition-colors", active ? "border-blue-300 bg-blue-50 font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300" : "border-transparent bg-[var(--gm-surface-2)] text-[var(--gm-text-2)] hover:border-[var(--gm-border-strong)] hover:text-[var(--gm-text)]")}
+                                className={cn(
+                                    "inline-flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm transition-colors",
+                                    active
+                                        ? "border-blue-300 bg-blue-50 font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
+                                        : "border-transparent bg-[var(--gm-surface-2)] text-[var(--gm-text-2)] hover:border-[var(--gm-border-strong)] hover:text-[var(--gm-text)]",
+                                )}
                             >
                                 <TabIcon className="size-4" />
                                 {item.title}

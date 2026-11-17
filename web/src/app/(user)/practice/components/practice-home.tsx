@@ -351,16 +351,28 @@ function SinglePracticeEntry({ onClick, moduleCount }: { onClick: () => void; mo
     const Icon = PRACTICE_SINGLE_ENTRY.icon;
     const accent = SUBJECT_ACCENT[PRACTICE_SINGLE_ENTRY.accent];
     return (
-        <button type="button" onClick={onClick} data-practice-single-entry className="group flex min-h-36 w-full items-center justify-between gap-5 rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] sm:p-6">
+        <button
+            type="button"
+            onClick={onClick}
+            data-practice-single-entry
+            className="group flex min-h-36 w-full items-center justify-between gap-5 rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] sm:p-6"
+        >
             <span className="flex min-w-0 items-center gap-4">
-                <span className={cn("grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-lg)]", accent.chip)}><Icon className={cn("size-7", accent.text)} /></span>
+                <span className={cn("grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-lg)]", accent.chip)}>
+                    <Icon className={cn("size-7", accent.text)} />
+                </span>
                 <span className="min-w-0">
                     <span className="block text-base font-semibold text-[var(--gm-text)]">{PRACTICE_SINGLE_ENTRY.title}</span>
                     <span className="mt-1 block text-sm leading-6 text-[var(--gm-text-2)]">{PRACTICE_SINGLE_ENTRY.description}</span>
-                    <span className="mt-3 flex flex-wrap gap-2"><GammaBadge tone="neutral">{moduleCount} 类练习</GammaBadge><GammaBadge tone="neutral">独立页面与记录</GammaBadge></span>
+                    <span className="mt-3 flex flex-wrap gap-2">
+                        <GammaBadge tone="neutral">{moduleCount} 类练习</GammaBadge>
+                        <GammaBadge tone="neutral">独立页面与记录</GammaBadge>
+                    </span>
                 </span>
             </span>
-            <span className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--gm-blue)] px-4 py-2 text-sm font-semibold text-white shadow-[var(--gm-shadow)]">进入练习 <ArrowRight className="size-4" /></span>
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--gm-blue)] px-4 py-2 text-sm font-semibold text-white shadow-[var(--gm-shadow)]">
+                进入练习 <ArrowRight className="size-4" />
+            </span>
         </button>
     );
 }
