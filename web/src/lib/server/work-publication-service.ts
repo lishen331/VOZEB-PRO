@@ -78,7 +78,7 @@ export async function listWorkPublicationsForUser(userId: string, input: { page?
     await assertWorkPublicationReady();
     const status = moderationStatus(input.status);
     const takenDown = status === "taken_down";
-    return createPostgresRepositories().workPublications.listWorks({
+    const page = await createPostgresRepositories().workPublications.listWorks({
         ownerUserId: requiredId(userId, "用户"),
         moderationStatus: takenDown ? undefined : status,
         lifecycleStatus: status && !takenDown ? "active" : undefined,
@@ -87,6 +87,16 @@ export async function listWorkPublicationsForUser(userId: string, input: { page?
         page: input.page,
         pageSize: input.pageSize,
     });
+    const registrations = await getLocalMediaRegistrations(page.items.flatMap((work) => (work.currentPreview ? [work.currentPreview.storageKey] : [])));
+    const registrationByKey = new Map(registrations.map((registration) => [registration.storageKey, registration]));
+    return {
+        ...page,
+        items: page.items.map((work) => {
+            if (!work.currentPreview) return work;
+            const registration = registrationByKey.get(work.currentPreview.storageKey);
+            return { ...work, currentPreview: { ...work.currentPreview, previewUrl: registration ? privateAssetUrl(registration) : undefined } };
+        }),
+    };
 }
 
 export async function listWorkPublicationsForAdmin(input: { page?: number; pageSize?: number; status?: unknown; lifecycleStatus?: unknown; origin?: unknown; keyword?: unknown } = {}) {
