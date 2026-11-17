@@ -7,6 +7,7 @@ import { generationMediaProxyHeaders } from "@/lib/server/generation-media-autho
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { isProviderBusinessError, providerQueryPaths, readProviderError, videoPollingPolicy } from "@/lib/server/provider-task-config";
+import { buildCustomVideoRequestPayload } from "@/lib/server/custom-video-request";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
 import { normalizeVideoResult } from "@/lib/server/video-result-normalizer";
 import {
@@ -117,7 +118,13 @@ async function submitQueuedPracticeVideo(task: VideoTask, origin: string, cookie
     try {
         const payload = agnes
             ? buildAgnesVideoRequest({ model: task.config.model, prompt: task.prompt || "", seconds: task.requestedDurationSeconds, aspectRatio: task.workflowInput?.size, resolution: task.workflowInput?.vquality, references: task.references })
-            : { model: task.config.model, prompt: task.prompt || "", ...(task.workflowInput || {}) };
+            : buildCustomVideoRequestPayload({
+                  channel: task.config,
+                  prompt: task.prompt || "",
+                  // The queued task stores the request parameters in `workflowInput`.
+                  raw: { ...(task.workflowInput || {}), ...(task.requestedDurationSeconds ? { videoSeconds: task.requestedDurationSeconds } : {}) },
+                  references: task.references || [],
+              });
         const response = await fetchInternalApi(`${origin}${task.config.baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`, {
             method: "POST",
             headers: { ...videoProxyHeaders(task, cookie, workerUserId), "content-type": "application/json" },

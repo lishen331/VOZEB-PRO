@@ -618,6 +618,10 @@ export async function createUpstream(
         generate_audio: generateAudio,
         watermark: booleanValue(raw.videoWatermark),
         ...(promptExpansion ? { prompt_expansion_mode: promptExpansion } : {}),
+        // MiniMax H3 style upstreams require `content`; without it the template-less path
+        // (and any template that misses the placeholder) is rejected with
+        // "binding: expr_path=content, cause=missing required parameter".
+        content: values.content,
         ...(requestImage ? { image: requestImage } : {}),
         ...(requestImages.length ? { images: requestImages, image_urls: requestImages, reference_images: requestImages } : {}),
         ...(videos.length ? { video: videos[0], videos, reference_videos: videos } : {}),
