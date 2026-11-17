@@ -132,7 +132,7 @@ export function GammaHomeView({ featureModules, menuPermissions, schoolContext }
 
                         <GammaHomeCases communityEnabled={featureModules ? featureModules["community"] !== false : true} />
 
-                        {(!featureModules || featureModules["community"] !== false) ? (
+                        {!featureModules || featureModules["community"] !== false ? (
                             <div className="mt-2">
                                 <GammaHomeGallery onCreate={() => openProtectedPath("/canvas")} />
                             </div>
