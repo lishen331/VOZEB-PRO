@@ -187,9 +187,6 @@ export function MyPromptsPage() {
                         <Form.Item label="标签" name="tags">
                             <Input placeholder="用逗号分隔，例如：摄影, 电商, 写实" />
                         </Form.Item>
-                        <Form.Item label="封面 URL" name="coverUrl">
-                            <Input placeholder="可选，用于展示卡片封面" />
-                        </Form.Item>
                     </div>
                     <Form.Item label="提示词内容" name="prompt" rules={[{ required: true, message: "请输入提示词内容" }]}>
                         <Input.TextArea rows={5} placeholder="输入完整提示词..." />
