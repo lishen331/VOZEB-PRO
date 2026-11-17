@@ -104,16 +104,16 @@ export class WorkPublicationRepository {
              LEFT JOIN published_work_versions published_version ON published_version.id = work.published_version_id
              LEFT JOIN LATERAL (
                  SELECT asset.* FROM published_work_assets asset
-                 WHERE asset.version_id = published_version.id
+                 WHERE asset.version_id = current_version.id
                  ORDER BY CASE WHEN asset.role = 'cover' THEN 0 ELSE 1 END, asset.sort_order, asset.id
                  LIMIT 1
              ) preview ON true
              WHERE ($1::text IS NULL OR work.owner_user_id = $1)
-               AND ($2::text IS NULL OR published_version.moderation_status = $2)
+               AND ($2::text IS NULL OR current_version.moderation_status = $2)
                AND ($3::text IS NULL OR work.lifecycle_status = $3)
                AND ($4::text IS NULL OR work.publication_origin = $4)
-               AND ($5 = '' OR lower(published_version.title) LIKE $6 OR lower(owner.username) LIKE $6 OR lower(owner.display_name) LIKE $6 OR lpad(owner.account_id::text, 4, '0') LIKE $6 OR lower(work.slug) LIKE $6)
-               AND ($7::text IS NULL OR ($7 = 'taken_down' AND (work.lifecycle_status = 'revoked' OR published_version.moderation_status = 'taken_down')))
+               AND ($5 = '' OR lower(current_version.title) LIKE $6 OR lower(owner.username) LIKE $6 OR lower(owner.display_name) LIKE $6 OR lpad(owner.account_id::text, 4, '0') LIKE $6 OR lower(work.slug) LIKE $6)
+               AND ($7::text IS NULL OR ($7 = 'taken_down' AND (work.lifecycle_status = 'revoked' OR current_version.moderation_status = 'taken_down')))
              ORDER BY work.updated_at DESC, work.id DESC
              LIMIT $8 OFFSET $9`,
             [input.ownerUserId || null, input.moderationStatus || null, input.lifecycleStatus || null, input.publicationOrigin || null, keyword, `%${keyword}%`, input.userStatus || null, pageSize, (page - 1) * pageSize],
