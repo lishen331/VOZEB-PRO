@@ -385,105 +385,127 @@ function WorkListItem({
     onPreview: () => void;
     onAppeal: () => void;
 }) {
+    const [expanded, setExpanded] = useState(false);
     const version = work.currentVersion;
     if (!version) return null;
     const active = work.lifecycleStatus === "active";
     const canSubmit = active && (version.moderationStatus === "draft" || version.moderationStatus === "rejected");
     const canEdit = active && version.moderationStatus !== "pending";
     const shareable = active && Boolean(work.publishedVersionId) && work.publishedVersion?.visibility !== "private";
-    const sourceIcon = work.sourceType === "media" ? <ImageIcon className="size-4" /> : work.sourceType === "canvas" ? <GalleryVerticalEnd className="size-4" /> : <Film className="size-4" />;
+    const coverUrl = work.currentPreview?.previewUrl;
+
     return (
-        <article className="min-w-0 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] p-3.5 text-card-foreground transition hover:border-foreground/20 sm:p-4">
-            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] text-[var(--gm-text-3)]">{sourceIcon}</span>
-                    <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                            <h2 className="min-w-0 max-w-full truncate text-sm font-semibold">{version.title}</h2>
-                            <span className={`inline-flex h-6 items-center rounded-md border px-2 text-xs font-medium leading-none ${workStatusToneClass(active ? version.moderationStatus : "revoked")}`}>
-                                {active ? workStatusLabel(version.moderationStatus) : "已下架"}
-                            </span>
-                            {work.publishedVersion && work.publishedVersion.id !== version.id ? <Tag color="success">线上 v{work.publishedVersion.versionNumber}</Tag> : null}
-                        </div>
-                        <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-[var(--gm-text-3)]">{version.description || "暂未填写作品说明"}</p>
-                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--gm-text-3)]">
-                            <span>{SOURCE_TYPE_LABELS[work.sourceType]}来源</span>
-                            <span>v{version.versionNumber}</span>
-                            <span>{VISIBILITY_LABELS[version.visibility]}</span>
-                            <span>{work.viewCount} 次访问</span>
-                            <span>更新于 {formatWorkTime(work.updatedAt)}</span>
-                        </div>
-                        {/* 审核时间线：从已有字段算出，不查审计表 */}
-                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-5 text-[var(--gm-text-3)]">
+        <article className="min-w-0 overflow-hidden rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] transition hover:border-[var(--gm-border-strong)]">
+            {/* 卡片主体：封面 + 核心信息 */}
+            <div className="flex min-w-0 gap-3 p-3 sm:gap-4 sm:p-4">
+                {/* 封面图 */}
+                <div className="size-20 shrink-0 overflow-hidden rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] sm:size-24">
+                    {coverUrl ? (
+                        <img src={coverUrl} alt={version.title} className="size-full object-cover" loading="lazy" />
+                    ) : (
+                        <div className="grid size-full place-items-center text-[var(--gm-text-3)]">{work.sourceType === "canvas" ? <GalleryVerticalEnd className="size-6" /> : <ImageIcon className="size-6" />}</div>
+                    )}
+                </div>
+                {/* 标题 + 状态 + 提示词摘要 */}
+                <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <h2 className="min-w-0 max-w-full truncate text-sm font-semibold">{version.title}</h2>
+                        <span className={`inline-flex h-5 items-center rounded border px-1.5 text-[11px] font-medium leading-none ${workStatusToneClass(active ? version.moderationStatus : "revoked")}`}>
+                            {active ? workStatusLabel(version.moderationStatus) : "已下架"}
+                        </span>
+                        {work.publishedVersion && work.publishedVersion.id !== version.id ? <Tag color="success">线上 v{work.publishedVersion.versionNumber}</Tag> : null}
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--gm-text-2)]">{version.publicPrompt || version.description || "暂无提示词"}</p>
+                    {version.rejectionReason ? <div className="mt-1 border-l-2 border-[var(--gm-danger)] pl-2 text-xs leading-5 text-[var(--gm-danger)]">驳回：{version.rejectionReason}</div> : null}
+                </div>
+                {/* 详情展开按钮 */}
+                <button
+                    type="button"
+                    className="ml-1 self-start rounded-md border border-[var(--gm-border)] px-2.5 py-1 text-xs text-[var(--gm-text-2)] transition hover:bg-[var(--gm-wash)] hover:text-[var(--gm-text)]"
+                    onClick={() => setExpanded((v) => !v)}
+                    aria-expanded={expanded}
+                >
+                    {expanded ? "收起" : "详情"}
+                </button>
+            </div>
+
+            {/* 展开区：操作按钮 + 元数据 + 时间线 */}
+            {expanded ? (
+                <div className="border-t border-[var(--gm-border)] px-3 py-3 sm:px-4">
+                    <div className="mb-2 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--gm-text-3)]">
+                        <span>{SOURCE_TYPE_LABELS[work.sourceType]}来源</span>
+                        <span>v{version.versionNumber}</span>
+                        <span>{VISIBILITY_LABELS[version.visibility]}</span>
+                        <span>{work.viewCount} 次访问</span>
+                        <span>更新于 {formatWorkTime(work.updatedAt)}</span>
+                    </div>
+                    <div className="mb-3 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-5 text-[var(--gm-text-3)]">
+                        <span className="inline-flex items-center gap-0.5">
+                            <span className={dotClass(version.moderationStatus, "created")} />
+                            创建 {formatWorkTime(work.createdAt)}
+                        </span>
+                        {version.submittedAt ? (
                             <span className="inline-flex items-center gap-0.5">
-                                <span className={dotClass(version.moderationStatus, "created")} />
-                                创建 {formatWorkTime(work.createdAt)}
+                                <span className={dotClass(version.moderationStatus, "submitted")} />
+                                提交审核 {formatWorkTime(version.submittedAt)}
                             </span>
-                            {version.submittedAt ? (
-                                <span className="inline-flex items-center gap-0.5">
-                                    <span className={dotClass(version.moderationStatus, "submitted")} />
-                                    提交审核 {formatWorkTime(version.submittedAt)}
-                                </span>
-                            ) : null}
-                            {version.reviewedAt ? (
-                                <span className="inline-flex items-center gap-0.5">
-                                    <span className={dotClass(version.moderationStatus, "reviewed")} />
-                                    {version.moderationStatus === "approved" ? "审核通过" : version.moderationStatus === "rejected" ? "已驳回" : version.moderationStatus === "taken_down" ? "已下架" : "审核完成"} {formatWorkTime(version.reviewedAt)}
-                                </span>
-                            ) : null}
-                        </div>
-                        {version.rejectionReason ? <div className="mt-1.5 border-l-2 border-[var(--gm-danger)] pl-2 text-xs leading-5 text-[var(--gm-danger)]">驳回原因：{version.rejectionReason}</div> : null}
+                        ) : null}
+                        {version.reviewedAt ? (
+                            <span className="inline-flex items-center gap-0.5">
+                                <span className={dotClass(version.moderationStatus, "reviewed")} />
+                                {version.moderationStatus === "approved" ? "审核通过" : version.moderationStatus === "rejected" ? "已驳回" : "审核完成"} {formatWorkTime(version.reviewedAt)}
+                            </span>
+                        ) : null}
+                    </div>
+                    <div className="flex min-w-0 flex-wrap gap-1.5">
+                        {shareable ? (
+                            <>
+                                <Button size="small" icon={<Eye className="size-3.5" />} onClick={onPreview}>
+                                    预览
+                                </Button>
+                                <Button size="small" icon={<Copy className="size-3.5" />} onClick={onCopy}>
+                                    复制链接
+                                </Button>
+                            </>
+                        ) : null}
+                        {canEdit ? (
+                            <Button size="small" icon={<Pencil className="size-3.5" />} onClick={onEdit} disabled={busy}>
+                                {version.moderationStatus === "approved" ? "创建新版本" : "编辑"}
+                            </Button>
+                        ) : null}
+                        {active && version.moderationStatus === "taken_down" ? (
+                            <Button size="small" icon={<Scale className="size-3.5" />} onClick={onAppeal} disabled={busy}>
+                                提交申诉
+                            </Button>
+                        ) : null}
+                        {canSubmit ? (
+                            <Button size="small" type="primary" icon={<Send className="size-3.5" />} onClick={onSubmit} loading={busy}>
+                                提交审核
+                            </Button>
+                        ) : null}
+                        {active && version.moderationStatus === "pending" ? (
+                            <Button size="small" icon={<RotateCcw className="size-3.5" />} onClick={onWithdraw} disabled={busy}>
+                                撤回修改
+                            </Button>
+                        ) : null}
+                        {active && work.publishedVersionId ? (
+                            <Button size="small" danger icon={<Ban className="size-3.5" />} onClick={onTakeDown} disabled={busy}>
+                                下架
+                            </Button>
+                        ) : null}
+                        {!active ? (
+                            <>
+                                <Button size="small" type="primary" icon={<ArrowUpFromLine className="size-3.5" />} onClick={onRelist} loading={busy}>
+                                    上架
+                                </Button>
+                                <Button size="small" danger icon={<Trash2 className="size-3.5" />} onClick={onDelete} disabled={busy}>
+                                    删除
+                                </Button>
+                            </>
+                        ) : null}
                     </div>
                 </div>
-                <div className="flex min-w-0 flex-wrap gap-1.5 border-t border-[var(--gm-border)] pt-3 md:max-w-md md:shrink-0 md:justify-end md:border-t-0 md:pt-0">
-                    {shareable ? (
-                        <>
-                            <Button size="small" icon={<Eye className="size-3.5" />} onClick={onPreview}>
-                                预览
-                            </Button>
-                            <Button size="small" icon={<Copy className="size-3.5" />} onClick={onCopy}>
-                                复制链接
-                            </Button>
-                        </>
-                    ) : null}
-                    {canEdit ? (
-                        <Button size="small" icon={<Pencil className="size-3.5" />} onClick={onEdit} disabled={busy}>
-                            {version.moderationStatus === "approved" ? "创建新版本" : "编辑"}
-                        </Button>
-                    ) : null}
-                    {active && version.moderationStatus === "taken_down" ? (
-                        <Button size="small" icon={<Scale className="size-3.5" />} onClick={onAppeal} disabled={busy}>
-                            提交申诉
-                        </Button>
-                    ) : null}
-                    {canSubmit ? (
-                        <Button size="small" type="primary" icon={<Send className="size-3.5" />} onClick={onSubmit} loading={busy}>
-                            提交审核
-                        </Button>
-                    ) : null}
-                    {/* 审核中也能改：撤回后退回草稿，不必等管理员驳回 */}
-                    {active && version.moderationStatus === "pending" ? (
-                        <Button size="small" icon={<RotateCcw className="size-3.5" />} onClick={onWithdraw} disabled={busy}>
-                            撤回修改
-                        </Button>
-                    ) : null}
-                    {active && work.publishedVersionId ? (
-                        <Button size="small" danger icon={<Ban className="size-3.5" />} onClick={onTakeDown} disabled={busy}>
-                            下架
-                        </Button>
-                    ) : null}
-                    {!active ? (
-                        <>
-                            <Button size="small" type="primary" icon={<ArrowUpFromLine className="size-3.5" />} onClick={onRelist} loading={busy}>
-                                上架
-                            </Button>
-                            <Button size="small" danger icon={<Trash2 className="size-3.5" />} onClick={onDelete} disabled={busy}>
-                                删除
-                            </Button>
-                        </>
-                    ) : null}
-                </div>
-            </div>
+            ) : null}
         </article>
     );
 }
