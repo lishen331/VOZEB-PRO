@@ -226,12 +226,18 @@ describe("exclusive video reference mode", () => {
     ];
 
     it("drops reference materials from content when the task carries keyframes", () => {
-        const result = applyExclusiveVideoReferenceMode({ ...both, content: h3Content.map((item) => ({ ...item })) }, { exclusive: true, hasFirstFrame: true, hasLastFrame: true });
+        const result = applyExclusiveVideoReferenceMode(
+            { ...both, content: h3Content.map((item) => ({ ...item })) },
+            { exclusive: true, hasFirstFrame: true, hasLastFrame: true },
+        );
         expect(result.content).toEqual([h3Content[0], h3Content[1], h3Content[2]]);
     });
 
     it("drops keyframes from content when the task carries only reference materials", () => {
-        const result = applyExclusiveVideoReferenceMode({ ...both, content: h3Content.map((item) => ({ ...item })) }, { exclusive: true, hasFirstFrame: false });
+        const result = applyExclusiveVideoReferenceMode(
+            { ...both, content: h3Content.map((item) => ({ ...item })) },
+            { exclusive: true, hasFirstFrame: false },
+        );
         expect(result.content).toEqual([h3Content[0], h3Content[3], h3Content[4], h3Content[5]]);
     });
 
