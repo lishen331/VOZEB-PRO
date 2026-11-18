@@ -190,8 +190,6 @@ export default function PracticeHome() {
     const projectCards = PRACTICE_PROJECT_CARDS.filter((card) => visibleProjects[card.kind]);
     const moduleCards = PRACTICE_MODULES.filter((card) => visibleModules.includes(card.module));
     const twoUp = projectCards.length === 2;
-    // 模块卡片按剩余数量自适应列数：1 张占满整行、2 张各半、3 张及以上三列，避免关掉模块后网格留空洞。
-    const moduleGridClass = moduleCards.length <= 1 ? undefined : moduleCards.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3";
 
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]" data-practice-home>

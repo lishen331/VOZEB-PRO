@@ -619,7 +619,7 @@
     margin-top: 10px;
 }
 
-.ptab {
+.root .ptab {
     padding: 7px 13px;
     border-radius: 999px;
     font-size: 12px;
@@ -635,11 +635,11 @@
     border-color: color-mix(in srgb, var(--gm-blue) 40%, var(--gm-border));
 }
 
-.ptabActive {
-    color: #fff !important;
-    background: var(--gm-blue);
-    border-color: var(--gm-blue);
-    box-shadow: 0 4px 14px rgba(0, 80, 245, 0.3);
+.root .ptabActive {
+    color: var(--gm-blue) !important;
+    background: color-mix(in srgb, var(--gm-blue) 10%, transparent);
+    border-color: color-mix(in srgb, var(--gm-blue) 48%, var(--gm-border));
+    box-shadow: none;
 }
 
 .sliders {
@@ -708,7 +708,7 @@
     gap: 8px;
 }
 
-.batch {
+.root .batch {
     flex: 1;
     padding: 9px 6px;
     border-radius: var(--gm-radius);
@@ -732,10 +732,10 @@
     border-color: color-mix(in srgb, var(--gm-blue) 40%, transparent);
 }
 
-.batchActive {
-    border-color: var(--gm-blue) !important;
+.root .batchActive {
+    border-color: color-mix(in srgb, var(--gm-blue) 48%, var(--gm-border)) !important;
     color: var(--gm-blue) !important;
-    background: var(--gm-accent-soft);
+    background: color-mix(in srgb, var(--gm-blue) 10%, transparent);
 }
 
 .batchActive small {
