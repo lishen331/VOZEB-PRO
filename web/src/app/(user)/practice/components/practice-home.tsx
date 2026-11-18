@@ -8,7 +8,7 @@ import { GammaStatCard } from "@/components/gamma-ui/gamma-cards";
 import { GammaBadge } from "@/components/gamma-ui/gamma-controls";
 import { GammaStagger, GammaStaggerItem } from "@/components/gamma-ui/gamma-motion";
 import { SUBJECT_ACCENT, type SubjectAccent } from "@/components/gamma-ui/gamma-subjects";
-import { Box, Clapperboard, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScrollText, UserRound, type LucideIcon, Sparkles, ArrowRight } from "lucide-react";
+import { Box, Clapperboard, Cuboid, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScrollText, UserRound, type LucideIcon, Sparkles, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
@@ -37,6 +37,22 @@ export const PRACTICE_PROJECT_CARDS: Array<{ kind: PracticeProjectKind; title: s
 export const PRACTICE_SCRIPT_ENTRY = { title: "剧本", description: "从创意到剧本文本的单人练习。", icon: ScrollText, accent: "teal" as SubjectAccent, tag: "单人 · 文本" } as const;
 
 export const PRACTICE_SINGLE_ENTRY = { title: "单项练习", description: "角色、场景、道具、分镜图、分镜视频与音频，各自进入独立练习页面。", icon: Sparkles, accent: "blue" as SubjectAccent } as const;
+
+/**
+ * 不走 AI 生成会话的本地创作工具。3D 导演台是源码集成进来的三维场景调度器，
+ * 结果通过「发送到画布」保存到素材库，因此和单项练习并列展示、直接跳转独立页面。
+ */
+export const PRACTICE_TOOL_ENTRIES: Array<{ id: "director-desk"; title: string; description: string; icon: LucideIcon; accent: SubjectAccent; path: string; tag: string }> = [
+    {
+        id: "director-desk",
+        title: "3D 导演台",
+        description: "在三维空间里摆放角色、机位和全景背景，截图后保存到素材库。",
+        icon: Cuboid,
+        accent: "violet",
+        path: "/practice/director-desk",
+        tag: "三维 · 本地工具",
+    },
+];
 
 export const PRACTICE_MODULES: Array<{ module: PracticeModuleKind; title: string; description: string; icon: LucideIcon; accent: SubjectAccent }> = [
     { module: "character", title: "角色", description: "生成角色主体图，并继续扩展多视角设定。", icon: UserRound, accent: "violet" },
@@ -212,6 +228,13 @@ export default function PracticeHome() {
                                 <SinglePracticeEntry onClick={() => router.push(practiceModulePath(moduleCards[0].module, ipReference ? { reference: ipReference } : undefined))} moduleCount={moduleCards.length} />
                             </GammaStaggerItem>
                         </GammaStagger>
+                        {PRACTICE_TOOL_ENTRIES.length ? (
+                            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {PRACTICE_TOOL_ENTRIES.map((tool) => (
+                                    <ToolEntryCard key={tool.id} tool={tool} onClick={() => router.push(tool.path)} />
+                                ))}
+                            </div>
+                        ) : null}
                     </section>
                 ) : null}
                 {/* 最近练习记录 */}
@@ -347,6 +370,34 @@ function ScriptEntry({ onClick }: { onClick: () => void }) {
 }
 
 /** 单入口收纳六类独立练习页面 */
+/**
+ * 本地创作工具卡：和单项练习入口同一套描边与内距，
+ * 但明确标注它不消耗模型积分、也不产生练习会话记录。
+ */
+function ToolEntryCard({ tool, onClick }: { tool: (typeof PRACTICE_TOOL_ENTRIES)[number]; onClick: () => void }) {
+    const Icon = tool.icon;
+    const accent = SUBJECT_ACCENT[tool.accent];
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            data-practice-tool={tool.id}
+            className="group flex h-full min-h-36 w-full flex-col items-start gap-4 rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] sm:p-6"
+        >
+            <span className={cn("grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-lg)]", accent.chip)}>
+                <Icon className={cn("size-7", accent.text)} />
+            </span>
+            <span className="min-w-0">
+                <span className="block text-base font-semibold text-[var(--gm-text)]">{tool.title}</span>
+                <span className="mt-1 block text-sm leading-6 text-[var(--gm-text-2)]">{tool.description}</span>
+                <span className="mt-3 flex flex-wrap gap-2">
+                    <GammaBadge tone="neutral">{tool.tag}</GammaBadge>
+                </span>
+            </span>
+        </button>
+    );
+}
+
 function SinglePracticeEntry({ onClick, moduleCount }: { onClick: () => void; moduleCount: number }) {
     const Icon = PRACTICE_SINGLE_ENTRY.icon;
     const accent = SUBJECT_ACCENT[PRACTICE_SINGLE_ENTRY.accent];
