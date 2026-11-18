@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { IpReference } from "@/lib/ip-library-domain";
-import { PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, PRACTICE_SCRIPT_ENTRY, PRACTICE_SINGLE_ENTRY, practiceProjectPath, practiceModulePath } from "./practice-home";
+import { PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, PRACTICE_SCRIPT_ENTRY, PRACTICE_SINGLE_ENTRY, PRACTICE_TOOL_ENTRIES, practiceProjectPath, practiceModulePath } from "./practice-home";
 
 describe("practice home contract", () => {
     it("exposes the six Demo-aligned modules and keeps project cards separately controllable", () => {
@@ -15,6 +15,10 @@ describe("practice home contract", () => {
     it("uses a single-item practice entry for the six module workspaces", () => {
         expect(PRACTICE_SINGLE_ENTRY.title).toBe("单项练习");
         expect(PRACTICE_SINGLE_ENTRY.description).toContain("角色");
+    });
+    it("lists the local tools next to the single-item entry, 3D desk first", () => {
+        expect(PRACTICE_TOOL_ENTRIES.map((tool) => tool.id)).toEqual(["director-desk", "reverse-prompt", "local-edit", "expression-reference", "super-resolution"]);
+        expect(PRACTICE_TOOL_ENTRIES.slice(1).map((tool) => tool.path)).toEqual(["/practice/reverse-prompt", "/practice/local-edit", "/practice/expression-reference", "/practice/super-resolution"]);
     });
     it("guards the script entry with the admin-controlled script flag", async () => {
         const source = await (await import("node:fs/promises")).readFile(new URL("./practice-home.tsx", import.meta.url), "utf8");

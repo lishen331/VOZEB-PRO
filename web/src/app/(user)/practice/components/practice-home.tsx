@@ -8,11 +8,12 @@ import { GammaStatCard } from "@/components/gamma-ui/gamma-cards";
 import { GammaBadge } from "@/components/gamma-ui/gamma-controls";
 import { GammaStagger, GammaStaggerItem } from "@/components/gamma-ui/gamma-motion";
 import { SUBJECT_ACCENT, type SubjectAccent } from "@/components/gamma-ui/gamma-subjects";
-import { Box, Clapperboard, Cuboid, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScrollText, UserRound, type LucideIcon, Sparkles, ArrowRight } from "lucide-react";
+import { Box, Brush, Clapperboard, Cuboid, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScanFace, ScrollText, UserRound, type LucideIcon, Sparkles, WandSparkles, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
+import { PRACTICE_IMAGE_TOOL_ENTRIES } from "@/lib/practice-image-tools";
 import { GuideLink } from "@/components/onboarding/guide-link";
 import { ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
 import { practiceApi, type PracticeProjectSummary, type PracticeSession } from "@/services/api/practice";
@@ -39,10 +40,18 @@ export const PRACTICE_SCRIPT_ENTRY = { title: "剧本", description: "从创意�
 export const PRACTICE_SINGLE_ENTRY = { title: "单项练习", description: "角色、场景、道具、分镜图、分镜视频与音频，各自进入独立练习页面。", icon: Sparkles, accent: "blue" as SubjectAccent } as const;
 
 /**
- * 不走 AI 生成会话的本地创作工具。3D 导演台是源码集成进来的三维场景调度器，
- * 结果通过「发送到画布」保存到素材库，因此和单项练习并列展示、直接跳转独立页面。
+ * 与 AI 单项练习并列展示的独立工具入口。每个入口有自己的工作台；图像 AI 工具走练习模型池，
+ * 本地工具（3D 导演台和超分放大）不会调用 AI 任务。
  */
-export const PRACTICE_TOOL_ENTRIES: Array<{ id: "director-desk"; title: string; description: string; icon: LucideIcon; accent: SubjectAccent; path: string; tag: string }> = [
+export const PRACTICE_TOOL_ENTRIES: Array<{
+    id: "director-desk" | "reverse-prompt" | "local-edit" | "expression-reference" | "super-resolution";
+    title: string;
+    description: string;
+    icon: LucideIcon;
+    accent: SubjectAccent;
+    path: string;
+    tag: string;
+}> = [
     {
         id: "director-desk",
         title: "3D 导演台",
@@ -52,6 +61,11 @@ export const PRACTICE_TOOL_ENTRIES: Array<{ id: "director-desk"; title: string; 
         path: "/practice/director-desk",
         tag: "三维 · 本地工具",
     },
+    ...PRACTICE_IMAGE_TOOL_ENTRIES.map((tool) => ({
+        ...tool,
+        icon: tool.id === "reverse-prompt" ? WandSparkles : tool.id === "local-edit" ? Brush : tool.id === "expression-reference" ? ScanFace : Maximize2,
+        accent: tool.id === "reverse-prompt" ? ("blue" as const) : tool.id === "local-edit" ? ("cyan" as const) : tool.id === "expression-reference" ? ("violet" as const) : ("teal" as const),
+    })),
 ];
 
 export const PRACTICE_MODULES: Array<{ module: PracticeModuleKind; title: string; description: string; icon: LucideIcon; accent: SubjectAccent }> = [
