@@ -62,6 +62,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check source
+        env:
+          VOZEB_PRO_DATABASE_PROVIDER: json
         run: |
           pnpm run lint
           pnpm run typecheck
