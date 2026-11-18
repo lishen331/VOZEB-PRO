@@ -30,21 +30,7 @@ interface MultiAngleStageProps {
  *   - 摄像头模式下是一张随镜头转的卡片，主体模式下换成立方盒；
  *   - 右上圆形取景窗实时重绘当前机位画面（canvas 在 workbench 的 effect 里画）。
  */
-export default function MultiAngleStage({
-    mode,
-    h,
-    p,
-    d,
-    fisheye,
-    image,
-    dragging,
-    viewportRef,
-    captureCanvasRef,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    children,
-}: MultiAngleStageProps) {
+export default function MultiAngleStage({ mode, h, p, d, fisheye, image, dragging, viewportRef, captureCanvasRef, onPointerDown, onPointerMove, onPointerUp, children }: MultiAngleStageProps) {
     const cameraMode = mode === "camera";
     const imgStyle = image ? { backgroundImage: `url(${image})` } : undefined;
 
@@ -63,21 +49,11 @@ export default function MultiAngleStage({
                 </div>
             </div>
 
-            <div
-                ref={viewportRef}
-                className={cn(s.viewport, dragging && s.viewportDragging)}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerUp}
-            >
+            <div ref={viewportRef} className={cn(s.viewport, dragging && s.viewportDragging)} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
                 <div className={s.zoomWrap} style={{ transform: `scale(${shotZoom(d)})` }}>
                     {cameraMode ? (
                         <div className={s.sceneCenter}>
-                            <div
-                                className={cn(s.subjectPlane, fisheye && s.subjectPlaneFisheye)}
-                                style={{ ...imgStyle, transform: `rotateY(${h}deg) rotateX(${-p}deg)` }}
-                            />
+                            <div className={cn(s.subjectPlane, fisheye && s.subjectPlaneFisheye)} style={{ ...imgStyle, transform: `rotateY(${h}deg) rotateX(${-p}deg)` }} />
                         </div>
                     ) : (
                         <div className={s.cube} style={{ transform: `rotateX(${-p}deg) rotateY(${-h}deg)` }}>

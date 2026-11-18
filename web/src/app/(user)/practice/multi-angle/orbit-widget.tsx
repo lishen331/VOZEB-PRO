@@ -5,15 +5,7 @@ import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
-import {
-    ORBIT_LATITUDES,
-    ORBIT_LONGITUDES,
-    latitudePath,
-    longitudePath,
-    orbitCamera,
-    paintCapture,
-    type AngleMode,
-} from "./lib/angle-model";
+import { ORBIT_LATITUDES, ORBIT_LONGITUDES, latitudePath, longitudePath, orbitCamera, paintCapture, type AngleMode } from "./lib/angle-model";
 import s from "./multi-angle.module.css";
 
 interface OrbitWidgetProps {
@@ -38,20 +30,7 @@ interface OrbitWidgetProps {
  * 网格路径不交给 React 渲染——每次 h/p 变化只改 setAttribute("d")，
  * 避免 60fps 拖拽时重建整棵 SVG 节点树（Demo 同款写法）。
  */
-export default function OrbitWidget({
-    mode,
-    h,
-    p,
-    d,
-    fisheye,
-    image,
-    imageEl,
-    thumb,
-    widgetRef,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-}: OrbitWidgetProps) {
+export default function OrbitWidget({ mode, h, p, d, fisheye, image, imageEl, thumb, widgetRef, onPointerDown, onPointerMove, onPointerUp }: OrbitWidgetProps) {
     const latitudeRefs = useRef<Array<SVGPathElement | null>>([]);
     const longitudeRefs = useRef<Array<SVGPathElement | null>>([]);
     const tetherRef = useRef<SVGLineElement | null>(null);
@@ -73,10 +52,7 @@ export default function OrbitWidget({
         tetherRef.current?.setAttribute("x2", camera.sx.toFixed(1));
         tetherRef.current?.setAttribute("y2", camera.sy.toFixed(1));
         tetherRef.current?.setAttribute("opacity", String(camera.opacity));
-        cameraRef.current?.setAttribute(
-            "transform",
-            `translate(${camera.sx.toFixed(1)}, ${camera.sy.toFixed(1)}) scale(${camera.scale.toFixed(3)})`,
-        );
+        cameraRef.current?.setAttribute("transform", `translate(${camera.sx.toFixed(1)}, ${camera.sy.toFixed(1)}) scale(${camera.scale.toFixed(3)})`);
         cameraRef.current?.setAttribute("opacity", String(camera.opacity));
     }, [h, p]);
 
@@ -128,16 +104,7 @@ export default function OrbitWidget({
                         style={{ stroke: "var(--ma-wire-soft)" }}
                     />
                 ))}
-                <line
-                    ref={tetherRef}
-                    x1={89}
-                    y1={89}
-                    x2={89}
-                    y2={89}
-                    strokeWidth={1.2}
-                    strokeDasharray="2.5 3"
-                    style={{ stroke: "var(--gm-blue)" }}
-                />
+                <line ref={tetherRef} x1={89} y1={89} x2={89} y2={89} strokeWidth={1.2} strokeDasharray="2.5 3" style={{ stroke: "var(--gm-blue)" }} />
                 <g ref={cameraRef}>
                     <rect x={-19} y={-13} width={28} height={26} rx={6.5} fill="#0b1530" />
                     <rect x={-19} y={-13} width={28} height={26} rx={6.5} fill="url(#maCamShine)" opacity={0.25} />
@@ -147,12 +114,7 @@ export default function OrbitWidget({
                     <rect x={9} y={-6.5} width={5.5} height={13} rx={2.4} fill="#0b1530" />
                     <circle cx={11.7} cy={-16} r={2} fill="#ff4d6d" />
                     <foreignObject x={-12} y={-7} width={14} height={14}>
-                        <canvas
-                            ref={lensCanvasRef}
-                            width={80}
-                            height={80}
-                            style={{ width: 14, height: 14, display: "block", borderRadius: "50%" }}
-                        />
+                        <canvas ref={lensCanvasRef} width={80} height={80} style={{ width: 14, height: 14, display: "block", borderRadius: "50%" }} />
                     </foreignObject>
                     {/* 取景器描边：一圈青色细环，标明这是镜头取景 */}
                     <circle cx={-5} cy={0} r={7.3} fill="none" stroke="#28ebfa" strokeWidth={1.2} opacity={0.7} />

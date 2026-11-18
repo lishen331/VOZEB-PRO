@@ -5,17 +5,7 @@ import { ArrowUp, RotateCcw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-import {
-    BATCH_ANGLES,
-    MAX_SHOT_DISTANCE,
-    MIN_SHOT_DISTANCE,
-    MODE_COPY,
-    PRESET_TABS,
-    shotLabel,
-    type AngleMode,
-    type BatchSize,
-    type PresetKey,
-} from "./lib/angle-model";
+import { BATCH_ANGLES, MAX_SHOT_DISTANCE, MIN_SHOT_DISTANCE, MODE_COPY, PRESET_TABS, shotLabel, type AngleMode, type BatchSize, type PresetKey } from "./lib/angle-model";
 import s from "./multi-angle.module.css";
 
 interface AngleParamsPanelProps {
@@ -51,36 +41,11 @@ function fillPercent(value: number, min: number, max: number) {
 }
 
 /** 三根滑杆共用的控件；--ma-fill 驱动已走过的轨道颜色。 */
-function SliderRow({
-    label,
-    value,
-    min,
-    max,
-    step,
-    display,
-    onChange,
-}: {
-    label: string;
-    value: number;
-    min: number;
-    max: number;
-    step: number;
-    display: string;
-    onChange: (value: number) => void;
-}) {
+function SliderRow({ label, value, min, max, step, display, onChange }: { label: string; value: number; min: number; max: number; step: number; display: string; onChange: (value: number) => void }) {
     return (
         <div className={s.sliderRow}>
             <label>{label}</label>
-            <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={value}
-                aria-label={label}
-                style={{ "--ma-fill": fillPercent(value, min, max) } as CSSProperties}
-                onChange={(event) => onChange(Number(event.target.value))}
-            />
+            <input type="range" min={min} max={max} step={step} value={value} aria-label={label} style={{ "--ma-fill": fillPercent(value, min, max) } as CSSProperties} onChange={(event) => onChange(Number(event.target.value))} />
             <output>{display}</output>
         </div>
     );
@@ -115,14 +80,7 @@ export default function AngleParamsPanel({
         <div className={s.panel}>
             <div className={s.modeSeg} role="tablist" aria-label="旋转对象">
                 {(["camera", "subject"] as AngleMode[]).map((item) => (
-                    <button
-                        key={item}
-                        type="button"
-                        role="tab"
-                        aria-selected={mode === item}
-                        className={cn(mode === item && s.modeSegActive)}
-                        onClick={() => onModeChange(item)}
-                    >
+                    <button key={item} type="button" role="tab" aria-selected={mode === item} className={cn(mode === item && s.modeSegActive)} onClick={() => onModeChange(item)}>
                         {item === "camera" ? "摄像头" : "主体"}
                     </button>
                 ))}
@@ -132,12 +90,7 @@ export default function AngleParamsPanel({
                 <h3>预设视角</h3>
                 <div className={s.presetTabs}>
                     {PRESET_TABS.map((tab) => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            className={cn(s.ptab, preset === tab.key && s.ptabActive)}
-                            onClick={() => onPresetChange(tab.key)}
-                        >
+                        <button key={tab.key} type="button" className={cn(s.ptab, preset === tab.key && s.ptabActive)} onClick={() => onPresetChange(tab.key)}>
                             {tab.label}
                         </button>
                     ))}
@@ -145,53 +98,18 @@ export default function AngleParamsPanel({
             </div>
 
             <div className={s.sliders}>
-                <SliderRow
-                    label={copy.hLabel}
-                    value={h}
-                    min={cameraMode ? 0 : -180}
-                    max={cameraMode ? 360 : 180}
-                    step={1}
-                    display={`${h}°`}
-                    onChange={(value) => onAngleChange({ h: value })}
-                />
-                <SliderRow
-                    label={copy.pLabel}
-                    value={p}
-                    min={-90}
-                    max={90}
-                    step={1}
-                    display={`${p}°`}
-                    onChange={(value) => onAngleChange({ p: value })}
-                />
-                <SliderRow
-                    label={copy.dLabel}
-                    value={d}
-                    min={MIN_SHOT_DISTANCE}
-                    max={MAX_SHOT_DISTANCE}
-                    step={0.5}
-                    display={fisheye ? "特写" : shotLabel(d)}
-                    onChange={(value) => onAngleChange({ d: value })}
-                />
+                <SliderRow label={copy.hLabel} value={h} min={cameraMode ? 0 : -180} max={cameraMode ? 360 : 180} step={1} display={`${h}°`} onChange={(value) => onAngleChange({ h: value })} />
+                <SliderRow label={copy.pLabel} value={p} min={-90} max={90} step={1} display={`${p}°`} onChange={(value) => onAngleChange({ p: value })} />
+                <SliderRow label={copy.dLabel} value={d} min={MIN_SHOT_DISTANCE} max={MAX_SHOT_DISTANCE} step={0.5} display={fisheye ? "特写" : shotLabel(d)} onChange={(value) => onAngleChange({ d: value })} />
             </div>
 
             <div className={s.toggleRow}>
                 <span>提示词</span>
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={promptOn}
-                    aria-label="提示词开关"
-                    className={cn(s.promptToggle, promptOn && s.promptToggleOn)}
-                    onClick={onPromptToggle}
-                />
+                <button type="button" role="switch" aria-checked={promptOn} aria-label="提示词开关" className={cn(s.promptToggle, promptOn && s.promptToggleOn)} onClick={onPromptToggle} />
             </div>
             {promptOn ? (
                 <div className={s.promptBox}>
-                    <textarea
-                        value={prompt}
-                        placeholder="可选：补充主体描述，例如「一位穿蓝色西装的男性，摄影棚光」"
-                        onChange={(event) => onPromptChange(event.target.value)}
-                    />
+                    <textarea value={prompt} placeholder="可选：补充主体描述，例如「一位穿蓝色西装的男性，摄影棚光」" onChange={(event) => onPromptChange(event.target.value)} />
                 </div>
             ) : null}
 
@@ -199,12 +117,7 @@ export default function AngleParamsPanel({
                 <h3 style={{ marginBottom: 10 }}>生成数量</h3>
                 <div className={s.batchRow}>
                     {BATCH_OPTIONS.map((option) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            className={cn(s.batch, batch === option.value && s.batchActive)}
-                            onClick={() => onBatchChange(option.value)}
-                        >
+                        <button key={option.value} type="button" className={cn(s.batch, batch === option.value && s.batchActive)} onClick={() => onBatchChange(option.value)}>
                             {option.label}
                             <small>{option.hint}</small>
                         </button>
@@ -218,16 +131,8 @@ export default function AngleParamsPanel({
                     重置参数
                 </button>
                 <span className={s.spacer} />
-                <span className={s.cost}>
-                    {batchTotal > 1 ? `演示渲染 · ${batchTotal} 个机位` : "演示渲染 · 不扣积分"}
-                </span>
-                <button
-                    type="button"
-                    className={s.sendBtn}
-                    aria-label="生成多角度画面"
-                    disabled={!ready || generating}
-                    onClick={onGenerate}
-                >
+                <span className={s.cost}>{batchTotal > 1 ? `演示渲染 · ${batchTotal} 个机位` : "演示渲染 · 不扣积分"}</span>
+                <button type="button" className={s.sendBtn} aria-label="生成多角度画面" disabled={!ready || generating} onClick={onGenerate}>
                     <ArrowUp size={17} strokeWidth={2.2} />
                 </button>
             </div>

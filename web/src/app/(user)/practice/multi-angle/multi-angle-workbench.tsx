@@ -134,17 +134,14 @@ export default function MultiAngleWorkbench() {
         paintCapture(canvas, imageEl, { h, p, d, fisheye, aspect: 1 });
     }, [imageEl, h, p, d, fisheye]);
 
-    const acceptFile = useCallback(
-        (file: File | null | undefined) => {
-            if (!file || !file.type.startsWith("image/")) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-                if (typeof reader.result === "string") setImage(reader.result);
-            };
-            reader.readAsDataURL(file);
-        },
-        [],
-    );
+    const acceptFile = useCallback((file: File | null | undefined) => {
+        if (!file || !file.type.startsWith("image/")) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === "string") setImage(reader.result);
+        };
+        reader.readAsDataURL(file);
+    }, []);
 
     // 拖到页面任意位置、Ctrl+V 粘贴图片都能载入（输入框内粘贴不拦截）
     useEffect(() => {
@@ -187,11 +184,7 @@ export default function MultiAngleWorkbench() {
     const applyAngles = useCallback((next: { h?: number; p?: number }) => {
         const current = live.current;
         if (next.h !== undefined) {
-            setH(
-                current.mode === "camera"
-                    ? wrapCameraAngle(next.h)
-                    : clamp(Math.round(next.h), -180, 180),
-            );
+            setH(current.mode === "camera" ? wrapCameraAngle(next.h) : clamp(Math.round(next.h), -180, 180));
         }
         if (next.p !== undefined) setP(clamp(Math.round(next.p), -90, 90));
         setPreset("custom");
@@ -366,13 +359,7 @@ export default function MultiAngleWorkbench() {
 
     return (
         <main className={cn(s.root, "h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]")}>
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={(event) => acceptFile(event.target.files?.[0])}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={(event) => acceptFile(event.target.files?.[0])} />
 
             <div className="gm-page px-4 py-6 sm:px-6 lg:px-8">
                 <header className={s.pageHead}>
@@ -396,10 +383,7 @@ export default function MultiAngleWorkbench() {
 
                 {!image ? (
                     <div className={s.uploadCard}>
-                        <div
-                            className={cn(s.dropzone, dropActive && s.dropzoneOver)}
-                            onClick={() => fileInputRef.current?.click()}
-                        >
+                        <div className={cn(s.dropzone, dropActive && s.dropzoneOver)} onClick={() => fileInputRef.current?.click()}>
                             <div className={s.dzInner}>
                                 <div className={s.dzIcon}>
                                     <ImagePlus size={26} />
@@ -491,14 +475,7 @@ export default function MultiAngleWorkbench() {
                     </div>
                 )}
 
-                <MultiAngleResults
-                    shots={shots}
-                    summary={summaryText}
-                    runs={runs}
-                    resultsRef={resultsRef}
-                    onDownload={download}
-                    onDownloadAll={downloadAll}
-                />
+                <MultiAngleResults shots={shots} summary={summaryText} runs={runs} resultsRef={resultsRef} onDownload={download} onDownloadAll={downloadAll} />
             </div>
         </main>
     );
