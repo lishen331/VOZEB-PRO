@@ -1,4 +1,4 @@
-import type { AuthSettings, LogicalModel, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { AuthSettings, LogicalModel, LogicalModelBinding, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
@@ -90,24 +90,27 @@ export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "logic
  * 不满足时代理返回 403「未绑定可用逻辑模型」，所以池子展示和练习路由都要提前排除。
  */
 export function channelModelBoundForPractice(logicalModels: LogicalModel[] | undefined, channelId: string, upstreamModel: string) {
+    return Boolean(findPracticeLogicalModelBinding(logicalModels, channelId, upstreamModel));
+}
+
+function findPracticeLogicalModelBinding(logicalModels: LogicalModel[] | undefined, channelId: string, upstreamModel: string): LogicalModelBinding | undefined {
     const normalized = upstreamModel
         .trim()
         .replace(/^models\//i, "")
         .toLowerCase();
-    if (!normalized) return false;
-    return (logicalModels || []).some(
-        (logical) =>
-            logical.enabled &&
-            logical.bindings.some(
-                (binding) =>
-                    binding.enabled &&
-                    binding.channelId === channelId &&
-                    binding.upstreamModel
-                        .trim()
-                        .replace(/^models\//i, "")
-                        .toLowerCase() === normalized,
-            ),
-    );
+    if (!normalized) return undefined;
+    return (logicalModels || [])
+        .filter((logical) => logical.enabled)
+        .flatMap((logical) => logical.bindings)
+        .find(
+            (binding) =>
+                binding.enabled &&
+                binding.channelId === channelId &&
+                binding.upstreamModel
+                    .trim()
+                    .replace(/^models\//i, "")
+                    .toLowerCase() === normalized,
+        );
 }
 
 /** 池子里某个模型是否被勾选：优先查该能力的池，没有配置该池则回退旧的平面表，最后默认包含。 */
@@ -130,16 +133,20 @@ function collectPracticePoolCandidates(settings: Pick<AuthSettings, "logicalMode
                     if (kind === "vision" && resolveLogicalModelCapabilityProfile({}, "text", channel, rawModelName(model))?.supportsImageInput !== true) return false;
                     if (!practicePoolIncludes(settings.practiceModelPool, kind, modelName)) return false;
                     // 与系统代理同规则：逻辑模型停用、或该渠道的绑定没开，代理会 403，不能放进池子。
-                    if (!channelModelBoundForPractice(settings.logicalModels, channel.id, rawModelName(model))) return false;
+                    if (!findPracticeLogicalModelBinding(settings.logicalModels, channel.id, rawModelName(model))) return false;
                     return !requestedModel || channelSupportsModel([model], requestedModel);
                 })
-                .map((model) => ({
-                    logicalModelId: rawModelName(model),
-                    upstreamModel: rawModelName(model),
-                    channelId: channel.id,
-                    channel,
-                    capabilityProfile: resolveLogicalModelCapabilityProfile({}, capability, channel, rawModelName(model)),
-                })),
+                .map((model) => {
+                    const upstreamModel = rawModelName(model);
+                    const binding = findPracticeLogicalModelBinding(settings.logicalModels, channel.id, upstreamModel);
+                    return {
+                        logicalModelId: upstreamModel,
+                        upstreamModel,
+                        channelId: channel.id,
+                        channel,
+                        capabilityProfile: resolveLogicalModelCapabilityProfile(binding || {}, capability, channel, upstreamModel),
+                    };
+                }),
         );
 }
 

@@ -480,6 +480,34 @@ describe("practice canvas model pool", () => {
         expect(channelModelBoundForPractice(settings.logicalModels, "openai", "Models/Agnes-Video-2.5")).toBe(true);
         expect(channelModelBoundForPractice(settings.logicalModels, "openai", "agnes-video-v2.0")).toBe(false);
     });
+
+    it("uses saved per-model reference-image capabilities for all MiniMax practice pool candidates", () => {
+        const models = ["MiniMax-H3", "MiniMax-H3-Highspeed", "MiniMax-H3-Lite", "MiniMax-H3-Max"];
+        const channel = poolChannel({ id: "minimax-video", capability: "video", models });
+        const settings = {
+            systemChannels: [channel],
+            logicalModels: models.map((model) => ({
+                id: model,
+                name: model,
+                capability: "video" as const,
+                enabled: true,
+                bindings: [
+                    {
+                        id: `minimax-video:${model}`,
+                        channelId: "minimax-video",
+                        upstreamModel: model,
+                        enabled: true,
+                        priority: 1,
+                        capabilityProfile: { supportsReferenceImage: true },
+                    },
+                ],
+            })),
+        } as never as Parameters<typeof resolvePracticeCanvasPoolCandidates>[0];
+
+        for (const model of models) {
+            expect(resolvePracticeCanvasPoolCandidates(settings, "video", model)).toMatchObject([{ upstreamModel: model, capabilityProfile: { supportsReferenceImage: true } }]);
+        }
+    });
 });
 
 /** 练习池夹具：给每个渠道的每个模型配一个启用的逻辑模型和绑定，否则新规则会把候选全部排除。 */
