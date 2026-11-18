@@ -235,34 +235,35 @@ export function ViewportToolbar({ getViewportCameraSnapshot, toolbarContainerRef
             };
 
             if (characterMenuOpen && characterTriggerRef.current) {
+                // 工具栏固定在视口底部，菜单必须向上展开，否则会被视口裁掉。
                 const triggerRect = characterTriggerRef.current.getBoundingClientRect();
-                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, frameRect.bottom - toolbarRect.bottom - FLOATING_PANEL_GAP - FLOATING_PANEL_MARGIN);
+                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, toolbarRect.top - frameRect.top - FLOATING_PANEL_GAP - FLOATING_PANEL_MARGIN);
                 setCharacterMenuStyle({
                     left: `${getCenteredPanelLeft(triggerRect.left + triggerRect.width / 2, characterMenuRef.current, CHARACTER_MENU_WIDTH)}px`,
-                    top: `${toolbarRect.bottom - frameRect.top + FLOATING_PANEL_GAP}px`,
-                    bottom: "auto",
+                    top: "auto",
+                    bottom: `${frameRect.bottom - toolbarRect.top + FLOATING_PANEL_GAP}px`,
                     maxHeight: `${availableHeight}px`,
                 });
             }
 
             if (geometryMenuOpen && geometryTriggerRef.current) {
                 const triggerRect = geometryTriggerRef.current.getBoundingClientRect();
-                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, frameRect.bottom - triggerRect.top - FLOATING_PANEL_MARGIN);
+                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, triggerRect.top - frameRect.top - FLOATING_PANEL_GAP - FLOATING_PANEL_MARGIN);
                 setGeometryMenuStyle({
                     left: `${getSidePanelLeft(triggerRect, geometryMenuRef.current, GEOMETRY_MENU_WIDTH)}px`,
-                    top: `${triggerRect.top - frameRect.top}px`,
-                    bottom: "auto",
+                    top: "auto",
+                    bottom: `${frameRect.bottom - triggerRect.top + FLOATING_PANEL_GAP}px`,
                     maxHeight: `${availableHeight}px`,
                 });
             }
 
             if (crowdPanelOpen && crowdTriggerRef.current) {
                 const triggerRect = crowdTriggerRef.current.getBoundingClientRect();
-                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, frameRect.bottom - triggerRect.top - FLOATING_PANEL_MARGIN);
+                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, triggerRect.top - frameRect.top - FLOATING_PANEL_GAP - FLOATING_PANEL_MARGIN);
                 setCrowdPanelStyle({
                     left: `${getSidePanelLeft(triggerRect, crowdPanelRef.current, CROWD_PANEL_WIDTH)}px`,
-                    top: `${triggerRect.top - frameRect.top}px`,
-                    bottom: "auto",
+                    top: "auto",
+                    bottom: `${frameRect.bottom - triggerRect.top + FLOATING_PANEL_GAP}px`,
                     maxHeight: `${availableHeight}px`,
                 });
             }
