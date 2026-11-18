@@ -268,22 +268,23 @@ export function ViewportToolbar({ getViewportCameraSnapshot, toolbarContainerRef
             }
 
             if (modelLibraryOpen) {
-                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, frameRect.bottom - toolbarRect.bottom - 10 - FLOATING_PANEL_MARGIN);
+                // 工具栏固定在视口底部，向下展开必然被裁掉；这里统一向上展开。
+                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, toolbarRect.top - frameRect.top - FLOATING_PANEL_GAP - FLOATING_PANEL_MARGIN);
                 setModelLibraryPanelStyle({
                     left: `${getCenteredPanelLeft(toolbarRect.left + toolbarRect.width / 2, modelLibraryPanelRef.current, MODEL_LIBRARY_PANEL_WIDTH)}px`,
-                    top: `${toolbarRect.bottom - frameRect.top + 10}px`,
-                    bottom: "auto",
+                    top: "auto",
+                    bottom: `${frameRect.bottom - toolbarRect.top + FLOATING_PANEL_GAP}px`,
                     maxHeight: `${availableHeight}px`,
                 });
             }
 
             if (aspectRatioPanelOpen && aspectRatioTriggerRef.current) {
                 const triggerRect = aspectRatioTriggerRef.current.getBoundingClientRect();
-                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, frameRect.bottom - toolbarRect.bottom - FLOATING_PANEL_GAP - FLOATING_PANEL_MARGIN);
+                const availableHeight = Math.max(MIN_FLOATING_PANEL_HEIGHT, triggerRect.top - frameRect.top - FLOATING_PANEL_GAP - FLOATING_PANEL_MARGIN);
                 setAspectRatioPanelStyle({
                     left: `${getCenteredPanelLeft(triggerRect.left + triggerRect.width / 2, aspectRatioPanelRef.current, ASPECT_RATIO_PANEL_WIDTH)}px`,
-                    top: `${toolbarRect.bottom - frameRect.top + FLOATING_PANEL_GAP}px`,
-                    bottom: "auto",
+                    top: "auto",
+                    bottom: `${frameRect.bottom - triggerRect.top + FLOATING_PANEL_GAP}px`,
                     maxHeight: `${availableHeight}px`,
                 });
             }
