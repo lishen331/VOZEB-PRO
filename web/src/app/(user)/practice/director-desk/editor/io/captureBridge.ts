@@ -3,9 +3,9 @@ import type { ScreenshotResult } from "./screenshotExport";
 export type ViewportCapturePreset = "current" | "four" | "twelve";
 
 export interface ViewportCaptureRequest {
-  preset: ViewportCapturePreset;
-  source: "capture-panel" | "camera-panel";
-  cameraId?: string | null;
+    preset: ViewportCapturePreset;
+    source: "capture-panel" | "camera-panel";
+    cameraId?: string | null;
 }
 
 export type ViewportCaptureHandler = (request: ViewportCaptureRequest) => Promise<ScreenshotResult[]>;
@@ -13,17 +13,17 @@ export type ViewportCaptureHandler = (request: ViewportCaptureRequest) => Promis
 let viewportCaptureHandler: ViewportCaptureHandler | null = null;
 
 export function setViewportCaptureHandler(handler: ViewportCaptureHandler) {
-  viewportCaptureHandler = handler;
+    viewportCaptureHandler = handler;
 }
 
 export function clearViewportCaptureHandler() {
-  viewportCaptureHandler = null;
+    viewportCaptureHandler = null;
 }
 
 export async function requestViewportCapture(request: ViewportCaptureRequest) {
-  if (!viewportCaptureHandler) {
-    throw new Error("Viewport capture handler is not registered");
-  }
+    if (!viewportCaptureHandler) {
+        throw new Error("Viewport capture handler is not registered");
+    }
 
-  return viewportCaptureHandler(request);
+    return viewportCaptureHandler(request);
 }

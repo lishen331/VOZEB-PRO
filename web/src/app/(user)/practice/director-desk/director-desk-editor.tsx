@@ -97,19 +97,16 @@ export default function DirectorDeskEditor() {
         });
     }, []);
 
-    const removeDesk = useCallback(
-        (desk: DirectorDeskRecord) => {
-            if (!window.confirm(`删除「${desk.name}」？这个导演台里的本地场景也会一起删除。`)) return;
-            setDesks((current) => {
-                const result = deleteDirectorDeskRecord(current, desk.id);
-                writeDirectorDeskRecords(result.records);
-                setActiveDeskId(result.activeId ?? result.records[0]?.id ?? "");
-                return result.records;
-            });
-            setScreen("home");
-        },
-        [],
-    );
+    const removeDesk = useCallback((desk: DirectorDeskRecord) => {
+        if (!window.confirm(`删除「${desk.name}」？这个导演台里的本地场景也会一起删除。`)) return;
+        setDesks((current) => {
+            const result = deleteDirectorDeskRecord(current, desk.id);
+            writeDirectorDeskRecords(result.records);
+            setActiveDeskId(result.activeId ?? result.records[0]?.id ?? "");
+            return result.records;
+        });
+        setScreen("home");
+    }, []);
 
     const saveCaptures = useCallback(
         async (captures: Array<{ dataUrl: string; fileName: string }>) => {
@@ -192,11 +189,7 @@ export default function DirectorDeskEditor() {
                             <button className="director-home-primary-button" type="button" onClick={createDesk}>
                                 新建导演台
                             </button>
-                            <button
-                                className="director-home-scroll-hint"
-                                type="button"
-                                onClick={() => router.push("/practice")}
-                            >
+                            <button className="director-home-scroll-hint" type="button" onClick={() => router.push("/practice")}>
                                 <ArrowLeft size={14} />
                                 返回练习
                             </button>
@@ -206,22 +199,14 @@ export default function DirectorDeskEditor() {
                     {desks.length ? (
                         <section className="director-home-grid" aria-label="导演台列表">
                             {desks.map((desk, index) => (
-                                <article
-                                    key={desk.id}
-                                    className={`director-home-card ${desk.id === activeDeskId ? "is-active" : ""}`}
-                                >
+                                <article key={desk.id} className={`director-home-card ${desk.id === activeDeskId ? "is-active" : ""}`}>
                                     <button className="director-home-card-main" type="button" onClick={() => openDesk(desk.id)}>
                                         <span className="director-home-card-content">
                                             <span className="director-home-card-title">{desk.name}</span>
                                         </span>
                                         <span className="director-home-card-index">{String(index + 1).padStart(2, "0")}</span>
                                     </button>
-                                    <button
-                                        className="director-home-card-delete"
-                                        type="button"
-                                        aria-label={`删除${desk.name}`}
-                                        onClick={() => removeDesk(desk)}
-                                    >
+                                    <button className="director-home-card-delete" type="button" aria-label={`删除${desk.name}`} onClick={() => removeDesk(desk)}>
                                         删除
                                     </button>
                                 </article>
@@ -246,12 +231,7 @@ export default function DirectorDeskEditor() {
                         3D 导演台
                     </button>
                     <div className="director-desk-switcher" aria-label="导演台选择器">
-                        <select
-                            className="director-desk-select"
-                            aria-label="选择导演台"
-                            value={activeDeskId}
-                            onChange={(event) => openDesk(event.currentTarget.value)}
-                        >
+                        <select className="director-desk-select" aria-label="选择导演台" value={activeDeskId} onChange={(event) => openDesk(event.currentTarget.value)}>
                             {desks.map((desk) => (
                                 <option key={desk.id} value={desk.id}>
                                     {desk.name}
@@ -265,12 +245,7 @@ export default function DirectorDeskEditor() {
                 </div>
                 <div className="top-bar-center">
                     <div className="mode-toggle ui-segmented" role="group" aria-label="视角切换">
-                        <button
-                            className={`mode-toggle-button ui-segmented-item ${viewMode === "director" ? "ui-segmented-item-active" : ""}`}
-                            aria-pressed={viewMode === "director"}
-                            type="button"
-                            onClick={() => setViewMode("director")}
-                        >
+                        <button className={`mode-toggle-button ui-segmented-item ${viewMode === "director" ? "ui-segmented-item-active" : ""}`} aria-pressed={viewMode === "director"} type="button" onClick={() => setViewMode("director")}>
                             导演视角
                         </button>
                         <button
@@ -301,13 +276,7 @@ export default function DirectorDeskEditor() {
                 </div>
                 <div className="top-bar-actions">
                     {saving ? <Spin size="small" /> : null}
-                    <button
-                        className="top-bar-action-button"
-                        type="button"
-                        aria-label="返回练习"
-                        title="返回练习"
-                        onClick={() => router.push("/practice")}
-                    >
+                    <button className="top-bar-action-button" type="button" aria-label="返回练习" title="返回练习" onClick={() => router.push("/practice")}>
                         <ArrowLeft aria-hidden="true" size={16} strokeWidth={1.8} />
                     </button>
                 </div>
