@@ -8,7 +8,7 @@ import { GammaStatCard } from "@/components/gamma-ui/gamma-cards";
 import { GammaBadge } from "@/components/gamma-ui/gamma-controls";
 import { GammaStagger, GammaStaggerItem } from "@/components/gamma-ui/gamma-motion";
 import { SUBJECT_ACCENT, type SubjectAccent } from "@/components/gamma-ui/gamma-subjects";
-import { Box, Brush, Clapperboard, Cuboid, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScanFace, ScrollText, UserRound, type LucideIcon, Sparkles, WandSparkles, ArrowRight } from "lucide-react";
+import { Box, Brush, Camera, Clapperboard, Cuboid, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScanFace, ScrollText, UserRound, type LucideIcon, Sparkles, WandSparkles, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
@@ -41,10 +41,10 @@ export const PRACTICE_SINGLE_ENTRY = { title: "单项练习", description: "角�
 
 /**
  * 与 AI 单项练习并列展示的独立工具入口。每个入口有自己的工作台；图像 AI 工具走练习模型池，
- * 本地工具（3D 导演台和超分放大）不会调用 AI 任务。
+ * 本地工具（3D 导演台、多角度和超分）不会调用 AI 任务。
  */
 export const PRACTICE_TOOL_ENTRIES: Array<{
-    id: "director-desk" | "reverse-prompt" | "local-edit" | "expression-reference" | "super-resolution";
+    id: "director-desk" | "multi-angle" | "reverse-prompt" | "local-edit" | "expression-reference" | "super-resolution";
     title: string;
     description: string;
     icon: LucideIcon;
@@ -60,6 +60,15 @@ export const PRACTICE_TOOL_ENTRIES: Array<{
         accent: "violet",
         path: "/practice/director-desk",
         tag: "三维 · 本地工具",
+    },
+    {
+        id: "multi-angle",
+        title: "多角度练习",
+        description: "上传一张主体图，拖动镜头环绕采样，导出多个机位的画面。",
+        icon: Camera,
+        accent: "cyan",
+        path: "/practice/multi-angle",
+        tag: "多视角 · 本地工具",
     },
     ...PRACTICE_IMAGE_TOOL_ENTRIES.map((tool) => ({
         ...tool,
