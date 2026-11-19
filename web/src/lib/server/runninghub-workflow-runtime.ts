@@ -1,4 +1,4 @@
-import type { AuthSettings, LogicalModel, LogicalModelBinding, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { AuthSettings, LogicalModel, LogicalModelBinding, LogicalModelCapabilityProfile, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
@@ -73,16 +73,34 @@ export function resolvePracticeCanvasPoolCandidates(settings: Pick<AuthSettings,
     return candidates;
 }
 
-/** 练习池里某类能力的上游模型，按名字去重并保持渠道配置顺序，供测试权限的模型下拉使用。 */
-export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, capability: LogicalModelCapability) {
-    const seen = new Set<string>();
-    return practiceCanvasPoolCandidates(settings, capability).flatMap((candidate) => {
-        const name = candidate.upstreamModel;
-        const key = name.toLowerCase();
-        if (seen.has(key)) return [];
-        seen.add(key);
-        return [{ id: name, name }];
+/** 练习池模型和能力档案；分辨率随模型列表一并下发，但不暴露渠道/key 配置。 */
+export function listPracticeCanvasPoolModels(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability) {
+    const groups = new Map<string, ResolvedLogicalModel[]>();
+    for (const candidate of practiceCanvasPoolCandidates(settings, capability)) {
+        const key = candidate.upstreamModel.toLowerCase();
+        groups.set(key, [...(groups.get(key) || []), candidate]);
+    }
+    return [...groups.values()].map((candidates) => {
+        const capabilityProfile = mergePracticeCapabilityProfiles(candidates.map((candidate) => candidate.capabilityProfile));
+        return { id: candidates[0].upstreamModel, name: candidates[0].upstreamModel, ...(capabilityProfile ? { capabilityProfile } : {}) };
     });
+}
+
+/** Capabilities safe for a randomly routed practice-pool request: only options common to every candidate. */
+export function practiceCanvasPoolCapabilityProfile(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability) {
+    const candidates = practiceCanvasPoolCandidates(settings, capability);
+    if (!candidates.length) return undefined;
+    return mergePracticeCapabilityProfiles(candidates.map((candidate) => candidate.capabilityProfile));
+}
+
+function mergePracticeCapabilityProfiles(profiles: Array<LogicalModelCapabilityProfile | undefined>) {
+    // An unconfigured model places no server-side resolution constraint; it must not erase
+    // the explicit common capabilities declared by the other candidates.
+    const lists = profiles.flatMap((profile) => (profile?.resolutions?.length ? [profile.resolutions] : []));
+    if (!lists.length) return undefined;
+    const resolutions = lists[0].filter((value) => lists.slice(1).every((list) => list.some((candidate) => candidate.toLowerCase() === value.toLowerCase())));
+    // No fixed preset is safe across every randomly-routed candidate. Keep only smart/auto.
+    return { resolutions: resolutions.length ? resolutions : ["auto"] };
 }
 
 /**

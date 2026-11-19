@@ -19,11 +19,13 @@ import type { CanvasNodeMetadata } from "../types";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { canvasVideoGenerationModeLabel, canvasVideoReferenceModeLabel, normalizeCanvasVideoGenerationMode, normalizeCanvasVideoReferenceMode } from "../utils/canvas-video-references";
 import { canvasModelCapabilityProfile } from "../utils/canvas-model-capabilities";
+import type { CreativeModelCapabilityProfile } from "@/lib/creative-model-capabilities";
 import { CanvasVideoReferenceSettings } from "./canvas-video-reference-settings";
 import { CanvasVideoModeSelector } from "./canvas-video-mode-selector";
 
 type CanvasVideoSettingsPopoverProps = {
     config: AiConfig;
+    capabilityProfile?: CreativeModelCapabilityProfile;
     metadata?: CanvasNodeMetadata;
     references: CanvasResourceReference[];
     onConfigChange: (key: keyof AiConfig, value: string) => void;
@@ -32,12 +34,12 @@ type CanvasVideoSettingsPopoverProps = {
     placement?: CreativeComposerPopoverPlacement;
 };
 
-export function CanvasVideoSettingsPopover({ config, metadata, references, onConfigChange, onMetadataChange, buttonClassName, placement = "topLeft" }: CanvasVideoSettingsPopoverProps) {
+export function CanvasVideoSettingsPopover({ config, capabilityProfile: capabilityProfileOverride, metadata, references, onConfigChange, onMetadataChange, buttonClassName, placement = "topLeft" }: CanvasVideoSettingsPopoverProps) {
     const theme = canvasThemes[useCanvasColorTheme().theme];
     const responsivePlacement = useCreativeComposerPopoverPlacement(placement);
     const customResolutionEnabled = usePublicSessionStore((state) => isCanvasUiFeatureEnabled(state.payload?.settings?.featureModules, CANVAS_UI_FEATURES.videoCustomResolution));
     const { modal } = App.useApp();
-    const capabilityProfile = canvasModelCapabilityProfile(config);
+    const capabilityProfile = capabilityProfileOverride || canvasModelCapabilityProfile(config);
 
     const preferences: GenerationPreferences = {
         mode: "video",

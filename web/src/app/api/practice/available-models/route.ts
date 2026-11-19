@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings } from "@/lib/auth/store";
 import type { LogicalModelCapability } from "@/lib/auth/store";
-import { listPracticeCanvasPoolModels, practiceCanvasVirtualModel } from "@/lib/server/runninghub-workflow-runtime";
+import { listPracticeCanvasPoolModels, practiceCanvasPoolCapabilityProfile, practiceCanvasVirtualModel } from "@/lib/server/runninghub-workflow-runtime";
 import { resolvePracticeModelTestAccess } from "@/lib/server/user-navigation-permissions";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,10 @@ export async function GET(request: Request) {
     const practiceModelTest = await resolvePracticeModelTestAccess(user, { executionProfile: "open-source-practice", surface: "canvas" });
     if (!practiceModelTest) {
         const virtual = practiceCanvasVirtualModel(capability);
-        return NextResponse.json({ mode: "fixed", models: virtual ? [{ id: virtual, name: virtual }] : [] });
+        if (!virtual) return NextResponse.json({ mode: "fixed", models: [] });
+        if (capability !== "video") return NextResponse.json({ mode: "fixed", models: [{ id: virtual, name: virtual }] });
+        const settings = await getAuthSettings();
+        return NextResponse.json({ mode: "fixed", models: [{ id: virtual, name: virtual }], capabilityProfile: practiceCanvasPoolCapabilityProfile(settings, capability) });
     }
     const settings = await getAuthSettings();
     return NextResponse.json({ mode: "selectable", models: listPracticeCanvasPoolModels(settings, capability) });
