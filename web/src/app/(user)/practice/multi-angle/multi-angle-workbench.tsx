@@ -67,7 +67,14 @@ async function pollSession(id: string, signal: AbortSignal): Promise<PracticeSes
         if (session.status === "success" || session.status === "failed" || session.status === "cancelled") return session;
         await new Promise<void>((resolve, reject) => {
             const t = setTimeout(resolve, delay);
-            signal.addEventListener("abort", () => { clearTimeout(t); reject(new Error("cancelled")); }, { once: true });
+            signal.addEventListener(
+                "abort",
+                () => {
+                    clearTimeout(t);
+                    reject(new Error("cancelled"));
+                },
+                { once: true },
+            );
         });
         delay = Math.min(delay * 2, 8000);
     }
@@ -158,21 +165,30 @@ export default function MultiAngleWorkbench() {
         paintCapture(canvas, imageEl, { h, p, d, fisheye, aspect: 1 });
     }, [imageEl, h, p, d, fisheye]);
 
-    const acceptFile = useCallback((file: File | null | undefined) => {
-        if (!file || !file.type.startsWith("image/")) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-            if (typeof reader.result !== "string" || !aliveRef.current) return;
-            setImage(reader.result);
-            setUploadedImage(null);
-            setUploading(true);
-            uploadImage(file)
-                .then((uploaded) => { if (aliveRef.current) setUploadedImage(uploaded); })
-                .catch((error) => { if (aliveRef.current) message.error(error instanceof Error ? error.message : "上传失败"); })
-                .finally(() => { if (aliveRef.current) setUploading(false); });
-        };
-        reader.readAsDataURL(file);
-    }, [message]);
+    const acceptFile = useCallback(
+        (file: File | null | undefined) => {
+            if (!file || !file.type.startsWith("image/")) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result !== "string" || !aliveRef.current) return;
+                setImage(reader.result);
+                setUploadedImage(null);
+                setUploading(true);
+                uploadImage(file)
+                    .then((uploaded) => {
+                        if (aliveRef.current) setUploadedImage(uploaded);
+                    })
+                    .catch((error) => {
+                        if (aliveRef.current) message.error(error instanceof Error ? error.message : "上传失败");
+                    })
+                    .finally(() => {
+                        if (aliveRef.current) setUploading(false);
+                    });
+            };
+            reader.readAsDataURL(file);
+        },
+        [message],
+    );
 
     // 拖到页面任意位置、Ctrl+V 粘贴图片都能载入（输入框内粘贴不拦截）
     useEffect(() => {
@@ -327,10 +343,7 @@ export default function MultiAngleWorkbench() {
 
         const snap = live.current;
         const cameraMode = snap.mode === "camera";
-        const jobs: Array<{ h: number; p: number; name: string }> =
-            batch === 1
-                ? [{ h: snap.h, p: snap.p, name: singleShotName(preset, snap.h, snap.p) }]
-                : BATCH_ANGLES[batch].map((angle) => ({ ...angle }));
+        const jobs: Array<{ h: number; p: number; name: string }> = batch === 1 ? [{ h: snap.h, p: snap.p, name: singleShotName(preset, snap.h, snap.p) }] : BATCH_ANGLES[batch].map((angle) => ({ ...angle }));
         const distance = snap.d;
         const wideAngle = snap.fisheye;
 
@@ -340,7 +353,7 @@ export default function MultiAngleWorkbench() {
         const urls: string[] = [];
         for (const [index, job] of jobs.entries()) {
             if (ac.signal.aborted || !aliveRef.current) break;
-            setShots((prev) => prev.map((shot, i) => i === index ? { ...shot, status: "running" as const } : shot));
+            setShots((prev) => prev.map((shot, i) => (i === index ? { ...shot, status: "running" as const } : shot)));
             try {
                 const angleParams = toCanvasAngleParams(job.h, job.p, distance, wideAngle, promptOn);
                 const anglePrompt = buildAnglePrompt({ ...angleParams, usePrompt: promptOn });
@@ -359,13 +372,11 @@ export default function MultiAngleWorkbench() {
                 const done = await pollSession(session.id, ac.signal);
                 const url = done.result?.media?.url ?? null;
                 urls.push(url ?? "");
-                setShots((prev) => prev.map((shot, i) =>
-                    i === index ? { ...shot, url, status: done.status === "success" ? "success" as const : "failed" as const } : shot
-                ));
+                setShots((prev) => prev.map((shot, i) => (i === index ? { ...shot, url, status: done.status === "success" ? ("success" as const) : ("failed" as const) } : shot)));
             } catch (error) {
                 if ((error as Error).message === "cancelled") break;
                 urls.push("");
-                setShots((prev) => prev.map((shot, i) => i === index ? { ...shot, status: "failed" as const } : shot));
+                setShots((prev) => prev.map((shot, i) => (i === index ? { ...shot, status: "failed" as const } : shot)));
                 message.error(`机位「${job.name}」生成失败`);
             }
         }
@@ -409,9 +420,15 @@ export default function MultiAngleWorkbench() {
         setUploadedImage(null);
         setUploading(true);
         uploadImage(url)
-            .then((uploaded) => { if (aliveRef.current) setUploadedImage(uploaded); })
-            .catch((error) => { if (aliveRef.current) message.error(error instanceof Error ? error.message : "上传失败"); })
-            .finally(() => { if (aliveRef.current) setUploading(false); });
+            .then((uploaded) => {
+                if (aliveRef.current) setUploadedImage(uploaded);
+            })
+            .catch((error) => {
+                if (aliveRef.current) message.error(error instanceof Error ? error.message : "上传失败");
+            })
+            .finally(() => {
+                if (aliveRef.current) setUploading(false);
+            });
     }, [message]);
 
     const clearImage = useCallback(() => {

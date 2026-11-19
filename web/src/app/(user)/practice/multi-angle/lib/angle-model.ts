@@ -320,8 +320,7 @@ export function renderShot(img: HTMLImageElement, options: RenderOptions): strin
 export function toCanvasAngleParams(h: number, p: number, d: number, fisheye: boolean, promptOn: boolean) {
     // 摄像头模式 h ∈ [0,360)，主体模式 h ∈ [-180,180]。统一归入 -180..180 再传出。
     const horizontalAngle = h > 180 ? h - 360 : h;
-    const shotSize: CanvasAngleshotSize =
-        d <= 2 ? "closeup" : d <= 4 ? "near" : d <= 6.5 ? "medium" : d <= 8.5 ? "far" : "wide";
+    const shotSize: CanvasAngleshotSize = d <= 2 ? "closeup" : d <= 4 ? "near" : d <= 6.5 ? "medium" : d <= 8.5 ? "far" : "wide";
     return { horizontalAngle, pitchAngle: p, shotSize, wideAngle: fisheye, usePrompt: promptOn };
 }
 
