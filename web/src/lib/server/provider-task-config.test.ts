@@ -5,9 +5,11 @@ import {
     assertReferenceCapabilities,
     assertReferenceUrls,
     assertVideoReferenceRoles,
+    buildProviderQueryRequest,
     buildProviderRequest,
     buildVideoProviderRequest,
     isProviderBusinessError,
+    isProviderResponseFailure,
     providerQueryPaths,
     providerTaskPath,
     readProviderError,
@@ -239,5 +241,49 @@ describe("exclusive video reference mode", () => {
         const content = h3Content.map((item) => ({ ...item }));
         const result = applyExclusiveVideoReferenceMode({ ...both, content }, { exclusive: false, hasFirstFrame: true, hasLastFrame: true });
         expect(result.content).toEqual(h3Content);
+    });
+});
+
+describe("buildProviderQueryRequest", () => {
+    it("keeps the historical GET request when queryMethod is not declared", () => {
+        expect(buildProviderQueryRequest(undefined, "t1")).toEqual({ method: "GET", headers: {} });
+        expect(buildProviderQueryRequest({ queryPath: "/x" } as never, "t1")).toEqual({ method: "GET", headers: {} });
+    });
+
+    it("posts the taskId in the body when the channel declares POST", () => {
+        const request = buildProviderQueryRequest({ queryMethod: "POST" } as never, "t1");
+        expect(request.method).toBe("POST");
+        expect(JSON.parse(request.body || "{}")).toEqual({ taskId: "t1" });
+        expect(request.headers["content-type"]).toBe("application/json");
+    });
+
+    it("renders a custom query body template", () => {
+        const request = buildProviderQueryRequest({ queryMethod: "POST", queryBodyTemplate: '{"id":"{{taskId}}","verbose":true}' } as never, "task-9");
+        expect(JSON.parse(request.body || "{}")).toEqual({ id: "task-9", verbose: true });
+    });
+});
+
+describe("isProviderResponseFailure", () => {
+    it("treats a declared success code as success even though msg is ok-like", () => {
+        const payload = { code: 1, msg: "ok", result: { taskId: "abc" } };
+        expect(isProviderResponseFailure(payload, ["1"])).toBe(false);
+    });
+
+    it("still fails on a non-declared code", () => {
+        expect(isProviderResponseFailure({ code: 10007, msg: "task not found: x" }, ["1"])).toBe(true);
+    });
+
+    it("falls back to the legacy judgement when no successCodes are declared", () => {
+        // 回归保护：存量渠道不声明 successCodes 时行为必须与 isProviderBusinessError 完全一致。
+        const payload = { code: 1, msg: "ok", result: {} };
+        expect(isProviderResponseFailure(payload)).toBe(isProviderBusinessError(payload));
+        expect(isProviderResponseFailure(payload)).toBe(true);
+        expect(isProviderResponseFailure({ code: 200, msg: "ok" })).toBe(isProviderBusinessError({ code: 200, msg: "ok" }));
+        expect(isProviderResponseFailure({ code: 200, msg: "ok" })).toBe(false);
+    });
+
+    it("accepts success codes declared as strings with different casing", () => {
+        expect(isProviderResponseFailure({ code: "OK", msg: "ok" }, ["ok"])).toBe(false);
+        expect(isProviderResponseFailure({ code: 1, msg: "ok" }, ["1"])).toBe(false);
     });
 });

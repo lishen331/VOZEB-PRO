@@ -217,6 +217,18 @@ export type SystemChannelAdvancedConfig = {
     editPath?: string;
     imageToVideoPath?: string;
     queryPath: string;
+    /**
+     * 任务查询的 HTTP 方法。**不声明即 GET**，存量渠道行为不变。
+     * 少数网关（如自建 blue-cloud）只接受 POST body 里的 taskId，GET 返回 500。
+     */
+    queryMethod?: "GET" | "POST";
+    /** POST 查询时的请求体模板，支持 `{{taskId}}` 占位。缺省 `{"taskId":"{{taskId}}"}`。 */
+    queryBodyTemplate?: string;
+    /**
+     * 渠道声明的成功码（如 `["1"]`）。命中即判定成功并短路，不走默认白名单。
+     * **不声明即沿用现有白名单**，存量渠道行为不变。
+     */
+    successCodes?: string[];
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate: string;
