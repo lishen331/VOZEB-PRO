@@ -26,7 +26,7 @@ import { CanvasNodeType, isCanvasImageNodeType, type CanvasGenerationMode, type 
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasImageConfigPatch, canvasVideoConfigPatch } from "../utils/canvas-node-config";
 import { canvasModelConfigPatch } from "../utils/canvas-model-capabilities";
-import { practiceCanvasModelValue, type PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
+import { practiceCanvasModelCapabilityProfile, practiceCanvasModelValue, type PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 import { PANORAMA_IMAGE_SIZE } from "../utils/canvas-panorama";
 
 export type CanvasNodeGenerationMode = CanvasGenerationMode;
@@ -337,6 +337,7 @@ export function CanvasNodePromptPanel({ node, isRunning, canStop, onPromptChange
                             />
                             <CanvasVideoSettingsPopover
                                 config={config}
+                                capabilityProfile={practiceCanvasModelCapabilityProfile(practiceModels, "video", practiceCanvasModelValue(practiceModels, "video", config.model))}
                                 metadata={node.metadata}
                                 references={mentionReferences}
                                 buttonClassName={COMPOSER_PRIMARY_BUTTON_CLASS}

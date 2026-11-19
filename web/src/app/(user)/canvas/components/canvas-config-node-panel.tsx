@@ -17,7 +17,7 @@ import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata } from ".
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasImageConfigPatch, canvasVideoConfigPatch, resolveCanvasGenerationModel } from "../utils/canvas-node-config";
 import { canvasModelConfigPatch } from "../utils/canvas-model-capabilities";
-import { practiceCanvasModelValue, type PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
+import { practiceCanvasModelCapabilityProfile, practiceCanvasModelValue, type PracticeCanvasModelOptions } from "../utils/practice-canvas-models";
 
 type CanvasConfigNodePanelProps = {
     node: CanvasNodeData;
@@ -156,6 +156,7 @@ export function CanvasConfigNodePanel({ node, isRunning, canStop, inputSummary, 
                 {mode === "video" ? (
                     <CanvasVideoSettingsPopover
                         config={config}
+                        capabilityProfile={practiceCanvasModelCapabilityProfile(practiceModels, "video", practiceCanvasModelValue(practiceModels, "video", config.model))}
                         metadata={node.metadata}
                         references={references}
                         placement="topRight"

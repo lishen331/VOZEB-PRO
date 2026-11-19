@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CreativeModelCapabilityProfile } from "@/lib/creative-model-capabilities";
 
-export type PracticeCanvasModelOptions = Partial<Record<"image" | "video" | "text", { models: string[]; locked: boolean }>>;
+export type PracticeCanvasModelOptions = Partial<Record<"image" | "video" | "text", { models: string[]; locked: boolean; capabilityProfile?: CreativeModelCapabilityProfile; modelProfiles?: Record<string, CreativeModelCapabilityProfile> }>>;
 
 const CAPABILITIES = ["image", "video", "text"] as const;
 
@@ -19,9 +20,10 @@ export function usePracticeCanvasModels(executionProfile?: "open-source-practice
             CAPABILITIES.map(async (type) => {
                 const response = await fetch(`/api/practice/available-models?type=${type}`, { signal: controller.signal });
                 if (!response.ok) return null;
-                const body = (await response.json()) as { mode?: string; models?: Array<{ id?: string }> };
+                const body = (await response.json()) as { mode?: string; models?: Array<{ id?: string; capabilityProfile?: CreativeModelCapabilityProfile }>; capabilityProfile?: CreativeModelCapabilityProfile };
                 const models = Array.isArray(body.models) ? body.models.flatMap((model) => (typeof model.id === "string" && model.id ? [model.id] : [])) : [];
-                return [type, { models, locked: body.mode !== "selectable" }] as const;
+                const modelProfiles = Object.fromEntries((body.models || []).flatMap((model) => (model.id && model.capabilityProfile ? [[model.id, model.capabilityProfile] as const] : [])));
+                return [type, { models, locked: body.mode !== "selectable", ...(body.capabilityProfile ? { capabilityProfile: body.capabilityProfile } : {}), ...(Object.keys(modelProfiles).length ? { modelProfiles } : {}) }] as const;
             }),
         )
             .then((entries) => {
@@ -41,4 +43,10 @@ export function practiceCanvasModelValue(options: PracticeCanvasModelOptions | u
     const entry = options?.[capability];
     if (!entry) return model;
     return entry.models.includes(model) ? model : entry.models[0] || "";
+}
+
+/** Resolve the selected practice model profile, or the shared safe profile for a locked random pool. */
+export function practiceCanvasModelCapabilityProfile(options: PracticeCanvasModelOptions | undefined, capability: "image" | "video" | "text", model: string) {
+    const entry = options?.[capability];
+    return entry?.modelProfiles?.[model] || entry?.capabilityProfile;
 }
