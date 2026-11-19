@@ -43,7 +43,7 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
             <div className="relative z-30 hidden h-full lg:flex">
                 <GammaAppSidebar collapsed={sidebar.collapsed} onToggle={sidebar.toggle} featureModules={effectiveFeatureModules} menuPermissions={menuPermissions} schoolContext={schoolContext} showTheme />
             </div>
-            <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <div aria-hidden className="gm-aurora pointer-events-none absolute -top-48 left-1/4 z-0 h-96 w-1/2 rounded-full bg-[var(--gm-blue)] blur-[120px]" style={{ opacity: "var(--gm-aurora-opacity)" }} />
                 {/* 小屏细顶栏：只有导航按钮和 Logo，账户操作都在抽屉里的侧栏底部 */}
                 <header className="relative z-20 flex h-12 shrink-0 items-center gap-2 border-b border-[var(--gm-border)] bg-[var(--gm-bg-elevated)] px-2 lg:hidden">
