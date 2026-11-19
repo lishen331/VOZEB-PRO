@@ -8,6 +8,7 @@ import {
     channelModelBoundForPractice,
     generationBusinessCode,
     listPracticeCanvasPoolModels,
+    practiceCanvasPoolCapabilityProfile,
     recordWorkflowTaskContext,
     resolvePracticeCanvasPoolCandidates,
     resolvePracticeGenerationCandidates,
@@ -451,6 +452,36 @@ describe("practice canvas model pool", () => {
         expect(resolvePracticeCanvasPoolCandidates(settings, "image")).toHaveLength(4);
     });
 
+    it("returns model and random-pool video resolution capabilities for practice canvas", () => {
+        const models = ["MiniMax-H3", "MiniMax-H3-Highspeed", "Unspecified-Video"];
+        const channel = poolChannel({ id: "minimax-video", capability: "video", models });
+        const settings = {
+            systemChannels: [channel],
+            logicalModels: models.map((model) => ({
+                id: model,
+                name: model,
+                capability: "video" as const,
+                enabled: true,
+                bindings: [
+                    {
+                        id: `minimax-video:${model}`,
+                        channelId: "minimax-video",
+                        upstreamModel: model,
+                        enabled: true,
+                        priority: 1,
+                        ...(model === "Unspecified-Video" ? {} : { capabilityProfile: { resolutions: model === "MiniMax-H3" ? ["768", "2K"] : ["480", "768"] } }),
+                    },
+                ],
+            })),
+        } as never as Parameters<typeof resolvePracticeCanvasPoolCandidates>[0];
+
+        expect(listPracticeCanvasPoolModels(settings, "video")).toEqual([
+            { id: "MiniMax-H3", name: "MiniMax-H3", capabilityProfile: expect.objectContaining({ resolutions: ["768", "2K"] }) },
+            { id: "MiniMax-H3-Highspeed", name: "MiniMax-H3-Highspeed", capabilityProfile: expect.objectContaining({ resolutions: ["480", "768"] }) },
+            { id: "Unspecified-Video", name: "Unspecified-Video" },
+        ]);
+        expect(practiceCanvasPoolCapabilityProfile(settings, "video")).toMatchObject({ resolutions: ["768"] });
+    });
     it("keeps a canvas image request on the practice pool even when it carries the canvas business code", () => {
         const channels = [
             poolChannel({ id: "openai", purpose: "shared", models: ["gpt-image-1"] }),
@@ -462,6 +493,32 @@ describe("practice canvas model pool", () => {
         expect(generationBusinessCode("canvas", "image", "gamaimage")).toBeUndefined();
         expect(generationBusinessCode("canvas", "image", "image-workflow")).toBe("canvas");
         expect(generationBusinessCode("drama", "image")).toBe("storyboard-image");
+    });
+
+    it("limits fixed random pools to auto when declared candidate resolutions do not overlap", () => {
+        const models = ["MiniMax-H3", "MiniMax-H3-Pro"];
+        const channel = poolChannel({ id: "minimax-video", capability: "video", models });
+        const settings = {
+            systemChannels: [channel],
+            logicalModels: models.map((model) => ({
+                id: model,
+                name: model,
+                capability: "video" as const,
+                enabled: true,
+                bindings: [
+                    {
+                        id: `minimax-video:${model}`,
+                        channelId: "minimax-video",
+                        upstreamModel: model,
+                        enabled: true,
+                        priority: 1,
+                        capabilityProfile: { resolutions: model === "MiniMax-H3" ? ["768", "2K"] : ["480"] },
+                    },
+                ],
+            })),
+        } as never as Parameters<typeof resolvePracticeCanvasPoolCandidates>[0];
+
+        expect(practiceCanvasPoolCapabilityProfile(settings, "video")).toEqual({ resolutions: ["auto"] });
     });
 
     it("keeps a disabled logical model and a closed binding out of the practice pool", () => {
