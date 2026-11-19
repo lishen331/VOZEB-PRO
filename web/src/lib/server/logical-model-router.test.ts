@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resolveLogicalBillingModel, resolveLogicalModel, resolveLogicalModelCandidates, resolveVisionModelCandidates } from "./logical-model-router";
+import { orderBindingsForRouting, resolveLogicalBillingModel, resolveLogicalModel, resolveLogicalModelCandidates, resolveVisionModelCandidates } from "./logical-model-router";
 import { releaseChannelReservations, reserveChannelSlot, resetChannelConcurrency } from "./channel-concurrency";
 
 const channel = (id: string, models: string[], enabled = true) => ({ id, name: id, baseUrl: `https://${id}.example.com`, apiKey: "secret", apiFormat: "openai" as const, models, enabled });
@@ -234,5 +234,45 @@ describe("concurrency-aware candidate ordering", () => {
             ],
         };
         expect(resolveLogicalModelCandidates(text, "text", "writer").map((item) => item.channelId)).toEqual(["t1"]);
+    });
+});
+
+describe("orderBindingsForRouting (canary weights)", () => {
+    const binding = (id: string, priority: number, weight?: number) => ({ id, priority, ...(weight !== undefined ? { weight } : {}) });
+
+    it("keeps strict priority order across different priority tiers", () => {
+        const ordered = orderBindingsForRouting([binding("b", 2, 100), binding("a", 1, 1)], () => 0.99);
+        expect(ordered.map((item) => item.id)).toEqual(["a", "b"]);
+    });
+
+    it("picks the canary slice by weight inside one priority tier", () => {
+        // 组内按权重降序排：第三方(90) 占 [0,90)，自建(10) 占 [90,100)。
+        const group = [binding("self-hosted", 1, 10), binding("third-party", 1, 90)];
+        expect(orderBindingsForRouting(group, () => 0.95)[0].id).toBe("self-hosted");
+        expect(orderBindingsForRouting(group, () => 0.5)[0].id).toBe("third-party");
+    });
+
+    it("keeps the non-picked bindings as failover candidates after the picked one", () => {
+        const ordered = orderBindingsForRouting([binding("self-hosted", 1, 10), binding("third-party", 1, 90)], () => 0.95);
+        expect(ordered.map((item) => item.id)).toEqual(["self-hosted", "third-party"]);
+        const fallback = orderBindingsForRouting([binding("self-hosted", 1, 10), binding("third-party", 1, 90)], () => 0.5);
+        expect(fallback.map((item) => item.id)).toEqual(["third-party", "self-hosted"]);
+    });
+
+    it("falls back to the historical order when no binding in the tier declares a weight", () => {
+        const ordered = orderBindingsForRouting([binding("b", 1), binding("a", 1)], () => 0.99);
+        expect(ordered.map((item) => item.id)).toEqual(["a", "b"]);
+    });
+
+    it("approximates the configured percentage over many draws", () => {
+        const group = [binding("self-hosted", 1, 10), binding("third-party", 1, 90)];
+        let selfHosted = 0;
+        const draws = 4000;
+        for (let index = 0; index < draws; index += 1) {
+            if (orderBindingsForRouting(group)[0].id === "self-hosted") selfHosted += 1;
+        }
+        const ratio = selfHosted / draws;
+        expect(ratio).toBeGreaterThan(0.06);
+        expect(ratio).toBeLessThan(0.14);
     });
 });

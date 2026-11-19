@@ -1,7 +1,7 @@
 import { isOfficialWorkflowQueryPath, queryRunningHubTask } from "@/lib/server/runninghub-provider";
 import type { ImageTask } from "@/lib/server/image-task-store";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
-import { buildProviderRequest, isProviderBusinessError, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
+import { buildProviderQueryRequest, buildProviderRequest, isProviderBusinessError, isProviderResponseFailure, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
 import { imagePixelTier, requestedImageResolution } from "@/lib/image-generation-params";
 import { buildYumengImageRequest, resolveYumengImageResolution } from "@/lib/yumeng-model-center";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
@@ -160,7 +160,7 @@ async function parseDeclarativeSubmission(task: ImageTask, response: Response, u
     if (!response.ok) throw imageSubmissionResponseError(response.status, await readFetchError(response, "自定义图片接口调用失败"));
     const data = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     return parseChargedImageResponse(task, response, async () => {
-        if (isProviderBusinessError(data)) throw new ImageUpstreamTerminalError(readProviderError(data) || "自定义图片接口返回失败");
+        if (isProviderResponseFailure(data, advanced.successCodes)) throw new ImageUpstreamTerminalError(readProviderError(data) || "自定义图片接口返回失败");
         const mediaBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
         const direct = configuredImageResult(data, mediaBaseUrl, task);
         if (direct) return direct;
@@ -198,11 +198,17 @@ export async function pollCustomImageTask(task: ImageTask, taskId: string, media
         return { dataUrl: "", pending: { id: taskId, mediaBaseUrl, pollBaseUrl } };
     }
     let lastError = "";
+    // 渠道可声明 POST 查询：不声明时 query 为 GET 且无 body，与历史行为一致。
+    const query = buildProviderQueryRequest(config.advancedConfig, taskId);
+    const successCodes = config.advancedConfig?.successCodes;
     for (let attempt = 0; attempt < (singleStep ? 1 : imageTaskPollAttempts(config)); attempt += 1) {
         for (const url of imageTaskPollUrls(config, pollBaseUrl, taskId)) {
             const workflow = workflowConfigForTask(task);
+            const queryHeaders = taskHeaders(config, cookie, practiceImagePollRequestId(task), task.billingContext);
+            for (const [key, value] of Object.entries(query.headers)) queryHeaders.set(key, value);
             const response = await taskFetch(config, url, {
-                headers: taskHeaders(config, cookie, practiceImagePollRequestId(task), task.billingContext),
+                ...(query.method === "POST" ? { method: "POST", body: query.body } : {}),
+                headers: queryHeaders,
                 cache: "no-store",
                 signal: AbortSignal.timeout(workflowTimeoutMs(workflow, imageTaskRequestTimeoutMs(config))),
             });
@@ -211,7 +217,7 @@ export async function pollCustomImageTask(task: ImageTask, taskId: string, media
                 continue;
             }
             const data = (await response.json().catch(() => null)) as ImageApiResponse | null;
-            if (!data || isProviderBusinessError(data)) throw new ImageUpstreamTerminalError(readProviderError(data) || "自定义图片任务查询失败");
+            if (!data || isProviderResponseFailure(data, successCodes)) throw new ImageUpstreamTerminalError(readProviderError(data) || "自定义图片任务查询失败");
             const result = configuredImageResult(data, response.headers.get("x-vozeb-pro-upstream-url") || mediaBaseUrl || url, task);
             if (result) return result;
             const status = readProviderString(data, config.advancedConfig?.statusField, STATUS_KEYS).toLowerCase();

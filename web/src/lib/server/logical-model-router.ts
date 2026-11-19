@@ -28,6 +28,53 @@ export function resolveLogicalModel(
     return resolveLogicalModelCandidates(settings, capability, requestedModelId, preferredChannelId, executionProfile)[0] || null;
 }
 
+type RoutableBinding = { id: string; priority: number; weight?: number };
+
+/**
+ * 路由候选顺序：不同 priority 严格按优先级，**同一 priority 组内按 weight 做加权随机抽取**。
+ *
+ * weight 是真正的流量比例——灰度放量靠它精确控制百分比：
+ * 自建渠道 weight 10 / 第三方 90 即约 10% 走自建。抽中的候选排第一，同组其余按权重降序
+ * 作为故障转移后备，因此灰度渠道失败时能自动降级，不会让那一部分流量直接失败。
+ *
+ * 同组内若没有任何 binding 显式声明 weight，则完全退回历史排序（priority → weight100 → id），
+ * 存量渠道的路由结果逐条不变。
+ */
+export function orderBindingsForRouting<T extends RoutableBinding>(bindings: readonly T[], random: () => number = Math.random): T[] {
+    const byPriority = new Map<number, T[]>();
+    for (const binding of [...bindings].sort((a, b) => a.priority - b.priority || (b.weight || 100) - (a.weight || 100) || a.id.localeCompare(b.id))) {
+        const group = byPriority.get(binding.priority);
+        if (group) group.push(binding);
+        else byPriority.set(binding.priority, [binding]);
+    }
+    const ordered: T[] = [];
+    for (const priority of [...byPriority.keys()].sort((a, b) => a - b)) {
+        const group = byPriority.get(priority)!;
+        if (group.length === 1 || !group.some((binding) => binding.weight !== undefined)) {
+            ordered.push(...group);
+            continue;
+        }
+        const rest = [...group];
+        const pickedIndex = weightedIndex(rest, random);
+        const [picked] = rest.splice(pickedIndex, 1);
+        ordered.push(picked, ...rest);
+    }
+    return ordered;
+}
+
+/** 按 weight 返回被抽中的下标；全部权重非法时取第 0 个。 */
+function weightedIndex(group: readonly RoutableBinding[], random: () => number) {
+    const weights = group.map((binding) => (typeof binding.weight === "number" && Number.isFinite(binding.weight) && binding.weight > 0 ? binding.weight : 0));
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    if (total <= 0) return 0;
+    let cursor = Math.min(Math.max(random(), 0), 1) * total;
+    for (let index = 0; index < weights.length; index += 1) {
+        cursor -= weights[index];
+        if (cursor < 0) return index;
+    }
+    return weights.findIndex((weight) => weight > 0);
+}
+
 export function resolveLogicalModelCandidates(
     settings: Pick<AuthSettings, "logicalModels" | "systemChannels">,
     capability: LogicalModelCapability,
@@ -39,7 +86,7 @@ export function resolveLogicalModelCandidates(
     if (!requested) return [];
     const logical = settings.logicalModels.find((model) => model.enabled && model.capability === capability && model.id.toLowerCase() === requested.toLowerCase());
     if (logical) {
-        const bindings = logical.bindings.filter((binding) => binding.enabled).sort((a, b) => a.priority - b.priority || (b.weight || 100) - (a.weight || 100) || a.id.localeCompare(b.id));
+        const bindings = orderBindingsForRouting(logical.bindings.filter((binding) => binding.enabled));
         const preferred = preferredChannelId ? bindings.find((binding) => binding.channelId === preferredChannelId) : undefined;
         const resolved: ResolvedLogicalModel[] = [];
         for (const binding of preferred ? [preferred, ...bindings.filter((item) => item !== preferred)] : bindings) {

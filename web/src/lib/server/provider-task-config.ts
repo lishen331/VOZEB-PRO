@@ -131,6 +131,37 @@ export function readProviderError(value: unknown) {
     return explicitFailure || findString(value, PROVIDER_ERROR_KEYS);
 }
 
+/**
+ * 任务查询请求的方法与请求体。
+ *
+ * 未声明 `queryMethod` 时返回 GET 且不带 body，与历史行为完全一致；
+ * 只有渠道显式声明 POST 才改变请求形状（例如自建网关只接受 POST body 里的 taskId）。
+ */
+export function buildProviderQueryRequest(config: SystemChannelAdvancedConfig | undefined, taskId: string): { method: "GET" | "POST"; body?: string; headers: Record<string, string> } {
+    if (config?.queryMethod !== "POST") return { method: "GET", headers: {} };
+    const template = config.queryBodyTemplate?.trim() || '{"taskId":"{{taskId}}"}';
+    const rendered = template.replace(/\{\{\s*(?:taskId|task_id|id)\s*\}\}|\{(?:taskId|task_id|id)\}|:(?:taskId|task_id|id)\b/gi, () => JSON.stringify(taskId).slice(1, -1));
+    return { method: "POST", body: rendered, headers: { "content-type": "application/json" } };
+}
+
+/**
+ * 带渠道成功码的成功/失败判定。
+ *
+ * 渠道声明了 `successCodes` 且响应 `code` 命中时直接判定成功并短路——必须在关键词匹配
+ * 之前短路，因为这类网关的成功响应本身带 `msg:"ok"`，会被下面的关键词规则误判为失败。
+ * 未声明 `successCodes` 时完全回落到 `isProviderBusinessError`，存量渠道行为不变。
+ */
+export function isProviderResponseFailure(value: unknown, successCodes?: readonly string[]) {
+    if (successCodes?.length && value && typeof value === "object" && !Array.isArray(value)) {
+        const code = (value as Record<string, unknown>).code;
+        if (code !== undefined && code !== null && code !== "") {
+            const normalized = String(code).trim().toLowerCase();
+            if (successCodes.some((item) => item.trim().toLowerCase() === normalized)) return false;
+        }
+    }
+    return isProviderBusinessError(value);
+}
+
 export function isProviderBusinessError(value: unknown) {
     if (!value || typeof value !== "object") return false;
     const record = value as Record<string, unknown>;
