@@ -61,7 +61,7 @@ export function AppWorkspaceShell({ children, featureModules, menuPermissions }:
                     </Link>
                 </header>
                 <FeatureModuleGate initialFeatureModules={effectiveFeatureModules}>
-                    <div className="relative z-10 min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+                    <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
                 </FeatureModuleGate>
             </div>
             <MobileNavDrawer open={mobileNavOpen} featureModules={effectiveFeatureModules} menuPermissions={menuPermissions} onClose={closeMobileNav} />
