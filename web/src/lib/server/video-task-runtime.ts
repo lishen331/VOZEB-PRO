@@ -6,7 +6,7 @@ import { finishGenerationAttempt, generationReservationId, nextGenerationAttempt
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
-import { isProviderBusinessError, providerQueryPaths, readProviderError, videoPollingPolicy } from "@/lib/server/provider-task-config";
+import { buildProviderQueryRequest, isProviderBusinessError, isProviderResponseFailure, providerQueryPaths, readProviderError, videoPollingPolicy } from "@/lib/server/provider-task-config";
 import { buildCustomVideoRequestPayload } from "@/lib/server/custom-video-request";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
 import { normalizeVideoResult } from "@/lib/server/video-result-normalizer";
@@ -135,7 +135,7 @@ async function submitQueuedPracticeVideo(task: VideoTask, origin: string, cookie
         if (!response.ok) throw new Error(readVideoProviderHttpError(text, response.status));
         const data = parseVideoProviderJson(text);
         const providerError = readProviderError(data);
-        if (isProviderBusinessError(data)) throw new Error(providerError || "视频接口请求失败");
+        if (isProviderResponseFailure(data, task.config.advancedConfig?.successCodes)) throw new Error(providerError || "视频接口请求失败");
         const upstreamId = agnes ? readAgnesVideoId(data) : readVideoProviderId(data);
         if (!upstreamId) throw new Error(providerError || "视频接口没有返回任务 ID");
         const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "succeeded" });
@@ -187,7 +187,7 @@ export async function queryVideoTaskUpstream(task: VideoTask, origin: string, co
     const data = await queryVideoUpstream(task, origin, cookie, workerUserId);
     const status = readVideoProviderStatus(data, task.config.advancedConfig?.statusField);
     const resultUrl = readVideoProviderUrl(data, task.config.advancedConfig?.resultField);
-    if (isProviderBusinessError(data) || VIDEO_PROVIDER_FAILED.has(status)) return { state: "failed", status: status || "failed", error: readProviderError(data) || "视频生成失败" };
+    if (isProviderResponseFailure(data, task.config.advancedConfig?.successCodes) || VIDEO_PROVIDER_FAILED.has(status)) return { state: "failed", status: status || "failed", error: readProviderError(data) || "视频生成失败" };
     const contentPath = !resultUrl && VIDEO_PROVIDER_SUCCESS.has(status) ? videoProviderContentPath(task.config.advancedConfig?.resultField, task.upstream.id) : "";
     if (resultUrl || contentPath) return { state: "result_ready", status: status || "completed", resultUrl: resultUrl || contentPath };
     if (VIDEO_PROVIDER_SUCCESS.has(status)) return { state: "failed", status: status || "completed", error: "视频任务已完成但没有返回有效视频地址" };
@@ -335,9 +335,14 @@ async function queryVideoUpstream(task: VideoTask, origin: string, cookie: strin
           ]);
     let lastError = "";
     let authErrorDetected = false;
+    // 渠道可声明 POST 查询：不声明时 query 为 GET 且无 body，与历史行为一致。
+    const query = buildProviderQueryRequest(task.config.advancedConfig, task.upstream.id);
     for (const path of paths) {
+        const queryHeaders = new Headers(videoProxyHeaders(task, cookie, workerUserId));
+        for (const [key, value] of Object.entries(query.headers)) queryHeaders.set(key, value);
         const response = await fetchInternalApi(`${origin}${task.config.baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`, {
-            headers: videoProxyHeaders(task, cookie, workerUserId),
+            ...(query.method === "POST" ? { method: "POST", body: query.body } : {}),
+            headers: queryHeaders,
             cache: "no-store",
             signal: AbortSignal.timeout(workflowTimeoutMs(workflowConfigForTask(task), Math.min(resolveModelRequestTimeoutMs(task.config, "video"), 60_000))),
         });
