@@ -297,3 +297,31 @@ const summaryText = useMemo(() => {
 1. **image 池渠道对 referenceImage 的支持**：`gamaimage` 池里的模型是通用 image 渠道，参考图能否正确传入取决于渠道 adapter 的实现，P0 验收后先用一张图测一次，确认参考图有效再全量开。
 2. **轮询超时**：`pollSession` 90 s 超时设得偏保守，视测试服生成速度可酌情调整。
 3. **批量失败容忍**：6 张里单张失败不中断，用户可看到部分结果；全部失败时 toast 提示。
+
+---
+
+## 十一、修复记录（2026-11-19，参考图未生效）
+
+### 现象
+
+上传三视图猫咪参考图后，多角度练习生成出摩托车，与参考图无关。
+
+### 根因
+
+练习调度 `dispatchPracticeTask`（`/api/practice/sessions/route.ts`）在下发 `/api/image-tasks` 时只带了 `references`，**没有带 `kind`**；`/api/image-tasks/route.ts:218` 因此按 `generation` 处理。OpenAI 协议渠道走 `runOpenAiImageTask` 的生成分支，请求体只有 `{ model, prompt, n, quality, size }`，**参考图被丢弃**，模型仅凭文本提示词（含「标准镜头」等词）自由发挥。agnes / request-template / async / runninghub 等自定义协议渠道无论 `kind` 都会转发参考图，所以症状取决于随机命中的池内渠道。正式画布 `createImageGenerationTask` 的既有规则是 `kind: references.length ? "edit" : "generation"`，练习路径漏了这条。
+
+### 修复
+
+`dispatchPracticeTask` 在 image 能力、非工作流、且存在参考图时下发 `kind: "edit"`：
+
+```ts
+const kind = input.capability === "image" && !input.workflow && references.length ? ("edit" as const) : undefined;
+```
+
+- `!input.workflow` 保证只影响练习画布池（gamaimage）路径；角色/场景/道具/分镜工作流模块仍按 `generation`，它们的 `references` 通过 `workflowInput` 进入 RunningHub 载荷，不受 `kind` 影响，且不会被切到工作流自定义的 `editPath` / `editRequestTemplate`。
+- 无参考图时仍为 `generation`，与原行为一致。
+- 单测：`sessions/route.test.ts` 新增「画布池带参考图 → edit；无参考图 → generation；工作流模块 → 不带 kind」用例。
+
+### 未改动
+
+`resolvePracticeModelFromSettings` 的 gamaimage 豁免分支保持 `candidates[0]`（随机后的首位）。image 池没有 `requiresImageInput` 过滤语义（该过滤仅用于 text→vision 池），参考图能力由 `assertReferenceCapabilities` 在 `/api/image-tasks` 内按渠道 `supportsReferenceImage` 过滤候选，已在本次路径中生效。
