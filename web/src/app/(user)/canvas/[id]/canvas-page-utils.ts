@@ -8,7 +8,6 @@ import { parseServerMediaUrl, serverMediaUrl } from "@/services/server-media-sto
 import { defaultConfig, type AiConfig } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
 import { CANVAS_CONFIG_NODE_HEIGHT, NODE_DEFAULT_SIZE } from "../constants";
-import type { CanvasImageAngleParams } from "../components/canvas-node-angle-dialog";
 import type { NodeGenerationInput } from "../components/canvas-node-generation";
 import type { CanvasNodeGenerationMode } from "../components/canvas-node-prompt-panel";
 import { resolveCanvasGenerationModel } from "../utils/canvas-node-config";
@@ -498,17 +497,5 @@ export function isHiddenBatchConnectionEndpoint(node: CanvasNodeData, nodes: Can
     return Boolean(root && !root.metadata?.imageBatchExpanded);
 }
 
-const SHOT_SIZE_LABELS: Record<CanvasImageAngleParams["shotSize"], string> = { closeup: "特写", near: "近景", medium: "中景", wide: "全景", far: "远景" };
-
-export function buildAngleLabel(params: CanvasImageAngleParams) {
-    const horizontal =
-        params.horizontalAngle === 0 ? "正面视角" : Math.abs(params.horizontalAngle) === 180 ? "背面视角（向右旋转 180 度）" : params.horizontalAngle > 0 ? `向右旋转 ${params.horizontalAngle} 度` : `向左旋转 ${Math.abs(params.horizontalAngle)} 度`;
-    const pitch = params.pitchAngle === 0 ? "水平视角" : params.pitchAngle > 0 ? `俯视 ${params.pitchAngle} 度` : `仰视 ${Math.abs(params.pitchAngle)} 度`;
-    const shotSize = params.usePrompt ? SHOT_SIZE_LABELS[params.shotSize] : "";
-    return ["AI 多角度", horizontal, pitch, shotSize, params.wideAngle ? "广角" : "标准镜头"].filter(Boolean).join("，");
-}
-
-export function buildAnglePrompt(params: CanvasImageAngleParams) {
-    const shotSize = params.usePrompt ? `景别${SHOT_SIZE_LABELS[params.shotSize]}，` : "";
-    return `基于参考图重新生成同一主体的新视角，保持主体、颜色、材质和画面风格一致，不要只做透视变形。${buildAngleLabel(params)}。${shotSize ? `${shotSize}镜头不做裁切外的额外变形。` : ""}`;
-}
+// buildAngleLabel / buildAnglePrompt 已移至共享模块；此处保留 re-export 供现有调用方使用。
+export { buildAngleLabel, buildAnglePrompt } from "@/lib/angle/angle-presets";

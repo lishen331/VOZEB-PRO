@@ -7,6 +7,8 @@
  * P0 的生成是本地 canvas 合成，不接 AI，因此这里只放纯函数，方便统一测试。
  */
 
+import type { CanvasAngleshotSize } from "@/lib/angle/angle-presets";
+
 export type AngleMode = "camera" | "subject";
 export type PresetKey = "custom" | "front" | "back" | "left" | "right" | "high" | "top" | "low" | "fisheye";
 export type BatchSize = 1 | 4 | 6;
@@ -312,6 +314,15 @@ export function renderShot(img: HTMLImageElement, options: RenderOptions): strin
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
     return canvas.toDataURL("image/jpeg", 0.88);
+}
+
+/** 把多角度页内部参数映射到画布角度参数，供 buildAnglePrompt 使用。 */
+export function toCanvasAngleParams(h: number, p: number, d: number, fisheye: boolean, promptOn: boolean) {
+    // 摄像头模式 h ∈ [0,360)，主体模式 h ∈ [-180,180]。统一归入 -180..180 再传出。
+    const horizontalAngle = h > 180 ? h - 360 : h;
+    const shotSize: CanvasAngleshotSize =
+        d <= 2 ? "closeup" : d <= 4 ? "near" : d <= 6.5 ? "medium" : d <= 8.5 ? "far" : "wide";
+    return { horizontalAngle, pitchAngle: p, shotSize, wideAngle: fisheye, usePrompt: promptOn };
 }
 
 /** 没有上传图片时，用一张程序绘制的示例主体图，避免依赖外部素材。 */

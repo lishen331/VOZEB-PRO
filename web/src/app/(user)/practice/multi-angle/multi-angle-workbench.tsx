@@ -6,6 +6,9 @@ import { Aperture, ImagePlus } from "lucide-react";
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { cn } from "@/lib/utils";
+import { buildAnglePrompt } from "@/lib/angle/angle-presets";
+import { practiceApi, type PracticeSession } from "@/services/api/practice";
+import { uploadImage, type UploadedImage } from "@/services/image-storage";
 
 import AngleParamsPanel from "./angle-params-panel";
 import {
@@ -20,9 +23,9 @@ import {
     clamp,
     createSampleImage,
     paintCapture,
-    renderShot,
     shotLabel,
     singleShotName,
+    toCanvasAngleParams,
     toSubjectAngle,
     wrapCameraAngle,
     type AngleMode,
@@ -54,11 +57,30 @@ function downloadDataUrl(url: string, name: string) {
     link.remove();
 }
 
+/** 指数退避轮询，2s→4s→8s→8s…，90 s 后超时。 */
+async function pollSession(id: string, signal: AbortSignal): Promise<PracticeSession> {
+    const deadline = Date.now() + 90_000;
+    let delay = 2000;
+    while (Date.now() < deadline) {
+        if (signal.aborted) throw new Error("cancelled");
+        const { session } = await practiceApi.getSession(id);
+        if (session.status === "success" || session.status === "failed" || session.status === "cancelled") return session;
+        await new Promise<void>((resolve, reject) => {
+            const t = setTimeout(resolve, delay);
+            signal.addEventListener("abort", () => { clearTimeout(t); reject(new Error("cancelled")); }, { once: true });
+        });
+        delay = Math.min(delay * 2, 8000);
+    }
+    throw new Error("生成超时");
+}
+
 export default function MultiAngleWorkbench() {
     const { message } = App.useApp();
 
     const [image, setImage] = useState<string | null>(null);
     const [imageEl, setImageEl] = useState<HTMLImageElement | null>(null);
+    const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
+    const [uploading, setUploading] = useState(false);
     const [thumb, setThumb] = useState(DEFAULT_THUMB);
     const [mode, setMode] = useState<AngleMode>("camera");
     const [h, setH] = useState(0);
@@ -86,6 +108,7 @@ export default function MultiAngleWorkbench() {
     const live = useRef({ h, p, d, fisheye, mode });
     const aliveRef = useRef(true);
     const runSeq = useRef(0);
+    const abortRef = useRef<AbortController | null>(null);
 
     live.current = { h, p, d, fisheye, mode };
 
@@ -94,6 +117,7 @@ export default function MultiAngleWorkbench() {
         return () => {
             aliveRef.current = false;
             dragRef.current = null;
+            abortRef.current?.abort();
         };
     }, []);
 
@@ -138,10 +162,17 @@ export default function MultiAngleWorkbench() {
         if (!file || !file.type.startsWith("image/")) return;
         const reader = new FileReader();
         reader.onload = () => {
-            if (typeof reader.result === "string") setImage(reader.result);
+            if (typeof reader.result !== "string" || !aliveRef.current) return;
+            setImage(reader.result);
+            setUploadedImage(null);
+            setUploading(true);
+            uploadImage(file)
+                .then((uploaded) => { if (aliveRef.current) setUploadedImage(uploaded); })
+                .catch((error) => { if (aliveRef.current) message.error(error instanceof Error ? error.message : "上传失败"); })
+                .finally(() => { if (aliveRef.current) setUploading(false); });
         };
         reader.readAsDataURL(file);
-    }, []);
+    }, [message]);
 
     // 拖到页面任意位置、Ctrl+V 粘贴图片都能载入（输入框内粘贴不拦截）
     useEffect(() => {
@@ -283,54 +314,80 @@ export default function MultiAngleWorkbench() {
 
     const summaryText = useMemo(() => {
         if (!shots.length || !runMeta) return "";
-        return `${runMeta.total} 张 · ${runMeta.wideAngle ? "鱼眼镜头" : shotLabel(runMeta.distance)} · ${runMeta.cameraMode ? "摄像头视角" : "主体视角"} · 本地演示渲染，基于同一主体`;
+        return `${runMeta.total} 张 · ${runMeta.wideAngle ? "鱼眼镜头" : shotLabel(runMeta.distance)} · ${runMeta.cameraMode ? "摄像头视角" : "主体视角"}`;
     }, [shots.length, runMeta]);
 
-    // ─── 生成：P0 用本地 canvas 模拟，不调 AI、不扣积分 ───
+    // ─── 生成：上传图片后调 AI 练习画布 gamaimage 池 ───
     const generate = useCallback(async () => {
-        if (!imageEl || generating) return;
+        if (!uploadedImage || generating || uploading) return;
+        abortRef.current?.abort();
+        const ac = new AbortController();
+        abortRef.current = ac;
         setGenerating(true);
 
-        const cameraMode = live.current.mode === "camera";
+        const snap = live.current;
+        const cameraMode = snap.mode === "camera";
         const jobs: Array<{ h: number; p: number; name: string }> =
             batch === 1
-                ? [
-                      {
-                          h: live.current.h,
-                          p: live.current.p,
-                          name: preset === "fisheye" ? "鱼眼视角" : singleShotName(preset, live.current.h, live.current.p),
-                      },
-                  ]
+                ? [{ h: snap.h, p: snap.p, name: singleShotName(preset, snap.h, snap.p) }]
                 : BATCH_ANGLES[batch].map((angle) => ({ ...angle }));
+        const distance = snap.d;
+        const wideAngle = snap.fisheye;
 
-        const distance = live.current.d;
-        const wideAngle = live.current.fisheye;
-        setShots(jobs.map((job) => ({ name: job.name, url: null })));
+        setShots(jobs.map((job) => ({ name: job.name, url: null, status: "queued" as const })));
         setRunMeta({ total: jobs.length, distance, wideAngle, cameraMode });
 
         const urls: string[] = [];
         for (const [index, job] of jobs.entries()) {
-            await new Promise((resolve) => setTimeout(resolve, 900 + Math.random() * 900));
-            if (!aliveRef.current) return;
-            const url = renderShot(imageEl, { h: job.h, p: job.p, d: distance, fisheye: wideAngle });
-            urls.push(url);
-            setShots((prev) => prev.map((shot, i) => (i === index ? { ...shot, url } : shot)));
+            if (ac.signal.aborted || !aliveRef.current) break;
+            setShots((prev) => prev.map((shot, i) => i === index ? { ...shot, status: "running" as const } : shot));
+            try {
+                const angleParams = toCanvasAngleParams(job.h, job.p, distance, wideAngle, promptOn);
+                const anglePrompt = buildAnglePrompt({ ...angleParams, usePrompt: promptOn });
+                const { session } = await practiceApi.createSession({
+                    module: "storyboard-image",
+                    mode: "workflow",
+                    title: `多角度练习 · ${job.name}`,
+                    input: {
+                        prompt: [prompt.trim(), anglePrompt].filter(Boolean).join("，"),
+                        workflowCode: "gamaimage",
+                    },
+                    references: [{ type: "asset", id: uploadedImage.storageKey, inputKey: "referenceImage" }],
+                    logicalModelId: "gamaimage",
+                    clientRequestId: crypto.randomUUID(),
+                });
+                const done = await pollSession(session.id, ac.signal);
+                const url = done.result?.media?.url ?? null;
+                urls.push(url ?? "");
+                setShots((prev) => prev.map((shot, i) =>
+                    i === index ? { ...shot, url, status: done.status === "success" ? "success" as const : "failed" as const } : shot
+                ));
+            } catch (error) {
+                if ((error as Error).message === "cancelled") break;
+                urls.push("");
+                setShots((prev) => prev.map((shot, i) => i === index ? { ...shot, status: "failed" as const } : shot));
+                message.error(`机位「${job.name}」生成失败`);
+            }
         }
 
+        if (!aliveRef.current || ac.signal.aborted) return;
         setGenerating(false);
-        runSeq.current += 1;
-        setRuns((prev) => [
-            {
-                id: runSeq.current,
-                name: `多角度练习 · ${jobs.length} 张`,
-                sub: `${wideAngle ? "鱼眼" : shotLabel(distance)} · ${cameraMode ? "摄像头视角" : "主体视角"} · 刚刚`,
-                thumbs: urls.slice(0, 4),
-            },
-            ...prev,
-        ]);
-        message.success(`已生成 ${jobs.length} 张多角度画面（演示渲染，未扣除积分）`);
-        window.requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    }, [imageEl, generating, batch, preset, message]);
+        const successCount = urls.filter(Boolean).length;
+        if (successCount) {
+            runSeq.current += 1;
+            setRuns((prev) => [
+                {
+                    id: runSeq.current,
+                    name: `多角度练习 · ${jobs.length} 张`,
+                    sub: `${wideAngle ? "鱼眼" : shotLabel(distance)} · ${cameraMode ? "摄像头视角" : "主体视角"} · 刚刚`,
+                    thumbs: urls.filter(Boolean).slice(0, 4),
+                },
+                ...prev,
+            ]);
+            message.success(`已生成 ${successCount} 张多角度画面`);
+            window.requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        }
+    }, [uploadedImage, generating, uploading, batch, preset, prompt, promptOn, message]);
 
     const download = useCallback((url: string, name: string) => {
         downloadDataUrl(url, name);
@@ -347,13 +404,23 @@ export default function MultiAngleWorkbench() {
 
     const chooseSample = useCallback(() => {
         const url = createSampleImage();
-        if (url) setImage(url);
-    }, []);
+        if (!url) return;
+        setImage(url);
+        setUploadedImage(null);
+        setUploading(true);
+        uploadImage(url)
+            .then((uploaded) => { if (aliveRef.current) setUploadedImage(uploaded); })
+            .catch((error) => { if (aliveRef.current) message.error(error instanceof Error ? error.message : "上传失败"); })
+            .finally(() => { if (aliveRef.current) setUploading(false); });
+    }, [message]);
 
     const clearImage = useCallback(() => {
         setImage(null);
+        setUploadedImage(null);
+        setUploading(false);
         setShots([]);
         setRunMeta(null);
+        abortRef.current?.abort();
         if (fileInputRef.current) fileInputRef.current.value = "";
     }, []);
 
@@ -461,7 +528,9 @@ export default function MultiAngleWorkbench() {
                             batch={batch}
                             promptOn={promptOn}
                             prompt={prompt}
-                            ready={Boolean(imageEl)}
+                            ready={!!uploadedImage && !uploading}
+                            uploading={uploading}
+                            costLabel={batch === 1 ? "1 个机位" : `${BATCH_ANGLES[batch].length} 个机位`}
                             generating={generating}
                             onModeChange={handleMode}
                             onPresetChange={handlePreset}

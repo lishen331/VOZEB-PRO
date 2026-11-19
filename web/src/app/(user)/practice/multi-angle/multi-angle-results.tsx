@@ -13,6 +13,7 @@ import s from "./multi-angle.module.css";
 export interface MultiAngleShot {
     name: string;
     url: string | null;
+    status?: "queued" | "running" | "success" | "failed";
 }
 
 export interface MultiAngleRun {
@@ -82,6 +83,8 @@ export default function MultiAngleResults({ shots, summary, runs, resultsRef, on
                                             <Download size={12} />
                                         </button>
                                     </>
+                                ) : shot.status === "failed" ? (
+                                    <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 11, color: "var(--gm-text-muted, rgba(255,255,255,.45))" }}>生成失败</span>
                                 ) : (
                                     <div className={s.shotSpin}>
                                         <i />

@@ -19,6 +19,8 @@ interface AngleParamsPanelProps {
     promptOn: boolean;
     prompt: string;
     ready: boolean;
+    uploading: boolean;
+    costLabel: string;
     generating: boolean;
     onModeChange: (mode: AngleMode) => void;
     onPresetChange: (preset: PresetKey) => void;
@@ -62,6 +64,8 @@ export default function AngleParamsPanel({
     promptOn,
     prompt,
     ready,
+    uploading,
+    costLabel,
     generating,
     onModeChange,
     onPresetChange,
@@ -74,7 +78,6 @@ export default function AngleParamsPanel({
 }: AngleParamsPanelProps) {
     const copy = MODE_COPY[mode];
     const cameraMode = mode === "camera";
-    const batchTotal = batch === 1 ? 1 : BATCH_ANGLES[batch].length;
 
     return (
         <div className={s.panel}>
@@ -131,8 +134,8 @@ export default function AngleParamsPanel({
                     重置参数
                 </button>
                 <span className={s.spacer} />
-                <span className={s.cost}>{batchTotal > 1 ? `演示渲染 · ${batchTotal} 个机位` : "演示渲染 · 不扣积分"}</span>
-                <button type="button" className={s.sendBtn} aria-label="生成多角度画面" disabled={!ready || generating} onClick={onGenerate}>
+                <span className={s.cost}>{costLabel}</span>
+                <button type="button" className={s.sendBtn} aria-label="生成多角度画面" disabled={!ready || uploading || generating} onClick={onGenerate}>
                     <ArrowUp size={17} strokeWidth={2.2} />
                 </button>
             </div>
