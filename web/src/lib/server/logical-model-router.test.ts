@@ -278,4 +278,24 @@ describe("orderBindingsForRouting (canary weights)", () => {
         expect(ratio).toBeGreaterThan(0.06);
         expect(ratio).toBeLessThan(0.14);
     });
+
+    it("counts an undeclared weight as the historical default of 100", () => {
+        // 真实形态：天翼云未声明 weight，自建声明 10。若把未声明当 0，自建会拿走 100% 流量。
+        const group = [binding("ctyun", 1), binding("self-hosted", 1, 10)];
+        let selfHosted = 0;
+        const draws = 4000;
+        for (let index = 0; index < draws; index += 1) {
+            if (orderBindingsForRouting(group)[0].id === "self-hosted") selfHosted += 1;
+        }
+        const ratio = selfHosted / draws;
+        expect(ratio).toBeGreaterThan(0.05);
+        expect(ratio).toBeLessThan(0.15);
+    });
+
+    it("keeps an undeclared weight at 100 even when it is not the lowest index", () => {
+        const ordered = orderBindingsForRouting([binding("self-hosted", 1, 10), binding("ctyun", 1)], () => 0.5);
+        // 权重 100 的 ctyun 占 [0,100)，权重 10 的自建占 [100,110)：0.5 * 110 = 55 落在 ctyun
+        expect(ordered[0].id).toBe("ctyun");
+        expect(ordered.map((item) => item.id)).toEqual(["ctyun", "self-hosted"]);
+    });
 });

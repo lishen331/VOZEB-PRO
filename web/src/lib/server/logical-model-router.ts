@@ -62,17 +62,26 @@ export function orderBindingsForRouting<T extends RoutableBinding>(bindings: rea
     return ordered;
 }
 
-/** 按 weight 返回被抽中的下标；全部权重非法时取第 0 个。 */
+/**
+ * 按 weight 返回被抽中的下标。
+ *
+ * **未声明 weight 的 binding 按 100 计**，与历史排序里 `binding.weight || 100` 的默认值一致。
+ * 这一点很关键：渠道通常是逐个补 weight 的，若把"未声明"当成 0，那么一个组里只要有一条
+ * 声明了 weight，其余没声明的就会被完全挤掉——例如天翼云(未声明) + 自建(weight 10)
+ * 会让自建拿走 100% 流量，而不是 10%。
+ */
 function weightedIndex(group: readonly RoutableBinding[], random: () => number) {
-    const weights = group.map((binding) => (typeof binding.weight === "number" && Number.isFinite(binding.weight) && binding.weight > 0 ? binding.weight : 0));
+    const weights = group.map((binding) => {
+        const weight = binding.weight;
+        return typeof weight === "number" && Number.isFinite(weight) && weight > 0 ? weight : 100;
+    });
     const total = weights.reduce((sum, weight) => sum + weight, 0);
-    if (total <= 0) return 0;
     let cursor = Math.min(Math.max(random(), 0), 1) * total;
     for (let index = 0; index < weights.length; index += 1) {
         cursor -= weights[index];
         if (cursor < 0) return index;
     }
-    return weights.findIndex((weight) => weight > 0);
+    return weights.length - 1;
 }
 
 export function resolveLogicalModelCandidates(
