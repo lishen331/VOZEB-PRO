@@ -121,7 +121,14 @@ function normalizeChannelModelCapabilities(value: unknown) {
 /** 成功码白名单：去空白、去重、限长，保持原样（可以是数字或字符串，如 "1"）。 */
 function normalizeSuccessCodes(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
-    return Array.from(new Set(value.filter((item): item is string | number => typeof item === "string" || typeof item === "number").map((item) => String(item).trim()).filter(Boolean))).slice(0, 16);
+    return Array.from(
+        new Set(
+            value
+                .filter((item): item is string | number => typeof item === "string" || typeof item === "number")
+                .map((item) => String(item).trim())
+                .filter(Boolean),
+        ),
+    ).slice(0, 16);
 }
 
 function normalizeChannelModelConfigs(value: unknown) {
