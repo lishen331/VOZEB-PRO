@@ -93,7 +93,7 @@ export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: A
     });
 }
 
-export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"]) {
+export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"]): ImageTaskConfig["advancedConfig"] {
     if (!config || typeof config !== "object") return undefined;
     return {
         protocol: config.protocol || "auto",
