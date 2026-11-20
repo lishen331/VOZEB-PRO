@@ -45,7 +45,7 @@ describe("resolveLogicalModel", () => {
         expect(resolveLogicalModelCandidates(settings, "text", "writer", "backup").map((item) => item.channelId)).toEqual(["backup", "primary"]);
     });
 
-    it("uses binding weight inside the same priority and exposes capability limits", () => {
+    it("shares traffic across same-priority bindings by weight and exposes capability limits", () => {
         const settings = {
             systemChannels: [channel("low", ["video-low"]), channel("high", ["video-high"])],
             logicalModels: [
@@ -62,9 +62,12 @@ describe("resolveLogicalModel", () => {
             ],
         };
 
+        // weight 现在是同优先级组内的流量比例，不再是排序键：两个渠道都必须是候选，
+        // 谁排第一由加权随机决定（见 orderBindingsForRouting 的抽样测试）。
         const candidates = resolveLogicalModelCandidates(settings, "video", "video");
-        expect(candidates.map((item) => item.channelId)).toEqual(["high", "low"]);
-        expect(candidates[0].capabilityProfile).toMatchObject({ supportsReferenceImage: true, maxReferenceImages: 2, maxDurationSeconds: 10, timeoutMs: 12 * 60_000 });
+        expect(candidates.map((item) => item.channelId).sort()).toEqual(["high", "low"]);
+        const high = candidates.find((item) => item.channelId === "high");
+        expect(high?.capabilityProfile).toMatchObject({ supportsReferenceImage: true, maxReferenceImages: 2, maxDurationSeconds: 10, timeoutMs: 12 * 60_000 });
     });
 
     it("does not route a logical model through a binding missing from the channel model list", () => {
