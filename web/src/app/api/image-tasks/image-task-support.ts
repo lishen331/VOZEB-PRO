@@ -105,6 +105,11 @@ export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"
         createPath: textOrEmpty(config.createPath),
         editPath: textOrEmpty(config.editPath),
         queryPath: textOrEmpty(config.queryPath),
+        // 自建网关这类只接受 POST body 查询、且成功码非标准的渠道依赖这三个字段；
+        // 任务 config 是从渠道拷贝出来的，漏掉它们会让轮询退回 GET 并把成功判成失败。
+        ...(config.queryMethod === "POST" ? { queryMethod: "POST" as const } : config.queryMethod === "GET" ? { queryMethod: "GET" as const } : {}),
+        ...(textOrEmpty(config.queryBodyTemplate) ? { queryBodyTemplate: textOrEmpty(config.queryBodyTemplate) } : {}),
+        ...(Array.isArray(config.successCodes) && config.successCodes.length ? { successCodes: config.successCodes.map((code) => String(code)).filter(Boolean) } : {}),
         taskIdField: textOrEmpty(config.taskIdField),
         requestTemplate: textOrEmpty(config.requestTemplate),
         editRequestTemplate: textOrEmpty(config.editRequestTemplate),
