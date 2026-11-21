@@ -28,15 +28,10 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             await installPracticeFixtures(rolePage, moduleFixtureCapabilities());
             await rolePage.goto("/practice", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByRole("heading", { name: "无限练习", exact: true })).toBeVisible();
-            await expect(rolePage.locator("[data-practice-module]")).toHaveCount(6);
-            await expect(rolePage.locator('[data-practice-module="character"]')).toBeVisible();
-            await expect(rolePage.locator('[data-practice-module="scene"]')).toBeVisible();
-            await expect(rolePage.locator('[data-practice-module="prop"]')).toBeVisible();
-            await expect(rolePage.locator('[data-practice-module="storyboard-image"]')).toBeVisible();
-            await expect(rolePage.locator('[data-practice-module="storyboard-video"]')).toBeVisible();
-            await expect(rolePage.locator('[data-practice-module="dubbing"]')).toBeVisible();
-            await expect(rolePage.locator('[data-practice-module="script"]')).toHaveCount(0);
-            await expect(rolePage.locator('[data-practice-module="music"]')).toHaveCount(0);
+            const entry = rolePage.locator("[data-practice-single-entry]");
+            await expect(entry).toHaveCount(1);
+            await expect(entry).toContainText("单项练习");
+            await expect(entry).toContainText("6 类练习");
             const overflow = await rolePage.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
             expect(overflow.width).toBeLessThanOrEqual(overflow.viewport);
 
@@ -46,10 +41,18 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
                 expect([200, 404]).toContain(hidden?.status());
                 await expect(rolePage.getByRole("heading", { name: "页面不存在", exact: true })).toBeVisible();
                 await expect(rolePage.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
-                await expect(rolePage.locator("[data-practice-module]")).toHaveCount(0);
+                await expect(rolePage.getByRole("tablist", { name: "单项练习模块切换" })).toHaveCount(0);
             }
 
-            await rolePage.goto("/practice/character", { waitUntil: "domcontentloaded" });
+            await rolePage.goto("/practice", { waitUntil: "domcontentloaded" });
+            await entry.click();
+            await expect(rolePage).toHaveURL(/\/practice\/character$/);
+            const switcher = rolePage.getByRole("tablist", { name: "单项练习模块切换" });
+            await expect(switcher.getByRole("tab")).toHaveText(["角色", "场景", "道具", "分镜图", "分镜视频", "音频"]);
+            await switcher.getByRole("tab", { name: "场景", exact: true }).click();
+            await expect(rolePage).toHaveURL(/\/practice\/scene$/);
+            await switcher.getByRole("tab", { name: "角色", exact: true }).click();
+            await expect(rolePage).toHaveURL(/\/practice\/character$/);
             await expect(rolePage.getByText("等待生成角色图", { exact: true })).toBeVisible();
             const boxes = await rolePage.locator('[aria-label="练习工具"], [aria-label="当前结果"]').evaluateAll((nodes) =>
                 nodes.map((node) => {
