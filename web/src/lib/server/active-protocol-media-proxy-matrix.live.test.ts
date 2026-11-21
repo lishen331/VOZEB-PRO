@@ -36,13 +36,15 @@ vi.mock("@/lib/server/internal-origin", () => ({
 vi.mock("@/lib/server/media-concurrency", () => ({ acquireMediaConcurrency: () => ({ release: vi.fn() }), withMediaConcurrency: (response: Response) => response }));
 vi.mock("@/lib/server/proxy-dispatcher", () => ({ configureServerProxyDispatcher: vi.fn() }));
 
+import { ImageQueryContractError, sanitizeConfigs } from "@/app/api/image-tasks/image-task-support";
+import { getAuthSettings } from "@/lib/auth/store";
 import { runCustomImageTask, pollCustomImageTask } from "@/app/api/image-tasks/image-task-custom";
 import { runOpenAiImageTask } from "@/app/api/image-tasks/image-task-openai";
 import { GET as proxyGet, HEAD as proxyHead, POST as proxyPost } from "@/app/api/ai/system/[channelId]/[...path]/route";
 import { PATCH as saveAdminSettings } from "@/app/api/admin/settings/route";
 import { createUpstream } from "@/app/api/video-generation-tasks/video-generation-route";
 import type { LogicalModelCapability, SystemChannelAdvancedConfig, SystemChannelModelConfig, SystemChannelProtocol, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store-types";
-import { channelProtocolDefinitions, emptyAdvancedConfig, protocolAuthHeaders, protocolModelConfig, registeredChannelProtocolDefinitions, type ChannelProtocolDefinition } from "@/lib/channel-protocol-registry";
+import { channelProtocolDefinition, channelProtocolDefinitions, emptyAdvancedConfig, protocolAuthHeaders, protocolModelConfig, registeredChannelProtocolDefinitions, type ChannelProtocolDefinition } from "@/lib/channel-protocol-registry";
 import type { SystemGenerationChannelConfig } from "@/lib/server/generation-channel";
 import type { ImageTask } from "@/lib/server/image-task-store";
 import { requestStructuredText } from "@/lib/server/text-planning-runtime";
@@ -126,6 +128,60 @@ describe("active protocols through persisted admin settings and the system proxy
         const edited = await runImage(imageTask(channel, true), definition.id);
         await expectImageResult(edited);
         expectProxyRequests(channel, operation.editPath || operation.createPath, model, true);
+    });
+
+    it.each(["generation", "edit", "terminal-error", "missing-output", "query-error"])("routes blue-cloud %s through fixed POST detail with the original task ID", async (scenario) => {
+        const model = "gpt-image-2";
+        const createPath = "/aiservice/images/tasks/submit";
+        const queryPath = "/aiservice/images/tasks/detail";
+        const definition = channelProtocolDefinition("custom");
+        const advancedConfig = {
+            ...emptyAdvancedConfig(),
+            protocol: "custom" as const,
+            modelConfigs: {
+                [model]: {
+                    capability: "image" as const,
+                    apiFormat: "openai" as const,
+                    protocol: "custom" as const,
+                    createPath,
+                    editPath: createPath,
+                    queryPath,
+                    queryMethod: "POST" as const,
+                    queryBodyTemplate: '{"taskId":"{{taskId}}"}',
+                    successCodes: ["1"],
+                    taskIdField: "result.taskId",
+                    statusField: "result.status",
+                    resultField: "result.result.images",
+                    supportsReferenceImage: true,
+                    requestTemplate: '{"model":"{{model}}","prompt":"{{prompt}}"}',
+                    editRequestTemplate: '{"model":"{{model}}","prompt":"{{prompt}}","imageUrls":"{{images}}"}',
+                },
+            },
+        };
+        const channel = await configureProxyChannel(definition, "image", model, advancedConfig);
+        const [config] = sanitizeConfigs({ ...channel.config, model: channel.logicalModelId, quality: "high" }, await getAuthSettings());
+        const task = { ...imageTask(channel, scenario === "edit"), config, ...(["terminal-error", "missing-output", "query-error"].includes(scenario) ? { prompt: `fixture ${scenario}` } : {}) };
+        const submitted = await runCustomImageTask(task, INTERNAL_ORIGIN, fixtureOrigin, "", true);
+        expect(submitted.pending?.id).toBeTruthy();
+        const pending = submitted.pending!;
+        const query = () => pollCustomImageTask(task, pending.id, pending.mediaBaseUrl, pending.pollBaseUrl, "", true);
+        if (scenario === "terminal-error") {
+            await expect(query()).rejects.toThrow("fixture model rejected the request");
+        } else if (scenario === "missing-output" || scenario === "query-error") {
+            await expect(query()).rejects.toBeInstanceOf(ImageQueryContractError);
+        } else {
+            await expect(query()).resolves.toMatchObject({ pending: { id: pending.id } });
+            mocks.taskAccess.mockResolvedValueOnce(false);
+            await expect(query()).rejects.toThrow();
+            const result = await query();
+            expect(result.results?.map((item) => item.remoteUrl)).toEqual([`${fixtureOrigin}/media/fixture.png?output=1`]);
+            await expectImageResult(result);
+        }
+        expect(mocks.taskAccess).toHaveBeenCalledWith(expect.objectContaining({ channelId: channel.channelId, upstreamTaskId: pending.id, capability: "image" }));
+        const apiCalls = fixture.requests.filter((item) => item.path.startsWith("/aiservice/"));
+        expect(apiCalls.map((item) => [item.method, item.path])).toEqual([["POST", createPath], ["POST", queryPath], ...(["generation", "edit"].includes(scenario) ? [["POST", queryPath]] : [])]);
+        expect(JSON.parse(apiCalls[0].body.toString()).imageUrls).toEqual(scenario === "edit" ? ["https://cdn.example.com/reference.png"] : undefined);
+        for (const call of apiCalls.slice(1)) expect(JSON.parse(call.body.toString())).toEqual({ taskId: pending.id });
     });
 
     it.each(VIDEO_PROTOCOLS)("routes $id text-to-video and image-to-video creation, polling, and media", async (definition) => {

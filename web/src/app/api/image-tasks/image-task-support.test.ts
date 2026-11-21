@@ -37,6 +37,17 @@ const config = {
     advancedConfig: { protocol: "globalaiopc", globalAiOpcPreset: "image-gpt-image-2", createPath: "/image2/images", queryPath: "/result/:task_id" },
 } as never;
 
+it.each([
+    ["POST", "/image/detail", "/image/detail"],
+    ["POST", "/image/detail/:task_id", "/image/detail/task%201"],
+    ["GET", "/image/detail", "/image/detail/task%201"],
+    [undefined, "/image/detail", "/image/detail/task%201"],
+])("renders %s image polling path %s without changing existing URL contracts", (queryMethod, queryPath, expectedPath) => {
+    expect(imageTaskPollUrls({ baseUrl: "https://provider.example", apiFormat: "openai", advancedConfig: { protocol: "custom", queryPath, queryMethod } } as never, "https://provider.example/submit", "task 1")).toEqual([
+        `https://provider.example${expectedPath}`,
+    ]);
+});
+
 describe("GlobalAiOpc image task paths", () => {
     afterEach(() => {
         vi.unstubAllEnvs();

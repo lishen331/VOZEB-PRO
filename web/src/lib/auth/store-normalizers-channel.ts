@@ -60,6 +60,9 @@ export function normalizeSystemChannelAdvancedConfig(config: Partial<SystemChann
         editPath: normalizeApiPath(config.editPath),
         imageToVideoPath: normalizeApiPath(config.imageToVideoPath),
         queryPath: normalizeApiPath(config.queryPath),
+        ...(config.queryMethod === "POST" ? { queryMethod: "POST" as const } : config.queryMethod === "GET" ? { queryMethod: "GET" as const } : {}),
+        ...(textOrEmpty(config.queryBodyTemplate, 2000) ? { queryBodyTemplate: textOrEmpty(config.queryBodyTemplate, 2000) } : {}),
+        ...(normalizeSuccessCodes(config.successCodes).length ? { successCodes: normalizeSuccessCodes(config.successCodes) } : {}),
         ...(normalizeApiPath(config.cancelPath) ? { cancelPath: normalizeApiPath(config.cancelPath) } : {}),
         ...(config.cancelMethod === "POST" || config.cancelMethod === "DELETE" ? { cancelMethod: config.cancelMethod } : {}),
         requestTemplate: textOrEmpty(config.requestTemplate, 12_000),
@@ -115,6 +118,19 @@ function normalizeChannelModelCapabilities(value: unknown) {
     ) as NonNullable<SystemChannelAdvancedConfig["modelCapabilities"]>;
 }
 
+/** 成功码白名单：去空白、去重、限长，保持原样（可以是数字或字符串，如 "1"）。 */
+function normalizeSuccessCodes(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return Array.from(
+        new Set(
+            value
+                .filter((item): item is string | number => typeof item === "string" || typeof item === "number")
+                .map((item) => String(item).trim())
+                .filter(Boolean),
+        ),
+    ).slice(0, 16);
+}
+
 function normalizeChannelModelConfigs(value: unknown) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return {} as NonNullable<SystemChannelAdvancedConfig["modelConfigs"]>;
     return Object.fromEntries(
@@ -136,6 +152,9 @@ function normalizeChannelModelConfigs(value: unknown) {
                         ...(normalizeApiPath(config.editPath) ? { editPath: normalizeApiPath(config.editPath) } : {}),
                         ...(normalizeApiPath(config.imageToVideoPath) ? { imageToVideoPath: normalizeApiPath(config.imageToVideoPath) } : {}),
                         ...(normalizeApiPath(config.queryPath) ? { queryPath: normalizeApiPath(config.queryPath) } : {}),
+                        ...(config.queryMethod === "POST" ? { queryMethod: "POST" as const } : config.queryMethod === "GET" ? { queryMethod: "GET" as const } : {}),
+                        ...(textOrEmpty(config.queryBodyTemplate, 2000) ? { queryBodyTemplate: textOrEmpty(config.queryBodyTemplate, 2000) } : {}),
+                        ...(normalizeSuccessCodes(config.successCodes).length ? { successCodes: normalizeSuccessCodes(config.successCodes) } : {}),
                         ...(normalizeApiPath(config.cancelPath) ? { cancelPath: normalizeApiPath(config.cancelPath) } : {}),
                         ...(config.cancelMethod === "POST" || config.cancelMethod === "DELETE" ? { cancelMethod: config.cancelMethod } : {}),
                         ...(textOrEmpty(config.requestTemplate, 12_000) ? { requestTemplate: textOrEmpty(config.requestTemplate, 12_000) } : {}),

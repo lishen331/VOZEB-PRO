@@ -93,7 +93,7 @@ export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: A
     });
 }
 
-export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"]) {
+export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"]): ImageTaskConfig["advancedConfig"] {
     if (!config || typeof config !== "object") return undefined;
     return {
         protocol: config.protocol || "auto",
@@ -105,6 +105,11 @@ export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"
         createPath: textOrEmpty(config.createPath),
         editPath: textOrEmpty(config.editPath),
         queryPath: textOrEmpty(config.queryPath),
+        // 自建网关这类只接受 POST body 查询、且成功码非标准的渠道依赖这三个字段；
+        // 任务 config 是从渠道拷贝出来的，漏掉它们会让轮询退回 GET 并把成功判成失败。
+        ...(config.queryMethod === "POST" ? { queryMethod: "POST" as const } : config.queryMethod === "GET" ? { queryMethod: "GET" as const } : {}),
+        ...(textOrEmpty(config.queryBodyTemplate) ? { queryBodyTemplate: textOrEmpty(config.queryBodyTemplate) } : {}),
+        ...(Array.isArray(config.successCodes) && config.successCodes.length ? { successCodes: config.successCodes.map((code) => String(code)).filter(Boolean) } : {}),
         taskIdField: textOrEmpty(config.taskIdField),
         requestTemplate: textOrEmpty(config.requestTemplate),
         editRequestTemplate: textOrEmpty(config.editRequestTemplate),
@@ -641,7 +646,9 @@ export function configuredImageTaskPollUrl(config: ImageTaskConfig, taskId: stri
         return "";
     }
     const rendered = queryPath.replace(/\{\{\s*(?:taskId|task_id|id)\s*\}\}|\{(?:taskId|task_id|id)\}|:(?:taskId|task_id|id)\b/gi, encodeURIComponent(taskId));
-    return taskUrl(config, rendered === queryPath ? `${queryPath.replace(/\/+$/, "")}/${encodeURIComponent(taskId)}` : rendered, origin);
+    // POST queries carry the ID in the JSON body unless the path explicitly declares a placeholder.
+    const path = rendered !== queryPath || config.advancedConfig?.queryMethod === "POST" ? rendered : `${queryPath.replace(/\/+$/, "")}/${encodeURIComponent(taskId)}`;
+    return taskUrl(config, path, origin);
 }
 
 // D6 步骤6：按"上游请求 ID"查询的路径。渲染规则与上面的 taskId 版本对齐（同一套模板占位符写法）。

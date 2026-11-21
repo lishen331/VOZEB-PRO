@@ -45,6 +45,12 @@ export type SystemChannelModelConfig = {
     editPath?: string;
     imageToVideoPath?: string;
     queryPath?: string;
+    /** 该模型的任务查询 HTTP 方法；不声明则沿用渠道级设置，再缺省为 GET。 */
+    queryMethod?: "GET" | "POST";
+    /** POST 查询的请求体模板，支持 `{{taskId}}`。 */
+    queryBodyTemplate?: string;
+    /** 该模型声明的成功码；不声明则沿用渠道级设置。 */
+    successCodes?: string[];
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate?: string;
