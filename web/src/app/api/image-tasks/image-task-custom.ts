@@ -1,7 +1,7 @@
 import { isOfficialWorkflowQueryPath, queryRunningHubTask } from "@/lib/server/runninghub-provider";
 import type { ImageTask } from "@/lib/server/image-task-store";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
-import { buildProviderQueryRequest, buildProviderRequest, isProviderBusinessError, isProviderResponseFailure, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
+import { buildProviderQueryRequest, buildProviderRequest, isProviderResponseFailure, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
 import { imagePixelTier, requestedImageResolution } from "@/lib/image-generation-params";
 import { buildYumengImageRequest, resolveYumengImageResolution } from "@/lib/yumeng-model-center";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
@@ -32,6 +32,7 @@ import {
     taskUrl,
     withSystemPrompt,
     withImageOutputInstructions,
+    ImageQueryContractError,
     ImageUpstreamTerminalError,
     imageTaskRequestTimeoutMs,
 } from "./image-task-support";
@@ -162,7 +163,7 @@ async function parseDeclarativeSubmission(task: ImageTask, response: Response, u
     return parseChargedImageResponse(task, response, async () => {
         if (isProviderResponseFailure(data, advanced.successCodes)) throw new ImageUpstreamTerminalError(readProviderError(data) || "自定义图片接口返回失败");
         const mediaBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
-        const direct = configuredImageResult(data, mediaBaseUrl, task);
+        const direct = configuredImageResult(data, mediaBaseUrl, task, usesExplicitImageDetail(task));
         if (direct) return direct;
         const taskId = readImageTaskId(data, advanced.taskIdField);
         if (!taskId || !advanced.queryPath) throw new GenerationSubmissionUncertainError("自定义图片接口没有返回图片或任务 ID，创建结果待确认");
@@ -217,11 +218,32 @@ export async function pollCustomImageTask(task: ImageTask, taskId: string, media
                 continue;
             }
             const data = (await response.json().catch(() => null)) as ImageApiResponse | null;
-            if (!data || isProviderResponseFailure(data, successCodes)) throw new ImageUpstreamTerminalError(readProviderError(data) || "自定义图片任务查询失败");
-            const result = configuredImageResult(data, response.headers.get("x-vozeb-pro-upstream-url") || mediaBaseUrl || url, task);
-            if (result) return result;
-            const status = readProviderString(data, config.advancedConfig?.statusField, STATUS_KEYS).toLowerCase();
-            if (!isPendingImageStatus(status)) throw new ImageUpstreamTerminalError(readProviderError(data) || "自定义图片任务完成但没有返回图片");
+            const explicitDetail = usesExplicitImageDetail(task);
+            if (!data || isProviderResponseFailure(data, successCodes)) {
+                const error = readProviderError(data) || "自定义图片任务查询失败";
+                if (explicitDetail) throw new ImageQueryContractError(error);
+                throw new ImageUpstreamTerminalError(error);
+            }
+            const status = readProviderString(data, config.advancedConfig?.statusField, explicitDetail ? [] : STATUS_KEYS).toLowerCase();
+            const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || mediaBaseUrl || url;
+            if (explicitDetail) {
+                if (["success", "succeeded", "completed"].includes(status)) {
+                    const result = configuredImageResult(data, resultBaseUrl, task, true);
+                    if (result) return result;
+                    throw new ImageQueryContractError("自定义图片任务已成功，但声明的结果字段没有返回图片");
+                }
+                if (["failed", "failure", "error", "canceled", "cancelled"].includes(status)) {
+                    const detail = readProviderString(data, "result.errorMessage / result.error_message", []);
+                    const error = detail || `自定义图片任务状态：${status}`;
+                    if (status === "canceled" || status === "cancelled") throw new GenerationSubmissionSafeFailure(error);
+                    throw new ImageUpstreamTerminalError(error);
+                }
+                if (!status || !isPendingImageStatus(status)) throw new ImageQueryContractError("自定义图片任务详情未返回可识别的状态");
+            } else {
+                const result = configuredImageResult(data, resultBaseUrl, task);
+                if (result) return result;
+                if (!isPendingImageStatus(status)) throw new ImageUpstreamTerminalError(readProviderError(data) || "自定义图片任务完成但没有返回图片");
+            }
             lastError = "";
             break;
         }
@@ -236,9 +258,14 @@ function practiceImagePollRequestId(task: ImageTask) {
     return task.executionProfile === "open-source-practice" ? `image-task:${task.id}:attempt:${task.attemptNo || 1}:poll` : undefined;
 }
 
-function configuredImageResult(data: ImageApiResponse, baseUrl: string, task: ImageTask): ImageTaskResult | null {
+function usesExplicitImageDetail(task: ImageTask) {
+    const advanced = task.config.advancedConfig;
+    return advanced?.protocol === "custom" && advanced.queryMethod === "POST" && Boolean(advanced.statusField && advanced.resultField);
+}
+
+function configuredImageResult(data: ImageApiResponse, baseUrl: string, task: ImageTask, configuredOnly = false): ImageTaskResult | null {
     const configured = findImageResults(readProviderValue(data, task.config.advancedConfig?.resultField), baseUrl, task.config);
-    const discovered = findImageResults(data, baseUrl, task.config);
+    const discovered = configuredOnly ? [] : findImageResults(data, baseUrl, task.config);
     const images = discovered.length > configured.length ? discovered : configured;
     return images.length ? { ...images[0], results: images } : null;
 }

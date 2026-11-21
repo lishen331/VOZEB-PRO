@@ -177,6 +177,27 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
     if (request.method === "POST" && ["/sdapi/v1/txt2img", "/sdapi/v1/img2img"].includes(path)) {
         return sendJson(response, 200, { images: [(await fixtureImage(options)).toString("base64")], info: "{}" });
     }
+    if (request.method === "POST" && path === "/aiservice/images/tasks/submit") {
+        const payload = jsonBody(body);
+        if (!payload.model || !payload.prompt || (payload.imageUrls && !Array.isArray(payload.imageUrls))) return sendJson(response, 200, { code: 2, msg: "invalid image submission" });
+        const id = nextTaskId("blue-cloud-image");
+        tasks.set(id, { kind: "blue-cloud-image", checked: false, scenario: payload.prompt, hasReferences: Boolean(payload.imageUrls?.length) });
+        return sendJson(response, 200, { code: 1, msg: "ok", result: { taskId: id, status: "PENDING" } });
+    }
+    if (request.method === "POST" && path === "/aiservice/images/tasks/detail") {
+        const { taskId } = jsonBody(body);
+        const task = tasks.get(taskId);
+        if (task?.kind !== "blue-cloud-image") return sendJson(response, 200, { code: 10007, msg: "task not found" });
+        if (task.scenario === "fixture terminal-error") return sendJson(response, 200, { code: 1, msg: "ok", result: { taskId, status: "FAILED", result: {}, errorCode: "BIZ_ERROR", errorMessage: "fixture model rejected the request" } });
+        if (task.scenario === "fixture missing-output") return sendJson(response, 200, { code: 1, msg: "ok", result: { taskId, status: "SUCCEEDED", result: { images: [], inputImages: [{ url: `${url.origin}/media/fixture.png?input=1` }] } } });
+        if (task.scenario === "fixture query-error") return sendJson(response, 200, { code: 10007, msg: "task not found" });
+        const inputImages = task.hasReferences ? [{ url: `${url.origin}/media/fixture.png?input=1` }] : [];
+        const images = task.checked ? [{ url: `${url.origin}/media/fixture.png?output=1` }] : [];
+        const status = task.checked ? "SUCCEEDED" : "PENDING";
+        task.checked = true;
+        return sendJson(response, 200, { code: 1, msg: "ok", result: { taskId, status, result: { images, inputImages } } });
+    }
+
     if (request.method === "POST" && path === "/custom/images") {
         if (requestsLayeredOutput(body)) return sendJson(response, 200, { data: { layers: [`${url.origin}/media/fixture.png?layer=1`, `${url.origin}/media/fixture.png?layer=2`] } });
         return sendJson(response, 200, { data: { image_url: `${url.origin}/media/fixture.png` } });

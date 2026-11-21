@@ -646,7 +646,9 @@ export function configuredImageTaskPollUrl(config: ImageTaskConfig, taskId: stri
         return "";
     }
     const rendered = queryPath.replace(/\{\{\s*(?:taskId|task_id|id)\s*\}\}|\{(?:taskId|task_id|id)\}|:(?:taskId|task_id|id)\b/gi, encodeURIComponent(taskId));
-    return taskUrl(config, rendered === queryPath ? `${queryPath.replace(/\/+$/, "")}/${encodeURIComponent(taskId)}` : rendered, origin);
+    // POST queries carry the ID in the JSON body unless the path explicitly declares a placeholder.
+    const path = rendered !== queryPath || config.advancedConfig?.queryMethod === "POST" ? rendered : `${queryPath.replace(/\/+$/, "")}/${encodeURIComponent(taskId)}`;
+    return taskUrl(config, path, origin);
 }
 
 // D6 步骤6：按"上游请求 ID"查询的路径。渲染规则与上面的 taskId 版本对齐（同一套模板占位符写法）。
