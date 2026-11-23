@@ -20,7 +20,10 @@ export type SeedanceTask = {
     content?: { video_url?: string; last_frame_url?: string } | null;
 };
 export type ApiEnvelope<T> = T | { code?: number; data?: T | null; msg?: string };
+export const VIDEO_REFERENCE_CONVERSION_CANCELLED = "Video reference conversion was cancelled";
+
 export type RequestOptions = {
+    confirmVideoReferenceConversion?: (issues: string[]) => Promise<boolean>;
     signal?: AbortSignal;
     conversationId?: string;
     runId?: string;

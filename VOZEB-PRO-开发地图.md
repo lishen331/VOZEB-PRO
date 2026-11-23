@@ -388,6 +388,7 @@ flowchart LR
 
 - `/api/practice/modules` 新增 `sizeOptions`（`{ key, label, width, height }`，label 如 `16:9 · 1280×720`）和 `durationOptions`（视频 5/8/10 秒）：优先使用工作流 `generationSizeOptions`（跳过 disabled），没有时沿用 Demo `index.html` 的“尺寸比例”默认项；场景 `outputPreset` 投影为 enum（`2048 x 1024` / `4096 x 2048`）。规则见 [practice-module-service.ts](web/src/lib/server/practice-module-service.ts) 的 `practiceSizeOptions`。
 - 练习前端 `practice-panel-types.tsx` 提供 `PracticeSizeField` / `PracticeDurationField`，角色/道具/分镜图/分镜视频面板用下拉代替裸 `width/height/duration` 数字框；没有预设时保持原数字框。
+- 天翼云 Seedance 2.0 参考视频：[`tokenhub-reference-video`](web/src/lib/server/tokenhub-reference-video.ts) 在本地任务和上游提交前读取实测规格，返回确认请求；用户同意后转临时副本、复检、用签名 URL 提交。其他渠道与素材类型保持原流程。
 - 练习会话派发时图片/视频任务也携带 `input`（工作流参数）；`image-tasks` 只对受信任练习请求接收并持久化为 `ImageTask.workflowInput`，提交 RunningHub 时并入 `businessInput`；`video-generation-tasks` 把练习 `input` 合并进 `raw` 后再构造工作流 payload。此前图片/视频任务会丢弃练习选择的尺寸，始终使用工作流默认宽高。
 - 提示词优化（`/api/agent/prompt-optimization`）在没有正式生产默认文本模型时回退到无限练习默认文本模型；两者都缺失才返回 503。
 
