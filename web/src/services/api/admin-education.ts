@@ -1,4 +1,5 @@
 import type {
+    AdminSchoolMemberBatchPointsAdjustmentInput,
     AdminSchoolMemberPoints,
     AdminSchoolMemberPointsAdjustmentInput,
     AdminSchoolMemberPointsAdjustmentResult,
@@ -29,6 +30,9 @@ export const adminEducationApi = {
     listSchoolMembers(schoolId: string, input: AdminSchoolMemberQuery = {}) {
         const query = serializeApiParams(input);
         return request<PageResult<AdminSchoolMemberPoints>>(`/api/admin/schools/${encodeURIComponent(schoolId)}/members${query.size ? `?${query.toString()}` : ""}`);
+    },
+    adjustSchoolMemberBatchPoints(schoolId: string, input: AdminSchoolMemberBatchPointsAdjustmentInput) {
+        return request<{ items: AdminSchoolMemberPointsAdjustmentResult[] }>(`/api/admin/schools/${encodeURIComponent(schoolId)}/members`, jsonRequest("POST", input));
     },
     adjustSchoolMemberPoints(schoolId: string, membershipId: string, input: AdminSchoolMemberPointsAdjustmentInput) {
         return request<AdminSchoolMemberPointsAdjustmentResult>(`/api/admin/schools/${encodeURIComponent(schoolId)}/members/${encodeURIComponent(membershipId)}/points-adjustments`, jsonRequest("POST", input));

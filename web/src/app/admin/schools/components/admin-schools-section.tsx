@@ -198,7 +198,7 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
     ];
 
     const modalOpen = editing !== undefined;
-    if (selectedSchool) return <AdminSchoolMembersList school={selectedSchool} onBack={() => setSelectedSchool(null)} />;
+    if (selectedSchool) return <AdminSchoolMembersList school={selectedSchool} currentUser={currentUser} onBack={() => setSelectedSchool(null)} />;
     return (
         <div className="min-w-0 space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

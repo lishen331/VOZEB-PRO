@@ -59,6 +59,7 @@ export type AdminSchoolMemberPoints = SchoolMember & {
     dailyPointsExpiresAt: string;
 };
 export type AdminSchoolMemberPointsAdjustmentInput = { operation: "credit" | "debit"; amount: number; reason: string; idempotencyKey: string };
+export type AdminSchoolMemberBatchPointsAdjustmentInput = AdminSchoolMemberPointsAdjustmentInput & { membershipIds: string[] };
 export type AdminSchoolMemberPointsAdjustmentResult = {
     member: AdminSchoolMemberPoints;
     adjustment: { recordId: string; operation: "credit" | "debit"; amount: number; balanceBefore: number; balanceAfter: number; reason: string; createdAt: string };
