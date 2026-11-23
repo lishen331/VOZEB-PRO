@@ -37,6 +37,27 @@ describe("video API service", () => {
         vi.clearAllMocks();
     });
 
+    it.each([true, false])("only resubmits after reference video conversion consent = %s", async (confirmed) => {
+        const issues = ["参考视频 1：平均帧率 20.1 FPS，要求 24–60 FPS"];
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(new Response(JSON.stringify({ code: "video_reference_conversion_required", issues, proof: "fixture-proof" }), { status: 422 }))
+            .mockResolvedValueOnce(json({ task: { id: "converted-task" } }));
+        vi.stubGlobal("fetch", fetchMock);
+        const ask = vi.fn(async () => confirmed);
+        const result = createServerVideoGenerationTask(config, "生成", [], [{ id: "ref", name: "ref.mp4", type: "video/mp4", url: "https://cdn.example.com/reference.mp4" }], [], { clientRequestId: "same-request", confirmVideoReferenceConversion: ask });
+        if (confirmed) {
+            await expect(result).resolves.toMatchObject({ id: "converted-task" });
+            const second = fetchMock.mock.calls[1][1] as RequestInit;
+            expect(new Headers(second.headers).get("X-VOZEB-PRO-Client-Request-Id")).toBe("same-request");
+            expect(JSON.parse(String(second.body))).toMatchObject({ videoReferenceConversionProof: "fixture-proof" });
+        } else {
+            await expect(result).rejects.toMatchObject({ name: "AbortError" });
+        }
+        expect(ask).toHaveBeenCalledWith(issues);
+        expect(fetchMock).toHaveBeenCalledTimes(confirmed ? 2 : 1);
+    });
+
     it("submits the original public image source instead of the local asset preview", async () => {
         const fetchMock = vi.fn().mockResolvedValue(json({ task: { id: "video-task-1", model: "video-v1" } }));
         vi.stubGlobal("fetch", fetchMock);

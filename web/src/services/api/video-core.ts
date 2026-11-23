@@ -1,4 +1,5 @@
 import axios from "axios";
+import { VIDEO_REFERENCE_CONVERSION_CANCELLED } from "./video-types";
 
 import { dataUrlToFile } from "@/lib/image-utils";
 import { VIDEO_REFERENCE_MAX_RATIO, VIDEO_REFERENCE_MIN_RATIO } from "@/lib/video-reference-size";
@@ -166,32 +167,46 @@ export async function createServerVideoGenerationTask(
         ...videoReferences.map(async (item) => ({ type: "video", role: "reference", url: await providerMediaReferenceUrl("video", item) })),
         ...audioReferences.map(async (item) => ({ type: "audio", role: "reference", url: await providerMediaReferenceUrl("audio", item) })),
     ]);
-    const response = await fetch("/api/video-generation-tasks", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            ...(options?.clientRequestId ? { "X-VOZEB-PRO-Client-Request-Id": options.clientRequestId } : {}),
-            ...(options?.attemptNo ? { "X-VOZEB-PRO-Attempt-No": String(options.attemptNo) } : {}),
-        },
-        body: JSON.stringify({
-            config: {
-                model: selectedModel,
-                size: requestConfig.size,
-                vquality: requestConfig.vquality,
-                videoSeconds: requestConfig.videoSeconds,
-                videoGenerateAudio: requestConfig.videoGenerateAudio,
-                videoWatermark: requestConfig.videoWatermark,
-                ...(requestConfig.videoPromptExpansion ? { videoPromptExpansion: requestConfig.videoPromptExpansion } : {}),
+    const submit = (videoReferenceConversionProof?: string) =>
+        fetch("/api/video-generation-tasks", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(options?.clientRequestId ? { "X-VOZEB-PRO-Client-Request-Id": options.clientRequestId } : {}),
+                ...(options?.attemptNo ? { "X-VOZEB-PRO-Attempt-No": String(options.attemptNo) } : {}),
             },
-            prompt,
-            references: serverReferences,
-            source: options?.source,
-            context: taskContext(options),
-        }),
-        signal: options?.signal,
-    });
-    throwIfClientSessionExpired(response);
-    const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string; model?: string; durationSeconds?: number }; error?: string; canRetry?: boolean };
+            body: JSON.stringify({
+                config: {
+                    model: selectedModel,
+                    size: requestConfig.size,
+                    vquality: requestConfig.vquality,
+                    videoSeconds: requestConfig.videoSeconds,
+                    videoGenerateAudio: requestConfig.videoGenerateAudio,
+                    videoWatermark: requestConfig.videoWatermark,
+                    ...(requestConfig.videoPromptExpansion ? { videoPromptExpansion: requestConfig.videoPromptExpansion } : {}),
+                },
+                prompt,
+                references: serverReferences,
+                ...(videoReferenceConversionProof ? { videoReferenceConversionProof } : {}),
+                source: options?.source,
+                context: taskContext(options),
+            }),
+            signal: options?.signal,
+        });
+    const readResponse = async (response: Response) => {
+        throwIfClientSessionExpired(response);
+        return (await response.json().catch(() => ({}))) as { task?: { id?: string; model?: string; durationSeconds?: number }; code?: string; issues?: string[]; proof?: string; error?: string; canRetry?: boolean };
+    };
+    let response = await submit();
+    let payload = await readResponse(response);
+    if (response.status === 422 && payload.code === "video_reference_conversion_required" && Array.isArray(payload.issues) && typeof payload.proof === "string") {
+        const confirmed = await (options?.confirmVideoReferenceConversion
+            ? options.confirmVideoReferenceConversion(payload.issues)
+            : typeof window !== "undefined" && window.confirm(`参考视频需要转换后才能生成：\n\n${payload.issues.join("\n")}\n\n确认转换副本并继续生成？原视频不会被覆盖。`));
+        if (!confirmed || options?.signal?.aborted) throw new DOMException(VIDEO_REFERENCE_CONVERSION_CANCELLED, "AbortError");
+        response = await submit(payload.proof);
+        payload = await readResponse(response);
+    }
     if (!response.ok) throw new GenerationTaskRequestError(payload.error || "后台视频任务创建失败", response.status, payload.canRetry === true, readGenerationRetryAfterMs(response.headers));
     if (!payload.task?.id) throw new Error(payload.error || "后台视频任务创建失败");
     return { id: payload.task.id, provider: "generation", model: payload.task.model || selectedModel, pollPath: "server", serverTaskId: payload.task.id, durationSeconds: payload.task.durationSeconds };
