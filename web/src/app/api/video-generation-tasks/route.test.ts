@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     updateVideoTask: vi.fn(),
     writeVideoGenerationLog: vi.fn(),
     scheduleGenerationTask: vi.fn(),
+    prepareTokenHubVideoReferences: vi.fn(async (_channel, references, _confirmed, _context): Promise<{ references?: unknown[]; issues?: string[]; error?: string }> => ({ references })),
     normalizeImageReferences: vi.fn(async (input: { references: unknown[] }) => input.references),
     requireManagedMediaInputOwner: vi.fn(async () => "user"),
     refundGenerationCharge: vi.fn(),
@@ -52,6 +53,10 @@ vi.mock("@/lib/server/security", () => ({
 vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationTaskRecoveryBatch: vi.fn() }));
 vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.scheduleGenerationTask }));
 vi.mock("@/lib/server/video-task-log", () => ({ writeVideoGenerationLog: mocks.writeVideoGenerationLog }));
+vi.mock("@/lib/server/tokenhub-reference-video", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/server/tokenhub-reference-video")>()),
+    prepareTokenHubVideoReferences: mocks.prepareTokenHubVideoReferences,
+}));
 vi.mock("@/lib/server/video-reference-image", () => ({ normalizeVideoProviderImageReferences: mocks.normalizeImageReferences }));
 vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/video-task-store", () => ({
@@ -130,6 +135,17 @@ describe("video generation candidate failover", () => {
     });
 
     afterEach(() => vi.unstubAllEnvs());
+
+    it.each([{ issues: ["参考视频 1：平均帧率 20.1 FPS"] }, { error: "参考视频 1：转换失败" }])("does not reserve or submit a video rejected by reference preflight: %j", async (preflight) => {
+        mocks.getAuthSettings.mockResolvedValueOnce({ ...settings, systemChannels: channels.map((channel) => ({ ...channel, advancedConfig: { ...channel.advancedConfig, supportsReferenceVideo: true } })) });
+        mocks.prepareTokenHubVideoReferences.mockResolvedValueOnce(preflight);
+        const response = await POST(request({ model: "video" }, [{ type: "video", url: "https://cdn.example.com/ref.mp4" }]));
+        expect(response.status).toBe("issues" in preflight ? 422 : 400);
+        expect(await response.json()).toMatchObject(preflight);
+        expect(mocks.prepareTokenHubVideoReferences).toHaveBeenCalled();
+        expect(mocks.createVideoTask).not.toHaveBeenCalled();
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
 
     it("queues a practice video without creating an upstream task or entering the production concurrency gate", async () => {
         const workflow = {

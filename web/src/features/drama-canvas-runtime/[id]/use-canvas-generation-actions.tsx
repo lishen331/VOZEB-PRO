@@ -9,6 +9,7 @@ import { readImageMeta } from "@/lib/image-utils";
 import { createAudioGenerationTask } from "@/services/api/audio";
 import { createTextGenerationTask } from "@/services/api/text";
 import { createServerVideoGenerationTask } from "@/services/api/video";
+import { VIDEO_REFERENCE_CONVERSION_CANCELLED } from "@/services/api/video-types";
 import { VIDEO_REFERENCE_MAX_SIDE, VIDEO_REFERENCE_MIN_SIDE, videoReferenceSizeIssues } from "@/lib/video-reference-size";
 import type { InsertAssetPayload } from "../components/canvas-asset-insert";
 import { CANVAS_AGENT_PANEL_MOTION_MS } from "../components/canvas-agent-panel-motion";
@@ -122,6 +123,29 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
             });
         },
         [message, modal],
+    );
+    const confirmVideoReferenceConversion = useCallback(
+        (issues: string[]) =>
+            new Promise<boolean>((resolve) => {
+                modal.confirm({
+                    title: "参考视频不符合生成要求",
+                    content: (
+                        <div className="space-y-2 text-sm">
+                            <ul className="list-disc pl-5">
+                                {issues.map((issue) => (
+                                    <li key={issue}>{issue}</li>
+                                ))}
+                            </ul>
+                            <p>确认后转换为 MP4、固定 30 FPS；必要时等比缩放补边。不覆盖原视频，转换并复检通过后才生成。</p>
+                        </div>
+                    ),
+                    okText: "同意转换并生成",
+                    cancelText: "取消",
+                    onOk: () => resolve(true),
+                    onCancel: () => resolve(false),
+                });
+            }),
+        [modal],
     );
     // 后台配置明确不支持的参考素材：提交前提示，不建任务、不扣分。
     const blockUnsupportedReferences = useCallback(
@@ -444,6 +468,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                             conversationId: currentProject?.creativeConversationId,
                             surface: "canvas",
                             projectId,
+                            confirmVideoReferenceConversion,
                             ...createFreshGenerationTaskContext("canvas-video", [projectId, videoId]),
                         });
                         setNodes((prev) => prev.map((node) => (node.id === videoId ? { ...node, metadata: { ...node.metadata, videoTask: task } } : node)));
@@ -576,6 +601,11 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                     ),
                 );
             } catch (error) {
+                if (error instanceof DOMException && error.message === VIDEO_REFERENCE_CONVERSION_CANCELLED) {
+                    const targets = [...pendingChildIds, ...(markSourceStatus || !pendingChildIds.length ? [nodeId] : [])];
+                    setNodes((prev) => prev.map((item) => (targets.includes(item.id) ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : item)));
+                    return;
+                }
                 if (isGenerationCanceled(error)) return;
                 // 已有任务 ID 的目标节点：暂时查不到就保持生成中继续追；没有任务的目标节点直接失败。
                 const targets = pendingChildIds.length ? pendingChildIds : [nodeId];
@@ -605,6 +635,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
             completeTextTask,
             completeVideoTask,
             confirmVideoReferenceSizes,
+            confirmVideoReferenceConversion,
             currentProject?.creativeConversationId,
             effectiveConfig,
             finishGenerationRequest,
@@ -781,6 +812,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                         conversationId: currentProject?.creativeConversationId,
                         surface: "canvas",
                         projectId,
+                        confirmVideoReferenceConversion,
                         ...createFreshGenerationTaskContext("canvas-video-retry", [projectId, node.id]),
                     });
                     setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, ...canvasVideoReferenceMetadata(videoReferences), videoTask: task } } : item)));
@@ -830,6 +862,10 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
                     referenceRoles: node.metadata?.imageReferenceRoles,
                 });
             } catch (error) {
+                if (error instanceof DOMException && error.message === VIDEO_REFERENCE_CONVERSION_CANCELLED) {
+                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : item)));
+                    return;
+                }
                 if (isGenerationCanceled(error)) return;
                 settleGenerationFailure([node.id], error);
             } finally {
@@ -841,6 +877,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions, practic
             applyAgentOps,
             blockUnsupportedReferences,
             confirmVideoReferenceSizes,
+            confirmVideoReferenceConversion,
             completeAudioTask,
             completeTextTask,
             completeVideoTask,
