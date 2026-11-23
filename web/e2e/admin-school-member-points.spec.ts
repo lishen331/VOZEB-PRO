@@ -128,7 +128,20 @@ test("批量调整学校成员积分并保持整批一致", async ({ browser, pa
     await search.fill(studentPrefix);
     await expect(page.getByText(`@${studentPrefix}_a`, { exact: false }).filter({ visible: true })).toBeVisible();
     const adjustBatch = page.getByRole("button", { name: /批量调整积分/ });
+    const modal = page.getByRole("dialog", { name: "批量调整个人永久积分" });
+    let batchRequests = 0;
+    page.on("request", (entry) => {
+        if (entry.url().endsWith(endpoint) && entry.method() === "POST") batchRequests++;
+    });
     await expect(adjustBatch).toBeDisabled();
+    if (!testInfo.project.name.startsWith("mobile-")) {
+        const buttonBounds = await adjustBatch.boundingBox();
+        expect(buttonBounds).not.toBeNull();
+        await page.mouse.move(buttonBounds!.x + buttonBounds!.width / 2, buttonBounds!.y + buttonBounds!.height / 2);
+        await expect(page.getByRole("tooltip")).toHaveText("请先批量选择用户");
+    }
+    await expect(modal).toBeHidden();
+    expect(batchRequests).toBe(0);
     await page.getByRole("checkbox", { name: "全选本页" }).check();
     await expect(adjustBatch).toHaveText(/2/);
     await search.fill(`${studentPrefix}_a`);
@@ -137,7 +150,6 @@ test("批量调整学校成员积分并保持整批一致", async ({ browser, pa
     await expect(page.getByText(`@${studentPrefix}_b`, { exact: false }).filter({ visible: true })).toBeVisible();
     await page.getByRole("checkbox", { name: "全选本页" }).check();
     await adjustBatch.click();
-    const modal = page.getByRole("dialog", { name: "批量调整个人永久积分" });
     await expect(modal).toBeVisible();
     await expectDialogWithinViewport(modal);
     await modal.getByRole("spinbutton").fill(String(amount));
@@ -146,6 +158,7 @@ test("批量调整学校成员积分并保持整批一致", async ({ browser, pa
     const submitted = page.waitForResponse((response) => response.url().endsWith(endpoint) && response.request().method() === "POST");
     await modal.getByRole("button", { name: "确认调整" }).click();
     const response = await submitted;
+    expect(batchRequests).toBe(1);
     const input = response.request().postDataJSON() as AdminSchoolMemberBatchPointsAdjustmentInput;
     const credited = await apiData<{ items: AdminSchoolMemberPointsAdjustmentResult[] }>(response);
     await expect(modal).toBeHidden();

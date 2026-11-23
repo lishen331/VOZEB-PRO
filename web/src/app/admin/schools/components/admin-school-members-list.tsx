@@ -5,6 +5,7 @@ import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { Table } from "@/components/gamma-ui/gamma-ant-table";
 import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
+import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input, InputNumber } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
 import { ArrowLeft, RefreshCw, WalletCards } from "lucide-react";
@@ -160,9 +161,11 @@ export function AdminSchoolMembersList({ school, currentUser, onBack }: { school
                         刷新
                     </Button>
                     {canAdjust ? (
-                        <Button icon={<WalletCards className="size-4" />} disabled={loading || !selectedMembers.length} onClick={() => openAdjustment({ kind: "batch", members: selectedMembers })}>
-                            批量调整积分{selectedMembers.length > 0 ? `（${selectedMembers.length}）` : ""}
-                        </Button>
+                        <Tooltip title={!loading && !selectedMembers.length ? "请先批量选择用户" : undefined}>
+                            <Button icon={<WalletCards className="size-4" />} disabled={loading || !selectedMembers.length} onClick={() => openAdjustment({ kind: "batch", members: selectedMembers })}>
+                                批量调整积分{selectedMembers.length > 0 ? `（${selectedMembers.length}）` : ""}
+                            </Button>
+                        </Tooltip>
                     ) : null}
                 </div>
             </div>
