@@ -79,11 +79,15 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
         const type = inputKey === "audio" ? "audio" : "image";
         return [{ type, url: practiceReferenceMediaUrl(source.id, source.scope), ...(inputKey ? { inputKey } : {}) }];
     });
+    // 练习画布池（无 RunningHub 工作流）带参考图时必须按编辑任务下发，否则 /api/image-tasks 默认按
+    // 文生图处理，OpenAI 协议渠道会直接丢掉参考图。工作流模块自己从 workflowInput 取图，不受 kind 影响，
+    // 这里保持 generation 以免切到工作流定义的 editPath / editRequestTemplate。
+    const kind = input.capability === "image" && !input.workflow && references.length ? ("edit" as const) : undefined;
     const body =
         input.capability === "text"
             ? { ...workflowInput, config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
             : input.capability === "image"
-              ? { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
+              ? { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice", ...(kind ? { kind } : {}) }
               : input.capability === "video"
                 ? { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
                 : { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };

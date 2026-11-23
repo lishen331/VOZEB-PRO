@@ -23,6 +23,7 @@ import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } f
 import type { RunningHubWorkflowCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
 import type { RunningHubWorkflowInputField } from "@/lib/auth/store-types";
 import { resolveEnabledWorkflow, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
+import { resolvePracticeCanvasPoolCandidates } from "./runninghub-workflow-runtime";
 
 export type PracticeSessionCreateInput = {
     module: PracticeModuleKind;
@@ -461,6 +462,12 @@ async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalM
 }
 
 export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind, requestedLogicalModelId?: string, requestedWorkflowCode?: string): PracticeModelResolution {
+    // 多角度练习走画布 image 池：随机命中任一 open-source-practice image 渠道，
+    // 不走 RunningHub workflow 匹配路径，行为与画布 gamaimage 一致。
+    if (module === "storyboard-image" && (!requestedWorkflowCode || requestedWorkflowCode === "gamaimage") && (requestedLogicalModelId || "").trim().toLowerCase() === "gamaimage") {
+        if (!resolvePracticeCanvasPoolCandidates(settings, "image").length) throw new PracticeServiceError("练习 image 池暂无可用渠道", 503, "PRACTICE_MODEL_UNAVAILABLE");
+        return { logicalModelId: "gamaimage", capability: "image" };
+    }
     const capability = module === "script" ? "text" : module === "storyboard-video" ? "video" : module === "dubbing" || module === "music" ? "audio" : "image";
     const expectedCode =
         requestedWorkflowCode ||

@@ -37,7 +37,7 @@ export function hasUntrustedWorkflowContext(value: unknown) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     const context = (value as Record<string, unknown>).context;
     if (!context || typeof context !== "object" || Array.isArray(context)) return false;
-    return ["workflowKey", "workflowVersion", "upstreamWorkflowId", "businessCode", "taskOrigin"].some((key) => Object.prototype.hasOwnProperty.call(context, key));
+    return ["workflowKey", "workflowVersion", "upstreamWorkflowId", "businessCode", "taskOrigin", "practiceImageTool"].some((key) => Object.prototype.hasOwnProperty.call(context, key));
 }
 
 export function sanitizeGenerationContext(value: unknown, preserveWorkflow: boolean) {
@@ -55,6 +55,7 @@ export function sanitizeGenerationContext(value: unknown, preserveWorkflow: bool
         delete context.workflowCode;
         delete context.workflowConfigFingerprint;
         delete context.workflowAdapterVersion;
+        delete context.practiceImageTool;
     }
     return context;
 }

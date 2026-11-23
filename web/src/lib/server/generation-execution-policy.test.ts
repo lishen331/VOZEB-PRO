@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, resolveGenerationExecutionPolicy, trustedPracticeTaskHeaders } from "./generation-execution-policy";
+import { hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, resolveGenerationExecutionPolicy, sanitizeGenerationContext, trustedPracticeTaskHeaders } from "./generation-execution-policy";
 
 describe("generation execution policy", () => {
     it("keeps production as the default billed profile", () => {
@@ -29,6 +29,13 @@ describe("generation execution policy", () => {
     it("marks all client workflow selectors as untrusted context", () => {
         expect(hasUntrustedWorkflowContext({ context: { workflowKey: "wf", workflowVersion: 1, businessCode: "script", taskOrigin: "user" } })).toBe(true);
         expect(hasUntrustedWorkflowContext({ context: { surface: "canvas", projectId: "canvas-1" } })).toBe(false);
+    });
+
+    it("strips standalone practice tool selectors from untrusted task requests", () => {
+        const context = { surface: "canvas", practiceImageTool: "local-edit" };
+        expect(hasUntrustedWorkflowContext({ context })).toBe(true);
+        expect(sanitizeGenerationContext(context, false)).not.toHaveProperty("practiceImageTool");
+        expect(sanitizeGenerationContext(context, true)).toHaveProperty("practiceImageTool", "local-edit");
     });
 
     it("binds trusted practice task signatures to the school scope", () => {

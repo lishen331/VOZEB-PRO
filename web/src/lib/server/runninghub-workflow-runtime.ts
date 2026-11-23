@@ -5,6 +5,8 @@ import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logi
 import { channelEnabledForSurface, channelModelCapability, channelUsableForSurface, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
 import { channelSupportsModel, rawModelName } from "./generation-channel";
 import { channelConnectionReady } from "@/lib/channel-protocol-registry";
+import type { PracticeImageToolId } from "@/lib/practice-image-tools";
+import { resolveModelAdvancedConfig } from "./generation-channel";
 
 import { prepareRunningHubWorkflowExecution } from "./runninghub-workflow-adapter";
 import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
@@ -29,6 +31,7 @@ export type PracticeWorkflowContext = {
      * 为真时，练习画布允许请求练习池里的真实上游模型，而不是只能用虚拟模型名。
      */
     practiceModelTest?: boolean;
+    practiceImageTool?: PracticeImageToolId;
     /**
      * 本次请求是否携带了图片/视频参考。由服务端从已净化的消息内容判定，
      * 与正式生产一致：带图的文本请求走 vision 池（文本模型里支持图片输入的那部分）。
@@ -312,13 +315,29 @@ export function resolvePracticeWorkflowCandidates(settings: Pick<AuthSettings, "
  *   其余请求保持原样，避免影响短剧练习的工作流路由。
  */
 export function resolvePracticeGenerationCandidates(
-    settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">,
+    settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool"> & Partial<Pick<AuthSettings, "practiceDefaultModels">>,
     capability: LogicalModelCapability,
     requestedModel: string,
     context: PracticeWorkflowContext | undefined,
 ): ResolvedLogicalModel[] {
     const executionProfile: PracticeExecutionProfile = context?.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
     if (executionProfile !== "open-source-practice") return resolveLogicalModelCandidates(settings, capability, requestedModel, "", executionProfile);
+    // Only signed image-tool requests can reach this branch. Use the configured exact binding, never other models or a RunningHub workflow.
+    if (context?.practiceImageTool) {
+        const tool = context.practiceImageTool;
+        const vision = tool === "reverse-prompt";
+        if ((!vision && tool !== "local-edit" && tool !== "expression-reference") || capability !== (vision ? "text" : "image")) return [];
+        const expectedModel = vision ? settings.practiceDefaultModels?.visionModel : settings.practiceDefaultModels?.imageModel;
+        if (!expectedModel || expectedModel !== requestedModel) return [];
+        return resolveLogicalModelCandidates(settings, capability, expectedModel, "", executionProfile).filter((candidate) => {
+            if (candidate.overflow || candidate.logicalModelId !== expectedModel) return false;
+            if (vision) return candidate.capabilityProfile?.supportsImageInput === true;
+            const advanced = resolveModelAdvancedConfig(candidate.channel.advancedConfig, candidate.upstreamModel);
+            if (advanced?.supportsReferenceImage !== true) return false;
+            if (tool === "expression-reference") return true;
+            return (advanced.protocol === "openai" || advanced.protocol === "newapi") && /\/images\/edits\/?$/i.test(advanced.editPath || "");
+        });
+    }
     const requiresImageInput = context?.requiresImageInput === true;
     const virtualCapability = practiceCanvasVirtualCapability(requestedModel);
     // 练习画布先于工作流路由判断：画布请求可能带着 "canvas" 业务码，但它选的是练习池里的

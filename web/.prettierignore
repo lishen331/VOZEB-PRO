@@ -18,6 +18,8 @@ pnpm-lock.yaml
 .tmp-*
 .e2e-data
 .e2e-artifacts
+public/local-assets
+scripts/scan-model-library.mjs
 playwright-report
 public/mediapipe/vision_bundle.js
 public/mediapipe/wasm/vision_wasm_internal.js

@@ -265,7 +265,7 @@ describe("OpenAI image provider over a live compatible fixture", () => {
         }
     });
 
-    it("sends standard OpenAI edits as multipart with the reference image file", async () => {
+    it("sends standard OpenAI edits as multipart with the reference image and optional mask files", async () => {
         const fixture = createProtocolFixtureServer();
         await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
         const address = fixture.server.address();
@@ -275,6 +275,7 @@ describe("OpenAI image provider over a live compatible fixture", () => {
             id: "image-openai-edit-live",
             kind: "edit",
             references: [{ name: "reference.png", type: "image/png", dataUrl: PNG_DATA_URL }],
+            mask: { name: "mask.png", type: "image/png", dataUrl: PNG_DATA_URL },
             config: {
                 baseUrl: origin,
                 apiKey: "fixture-key",
@@ -292,6 +293,7 @@ describe("OpenAI image provider over a live compatible fixture", () => {
             expect(fixture.requests[0]?.contentType).toMatch(/^multipart\/form-data; boundary=/);
             const body = fixture.requests[0]?.body.toString("latin1") || "";
             expect(body).toContain('name="image"; filename="reference.png"');
+            expect(body).toContain('name="mask"; filename="mask.png"');
             expect(body).toContain("Content-Type: image/png");
             expect(body).not.toContain('name="background"');
         } finally {

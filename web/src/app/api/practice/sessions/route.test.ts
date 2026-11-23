@@ -188,6 +188,63 @@ describe("/api/practice/sessions", () => {
         ]);
     });
 
+    it("submits canvas-pool image tasks with references as edits and workflow tasks as generations", async () => {
+        mocks.fetchInternalApi.mockImplementation(async () => new Response(JSON.stringify({ task: { id: "task-angle", type: "image" } }), { status: 200 }));
+        mocks.createSession.mockImplementation(async (_user, _input, deps) => {
+            await deps.dispatch({
+                sessionId: "session-angle",
+                userId: "teacher-one",
+                schoolId: "school-one",
+                module: "storyboard-image",
+                input: { prompt: "转 45 度", workflowCode: "gamaimage" },
+                references: [{ type: "asset", id: "permanent/images/cat.png", inputKey: "referenceImage" }],
+                executionProfile: "open-source-practice",
+                capability: "image",
+                logicalModelId: "practice-image",
+                clientRequestId: "request-angle",
+                projectKind: "canvas",
+            });
+            await deps.dispatch({
+                sessionId: "session-angle-text",
+                userId: "teacher-one",
+                schoolId: "school-one",
+                module: "storyboard-image",
+                input: { prompt: "转 45 度" },
+                references: [],
+                executionProfile: "open-source-practice",
+                capability: "image",
+                logicalModelId: "practice-image",
+                clientRequestId: "request-angle-text",
+                projectKind: "canvas",
+            });
+            await deps.dispatch({
+                sessionId: "session-workflow",
+                userId: "teacher-one",
+                schoolId: "school-one",
+                module: "character",
+                input: { prompt: "角色", workflowCode: "character_multi_view" },
+                references: [{ type: "asset", id: "permanent/images/main.png", inputKey: "referenceImage" }],
+                executionProfile: "open-source-practice",
+                capability: "image",
+                logicalModelId: "practice-image",
+                clientRequestId: "request-workflow",
+                projectKind: "canvas",
+                workflow: { workflowCode: "character_multi_view" } as never,
+            });
+            return { id: "session-angle", module: "storyboard-image", status: "running", input: {} };
+        });
+
+        const response = await POST(
+            new Request("http://localhost/api/practice/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ module: "storyboard-image", input: { prompt: "转 45 度" }, clientRequestId: "request-angle" }) }),
+        );
+        expect(response.status).toBe(200);
+        const bodies = mocks.fetchInternalApi.mock.calls.map(([, init]) => JSON.parse(String(init.body)));
+        expect(bodies[0]).toMatchObject({ kind: "edit", references: [{ type: "image", url: "/api/reference-assets/permanent/images/cat.png", inputKey: "referenceImage" }] });
+        expect(bodies[1].kind).toBeUndefined();
+        expect(bodies[2].kind).toBeUndefined();
+        expect(bodies[2].references).toHaveLength(1);
+    });
+
     it("submits a placeholder task prompt but an explicit empty workflow prompt for prompt-optional workflows", async () => {
         mocks.fetchInternalApi.mockResolvedValue(new Response(JSON.stringify({ task: { id: "task-multi", type: "image" } }), { status: 200 }));
         mocks.createSession.mockImplementation(async (_user, _input, deps) => {
