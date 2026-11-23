@@ -1,4 +1,6 @@
+import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import Papa from "papaparse";
 
 import { devices, expect, test, type APIRequestContext, type APIResponse, type BrowserContext, type BrowserContextOptions, type Locator, type Page, type Response } from "@playwright/test";
 
@@ -85,6 +87,89 @@ test("admin creates a normalized course tree with local materials", async ({ pag
         expect(await errors.values(), "course attachment browser errors").toEqual([]);
     } finally {
         errors.stop();
+    }
+});
+
+test("学校管理员和学校超管可下载带说明的 CSV 模板并导入成员", async ({ browser, page }, testInfo) => {
+    const suffix = randomUUID().slice(0, 8);
+    const managerName = "import_manager_" + suffix;
+    const delegateName = "import_teacher_" + suffix;
+    await apiData<SchoolDetail>(await page.request.post("/api/admin/schools", { data: { name: "导入测试学校 " + suffix, administrator: { username: managerName, displayName: managerName, password: PASSWORD } } }));
+    const options = projectContextOptions(testInfo.project.name);
+    const manager = await createAuthenticatedE2EContext(browser, BASE_URL, { username: managerName, password: PASSWORD }, options);
+    try {
+        const [teacher] = await apiData<SchoolMember[]>(await manager.request.post("/api/school/members", { data: { rows: [{ username: delegateName, displayName: delegateName, password: PASSWORD, role: "teacher" }] } }));
+        await apiData(await manager.request.patch("/api/school/members/" + teacher.id, { data: { permissions: ["school.manage"] } }));
+        const delegate = await createAuthenticatedE2EContext(browser, BASE_URL, { username: delegateName, password: PASSWORD }, options);
+        try {
+            for (const [index, context] of [manager, delegate].entries()) {
+                const schoolPage = await context.newPage();
+                await schoolPage.goto("/school");
+                await selectTab(schoolPage, "成员管理", options.hasTouch === true);
+                await schoolPage.getByRole("button", { name: "批量导入", exact: true }).click();
+                const dialog = schoolPage.getByRole("dialog", { name: "批量导入成员" });
+                await expect(dialog).toBeVisible();
+                await expectElementWithinViewport(schoolPage, dialog, "member import dialog");
+                await expectNoHorizontalOverflow(schoolPage, "member import dialog");
+                const downloaded = schoolPage.waitForEvent("download");
+                await dialog.getByRole("button", { name: "下载导入模板" }).click();
+                const download = await downloaded;
+                expect(download.suggestedFilename()).toBe("学校成员批量导入模板.csv");
+                const template = await readFile(await download.path());
+                const { data } = Papa.parse<string[]>(template.toString("utf8"), { skipEmptyLines: true });
+                expect(data[0]).toEqual(["username", "displayName", "password", "role"]);
+                expect(data.slice(1, 4).map((row) => row[3])).toEqual(["teacher", "student", "student"]);
+                expect(data[4].join(" ")).toContain("上传前删除下方所有说明行");
+                await expect(dialog.getByText(/删除说明行/)).toHaveCount(0);
+                await expect(dialog.locator('input[type="file"]')).toHaveAttribute("accept", ".csv,text/csv");
+                let requests = 0;
+                schoolPage.on("request", (request) => {
+                    if (new URL(request.url()).pathname === "/api/school/members/import" && request.method() === "POST") requests++;
+                });
+                const upload = async (name: string, buffer: Buffer, mimeType = "text/csv") => {
+                    const choosing = schoolPage.waitForEvent("filechooser");
+                    await dialog.getByRole("button", { name: "上传 CSV 文件", exact: true }).click();
+                    await (await choosing).setFiles({ name, mimeType, buffer });
+                };
+                if (index === 0) {
+                    await upload("原样模板.csv", template);
+                    await expect(dialog.getByRole("alert")).toContainText("删除说明行");
+                    await upload("错误格式.csv", Buffer.from("username,role\ninvalid,student"));
+                    await expect(dialog.getByRole("alert")).toContainText("CSV 列必须依次为");
+                    await expect(dialog.getByRole("button", { name: /^导入 \d+ 位成员$/ })).toBeDisabled();
+                }
+                const username = "import_student_" + suffix + "_" + index;
+                if (index === 0) {
+                    await upload("有乱码的成员.csv", Buffer.from(Papa.unparse([data[0], [username, "姓名\uFFFD", PASSWORD, "student"]])));
+                    await expect(dialog.getByRole("alert")).toContainText("CSV UTF-8");
+                    await expect(dialog.getByRole("button", { name: "导入 0 位成员" })).toBeDisabled();
+                }
+                const displayName = "中文姓名 " + suffix + " " + index;
+                const csv =
+                    index === 0
+                        ? Buffer.concat([Buffer.from(Papa.unparse([data[0]]) + "\r\n" + username + ","), Buffer.from("d6d0cec4d0d5c3fb", "hex"), Buffer.from(" " + suffix + " " + index + "," + PASSWORD + ",student\r\n")])
+                        : Buffer.from("\uFEFF" + Papa.unparse([data[0], [username, displayName, PASSWORD, "student"]]));
+                await upload("待导入成员.csv", csv);
+                await expect(dialog.getByText(displayName, { exact: true })).toBeVisible();
+                await expect(dialog.getByText(username, { exact: true })).toBeVisible();
+                await expect(dialog.getByRole("alert")).toHaveCount(0);
+                await expect(dialog.getByText(PASSWORD, { exact: true })).toHaveCount(0);
+                expect(requests).toBe(0);
+                const response = schoolPage.waitForResponse((r) => new URL(r.url()).pathname === "/api/school/members/import" && r.request().method() === "POST");
+                await dialog.getByRole("button", { name: "导入 1 位成员" }).click();
+                const imported = await apiData<SchoolMember[]>(await response);
+                expect(imported).toEqual([expect.objectContaining({ username, displayName, role: "student" })]);
+                expect(requests).toBe(1);
+                await expect(dialog).toBeHidden();
+                await expect(schoolPage.getByText(displayName, { exact: true }).filter({ visible: true })).toBeVisible();
+                const persisted = await apiData<PageResult<SchoolMember>>(await context.request.get("/api/school/members?keyword=" + username));
+                expect(persisted.items).toEqual([expect.objectContaining({ username, displayName })]);
+            }
+        } finally {
+            await delegate.close();
+        }
+    } finally {
+        await manager.close();
     }
 });
 

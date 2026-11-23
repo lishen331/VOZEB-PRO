@@ -2,17 +2,61 @@ import Papa from "papaparse";
 
 import type { SchoolMemberCreateInput, SchoolMemberRole } from "@/lib/school-domain";
 
-const CSV_COLUMNS = ["username", "displayName", "password", "role"];
+export const SCHOOL_MEMBER_IMPORT_COLUMNS = ["username", "displayName", "password", "role"] as const;
+
+const EXAMPLE_ROWS = [
+    ["teacher_demo", "张老师", "Example!T01", "teacher"],
+    ["student_demo01", "李同学", "Example!S01", "student"],
+    ["student_demo02", "王同学", "Example!S02", "student"],
+];
+const GUIDE_LABEL = "填写说明";
+
+export const SCHOOL_MEMBER_CSV_TEMPLATE =
+    "\uFEFF" +
+    Papa.unparse([
+        [...SCHOOL_MEMBER_IMPORT_COLUMNS],
+        ...EXAMPLE_ROWS,
+        [GUIDE_LABEL, "上传前删除下方所有说明行（包括本行），并替换或删除上面的示例行。请保留第一行字段名。", "", ""],
+        [GUIDE_LABEL, "username", "用户名必填且不可重复。使用 3–32 位字母、数字、下划线、点或短横线。", ""],
+        [GUIDE_LABEL, "displayName", "显示姓名选填，留空时使用用户名。建议不超过 40 个字符。", ""],
+        [GUIDE_LABEL, "password", "初始密码必填，长度为 8–128 位。请按文本填写，以保留前导零。", ""],
+        [GUIDE_LABEL, "role", "身份必填。teacher 表示老师，student 表示学生。", ""],
+    ]) +
+    "\r\n";
 
 export type SchoolMemberCsvResult = { ok: true; rows: SchoolMemberCreateInput[] } | { ok: false; message: string };
+
+export function parseSchoolMemberCsvBytes(buffer: ArrayBuffer): SchoolMemberCsvResult {
+    const bytes = new Uint8Array(buffer);
+    const hasUtf8Bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+    const encodingError = { ok: false, message: "CSV 文件编码有误，请从原始表格重新保存为 CSV UTF-8 后上传" } as const;
+    let text: string;
+    try {
+        text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+        if (hasUtf8Bom) return encodingError;
+        try {
+            // CSV saved with the legacy Chinese encoding (GBK) is covered by GB18030.
+            text = new TextDecoder("gb18030", { fatal: true }).decode(bytes);
+        } catch {
+            return encodingError;
+        }
+    }
+    if (text.includes("\uFFFD") || text.includes("\0")) return encodingError;
+    return parseSchoolMemberCsv(text);
+}
 
 export function parseSchoolMemberCsv(source: string): SchoolMemberCsvResult {
     const result = Papa.parse<Record<string, string> & { __parsed_extra?: string[] }>(source, { header: true, skipEmptyLines: true });
     const fields = result.meta.fields || [];
-    if (fields.length !== CSV_COLUMNS.length || CSV_COLUMNS.some((column, index) => fields[index] !== column)) {
+    if (fields.length !== SCHOOL_MEMBER_IMPORT_COLUMNS.length || SCHOOL_MEMBER_IMPORT_COLUMNS.some((column, index) => fields[index] !== column)) {
         return { ok: false, message: "CSV 列必须依次为 username、displayName、password、role" };
     }
     if (result.errors.length || result.data.some((row) => row.__parsed_extra?.length)) return { ok: false, message: "CSV 存在格式错误或额外列" };
+    if (result.data.some((row) => row.username?.trim() === GUIDE_LABEL)) return { ok: false, message: "请先删除说明行，保留表头和需要导入的成员信息" };
+    if (result.data.some((row) => EXAMPLE_ROWS.some((example) => SCHOOL_MEMBER_IMPORT_COLUMNS.every((column, index) => row[column]?.trim() === example[index])))) {
+        return { ok: false, message: "请替换或删除模板中的示例行后再上传" };
+    }
     if (!result.data.length) return { ok: false, message: "CSV 中没有可导入的成员" };
     return {
         ok: true,
