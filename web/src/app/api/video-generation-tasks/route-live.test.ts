@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createProtocolFixtureServer } from "../../../../scripts/protocol-fixture-server.mjs";
@@ -119,6 +120,106 @@ describe("video creation protocols over a live fixture", () => {
         const result = await queryVideoTaskUpstream(task, "", "");
         expect(result).toMatchObject({ state: "result_ready", resultUrl: expect.stringContaining("/media/fixture.mp4") });
         expect(fixture.requests.map((request) => request.path)).toEqual(["/seedance-discount/videos", "/result/" + upstream.id]);
+    });
+
+    it.each(["reference", "keyframes", "text", "no-task-id", "mixed", "pending"] as const)("submits blue-cloud %s with the stored legacy template and queries the original task", async (mode) => {
+        const requests: Array<{ method?: string; path?: string; body: unknown }> = [];
+        const server = createServer(async (request, response) => {
+            const chunks: Buffer[] = [];
+            for await (const chunk of request) chunks.push(Buffer.from(chunk));
+            const body = JSON.parse(Buffer.concat(chunks).toString() || "{}");
+            requests.push({ method: request.method, path: request.url, body });
+            response.setHeader("content-type", "application/json");
+            if (request.url === "/aiservice/videos/tasks/submit") {
+                response.end(JSON.stringify({ code: 1, msg: "ok", requestId: "not-the-task-id", result: mode === "no-task-id" ? { url: "https://fixture.invalid/not-a-result.mp4" } : { taskId: "original-task" } }));
+            } else if (request.method === "POST" && request.url === "/aiservice/videos/tasks/detail" && body.taskId === "original-task") {
+                const result = mode === "text" ? { status: "FAILED", errorMessage: "fixture terminal failure" } : { status: mode === "pending" ? "RUNNING" : "SUCCEEDED", result: { videoUrl: "https://fixture.invalid/result.mp4" } };
+                response.end(JSON.stringify({ code: 1, msg: "ok", result }));
+            } else {
+                response.statusCode = 404;
+                response.end(JSON.stringify({ code: 10007, msg: "wrong query" }));
+            }
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        close = () => new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+        const address = server.address();
+        if (!address || typeof address === "string") throw new Error("Fixture did not bind TCP");
+        const config = {
+            apiSource: "system" as const,
+            apiFormat: "openai" as const,
+            apiKey: "system" as const,
+            baseUrl: `http://127.0.0.1:${address.port}`,
+            model: "cdance2.0-0807",
+            channelId: "bluecloud-fixture",
+            advancedConfig: {
+                ...emptyAdvancedConfig(),
+                protocol: "custom" as const,
+                createPath: "/aiservice/videos/tasks/submit",
+                queryPath: "/aiservice/videos/tasks/detail",
+                queryMethod: "POST" as const,
+                queryBodyTemplate: '{"taskId":"{{taskId}}"}',
+                taskIdField: "result.taskId",
+                statusField: "result.status",
+                resultField: "result.result.videoUrl",
+                successCodes: ["1"],
+                requestTemplate: '{"model":"{{model}}","prompt":"{{prompt}}","duration":"{{duration}}","ratio":"{{ratio}}","resolution":"{{resolution}}"}',
+            },
+        };
+        const submission = createUpstream(
+            "fixture-user",
+            "",
+            "",
+            config,
+            "fixture prompt",
+            { size: "1:1", videoSeconds: "5", vquality: "480", videoGenerateAudio: mode !== "text", videoWatermark: mode === "text" },
+            mode === "reference"
+                ? [
+                      { type: "image", role: "reference", url: "https://fixture.invalid/ref.png" },
+                      { type: "video", role: "reference", url: "https://fixture.invalid/ref.mp4" },
+                      { type: "audio", role: "reference", url: "https://fixture.invalid/ref.mp3" },
+                  ]
+                : mode === "keyframes" || mode === "mixed"
+                  ? [
+                        { type: "image", role: "first_frame", url: "https://fixture.invalid/first.png" },
+                        { type: "image", role: "last_frame", url: "https://fixture.invalid/last.png" },
+                        ...(mode === "mixed" ? [{ type: "image" as const, role: "reference" as const, url: "https://fixture.invalid/ref.png" }] : []),
+                    ]
+                  : [],
+            { imageQuality: {}, videoQuality: {}, videoSeconds: {} },
+            "fixture-blue-cloud",
+        );
+        if (mode === "mixed") {
+            await expect(submission).rejects.toThrow("不能同时使用参考素材");
+            expect(requests).toHaveLength(0);
+            return;
+        }
+        if (mode === "no-task-id") {
+            await expect(submission).rejects.toMatchObject({ name: "VideoSubmissionUncertainError", message: "视频接口没有返回任务 ID" });
+            expect(requests).toHaveLength(1);
+            return;
+        }
+        const upstream = await submission;
+        expect(upstream.id).toBe("original-task");
+        expect(requests[0]).toEqual({
+            method: "POST",
+            path: "/aiservice/videos/tasks/submit",
+            body: {
+                model: config.model,
+                prompt: "fixture prompt",
+                duration: 5,
+                ratio: "1:1",
+                resolution: "480p",
+                generateAudio: mode !== "text",
+                watermark: mode === "text",
+                ...(mode === "reference" ? { referenceImageUrls: ["https://fixture.invalid/ref.png"], referenceVideoUrls: ["https://fixture.invalid/ref.mp4"], referenceAudioUrls: ["https://fixture.invalid/ref.mp3"] } : {}),
+                ...(mode === "keyframes" ? { firstFrameUrl: "https://fixture.invalid/first.png", lastFrameUrl: "https://fixture.invalid/last.png" } : {}),
+            },
+        });
+        const result = await queryVideoTaskUpstream({ config, upstream, userId: "fixture-user" } as unknown as VideoTask, "", "");
+        expect(requests.slice(1)).toEqual([{ method: "POST", path: "/aiservice/videos/tasks/detail", body: { taskId: "original-task" } }]);
+        if (mode === "text") expect(result).toMatchObject({ state: "failed", error: "fixture terminal failure" });
+        else if (mode === "pending") expect(result).toMatchObject({ state: "pending", status: "running" });
+        else expect(result).toMatchObject({ state: "result_ready", resultUrl: "https://fixture.invalid/result.mp4" });
     });
 
     it("uses a custom video template and declared create/query/result fields", async () => {

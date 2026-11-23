@@ -62,6 +62,27 @@ export function buildCustomVideoRequestPayload(input: { channel: GenerationChann
         last_frame: lastFrameUrl,
         last_frame_url: lastFrameUrl,
     };
+    if (usesFlatVideoTaskContract(channel.advancedConfig)) {
+        if ((lastFrameUrl && !firstFrameUrl) || ((firstFrameUrl || lastFrameUrl) && regularReferences.length)) {
+            throw new Error("首尾帧模式需要有效首帧，且不能同时使用参考素材");
+        }
+        const template = channel.advancedConfig?.requestTemplate;
+        const payload = buildVideoProviderRequest(template, { model: channel.model, prompt, duration: values.duration, ratio: values.ratio, resolution: values.resolution }, values);
+        // Read media from the actual input, not a static example in the channel template.
+        for (const key of ["firstFrameUrl", "lastFrameUrl", "referenceImageUrls", "referenceVideoUrls", "referenceAudioUrls"]) delete payload[key];
+        return {
+            ...payload,
+            generateAudio,
+            watermark: values.watermark,
+            ...(firstFrameUrl
+                ? { firstFrameUrl, ...(lastFrameUrl ? { lastFrameUrl } : {}) }
+                : {
+                      ...(images.length ? { referenceImageUrls: images } : {}),
+                      ...(videos.length ? { referenceVideoUrls: videos } : {}),
+                      ...(audios.length ? { referenceAudioUrls: audios } : {}),
+                  }),
+        };
+    }
     const referenceMode = resolveReferenceModeExclusive(channel) ? { exclusive: true, hasFirstFrame: Boolean(firstFrameUrl), hasLastFrame: Boolean(lastFrameUrl) } : { exclusive: false, hasFirstFrame: false };
     const filteredValues = applyExclusiveVideoReferenceMode(values, referenceMode);
     const defaults: Record<string, unknown> = {
@@ -92,6 +113,10 @@ export function buildCustomVideoRequestPayload(input: { channel: GenerationChann
     };
     const filteredDefaults = applyExclusiveVideoReferenceMode(defaults, referenceMode);
     return buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, filteredDefaults, filteredValues);
+}
+
+export function usesFlatVideoTaskContract(config: GenerationChannel["advancedConfig"]) {
+    return config?.protocol === "custom" && config.createPath?.trim() === "/aiservice/videos/tasks/submit" && config.queryPath?.trim() === "/aiservice/videos/tasks/detail";
 }
 
 function resolveReferenceModeExclusive(channel: GenerationChannel) {

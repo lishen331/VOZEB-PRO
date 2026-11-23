@@ -23,9 +23,9 @@ export function resolvedProviderCreatePaths(config: SystemChannelAdvancedConfig 
     return uniquePaths(presetPath ? [presetPath] : fallbacks);
 }
 
-export function providerQueryPaths(config: SystemChannelAdvancedConfig | undefined, taskId: string, fallbacks: string[]) {
+export function providerQueryPaths(config: SystemChannelAdvancedConfig | undefined, taskId: string, fallbacks: string[], taskIdInBody = false) {
     const configured = config?.queryPath?.trim();
-    return uniquePaths(configured ? [providerTaskPath(configured, taskId)] : fallbacks);
+    return uniquePaths(configured ? [providerTaskPath(configured, taskId, !taskIdInBody)] : fallbacks);
 }
 
 export function buildProviderRequest(template: string | undefined, defaults: Record<string, unknown>, values: TemplateValues) {
@@ -151,12 +151,14 @@ export function buildProviderQueryRequest(config: SystemChannelAdvancedConfig | 
  * 之前短路，因为这类网关的成功响应本身带 `msg:"ok"`，会被下面的关键词规则误判为失败。
  * 未声明 `successCodes` 时完全回落到 `isProviderBusinessError`，存量渠道行为不变。
  */
-export function isProviderResponseFailure(value: unknown, successCodes?: readonly string[]) {
+export function isProviderResponseFailure(value: unknown, successCodes?: readonly string[], strictCode = false) {
     if (successCodes?.length && value && typeof value === "object" && !Array.isArray(value)) {
-        const code = (value as Record<string, unknown>).code;
+        const record = value as Record<string, unknown>;
+        const code = record.code;
         if (code !== undefined && code !== null && code !== "") {
             const normalized = String(code).trim().toLowerCase();
-            if (successCodes.some((item) => item.trim().toLowerCase() === normalized)) return false;
+            if (successCodes.some((item) => item.trim().toLowerCase() === normalized)) return strictCode && (record.ok === false || record.success === false || Boolean(findString(value, PROVIDER_FAILURE_KEYS)));
+            if (strictCode) return true;
         }
     }
     return isProviderBusinessError(value);
@@ -216,10 +218,10 @@ export function templateVideoReferenceRoles(template: string | undefined): Video
     ];
 }
 
-export function providerTaskPath(path: string, taskId: string) {
+export function providerTaskPath(path: string, taskId: string, appendId = true) {
     const encoded = encodeURIComponent(taskId);
     const rendered = path.replace(/\{\{\s*(?:taskId|task_id|id)\s*\}\}|\{(?:taskId|task_id|id)\}|:(?:taskId|task_id|id)\b/gi, encoded);
-    if (rendered !== path) return rendered;
+    if (rendered !== path || !appendId) return rendered;
     const separator = path.includes("?") ? "&" : path.endsWith("/") ? "" : "/";
     return `${path}${separator}${encoded}`;
 }
