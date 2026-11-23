@@ -105,7 +105,20 @@ export function currentMediaTraceHeaders(url: string, headers?: HeadersInit) {
     return next;
 }
 
-function requestSummary(body: RequestInit["body"]) {
+export async function traceVideoSubmissionEnvelope(value: unknown, taskId: string, failed: boolean, prompt: string, secret?: string) {
+    const context = scopes.getStore();
+    if (context?.type !== "video" || !value || typeof value !== "object") return;
+    const { code, msg, message } = value as Record<string, unknown>;
+    const text = typeof msg === "string" ? msg : typeof message === "string" ? message : "";
+    await persistMediaDiagnostic(context, {
+        phase: "submit_envelope",
+        state: failed ? "rejected" : taskId ? "task_id_extracted" : "no_task_id",
+        errorCode: typeof code === "number" || (typeof code === "string" && /^[\w.-]{1,32}$/.test(code)) ? redactDiagnosticText(String(code), [secret || "", prompt]) : undefined,
+        parameters: text ? redactDiagnosticText(text, [secret || "", prompt]).slice(0, 256) : undefined,
+    });
+}
+
+function requestSummary(body: RequestInit["body"], type: MediaDiagnosticContext["type"]) {
     const summary: Record<string, unknown> = {};
     // Proxy requests are byte buffers. Decode only small JSON metadata requests;
     // never decode large media uploads for diagnostics.
@@ -117,6 +130,14 @@ function requestSummary(body: RequestInit["body"]) {
         try {
             const parsed = JSON.parse(body);
             for (const name of names) if (["string", "number", "boolean"].includes(typeof parsed?.[name])) summary[name] = parsed[name];
+            if (type === "video" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                const mediaFields = ["firstFrameUrl", "lastFrameUrl", "referenceImageUrls", "referenceVideoUrls", "referenceAudioUrls"];
+                const fields = [...names, "prompt", "ratio", "resolution", "generateAudio", "watermark", ...mediaFields];
+                summary.fields = fields.filter((field) => Object.hasOwn(parsed, field));
+                summary.materialCounts = Object.fromEntries(
+                    mediaFields.filter((field) => Object.hasOwn(parsed, field)).map((field) => [field, Array.isArray(parsed[field]) ? parsed[field].length : typeof parsed[field] === "string" && parsed[field].trim() ? 1 : 0]),
+                );
+            }
             if (typeof parsed?.prompt === "string") summary.promptHash = createHash("sha256").update(parsed.prompt).digest("hex");
         } catch {
             /* Unknown bodies are deliberately omitted. */
@@ -137,7 +158,7 @@ export async function observeMediaFetch(url: string, init: RequestInit | undefin
     if (!context || process.env.CANVAS_MEDIA_DIAGNOSTICS === "0") return fetcher();
     const stage = explicit ? "upstream" : "transport";
     const start = Date.now();
-    if ((init?.method || "GET").toUpperCase() !== "GET") await persistMediaDiagnostic(context, { phase: `${stage}_request`, url, method: init?.method || "GET", parameters: requestSummary(init?.body) });
+    if ((init?.method || "GET").toUpperCase() !== "GET") await persistMediaDiagnostic(context, { phase: `${stage}_request`, url, method: init?.method || "GET", parameters: requestSummary(init?.body, context.type) });
     try {
         const response = await fetcher();
         const authorization = new Headers(init?.headers).get("authorization")?.replace(/^Bearer\s+/i, "");
