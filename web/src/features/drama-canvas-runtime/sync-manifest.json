@@ -49,7 +49,7 @@
         },
         {
             "path": "[id]/use-canvas-generation-actions.tsx",
-            "sha256": "06e5b9d1a5d55cad8e4ec73c4d40489f491a13832f7f03d7c4d63b777899b6a9"
+            "sha256": "92407825ad7cddf5135d1bde5f50dc1513f11a237d4f9147da8fc99489a53caa"
         },
         {
             "path": "[id]/use-canvas-image-layer-actions.tsx",

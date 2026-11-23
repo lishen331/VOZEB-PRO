@@ -55,6 +55,7 @@ import { buildOpenAiVideoFormData } from "./video-task-openai";
 import { normalizeVideoGenerationReferences, regularVideoReferences, videoFrameReferences, type VideoGenerationReference } from "@/lib/video-reference-contract";
 import { assertYumengVideoReferences, buildYumengVideoRequest } from "@/lib/yumeng-model-center";
 import { normalizeVideoProviderImageReferences } from "@/lib/server/video-reference-image";
+import { createVideoReferenceConversionProof, prepareTokenHubVideoReferences, tokenHubReferenceApplies, verifyVideoReferenceConversionProof } from "@/lib/server/tokenhub-reference-video";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
@@ -92,7 +93,7 @@ async function takeVideoChannelRateToken(channel: { channelId: string; model: st
 }
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
-type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext; input?: Record<string, unknown> };
+type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext; input?: Record<string, unknown>; videoReferenceConversionProof?: string };
 type VideoCapabilityDebugChannel = {
     logicalModelId?: string;
     channelId?: string;
@@ -158,6 +159,10 @@ export async function POST(request: Request) {
         if (existing) return NextResponse.json({ task: publicTask(existing) });
     }
     if (headerRequestId) body.context = { ...(body.context || {}), clientRequestId: headerRequestId, ...(headerAttemptNo ? { attemptNo: headerAttemptNo } : {}) };
+    const { videoReferenceConversionProof, ...requestForProof } = body;
+    const conversionScope = JSON.stringify([user.id, requestForProof]);
+    const conversionConfirmed = verifyVideoReferenceConversionProof(conversionScope, videoReferenceConversionProof);
+    if (videoReferenceConversionProof !== undefined && !conversionConfirmed) return NextResponse.json({ error: "参考视频转换确认已失效，请重新点击生成" }, { status: 400 });
     const concurrencyRequestId = clean(body.context?.clientRequestId) || `video-request:${user.id}:${crypto.randomUUID()}`;
     body.context = { ...(body.context || {}), clientRequestId: concurrencyRequestId };
     try {
@@ -213,6 +218,7 @@ export async function POST(request: Request) {
         const requestedParameters = resolveVideoGenerationParameters(body.config || {}, settings.generationDefaults);
         let capabilityError: unknown;
         for (const channel of channels) {
+            if (conversionConfirmed && !tokenHubReferenceApplies(channel)) continue;
             const geminiVideo = isGeminiVideoChannel(channel);
             const parameters = {
                 ...requestedParameters,
@@ -258,6 +264,13 @@ export async function POST(request: Request) {
                 capabilityError = error;
                 continue;
             }
+            const prepared = await prepareTokenHubVideoReferences(channel, references, conversionConfirmed, {
+                userId: user.id,
+                internalOrigin: resolveInternalOrigin(publicOrigin),
+                publicOrigin,
+                signal: request.signal,
+            });
+            if (!prepared.references) return videoReferencePreflightResponse(prepared, conversionScope);
             const workflowInput = trustedPractice && body.input && typeof body.input === "object" && !Array.isArray(body.input) ? { ...parameters, ...body.input } : parameters;
             const task = await createVideoTask({
                 userId: user.id,
@@ -268,7 +281,7 @@ export async function POST(request: Request) {
                 upstream: { id: "", provider: "generation", model: channel.model, pollPath: geminiVideo ? geminiVideoCreatePath(channel.model) : channel.advancedConfig?.createPath || CREATE_PATHS[0] },
                 requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds,
                 prompt,
-                references,
+                references: prepared.references,
                 workflowInput,
                 source: mediaTaskSource(body.source, trustedContext, "video-task"),
                 attempts: [],
@@ -314,7 +327,8 @@ export async function POST(request: Request) {
             if (!allChannels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
             const hasHealthy = await hasHealthyRuntimeCandidate(allChannels, "video");
             if (!hasHealthy) return NextResponse.json({ error: "当前视频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
-            const channels = allChannels;
+            const channels = conversionConfirmed ? allChannels.filter(tokenHubReferenceApplies) : allChannels;
+            if (!channels.length) return NextResponse.json({ error: "确认转换时的天翼云渠道暂不可用，请重新生成" }, { status: 503 });
             if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode, trustedContext) };
             const publicOrigin = requestPublicOrigin(request);
             let references: VideoGenerationReference[];
@@ -391,6 +405,17 @@ export async function POST(request: Request) {
                     if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
                     throw error;
                 }
+                const prepared = await prepareTokenHubVideoReferences(channel, references, conversionConfirmed, {
+                    userId: user.id,
+                    internalOrigin: origin,
+                    publicOrigin,
+                    signal: request.signal,
+                });
+                if (!prepared.references) {
+                    // An earlier upstream attempt may already exist. Never strand it by returning a consent challenge.
+                    if (localTask) continue;
+                    return videoReferencePreflightResponse(prepared, conversionScope);
+                }
                 const reservationId = generationReservationId("video", concurrencyRequestId, nextGenerationAttemptNo(attempts));
                 const reserved = await reserveGenerationAttemptSlot({
                     capability: "video",
@@ -461,7 +486,7 @@ export async function POST(request: Request) {
                             providerPrompt,
                             // 受信任的练习请求可携带工作流参数（尺寸比例、时长等），并入 RunningHub businessInput
                             trustedPractice && body.input && typeof body.input === "object" && !Array.isArray(body.input) ? { ...parameters, ...body.input } : parameters,
-                            references,
+                            prepared.references,
                             settings.generationPointMultipliers,
                             billingRequestId,
                             trustedContext.billingContext,
@@ -517,6 +542,11 @@ export async function POST(request: Request) {
     if (response) return response;
     const retryAfter = await generationCapacityRetryAfterSeconds(user.id, "video", 30 * 60_000);
     return NextResponse.json({ error: "当前用户视频任务已达到并发上限" }, { status: 429, ...(retryAfter ? { headers: { "Retry-After": String(retryAfter) } } : {}) });
+}
+
+function videoReferencePreflightResponse(result: { issues?: string[]; error?: string }, scope: string) {
+    if (result.issues) return NextResponse.json({ code: "video_reference_conversion_required", issues: result.issues, proof: createVideoReferenceConversionProof(scope) }, { status: 422 });
+    return NextResponse.json({ error: result.error || "参考视频校验失败" }, { status: 400 });
 }
 
 export async function signProviderReference(reference: VideoGenerationReference, user: { id: string; role: "user" | "admin" }, publicOrigin: string) {
