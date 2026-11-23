@@ -37,12 +37,25 @@ export function ResponsiveMasonryGrid({ children, className, ariaLabel }: { chil
         if (!grid) return;
         const items = Array.from(grid.children) as HTMLElement[];
         let frame = 0;
+        let lastColumnCount = 0;
         const layout = () => {
             // 不要先 removeProperty 再写：清空 grid-row-end 的瞬间整个 grid 会塌成一行的高度，
             // 浏览器随即把外层滚动容器的 scrollTop 钳回 0，表现就是「一滚就弹回顶部」。
             // 子元素高度与摆放位置无关，直接覆盖即可，测量结果不变。
             const rowGap = Number.parseFloat(getComputedStyle(grid).rowGap) || 0;
-            const columnCount = getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length;
+            // CSSOM also reports implicit tracks left by old placements after the viewport shrinks.
+            // Those tracks are sized at 0px; move cards into the explicit columns before measuring heights.
+            const columnCount = getComputedStyle(grid)
+                .gridTemplateColumns.trim()
+                .split(/\s+/)
+                .filter((track) => Number.parseFloat(track) > 0).length;
+            if (!columnCount) return;
+            if (columnCount !== lastColumnCount) {
+                items.forEach((item, index) => {
+                    item.style.gridColumnStart = String((index % columnCount) + 1);
+                });
+                lastColumnCount = columnCount;
+            }
             const rowSpans = items.map((item) => masonryRowSpan((item.firstElementChild as HTMLElement | null)?.getBoundingClientRect().height || 0, MASONRY_ROW_HEIGHT, rowGap));
             masonryPlacements(rowSpans, columnCount).forEach((placement, index) => {
                 const item = items[index];
@@ -81,7 +94,7 @@ export function ResponsiveMasonryGrid({ children, className, ariaLabel }: { chil
     }, [children]);
 
     return (
-        <div ref={gridRef} className={cn("grid min-w-0 items-start gap-2 sm:gap-3", measured ? "auto-rows-[4px]" : "auto-rows-auto", className)} aria-label={ariaLabel}>
+        <div ref={gridRef} className={cn("grid min-w-0 auto-cols-[0px] items-start gap-2 sm:gap-3", measured ? "auto-rows-[4px]" : "auto-rows-auto", className)} aria-label={ariaLabel}>
             {Children.map(children, (child) => (
                 <div className="min-w-0">
                     <div className="min-w-0">{child}</div>
