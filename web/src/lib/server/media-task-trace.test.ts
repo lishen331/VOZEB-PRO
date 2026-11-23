@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ persist: vi.fn(async () => undefined) }));
 vi.mock("./media-task-diagnostic-store", () => ({ persistMediaDiagnostic: mocks.persist }));
-import { diagnosticNodeId, currentMediaTraceHeaders, observeMediaFetch, recordMediaTaskEvent, traceMediaException, withMediaDiagnosticScope } from "./media-task-trace";
+import { diagnosticNodeId, currentMediaTraceHeaders, observeMediaFetch, recordMediaTaskEvent, traceMediaException, traceVideoSubmissionEnvelope, withMediaDiagnosticScope } from "./media-task-trace";
 const task = { id: "task-1", userId: "user-1", surface: "canvas", config: { channelId: "channel-1", model: "model-1" } };
 beforeEach(() => mocks.persist.mockClear());
 
@@ -18,6 +18,17 @@ describe("media trace does not change generation semantics", () => {
         const events = mocks.persist.mock.calls.map((call) => (call as unknown as [unknown, Record<string, unknown>])[1]);
         expect(events).toContainEqual(expect.objectContaining({ phase: "transport_response", status: 403, requestId: "provider-1" }));
         expect(JSON.stringify(events)).not.toMatch(/sensitive|private/);
+    });
+    it("records outgoing video fields and the parsed envelope without retaining credentials, prompts or references", async () => {
+        await withMediaDiagnosticScope("video", task, "submit", async () => {
+            await observeMediaFetch("https://example.test/videos", { method: "POST", body: JSON.stringify({ duration: 5, prompt: "private text", referenceImageUrls: ["https://private.invalid/photo?secret=credential"] }) }, async () => new Response("{}"));
+            await traceVideoSubmissionEnvelope({ code: 1, msg: "ok private text raw-secret", result: { private: "never store raw body" } }, "upstream-one", false, "private text", "raw-secret");
+        });
+        const events = mocks.persist.mock.calls.map((call) => (call as unknown as [unknown, Record<string, unknown>])[1]);
+        const request = events.find((event) => event.phase === "transport_request");
+        expect(JSON.parse(String(request?.parameters))).toMatchObject({ fields: expect.arrayContaining(["duration", "referenceImageUrls"]), materialCounts: { referenceImageUrls: 1 } });
+        expect(events).toContainEqual(expect.objectContaining({ phase: "submit_envelope", state: "task_id_extracted", errorCode: "1", parameters: "ok [redacted] [redacted]" }));
+        expect(JSON.stringify(events)).not.toMatch(/private text|raw-secret|private\.invalid|credential|never store raw body/);
     });
     it("keeps original timeout and its cause and never retries", async () => {
         const error = new Error("fetch failed", { cause: { code: "UND_ERR_HEADERS_TIMEOUT", message: "headers timeout" } });

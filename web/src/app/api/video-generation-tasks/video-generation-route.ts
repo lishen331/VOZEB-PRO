@@ -1,4 +1,4 @@
-import { withMediaDiagnosticScope } from "@/lib/server/media-task-trace";
+import { traceVideoSubmissionEnvelope, withMediaDiagnosticScope } from "@/lib/server/media-task-trace";
 import { after, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -18,6 +18,7 @@ import {
     assertVideoReferenceRoles,
     buildVideoProviderRequest,
     isProviderBusinessError,
+    isProviderResponseFailure,
     readProviderError,
     readProviderString,
     resolvedProviderCreatePaths,
@@ -38,6 +39,7 @@ import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy"
 import { mediaTaskSource } from "@/lib/media-management-contract";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
+import { buildCustomVideoRequestPayload, usesFlatVideoTaskContract } from "@/lib/server/custom-video-request";
 import { VIDEO_PROVIDER_MEDIA_KEYS, parseVideoProviderJson, readVideoProviderHttpError, readVideoProviderId, readVideoProviderUrl } from "@/lib/server/video-provider-response";
 import { buildSeedanceSpecialRequest } from "@/lib/seedance-special";
 import { ingestModelBayReferences, ModelBayAssetError } from "@/lib/server/modelbay-asset-service";
@@ -663,6 +665,15 @@ export async function createUpstream(
     const filteredDefaults = applyExclusiveVideoReferenceMode(defaults, referenceMode);
     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
     const multipart = channel.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
+    const flatContract = !workflow && !multipart && usesFlatVideoTaskContract(channel.advancedConfig);
+    let flatPayload: Record<string, unknown> | undefined;
+    if (flatContract) {
+        try {
+            flatPayload = buildCustomVideoRequestPayload({ channel, prompt, raw, references: providerReferences });
+        } catch (error) {
+            throw new SafeCandidateFailure(error instanceof Error ? error.message : "视频提交参数有误");
+        }
+    }
     const payload = workflow
         ? buildRunningHubWorkflowPayload({
               config: workflow,
@@ -741,7 +752,7 @@ export async function createUpstream(
                             firstFrame: firstFrameUrl || undefined,
                             lastFrame: lastFrameUrl || undefined,
                         })
-                      : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, filteredDefaults, filteredValues);
+                      : (flatPayload ?? buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, filteredDefaults, filteredValues));
     const requestBody = multipart
         ? await buildOpenAiVideoFormData({ model: channel.model, prompt, seconds: values.seconds as number, width: dimensions.width, height: dimensions.height, imageUrls: firstFrameUrl ? [firstFrameUrl] : images, origin, cookie })
         : JSON.stringify(payload);
@@ -773,17 +784,21 @@ export async function createUpstream(
             throw new VideoSubmissionUncertainError(error instanceof Error ? error.message : "视频接口返回了无效 JSON", videoSubmissionBilling(response.headers, raw, multipliers));
         }
         const providerError = readProviderError(data);
-        if (isProviderBusinessError(data)) {
+        const advanced = channel.advancedConfig;
+        const upstreamTaskId = readVideoProviderId(data, advanced?.taskIdField || (flatContract ? "result.taskId" : undefined), flatContract);
+        const failed = isProviderResponseFailure(data, advanced?.successCodes, flatContract);
+        await traceVideoSubmissionEnvelope(data, upstreamTaskId, failed, prompt, channel.apiKey);
+        if (failed) {
             const pointsCost = billedPointsCost(response.headers.get("x-vozeb-pro-points-cost"));
             const billingReceiptId = response.headers.get("x-vozeb-pro-billing-receipt-id") || undefined;
             if (pointsCost !== undefined && billingReceiptId)
                 await refundGenerationCharge({ userId, receiptId: billingReceiptId, model: generationModelId(channel), usageKind: "video", units: videoUnits(raw, multipliers), idempotencyKey: `video-request:${billingRequestId}:refund` });
             throw new SafeCandidateFailure(providerError || "视频接口请求失败");
         }
-        const resultUrl = readVideoProviderUrl(data, channel.advancedConfig?.resultField);
-        const id = readVideoProviderId(data) || (resultUrl ? `direct:${Date.now()}` : "");
+        const resultUrl = flatContract ? "" : readVideoProviderUrl(data, advanced?.resultField);
+        const id = upstreamTaskId || (resultUrl ? `direct:${Date.now()}` : "");
         if (!id) {
-            throw new VideoSubmissionUncertainError(providerError || "视频接口没有返回任务 ID", videoSubmissionBilling(response.headers, raw, multipliers));
+            throw new VideoSubmissionUncertainError((!flatContract && providerError) || "视频接口没有返回任务 ID", videoSubmissionBilling(response.headers, raw, multipliers));
         }
         return {
             id,

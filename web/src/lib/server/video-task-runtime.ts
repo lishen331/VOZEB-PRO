@@ -1,3 +1,5 @@
+import { GenerationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
+import { traceVideoSubmissionEnvelope } from "@/lib/server/media-task-trace";
 import { isOfficialWorkflowQueryPath, queryRunningHubTask, submitRunningHubTask } from "./runninghub-provider";
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
@@ -6,8 +8,8 @@ import { finishGenerationAttempt, generationReservationId, nextGenerationAttempt
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
-import { buildProviderQueryRequest, isProviderBusinessError, isProviderResponseFailure, providerQueryPaths, readProviderError, videoPollingPolicy } from "@/lib/server/provider-task-config";
-import { buildCustomVideoRequestPayload } from "@/lib/server/custom-video-request";
+import { buildProviderQueryRequest, isProviderResponseFailure, providerQueryPaths, readProviderError, readProviderString, videoPollingPolicy } from "@/lib/server/provider-task-config";
+import { buildCustomVideoRequestPayload, usesFlatVideoTaskContract } from "@/lib/server/custom-video-request";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
 import { normalizeVideoResult } from "@/lib/server/video-result-normalizer";
 import {
@@ -87,6 +89,7 @@ export async function createQueuedPracticeVideoTaskUpstreamStep(task: VideoTask,
         const message = error instanceof Error ? error.message : "RunningHub 视频提交失败";
         const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "failed", error: message });
         await updateVideoTask(task.id, { attempts });
+        if (error instanceof GenerationSubmissionUncertainError) throw error;
         return { state: "failed", status: "submit_failed", error: message };
     }
 }
@@ -135,8 +138,13 @@ async function submitQueuedPracticeVideo(task: VideoTask, origin: string, cookie
         if (!response.ok) throw new Error(readVideoProviderHttpError(text, response.status));
         const data = parseVideoProviderJson(text);
         const providerError = readProviderError(data);
-        if (isProviderResponseFailure(data, task.config.advancedConfig?.successCodes)) throw new Error(providerError || "视频接口请求失败");
-        const upstreamId = agnes ? readAgnesVideoId(data) : readVideoProviderId(data);
+        const config = task.config.advancedConfig;
+        const flatContract = usesFlatVideoTaskContract(config);
+        const failed = isProviderResponseFailure(data, config?.successCodes, flatContract);
+        const upstreamId = agnes ? readAgnesVideoId(data) : readVideoProviderId(data, config?.taskIdField || (flatContract ? "result.taskId" : undefined), flatContract);
+        await traceVideoSubmissionEnvelope(data, upstreamId, failed, task.prompt || "", task.config.apiKey);
+        if (failed) throw new Error(providerError || "视频接口请求失败");
+        if (!upstreamId && flatContract) throw new GenerationSubmissionUncertainError("视频接口已响应，但未返回配置的任务 ID");
         if (!upstreamId) throw new Error(providerError || "视频接口没有返回任务 ID");
         const attempts = finishGenerationAttempt(started.attempts, started.attempt.attemptNo, { status: "succeeded" });
         const upstream = { ...task.upstream, id: upstreamId, ...(agnes ? { queryPath: agnesVideoQueryPath(task.config.model) } : {}) };
@@ -186,8 +194,13 @@ export async function queryVideoTaskUpstream(task: VideoTask, origin: string, co
     }
     const data = await queryVideoUpstream(task, origin, cookie, workerUserId);
     const status = readVideoProviderStatus(data, task.config.advancedConfig?.statusField);
-    const resultUrl = readVideoProviderUrl(data, task.config.advancedConfig?.resultField);
-    if (isProviderResponseFailure(data, task.config.advancedConfig?.successCodes) || VIDEO_PROVIDER_FAILED.has(status)) return { state: "failed", status: status || "failed", error: readProviderError(data) || "视频生成失败" };
+    const flatContract = usesFlatVideoTaskContract(task.config.advancedConfig);
+    const configuredResult = flatContract ? readProviderString(data, task.config.advancedConfig?.resultField || "result.result.videoUrl", []) : "";
+    const resultUrl = flatContract ? (VIDEO_PROVIDER_SUCCESS.has(status) && isVideoProviderMediaUrl(configuredResult) ? configuredResult : "") : readVideoProviderUrl(data, task.config.advancedConfig?.resultField);
+    if (isProviderResponseFailure(data, task.config.advancedConfig?.successCodes, flatContract) || VIDEO_PROVIDER_FAILED.has(status)) {
+        const detailError = flatContract ? readProviderString(data, "result.errorMessage", []) : "";
+        return { state: "failed", status: status || "failed", error: detailError || readProviderError(data) || "视频生成失败" };
+    }
     const contentPath = !resultUrl && VIDEO_PROVIDER_SUCCESS.has(status) ? videoProviderContentPath(task.config.advancedConfig?.resultField, task.upstream.id) : "";
     if (resultUrl || contentPath) return { state: "result_ready", status: status || "completed", resultUrl: resultUrl || contentPath };
     if (VIDEO_PROVIDER_SUCCESS.has(status)) return { state: "failed", status: status || "completed", error: "视频任务已完成但没有返回有效视频地址" };
@@ -324,19 +337,24 @@ async function queryVideoUpstream(task: VideoTask, origin: string, cookie: strin
     const createPath = task.upstream.pollPath || "/video/generations";
     const preset = globalAiOpcPreset(task);
     const seedanceSpecial = task.config.advancedConfig?.protocol === "seedance-special";
+    const query = buildProviderQueryRequest(task.config.advancedConfig, task.upstream.id);
     const paths = preset?.queryPath
         ? [preset.queryPath.replace(/:(?:task_id|taskId|id)\b/g, encodeURIComponent(task.upstream.id))]
-        : providerQueryPaths(task.upstream.queryPath ? (task.config.advancedConfig ? { ...task.config.advancedConfig, queryPath: task.upstream.queryPath } : undefined) : task.config.advancedConfig, task.upstream.id, [
-              `${createPath.replace(/\/+$/, "")}/${encodeURIComponent(task.upstream.id)}`,
-              `/videos/${encodeURIComponent(task.upstream.id)}`,
-              `/video/generations/${encodeURIComponent(task.upstream.id)}`,
-              `/videos/generations/${encodeURIComponent(task.upstream.id)}`,
-              `/result?id=${encodeURIComponent(task.upstream.id)}`,
-          ]);
+        : providerQueryPaths(
+              task.upstream.queryPath ? (task.config.advancedConfig ? { ...task.config.advancedConfig, queryPath: task.upstream.queryPath } : undefined) : task.config.advancedConfig,
+              task.upstream.id,
+              [
+                  `${createPath.replace(/\/+$/, "")}/${encodeURIComponent(task.upstream.id)}`,
+                  `/videos/${encodeURIComponent(task.upstream.id)}`,
+                  `/video/generations/${encodeURIComponent(task.upstream.id)}`,
+                  `/videos/generations/${encodeURIComponent(task.upstream.id)}`,
+                  `/result?id=${encodeURIComponent(task.upstream.id)}`,
+              ],
+              query.method === "POST",
+          );
     let lastError = "";
     let authErrorDetected = false;
-    // 渠道可声明 POST 查询：不声明时 query 为 GET 且无 body，与历史行为一致。
-    const query = buildProviderQueryRequest(task.config.advancedConfig, task.upstream.id);
+    // 固定 POST 查询在正文传 ID；GET 及显式路径占位符保持原有行为。
     for (const path of paths) {
         const queryHeaders = new Headers(videoProxyHeaders(task, cookie, workerUserId));
         for (const [key, value] of Object.entries(query.headers)) queryHeaders.set(key, value);

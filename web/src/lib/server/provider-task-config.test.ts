@@ -269,6 +269,21 @@ describe("isProviderResponseFailure", () => {
         expect(isProviderResponseFailure(payload, ["1"])).toBe(false);
     });
 
+    it("enforces the flat gateway's explicit success code without suppressing explicit failure", () => {
+        expect(isProviderResponseFailure({ code: 200, msg: "ok" }, ["1"], true)).toBe(true);
+        expect(isProviderResponseFailure({ code: 2 }, ["1"], true)).toBe(true);
+        expect(isProviderResponseFailure({ code: 1, success: false }, ["1"], true)).toBe(true);
+        expect(isProviderResponseFailure({ code: 1, result: { failReason: "E123" } }, ["1"], true)).toBe(true);
+        expect(isProviderResponseFailure({ code: 1, msg: "ok" }, ["1"], true)).toBe(false);
+    });
+
+    it("keeps fixed body-based queries and expands explicit placeholders without changing GET legacy paths", () => {
+        const config = { queryPath: "/tasks/detail" } as never;
+        expect(providerQueryPaths(config, "task 1", [], true)).toEqual(["/tasks/detail"]);
+        expect(providerQueryPaths(config, "task 1", [])).toEqual(["/tasks/detail/task%201"]);
+        expect(providerQueryPaths({ queryPath: "/tasks/:task_id" } as never, "task 1", [], true)).toEqual(["/tasks/task%201"]);
+    });
+
     it("still fails on a non-declared code", () => {
         expect(isProviderResponseFailure({ code: 10007, msg: "task not found: x" }, ["1"])).toBe(true);
     });
