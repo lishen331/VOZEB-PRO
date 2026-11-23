@@ -55,10 +55,21 @@ describe("POST /api/practice/image-tools", () => {
         expect(mocks.trustedHeaders).toHaveBeenCalledWith("student-one", "school-one", "req-image-tool");
         const [, requestInit] = mocks.fetchInternalApi.mock.calls[0];
         const payload = JSON.parse(requestInit.body);
-        expect(payload.context).toMatchObject({ executionProfile: "open-source-practice", schoolId: "school-one", surface: "canvas" });
+        expect(payload.context).toMatchObject({ executionProfile: "open-source-practice", schoolId: "school-one", surface: "canvas", practiceImageTool: "local-edit" });
         expect(payload.config.model).toBe("practice-canvas-image");
         expect(payload.references[0].url).toBe("https://app.example/api/reference-assets/permanent/source.png?owner=student-one");
         expect(payload.mask.url).toContain("permanent/mask.png");
+    });
+
+    it("uses the dedicated vision default for reverse prompt, not the writing model", async () => {
+        mocks.settings.mockResolvedValue({ practiceDefaultModels: { visionModel: "practice-vision", textModel: "practice-writer" } });
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ ...baseBody, toolId: "reverse-prompt", maskUrl: undefined }) }));
+        expect(response.status).toBe(200);
+        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "text", "practice-vision", expect.objectContaining({ practiceImageTool: "reverse-prompt", requiresImageInput: true }));
+        const body = JSON.parse(mocks.fetchInternalApi.mock.calls[0][1].body);
+        expect(body.config.model).toBe("practice-vision");
+        expect(body.context.practiceImageTool).toBe("reverse-prompt");
+        expect(body.messages[0].content[1]).toMatchObject({ type: "image_url" });
     });
 
     it("rejects a source image registered to a different user", async () => {

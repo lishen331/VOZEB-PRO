@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { RunningHubWorkflowConfig } from "@/lib/auth/store";
+import type { AuthSettings, RunningHubWorkflowConfig } from "@/lib/auth/store";
 
 import {
     attachPracticeWorkflowToChannel,
@@ -551,3 +551,56 @@ function practicePoolLogicalModels(channels: Array<{ id: string; models: string[
         })),
     );
 }
+
+describe("standalone practice image tools", () => {
+    const channel = (id: string, model: string, purpose: "production" | "open-source-practice", operation: { protocol: "newapi" | "custom"; editPath?: string; supportsReferenceImage?: boolean }) =>
+        ({
+            id,
+            name: id,
+            baseUrl: "https://fixture.example/v1",
+            apiKey: "fixture",
+            apiFormat: "openai",
+            enabled: purpose === "production",
+            practiceEnabled: purpose === "open-source-practice",
+            purpose,
+            models: [model],
+            advancedConfig: operation,
+        }) as AuthSettings["systemChannels"][number];
+    const settings = {
+        systemChannels: [
+            channel("vision-practice", "vision-model", "open-source-practice", { protocol: "newapi" }),
+            channel("vision-production", "vision-model", "production", { protocol: "newapi" }),
+            channel("mask-practice", "gpt-image-2", "open-source-practice", { protocol: "newapi", editPath: "/images/edits", supportsReferenceImage: true }),
+            channel("reference-only", "gpt-image-2", "open-source-practice", { protocol: "custom", editPath: "/images/edits", supportsReferenceImage: true }),
+            channel("overflow-practice", "other-image", "open-source-practice", { protocol: "newapi", editPath: "/images/edits", supportsReferenceImage: true }),
+        ],
+        logicalModels: [
+            {
+                id: "practice-vision",
+                name: "Vision",
+                capability: "text",
+                enabled: true,
+                bindings: ["vision-practice", "vision-production"].map((channelId) => ({ id: channelId, channelId, upstreamModel: "vision-model", enabled: true, priority: 1, capabilityProfile: { supportsImageInput: true } })),
+            },
+            { id: "practice-edit", name: "Edit", capability: "image", enabled: true, bindings: ["mask-practice", "reference-only"].map((channelId) => ({ id: channelId, channelId, upstreamModel: "gpt-image-2", enabled: true, priority: 1 })) },
+            { id: "other-edit", name: "Other", capability: "image", enabled: true, bindings: [{ id: "other", channelId: "overflow-practice", upstreamModel: "other-image", enabled: true, priority: 1 }] },
+        ],
+        practiceDefaultModels: { visionModel: "practice-vision", imageModel: "practice-edit", textModel: "", videoModel: "", audioModel: "" },
+    } satisfies Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceDefaultModels">;
+
+    it("uses the configured practice vision binding without touching production traffic", () => {
+        const context = { executionProfile: "open-source-practice", practiceImageTool: "reverse-prompt" } as const;
+        expect(resolvePracticeGenerationCandidates(settings, "text", "practice-vision", context).map((item) => item.channelId)).toEqual(["vision-practice"]);
+        expect(resolvePracticeGenerationCandidates(settings, "text", "vision-model", context)).toEqual([]);
+        expect(resolvePracticeGenerationCandidates(settings, "text", "practice-vision", undefined).map((item) => item.channelId)).toEqual(["vision-production"]);
+    });
+
+    it("keeps local edit on its configured native edits binding, without overflow", () => {
+        const context = { executionProfile: "open-source-practice", practiceImageTool: "local-edit" } as const;
+        expect(resolvePracticeGenerationCandidates(settings, "image", "practice-edit", context).map((item) => item.channelId)).toEqual(["mask-practice"]);
+        expect(resolvePracticeGenerationCandidates(settings, "image", "other-edit", context)).toEqual([]);
+        const customOnly = { ...settings, systemChannels: settings.systemChannels.filter((item) => item.id !== "mask-practice") };
+        expect(resolvePracticeGenerationCandidates(customOnly, "image", "practice-edit", context)).toEqual([]);
+        expect(resolvePracticeGenerationCandidates(customOnly, "image", "practice-edit", { ...context, practiceImageTool: "expression-reference" }).map((item) => item.channelId)).toEqual(["reference-only"]);
+    });
+});

@@ -51,10 +51,11 @@ export async function POST(request: Request) {
 
     const capability = tool.kind === "ai-text" ? "text" : "image";
     const settings = await getAuthSettings();
-    const configuredModel = tool.kind === "ai-text" ? settings.practiceDefaultModels.textModel : settings.practiceDefaultModels.imageModel;
-    if (!configuredModel) return errorResponse(`无限练习尚未配置${capability === "text" ? "文本" : "图片"}模型`, 503);
+    const configuredModel = tool.kind === "ai-text" ? settings.practiceDefaultModels.visionModel : settings.practiceDefaultModels.imageModel;
+    if (!configuredModel) return errorResponse(`无限练习尚未配置${capability === "text" ? "视觉理解" : "图片"}模型`, 503);
     const candidates = resolvePracticeGenerationCandidates(settings, capability, configuredModel, {
         executionProfile: "open-source-practice",
+        practiceImageTool: tool.id,
         ...(tool.kind === "ai-text" ? { requiresImageInput: true } : {}),
     });
     if (!candidates.length) return errorResponse("当前无限练习模型池没有可用的对应能力模型，请检查练习模型配置", 503);
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
         surface: "canvas" as const,
         executionProfile: "open-source-practice" as const,
         schoolId: practiceAccess.schoolId,
+        practiceImageTool: tool.id,
         clientRequestId,
     };
     const endpoint = capability === "text" ? "/api/text-tasks" : "/api/image-tasks";
