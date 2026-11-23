@@ -17,7 +17,7 @@ import { useCopyText } from "@/hooks/use-copy-text";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { ALL_PROMPTS_OPTION, type Prompt } from "@/services/api/prompts";
 
-const PAGE_SIZE = 16;
+const PAGE_SIZE = 24;
 
 export default function PromptsPage() {
     const { message } = App.useApp();

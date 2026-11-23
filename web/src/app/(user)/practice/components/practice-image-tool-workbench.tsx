@@ -1,0 +1,528 @@
+"use client";
+
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import Link from "next/link";
+import { ArrowLeft, Download, Eraser, ImagePlus, LoaderCircle, RotateCcw, Save, Sparkles, WandSparkles } from "lucide-react";
+import { App } from "@/components/gamma-ui/gamma-ant-app";
+import { GammaButton } from "@/components/gamma-ui/gamma-button";
+import { Input } from "@/components/gamma-ui/gamma-ant-input";
+import { uploadImage, type UploadedImage } from "@/services/image-storage";
+import { createLibraryAsset } from "@/services/api/library-assets";
+import { PracticeAssetPicker } from "./practice-asset-picker";
+import { getPracticeImageToolConfig, type PracticeImageToolId } from "@/lib/practice-image-tools";
+import { CanvasNodeEmotionDialog, type CanvasEmotionPayload } from "@/app/(user)/canvas/components/canvas-node-emotion-dialog";
+import { MAX_UPSCALE_LONG_EDGE, upscaleDataUrl, type ImageUpscaleAlgorithm } from "@/app/(user)/canvas/utils/canvas-image-data";
+
+const REVERSE_PROMPT_MODES = [
+    { id: "general", label: "完整描述", instruction: "请分析主体、构图、环境、光线、色彩和整体风格" },
+    { id: "style", label: "风格分析", instruction: "重点分析视觉风格、媒介质感、配色、光影和氛围" },
+    { id: "detail", label: "细节拆解", instruction: "详细描述主体特征、服饰/材质、背景、镜头构图和细节" },
+] as const;
+
+type ToolResult = { taskId?: string; model?: string; text?: string; image?: UploadedImage; saved?: boolean };
+type ToolDiagnostic = { requestId: string; taskId?: string; taskType?: "text" | "image"; model?: string };
+type TaskCreated = { task: { id: string; type: "text" | "image"; model: string } };
+
+type Props = { toolId: PracticeImageToolId };
+
+export default function PracticeImageToolWorkbench({ toolId }: Props) {
+    const config = getPracticeImageToolConfig(toolId)!;
+    const { message } = App.useApp();
+    const fileRef = useRef<HTMLInputElement>(null);
+    const maskRef = useRef<HTMLCanvasElement>(null);
+    const drawingRef = useRef(false);
+    const [source, setSource] = useState<UploadedImage | null>(null);
+    const [prompt, setPrompt] = useState("");
+    const [mode, setMode] = useState<(typeof REVERSE_PROMPT_MODES)[number]["id"]>("general");
+    const [emotionDialogData, setEmotionDialogData] = useState("");
+    const [emotionDialogOpen, setEmotionDialogOpen] = useState(false);
+    const [upscaleTarget, setUpscaleTarget] = useState(2048);
+    const [upscaleAlgorithm, setUpscaleAlgorithm] = useState<ImageUpscaleAlgorithm>("high");
+    const [result, setResult] = useState<ToolResult | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
+    const [retryPrompt, setRetryPrompt] = useState("");
+    const [diagnostic, setDiagnostic] = useState<ToolDiagnostic | null>(null);
+    const [brushSize, setBrushSize] = useState(36);
+
+    const chooseFile = async (file?: File) => {
+        if (!file) return;
+        if (!file.type.startsWith("image/")) return message.error("请选择图片文件");
+        setUploading(true);
+        setError("");
+        try {
+            const uploaded = await uploadImage(file);
+            setSource(uploaded);
+            setResult(null);
+            if (maskRef.current) maskRef.current.getContext("2d")?.clearRect(0, 0, maskRef.current.width, maskRef.current.height);
+        } catch (cause) {
+            message.error(cause instanceof Error ? cause.message : "图片上传失败");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const readPointer = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+        const canvas = event.currentTarget;
+        const bounds = canvas.getBoundingClientRect();
+        return { x: (event.clientX - bounds.left) * (canvas.width / bounds.width), y: (event.clientY - bounds.top) * (canvas.height / bounds.height) };
+    };
+    const drawMask = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+        if (!drawingRef.current) return;
+        event.preventDefault();
+        const canvas = event.currentTarget;
+        const point = readPointer(event);
+        const context = canvas.getContext("2d");
+        if (!context) return;
+        context.globalCompositeOperation = "source-over";
+        context.strokeStyle = "rgba(30, 136, 229, .58)";
+        context.fillStyle = "rgba(30, 136, 229, .58)";
+        context.lineWidth = brushSize * (canvas.width / Math.max(1, canvas.clientWidth));
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.lineTo(point.x, point.y);
+        context.stroke();
+        context.beginPath();
+        context.arc(point.x, point.y, context.lineWidth / 2, 0, Math.PI * 2);
+        context.fill();
+        context.beginPath();
+        context.moveTo(point.x, point.y);
+    };
+
+    const makeMaskUrl = async () => {
+        const selection = maskRef.current;
+        if (!selection) throw new Error("蒙版画布未就绪");
+        const selectionContext = selection.getContext("2d");
+        if (!selectionContext) throw new Error("无法读取蒙版");
+        const selectionData = selectionContext.getImageData(0, 0, selection.width, selection.height).data;
+        let hasPaint = false;
+        for (let index = 3; index < selectionData.length; index += 4)
+            if (selectionData[index] > 0) {
+                hasPaint = true;
+                break;
+            }
+        if (!hasPaint) throw new Error("请先在图片上涂抹要编辑的区域");
+        const mask = document.createElement("canvas");
+        mask.width = selection.width;
+        mask.height = selection.height;
+        const context = mask.getContext("2d");
+        if (!context) throw new Error("无法生成编辑蒙版");
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, mask.width, mask.height);
+        const maskImage = context.getImageData(0, 0, mask.width, mask.height);
+        for (let index = 3; index < maskImage.data.length; index += 4) if (selectionData[index] > 0) maskImage.data[index] = 0;
+        context.putImageData(maskImage, 0, 0);
+        return uploadImage(mask.toDataURL("image/png"));
+    };
+
+    const pollTask = async (task: TaskCreated["task"]): Promise<ToolResult> => {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < 20 * 60_000) {
+            const response = await fetch(`/api/${task.type}-tasks/${encodeURIComponent(task.id)}`, { cache: "no-store" });
+            const payload = (await response.json().catch(() => ({}))) as { task?: { status?: string; result?: Record<string, unknown>; error?: string; model?: string }; error?: string };
+            if (!response.ok || !payload.task) throw new Error(payload.error || "查询生成任务失败");
+            if (payload.task.status === "error" || payload.task.status === "cancelled") throw new Error(payload.task.error || "生成失败");
+            if (payload.task.status === "success") {
+                const taskResult = payload.task.result || {};
+                if (task.type === "text") return { taskId: task.id, model: payload.task.model || task.model, text: String(taskResult.content || "") };
+                const url = String(taskResult.serverUrl || taskResult.remoteUrl || taskResult.dataUrl || taskResult.url || "");
+                if (!url) throw new Error("生成任务成功，但没有返回图片地址");
+                return {
+                    taskId: task.id,
+                    model: payload.task.model || task.model,
+                    image: {
+                        url,
+                        serverUrl: String(taskResult.serverUrl || "") || undefined,
+                        remoteUrl: String(taskResult.remoteUrl || "") || undefined,
+                        storageKey: String(taskResult.storageKey || ""),
+                        width: Number(taskResult.width) || 0,
+                        height: Number(taskResult.height) || 0,
+                        bytes: Number(taskResult.bytes) || 0,
+                        mimeType: String(taskResult.mimeType || "image/png"),
+                    },
+                };
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1800));
+        }
+        throw new Error("任务仍在后台运行，请稍后查看；任务编号：" + task.id);
+    };
+
+    const openExpressionEditor = async () => {
+        if (!source || busy) return;
+        try {
+            const { imageToDataUrl } = await import("@/services/image-storage");
+            const dataUrl = await imageToDataUrl(source);
+            if (!dataUrl) throw new Error("无法读取源图片");
+            setEmotionDialogData(dataUrl);
+            setEmotionDialogOpen(true);
+        } catch (cause) {
+            message.error(cause instanceof Error ? cause.message : "读取图片失败");
+        }
+    };
+
+    const run = async (promptOverride?: string) => {
+        if (!source || busy) return;
+        setBusy(true);
+        setError("");
+        try {
+            if (toolId === "super-resolution") {
+                setDiagnostic({ requestId: crypto.randomUUID(), model: "本地超分处理" });
+                const { imageToDataUrl } = await import("@/services/image-storage");
+                const dataUrl = await imageToDataUrl(source);
+                if (!dataUrl) throw new Error("无法读取源图片");
+                const upscaled = await upscaleDataUrl(dataUrl, { targetLongEdge: upscaleTarget, algorithm: upscaleAlgorithm });
+                const uploaded = await uploadImage(upscaled);
+                setResult({ image: uploaded, model: "本地超分处理" });
+                return;
+            }
+            if (toolId !== "reverse-prompt" && !prompt.trim()) throw new Error("请填写本次修改说明");
+            const mask = toolId === "local-edit" ? await makeMaskUrl() : undefined;
+            const finalPrompt =
+                promptOverride ||
+                (toolId === "reverse-prompt"
+                    ? `${REVERSE_PROMPT_MODES.find((item) => item.id === mode)?.instruction || "请描述图片"}，只输出可用于图片生成的提示词，不要补充解释。${prompt.trim() ? `补充要求：${prompt.trim()}` : ""}`
+                    : toolId === "expression-reference"
+                      ? "基于参考图片，仅调整选定人物的表情，保持身份、发型、服饰、构图、背景和光照不变。"
+                      : prompt.trim());
+            const requestId = crypto.randomUUID();
+            setDiagnostic({ requestId });
+            setRetryPrompt(finalPrompt);
+            const response = await fetch("/api/practice/image-tools", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ toolId, sourceUrl: source.url, ...(mask ? { maskUrl: mask.url } : {}), prompt: finalPrompt, clientRequestId: requestId }),
+            });
+            const payload = (await response.json().catch(() => ({}))) as TaskCreated & { error?: string };
+            if (!response.ok || !payload.task) throw new Error(payload.error || "任务提交失败");
+            setDiagnostic({ requestId, taskId: payload.task.id, taskType: payload.task.type, model: payload.task.model });
+            const completed = await pollTask(payload.task);
+            setResult(completed);
+        } catch (cause) {
+            const messageText = cause instanceof Error ? cause.message : "本次练习失败，请重试";
+            setError(messageText);
+            message.error(messageText);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const saveResult = async () => {
+        if (!result?.image || saving || result.saved) return;
+        setSaving(true);
+        try {
+            const image = result.image.storageKey ? result.image : await uploadImage(result.image.serverUrl || result.image.remoteUrl || result.image.url);
+            const url = image.serverUrl || image.url;
+            await createLibraryAsset({
+                kind: "image",
+                title: `${config.title}结果`,
+                coverUrl: url,
+                tags: ["无限练习", config.title],
+                source: "practice",
+                data: { dataUrl: url, serverUrl: url, storageKey: image.storageKey, width: image.width, height: image.height, bytes: image.bytes, mimeType: image.mimeType },
+            });
+            setResult((current) => (current ? { ...current, image, saved: true } : current));
+            message.success("已保存到个人素材库");
+        } catch (cause) {
+            message.error(cause instanceof Error ? cause.message : "保存失败，请重试");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const resultImageUrl = result?.image?.serverUrl || result?.image?.remoteUrl || result?.image?.url;
+
+    return (
+        <section className="mx-auto flex h-full min-h-0 max-w-6xl flex-col overflow-y-auto px-4 py-5 text-[var(--gm-text)] sm:px-6 lg:px-8">
+            <header className="mb-5 flex items-center gap-3">
+                <Link href="/practice" className="grid size-10 place-items-center rounded-full border border-[var(--gm-border)] text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)]" aria-label="返回无限练习">
+                    <ArrowLeft className="size-4" />
+                </Link>
+                <div>
+                    <p className="text-xs font-medium text-[var(--gm-text-3)]">无限练习 · 图像工具</p>
+                    <h1 className="text-2xl font-semibold">{config.title}</h1>
+                </div>
+            </header>
+            <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]">
+                <div className="space-y-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-semibold">输入与设置</h2>
+                        <span className="rounded-full bg-[var(--gm-wash)] px-2.5 py-1 text-xs text-[var(--gm-text-2)]">{config.kind === "local-image" ? "本地处理 · 不扣 AI 积分" : "使用无限练习模型池"}</span>
+                    </div>
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event) => {
+                            void chooseFile(event.target.files?.[0]);
+                            event.currentTarget.value = "";
+                        }}
+                    />
+                    {source ? (
+                        <div className="relative overflow-hidden rounded-xl border border-[var(--gm-border)] bg-black/5">
+                            <img
+                                src={source.url}
+                                alt="练习源图"
+                                className="mx-auto max-h-[38vh] max-w-full object-contain"
+                                onLoad={(event) => {
+                                    const canvas = maskRef.current;
+                                    if (!canvas) return;
+                                    canvas.width = event.currentTarget.naturalWidth;
+                                    canvas.height = event.currentTarget.naturalHeight;
+                                }}
+                            />
+                            {toolId === "local-edit" ? (
+                                <canvas
+                                    ref={maskRef}
+                                    className="absolute inset-0 h-full w-full touch-none"
+                                    onPointerDown={(event) => {
+                                        drawingRef.current = true;
+                                        event.currentTarget.setPointerCapture(event.pointerId);
+                                        const context = event.currentTarget.getContext("2d");
+                                        if (context) {
+                                            const point = readPointer(event);
+                                            context.beginPath();
+                                            context.moveTo(point.x, point.y);
+                                            drawMask(event);
+                                        }
+                                    }}
+                                    onPointerMove={drawMask}
+                                    onPointerUp={() => {
+                                        drawingRef.current = false;
+                                        maskRef.current?.getContext("2d")?.beginPath();
+                                    }}
+                                    onPointerCancel={() => {
+                                        drawingRef.current = false;
+                                    }}
+                                />
+                            ) : null}
+                            {toolId === "local-edit" ? <span className="absolute left-2 top-2 rounded bg-black/60 px-2 py-1 text-xs text-white">涂抹要修改的区域</span> : null}
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => fileRef.current?.click()}
+                            className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--gm-border-strong)] bg-[var(--gm-wash)]/30 text-sm text-[var(--gm-text-2)] hover:border-[var(--gm-accent)]"
+                            disabled={uploading}
+                        >
+                            <span className="flex flex-col items-center gap-2">
+                                {uploading ? <LoaderCircle className="size-6 animate-spin" /> : <ImagePlus className="size-6" />}
+                                {uploading ? "图片上传中" : "点击上传一张图片"}
+                            </span>
+                        </button>
+                    )}
+                    {!source ? (
+                        <div className="mt-2 flex justify-center">
+                            <PracticeAssetPicker disabled={uploading || busy} onSelect={(image) => setSource(image)} label="或从个人素材库选择" />
+                        </div>
+                    ) : null}
+                    {source ? (
+                        <div className="flex flex-wrap gap-2">
+                            <GammaButton size="sm" variant="outline" onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
+                                更换图片
+                            </GammaButton>
+                            <PracticeAssetPicker
+                                disabled={uploading || busy}
+                                onSelect={(image) => {
+                                    setSource(image);
+                                    setResult(null);
+                                    setError("");
+                                    if (maskRef.current) maskRef.current.getContext("2d")?.clearRect(0, 0, maskRef.current.width, maskRef.current.height);
+                                }}
+                                label="从个人素材库选择"
+                            />
+                            {toolId === "local-edit" ? (
+                                <GammaButton
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        const canvas = maskRef.current;
+                                        canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+                                    }}
+                                    icon={<Eraser className="size-4" />}
+                                >
+                                    清空蒙版
+                                </GammaButton>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {toolId === "reverse-prompt" ? (
+                        <label className="block space-y-2 text-sm">
+                            <span>分析重点</span>
+                            <select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)} className="w-full rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2">
+                                {REVERSE_PROMPT_MODES.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    ) : null}
+                    {toolId === "local-edit" ? (
+                        <>
+                            <label className="block space-y-2 text-sm">
+                                <span>画笔大小 · {brushSize}px</span>
+                                <input type="range" min="8" max="120" value={brushSize} onChange={(event) => setBrushSize(Number(event.target.value))} className="w-full" />
+                            </label>
+                            <label className="block space-y-2 text-sm">
+                                <span>修改说明</span>
+                                <Input.TextArea rows={3} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="例如：把选中区域改为金属材质，保持原图光影" />
+                            </label>
+                        </>
+                    ) : null}
+                    {toolId === "expression-reference" ? (
+                        <div className="space-y-2">
+                            <p className="text-sm">沿用画布的人脸识别、手动框选、表情预设及强度/情绪调节。</p>
+                            <GammaButton size="sm" variant="outline" disabled={!source || busy} onClick={() => void openExpressionEditor()} icon={<Sparkles className="size-4" />}>
+                                选择人物与表情
+                            </GammaButton>
+                        </div>
+                    ) : null}
+                    {toolId === "reverse-prompt" ? (
+                        <label className="block space-y-2 text-sm">
+                            <span>额外分析要求（可选）</span>
+                            <Input.TextArea rows={2} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="例如：更关注服装和材质" />
+                        </label>
+                    ) : null}
+                    {toolId === "super-resolution" ? (
+                        <>
+                            <label className="block space-y-2 text-sm">
+                                <span>目标长边</span>
+                                <select value={upscaleTarget} onChange={(event) => setUpscaleTarget(Number(event.target.value))} className="w-full rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2">
+                                    {[1024, 2048, MAX_UPSCALE_LONG_EDGE].map((value) => (
+                                        <option key={value} value={value}>
+                                            {value >= 4096 ? "4K" : `${value / 1024}K`} · {value}px
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="block space-y-2 text-sm">
+                                <span>算法</span>
+                                <select value={upscaleAlgorithm} onChange={(event) => setUpscaleAlgorithm(event.target.value as ImageUpscaleAlgorithm)} className="w-full rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2">
+                                    <option value="high">高清插值</option>
+                                    <option value="bilinear">双线性</option>
+                                    <option value="nearest">最近邻（像素风）</option>
+                                </select>
+                            </label>
+                        </>
+                    ) : null}
+                    <GammaButton
+                        disabled={!source || busy || uploading}
+                        loading={busy}
+                        onClick={() => void (toolId === "expression-reference" ? openExpressionEditor() : run())}
+                        className="w-full"
+                        icon={busy ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                    >
+                        {busy ? "正在处理…" : toolId === "reverse-prompt" ? "分析并生成提示词" : toolId === "super-resolution" ? "开始本地放大" : toolId === "expression-reference" ? "选择人物与表情" : "生成编辑结果"}
+                    </GammaButton>
+                    {config.kind !== "local-image" ? <p className="text-xs leading-5 text-[var(--gm-text-3)]">提交后按无限练习当前模型池与计费配置执行；失败不会切换到生产模型。</p> : null}
+                    {error ? (
+                        <div role="alert" className="rounded-lg border border-red-300/50 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-300">
+                            {error}
+                            <button className="ml-2 underline" onClick={() => void run(retryPrompt || undefined)}>
+                                重试
+                            </button>
+                            {diagnostic?.requestId ? (
+                                <div className="mt-2 text-xs">
+                                    请求 ID：<code>{diagnostic.requestId}</code>
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
+                <div className="min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                        <WandSparkles className="size-4 text-[var(--gm-accent)]" />
+                        <h2 className="font-semibold">生成结果与诊断</h2>
+                    </div>
+                    {!result ? (
+                        <div className="grid min-h-72 place-items-center text-center text-sm text-[var(--gm-text-3)]">
+                            {busy ? (
+                                <span className="flex items-center gap-2">
+                                    <LoaderCircle className="size-4 animate-spin" />
+                                    任务执行中，完成后会显示在这里
+                                </span>
+                            ) : (
+                                "完成左侧设置后开始练习，结果会先保留在当前页面"
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
+                                {diagnostic?.taskId || result.taskId ? (
+                                    <span>
+                                        任务 ID：<code>{diagnostic?.taskId || result.taskId}</code>
+                                    </span>
+                                ) : null}
+                                <span>执行：{result.model || "本地处理"}</span>
+                            </div>
+                            {result.text !== undefined ? (
+                                <textarea
+                                    aria-label="反推提示词结果"
+                                    className="min-h-48 w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm leading-6"
+                                    value={result.text}
+                                    onChange={(event) => setResult((current) => (current ? { ...current, text: event.target.value } : current))}
+                                />
+                            ) : null}
+                            {resultImageUrl ? (
+                                <div className="space-y-3">
+                                    <div className="grid overflow-hidden rounded-xl border border-[var(--gm-border)] bg-black/5 md:grid-cols-2">
+                                        <div className="p-2">
+                                            <img src={source?.url} alt="原图" className="max-h-[55vh] w-full object-contain" />
+                                            <p className="mt-1 text-center text-xs text-[var(--gm-text-3)]">原图</p>
+                                        </div>
+                                        <div className="p-2">
+                                            <img src={resultImageUrl} alt={`${config.title}结果`} className="max-h-[55vh] w-full object-contain" />
+                                            <p className="mt-1 text-center text-xs text-[var(--gm-text-3)]">结果</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <a href={resultImageUrl} download className="inline-flex items-center gap-2 rounded-lg border border-[var(--gm-border)] px-3 py-2 text-sm">
+                                            <Download className="size-4" />
+                                            下载结果
+                                        </a>
+                                        <GammaButton variant="outline" disabled={saving || result.saved} loading={saving} onClick={() => void saveResult()} icon={<Save className="size-4" />}>
+                                            {result.saved ? "已保存到个人素材库" : "保存到个人素材库"}
+                                        </GammaButton>
+                                    </div>
+                                </div>
+                            ) : null}
+                            {result.text !== undefined ? (
+                                <div className="flex flex-wrap gap-2">
+                                    <GammaButton variant="outline" onClick={() => void navigator.clipboard?.writeText(result.text || "")}>
+                                        复制提示词
+                                    </GammaButton>
+                                    <GammaButton variant="outline" disabled={busy} onClick={() => void run()} icon={<RotateCcw className="size-4" />}>
+                                        修改要求后重新分析
+                                    </GammaButton>
+                                </div>
+                            ) : null}
+                            <div className="rounded-lg bg-[var(--gm-wash)]/40 p-3 text-xs text-[var(--gm-text-3)]">
+                                <p>结果未自动写入个人素材库。图片结果可按需点击保存；本地超分结果可下载或主动保存。</p>
+                                {diagnostic ? (
+                                    <details className="mt-2">
+                                        <summary className="cursor-pointer font-medium">诊断信息</summary>
+                                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap">{JSON.stringify({ toolId, ...diagnostic, error: error || undefined }, null, 2)}</pre>
+                                    </details>
+                                ) : null}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+            {toolId === "expression-reference" ? (
+                <CanvasNodeEmotionDialog
+                    dataUrl={emotionDialogData}
+                    open={emotionDialogOpen}
+                    onClose={() => setEmotionDialogOpen(false)}
+                    onConfirm={(payload: CanvasEmotionPayload) => {
+                        setEmotionDialogOpen(false);
+                        void run(payload.prompt);
+                    }}
+                />
+            ) : null}
+        </section>
+    );
+}

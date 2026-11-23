@@ -614,6 +614,16 @@ describe("practice sessions", () => {
         await expect(publicPracticeSession(legacy)).resolves.toMatchObject({ status: "failed", errorCode: "PRACTICE_DISPATCH_NOT_STARTED" });
     });
 
+    it("keeps the virtual gamaimage model for dispatch after checking the practice pool", () => {
+        const settings = structuredClone(DEFAULT_SETTINGS);
+        settings.systemChannels = [{ id: "practice-images", name: "Practice images", baseUrl: "https://images.example", apiKey: "fixture-key", apiFormat: "openai", models: ["gpt-image-2"], enabled: true, purpose: "open-source-practice" }];
+        settings.logicalModels = [{ id: "gpt-image-2", name: "Practice image", capability: "image", enabled: true, bindings: [{ id: "images", channelId: "practice-images", upstreamModel: "gpt-image-2", enabled: true, priority: 1 }] }];
+        expect(resolvePracticeModelFromSettings(settings, "storyboard-image", "gamaimage", "gamaimage")).toEqual({ logicalModelId: "gamaimage", capability: "image" });
+        expect(() => resolvePracticeModelFromSettings(settings, "storyboard-video", "gamaimage", "gamaimage")).toThrow();
+        expect(() => resolvePracticeModelFromSettings(settings, "storyboard-image", "gamaimage", "storyboard_shot")).toThrow();
+        settings.systemChannels[0].purpose = "production";
+        expect(() => resolvePracticeModelFromSettings(settings, "storyboard-image", "gamaimage", "gamaimage")).toThrow("练习 image 池暂无可用渠道");
+    });
     it("resolves the enabled workflow for a bound practice business code", () => {
         const settings = structuredClone(DEFAULT_SETTINGS);
         settings.practiceDefaultModels.imageModel = "practice-image";

@@ -38,11 +38,9 @@ export function ResponsiveMasonryGrid({ children, className, ariaLabel }: { chil
         const items = Array.from(grid.children) as HTMLElement[];
         let frame = 0;
         const layout = () => {
-            items.forEach((item) => {
-                item.style.removeProperty("grid-column-start");
-                item.style.removeProperty("grid-row-start");
-                item.style.removeProperty("grid-row-end");
-            });
+            // 不要先 removeProperty 再写：清空 grid-row-end 的瞬间整个 grid 会塌成一行的高度，
+            // 浏览器随即把外层滚动容器的 scrollTop 钳回 0，表现就是「一滚就弹回顶部」。
+            // 子元素高度与摆放位置无关，直接覆盖即可，测量结果不变。
             const rowGap = Number.parseFloat(getComputedStyle(grid).rowGap) || 0;
             const columnCount = getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length;
             const rowSpans = items.map((item) => masonryRowSpan((item.firstElementChild as HTMLElement | null)?.getBoundingClientRect().height || 0, MASONRY_ROW_HEIGHT, rowGap));

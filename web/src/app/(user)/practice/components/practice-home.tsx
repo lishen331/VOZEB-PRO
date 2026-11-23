@@ -8,11 +8,12 @@ import { GammaStatCard } from "@/components/gamma-ui/gamma-cards";
 import { GammaBadge } from "@/components/gamma-ui/gamma-controls";
 import { GammaStagger, GammaStaggerItem } from "@/components/gamma-ui/gamma-motion";
 import { SUBJECT_ACCENT, type SubjectAccent } from "@/components/gamma-ui/gamma-subjects";
-import { Box, Clapperboard, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScrollText, UserRound, type LucideIcon, Sparkles, ArrowRight } from "lucide-react";
+import { Box, Brush, Camera, Clapperboard, Cuboid, Film, Image as ImageIcon, Maximize2, Mic2, PanelsTopLeft, Plus, ScanFace, ScrollText, UserRound, type LucideIcon, Sparkles, WandSparkles, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
+import { PRACTICE_IMAGE_TOOL_ENTRIES } from "@/lib/practice-image-tools";
 import { GuideLink } from "@/components/onboarding/guide-link";
 import { ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
 import { practiceApi, type PracticeProjectSummary, type PracticeSession } from "@/services/api/practice";
@@ -37,6 +38,44 @@ export const PRACTICE_PROJECT_CARDS: Array<{ kind: PracticeProjectKind; title: s
 export const PRACTICE_SCRIPT_ENTRY = { title: "剧本", description: "从创意到剧本文本的单人练习。", icon: ScrollText, accent: "teal" as SubjectAccent, tag: "单人 · 文本" } as const;
 
 export const PRACTICE_SINGLE_ENTRY = { title: "单项练习", description: "角色、场景、道具、分镜图、分镜视频与音频，各自进入独立练习页面。", icon: Sparkles, accent: "blue" as SubjectAccent } as const;
+
+/**
+ * 与 AI 单项练习并列展示的独立工具入口。每个入口有自己的工作台；图像 AI 工具走练习模型池，
+ * 本地工具（3D 导演台、多角度和超分）不会调用 AI 任务。
+ */
+export const PRACTICE_TOOL_ENTRIES: Array<{
+    id: "director-desk" | "multi-angle" | "reverse-prompt" | "local-edit" | "expression-reference" | "super-resolution";
+    title: string;
+    description: string;
+    icon: LucideIcon;
+    accent: SubjectAccent;
+    path: string;
+    tag: string;
+}> = [
+    {
+        id: "director-desk",
+        title: "3D 导演台",
+        description: "在三维空间里摆放角色、机位和全景背景，截图后保存到素材库。",
+        icon: Cuboid,
+        accent: "violet",
+        path: "/practice/director-desk",
+        tag: "三维 · 本地工具",
+    },
+    {
+        id: "multi-angle",
+        title: "多角度练习",
+        description: "上传一张主体图，拖动镜头环绕采样，导出多个机位的画面。",
+        icon: Camera,
+        accent: "cyan",
+        path: "/practice/multi-angle",
+        tag: "多视角 · 本地工具",
+    },
+    ...PRACTICE_IMAGE_TOOL_ENTRIES.map((tool) => ({
+        ...tool,
+        icon: tool.id === "reverse-prompt" ? WandSparkles : tool.id === "local-edit" ? Brush : tool.id === "expression-reference" ? ScanFace : Maximize2,
+        accent: tool.id === "reverse-prompt" ? ("blue" as const) : tool.id === "local-edit" ? ("cyan" as const) : tool.id === "expression-reference" ? ("violet" as const) : ("teal" as const),
+    })),
+];
 
 export const PRACTICE_MODULES: Array<{ module: PracticeModuleKind; title: string; description: string; icon: LucideIcon; accent: SubjectAccent }> = [
     { module: "character", title: "角色", description: "生成角色主体图，并继续扩展多视角设定。", icon: UserRound, accent: "violet" },
@@ -151,8 +190,6 @@ export default function PracticeHome() {
     const projectCards = PRACTICE_PROJECT_CARDS.filter((card) => visibleProjects[card.kind]);
     const moduleCards = PRACTICE_MODULES.filter((card) => visibleModules.includes(card.module));
     const twoUp = projectCards.length === 2;
-    // 模块卡片按剩余数量自适应列数：1 张占满整行、2 张各半、3 张及以上三列，避免关掉模块后网格留空洞。
-    const moduleGridClass = moduleCards.length <= 1 ? undefined : moduleCards.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3";
 
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]" data-practice-home>
@@ -212,6 +249,13 @@ export default function PracticeHome() {
                                 <SinglePracticeEntry onClick={() => router.push(practiceModulePath(moduleCards[0].module, ipReference ? { reference: ipReference } : undefined))} moduleCount={moduleCards.length} />
                             </GammaStaggerItem>
                         </GammaStagger>
+                        {PRACTICE_TOOL_ENTRIES.length ? (
+                            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {PRACTICE_TOOL_ENTRIES.map((tool) => (
+                                    <ToolEntryCard key={tool.id} tool={tool} onClick={() => router.push(tool.path)} />
+                                ))}
+                            </div>
+                        ) : null}
                     </section>
                 ) : null}
                 {/* 最近练习记录 */}
@@ -347,6 +391,34 @@ function ScriptEntry({ onClick }: { onClick: () => void }) {
 }
 
 /** 单入口收纳六类独立练习页面 */
+/**
+ * 本地创作工具卡：和单项练习入口同一套描边与内距，
+ * 但明确标注它不消耗模型积分、也不产生练习会话记录。
+ */
+function ToolEntryCard({ tool, onClick }: { tool: (typeof PRACTICE_TOOL_ENTRIES)[number]; onClick: () => void }) {
+    const Icon = tool.icon;
+    const accent = SUBJECT_ACCENT[tool.accent];
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            data-practice-tool={tool.id}
+            className="group flex h-full min-h-36 w-full flex-col items-start gap-4 rounded-[var(--gm-radius-xl)] bg-[var(--gm-surface)] p-5 text-left ring-1 ring-[var(--gm-border)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--gm-shadow)] hover:ring-[var(--gm-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gm-accent)] sm:p-6"
+        >
+            <span className={cn("grid size-14 shrink-0 place-items-center rounded-[var(--gm-radius-lg)]", accent.chip)}>
+                <Icon className={cn("size-7", accent.text)} />
+            </span>
+            <span className="min-w-0">
+                <span className="block text-base font-semibold text-[var(--gm-text)]">{tool.title}</span>
+                <span className="mt-1 block text-sm leading-6 text-[var(--gm-text-2)]">{tool.description}</span>
+                <span className="mt-3 flex flex-wrap gap-2">
+                    <GammaBadge tone="neutral">{tool.tag}</GammaBadge>
+                </span>
+            </span>
+        </button>
+    );
+}
+
 function SinglePracticeEntry({ onClick, moduleCount }: { onClick: () => void; moduleCount: number }) {
     const Icon = PRACTICE_SINGLE_ENTRY.icon;
     const accent = SUBJECT_ACCENT[PRACTICE_SINGLE_ENTRY.accent];
