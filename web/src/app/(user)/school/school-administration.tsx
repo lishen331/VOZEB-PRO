@@ -11,7 +11,8 @@ import { Drawer, Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Tabs } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { Button, Pagination, Tag } from "@/components/gamma-ui/gamma-ant";
-import { BriefcaseBusiness, CirclePlay, Eye, KeyRound, Pencil, Plus, RefreshCw, School, Settings2, Trash2, Upload as UploadIcon, UserRoundCog } from "lucide-react";
+import { saveAs } from "file-saver";
+import { BriefcaseBusiness, CirclePlay, Download, Eye, KeyRound, Pencil, Plus, RefreshCw, School, Settings2, Trash2, Upload as UploadIcon, UserRoundCog } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type {
@@ -37,7 +38,7 @@ import { coursesApi } from "@/services/api/courses";
 import { commercialOrdersApi, type CommercialOrderSubmissions } from "@/services/api/commercial-orders";
 import { schoolApi } from "@/services/api/school";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
-import { parseSchoolMemberCsv } from "./school-csv";
+import { parseSchoolMemberCsvBytes, SCHOOL_MEMBER_CSV_TEMPLATE } from "./school-csv";
 import { ProductionGroupsPanel } from "./components/production-groups-panel";
 import { SchoolIpAccessPanel } from "./components/school-ip-access-panel";
 import { SchoolCourseCovers } from "./school-course-covers";
@@ -163,6 +164,9 @@ function MembersPanel() {
     const [createOpen, setCreateOpen] = useState(false);
     const [csvRows, setCsvRows] = useState<SchoolMemberCreateInput[]>([]);
     const [csvOpen, setCsvOpen] = useState(false);
+    const [csvError, setCsvError] = useState("");
+    const [readingCsv, setReadingCsv] = useState(false);
+    const csvReadId = useRef(0);
     const [inviteCodes, setInviteCodes] = useState<Partial<Record<SchoolMemberRole, string>>>({});
 
     const load = useCallback(async () => {
@@ -239,13 +243,42 @@ function MembersPanel() {
         }
     };
 
+    const closeCsv = () => {
+        csvReadId.current++;
+        setCsvOpen(false);
+        setCsvRows([]);
+        setCsvError("");
+        setReadingCsv(false);
+    };
+
+    const readImportFile = async (file: File) => {
+        const readId = ++csvReadId.current;
+        setReadingCsv(true);
+        setCsvRows([]);
+        setCsvError("");
+        try {
+            if (!file.name.toLowerCase().endsWith(".csv")) {
+                setCsvError("请选择 CSV 文件");
+                return;
+            }
+            const result = parseSchoolMemberCsvBytes(await file.arrayBuffer());
+            if (readId !== csvReadId.current) return;
+            if (result.ok) setCsvRows(result.rows);
+            else setCsvError(result.message);
+        } catch {
+            if (readId === csvReadId.current) setCsvError("文件读取失败，请检查格式或重新下载模板");
+        } finally {
+            if (readId === csvReadId.current) setReadingCsv(false);
+        }
+    };
+
     const importCsv = async () => {
+        if (!csvRows.length || saving) return;
         setSaving(true);
         try {
             await schoolApi.importMembers(csvRows);
             message.success(`已导入 ${csvRows.length} 位成员`);
-            setCsvOpen(false);
-            setCsvRows([]);
+            closeCsv();
             await load();
         } catch (error) {
             message.error(errorMessage(error, "成员导入失败"));
@@ -327,17 +360,9 @@ function MembersPanel() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Button icon={<RefreshCw className="size-4" />} loading={loading} aria-label="刷新成员列表" onClick={() => void load()} />
-                    <Upload
-                        accept=".csv,text/csv"
-                        maxCount={1}
-                        showUploadList={false}
-                        beforeUpload={(file) => {
-                            void previewCsv(file, setCsvRows, setCsvOpen, message.error);
-                            return false;
-                        }}
-                    >
-                        <Button icon={<UploadIcon className="size-4" />}>批量导入</Button>
-                    </Upload>
+                    <Button icon={<UploadIcon className="size-4" />} onClick={() => setCsvOpen(true)}>
+                        批量导入
+                    </Button>
                     <Button type="primary" icon={<Plus className="size-4" />} onClick={openCreate}>
                         创建成员
                     </Button>
@@ -401,30 +426,59 @@ function MembersPanel() {
                 <MemberForm form={form} onFinish={createMember} />
             </Modal>
             <Modal
-                title="CSV 导入预览"
+                title="批量导入成员"
                 open={csvOpen}
                 okText={`导入 ${csvRows.length} 位成员`}
                 cancelText="取消"
                 okButtonProps={{ disabled: !csvRows.length }}
                 confirmLoading={saving}
-                width="min(720px, 100vw)"
+                width="min(640px, calc(100vw - 24px))"
                 onOk={() => void importCsv()}
-                onCancel={() => setCsvOpen(false)}
+                onCancel={() => {
+                    if (!saving) closeCsv();
+                }}
             >
-                <p className="mb-3 text-sm text-zinc-500">固定列：username、displayName、password、role。此处只预览格式，完整校验在提交时由服务端执行。</p>
-                <Table
-                    rowKey={(row) => row.username}
-                    size="small"
-                    pagination={false}
-                    scroll={{ x: 620, y: 360 }}
-                    dataSource={csvRows}
-                    columns={[
-                        { title: "用户名", dataIndex: "username" },
-                        { title: "姓名", dataIndex: "displayName" },
-                        { title: "初始密码", render: () => "••••••" },
-                        { title: "身份", dataIndex: "role", render: (value: string) => (value === "teacher" ? "老师" : value === "student" ? "学生" : value) },
-                    ]}
-                />
+                <div className="flex flex-wrap gap-2">
+                    <Button icon={<Download className="size-4" />} onClick={() => saveAs(new Blob([SCHOOL_MEMBER_CSV_TEMPLATE], { type: "text/csv;charset=utf-8" }), "学校成员批量导入模板.csv")}>
+                        下载导入模板
+                    </Button>
+                    <Upload
+                        accept=".csv,text/csv"
+                        maxCount={1}
+                        showUploadList={false}
+                        disabled={saving || readingCsv}
+                        beforeUpload={(file) => {
+                            void readImportFile(file);
+                            return false;
+                        }}
+                    >
+                        <Button type="primary" loading={readingCsv} icon={<UploadIcon className="size-4" />}>
+                            上传 CSV 文件
+                        </Button>
+                    </Upload>
+                </div>
+                {csvError ? (
+                    <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+                        {csvError}
+                    </p>
+                ) : null}
+                {csvRows.length ? (
+                    <div className="mt-4 min-w-0">
+                        <p className="mb-2 text-sm font-medium">导入预览</p>
+                        <Table
+                            size="small"
+                            pagination={false}
+                            scroll={{ x: 460, y: 320 }}
+                            dataSource={csvRows}
+                            columns={[
+                                { title: "用户名", dataIndex: "username" },
+                                { title: "姓名", dataIndex: "displayName" },
+                                { title: "初始密码", render: () => "••••••" },
+                                { title: "身份", dataIndex: "role", render: (value: string) => (value === "teacher" ? "老师" : value === "student" ? "学生" : value) },
+                            ]}
+                        />
+                    </div>
+                ) : null}
             </Modal>
         </section>
     );
@@ -1398,17 +1452,6 @@ function EmptyText({ text }: { text: string }) {
 }
 
 type ClassEditForm = SchoolClassInput & { status: SchoolMembershipStatus; teacherMembershipIds: string[]; studentMembershipIds: string[] };
-
-async function previewCsv(file: File, setRows: (rows: SchoolMemberCreateInput[]) => void, setOpen: (open: boolean) => void, showError: (content: string) => void) {
-    try {
-        const result = parseSchoolMemberCsv(await file.text());
-        if (!result.ok) return showError(result.message);
-        setRows(result.rows);
-        setOpen(true);
-    } catch {
-        showError("CSV 文件读取失败");
-    }
-}
 
 function memberOption(member: SchoolMember) {
     return { value: member.id, label: `${member.displayName}（ID：${member.accountId}）` };
