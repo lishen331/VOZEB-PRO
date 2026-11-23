@@ -3,7 +3,7 @@
 ## 仓库主线
 
 - 远端仓库是 `origin`，协作主线是 `origin/develop`。
-- `develop` 允许直接推送，不要求额外建立交付分支或先推送 `main`。
+- 功能变更从独立分支提交，PR 目标为 `develop`。按 `AGENTS.md` 先写测试用例、通过本地自动化与人工验收，再由用户明确批准本次推送、提交 PR 和测试环境部署的范围。
 - 开始工作前检查本地改动和远端提交；本地有未提交改动时不得用拉取操作覆盖它们。
 - `.env`、SSH 私钥、管理员凭据、数据库和媒体数据不得提交到 GitHub。
 
@@ -52,13 +52,7 @@ git diff --cached --stat
 3. 通过 GitHub Secrets 使用 SSH 连接测试服务器，在 `/opt/vozeb-pro/staging` 执行 `docker compose pull app generation-worker` 和 `docker compose up -d`。
 4. 检查 `http://127.0.0.1:3001/api/health/ready`，并在失败时输出 Compose 状态和应用/Worker 日志。
 
-推送命令：
-
-```powershell
-pwsh -NoProfile -File .\过程文件\更新开发地图.ps1
-pwsh -NoProfile -File .\过程文件\验证开发文档.ps1
-git push origin develop
-```
+本地人工验收通过后，提供可审阅的候选提交和测试结果。取得本次推送及创建 PR 的批准后，将功能分支推到 `origin`，打开以 `develop` 为目标的 PR，并核对 Quality 检查。合并至 `develop` 会触发测试环境部署，执行前必须确认本次审批明确覆盖合并及部署。推送后报告更新内容、提交 SHA、PR 链接及检查状态。部署完成后报告镜像和健康检查结果。
 
 文档门禁失败、质量检查失败或推送失败时停止后续部署判断，保留错误输出并先修复原因。
 

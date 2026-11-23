@@ -268,6 +268,7 @@ function Get-Boundary($route) {
 }
 
 function Get-Purpose($route) {
+    if ($route.path -eq "/api/admin/schools/[id]/members") { return "按学校分页查询成员；批量调整所选成员个人永久积分并记录流水" }
     if ($route.path -eq "/api/video-tasks") { return "已停用旧视频任务入口：固定返回 410" }
     if ($route.path -eq "/api/install/initialize") { return "使用一次性安装令牌初始化 PostgreSQL 表结构" }
     $segments = @($route.path.Substring(5).Split("/"))
