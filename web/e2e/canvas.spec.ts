@@ -395,6 +395,70 @@ test("canvas video warns about undersized reference images and asks before upsca
     }
 });
 
+test("canvas asks before converting a reference video and only resubmits on confirmation", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    const project = await createCanvasProject(request, {
+        title: `Canvas 参考视频预检 ${randomUUID().slice(0, 8)}`,
+        viewport: { x: 36, y: 110, k: 1 },
+        nodes: [
+            node("conversion-video", "video", 430, 60, 220, 150, { content: "https://cdn.example.com/reference.mp4", serverUrl: "https://cdn.example.com/reference.mp4" }),
+            node("conversion-config", "config", 20, 90, 300, 180, { generationMode: "video", composerContent: "让画面自然移动", size: "16:9", seconds: "5", vquality: "720" }),
+        ],
+        connections: [{ id: "conversion-reference", fromNodeId: "conversion-video", toNodeId: "conversion-config" }],
+    });
+    await page.route("**/api/model-catalog**", async (route) => {
+        const response = await route.fetch();
+        const body = await response.json();
+        const settings = body.settings || body;
+        for (const model of settings.logicalModels || []) {
+            if (model.capability !== "video") continue;
+            model.capabilityProfile = { ...model.capabilityProfile, supportsReferenceVideo: true };
+            for (const binding of model.bindings || []) binding.capabilityProfile = { ...binding.capabilityProfile, supportsReferenceVideo: true };
+        }
+        await route.fulfill({ response, json: body });
+    });
+    const submitted: Array<{ proof?: string; id: string }> = [];
+    await page.route("**/api/video-generation-tasks", async (route) => {
+        const req = route.request();
+        if (req.method() !== "POST") return route.continue();
+        const proof = req.postDataJSON().videoReferenceConversionProof;
+        submitted.push({ proof, id: req.headers()["x-vozeb-pro-client-request-id"] || "" });
+        if (proof) return route.fulfill({ json: { task: { id: "converted-task", model: "video-v1" } } });
+        await route.fulfill({ status: 422, json: { code: "video_reference_conversion_required", issues: ["参考视频 1：平均帧率 20.1 FPS，要求 24–60 FPS"], proof: "fixture-proof" } });
+    });
+    await page.route("**/api/video-generation-tasks/**", (route) => route.fulfill({ json: { task: { status: "running" } } }));
+    try {
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.goto(`/canvas/${project.id}`, { waitUntil: "domcontentloaded" });
+        await expect(page.locator("[data-canvas-surface]")).toBeVisible({ timeout: 30_000 });
+        const config = page.locator('[data-node-id="conversion-config"]');
+        await expect(config).toBeVisible();
+        const generate = config.getByRole("button", { name: "开始生成" });
+        const dialog = page.getByRole("dialog").filter({ hasText: "参考视频不符合生成要求" });
+        await generate.click();
+        await expect(dialog).toContainText("20.1 FPS");
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect
+            .poll(async () => {
+                const box = await dialog.boundingBox();
+                return Boolean(box && box.x >= 0 && box.x + box.width <= 391);
+            })
+            .toBe(true);
+        await dialog.getByRole("button", { name: /取\s*消/ }).click();
+        await expect(dialog).toBeHidden();
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0].proof).toBeUndefined();
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await generate.click();
+        await dialog.getByRole("button", { name: "同意转换并生成" }).click();
+        await expect.poll(() => submitted.length).toBe(3);
+        expect(submitted[2]).toEqual({ proof: "fixture-proof", id: submitted[1].id });
+        expect(submitted[1].id).toBeTruthy();
+    } finally {
+        await deleteCanvasProject(request, project.id);
+    }
+});
+
 test("canvas video first and last frame roles persist and retry from the output snapshot", async ({ page, request }) => {
     test.setTimeout(120_000);
     const project = await createCanvasProject(request, {

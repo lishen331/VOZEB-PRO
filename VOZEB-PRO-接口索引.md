@@ -683,7 +683,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| POST | `/api/video-generation-tasks` | 混合 | [route.ts](web/src/app/api/video-generation-tasks/route.ts) | [video-generation-route](web/src/app/api/video-generation-tasks/video-generation-route.ts)<br>[generation-task-scheduler](web/src/lib/server/generation-task-scheduler.ts) | PostgreSQL、积分、模型上游、媒体 | 视频生成任务：提交/执行 |
+| POST | `/api/video-generation-tasks` | 混合 | [route.ts](web/src/app/api/video-generation-tasks/route.ts) | [video-generation-route](web/src/app/api/video-generation-tasks/video-generation-route.ts)<br>[generation-task-scheduler](web/src/lib/server/generation-task-scheduler.ts) | PostgreSQL、积分、模型上游、媒体 | 视频生成任务：提交/执行；天翼云 Seedance 参考视频不合规时返回 422 确认转换 |
 | GET | `/api/video-generation-tasks/[id]` | 用户 | [route.ts](web/src/app/api/video-generation-tasks/[id]/route.ts) | [video-task-store](web/src/lib/server/video-task-store.ts)<br>[media-task-trace](web/src/lib/server/media-task-trace.ts) | PostgreSQL、积分、模型上游、媒体 | 视频生成任务 / 单项：查询 |
 
 ### `video-tasks`（2）
