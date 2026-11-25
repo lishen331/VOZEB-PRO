@@ -32,7 +32,7 @@ export function GenerationLogAssetPreview({ log }: { log: StoredGenerationLog })
             </div>
         );
     }
-    return <img className="size-12 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] object-cover" src={imagePreviewUrl(assetUrl, 256)} alt="" loading="lazy" referrerPolicy="no-referrer" />;
+    return <GenerationLogImagePreview key={assetUrl} src={imagePreviewUrl(assetUrl, 256)} compact />;
 }
 
 export function GenerationLogMobileCard({ log, selected, onSelectedChange, onView, onDelete }: { log: StoredGenerationLog; selected: boolean; onSelectedChange: (checked: boolean) => void; onView: () => void; onDelete: () => void }) {
@@ -310,7 +310,7 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
                                     ) : asset.type === "audio" ? (
                                         <audio className="w-full" src={assetUrl} controls preload="metadata" />
                                     ) : (
-                                        <img className="h-full w-full object-contain" src={imagePreviewUrl(assetUrl, 960)} alt="" referrerPolicy="no-referrer" loading="lazy" />
+                                        <GenerationLogImagePreview key={assetUrl} src={imagePreviewUrl(assetUrl, 960)} />
                                     )}
                                 </div>
                             </div>
@@ -326,7 +326,41 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
     );
 }
 
+function GenerationLogImagePreview({ src, compact = false }: { src: string; compact?: boolean }) {
+    const [failed, setFailed] = useState(false);
+    const unavailable = "图片暂不可预览";
+    if (failed) {
+        return compact ? (
+            <span className="flex size-12 items-center justify-center rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] text-[var(--gm-text-3)]" role="img" aria-label={unavailable} title={unavailable}>
+                <ImageIcon className="size-4" aria-hidden />
+            </span>
+        ) : (
+            <span className="text-xs text-[var(--gm-text-2)]">{unavailable}</span>
+        );
+    }
+    const className = compact ? "size-12 rounded-lg border border-[var(--gm-border)] bg-[var(--gm-wash-strong)] object-cover" : "h-full w-full object-contain";
+    return <img className={className} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />;
+}
+
+function registeredGenerationLogImageUrl(value?: string) {
+    const candidate = value?.trim();
+    if (!candidate) return "";
+    const origin = typeof window === "undefined" ? "http://vozeb.local" : window.location.origin;
+    try {
+        const url = new URL(candidate, origin);
+        if (url.origin !== origin || !url.pathname.startsWith("/api/generation-log-assets/")) return "";
+        if (!candidate.startsWith("/api/generation-log-assets/") && (typeof window === "undefined" || !/^https?:\/\//i.test(candidate))) return "";
+        return `${url.pathname}${url.search}`;
+    } catch {
+        return "";
+    }
+}
+
 function generationLogAssetAccessUrl(asset: StoredGenerationLog["assets"][number]) {
+    if (asset.type === "image") {
+        const registeredUrl = registeredGenerationLogImageUrl(asset.serverUrl) || registeredGenerationLogImageUrl(asset.url);
+        if (registeredUrl) return registeredUrl;
+    }
     const directUrl = asset.url && !asset.url.startsWith("/api/generation-log-assets/") && asset.url !== asset.serverUrl ? asset.url : "";
     const serverUrl = asset.serverUrl || (asset.url?.startsWith("/api/generation-log-assets/") ? asset.url : "");
     return browserReadableMediaUrl(asset.remoteUrl || directUrl || serverUrl || asset.serverUrl || (asset.url?.startsWith("/api/generation-log-assets/") ? asset.url : ""));
