@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
     createPostgresRepositories,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/server/database";
 import { collectLocalMediaStorageKeys } from "@/lib/server/local-media-references";
 import { getLocalMediaRegistration, getLocalMediaRegistrations, type LocalMediaRegistration } from "@/lib/server/local-media-registry";
+import { isReferenceAssetPath } from "@/lib/server/reference-asset-store";
 import { moderateWorkContent } from "@/lib/server/work-content-moderation";
 import { userAvatarUrl } from "@/lib/user-avatar";
 import { cleanOfficialWorkTitle, normalizeOfficialCategory } from "@/lib/work-publication-import";
@@ -36,7 +37,7 @@ export type WorkPublicationDraftInput = {
     coverStorageKey?: unknown;
 };
 
-export type OfficialWorkDraftInput = Omit<WorkPublicationDraftInput, "sourceType" | "sourceId" | "visibility">;
+export type OfficialWorkDraftInput = Omit<WorkPublicationDraftInput, "sourceType" | "sourceId" | "visibility"> & { importKey?: unknown };
 
 export type WorkPublicationMediaCandidate = {
     storageKey: string;
@@ -105,6 +106,7 @@ export async function listWorkPublicationsForAdmin(input: { page?: number; pageS
     const takenDown = status === "taken_down";
     const page = await createPostgresRepositories().workPublications.listWorks({
         moderationStatus: takenDown ? undefined : status,
+        adminView: true,
         lifecycleStatus: takenDown
             ? input.lifecycleStatus === "active" || input.lifecycleStatus === "revoked"
                 ? input.lifecycleStatus
@@ -131,6 +133,20 @@ export async function listWorkPublicationsForAdmin(input: { page?: number; pageS
     };
 }
 
+export async function getOfficialWorkForAdmin(workIdValue: unknown) {
+    await assertWorkPublicationReady();
+    const repos = createPostgresRepositories();
+    const work = await repos.workPublications.getWorkSummaryById(requiredId(workIdValue, "作品"));
+    if (!work || work.publicationOrigin !== "official" || !work.currentVersion) throw new WorkPublicationServiceError("官方作品不存在", 404);
+    const assets = await repos.workPublications.listVersionAssets(work.currentVersion.id);
+    const registrations = new Map((await getLocalMediaRegistrations(assets.map((asset) => asset.storageKey))).map((item) => [item.storageKey, item]));
+    const currentAssets = assets.map((asset) => {
+        const registration = registrations.get(asset.storageKey);
+        return { ...asset, previewUrl: registration ? privateAssetUrl(registration) : undefined };
+    });
+    return { ...work, currentAssets };
+}
+
 export async function getWorkPublicationForUser(userId: string, workIdValue: unknown) {
     await assertWorkPublicationReady();
     const repos = createPostgresRepositories();
@@ -146,17 +162,33 @@ export async function createOfficialWorkDraft(adminUserIdValue: unknown, input: 
         const repos = createPostgresRepositories(client);
         const user = await repos.users.getById(adminUserId);
         if (!user || user.status !== "active") throw new WorkPublicationServiceError("管理员不可用", 403);
+        const importKey = input.importKey;
+        if (importKey !== undefined && (typeof importKey !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(importKey))) throw new WorkPublicationServiceError("导入标识无效");
+        const workId = importKey ? hashOfficialImport([adminUserId, importKey]) : randomUUID();
+        const sourceId = importKey
+            ? "official-import:" + hashOfficialImport([input.title, input.description, input.publicPrompt, input.category, input.tags, input.authorDisplay, input.authorName, input.coverStorageKey, input.assetStorageKeys])
+            : "official:" + workId;
+        if (importKey) {
+            await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [workId]);
+            const existing = await repos.workPublications.getWorkById(workId, adminUserId);
+            if (existing) {
+                if (existing.publicationOrigin !== "official" || existing.sourceId !== sourceId) throw new WorkPublicationServiceError("这条导入记录已保存，请在草稿列表编辑", 409);
+                return requiredWorkDetail(repos, workId, adminUserId);
+            }
+            const keys = [...normalizeStorageKeys(input.assetStorageKeys, []), normalizeStorageKey(input.coverStorageKey)].filter(Boolean);
+            if (keys.some((key) => !key.startsWith("permanent/") || !isReferenceAssetPath(key))) throw new WorkPublicationServiceError("导入作品的永久媒体路径无效");
+        }
         const candidates = await officialMediaCandidates(adminUserId, input.assetStorageKeys, input.coverStorageKey);
+        if (importKey && candidates.some((asset) => asset.mediaType === "audio")) throw new WorkPublicationServiceError("只允许导入图片和视频");
         const draft = normalizeOfficialDraft(input, user, undefined, candidates);
         const now = new Date().toISOString();
-        const workId = randomUUID();
         const versionId = randomUUID();
         await repos.workPublications.createWork({
             id: workId,
             ownerUserId: adminUserId,
             slug: publicationSlug(),
             sourceType: "media",
-            sourceId: `official:${workId}`,
+            sourceId,
             publicationOrigin: "official",
             lifecycleStatus: "active",
             isFeatured: false,
@@ -170,6 +202,10 @@ export async function createOfficialWorkDraft(adminUserIdValue: unknown, input: 
         if (!(await repos.workPublications.setCurrentVersion(workId, version.id))) throw new WorkPublicationServiceError("作品版本保存失败", 409);
         return { ...(await requiredWorkDetail(repos, workId, adminUserId)), currentAssets };
     });
+}
+
+function hashOfficialImport(value: unknown[]) {
+    return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
 export async function updateOfficialWorkDraft(adminUserIdValue: unknown, workIdValue: unknown, input: OfficialWorkDraftInput) {
@@ -204,19 +240,23 @@ export async function updateOfficialWorkDraft(adminUserIdValue: unknown, workIdV
     });
 }
 
-export async function publishOfficialWork(input: { adminUserId: unknown; workId: unknown; versionId: unknown }) {
+export async function publishOfficialWork(input: { adminUserId: unknown; workId: unknown; versionId: unknown; expectedUpdatedAt?: unknown }) {
     await assertWorkPublicationReady();
     const adminUserId = requiredId(input.adminUserId, "管理员");
     const workId = requiredId(input.workId, "作品");
     const versionId = requiredId(input.versionId, "版本");
     const preview = await createPostgresRepositories().workPublications.getWorkSummaryById(workId);
     if (!preview?.currentVersion || preview.publicationOrigin !== "official") throw new WorkPublicationServiceError("官方作品不存在", 404);
+    const previewVersion = preview.currentVersion;
+    if (input.expectedUpdatedAt !== undefined && preview.publishedVersionId !== versionId && (previewVersion.id !== versionId || previewVersion.updatedAt !== input.expectedUpdatedAt || preview.lifecycleStatus !== "active" || preview.publishedVersionId)) {
+        throw new WorkPublicationServiceError("草稿已变化，请刷新并重新预览后发布", 409);
+    }
     const moderation = await moderateWorkContent({
-        title: preview.currentVersion.title,
-        description: preview.currentVersion.description,
-        publicPrompt: preview.currentVersion.publicPrompt,
-        category: preview.currentVersion.category,
-        tags: preview.currentVersion.tags,
+        title: previewVersion.title,
+        description: previewVersion.description,
+        publicPrompt: previewVersion.publicPrompt,
+        category: previewVersion.category,
+        tags: previewVersion.tags,
     });
     const risk = moderation.signal as { riskLevel?: unknown; summary?: unknown };
     if (risk.riskLevel === "block") throw new WorkPublicationServiceError(text(risk.summary, 500) || "作品内容存在发布风险", 409);
@@ -228,7 +268,8 @@ export async function publishOfficialWork(input: { adminUserId: unknown; workId:
         const version = await repos.workPublications.getVersionById(versionId, true);
         if (!version || version.workId !== work.id) throw new WorkPublicationServiceError("作品版本不存在", 409);
         if (version.moderationStatus === "approved" && work.publishedVersionId === version.id) return { ...(await requiredWorkDetail(repos, work.id)), publicPath: `/share/${work.slug}` };
-        if (version.moderationStatus !== "draft") throw new WorkPublicationServiceError("作品版本状态不允许直接发布", 409);
+        if (input.expectedUpdatedAt !== undefined && (work.publishedVersionId || work.lifecycleStatus !== "active" || input.expectedUpdatedAt !== version.updatedAt)) throw new WorkPublicationServiceError("草稿已变化，请刷新并重新预览后发布", 409);
+        if (version.moderationStatus !== "draft" || version.updatedAt !== previewVersion.updatedAt) throw new WorkPublicationServiceError("作品版本已变化，请刷新后重试", 409);
         const assets = await repos.workPublications.listVersionAssets(version.id);
         validateOfficialAssets(assets);
         if (!(await repos.workPublications.setModerationSignal(version.id, moderation.provider, moderation.signal))) throw new WorkPublicationServiceError("内容审核信号保存失败", 409);
@@ -428,7 +469,7 @@ export async function deleteWorkPublicationForUser(userIdValue: unknown, workIdV
     });
 }
 
-export async function deleteWorkPublicationForAdmin(adminUserIdValue: unknown, workIdValue: unknown) {
+export async function deleteWorkPublicationForAdmin(adminUserIdValue: unknown, workIdValue: unknown, expectedUpdatedAt?: string) {
     await assertWorkPublicationReady();
     requiredId(adminUserIdValue, "管理员");
     const workId = requiredId(workIdValue, "作品");
@@ -436,7 +477,9 @@ export async function deleteWorkPublicationForAdmin(adminUserIdValue: unknown, w
         const repos = createPostgresRepositories(client);
         const work = await repos.workPublications.getWorkById(workId, undefined, true);
         if (!work) throw new WorkPublicationServiceError("作品不存在", 404);
-        const deletable = work.lifecycleStatus === "revoked" || (!work.publishedVersionId && (await repos.workPublications.hasTakenDownVersion(work.id)));
+        if (work.publishedVersionId) throw new WorkPublicationServiceError("请先下架作品再删除", 409);
+        if (expectedUpdatedAt !== undefined && work.updatedAt !== expectedUpdatedAt) throw new WorkPublicationServiceError("已下架作品状态已变化，请刷新后重试", 409);
+        const deletable = work.lifecycleStatus === "revoked" || (await repos.workPublications.hasTakenDownVersion(work.id));
         if (!deletable) throw new WorkPublicationServiceError("请先下架作品再删除", 409);
         const version = work.currentVersionId ? await repos.workPublications.getVersionById(work.currentVersionId) : null;
         if (!(await repos.workPublications.deleteWorkCompletely(work.id))) throw new WorkPublicationServiceError("作品删除失败，请刷新后重试", 409);
@@ -476,7 +519,7 @@ export async function reviewWorkPublication(input: { reviewerUserId: unknown; wo
     });
 }
 
-export async function takeDownWorkPublication(input: { reviewerUserId: unknown; workId: unknown; reason?: unknown }) {
+export async function takeDownWorkPublication(input: { reviewerUserId: unknown; workId: unknown; reason?: unknown; expectedPublishedVersionId?: unknown }) {
     await assertWorkPublicationReady();
     const reviewerUserId = requiredId(input.reviewerUserId, "操作人");
     const workId = requiredId(input.workId, "作品");
@@ -488,6 +531,7 @@ export async function takeDownWorkPublication(input: { reviewerUserId: unknown; 
         const work = await repos.workPublications.getWorkById(workId, undefined, true);
         if (!work) throw new WorkPublicationServiceError("作品不存在", 404);
         if (!work.publishedVersionId) throw new WorkPublicationServiceError("作品当前没有公开版本", 409);
+        if (input.expectedPublishedVersionId !== undefined && work.publishedVersionId !== input.expectedPublishedVersionId) throw new WorkPublicationServiceError("作品的线上版本已变化，请刷新后重试", 409);
         if (work.publicationOrigin === "official") {
             if (!(await repos.workPublications.takeDownOfficialWork(work.id, new Date().toISOString()))) throw new WorkPublicationServiceError("作品下架失败", 409);
             return requiredWorkDetail(repos, work.id);

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -44,7 +45,7 @@ import {
 
 const now = "2026-07-27T00:00:00.000Z";
 const ownedImage = {
-    storageKey: "permanent/2026/07/27/images/work.png",
+    storageKey: "permanent/2026/07/27/images/20260727-000000-1d87ddaa-59eb-4e6b-85ce-e03990474301.png",
     scope: "reference",
     storageClass: "permanent",
     type: "image",
@@ -132,6 +133,27 @@ describe("work publication service", () => {
         expect(result.currentVersion).toMatchObject({ title: "官方案例" });
     });
 
+    it("reuses an imported draft after a lost response, even if the draft has since been edited", async () => {
+        workPublications.getWorkById.mockImplementation(async (id) => (state.work?.id === id ? state.work : undefined));
+        const input = { title: "导入草稿", coverStorageKey: ownedImage.storageKey, assetStorageKeys: [ownedImage.storageKey], importKey: randomUUID() };
+        const first = await createOfficialWorkDraft("user-one", input);
+        state.version = { ...state.version, title: "运营已编辑" };
+        const retry = await createOfficialWorkDraft("user-one", input);
+        expect(retry.id).toBe(first.id);
+        expect(retry.currentVersion?.title).toBe("运营已编辑");
+        expect(workPublications.createWork).toHaveBeenCalledTimes(1);
+        await expect(createOfficialWorkDraft("user-one", { ...input, title: "变化后的请求" })).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("rejects invalid permanent-media paths and audio for imported drafts", async () => {
+        const importKey = randomUUID();
+        await expect(createOfficialWorkDraft("user-one", { title: "无效路径", importKey, assetStorageKeys: ["official-import/fake.png"], coverStorageKey: ownedImage.storageKey })).rejects.toThrow("永久媒体路径");
+        const audio = { ...ownedImage, storageKey: ownedImage.storageKey.replace("images/", "audio/").replace(".png", ".mp3"), type: "audio", mimeType: "audio/mpeg" };
+        mocks.getRegistrations.mockResolvedValueOnce([ownedImage, audio]);
+        await expect(createOfficialWorkDraft("user-one", { title: "包含音频", importKey, assetStorageKeys: [audio.storageKey], coverStorageKey: ownedImage.storageKey })).rejects.toThrow("图片和视频");
+        expect(workPublications.createWork).not.toHaveBeenCalled();
+    });
+
     it("rejects foreign or temporary official media and requires an image cover", async () => {
         mocks.getRegistrations.mockResolvedValueOnce([{ ...ownedImage, storageClass: "temporary" }]);
         await expect(createOfficialWorkDraft("user-one", { title: "临时素材", assetStorageKeys: [ownedImage.storageKey] })).rejects.toThrow("永久媒体");
@@ -153,6 +175,14 @@ describe("work publication service", () => {
         await createOfficialWorkDraft("user-one", { title: "官方案例", assetStorageKeys: [ownedImage.storageKey], coverStorageKey: ownedImage.storageKey });
         mocks.moderate.mockResolvedValueOnce({ provider: "keywords", signal: { riskLevel: "block", labels: ["risk"], summary: "命中风险", checkedAt: now } });
         await expect(publishOfficialWork({ adminUserId: "user-one", workId: state.work?.id, versionId: state.version?.id })).rejects.toThrow("命中风险");
+        expect(workPublications.setPublishedVersion).not.toHaveBeenCalled();
+    });
+
+    it("requires the confirmed draft snapshot for a batch publish", async () => {
+        const work = await createOfficialWorkDraft("user-one", { title: "待发布作品", assetStorageKeys: [ownedImage.storageKey], coverStorageKey: ownedImage.storageKey });
+        const versionId = work.currentVersionId;
+        await expect(publishOfficialWork({ adminUserId: "user-one", workId: work.id, versionId, expectedUpdatedAt: now })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.moderate).not.toHaveBeenCalled();
         expect(workPublications.setPublishedVersion).not.toHaveBeenCalled();
     });
 
@@ -447,6 +477,35 @@ describe("work publication service", () => {
 
         await expect(deleteWorkPublicationForAdmin("admin-one", "work-one")).rejects.toMatchObject({ status: 409, message: "请先下架作品再删除" });
         expect(workPublications.deleteWorkCompletely).not.toHaveBeenCalled();
+    });
+
+    it("rejects deletion of an online work even if its lifecycle snapshot is revoked", async () => {
+        state.work = { id: "work-one", publicationOrigin: "official", lifecycleStatus: "revoked", currentVersionId: "version-one", publishedVersionId: "version-one" };
+        state.version = { id: "version-one", workId: "work-one", moderationStatus: "approved" };
+        workPublications.hasTakenDownVersion.mockResolvedValue(true);
+        await expect(deleteWorkPublicationForAdmin("admin-one", "work-one")).rejects.toMatchObject({ status: 409 });
+        expect(workPublications.deleteWorkCompletely).not.toHaveBeenCalled();
+    });
+
+    it("takes down the confirmed version of a user submission and records the common reason", async () => {
+        state.work = { id: "work-one", publicationOrigin: "user_submission", lifecycleStatus: "active", currentVersionId: "version-two", publishedVersionId: "version-one" };
+        state.version = { id: "version-one", workId: "work-one", moderationStatus: "approved" };
+        await takeDownWorkPublication({ reviewerUserId: "admin-one", workId: "work-one", reason: "批量下架", expectedPublishedVersionId: "version-one" });
+        expect(workPublications.reviewVersion).toHaveBeenCalledWith("version-one", expect.objectContaining({ status: "taken_down", reason: "批量下架", reviewedByUserId: "admin-one" }));
+        expect(workPublications.clearPublishedVersion).toHaveBeenCalledWith("work-one");
+    });
+
+    it("rejects a changed offline snapshot even when the work is eligible for deletion again", async () => {
+        state.work = { id: "work-one", publicationOrigin: "official", lifecycleStatus: "revoked", updatedAt: now };
+        await expect(deleteWorkPublicationForAdmin("admin-one", "work-one", "2026-01-01T00:00:00.000Z")).rejects.toMatchObject({ status: 409 });
+        expect(workPublications.deleteWorkCompletely).not.toHaveBeenCalled();
+    });
+
+    it("does not take down a different online version than the one confirmed", async () => {
+        state.work = { id: "work-one", publicationOrigin: "official", lifecycleStatus: "active", currentVersionId: "version-two", publishedVersionId: "version-two" };
+        state.version = { id: "version-two", workId: "work-one", moderationStatus: "approved" };
+        await expect(takeDownWorkPublication({ reviewerUserId: "admin-one", workId: "work-one", reason: "运营下架", expectedPublishedVersionId: "version-one" })).rejects.toMatchObject({ status: 409 });
+        expect(workPublications.takeDownOfficialWork).not.toHaveBeenCalled();
     });
 
     it("lets administrators delete all publication records after a moderation take-down", async () => {
