@@ -23,6 +23,7 @@ import { assertCapabilityConstraints } from "@/lib/server/capability-constraints
 export type CreateImageTaskBody = {
     kind?: "generation" | "edit";
     practiceExpression?: unknown;
+    practiceOutpainting?: unknown;
     config?: ImageTaskConfig;
     prompt?: string;
     references?: ImageTaskReference[];

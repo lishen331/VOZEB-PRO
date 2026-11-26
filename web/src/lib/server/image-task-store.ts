@@ -1,3 +1,4 @@
+import type { OutpaintingSnapshot } from "@/lib/practice-outpainting";
 import type { CanvasEmotionSelection } from "@/app/(user)/canvas/utils/canvas-emotion-prompt";
 import { randomUUID } from "crypto";
 
@@ -73,6 +74,7 @@ export type ImageTask = GenerationTaskContext & {
     prompt: string;
     upstreamPrompt?: string;
     practiceExpression?: CanvasEmotionSelection;
+    practiceOutpainting?: OutpaintingSnapshot & { sourceUrl: string };
     /** 无限练习工作流参数（width/height 等），提交 RunningHub 时并入 businessInput。 */
     workflowInput?: Record<string, unknown>;
     references: ImageTaskReference[];
