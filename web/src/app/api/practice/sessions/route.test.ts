@@ -22,6 +22,11 @@ describe("/api/practice/sessions", () => {
         mocks.listSessions.mockResolvedValue({ sessions: [], total: 0, page: 1, pageSize: 12 });
     });
 
+    it("uses batch history mode only for the explicit query", async () => {
+        await GET(new Request("http://localhost/api/practice/sessions?history=multi-angle&page=2"));
+        expect(mocks.listSessions).toHaveBeenCalledWith(expect.objectContaining({ id: "teacher-one" }), expect.objectContaining({ multiAngle: true, page: "2" }));
+    });
+
     it("requires login before reading or dispatching a practice task", async () => {
         mocks.currentUser.mockResolvedValue(null);
         expect((await GET(new Request("http://localhost/api/practice/sessions"))).status).toBe(401);

@@ -136,6 +136,31 @@ describe("practice sessions", () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
     });
 
+    it("stores exact multi-angle snapshots with the authorized subject but never dispatches that metadata", async () => {
+        const store = memoryStore();
+        const dispatch = vi.fn(async () => ({ taskId: "image-task-angle", taskType: "image" as const }));
+        const resolveModel = vi.fn(async () => ({ logicalModelId: "gamaimage", capability: "image" as const }));
+        const multiAngle = { batchId: "d25305d1-852f-460c-bcd6-099281a1df4a", shotIndex: 0, mode: "camera", h: 358, p: 13, d: 4.8, fisheye: false, preset: "custom", batch: 4, promptOn: true, prompt: "  保留空格  " };
+        const reference = { type: "asset", id: "permanent/test.png", inputKey: "referenceImage" };
+
+        const session = await createPracticeSessionForUser(
+            { id: "student-one", role: "user" },
+            {
+                module: "storyboard-image",
+                mode: "workflow",
+                title: "多角度练习",
+                input: { prompt: "保留空格，正面", workflowCode: "gamaimage", multiAngle },
+                references: [reference],
+                clientRequestId: "angle-history",
+            },
+            { store, dispatch, resolveModel },
+        );
+
+        expect(session.input).toMatchObject({ multiAngle, references: [reference] });
+        expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ prompt: "保留空格，正面" }), references: [reference] }));
+        expect(vi.mocked(dispatch).mock.calls[0]).toEqual([expect.objectContaining({ input: expect.not.objectContaining({ multiAngle: expect.anything() }) })]);
+    });
+
     it("deletes a session using the normalized id", async () => {
         const store = memoryStore();
         const session = await store.create({

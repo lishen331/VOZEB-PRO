@@ -1,3 +1,4 @@
+import { parseMultiAngleHistoryShot } from "@/lib/practice-multi-angle-history";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
     if (!user) return response(401, "请先登录");
     const params = new URL(request.url).searchParams;
     try {
-        const result = await listPracticeSessionsForUser(user, { page: params.get("page"), pageSize: params.get("pageSize"), module: params.get("module") as never });
+        const result = await listPracticeSessionsForUser(user, { page: params.get("page"), pageSize: params.get("pageSize"), module: params.get("module") as never, ...(params.get("history") === "multi-angle" ? { multiAngle: true } : {}) });
         return NextResponse.json({ code: 0, data: result, msg: "OK" });
     } catch (error) {
         return knownError(error);
@@ -120,6 +121,8 @@ function sanitizePracticeInput(value: unknown) {
     const result = Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key, item]) => !blocked.has(key) && (typeof item === "string" || typeof item === "number" || typeof item === "boolean" || item === null)));
     const lines = sanitizeDialogueLines((value as Record<string, unknown>).lines);
     if (lines.length) result.lines = lines;
+    const multiAngle = parseMultiAngleHistoryShot((value as Record<string, unknown>).multiAngle);
+    if (multiAngle) result.multiAngle = multiAngle;
     return result;
 }
 
