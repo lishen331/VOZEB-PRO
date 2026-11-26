@@ -8,8 +8,9 @@ import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 import { createLibraryAsset } from "@/services/api/library-assets";
-import { PRACTICE_REVERSE_PROMPT_SECTIONS, parsePracticeReversePrompt } from "@/lib/practice-reverse-prompt";
+import { parsePracticeReversePrompt } from "@/lib/practice-reverse-prompt";
 import { pollPracticeImageToolTask, type PracticeImageToolResult, type PracticeImageToolTask } from "./practice-image-tool-task";
+import { PracticeReversePromptStudyDeck } from "./practice-reverse-prompt-study-deck";
 import { PracticeReversePromptTrial } from "./practice-reverse-prompt-trial";
 import { PracticeAssetPicker } from "./practice-asset-picker";
 import { getPracticeImageToolConfig, LOCAL_EDIT_HISTORY_LIMIT, type LocalEditPracticeRecord, type PracticeImageToolId } from "@/lib/practice-image-tools";
@@ -324,7 +325,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 </div>
             </header>
             <div
-                className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)]" : localEdit ? "lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,.67fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}
+                className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:min-h-[26rem] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] xl:[&>*]:min-h-0 xl:[&>:first-child]:overflow-y-auto xl:[&>:last-child]:overflow-y-auto" : localEdit ? "lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,.67fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}
             >
                 <div className="space-y-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
                     <div className="flex items-center justify-between">
@@ -518,115 +519,83 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         </div>
                     ) : null}
                 </div>
-                <div className="min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
-                    <div className="mb-4 flex items-center gap-2">
-                        <WandSparkles className="size-4 text-[var(--gm-accent)]" />
-                        <h2 className="font-semibold">{reverse ? "提示词拆解" : "生成结果与诊断"}</h2>
-                    </div>
-                    {!result ? (
-                        <div className="grid min-h-72 place-items-center text-center text-sm text-[var(--gm-text-3)]">
-                            {busy ? (
-                                <span className="flex items-center gap-2">
-                                    <LoaderCircle className="size-4 animate-spin" />
-                                    任务执行中，完成后会显示在这里
-                                </span>
-                            ) : (
-                                "完成左侧设置后开始练习，结果会先保留在当前页面"
-                            )}
+                {reverse ? (
+                    <PracticeReversePromptStudyDeck
+                        key={`study:${result?.taskId || "empty"}`}
+                        analysis={analysis}
+                        busy={busy}
+                        blocked={busy || trialBusy || uploading}
+                        onCopy={(value) => void navigator.clipboard?.writeText(value)}
+                        onAnalyze={() => void run()}
+                    />
+                ) : (
+                    <div className="min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
+                        <div className="mb-4 flex items-center gap-2">
+                            <WandSparkles className="size-4 text-[var(--gm-accent)]" />
+                            <h2 className="font-semibold">生成结果与诊断</h2>
                         </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <div className="flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
-                                {resultDiagnostic?.taskId || result.taskId ? (
-                                    <span>
-                                        任务 ID：<code>{resultDiagnostic?.taskId || result.taskId}</code>
+                        {!result ? (
+                            <div className="grid min-h-72 place-items-center text-center text-sm text-[var(--gm-text-3)]">
+                                {busy ? (
+                                    <span className="flex items-center gap-2">
+                                        <LoaderCircle className="size-4 animate-spin" />
+                                        任务执行中，完成后会显示在这里
                                     </span>
-                                ) : null}
-                                <span>执行：{result.model || "本地处理"}</span>
+                                ) : (
+                                    "完成左侧设置后开始练习，结果会先保留在当前页面"
+                                )}
                             </div>
-                            {analysis ? (
-                                <div className="space-y-3">
-                                    <p className="text-xs text-[var(--gm-text-3)]">这是根据画面推断的写法，不是原始提示词。</p>
-                                    {PRACTICE_REVERSE_PROMPT_SECTIONS.map(({ id, label }) => {
-                                        const section = analysis.sections.find((item) => item.id === id);
-                                        if (!section) return null;
-                                        return (
-                                            <div key={id} className="space-y-2 rounded-xl border border-[var(--gm-border)] p-3">
-                                                <h3 className="text-sm font-semibold">{label}</h3>
-                                                <dl className="space-y-2 break-words text-sm">
-                                                    <div>
-                                                        <dt className="text-xs text-[var(--gm-text-3)]">图里看到了什么</dt>
-                                                        <dd>{section.observation || "未能确定"}</dd>
-                                                    </div>
-                                                    <div>
-                                                        <dt className="text-xs text-[var(--gm-text-3)]">提示词可以怎么写</dt>
-                                                        <dd>{section.phrase || "暂无建议"}</dd>
-                                                    </div>
-                                                </dl>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
+                                    {resultDiagnostic?.taskId || result.taskId ? (
+                                        <span>
+                                            任务 ID：<code>{resultDiagnostic?.taskId || result.taskId}</code>
+                                        </span>
+                                    ) : null}
+                                    <span>执行：{result.model || "本地处理"}</span>
+                                </div>
+                                {resultImageUrl ? (
+                                    <div className="space-y-3">
+                                        <div className="grid overflow-hidden rounded-xl border border-[var(--gm-border)] bg-black/5 md:grid-cols-2">
+                                            <div className="p-2">
+                                                <img src={localRecord?.sourceUrl || source?.url} alt="原图" className="max-h-[55vh] w-full object-contain" />
+                                                <p className="mt-1 text-center text-xs text-[var(--gm-text-3)]">原图</p>
                                             </div>
-                                        );
-                                    })}
-                                    {!analysis.sections.length ? <p className="text-sm text-[var(--gm-text-3)]">模型未返回分项拆解，可重新分析。</p> : null}
-                                    {analysis.fullPrompt ? (
-                                        <div className="space-y-2">
-                                            <h3 className="text-sm font-semibold">完整生图提示词</h3>
-                                            <p className="whitespace-pre-wrap break-words rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm leading-6">{analysis.fullPrompt}</p>
+                                            <div className="p-2">
+                                                <img src={resultImageUrl} alt={`${config.title}结果`} className="max-h-[55vh] w-full object-contain" />
+                                                <p className="mt-1 text-center text-xs text-[var(--gm-text-3)]">结果</p>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <p className="text-sm text-[var(--gm-text-3)]">未收到可用的生图提示词，请重新分析。</p>
-                                    )}
-                                </div>
-                            ) : null}
-                            {resultImageUrl ? (
-                                <div className="space-y-3">
-                                    <div className="grid overflow-hidden rounded-xl border border-[var(--gm-border)] bg-black/5 md:grid-cols-2">
-                                        <div className="p-2">
-                                            <img src={localRecord?.sourceUrl || source?.url} alt="原图" className="max-h-[55vh] w-full object-contain" />
-                                            <p className="mt-1 text-center text-xs text-[var(--gm-text-3)]">原图</p>
-                                        </div>
-                                        <div className="p-2">
-                                            <img src={resultImageUrl} alt={`${config.title}结果`} className="max-h-[55vh] w-full object-contain" />
-                                            <p className="mt-1 text-center text-xs text-[var(--gm-text-3)]">结果</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <a href={resultImageUrl} download className="inline-flex items-center gap-2 rounded-lg border border-[var(--gm-border)] px-3 py-2 text-sm">
+                                                <Download className="size-4" />
+                                                下载结果
+                                            </a>
+                                            <GammaButton variant="outline" disabled={saving || result.saved} loading={saving} onClick={() => void saveResult()} icon={<Save className="size-4" />}>
+                                                {result.saved ? "已保存到个人素材库" : "保存到个人素材库"}
+                                            </GammaButton>
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        <a href={resultImageUrl} download className="inline-flex items-center gap-2 rounded-lg border border-[var(--gm-border)] px-3 py-2 text-sm">
-                                            <Download className="size-4" />
-                                            下载结果
-                                        </a>
-                                        <GammaButton variant="outline" disabled={saving || result.saved} loading={saving} onClick={() => void saveResult()} icon={<Save className="size-4" />}>
-                                            {result.saved ? "已保存到个人素材库" : "保存到个人素材库"}
-                                        </GammaButton>
-                                    </div>
-                                </div>
-                            ) : null}
-                            {analysis ? (
-                                <div className="flex flex-wrap gap-2">
-                                    <GammaButton variant="outline" disabled={!analysis.fullPrompt} onClick={() => void navigator.clipboard?.writeText(analysis.fullPrompt)}>
-                                        复制提示词
-                                    </GammaButton>
-                                    <GammaButton variant="outline" disabled={busy || trialBusy || uploading} onClick={() => void run()} icon={<RotateCcw className="size-4" />}>
-                                        修改要求后重新分析
-                                    </GammaButton>
-                                </div>
-                            ) : null}
-                            {localRecord ? (
-                                <LocalEditPromptLesson record={localRecord} disabled={busy || uploading || restoring} onCopy={(value) => void copyPracticePrompt(value)} onApply={setPrompt} onRestore={() => void restoreHistory(localRecord)} />
-                            ) : null}
-                            <div className="rounded-lg bg-[var(--gm-wash)]/40 p-3 text-xs text-[var(--gm-text-3)]">
-                                <p>结果未自动写入个人素材库。图片结果可按需点击保存；本地超分结果可下载或主动保存。</p>
-                                {resultDiagnostic ? (
-                                    <details className="mt-2">
-                                        <summary className="cursor-pointer font-medium">诊断信息</summary>
-                                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap">{JSON.stringify({ toolId, ...resultDiagnostic, error: localEdit ? undefined : error || undefined }, null, 2)}</pre>
-                                    </details>
                                 ) : null}
+                                {localRecord ? (
+                                    <LocalEditPromptLesson record={localRecord} disabled={busy || uploading || restoring} onCopy={(value) => void copyPracticePrompt(value)} onApply={setPrompt} onRestore={() => void restoreHistory(localRecord)} />
+                                ) : null}
+                                <div className="rounded-lg bg-[var(--gm-wash)]/40 p-3 text-xs text-[var(--gm-text-3)]">
+                                    <p>结果未自动写入个人素材库。图片结果可按需点击保存；本地超分结果可下载或主动保存。</p>
+                                    {resultDiagnostic ? (
+                                        <details className="mt-2">
+                                            <summary className="cursor-pointer font-medium">诊断信息</summary>
+                                            <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap">{JSON.stringify({ toolId, ...resultDiagnostic, error: localEdit ? undefined : error || undefined }, null, 2)}</pre>
+                                        </details>
+                                    ) : null}
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
                 {localEdit ? <LocalEditHistory records={history} activeId={localRecord?.id} loading={historyLoading} error={historyError} onOpen={openHistory} onReload={reloadHistory} /> : null}
-                {reverse ? <PracticeReversePromptTrial key={result?.taskId || "empty"} initialPrompt={analysis?.fullPrompt || ""} blocked={busy || uploading} onBusyChange={setTrialBusy} /> : null}
+                {reverse ? <PracticeReversePromptTrial key={`trial:${result?.taskId || "empty"}`} initialPrompt={analysis?.fullPrompt || ""} blocked={busy || uploading} onBusyChange={setTrialBusy} /> : null}
             </div>
             {toolId === "expression-reference" ? (
                 <CanvasNodeEmotionDialog
