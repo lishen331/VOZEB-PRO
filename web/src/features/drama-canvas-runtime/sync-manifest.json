@@ -213,7 +213,7 @@
         },
         {
             "path": "components/canvas-node-emotion-dialog.tsx",
-            "sha256": "e65219d764abbe5d41b2ab68f534512df0d55d30332404ad673e6ccded53a300"
+            "sha256": "fa9d0ef0ba15ee428662ce4236fedb0905650298d1277c41579c9c3be3754640"
         },
         {
             "path": "components/canvas-node-generation.ts",
@@ -369,7 +369,7 @@
         },
         {
             "path": "utils/canvas-face-detection.ts",
-            "sha256": "7d8c8442bc29cd7e838cb61e33a18b74008cdda1c367980cd60c78c53abbb315"
+            "sha256": "f7c832ad4279a79b20bc1092f5c2651f5e7c4179898b731a8433aabd8d07a447"
         },
         {
             "path": "utils/canvas-generating-copy.ts",

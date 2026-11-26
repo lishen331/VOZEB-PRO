@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+class LoadedImageFixture {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    set src(_url: string) {
+        this.onload?.();
+    }
+}
+
 describe("Canvas 人脸框", () => {
     afterEach(() => {
         vi.unstubAllGlobals();
@@ -57,6 +65,7 @@ describe("Canvas 人脸框", () => {
             postMessage = postMessage;
             terminate = vi.fn();
         }
+        vi.stubGlobal("Image", LoadedImageFixture);
         vi.stubGlobal("window", {});
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, blob: vi.fn().mockResolvedValue(new Blob(["fixture"])) }));
         vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue(bitmap));
@@ -68,6 +77,35 @@ describe("Canvas 人脸框", () => {
             { x: 0.6, y: 0.2, width: 0.25, height: 0.4, score: 0.84 },
         ]);
         expect(postMessage).toHaveBeenCalledWith({ id: 1, image: bitmap }, [bitmap]);
+    });
+
+    it("decodes a preview through Image when connect-src blocks fetch(data:)", async () => {
+        class PreviewImage {
+            onload: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            set src(url: string) {
+                expect(url).toBe("data:image/png;base64,fixture");
+                this.onload?.();
+            }
+        }
+        class WorkerFixture {
+            onmessage: ((event: MessageEvent) => void) | null = null;
+            postMessage({ id }: { id: number }) {
+                queueMicrotask(() => this.onmessage?.({ data: { id, faces: [] } } as MessageEvent));
+            }
+        }
+        const fetchImage = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+        const decode = vi.fn().mockResolvedValue({ width: 200, height: 100, close: vi.fn() });
+        vi.stubGlobal("window", {});
+        vi.stubGlobal("Image", PreviewImage);
+        vi.stubGlobal("createImageBitmap", decode);
+        vi.stubGlobal("Worker", WorkerFixture);
+        vi.stubGlobal("fetch", fetchImage);
+        const { detectCanvasFaces } = await import("./canvas-face-detection");
+
+        await expect(detectCanvasFaces("data:image/png;base64,fixture")).resolves.toEqual([]);
+        expect(fetchImage).not.toHaveBeenCalled();
+        expect(decode).toHaveBeenCalledWith(expect.any(PreviewImage));
     });
 
     it("原生检测器报错时回退本地 Worker", async () => {
@@ -117,6 +155,7 @@ describe("Canvas 人脸框", () => {
             }
             terminate() {}
         }
+        vi.stubGlobal("Image", LoadedImageFixture);
         vi.stubGlobal("window", {});
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, blob: vi.fn().mockResolvedValue(new Blob(["fixture"])) }));
         vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue({ width: 200, height: 100, close: vi.fn() }));
