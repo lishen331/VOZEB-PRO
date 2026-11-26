@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-11-26，`feat/multi-angle-workbench-history-20261126` 分支。当前源码包含 78 个 `page.tsx` 页面入口、447 个 API Route 文件和 147 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-11-26，`codex/work-presentation` 分支。当前源码包含 78 个 `page.tsx` 页面入口、448 个 API Route 文件和 147 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -282,6 +282,10 @@ Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema
 | 素材与媒体 | `/assets` | `/api/library-assets`、`/api/reference-assets`、`/api/media-*` | Library/Reference/Media Service、School Domain Repository | 本地卷、对象存储、课程资料关系 | 上传、读取、删除引用保护；课程效果中的已发布课程资料按学校分配、授课关系和班级成员关系授权读取，历史资料缺少媒体登记时仍安全回读 |
 | 提示词 | `/prompts`、`/my-prompts` | `/api/prompts`、`/api/my-prompts` | Auth Store/Prompt 数据 | PostgreSQL | 公开筛选、用户 CRUD |
 | 作品与社区 | `/works`、`/gallery`、分享页 | `/api/works`、`/api/public`、`/api/community` | Publication/Governance/Community | 作品版本、互动、媒体授权 | 发布、审核、互动、匿名读取 |
+| 官方作品批量运营 | `/admin?section=works` | `/api/admin/works`、`/api/admin/works/media`、`/api/admin/works/[id]/publish` | Official Work Import、Work Publication、Official Work Media | 复用永久媒体、作品和版本 | CSV 精确关联媒体，本地批量预览，按行幂等创建草稿；管理员选中并确认后发布指定版本 |
+| 官方作品编辑与媒体选择 | `/admin?section=works` | `/api/admin/works/media`、`/api/admin/works/[id]` | Work Publication、Official Work Media | 作品当前版本、封面和媒体顺序 | 在独立弹窗跨页多选永久媒体；编辑抽屉在添加入口下方展示作品媒体，按作品详情恢复封面和顺序 |
+| 作品置顶与展示数据 | `/admin?section=works`、`/gallery` | `/api/admin/works/[id]/presentation`、`/api/public/gallery` | Work Governance、Work Publication、Work Community | `published_works` 置顶时间和展示计数偏移 | 默认列表和分页优先展示置顶作品；真实计数用于排序和统计；展示调整可恢复并记录审计；后台按置顶与展示调整状态在数据库筛选后分页 |
+| 批量下架与删除已下架作品 | `/admin?section=works` | `/api/admin/works`、`/api/admin/works/[id]/take-down`、`/api/admin/works/[id]` | Work Publication | 作品、版本、审核与互动 | 按当前页勾选，分别确认下架或永久删除；逐项校验确认时的状态并反馈成功与失败 |
 | 计费与增长 | `/billing` | `/api/billing`、`/api/cdk`、`/api/referrals` | Billing/Coupon/Promotion/Referral | 支付上游、积分事务 | 下单、回调、退款、幂等 |
 | 管理后台 | `/admin`（上游配置 / RunningHub 工作流） | `/api/admin`、`/api/admin/runninghub/workflows` | RunningHub Workflow Service/Test Service、各管理 Service | 渠道配置、generation_tasks、审计日志、RunningHub | 渠道只存凭据且固定无限练习用途；工作流按 workflowCode 直连；启用硬门槛（JSON + 映射 + 当前指纹测试成功 + 渠道启用）；独立测试 origin、敏感字段脱敏 |
 | 学校成员积分 | `/admin?section=schools` | `/api/admin/schools/[id]/members`、`/api/admin/schools/[id]/members/[membershipId]/points-adjustments` | Admin School Member Points Service、Points Wallet Service | 成员、个人永久积分流水、审计日志 | 产教运营和财务管理双权限；批量调账事务、学校归属校验和请求幂等 |

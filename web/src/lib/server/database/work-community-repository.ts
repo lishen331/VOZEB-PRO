@@ -27,7 +27,7 @@ export class WorkCommunityRepository {
     async getSummary(slug: string, viewerUserId?: string) {
         const result = await this.db.query(
             `SELECT work.id AS work_id, work.published_version_id AS version_id, work.slug, work.owner_user_id,
-                    version.author_display, work.like_count,
+                    version.author_display, greatest(0, least(9007199254740991, work.like_count::numeric + work.display_like_offset)) AS like_count,
                     (SELECT count(*) FROM user_follows follow JOIN users follower ON follower.id = follow.follower_user_id AND follower.status = 'active' WHERE follow.followed_user_id = work.owner_user_id) AS follower_count,
                     EXISTS (SELECT 1 FROM published_work_likes relation WHERE relation.work_id = work.id AND relation.user_id = $2) AS liked,
                     EXISTS (SELECT 1 FROM user_follows follow WHERE follow.follower_user_id = $2 AND follow.followed_user_id = work.owner_user_id) AS following_author,
@@ -243,7 +243,7 @@ export class WorkCommunityRepository {
     async listPublicCreatorWorks(username: string, input: { limit: number; after?: PublicCreatorWorkCursor }) {
         const limit = Math.max(1, Math.min(36, Math.floor(input.limit || 18)));
         const result = await this.db.query(
-            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count, work.like_count, work.is_featured, work.featured_at,
+            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count, work.like_count, work.is_featured, work.featured_at, work.display_view_offset, work.display_like_offset,
                     version.id AS version_id, coalesce(version.reviewed_at, version.updated_at) AS published_at,
                     version.title, version.description, version.public_prompt, version.category, version.tags, version.author_display, version.author_name,
                     owner.username AS author_username, owner.avatar_storage_key AS owner_avatar_storage_key, owner.updated_at AS owner_avatar_updated_at,
@@ -281,7 +281,7 @@ export class WorkCommunityRepository {
         const result = await this.db.query(
             `WITH eligible_work AS (
                 SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count,
-                       work.like_count, work.is_featured, work.featured_at,
+                       work.like_count, work.is_featured, work.featured_at, work.display_view_offset, work.display_like_offset,
                        version.id AS version_id, coalesce(version.reviewed_at, version.updated_at) AS published_at,
                        version.title, version.description, version.public_prompt, version.category, version.tags, version.author_display, version.author_name,
                        owner.username AS author_username, owner.avatar_storage_key AS owner_avatar_storage_key, owner.updated_at AS owner_avatar_updated_at
@@ -385,7 +385,7 @@ export class WorkCommunityRepository {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
         const result = await this.db.query(
-            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count, work.like_count, work.is_featured, work.featured_at,
+            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count, work.like_count, work.is_featured, work.featured_at, work.display_view_offset, work.display_like_offset,
                     version.id AS version_id, coalesce(version.reviewed_at, version.updated_at) AS published_at,
                     version.title, version.description, version.public_prompt, version.category, version.tags, version.author_display,
                     CASE WHEN version.author_display = 'hidden' THEN NULL ELSE version.author_name END AS author_name,
@@ -521,7 +521,7 @@ export class WorkCommunityRepository {
                         EXISTS (SELECT 1 FROM changed)
                         OR EXISTS (SELECT 1 FROM published_work_likes relation WHERE relation.work_id = target.work_id AND relation.user_id = $2)
                     )) AS active,
-                    coalesce(updated.like_count, work.like_count) AS like_count
+                    greatest(0, least(9007199254740991, coalesce(updated.like_count, work.like_count)::numeric + work.display_like_offset)) AS like_count
              FROM target
              JOIN published_works work ON work.id = target.work_id
              LEFT JOIN updated ON updated.id = target.work_id`,

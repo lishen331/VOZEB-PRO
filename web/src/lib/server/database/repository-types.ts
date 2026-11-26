@@ -855,6 +855,9 @@ export type PublishedWorkRecord = {
     isFeatured: boolean;
     featuredAt?: string;
     featuredByUserId?: string;
+    pinnedAt?: string;
+    displayViewOffset?: number;
+    displayLikeOffset?: number;
     viewCount: number;
     likeCount: number;
     lastViewedAt?: string;
@@ -979,6 +982,9 @@ export type PublishedGalleryItemRecord = {
     hasProcess: boolean;
     processVersionId?: string;
     featuredAt?: string;
+    pinnedAt?: string;
+    displayViewOffset?: number;
+    displayLikeOffset?: number;
     publishedAt: string;
     title: string;
     description: string;

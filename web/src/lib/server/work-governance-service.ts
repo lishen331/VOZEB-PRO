@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createPostgresRepositories, ensurePostgresSchema, getDatabaseProvider, withPostgresTransaction } from "@/lib/server/database";
 import type { PublishedGalleryItemRecord, PublishedWorkCaseRecord, PublishedWorkCaseStatus, PublishedWorkCaseType } from "@/lib/server/database";
 import type { GalleryCursor, GallerySort } from "@/lib/server/database/work-governance-repository";
+import { displayWorkCount } from "@/lib/work-display-count";
 import { publicGalleryItem } from "@/lib/server/public-work-view";
 
 export class WorkGovernanceServiceError extends Error {
@@ -149,6 +150,41 @@ export async function setWorkFeatured(input: { actorUserId: unknown; workId: unk
     return work;
 }
 
+export async function updateWorkPresentation(workIdValue: unknown, input: { action?: unknown; pinned?: unknown; viewCount?: unknown; likeCount?: unknown; reason?: unknown } | null) {
+    const workId = requiredId(workIdValue, "作品");
+    const reason = typeof input?.reason === "string" ? input.reason.trim() : "";
+    const viewCount = input?.viewCount;
+    const likeCount = input?.likeCount;
+    const validCount = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+    const action = input?.action;
+    const pinned = input?.pinned;
+    if (action === "pin") {
+        if (typeof pinned !== "boolean") throw new WorkGovernanceServiceError("请选择置顶或取消置顶");
+    } else if (action === "counts" || action === "restore") {
+        if (!reason || reason.length > 500) throw new WorkGovernanceServiceError("请填写调整原因，最多 500 字");
+        if (action === "counts" && (!validCount(viewCount) || !validCount(likeCount))) throw new WorkGovernanceServiceError("观看和点赞展示数必须为非负安全整数");
+    } else {
+        throw new WorkGovernanceServiceError("无效的作品展示操作");
+    }
+    await assertReady();
+    return withPostgresTransaction(async (client) => {
+        const repos = createPostgresRepositories(client);
+        const before = await repos.workPublications.getWorkById(workId, undefined, true);
+        if (!before) throw new WorkGovernanceServiceError("作品不存在", 404);
+        const work =
+            action === "pin" ? await repos.workGovernance.setPinned(workId, pinned === true) : await repos.workGovernance.setDisplayCounts(workId, action === "counts" ? (viewCount as number) : null, action === "counts" ? (likeCount as number) : null);
+        if (!work) throw new WorkGovernanceServiceError("只有当前公开作品可以置顶", 409);
+        const snapshot = (record: typeof before) => ({
+            pinnedAt: record.pinnedAt ?? null,
+            viewCount: record.viewCount,
+            likeCount: record.likeCount,
+            displayViewCount: displayWorkCount(record.viewCount, record.displayViewOffset),
+            displayLikeCount: displayWorkCount(record.likeCount, record.displayLikeOffset),
+        });
+        return { work, audit: { action, reason, before: snapshot(before), after: snapshot(work) } };
+    });
+}
+
 function caseRecord(workId: string, versionId: string, submitterUserId: string, type: PublishedWorkCaseType, category: string, description: string): PublishedWorkCaseRecord {
     const now = new Date().toISOString();
     return { id: randomUUID(), workId, versionId, submitterUserId, caseType: type, category, description, status: "open", createdAt: now, updatedAt: now };
@@ -157,8 +193,8 @@ function caseRecord(workId: string, versionId: string, submitterUserId: string, 
 function encodeCursor(item: PublishedGalleryItemRecord, sort: GallerySort, randomSeed: string) {
     const cursor: GalleryCursor = {
         sort,
-        featureRank: item.isFeatured ? 1 : 0,
-        featuredAt: item.featuredAt || new Date(0).toISOString(),
+        featureRank: sort === "random" && item.pinnedAt ? 2 : item.isFeatured ? 1 : 0,
+        featuredAt: (sort === "random" && item.pinnedAt) || item.featuredAt || new Date(0).toISOString(),
         viewCount: item.viewCount,
         publishedAt: item.publishedAt,
         randomSeed,
@@ -175,7 +211,7 @@ function decodeCursor(value: unknown, sort: GallerySort): GalleryCursor | undefi
         if (parsed.sort !== sort || typeof parsed.id !== "string" || !parsed.id) return undefined;
         if (sort === "random") {
             if (typeof parsed.randomSeed !== "string" || !parsed.randomSeed || parsed.randomSeed.length > 100 || typeof parsed.randomRank !== "string" || !/^[a-f0-9]{32}$/.test(parsed.randomRank)) return undefined;
-            if ((parsed.featureRank !== 0 && parsed.featureRank !== 1) || !validIso(parsed.featuredAt)) return undefined;
+            if ((parsed.featureRank !== 0 && parsed.featureRank !== 1 && parsed.featureRank !== 2) || !validIso(parsed.featuredAt)) return undefined;
             return {
                 sort,
                 featureRank: parsed.featureRank,

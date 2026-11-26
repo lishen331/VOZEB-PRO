@@ -83,7 +83,17 @@ export class WorkPublicationRepository {
     }
 
     async listWorks(
-        input: PageInput & { ownerUserId?: string; moderationStatus?: PublishedWorkModerationStatus; lifecycleStatus?: PublishedWorkLifecycleStatus; publicationOrigin?: PublishedWorkOrigin; userStatus?: "taken_down"; keyword?: string } = {},
+        input: PageInput & {
+            ownerUserId?: string;
+            moderationStatus?: PublishedWorkModerationStatus;
+            lifecycleStatus?: PublishedWorkLifecycleStatus;
+            publicationOrigin?: PublishedWorkOrigin;
+            userStatus?: "taken_down";
+            adminView?: boolean;
+            pinnedOnly?: boolean;
+            adjustedOnly?: boolean;
+            keyword?: string;
+        } = {},
     ): Promise<PageResult<PublishedWorkSummaryRecord>> {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
@@ -97,7 +107,7 @@ export class WorkPublicationRepository {
                  preview.mime_type AS current_preview_mime_type, preview.role AS current_preview_role,
                  preview.sort_order AS current_preview_sort_order, preview.metadata AS current_preview_metadata,
                  preview.created_at AS current_preview_created_at,
-                 count(*) OVER() AS total_count
+                 eligibility.can_delete AS admin_can_delete, count(*) OVER() AS total_count
              FROM published_works work
              JOIN users owner ON owner.id = work.owner_user_id
              LEFT JOIN published_work_versions current_version ON current_version.id = work.current_version_id
@@ -108,17 +118,45 @@ export class WorkPublicationRepository {
                  ORDER BY CASE WHEN asset.role = 'cover' THEN 0 ELSE 1 END, asset.sort_order, asset.id
                  LIMIT 1
              ) preview ON true
+             LEFT JOIN LATERAL (
+                 SELECT work.published_version_id IS NULL AND (work.lifecycle_status = 'revoked' OR EXISTS (
+                     SELECT 1 FROM published_work_versions version WHERE version.work_id = work.id AND version.moderation_status = 'taken_down'
+                 )) AS can_delete
+             ) eligibility ON $10::boolean
              WHERE ($1::text IS NULL OR work.owner_user_id = $1)
                AND ($2::text IS NULL OR current_version.moderation_status = $2)
                AND ($3::text IS NULL OR work.lifecycle_status = $3)
                AND ($4::text IS NULL OR work.publication_origin = $4)
                AND ($5 = '' OR lower(current_version.title) LIKE $6 OR lower(owner.username) LIKE $6 OR lower(owner.display_name) LIKE $6 OR lpad(owner.account_id::text, 4, '0') LIKE $6 OR lower(work.slug) LIKE $6)
-               AND ($7::text IS NULL OR ($7 = 'taken_down' AND (work.lifecycle_status = 'revoked' OR current_version.moderation_status = 'taken_down')))
+               AND ($7::text IS NULL OR ($7 = 'taken_down' AND CASE WHEN $10::boolean THEN eligibility.can_delete ELSE work.lifecycle_status = 'revoked' OR current_version.moderation_status = 'taken_down' END))
+               AND (NOT $11::boolean OR work.pinned_at IS NOT NULL)
+               AND (NOT $12::boolean OR (
+                   greatest(0, least(9007199254740991, work.view_count::numeric + work.display_view_offset)) <> work.view_count
+                   OR greatest(0, least(9007199254740991, work.like_count::numeric + work.display_like_offset)) <> work.like_count
+               ))
              ORDER BY work.updated_at DESC, work.id DESC
              LIMIT $8 OFFSET $9`,
-            [input.ownerUserId || null, input.moderationStatus || null, input.lifecycleStatus || null, input.publicationOrigin || null, keyword, `%${keyword}%`, input.userStatus || null, pageSize, (page - 1) * pageSize],
+            [
+                input.ownerUserId || null,
+                input.moderationStatus || null,
+                input.lifecycleStatus || null,
+                input.publicationOrigin || null,
+                keyword,
+                `%${keyword}%`,
+                input.userStatus || null,
+                pageSize,
+                (page - 1) * pageSize,
+                Boolean(input.adminView),
+                input.adminView === true && input.pinnedOnly === true,
+                input.adminView === true && input.adjustedOnly === true,
+            ],
         );
-        return pageResult(result.rows.map(mapPublishedWorkSummary), numberValue(result.rows[0]?.total_count), page, pageSize);
+        return pageResult(
+            result.rows.map((row) => ({ ...mapPublishedWorkSummary(row), ...(input.adminView ? { adminCanDelete: row.admin_can_delete === true } : {}) })),
+            numberValue(result.rows[0]?.total_count),
+            page,
+            pageSize,
+        );
     }
 
     async createVersion(version: PublishedWorkVersionRecord) {
@@ -302,7 +340,7 @@ export class WorkPublicationRepository {
 
     async takeDownOfficialWork(workId: string, revokedAt: string) {
         const result = await this.db.query(
-            `UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2
+            `UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, pinned_at = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2
              WHERE id = $1 AND publication_origin = 'official' AND published_version_id IS NOT NULL
              RETURNING *`,
             [workId, revokedAt],
@@ -311,7 +349,7 @@ export class WorkPublicationRepository {
     }
 
     async clearPublishedVersion(workId: string) {
-        const result = await this.db.query("UPDATE published_works SET published_version_id = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL WHERE id = $1 RETURNING *", [workId]);
+        const result = await this.db.query("UPDATE published_works SET published_version_id = NULL, pinned_at = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL WHERE id = $1 RETURNING *", [workId]);
         return result.rows[0] ? mapPublishedWork(result.rows[0]) : null;
     }
 
@@ -322,7 +360,7 @@ export class WorkPublicationRepository {
                 SET pull_film_enabled = false, pull_film_snapshot = NULL, pull_film_enabled_at = NULL, pull_film_enabled_by_user_id = NULL
                 WHERE version.id = (SELECT published_version_id FROM published_works WHERE id = $1)
             )
-            UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2
+            UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, pinned_at = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2
             WHERE id = $1 AND lifecycle_status = 'active' RETURNING *`,
             [workId, revokedAt],
         );
@@ -400,7 +438,10 @@ export class WorkPublicationRepository {
     }
 
     async incrementView(workId: string, viewedAt: string) {
-        const result = await this.db.query("UPDATE published_works SET view_count = view_count + 1, last_viewed_at = $2 WHERE id = $1 AND lifecycle_status = 'active' RETURNING view_count", [workId, viewedAt]);
+        const result = await this.db.query(
+            "UPDATE published_works SET view_count = view_count + 1, last_viewed_at = $2 WHERE id = $1 AND lifecycle_status = 'active' AND published_version_id IS NOT NULL RETURNING greatest(0, least(9007199254740991, view_count::numeric + display_view_offset)) AS view_count",
+            [workId, viewedAt],
+        );
         return numberValue(result.rows[0]?.view_count);
     }
 

@@ -48,7 +48,7 @@ describe("WorkPublicationRepository", () => {
         expect(String(query.mock.calls[0]?.[0])).toContain("publication_origin");
         expect(query.mock.calls[0]?.[1]).toContain("official");
         expect(String(query.mock.calls[1]?.[0])).toContain("work.publication_origin = $4");
-        expect(query.mock.calls[1]?.[1]).toEqual([null, null, null, "official", "", "%%", null, 10, 0]);
+        expect(query.mock.calls[1]?.[1]).toEqual([null, null, null, "official", "", "%%", null, 10, 0, false, false, false]);
     });
 
     it("only switches the public pointer to an approved version owned by the same work", async () => {
@@ -94,7 +94,17 @@ describe("WorkPublicationRepository", () => {
 
         const [sql, params] = query.mock.calls[0] || [];
         expect(String(sql)).toContain("work.lifecycle_status = 'revoked' OR current_version.moderation_status = 'taken_down'");
-        expect(params).toEqual(["user-one", null, null, null, "", "%%", "taken_down", 10, 0]);
+        expect(params).toEqual(["user-one", null, null, null, "", "%%", "taken_down", 10, 0, false, false, false]);
+    });
+
+    it("shares the administrator deletion eligibility between the list and the taken-down filter", async () => {
+        const query = vi.fn(async (..._args: unknown[]) => ({ rows: [{ id: "work-one", admin_can_delete: true, total_count: 1 }] }));
+        const repository = new WorkPublicationRepository({ query } as unknown as QueryExecutor);
+
+        const page = await repository.listWorks({ userStatus: "taken_down", adminView: true });
+
+        expect(page.items).toMatchObject([{ id: "work-one", adminCanDelete: true }]);
+        expect(query).toHaveBeenCalledWith(expect.stringContaining("THEN eligibility.can_delete"), expect.arrayContaining(["taken_down", true]));
     });
 
     it("searches works by the padded public account id", async () => {
@@ -106,7 +116,7 @@ describe("WorkPublicationRepository", () => {
         const sql = String(query.mock.calls[0]?.[0]);
         expect(sql).toContain("owner.account_id AS owner_account_id");
         expect(sql).toContain("lpad(owner.account_id::text, 4, '0') LIKE $6");
-        expect(query.mock.calls[0]?.[1]).toEqual([null, null, null, null, "0001", "%0001%", null, 10, 0]);
+        expect(query.mock.calls[0]?.[1]).toEqual([null, null, null, null, "0001", "%0001%", null, 10, 0, false, false, false]);
     });
 
     it("pages and searches one publication source type without truncating the full source set", async () => {

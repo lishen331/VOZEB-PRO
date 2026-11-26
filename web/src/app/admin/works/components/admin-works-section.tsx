@@ -7,22 +7,26 @@ import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
-import { Ban, Check, Eye, Film, GalleryVerticalEnd, Pencil, Plus, RefreshCw, RotateCcw, Search, Star, Trash2, X } from "lucide-react";
+import { Button, Pagination, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
+import { Ban, Check, Eye, FileSpreadsheet, Film, GalleryVerticalEnd, Pencil, Pin, PinOff, Plus, RefreshCw, RotateCcw, Search, Star, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AdminAccountId, AdminUserIdentity } from "@/components/admin/admin-user-identity";
 import { imagePreviewUrl } from "@/lib/media-image-url";
+import { cn } from "@/lib/utils";
+import { displayWorkCount } from "@/lib/work-display-count";
 import { workStatusToneClass } from "@/lib/work-publication-status";
 import { setAdminWorkFeatured, setAdminWorkPullFilm, type AdminWorkPullFilmState } from "@/services/api/work-governance";
 import {
     deleteAdminWorkPublication,
     listAdminWorkPublications,
+    publishOfficialWork,
     relistOfficialWork,
     reviewAdminWorkPublication,
     takeDownAdminWorkPublication,
+    updateAdminWorkPresentation,
     type WorkPublication,
     type WorkPublicationLifecycleStatus,
     type WorkPublicationModerationStatus,
@@ -31,10 +35,15 @@ import {
 } from "@/services/api/work-publications";
 import { AdminWorkCasesSection } from "./admin-work-cases-section";
 import { AdminOfficialWorkEditor } from "./admin-official-work-editor";
+import { AdminOfficialWorkImport } from "./admin-official-work-import";
+import { AdminWorkDisplayCounts } from "./admin-work-display-counts";
 
 const PAGE_SIZE = 12;
+const BATCH_WORK_ACTIONS = { "take-down": "批量下架作品", delete: "批量删除已下架作品" } as const;
+type BatchWorkAction = keyof typeof BATCH_WORK_ACTIONS;
 const STATUS_OPTIONS: Array<{ value: WorkPublicationModerationStatus | "all"; label: string }> = [
     { value: "all", label: "全部" },
+    { value: "draft", label: "草稿" },
     { value: "pending", label: "待审核" },
     { value: "approved", label: "已通过" },
     { value: "rejected", label: "已驳回" },
@@ -69,6 +78,8 @@ function AdminWorkReviewSection() {
     const [status, setStatus] = useState<WorkPublicationModerationStatus | "all">("all");
     const [lifecycleStatus, setLifecycleStatus] = useState<WorkPublicationLifecycleStatus | "all">("all");
     const [origin, setOrigin] = useState<WorkPublicationOrigin | "all">("all");
+    const [pinnedOnly, setPinnedOnly] = useState(false);
+    const [adjustedOnly, setAdjustedOnly] = useState(false);
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -76,9 +87,18 @@ function AdminWorkReviewSection() {
     const [actionId, setActionId] = useState("");
     const [reasonAction, setReasonAction] = useState<{ work: WorkPublication; kind: "reject" | "take-down" }>();
     const [reason, setReason] = useState("");
+    const [adjustingWork, setAdjustingWork] = useState<WorkPublication>();
     const [viewingWork, setViewingWork] = useState<WorkPublication>();
     const [editingOfficialWork, setEditingOfficialWork] = useState<WorkPublication | null>();
     const [officialEditorOpen, setOfficialEditorOpen] = useState(false);
+    const [selectedWorkIds, setSelectedWorkIds] = useState<string[]>([]);
+    const [bulkImportOpen, setBulkImportOpen] = useState(false);
+    const [bulkPublishing, setBulkPublishing] = useState(false);
+    const [batchAction, setBatchAction] = useState<{ kind: BatchWorkAction; targets: WorkPublication[] }>();
+    const [batchReason, setBatchReason] = useState("");
+    const [batchWorking, setBatchWorking] = useState(false);
+    const [batchResult, setBatchResult] = useState<{ title: string; succeeded: number; failures: Array<{ id: string; title: string; reason: string }> }>();
+    const [batchPublishFailures, setBatchPublishFailures] = useState<Array<{ title: string; message: string }>>([]);
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedKeyword(keyword.trim()), 300);
@@ -96,9 +116,15 @@ function AdminWorkReviewSection() {
                 status: status === "all" ? undefined : status,
                 lifecycleStatus: lifecycleStatus === "all" ? undefined : lifecycleStatus,
                 origin: origin === "all" ? undefined : origin,
+                pinnedOnly: pinnedOnly ? "true" : undefined,
+                adjustedOnly: adjustedOnly ? "true" : undefined,
                 keyword: debouncedKeyword || undefined,
             });
             if (requestId !== requestIdRef.current) return;
+            if (page > 1 && !result.items.length) {
+                setPage(page - 1);
+                return;
+            }
             setItems(result.items);
             setTotal(result.total);
         } catch (loadError) {
@@ -109,11 +135,97 @@ function AdminWorkReviewSection() {
         } finally {
             if (requestId === requestIdRef.current) setLoading(false);
         }
-    }, [debouncedKeyword, lifecycleStatus, origin, page, status]);
+    }, [adjustedOnly, debouncedKeyword, lifecycleStatus, origin, page, pinnedOnly, status]);
 
     useEffect(() => {
         void load();
     }, [load]);
+
+    useEffect(() => {
+        setSelectedWorkIds([]);
+    }, [page, status, lifecycleStatus, origin, debouncedKeyword, pinnedOnly, adjustedOnly]);
+
+    const selectionDisabled = loading || bulkPublishing || batchWorking || Boolean(actionId);
+    const selectableWorks = items.filter(canSelectWork);
+    const selectedWorks = selectableWorks.filter((work) => selectedWorkIds.includes(work.id));
+    const publishableDrafts = selectedWorks.filter(isPublishableOfficialDraft);
+    const onlineWorks = selectedWorks.filter(canTakeDownWork);
+    const takenDownWorks = selectedWorks.filter(canDeleteTakenDownWork);
+
+    const startBatchAction = (kind: BatchWorkAction, targets: WorkPublication[]) => {
+        setBatchReason("");
+        setBatchAction({ kind, targets });
+    };
+
+    const submitBatchAction = async () => {
+        if (!batchAction || batchWorking) return;
+        const { kind, targets } = batchAction;
+        const reason = batchReason.trim();
+        if (kind === "take-down" && !reason) return;
+        setBatchWorking(true);
+        setBatchResult(undefined);
+        const succeeded: string[] = [];
+        const failures: NonNullable<typeof batchResult>["failures"] = [];
+        try {
+            for (const work of targets) {
+                try {
+                    if (kind === "take-down") await takeDownAdminWorkPublication(work.id, reason, work.publishedVersionId);
+                    else await deleteAdminWorkPublication(work.id, work.updatedAt);
+                    succeeded.push(work.id);
+                } catch (error) {
+                    failures.push({ id: work.id, title: work.currentVersion?.title || work.id, reason: error instanceof Error ? error.message : "操作失败" });
+                }
+            }
+            setSelectedWorkIds((current) => current.filter((id) => !succeeded.includes(id)));
+            setBatchResult({ title: BATCH_WORK_ACTIONS[kind], succeeded: succeeded.length, failures });
+            setBatchAction(undefined);
+            await load();
+        } finally {
+            setBatchWorking(false);
+        }
+    };
+    const publishSelectedDrafts = () => {
+        const targets = publishableDrafts.map((work) => ({ work, version: work.currentVersion! }));
+        if (!targets.length || selectionDisabled) return;
+        modal.confirm({
+            title: "分批发布官方作品",
+            content: (
+                <div>
+                    <p>确认后，审核校验通过的作品将立即进入广场。</p>
+                    <ul className="mt-2 max-h-[35vh] list-disc overflow-y-auto pl-5">
+                        {targets.map(({ work, version }) => (
+                            <li key={work.id} className="break-words">
+                                {version.title}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ),
+            okText: "确认发布 " + targets.length + " 条作品",
+            cancelText: "取消",
+            onOk: async () => {
+                setBulkPublishing(true);
+                setBatchPublishFailures([]);
+                const succeeded: string[] = [];
+                const failures: Array<{ title: string; message: string }> = [];
+                for (const target of targets) {
+                    try {
+                        const published = await publishOfficialWork(target.work.id, target.version.id, target.version.updatedAt);
+                        setItems((current) => current.map((item) => (item.id === published.id ? published : item)));
+                        succeeded.push(target.work.id);
+                    } catch (error) {
+                        failures.push({ title: target.work.currentVersion?.title || target.work.id, message: error instanceof Error ? error.message : "发布失败" });
+                    }
+                }
+                setSelectedWorkIds((current) => current.filter((id) => !succeeded.includes(id)));
+                setBatchPublishFailures(failures);
+                setBulkPublishing(false);
+                if (failures.length) message.warning("已发布 " + succeeded.length + " 条，失败 " + failures.length + " 条；失败项仍保留为草稿");
+                else message.success("已发布 " + succeeded.length + " 条，失败 0 条");
+                await load();
+            },
+        });
+    };
 
     const approve = (work: WorkPublication) => {
         const version = work.currentVersion;
@@ -155,6 +267,19 @@ function AdminWorkReviewSection() {
             await load();
         } catch (actionError) {
             message.error(actionError instanceof Error ? actionError.message : "操作失败");
+        } finally {
+            setActionId("");
+        }
+    };
+
+    const togglePinned = async (work: WorkPublication) => {
+        setActionId(work.id);
+        try {
+            const updated = await updateAdminWorkPresentation(work.id, { action: "pin", pinned: !work.pinnedAt });
+            message.success(updated.pinnedAt ? "作品已置顶" : "作品已取消置顶");
+            await load();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "更新置顶失败");
         } finally {
             setActionId("");
         }
@@ -229,7 +354,10 @@ function AdminWorkReviewSection() {
         setStatus("all");
         setLifecycleStatus("all");
         setOrigin("all");
+        setPinnedOnly(false);
+        setAdjustedOnly(false);
         setKeyword("");
+        setSelectedWorkIds([]);
         setPage(1);
     };
 
@@ -247,7 +375,7 @@ function AdminWorkReviewSection() {
             work.publishedVersion.visibility === "public" &&
             work.publishedVersion.id === work.publishedVersionId;
         const pullFilmEnabled = work.publishedVersion?.pullFilmEnabled === true;
-        const canDelete = work.lifecycleStatus === "revoked" || (!work.publishedVersionId && version.moderationStatus === "taken_down");
+        const canDelete = canDeleteTakenDownWork(work);
         return (
             <div className="flex flex-wrap items-center justify-end gap-0.5">
                 <Button type="link" size="small" icon={<Eye className="size-3.5" />} onClick={() => setViewingWork(work)}>
@@ -263,6 +391,14 @@ function AdminWorkReviewSection() {
                         <Button type="text" size="small" aria-label={work.isFeatured ? "取消精选" : "设为精选"} icon={<Star className={`size-3.5 ${work.isFeatured ? "fill-current" : ""}`} />} onClick={() => void toggleFeatured(work)} loading={busy} />
                     </Tooltip>
                 ) : null}
+                {canFeature || work.pinnedAt ? (
+                    <Tooltip title={work.pinnedAt ? "取消置顶" : "置顶作品"}>
+                        <Button type="text" size="small" aria-label={work.pinnedAt ? "取消置顶" : "置顶作品"} icon={work.pinnedAt ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />} loading={busy} onClick={() => void togglePinned(work)} />
+                    </Tooltip>
+                ) : null}
+                <Button type="link" size="small" onClick={() => setAdjustingWork(work)} disabled={busy}>
+                    {hasAdjustedDisplayCounts(work) ? "查看展示调整" : "调整展示数据"}
+                </Button>
                 {canPullFilm ? (
                     <Tooltip title={pullFilmEnabled ? "取消拉片" : "设为拉片"}>
                         <Button type="text" size="small" aria-label={pullFilmEnabled ? "取消拉片" : "设为拉片"} icon={<Film className={`size-3.5 ${pullFilmEnabled ? "fill-current" : ""}`} />} onClick={() => void togglePullFilm(work)} loading={busy} />
@@ -341,7 +477,7 @@ function AdminWorkReviewSection() {
             title: "作品",
             key: "work",
             width: 330,
-            render: (_, work) => <AdminWorkIdentity work={work} />,
+            render: (_, work) => <AdminWorkIdentity work={work} showMetrics />,
         },
         {
             title: "用户",
@@ -378,17 +514,7 @@ function AdminWorkReviewSection() {
             width: 112,
             render: (_, work) => <AdminWorkStatus work={work} />,
         },
-        {
-            title: "数据",
-            key: "metrics",
-            width: 110,
-            render: (_, work) => (
-                <div className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                    <div>{work.viewCount} 次访问</div>
-                    <div>{work.likeCount} 次点赞</div>
-                </div>
-            ),
-        },
+
         {
             title: "操作",
             key: "actions",
@@ -404,16 +530,36 @@ function AdminWorkReviewSection() {
                 title="作品管理"
                 description="管理用户投稿审核与平台官方作品；官方作品确认发布后立即进入广场。"
                 actions={
-                    <Button
-                        type="primary"
-                        icon={<Plus className="size-4" />}
-                        onClick={() => {
-                            setEditingOfficialWork(null);
-                            setOfficialEditorOpen(true);
-                        }}
-                    >
-                        发布官方作品
-                    </Button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                        <Button icon={<FileSpreadsheet className="size-4" />} onClick={() => setBulkImportOpen(true)}>
+                            批量导入草稿
+                        </Button>
+                        {publishableDrafts.length ? (
+                            <Button type="primary" disabled={selectionDisabled} loading={bulkPublishing} onClick={publishSelectedDrafts}>
+                                分批发布（{publishableDrafts.length}）
+                            </Button>
+                        ) : null}
+                        {onlineWorks.length ? (
+                            <Button danger disabled={selectionDisabled} onClick={() => startBatchAction("take-down", onlineWorks)}>
+                                批量下架作品（{onlineWorks.length}）
+                            </Button>
+                        ) : null}
+                        {takenDownWorks.length ? (
+                            <Button danger disabled={selectionDisabled} onClick={() => startBatchAction("delete", takenDownWorks)}>
+                                批量删除已下架作品（{takenDownWorks.length}）
+                            </Button>
+                        ) : null}
+                        <Button
+                            type="primary"
+                            icon={<Plus className="size-4" />}
+                            onClick={() => {
+                                setEditingOfficialWork(null);
+                                setOfficialEditorOpen(true);
+                            }}
+                        >
+                            发布官方作品
+                        </Button>
+                    </div>
                 }
             />
             <div className="min-w-0 space-y-3 p-3 sm:p-5">
@@ -473,14 +619,92 @@ function AdminWorkReviewSection() {
                         清除筛选
                     </Button>
                 </div>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                    {selectableWorks.length ? (
+                        <label className="inline-flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                className="gm-checkbox"
+                                disabled={selectionDisabled}
+                                checked={selectableWorks.every((work) => selectedWorkIds.includes(work.id))}
+                                onChange={(event) => setSelectedWorkIds(event.target.checked ? selectableWorks.map((work) => work.id) : [])}
+                            />
+                            全选本页可操作作品
+                        </label>
+                    ) : null}
+                    <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2" role="group" aria-label="作品展示筛选">
+                        <label className="inline-flex items-center gap-2 text-sm">
+                            <Switch
+                                size="small"
+                                checked={pinnedOnly}
+                                aria-label="已置顶"
+                                onChange={(checked) => {
+                                    setPinnedOnly(checked);
+                                    setPage(1);
+                                    setSelectedWorkIds([]);
+                                }}
+                            />
+                            已置顶
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-sm">
+                            <Switch
+                                size="small"
+                                checked={adjustedOnly}
+                                aria-label="展示已调整"
+                                onChange={(checked) => {
+                                    setAdjustedOnly(checked);
+                                    setPage(1);
+                                    setSelectedWorkIds([]);
+                                }}
+                            />
+                            展示已调整
+                        </label>
+                    </div>
+                </div>
 
+                {batchResult ? (
+                    <div role={batchResult.failures.length ? "alert" : "status"} className="rounded-md border border-[var(--gm-border)] p-3 text-sm">
+                        <p className="font-medium">
+                            {batchResult.title}：成功 {batchResult.succeeded} 条，失败 {batchResult.failures.length} 条
+                        </p>
+                        {batchResult.failures.map((failure) => (
+                            <p key={failure.id}>
+                                {failure.title}：{failure.reason}
+                            </p>
+                        ))}
+                    </div>
+                ) : null}
+                {batchPublishFailures.length ? (
+                    <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                        <p className="font-medium">以下草稿发布失败，可保留选择后重试：</p>
+                        {batchPublishFailures.map((failure) => (
+                            <p key={failure.title}>
+                                {failure.title}：{failure.message}
+                            </p>
+                        ))}
+                    </div>
+                ) : null}
                 {error ? (
                     <div className="grid min-h-40 place-items-center border-y border-rose-200 px-4 text-center text-sm text-rose-700 dark:border-rose-900/60 dark:text-rose-300">{error}</div>
                 ) : (
                     <>
                         <div className="space-y-2 md:hidden">
                             {items.map((work) => (
-                                <AdminWorkMobileCard key={work.id} work={work} actions={renderActions(work)} />
+                                <div key={work.id} className="flex min-w-0 items-start gap-2">
+                                    {canSelectWork(work) ? (
+                                        <input
+                                            type="checkbox"
+                                            aria-label={(isPublishableOfficialDraft(work) ? "选择草稿：" : "选择作品：") + (work.currentVersion?.title || work.id)}
+                                            checked={selectedWorkIds.includes(work.id)}
+                                            disabled={selectionDisabled}
+                                            onChange={(event) => setSelectedWorkIds((current) => (event.target.checked ? [...current, work.id] : current.filter((id) => id !== work.id)))}
+                                            className="gm-checkbox mt-4"
+                                        />
+                                    ) : null}
+                                    <div className="min-w-0 flex-1">
+                                        <AdminWorkMobileCard work={work} actions={renderActions(work)} />
+                                    </div>
+                                </div>
                             ))}
                             {!items.length && !loading ? <AdminWorksEmpty /> : null}
                             {loading && !items.length ? <div className="grid min-h-36 place-items-center text-sm text-zinc-500 dark:text-zinc-400">正在加载作品...</div> : null}
@@ -502,14 +726,47 @@ function AdminWorkReviewSection() {
                                     onChange: setPage,
                                 }}
                                 locale={{ emptyText: <AdminWorksEmpty /> }}
-                                scroll={{ x: 1374 }}
+                                scroll={{ x: 1464 }}
                                 size="middle"
                                 tableLayout="fixed"
+                                rowSelection={{
+                                    selectedRowKeys: selectedWorkIds,
+                                    onChange: (keys) => setSelectedWorkIds(keys.map(String)),
+                                    getCheckboxProps: (work) => ({ disabled: selectionDisabled || !canSelectWork(work) }),
+                                }}
                             />
                         </div>
                     </>
                 )}
             </div>
+
+            <Modal
+                title={batchAction ? BATCH_WORK_ACTIONS[batchAction.kind] : undefined}
+                open={Boolean(batchAction)}
+                okText={`${batchAction?.kind === "delete" ? "永久删除" : "确认下架"} ${batchAction?.targets.length ?? 0} 条作品`}
+                okButtonProps={{ danger: true, disabled: batchAction?.kind === "take-down" && !batchReason.trim() }}
+                cancelButtonProps={{ disabled: batchWorking }}
+                closable={!batchWorking}
+                keyboard={!batchWorking}
+                maskClosable={!batchWorking}
+                confirmLoading={batchWorking}
+                onOk={submitBatchAction}
+                onCancel={() => setBatchAction(undefined)}
+            >
+                <p>{batchAction?.kind === "delete" ? "将永久删除选中作品的记录、版本及互动，无法恢复。" : "下架后，选中作品的公开链接将失效。"}</p>
+                <ul className="my-3 max-h-[35vh] list-disc overflow-y-auto pl-5">
+                    {batchAction?.targets.map((work) => (
+                        <li key={work.id} className="break-words">
+                            {work.currentVersion?.title || work.id}
+                        </li>
+                    ))}
+                </ul>
+                {batchAction?.kind === "take-down" ? (
+                    <Input.TextArea aria-label="下架原因" placeholder="填写本批作品的下架原因" rows={3} maxLength={500} disabled={batchWorking} value={batchReason} onChange={(event) => setBatchReason(event.target.value)} />
+                ) : null}
+            </Modal>
+
+            {bulkImportOpen ? <AdminOfficialWorkImport onClose={() => setBulkImportOpen(false)} onSaved={() => void load()} /> : null}
 
             <Modal
                 title={reasonAction?.kind === "reject" ? "驳回发布版本" : "下架公开作品"}
@@ -546,6 +803,19 @@ function AdminWorkReviewSection() {
                     void load();
                 }}
             />
+            {adjustingWork ? (
+                <AdminWorkDisplayCounts
+                    work={adjustingWork}
+                    onClose={() => setAdjustingWork(undefined)}
+                    onSaved={(updated) => {
+                        const update = (work: WorkPublication) =>
+                            work.id === updated.id ? { ...work, viewCount: updated.viewCount, likeCount: updated.likeCount, displayViewOffset: updated.displayViewOffset, displayLikeOffset: updated.displayLikeOffset, updatedAt: updated.updatedAt } : work;
+                        setItems((current) => current.map(update));
+                        setViewingWork((current) => (current ? update(current) : current));
+                        void load();
+                    }}
+                />
+            ) : null}
             <Modal title="作品详情" open={Boolean(viewingWork)} width={760} footer={null} destroyOnHidden onCancel={() => setViewingWork(undefined)}>
                 {viewingWork ? <AdminWorkDetail work={viewingWork} busy={actionId === viewingWork.id} onTogglePullFilm={() => void togglePullFilm(viewingWork)} /> : null}
             </Modal>
@@ -553,7 +823,23 @@ function AdminWorkReviewSection() {
     );
 }
 
-function AdminWorkIdentity({ work }: { work: WorkPublication }) {
+function canTakeDownWork(work: WorkPublication) {
+    return work.lifecycleStatus === "active" && Boolean(work.publishedVersionId);
+}
+
+function canDeleteTakenDownWork(work: WorkPublication) {
+    return !work.publishedVersionId && work.adminCanDelete === true;
+}
+
+function canSelectWork(work: WorkPublication) {
+    return isPublishableOfficialDraft(work) || canTakeDownWork(work) || canDeleteTakenDownWork(work);
+}
+
+function isPublishableOfficialDraft(work: WorkPublication) {
+    return work.publicationOrigin === "official" && work.lifecycleStatus === "active" && !work.publishedVersionId && work.currentVersion?.moderationStatus === "draft";
+}
+
+function AdminWorkIdentity({ work, showMetrics = false }: { work: WorkPublication; showMetrics?: boolean }) {
     const version = work.currentVersion;
     if (!version) return <span className="text-xs text-zinc-500">版本不可用</span>;
     return (
@@ -563,6 +849,7 @@ function AdminWorkIdentity({ work }: { work: WorkPublication }) {
                 <Tooltip title={version.title} placement="topLeft">
                     <div className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">{version.title}</div>
                 </Tooltip>
+                {showMetrics ? <AdminWorkMetrics work={work} className="max-xl:flex-col max-xl:items-start" /> : null}
                 <div className="mt-0.5 line-clamp-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">{version.description || "未填写作品说明"}</div>
                 <div className="mt-0.5 truncate text-[11px] text-zinc-400 dark:text-zinc-500" title={work.slug}>
                     {work.slug}
@@ -578,12 +865,13 @@ function AdminWorkStatus({ work }: { work: WorkPublication }) {
     const moderationSignal = version.moderationStatus === "pending" ? moderationSignalText(version.moderationProvider, version.moderationSignal) : "";
     const tag = (
         <span className={`inline-flex h-6 items-center rounded-md border px-2 text-xs font-medium leading-none ${workStatusToneClass(work.lifecycleStatus === "revoked" ? "revoked" : version.moderationStatus)}`}>
-            {work.lifecycleStatus === "revoked" ? "用户已下架" : adminStatusLabel(version.moderationStatus)}
+            {work.lifecycleStatus === "revoked" && work.publicationOrigin !== "official" ? "用户已下架" : adminStatusLabel(canDeleteTakenDownWork(work) ? "taken_down" : version.moderationStatus)}
         </span>
     );
     return (
         <div className="flex flex-col items-start gap-1">
             {moderationSignal ? <Tooltip title={moderationSignal}>{tag}</Tooltip> : tag}
+            {work.pinnedAt ? <Tag color="blue">已置顶</Tag> : null}
             {work.isFeatured ? <Tag color="gold">精选</Tag> : null}
             {work.publishedVersion?.pullFilmEnabled ? <Tag color="cyan">拉片项目</Tag> : null}
             {work.publishedVersion && work.publishedVersion.id !== version.id ? <span className="text-[11px] text-zinc-500 dark:text-zinc-400">线上 v{work.publishedVersion.versionNumber}</span> : null}
@@ -606,6 +894,24 @@ function AdminWorkThumbnail({ work }: { work: WorkPublication }) {
     );
 }
 
+function hasAdjustedDisplayCounts(work: WorkPublication) {
+    return displayWorkCount(work.viewCount, work.displayViewOffset) !== work.viewCount || displayWorkCount(work.likeCount, work.displayLikeOffset) !== work.likeCount;
+}
+
+function AdminWorkMetrics({ work, className }: { work: WorkPublication; className?: string }) {
+    return (
+        <div role="group" aria-label="作品互动数据" className={cn("flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-[var(--gm-text-3)]", className)}>
+            <span className="break-all">观看 {displayWorkCount(work.viewCount, work.displayViewOffset)}</span>
+            <span className="break-all">点赞 {displayWorkCount(work.likeCount, work.displayLikeOffset)}</span>
+            {hasAdjustedDisplayCounts(work) ? (
+                <Tag className="m-0" color="blue">
+                    展示已调整
+                </Tag>
+            ) : null}
+        </div>
+    );
+}
+
 function AdminWorkMobileCard({ work, actions }: { work: WorkPublication; actions: ReactNode }) {
     return (
         <article className="min-w-0 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -622,6 +928,9 @@ function AdminWorkMobileCard({ work, actions }: { work: WorkPublication; actions
                 </span>
                 <span>{sourceTypeLabel(work.sourceType)}</span>
                 <span>{formatAdminTime(work.updatedAt)}</span>
+            </div>
+            <div className="mt-2">
+                <AdminWorkMetrics work={work} />
             </div>
             <div className="mt-2 flex flex-wrap justify-end gap-0.5 border-t border-zinc-200 pt-2 dark:border-zinc-800">{actions}</div>
         </article>
@@ -672,6 +981,7 @@ function AdminWorkDetail({ work, busy, onTogglePullFilm }: { work: WorkPublicati
                         <DetailValue label="更新时间" value={formatAdminTime(work.updatedAt)} />
                         <DetailValue label="作品链接" value={work.slug} />
                     </div>
+                    <AdminWorkMetrics work={work} />
                     <div className="flex flex-wrap gap-1.5">
                         <AdminWorkStatus work={work} />
                         {version.tags.map((tag) => (

@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 
+import { CSV_ENCODING_ERROR, decodeCsvBytes } from "@/lib/csv-encoding";
 import type { SchoolMemberCreateInput, SchoolMemberRole } from "@/lib/school-domain";
 
 export const SCHOOL_MEMBER_IMPORT_COLUMNS = ["username", "displayName", "password", "role"] as const;
@@ -27,23 +28,8 @@ export const SCHOOL_MEMBER_CSV_TEMPLATE =
 export type SchoolMemberCsvResult = { ok: true; rows: SchoolMemberCreateInput[] } | { ok: false; message: string };
 
 export function parseSchoolMemberCsvBytes(buffer: ArrayBuffer): SchoolMemberCsvResult {
-    const bytes = new Uint8Array(buffer);
-    const hasUtf8Bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
-    const encodingError = { ok: false, message: "CSV 文件编码有误，请从原始表格重新保存为 CSV UTF-8 后上传" } as const;
-    let text: string;
-    try {
-        text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    } catch {
-        if (hasUtf8Bom) return encodingError;
-        try {
-            // CSV saved with the legacy Chinese encoding (GBK) is covered by GB18030.
-            text = new TextDecoder("gb18030", { fatal: true }).decode(bytes);
-        } catch {
-            return encodingError;
-        }
-    }
-    if (text.includes("\uFFFD") || text.includes("\0")) return encodingError;
-    return parseSchoolMemberCsv(text);
+    const text = decodeCsvBytes(buffer);
+    return text === null ? { ok: false, message: CSV_ENCODING_ERROR } : parseSchoolMemberCsv(text);
 }
 
 export function parseSchoolMemberCsv(source: string): SchoolMemberCsvResult {

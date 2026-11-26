@@ -15,9 +15,9 @@ describe("/api/admin/works official publishing", () => {
         mocks.create.mockResolvedValue({ id: "work-one", publicationOrigin: "official" });
     });
 
-    it("filters lists by origin", async () => {
-        await GET(new Request("http://localhost/api/admin/works?origin=official") as never);
-        expect(mocks.list).toHaveBeenCalledWith(expect.objectContaining({ origin: "official" }));
+    it("forwards the combined work filters and pagination", async () => {
+        await GET(new Request("http://localhost/api/admin/works?origin=official&pinnedOnly=true&adjustedOnly=true&page=2") as never);
+        expect(mocks.list).toHaveBeenCalledWith(expect.objectContaining({ origin: "official", pinnedOnly: true, adjustedOnly: true, page: 2 }));
     });
 
     it("creates official work with the session administrator and returns 201", async () => {

@@ -345,6 +345,9 @@ ALTER TABLE published_works ADD COLUMN IF NOT EXISTS is_featured boolean NOT NUL
 ALTER TABLE published_works ADD COLUMN IF NOT EXISTS featured_at timestamptz;
 ALTER TABLE published_works ADD COLUMN IF NOT EXISTS featured_by_user_id text REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE published_works ADD COLUMN IF NOT EXISTS like_count bigint NOT NULL DEFAULT 0;
+ALTER TABLE published_works ADD COLUMN IF NOT EXISTS pinned_at timestamptz;
+ALTER TABLE published_works ADD COLUMN IF NOT EXISTS display_view_offset bigint NOT NULL DEFAULT 0;
+ALTER TABLE published_works ADD COLUMN IF NOT EXISTS display_like_offset bigint NOT NULL DEFAULT 0;
 
 DO $$
 BEGIN

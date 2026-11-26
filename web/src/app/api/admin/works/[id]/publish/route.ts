@@ -11,10 +11,10 @@ export async function POST(request: Request, context: Context) {
     if (!user) return unauthorized();
     if (!hasAdminPermission(user, "content.manage")) return forbidden();
     const { id } = await context.params;
-    const parsed = await readJsonBodyResult<{ versionId?: unknown }>(request);
+    const parsed = await readJsonBodyResult<{ versionId?: unknown; expectedUpdatedAt?: unknown }>(request);
     if (!parsed.ok) return workPublicationOk(null, parsed.message, parsed.status);
     try {
-        const work = await publishOfficialWork({ adminUserId: user.id, workId: id, versionId: parsed.data.versionId });
+        const work = await publishOfficialWork({ adminUserId: user.id, workId: id, versionId: parsed.data.versionId, ...(parsed.data.expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt: parsed.data.expectedUpdatedAt }) });
         await safeRecordAuditLog({ action: "admin.official-work.publish", actor: auditActorFromRequest(request, user), target: { type: "published_work", id, label: work.currentVersion?.title } });
         return workPublicationOk({ work }, "官方作品已发布");
     } catch (error) {

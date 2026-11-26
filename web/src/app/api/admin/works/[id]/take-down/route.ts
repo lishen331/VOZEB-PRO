@@ -15,9 +15,9 @@ export async function POST(request: Request, context: Context) {
     if (!user) return unauthorized();
     if (!hasAdminPermission(user, "content.manage")) return forbidden();
     const { id } = await context.params;
-    const body = await readJsonBody<{ reason?: unknown }>(request);
+    const body = await readJsonBody<{ reason?: unknown; expectedPublishedVersionId?: unknown }>(request);
     try {
-        const work = await takeDownWorkPublication({ reviewerUserId: user.id, workId: id, reason: body.reason });
+        const work = await takeDownWorkPublication({ reviewerUserId: user.id, workId: id, reason: body.reason, expectedPublishedVersionId: body.expectedPublishedVersionId });
         await safeRecordAuditLog({
             action: work.publicationOrigin === "official" ? "admin.official-work.take-down" : "admin.work.take-down",
             actor: auditActorFromRequest(request, user),

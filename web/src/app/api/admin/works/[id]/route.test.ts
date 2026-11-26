@@ -3,15 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
     audit: vi.fn(),
     currentUser: vi.fn(),
+    detail: vi.fn(),
     remove: vi.fn(),
     update: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
 vi.mock("@/lib/server/audit-log-store", () => ({ auditActorFromRequest: vi.fn(() => ({})), safeRecordAuditLog: mocks.audit }));
-vi.mock("@/lib/server/work-publication-service", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/server/work-publication-service")>()), deleteWorkPublicationForAdmin: mocks.remove, updateOfficialWorkDraft: mocks.update }));
+vi.mock("@/lib/server/work-publication-service", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/server/work-publication-service")>()),
+    deleteWorkPublicationForAdmin: mocks.remove,
+    getOfficialWorkForAdmin: mocks.detail,
+    updateOfficialWorkDraft: mocks.update,
+}));
 
-import { DELETE, PATCH } from "./route";
+import { DELETE, GET, PATCH } from "./route";
 
 const context = { params: Promise.resolve({ id: "work-one" }) };
 
@@ -20,6 +26,27 @@ describe("DELETE /api/admin/works/[id]", () => {
         vi.clearAllMocks();
         mocks.remove.mockResolvedValue({ id: "work-one", title: "作品" });
         mocks.update.mockResolvedValue({ id: "work-one", title: "更新" });
+    });
+
+    it("restricts official work details and returns the complete media payload to content managers", async () => {
+        const request = new Request("http://localhost/api/admin/works/work-one");
+        mocks.currentUser.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "user-one", role: "user" });
+        expect((await GET(request, context)).status).toBe(401);
+        expect((await GET(request, context)).status).toBe(403);
+        expect(mocks.detail).not.toHaveBeenCalled();
+        mocks.currentUser.mockResolvedValueOnce({ id: "admin-one", role: "admin", status: "active", adminPermissions: ["content.manage"] });
+        const work = {
+            id: "work-one",
+            currentAssets: [
+                { id: "cover", role: "cover" },
+                { id: "media", role: "content" },
+            ],
+        };
+        mocks.detail.mockResolvedValueOnce(work);
+        const response = await GET(request, context);
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ code: 0, data: { work } });
+        expect(mocks.detail).toHaveBeenCalledWith("work-one");
     });
 
     it("does not expose permanent deletion to ordinary users", async () => {
@@ -38,7 +65,7 @@ describe("DELETE /api/admin/works/[id]", () => {
 
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({ code: 0, data: { deletedId: "work-one" } });
-        expect(mocks.remove).toHaveBeenCalledWith("admin-one", "work-one");
+        expect(mocks.remove).toHaveBeenCalledWith("admin-one", "work-one", undefined);
         expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "admin.work.delete", target: expect.objectContaining({ id: "work-one" }) }));
     });
     it("updates only through the official work service and audits the action", async () => {

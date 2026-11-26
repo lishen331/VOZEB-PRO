@@ -2,6 +2,8 @@ import type { PublishedGalleryItemRecord } from "@/lib/server/database";
 import { userAvatarUrl } from "@/lib/user-avatar";
 import { cleanOfficialWorkTitle, normalizeOfficialCategory } from "@/lib/work-publication-import";
 
+import { displayWorkCount } from "@/lib/work-display-count";
+
 export function publicGalleryItem(item: PublishedGalleryItemRecord) {
     const profileAuthor = item.publicationOrigin !== "official" && item.authorDisplay === "profile";
     const title = item.publicationOrigin === "official" ? cleanOfficialWorkTitle(item.title) : item.title;
@@ -10,8 +12,8 @@ export function publicGalleryItem(item: PublishedGalleryItemRecord) {
         slug: item.slug,
         sourceType: item.sourceType,
         publicationOrigin: item.publicationOrigin,
-        viewCount: item.viewCount,
-        likeCount: item.likeCount,
+        viewCount: displayWorkCount(item.viewCount, item.displayViewOffset),
+        likeCount: displayWorkCount(item.likeCount, item.displayLikeOffset),
         isFeatured: item.isFeatured,
         hasProcess: item.hasProcess,
         processVersionId: item.processVersionId,

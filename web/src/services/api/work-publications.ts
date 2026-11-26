@@ -61,8 +61,12 @@ export type WorkPublication = {
     lifecycleStatus: WorkPublicationLifecycleStatus;
     currentVersionId?: string;
     publishedVersionId?: string;
+    adminCanDelete?: boolean;
     isFeatured: boolean;
     featuredAt?: string;
+    pinnedAt?: string;
+    displayViewOffset?: number;
+    displayLikeOffset?: number;
     featuredByUserId?: string;
     currentVersion?: WorkPublicationVersion;
     publishedVersion?: WorkPublicationVersion;
@@ -245,20 +249,26 @@ export function deleteWorkPublication(id: string) {
     return requestWorkPublication<{ deletedId: string }>(`/api/works/${encodeURIComponent(id)}`, { method: "DELETE" }).then((data) => data.deletedId);
 }
 
-export function listAdminWorkPublications(input: { page?: number; pageSize?: number; status?: WorkPublicationModerationStatus; lifecycleStatus?: WorkPublicationLifecycleStatus; origin?: WorkPublicationOrigin; keyword?: string } = {}) {
+export function listAdminWorkPublications(
+    input: { page?: number; pageSize?: number; status?: WorkPublicationModerationStatus; lifecycleStatus?: WorkPublicationLifecycleStatus; origin?: WorkPublicationOrigin; pinnedOnly?: "true"; adjustedOnly?: "true"; keyword?: string } = {},
+) {
     return requestWorkPublication<WorkPublicationPage>(`/api/admin/works?${searchParams(input)}`);
 }
 
-export function createOfficialWork(input: OfficialWorkDraftInput) {
+export function createOfficialWork(input: OfficialWorkDraftInput & { importKey?: string }) {
     return requestWorkPublication<{ work: WorkPublication }>("/api/admin/works", jsonRequest("POST", input)).then((data) => data.work);
+}
+
+export function getOfficialWork(id: string) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}`).then((data) => data.work);
 }
 
 export function updateOfficialWork(id: string, input: OfficialWorkDraftInput) {
     return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}`, jsonRequest("PATCH", input)).then((data) => data.work);
 }
 
-export function publishOfficialWork(id: string, versionId: string) {
-    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/publish`, jsonRequest("POST", { versionId })).then((data) => data.work);
+export function publishOfficialWork(id: string, versionId: string, expectedUpdatedAt?: string) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/publish`, jsonRequest("POST", { versionId, expectedUpdatedAt })).then((data) => data.work);
 }
 
 export function relistOfficialWork(id: string) {
@@ -287,12 +297,17 @@ export function reviewAdminWorkPublication(id: string, input: { versionId: strin
     return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/review`, jsonRequest("POST", input)).then((data) => data.work);
 }
 
-export function takeDownAdminWorkPublication(id: string, reason: string) {
-    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/take-down`, jsonRequest("POST", { reason })).then((data) => data.work);
+export function takeDownAdminWorkPublication(id: string, reason: string, expectedPublishedVersionId?: string) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/take-down`, jsonRequest("POST", { reason, expectedPublishedVersionId })).then((data) => data.work);
 }
 
-export function deleteAdminWorkPublication(id: string) {
-    return requestWorkPublication<{ deletedId: string }>(`/api/admin/works/${encodeURIComponent(id)}`, { method: "DELETE" }).then((data) => data.deletedId);
+export function updateAdminWorkPresentation(id: string, input: { action: "pin"; pinned: boolean } | { action: "counts"; viewCount: number; likeCount: number; reason: string } | { action: "restore"; reason: string }) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/presentation`, jsonRequest("PATCH", input)).then((data) => data.work);
+}
+
+export function deleteAdminWorkPublication(id: string, expectedUpdatedAt?: string) {
+    const query = expectedUpdatedAt ? `?${searchParams({ expectedUpdatedAt })}` : "";
+    return requestWorkPublication<{ deletedId: string }>(`/api/admin/works/${encodeURIComponent(id)}${query}`, { method: "DELETE" }).then((data) => data.deletedId);
 }
 
 function searchParams(input: Record<string, string | number | undefined>) {

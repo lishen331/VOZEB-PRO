@@ -21,6 +21,8 @@ export async function GET(request: Request) {
                 status: params.get("status"),
                 lifecycleStatus: params.get("lifecycleStatus"),
                 origin: params.get("origin"),
+                pinnedOnly: params.get("pinnedOnly") === "true",
+                adjustedOnly: params.get("adjustedOnly") === "true",
                 keyword: params.get("keyword"),
             }),
         );

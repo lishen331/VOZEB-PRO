@@ -2,7 +2,7 @@ import { hasAdminPermission } from "@/lib/admin-permissions";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-log-store";
-import { deleteWorkPublicationForAdmin, updateOfficialWorkDraft, type OfficialWorkDraftInput } from "@/lib/server/work-publication-service";
+import { deleteWorkPublicationForAdmin, getOfficialWorkForAdmin, updateOfficialWorkDraft, type OfficialWorkDraftInput } from "@/lib/server/work-publication-service";
 import { forbidden, unauthorized, workPublicationError, workPublicationOk } from "@/app/api/_shared/work-publication-response";
 
 export const runtime = "nodejs";
@@ -10,13 +10,26 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
 
+export async function GET(_request: Request, context: Context) {
+    const user = await getCurrentUser();
+    if (!user) return unauthorized();
+    if (!hasAdminPermission(user, "content.manage")) return forbidden();
+    const { id } = await context.params;
+    try {
+        return workPublicationOk({ work: await getOfficialWorkForAdmin(id) });
+    } catch (error) {
+        return workPublicationError(error, "读取官方作品失败", "Get official work failed");
+    }
+}
+
 export async function DELETE(request: Request, context: Context) {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
     if (!hasAdminPermission(user, "content.manage")) return forbidden();
     const { id } = await context.params;
     try {
-        const deleted = await deleteWorkPublicationForAdmin(user.id, id);
+        const expectedUpdatedAt = new URL(request.url).searchParams.get("expectedUpdatedAt") ?? undefined;
+        const deleted = await deleteWorkPublicationForAdmin(user.id, id, expectedUpdatedAt);
         await safeRecordAuditLog({
             action: deleted.publicationOrigin === "official" ? "admin.official-work.delete" : "admin.work.delete",
             actor: auditActorFromRequest(request, user),
