@@ -9,6 +9,8 @@ import { POSTGRESQL_TRIGGER_SCHEMA_SQL } from "./schema-triggers";
 import { DRAMA_LAB_SCHEMA_SQL } from "./schema-drama-lab";
 import { SCHEMA_CUSTOM_VOICES } from "./schema-custom-voices";
 
+import { REVERSE_PROMPT_HISTORY_SCHEMA_SQL } from "./schema-practice-reverse-prompt-history";
+
 const FULL_ADMIN_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
 
 export const POSTGRESQL_SCHEMA_SQL = `
@@ -1416,6 +1418,7 @@ CREATE TRIGGER practice_script_entities_set_updated_at BEFORE UPDATE ON practice
 DROP TRIGGER IF EXISTS practice_script_stages_set_updated_at ON practice_script_stages;
 CREATE TRIGGER practice_script_stages_set_updated_at BEFORE UPDATE ON practice_script_stages FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
 
+${REVERSE_PROMPT_HISTORY_SCHEMA_SQL}
 ${POSTGRESQL_TRIGGER_SCHEMA_SQL}
 
 INSERT INTO schema_migrations (version)
