@@ -74,4 +74,49 @@ describe("POST /api/practice/image-tools", () => {
         expect(response.status).toBe(503);
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
+    it("requests fixed teaching structure for image analysis without losing user focus", async () => {
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, prompt: "重点观察配色", clientRequestId: "analysis-req" }) }));
+        expect(response.status).toBe(200);
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(String(url)).toContain("/api/text-tasks");
+        const payload = JSON.parse(init.body);
+        expect(payload.messages[0].content[0].text).toContain('"fullPrompt"');
+        expect(payload.messages[0].content[0].text).toContain("重点观察配色");
+        expect(payload.messages[0].content[1].image_url.url).toContain("permanent/source.png");
+    });
+
+    const trialBody = { toolId: "reverse-prompt", action: "try-generate", prompt: "学生编辑后的猫咪三视图", clientRequestId: "trial-req" };
+
+    it("dispatches one practice text-to-image task with no reference or mask", async () => {
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(trialBody) }));
+        expect(response.status).toBe(200);
+        expect(mocks.mediaRegistration).not.toHaveBeenCalled();
+        expect(mocks.trustedHeaders).toHaveBeenCalledWith("student-one", "school-one", "trial-req");
+        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "image", "practice-canvas-image", { executionProfile: "open-source-practice" });
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(String(url)).toContain("/api/image-tasks");
+        const payload = JSON.parse(init.body);
+        expect(payload).toMatchObject({ kind: "generation", prompt: trialBody.prompt, references: [], source: "practice", config: { model: "practice-canvas-image" }, context: { executionProfile: "open-source-practice" } });
+        expect(payload).not.toHaveProperty("mask");
+    });
+
+    it.each([{ sourceUrl: baseBody.sourceUrl }, { references: [] }, { maskUrl: baseBody.maskUrl }, { config: {} }, { model: "x" }, { toolId: "local-edit" }, { prompt: " " }])("rejects invalid trial overrides %j", async (override) => {
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ ...trialBody, ...override }) }));
+        expect(response.status).toBe(400);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("does not use production when the practice image pool is unavailable", async () => {
+        mocks.candidates.mockReturnValue([]);
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(trialBody) }));
+        expect(response.status).toBe(503);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("requires practice access for a trial", async () => {
+        mocks.practiceAccess.mockRejectedValue(new Error("没有练习权限"));
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(trialBody) }));
+        expect(response.status).toBe(403);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
 });
