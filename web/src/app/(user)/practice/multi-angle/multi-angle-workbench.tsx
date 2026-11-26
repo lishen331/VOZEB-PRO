@@ -539,101 +539,104 @@ export default function MultiAngleWorkbench() {
                 </header>
 
                 <div className={s.workspace} ref={workspaceRef}>
-                    {!image ? (
-                        <div className={s.uploadCard}>
-                            <div className={cn(s.dropzone, dropActive && s.dropzoneOver)} onClick={() => fileInputRef.current?.click()}>
-                                <div className={s.dzInner}>
-                                    <div className={s.dzIcon}>
-                                        <ImagePlus size={26} />
-                                    </div>
-                                    <b>拖入或点击上传一张主体图片</b>
-                                    <span>
-                                        支持 JPG / PNG / WebP · 也可以直接 Ctrl+V 粘贴截图
-                                        <br />
-                                        上传后在环形轨迹上拖动镜头选择视角
-                                    </span>
-                                    <div className={s.dzActions}>
-                                        <button
-                                            type="button"
-                                            className={cn(s.btn, s.btnPrimary)}
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                fileInputRef.current?.click();
-                                            }}
-                                        >
-                                            选择图片
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={cn(s.btn, s.btnGhost)}
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                chooseSample();
-                                            }}
-                                        >
-                                            用示例图试试
-                                        </button>
+                    <section className={s.workCard} aria-labelledby="ma-controls-heading">
+                        <h2 id="ma-controls-heading">操作台</h2>
+                        <MultiAngleStage
+                            mode={mode}
+                            h={h}
+                            p={p}
+                            d={d}
+                            fisheye={fisheye}
+                            image={image}
+                            dragging={dragging}
+                            viewportRef={viewportRef}
+                            onPointerDown={handlePointerDown}
+                            onPointerMove={handlePointerMove}
+                            onPointerUp={handlePointerUp}
+                            emptyState={
+                                <div className={cn(s.dropzone, dropActive && s.dropzoneOver)} onClick={() => fileInputRef.current?.click()}>
+                                    <div className={s.dzInner}>
+                                        <div className={s.dzIcon}>
+                                            <ImagePlus size={26} />
+                                        </div>
+                                        <b>拖入或点击上传一张主体图片</b>
+                                        <span>支持 JPG / PNG / WebP · 也可以直接 Ctrl+V 粘贴截图</span>
+                                        <div className={s.dzActions}>
+                                            <button
+                                                type="button"
+                                                className={cn(s.btn, s.btnPrimary)}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    fileInputRef.current?.click();
+                                                }}
+                                            >
+                                                选择图片
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={cn(s.btn, s.btnGhost)}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    chooseSample();
+                                                }}
+                                            >
+                                                用示例图试试
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
+                            }
+                        >
+                            <OrbitWidget
+                                mode={mode}
+                                h={h}
+                                p={p}
+                                d={d}
+                                fisheye={fisheye}
+                                image={image}
+                                imageEl={imageEl}
+                                thumb={thumb}
+                                widgetRef={widgetRef}
+                                onPointerDown={handlePointerDown}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={handlePointerUp}
+                            />
+                            <div className={s.capturePreview}>
+                                <canvas ref={captureCanvasRef} width={192} height={192} role="img" aria-label="当前机位的实时取景示意" />
+                                <span>当前取景</span>
                             </div>
-                        </div>
-                    ) : (
-                        <>
-                            <section className={s.workCard} aria-labelledby="ma-controls-heading">
-                                <h2 id="ma-controls-heading">操作台</h2>
-                                <MultiAngleStage mode={mode} h={h} p={p} d={d} fisheye={fisheye} image={image} dragging={dragging} viewportRef={viewportRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
-                                    <OrbitWidget
-                                        mode={mode}
-                                        h={h}
-                                        p={p}
-                                        d={d}
-                                        fisheye={fisheye}
-                                        image={image}
-                                        imageEl={imageEl}
-                                        thumb={thumb}
-                                        widgetRef={widgetRef}
-                                        onPointerDown={handlePointerDown}
-                                        onPointerMove={handlePointerMove}
-                                        onPointerUp={handlePointerUp}
-                                    />
-                                    <div className={s.capturePreview}>
-                                        <canvas ref={captureCanvasRef} width={192} height={192} role="img" aria-label="当前机位的实时取景示意" />
-                                        <span>当前取景</span>
-                                    </div>
-                                </MultiAngleStage>
-                                {imageError && (
-                                    <p className={s.hintLine} role="alert">
-                                        原主体图已不可用，请重新选择图片。
-                                    </p>
-                                )}
+                        </MultiAngleStage>
+                        {imageError && (
+                            <p className={s.hintLine} role="alert">
+                                原主体图已不可用，请重新选择图片。
+                            </p>
+                        )}
 
-                                <AngleParamsPanel
-                                    mode={mode}
-                                    h={h}
-                                    p={p}
-                                    d={d}
-                                    fisheye={fisheye}
-                                    preset={preset}
-                                    batch={batch}
-                                    promptOn={promptOn}
-                                    prompt={prompt}
-                                    ready={!!uploadedImage && !!imageEl && !imageError && !uploading}
-                                    uploading={uploading}
-                                    costLabel={batch === 1 ? "1 个机位" : `${BATCH_ANGLES[batch].length} 个机位`}
-                                    generating={generating}
-                                    onModeChange={handleMode}
-                                    onPresetChange={handlePreset}
-                                    onAngleChange={handleSlider}
-                                    onBatchChange={setBatch}
-                                    onPromptToggle={() => setPromptOn((value) => !value)}
-                                    onPromptChange={setPrompt}
-                                    onReset={resetParams}
-                                    onGenerate={() => void generate()}
-                                />
-                            </section>
-                            <MultiAngleResults key={resultRevision} shots={shots} summary={summaryText} historical={!!restoredId} generating={generating} onDownload={download} onDownloadAll={downloadAll} />
-                        </>
-                    )}
+                        <AngleParamsPanel
+                            mode={mode}
+                            h={h}
+                            p={p}
+                            d={d}
+                            fisheye={fisheye}
+                            preset={preset}
+                            batch={batch}
+                            promptOn={promptOn}
+                            prompt={prompt}
+                            ready={!!uploadedImage && !!imageEl && !imageError && !uploading}
+                            uploading={uploading}
+                            costLabel={batch === 1 ? "1 个机位" : `${BATCH_ANGLES[batch].length} 个机位`}
+                            generating={generating}
+                            onModeChange={handleMode}
+                            onPresetChange={handlePreset}
+                            onAngleChange={handleSlider}
+                            onBatchChange={setBatch}
+                            onPromptToggle={() => setPromptOn((value) => !value)}
+                            onPromptChange={setPrompt}
+                            onReset={resetParams}
+                            onGenerate={() => void generate()}
+                        />
+                    </section>
+                    <MultiAngleResults key={resultRevision} shots={shots} summary={summaryText} historical={!!restoredId} generating={generating} onDownload={download} onDownloadAll={downloadAll} />
                     <aside className={s.historyRail}>
                         <MultiAngleHistory
                             runs={runs}
