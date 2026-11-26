@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Eraser, ImagePlus, LoaderCircle, RotateCcw, Save, Sparkles, WandSparkles } from "lucide-react";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
@@ -12,7 +12,10 @@ import { PRACTICE_REVERSE_PROMPT_SECTIONS, parsePracticeReversePrompt } from "@/
 import { pollPracticeImageToolTask, type PracticeImageToolResult, type PracticeImageToolTask } from "./practice-image-tool-task";
 import { PracticeReversePromptTrial } from "./practice-reverse-prompt-trial";
 import { PracticeAssetPicker } from "./practice-asset-picker";
-import { getPracticeImageToolConfig, type PracticeImageToolId } from "@/lib/practice-image-tools";
+import { getPracticeImageToolConfig, LOCAL_EDIT_HISTORY_LIMIT, type LocalEditPracticeRecord, type PracticeImageToolId } from "@/lib/practice-image-tools";
+import { canvasReadableImageUrl } from "@/lib/browser-media-url";
+import { parseServerMediaUrl } from "@/services/server-media-storage";
+import { LocalEditHistory, LocalEditPromptLesson, readLocalEditSelection } from "./practice-local-edit-learning";
 import { CanvasNodeEmotionDialog, type CanvasEmotionPayload } from "@/app/(user)/canvas/components/canvas-node-emotion-dialog";
 import { MAX_UPSCALE_LONG_EDGE, upscaleDataUrl, type ImageUpscaleAlgorithm } from "@/app/(user)/canvas/utils/canvas-image-data";
 
@@ -32,6 +35,8 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const fileRef = useRef<HTMLInputElement>(null);
     const maskRef = useRef<HTMLCanvasElement>(null);
     const drawingRef = useRef(false);
+    const restoredSelection = useRef<ImageData | null>(null);
+    const localEdit = toolId === "local-edit";
     const [source, setSource] = useState<UploadedImage | null>(null);
     const [prompt, setPrompt] = useState("");
     const [mode, setMode] = useState<(typeof REVERSE_PROMPT_MODES)[number]["id"]>("general");
@@ -48,16 +53,102 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const [retryPrompt, setRetryPrompt] = useState("");
     const [diagnostic, setDiagnostic] = useState<ToolDiagnostic | null>(null);
     const [brushSize, setBrushSize] = useState(36);
+    const [localRecord, setLocalRecord] = useState<LocalEditPracticeRecord | null>(null);
+    const [history, setHistory] = useState<LocalEditPracticeRecord[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(localEdit);
+    const [historyError, setHistoryError] = useState(false);
+    const [historyRevision, setHistoryRevision] = useState(0);
+    const [restoring, setRestoring] = useState(false);
+
+    const reloadHistory = useCallback(() => {
+        setHistoryLoading(true);
+        setHistoryError(false);
+        setHistoryRevision((revision) => revision + 1);
+    }, []);
+    useEffect(() => {
+        if (!localEdit) return;
+        const controller = new AbortController();
+        let active = true;
+        async function load() {
+            try {
+                const response = await fetch("/api/practice/image-tools", { cache: "no-store", signal: controller.signal });
+                if (!response.ok) throw new Error("history unavailable");
+                const { records } = (await response.json()) as { records: LocalEditPracticeRecord[] };
+                if (active) {
+                    setHistory(records);
+                    setHistoryError(false);
+                }
+            } catch {
+                if (active) setHistoryError(true);
+            } finally {
+                if (active) setHistoryLoading(false);
+            }
+        }
+        void load();
+        return () => {
+            active = false;
+            controller.abort();
+        };
+    }, [localEdit, historyRevision]);
+
+    useLayoutEffect(() => {
+        const canvas = maskRef.current;
+        if (!localEdit || !canvas) return;
+        const context = canvas.getContext("2d");
+        context?.clearRect(0, 0, canvas.width, canvas.height);
+        if (restoredSelection.current) context?.putImageData(restoredSelection.current, 0, 0);
+        restoredSelection.current = null;
+    }, [localEdit, source]);
+
+    const openHistory = (record: LocalEditPracticeRecord) => {
+        setLocalRecord(record);
+        setResult({ taskId: record.id, model: record.model, image: record.image });
+    };
+
+    const restoreHistory = async (record: LocalEditPracticeRecord) => {
+        if (busy || uploading || restoring) return;
+        setRestoring(true);
+        try {
+            const sourceReference = parseServerMediaUrl(record.sourceUrl);
+            if (!sourceReference) throw new Error("历史原图已失效，请重新上传");
+            const sourceImage = fetch(canvasReadableImageUrl(sourceReference.url), { cache: "no-store" });
+            const [response, mask] = await Promise.all([sourceImage, readLocalEditSelection(record.maskUrl)]);
+            if (!response.ok) throw new Error("历史原图已失效，请重新上传");
+            const blob = await response.blob();
+            const bitmap = await createImageBitmap(blob);
+            const { width, height } = bitmap;
+            bitmap.close();
+            if (width !== mask.width || height !== mask.height) throw new Error("历史选区与原图尺寸不一致，请重新涂抹");
+            restoredSelection.current = mask;
+            setSource({ ...sourceReference, width, height, bytes: blob.size, mimeType: blob.type || "image/png" });
+            setPrompt(record.prompt);
+            setError("");
+            setRetryPrompt("");
+        } catch (cause) {
+            message.error(cause instanceof Error ? cause.message : "无法恢复历史设置，请重新上传并涂抹");
+        } finally {
+            setRestoring(false);
+        }
+    };
+
+    const copyPracticePrompt = async (value: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            message.success("已复制参考写法");
+        } catch {
+            message.error("复制失败，请手动选择并复制参考写法");
+        }
+    };
 
     const chooseFile = async (file?: File) => {
-        if (!file || (toolId === "reverse-prompt" && (busy || trialBusy))) return;
+        if (!file || restoring || (toolId === "reverse-prompt" && (busy || trialBusy))) return;
         if (!file.type.startsWith("image/")) return message.error("请选择图片文件");
         setUploading(true);
         setError("");
         try {
             const uploaded = await uploadImage(file);
             setSource(uploaded);
-            setResult(null);
+            if (!localEdit) setResult(null);
             if (maskRef.current) maskRef.current.getContext("2d")?.clearRect(0, 0, maskRef.current.width, maskRef.current.height);
         } catch (cause) {
             message.error(cause instanceof Error ? cause.message : "图片上传失败");
@@ -133,7 +224,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     };
 
     const run = async (promptOverride?: string) => {
-        if (!source || busy || trialBusy || uploading) return;
+        if (!source || busy || trialBusy || uploading || restoring) return;
         setBusy(true);
         setError("");
         try {
@@ -169,6 +260,20 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
             setDiagnostic({ requestId, taskId: payload.task.id, taskType: payload.task.type, model: payload.task.model });
             const completed = await pollPracticeImageToolTask(payload.task);
             setResult(completed);
+            if (mask && completed.taskId && completed.image) {
+                const record: LocalEditPracticeRecord = {
+                    id: completed.taskId,
+                    createdAt: Date.now(),
+                    model: completed.model || payload.task.model,
+                    prompt: finalPrompt.slice(0, 20_000),
+                    sourceUrl: source.url,
+                    maskUrl: mask.url,
+                    image: completed.image,
+                };
+                setLocalRecord(record);
+                setHistory((records) => [record, ...records.filter((item) => item.id !== record.id)].slice(0, LOCAL_EDIT_HISTORY_LIMIT));
+                reloadHistory();
+            }
         } catch (cause) {
             const messageText = cause instanceof Error ? cause.message : "本次练习失败，请重试";
             setError(messageText);
@@ -192,7 +297,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 source: "practice",
                 data: { dataUrl: url, serverUrl: url, storageKey: image.storageKey, width: image.width, height: image.height, bytes: image.bytes, mimeType: image.mimeType },
             });
-            setResult((current) => (current ? { ...current, image, saved: true } : current));
+            setResult((current) => (current && current.taskId === result.taskId && current.image === result.image ? { ...current, image, saved: true } : current));
             message.success("已保存到个人素材库");
         } catch (cause) {
             message.error(cause instanceof Error ? cause.message : "保存失败，请重试");
@@ -202,6 +307,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     };
 
     const resultImageUrl = result?.image?.serverUrl || result?.image?.remoteUrl || result?.image?.url;
+    const resultDiagnostic = localEdit && diagnostic?.taskId !== result?.taskId ? null : diagnostic;
 
     const reverse = toolId === "reverse-prompt";
     const analysis = reverse && result?.text !== undefined ? parsePracticeReversePrompt(result.text) : null;
@@ -241,16 +347,21 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                                 className="mx-auto max-h-[38vh] max-w-full object-contain"
                                 onLoad={(event) => {
                                     const canvas = maskRef.current;
-                                    if (!canvas) return;
-                                    canvas.width = event.currentTarget.naturalWidth;
-                                    canvas.height = event.currentTarget.naturalHeight;
+                                    const { naturalWidth, naturalHeight } = event.currentTarget;
+                                    if (!canvas || !naturalWidth || !naturalHeight) return;
+                                    if (canvas.width !== naturalWidth) canvas.width = naturalWidth;
+                                    if (canvas.height !== naturalHeight) canvas.height = naturalHeight;
                                 }}
                             />
                             {toolId === "local-edit" ? (
                                 <canvas
                                     ref={maskRef}
+                                    width={source.width}
+                                    height={source.height}
+                                    aria-label="编辑选区画布"
                                     className="absolute inset-0 h-full w-full touch-none"
                                     onPointerDown={(event) => {
+                                        if (restoring) return;
                                         drawingRef.current = true;
                                         event.currentTarget.setPointerCapture(event.pointerId);
                                         const context = event.currentTarget.getContext("2d");
@@ -288,19 +399,19 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     )}
                     {!source ? (
                         <div className="mt-2 flex justify-center">
-                            <PracticeAssetPicker disabled={uploading || busy || trialBusy} onSelect={(image) => setSource(image)} label="或从个人素材库选择" />
+                            <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={(image) => setSource(image)} label="或从个人素材库选择" />
                         </div>
                     ) : null}
                     {source ? (
                         <div className="flex flex-wrap gap-2">
-                            <GammaButton size="sm" variant="outline" disabled={reverse && (busy || trialBusy || uploading)} onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
+                            <GammaButton size="sm" variant="outline" disabled={restoring || ((reverse || localEdit) && (busy || trialBusy || uploading))} onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
                                 更换图片
                             </GammaButton>
                             <PracticeAssetPicker
-                                disabled={uploading || busy || trialBusy}
+                                disabled={uploading || busy || trialBusy || restoring}
                                 onSelect={(image) => {
                                     setSource(image);
-                                    setResult(null);
+                                    if (!localEdit) setResult(null);
                                     setError("");
                                     if (maskRef.current) maskRef.current.getContext("2d")?.clearRect(0, 0, maskRef.current.width, maskRef.current.height);
                                 }}
@@ -382,7 +493,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         </>
                     ) : null}
                     <GammaButton
-                        disabled={!source || busy || uploading || trialBusy}
+                        disabled={!source || busy || uploading || trialBusy || restoring}
                         loading={busy}
                         onClick={() => void (toolId === "expression-reference" ? openExpressionEditor() : run())}
                         className="w-full"
@@ -404,6 +515,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                             ) : null}
                         </div>
                     ) : null}
+                    {localEdit ? <LocalEditHistory records={history} activeId={localRecord?.id} loading={historyLoading} error={historyError} onOpen={openHistory} onReload={reloadHistory} /> : null}
                 </div>
                 <div className="min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
                     <div className="mb-4 flex items-center gap-2">
@@ -424,9 +536,9 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     ) : (
                         <div className="space-y-4">
                             <div className="flex flex-wrap gap-2 text-xs text-[var(--gm-text-3)]">
-                                {diagnostic?.taskId || result.taskId ? (
+                                {resultDiagnostic?.taskId || result.taskId ? (
                                     <span>
-                                        任务 ID：<code>{diagnostic?.taskId || result.taskId}</code>
+                                        任务 ID：<code>{resultDiagnostic?.taskId || result.taskId}</code>
                                     </span>
                                 ) : null}
                                 <span>执行：{result.model || "本地处理"}</span>
@@ -468,7 +580,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                                 <div className="space-y-3">
                                     <div className="grid overflow-hidden rounded-xl border border-[var(--gm-border)] bg-black/5 md:grid-cols-2">
                                         <div className="p-2">
-                                            <img src={source?.url} alt="原图" className="max-h-[55vh] w-full object-contain" />
+                                            <img src={localRecord?.sourceUrl || source?.url} alt="原图" className="max-h-[55vh] w-full object-contain" />
                                             <p className="mt-1 text-center text-xs text-[var(--gm-text-3)]">原图</p>
                                         </div>
                                         <div className="p-2">
@@ -497,12 +609,15 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                                     </GammaButton>
                                 </div>
                             ) : null}
+                            {localRecord ? (
+                                <LocalEditPromptLesson record={localRecord} disabled={busy || uploading || restoring} onCopy={(value) => void copyPracticePrompt(value)} onApply={setPrompt} onRestore={() => void restoreHistory(localRecord)} />
+                            ) : null}
                             <div className="rounded-lg bg-[var(--gm-wash)]/40 p-3 text-xs text-[var(--gm-text-3)]">
                                 <p>结果未自动写入个人素材库。图片结果可按需点击保存；本地超分结果可下载或主动保存。</p>
-                                {diagnostic ? (
+                                {resultDiagnostic ? (
                                     <details className="mt-2">
                                         <summary className="cursor-pointer font-medium">诊断信息</summary>
-                                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap">{JSON.stringify({ toolId, ...diagnostic, error: error || undefined }, null, 2)}</pre>
+                                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap">{JSON.stringify({ toolId, ...resultDiagnostic, error: localEdit ? undefined : error || undefined }, null, 2)}</pre>
                                     </details>
                                 ) : null}
                             </div>

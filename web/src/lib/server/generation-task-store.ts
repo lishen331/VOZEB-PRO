@@ -157,12 +157,13 @@ export async function listStoredGenerationTasks<T>(type: GenerationTaskType, use
     return queryStoredGenerationTasks<T>(type, { userId, limit });
 }
 
-export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, options: { userId: string; conversationId?: string; projectId?: string; surface?: string; statuses?: string[]; limit?: number }): Promise<T[]> {
+export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, options: { userId: string; conversationId?: string; projectId?: string; surface?: string; statuses?: string[]; limit?: number; localEditSchoolId?: string }): Promise<T[]> {
     const userId = options.userId.trim();
     const conversationId = cleanContextText(options.conversationId);
     const projectId = cleanContextText(options.projectId);
     const surface = cleanContextText(options.surface);
     const statuses = [...new Set((options.statuses || []).map(normalizeGenerationTaskStatus))];
+    const localEditSchoolId = cleanContextText(options.localEditSchoolId);
     const limit = Math.max(1, Math.min(100, Math.floor(Number(options.limit) || 20)));
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
@@ -176,12 +177,16 @@ export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, op
         addFilter("conversation_id", conversationId);
         addFilter("project_id", projectId);
         addFilter("surface", surface);
+        if (localEditSchoolId) {
+            addFilter("school_id", localEditSchoolId);
+            filters.push("execution_profile = 'open-source-practice'", "payload->>'source' = 'practice'", "payload->>'kind' = 'edit'", "payload->>'title' = '局部编辑'", "jsonb_typeof(payload->'mask') = 'object'");
+        }
         if (statuses.length) {
             values.push(statuses);
             filters.push(`status = ANY($${values.length}::text[])`);
         }
         values.push(limit);
-        const result = await postgresQuery<{ payload: T }>(`SELECT payload FROM generation_tasks WHERE ${filters.join(" AND ")} ORDER BY updated_at DESC, id DESC LIMIT $${values.length}`, values);
+        const result = await postgresQuery<{ payload: T }>(`SELECT payload FROM generation_tasks WHERE ${filters.join(" AND ")} ORDER BY ${localEditSchoolId ? "created_at" : "updated_at"} DESC, id DESC LIMIT $${values.length}`, values);
         return result.rows.map((row) => row.payload);
     }
     const tasks = await readFileTasks();
@@ -194,9 +199,18 @@ export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, op
                 (!conversationId || task.conversationId === conversationId) &&
                 (!projectId || task.projectId === projectId) &&
                 (!surface || task.surface === surface) &&
+                (!localEditSchoolId ||
+                    (task.schoolId === localEditSchoolId &&
+                        task.executionProfile === "open-source-practice" &&
+                        task.payload.source === "practice" &&
+                        task.payload.kind === "edit" &&
+                        task.payload.title === "局部编辑" &&
+                        task.payload.mask !== null &&
+                        typeof task.payload.mask === "object" &&
+                        !Array.isArray(task.payload.mask))) &&
                 (!statuses.length || statuses.includes(task.status)),
         )
-        .sort((a, b) => b.updatedAt - a.updatedAt || b.id.localeCompare(a.id))
+        .sort((a, b) => (localEditSchoolId ? b.createdAt - a.createdAt : b.updatedAt - a.updatedAt) || b.id.localeCompare(a.id))
         .slice(0, limit)
         .map((task) => task.payload as T);
 }
