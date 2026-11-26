@@ -269,9 +269,10 @@ function Get-Boundary($route) {
 
 function Get-Purpose($route) {
     if ($route.path -eq "/api/admin/schools/[id]/members") { return "按学校分页查询成员；批量调整所选成员个人永久积分并记录流水" }
-    if ($route.path -eq "/api/admin/works") { return "查询作品列表；创建官方草稿，批量导入按行携带幂等标识" }
+    if ($route.path -eq "/api/admin/works") { return "按来源、置顶与展示调整状态组合查询作品并分页；创建官方草稿，批量导入按行携带幂等标识" }
     if ($route.path -eq "/api/admin/works/[id]") { return "读取官方作品当前版本、封面和有序媒体；更新官方草稿或永久删除已下架作品，批量删除校验确认时的作品更新时间" }
     if ($route.path -eq "/api/admin/works/[id]/take-down") { return "下架当前线上版本并审计；批量操作校验确认时的线上版本 ID" }
+    if ($route.path -eq "/api/admin/works/[id]/presentation") { return "置顶或取消置顶；设置或恢复观看与点赞展示数，并记录调整原因及前后数值" }
     if ($route.path -eq "/api/admin/works/[id]/publish") { return "发布官方作品的当前版本；分批发布额外验证预览时的版本更新时间" }
     if ($route.path -eq "/api/video-tasks") { return "已停用旧视频任务入口：固定返回 410" }
     if ($route.path -eq "/api/install/initialize") { return "使用一次性安装令牌初始化 PostgreSQL 表结构" }

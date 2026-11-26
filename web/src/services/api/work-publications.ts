@@ -64,6 +64,9 @@ export type WorkPublication = {
     adminCanDelete?: boolean;
     isFeatured: boolean;
     featuredAt?: string;
+    pinnedAt?: string;
+    displayViewOffset?: number;
+    displayLikeOffset?: number;
     featuredByUserId?: string;
     currentVersion?: WorkPublicationVersion;
     publishedVersion?: WorkPublicationVersion;
@@ -246,7 +249,9 @@ export function deleteWorkPublication(id: string) {
     return requestWorkPublication<{ deletedId: string }>(`/api/works/${encodeURIComponent(id)}`, { method: "DELETE" }).then((data) => data.deletedId);
 }
 
-export function listAdminWorkPublications(input: { page?: number; pageSize?: number; status?: WorkPublicationModerationStatus; lifecycleStatus?: WorkPublicationLifecycleStatus; origin?: WorkPublicationOrigin; keyword?: string } = {}) {
+export function listAdminWorkPublications(
+    input: { page?: number; pageSize?: number; status?: WorkPublicationModerationStatus; lifecycleStatus?: WorkPublicationLifecycleStatus; origin?: WorkPublicationOrigin; pinnedOnly?: "true"; adjustedOnly?: "true"; keyword?: string } = {},
+) {
     return requestWorkPublication<WorkPublicationPage>(`/api/admin/works?${searchParams(input)}`);
 }
 
@@ -294,6 +299,10 @@ export function reviewAdminWorkPublication(id: string, input: { versionId: strin
 
 export function takeDownAdminWorkPublication(id: string, reason: string, expectedPublishedVersionId?: string) {
     return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/take-down`, jsonRequest("POST", { reason, expectedPublishedVersionId })).then((data) => data.work);
+}
+
+export function updateAdminWorkPresentation(id: string, input: { action: "pin"; pinned: boolean } | { action: "counts"; viewCount: number; likeCount: number; reason: string } | { action: "restore"; reason: string }) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/presentation`, jsonRequest("PATCH", input)).then((data) => data.work);
 }
 
 export function deleteAdminWorkPublication(id: string, expectedUpdatedAt?: string) {

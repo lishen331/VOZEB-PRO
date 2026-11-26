@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-11-25。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **447** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-11-26。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **448** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**447**
-- 方法出现次数：DELETE 66、GET 227、HEAD 6、PATCH 63、POST 250、PUT 18
-- 一级域：`admin` 137、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 7、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 27、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 8
+- Route 文件：**448**
+- 方法出现次数：DELETE 66、GET 227、HEAD 6、PATCH 64、POST 250、PUT 18
+- 一级域：`admin` 138、`agent` 9、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`custom-voices` 3、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 7、`media-assets` 1、`media-proxy` 1、`model-catalog` 1、`my-prompts` 2、`notifications` 3、`one-click-film` 45、`points` 1、`practice` 27、`prompts` 1、`public` 17、`reference-assets` 2、`referrals` 1、`school` 32、`site-icon` 1、`teaching` 19、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 8
 
 ## 按业务域索引
 
-### `admin`（137）
+### `admin`（138）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -161,9 +161,10 @@
 | DELETE, PATCH | `/api/admin/users/[id]` | 管理员 | [route.ts](web/src/app/api/admin/users/[id]/route.ts) | [admin-user-deletion-service](web/src/lib/server/admin-user-deletion-service.ts)<br>[school-access-service](web/src/lib/server/school-access-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 用户 / 单项：更新、删除 |
 | GET | `/api/admin/work-cases` | 管理员 | [route.ts](web/src/app/api/admin/work-cases/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 作品治理案件：查询 |
 | POST | `/api/admin/work-cases/[id]/resolve` | 管理员 | [route.ts](web/src/app/api/admin/work-cases/[id]/resolve/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 作品治理案件 / 单项 / 处理：提交/执行 |
-| GET, POST | `/api/admin/works` | 管理员 | [route.ts](web/src/app/api/admin/works/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 查询作品列表；创建官方草稿，批量导入按行携带幂等标识 |
+| GET, POST | `/api/admin/works` | 管理员 | [route.ts](web/src/app/api/admin/works/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 按来源、置顶与展示调整状态组合查询作品并分页；创建官方草稿，批量导入按行携带幂等标识 |
 | DELETE, GET, PATCH | `/api/admin/works/[id]` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 读取官方作品当前版本、封面和有序媒体；更新官方草稿或永久删除已下架作品，批量删除校验确认时的作品更新时间 |
 | POST | `/api/admin/works/[id]/feature` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/feature/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 精选：提交/执行 |
+| PATCH | `/api/admin/works/[id]/presentation` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/presentation/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、作品与社区数据 | 置顶或取消置顶；设置或恢复观看与点赞展示数，并记录调整原因及前后数值 |
 | POST | `/api/admin/works/[id]/publish` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/publish/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 发布官方作品的当前版本；分批发布额外验证预览时的版本更新时间 |
 | PATCH | `/api/admin/works/[id]/pull-film` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/pull-film/route.ts) | [public-work-process-service](web/src/lib/server/public-work-process-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / pull-film：更新 |
 | POST | `/api/admin/works/[id]/relist` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/relist/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 重新上架：提交/执行 |

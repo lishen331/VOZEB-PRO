@@ -22,7 +22,7 @@ export class WorkGovernanceRepository {
         const order = galleryOrder(input.sort);
         const cursor = galleryCursorClause(input.sort);
         const result = await this.db.query(
-            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count, work.like_count, work.is_featured, work.featured_at,
+            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count, work.like_count, work.is_featured, work.featured_at, work.pinned_at, work.display_view_offset, work.display_like_offset,
                     version.id AS version_id, version.pull_film_enabled, coalesce(version.reviewed_at, version.updated_at) AS published_at,
                     version.title, version.description, version.public_prompt, version.category, version.tags, version.author_display,
                     CASE WHEN version.author_display = 'hidden' THEN NULL ELSE version.author_name END AS author_name,
@@ -92,6 +92,33 @@ export class WorkGovernanceRepository {
             [Math.max(1, Math.min(5000, Math.floor(limit)))],
         );
         return result.rows.map((row) => ({ slug: String(row.slug), updatedAt: new Date(String(row.updated_at)).toISOString() }));
+    }
+
+    async setPinned(workId: string, pinned: boolean) {
+        const result = await this.db.query(
+            `UPDATE published_works work
+             SET pinned_at = CASE WHEN $2 THEN coalesce(work.pinned_at, date_trunc('milliseconds', now())) ELSE NULL END
+             WHERE work.id = $1 AND (NOT $2::boolean OR (
+                 work.lifecycle_status = 'active' AND EXISTS (
+                     SELECT 1 FROM published_work_versions version
+                     JOIN users owner ON owner.id = work.owner_user_id AND owner.status = 'active'
+                     WHERE version.id = work.published_version_id AND version.moderation_status = 'approved' AND version.visibility = 'public'
+                 )
+             )) RETURNING work.*`,
+            [workId, pinned],
+        );
+        return result.rows[0] ? mapPublishedWork(result.rows[0]) : null;
+    }
+
+    async setDisplayCounts(workId: string, viewCount: number | null, likeCount: number | null) {
+        const result = await this.db.query(
+            `UPDATE published_works
+             SET display_view_offset = coalesce($2::bigint - view_count, 0),
+                 display_like_offset = coalesce($3::bigint - like_count, 0)
+             WHERE id = $1 RETURNING *`,
+            [workId, viewCount, likeCount],
+        );
+        return result.rows[0] ? mapPublishedWork(result.rows[0]) : null;
     }
 
     async setFeatured(workId: string, featured: boolean, actorUserId: string, changedAt: string) {
@@ -197,11 +224,12 @@ export class WorkGovernanceRepository {
     }
 }
 
-const FEATURED_AT = "coalesce(work.featured_at, to_timestamp(0))";
+const DEFAULT_RANK = "(CASE WHEN work.pinned_at IS NOT NULL THEN 2 WHEN work.is_featured THEN 1 ELSE 0 END)";
+const DEFAULT_RANK_AT = "coalesce(work.pinned_at, work.featured_at, to_timestamp(0))";
 
 function galleryOrder(sort: GallerySort) {
     // 推荐：精选作品固定在最前（最近设为精选的排第一），其余按随机种子打乱
-    if (sort === "random") return `work.is_featured DESC, ${FEATURED_AT} DESC, md5(work.id || gallery_cursor.random_seed) ASC, work.id ASC`;
+    if (sort === "random") return `${DEFAULT_RANK} DESC, ${DEFAULT_RANK_AT} DESC, md5(work.id || gallery_cursor.random_seed) ASC, work.id ASC`;
     if (sort === "popular") return "work.view_count DESC, coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
     if (sort === "latest") return "coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
     return "work.is_featured DESC, coalesce(work.featured_at, to_timestamp(0)) DESC, coalesce(version.reviewed_at, version.updated_at) DESC, work.id DESC";
@@ -210,11 +238,11 @@ function galleryOrder(sort: GallerySort) {
 function galleryCursorClause(sort: GallerySort) {
     if (sort === "random") {
         // 前两列降序、后两列升序，行比较表达不了混合方向，只能展开写
-        const rank = "(CASE WHEN work.is_featured THEN 1 ELSE 0 END)";
+        const rank = DEFAULT_RANK;
         return `(gallery_cursor.work_id IS NULL
                  OR ${rank} < gallery_cursor.feature_rank
-                 OR (${rank} = gallery_cursor.feature_rank AND ${FEATURED_AT} < gallery_cursor.featured_at)
-                 OR (${rank} = gallery_cursor.feature_rank AND ${FEATURED_AT} = gallery_cursor.featured_at
+                 OR (${rank} = gallery_cursor.feature_rank AND ${DEFAULT_RANK_AT} < gallery_cursor.featured_at)
+                 OR (${rank} = gallery_cursor.feature_rank AND ${DEFAULT_RANK_AT} = gallery_cursor.featured_at
                      AND (md5(work.id || gallery_cursor.random_seed), work.id) > (gallery_cursor.random_rank, gallery_cursor.work_id)))`;
     }
     if (sort === "popular") return "(gallery_cursor.work_id IS NULL OR (work.view_count, coalesce(version.reviewed_at, version.updated_at), work.id) < (gallery_cursor.view_count, gallery_cursor.published_at, gallery_cursor.work_id))";

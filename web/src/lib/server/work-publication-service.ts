@@ -48,6 +48,8 @@ export type WorkPublicationMediaCandidate = {
     previewUrl: string;
 };
 
+import { displayWorkCount } from "@/lib/work-display-count";
+
 export class WorkPublicationServiceError extends Error {
     constructor(
         message: string,
@@ -100,13 +102,16 @@ export async function listWorkPublicationsForUser(userId: string, input: { page?
     };
 }
 
-export async function listWorkPublicationsForAdmin(input: { page?: number; pageSize?: number; status?: unknown; lifecycleStatus?: unknown; origin?: unknown; keyword?: unknown } = {}) {
+export async function listWorkPublicationsForAdmin(input: { page?: number; pageSize?: number; status?: unknown; lifecycleStatus?: unknown; origin?: unknown; pinnedOnly?: boolean; adjustedOnly?: boolean; keyword?: unknown } = {}) {
     await assertWorkPublicationReady();
     const status = moderationStatus(input.status);
     const takenDown = status === "taken_down";
     const page = await createPostgresRepositories().workPublications.listWorks({
         moderationStatus: takenDown ? undefined : status,
         adminView: true,
+        publicationOrigin: input.origin === "official" || input.origin === "user_submission" ? input.origin : undefined,
+        pinnedOnly: input.pinnedOnly,
+        adjustedOnly: input.adjustedOnly,
         lifecycleStatus: takenDown
             ? input.lifecycleStatus === "active" || input.lifecycleStatus === "revoked"
                 ? input.lifecycleStatus
@@ -562,8 +567,8 @@ export async function getPublicWorkPublication(slugValue: unknown) {
         slug: work.slug,
         sourceType: work.sourceType,
         publicationOrigin: work.publicationOrigin,
-        viewCount: work.viewCount,
-        likeCount: work.likeCount,
+        viewCount: displayWorkCount(work.viewCount, work.displayViewOffset),
+        likeCount: displayWorkCount(work.likeCount, work.displayLikeOffset),
         publishedAt: work.publishedVersion.reviewedAt || work.publishedVersion.updatedAt,
         title: work.publicationOrigin === "official" ? cleanOfficialWorkTitle(work.publishedVersion.title) : work.publishedVersion.title,
         description: work.publishedVersion.description,

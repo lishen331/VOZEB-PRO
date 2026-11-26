@@ -7,14 +7,16 @@ import { Select } from "@/components/gamma-ui/gamma-ant-select";
 import { Modal } from "@/components/gamma-ui/gamma-ant-modal";
 import { Tooltip } from "@/components/gamma-ui/gamma-ant-overlay";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
-import { Button, Pagination, Segmented, Tag } from "@/components/gamma-ui/gamma-ant";
-import { Ban, Check, Eye, FileSpreadsheet, Film, GalleryVerticalEnd, Pencil, Plus, RefreshCw, RotateCcw, Search, Star, Trash2, X } from "lucide-react";
+import { Button, Pagination, Segmented, Switch, Tag } from "@/components/gamma-ui/gamma-ant";
+import { Ban, Check, Eye, FileSpreadsheet, Film, GalleryVerticalEnd, Pencil, Pin, PinOff, Plus, RefreshCw, RotateCcw, Search, Star, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AdminAccountId, AdminUserIdentity } from "@/components/admin/admin-user-identity";
 import { imagePreviewUrl } from "@/lib/media-image-url";
+import { cn } from "@/lib/utils";
+import { displayWorkCount } from "@/lib/work-display-count";
 import { workStatusToneClass } from "@/lib/work-publication-status";
 import { setAdminWorkFeatured, setAdminWorkPullFilm, type AdminWorkPullFilmState } from "@/services/api/work-governance";
 import {
@@ -24,6 +26,7 @@ import {
     relistOfficialWork,
     reviewAdminWorkPublication,
     takeDownAdminWorkPublication,
+    updateAdminWorkPresentation,
     type WorkPublication,
     type WorkPublicationLifecycleStatus,
     type WorkPublicationModerationStatus,
@@ -33,6 +36,7 @@ import {
 import { AdminWorkCasesSection } from "./admin-work-cases-section";
 import { AdminOfficialWorkEditor } from "./admin-official-work-editor";
 import { AdminOfficialWorkImport } from "./admin-official-work-import";
+import { AdminWorkDisplayCounts } from "./admin-work-display-counts";
 
 const PAGE_SIZE = 12;
 const BATCH_WORK_ACTIONS = { "take-down": "批量下架作品", delete: "批量删除已下架作品" } as const;
@@ -74,6 +78,8 @@ function AdminWorkReviewSection() {
     const [status, setStatus] = useState<WorkPublicationModerationStatus | "all">("all");
     const [lifecycleStatus, setLifecycleStatus] = useState<WorkPublicationLifecycleStatus | "all">("all");
     const [origin, setOrigin] = useState<WorkPublicationOrigin | "all">("all");
+    const [pinnedOnly, setPinnedOnly] = useState(false);
+    const [adjustedOnly, setAdjustedOnly] = useState(false);
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -81,6 +87,7 @@ function AdminWorkReviewSection() {
     const [actionId, setActionId] = useState("");
     const [reasonAction, setReasonAction] = useState<{ work: WorkPublication; kind: "reject" | "take-down" }>();
     const [reason, setReason] = useState("");
+    const [adjustingWork, setAdjustingWork] = useState<WorkPublication>();
     const [viewingWork, setViewingWork] = useState<WorkPublication>();
     const [editingOfficialWork, setEditingOfficialWork] = useState<WorkPublication | null>();
     const [officialEditorOpen, setOfficialEditorOpen] = useState(false);
@@ -109,6 +116,8 @@ function AdminWorkReviewSection() {
                 status: status === "all" ? undefined : status,
                 lifecycleStatus: lifecycleStatus === "all" ? undefined : lifecycleStatus,
                 origin: origin === "all" ? undefined : origin,
+                pinnedOnly: pinnedOnly ? "true" : undefined,
+                adjustedOnly: adjustedOnly ? "true" : undefined,
                 keyword: debouncedKeyword || undefined,
             });
             if (requestId !== requestIdRef.current) return;
@@ -126,7 +135,7 @@ function AdminWorkReviewSection() {
         } finally {
             if (requestId === requestIdRef.current) setLoading(false);
         }
-    }, [debouncedKeyword, lifecycleStatus, origin, page, status]);
+    }, [adjustedOnly, debouncedKeyword, lifecycleStatus, origin, page, pinnedOnly, status]);
 
     useEffect(() => {
         void load();
@@ -134,7 +143,7 @@ function AdminWorkReviewSection() {
 
     useEffect(() => {
         setSelectedWorkIds([]);
-    }, [page, status, lifecycleStatus, origin, debouncedKeyword]);
+    }, [page, status, lifecycleStatus, origin, debouncedKeyword, pinnedOnly, adjustedOnly]);
 
     const selectionDisabled = loading || bulkPublishing || batchWorking || Boolean(actionId);
     const selectableWorks = items.filter(canSelectWork);
@@ -263,6 +272,19 @@ function AdminWorkReviewSection() {
         }
     };
 
+    const togglePinned = async (work: WorkPublication) => {
+        setActionId(work.id);
+        try {
+            const updated = await updateAdminWorkPresentation(work.id, { action: "pin", pinned: !work.pinnedAt });
+            message.success(updated.pinnedAt ? "作品已置顶" : "作品已取消置顶");
+            await load();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "更新置顶失败");
+        } finally {
+            setActionId("");
+        }
+    };
+
     const toggleFeatured = async (work: WorkPublication) => {
         setActionId(work.id);
         try {
@@ -332,7 +354,10 @@ function AdminWorkReviewSection() {
         setStatus("all");
         setLifecycleStatus("all");
         setOrigin("all");
+        setPinnedOnly(false);
+        setAdjustedOnly(false);
         setKeyword("");
+        setSelectedWorkIds([]);
         setPage(1);
     };
 
@@ -366,6 +391,14 @@ function AdminWorkReviewSection() {
                         <Button type="text" size="small" aria-label={work.isFeatured ? "取消精选" : "设为精选"} icon={<Star className={`size-3.5 ${work.isFeatured ? "fill-current" : ""}`} />} onClick={() => void toggleFeatured(work)} loading={busy} />
                     </Tooltip>
                 ) : null}
+                {canFeature || work.pinnedAt ? (
+                    <Tooltip title={work.pinnedAt ? "取消置顶" : "置顶作品"}>
+                        <Button type="text" size="small" aria-label={work.pinnedAt ? "取消置顶" : "置顶作品"} icon={work.pinnedAt ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />} loading={busy} onClick={() => void togglePinned(work)} />
+                    </Tooltip>
+                ) : null}
+                <Button type="link" size="small" onClick={() => setAdjustingWork(work)} disabled={busy}>
+                    {hasAdjustedDisplayCounts(work) ? "查看展示调整" : "调整展示数据"}
+                </Button>
                 {canPullFilm ? (
                     <Tooltip title={pullFilmEnabled ? "取消拉片" : "设为拉片"}>
                         <Button type="text" size="small" aria-label={pullFilmEnabled ? "取消拉片" : "设为拉片"} icon={<Film className={`size-3.5 ${pullFilmEnabled ? "fill-current" : ""}`} />} onClick={() => void togglePullFilm(work)} loading={busy} />
@@ -444,7 +477,7 @@ function AdminWorkReviewSection() {
             title: "作品",
             key: "work",
             width: 330,
-            render: (_, work) => <AdminWorkIdentity work={work} />,
+            render: (_, work) => <AdminWorkIdentity work={work} showMetrics />,
         },
         {
             title: "用户",
@@ -481,17 +514,7 @@ function AdminWorkReviewSection() {
             width: 112,
             render: (_, work) => <AdminWorkStatus work={work} />,
         },
-        {
-            title: "数据",
-            key: "metrics",
-            width: 110,
-            render: (_, work) => (
-                <div className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                    <div>{work.viewCount} 次访问</div>
-                    <div>{work.likeCount} 次点赞</div>
-                </div>
-            ),
-        },
+
         {
             title: "操作",
             key: "actions",
@@ -595,8 +618,10 @@ function AdminWorkReviewSection() {
                     <Button className="w-full md:w-auto" onClick={clearFilters}>
                         清除筛选
                     </Button>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     {selectableWorks.length ? (
-                        <label className="col-span-2 inline-flex items-center gap-2 text-sm md:col-span-1">
+                        <label className="inline-flex items-center gap-2 text-sm">
                             <input
                                 type="checkbox"
                                 className="gm-checkbox"
@@ -607,6 +632,34 @@ function AdminWorkReviewSection() {
                             全选本页可操作作品
                         </label>
                     ) : null}
+                    <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2" role="group" aria-label="作品展示筛选">
+                        <label className="inline-flex items-center gap-2 text-sm">
+                            <Switch
+                                size="small"
+                                checked={pinnedOnly}
+                                aria-label="已置顶"
+                                onChange={(checked) => {
+                                    setPinnedOnly(checked);
+                                    setPage(1);
+                                    setSelectedWorkIds([]);
+                                }}
+                            />
+                            已置顶
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-sm">
+                            <Switch
+                                size="small"
+                                checked={adjustedOnly}
+                                aria-label="展示已调整"
+                                onChange={(checked) => {
+                                    setAdjustedOnly(checked);
+                                    setPage(1);
+                                    setSelectedWorkIds([]);
+                                }}
+                            />
+                            展示已调整
+                        </label>
+                    </div>
                 </div>
 
                 {batchResult ? (
@@ -673,7 +726,7 @@ function AdminWorkReviewSection() {
                                     onChange: setPage,
                                 }}
                                 locale={{ emptyText: <AdminWorksEmpty /> }}
-                                scroll={{ x: 1374 }}
+                                scroll={{ x: 1464 }}
                                 size="middle"
                                 tableLayout="fixed"
                                 rowSelection={{
@@ -750,6 +803,19 @@ function AdminWorkReviewSection() {
                     void load();
                 }}
             />
+            {adjustingWork ? (
+                <AdminWorkDisplayCounts
+                    work={adjustingWork}
+                    onClose={() => setAdjustingWork(undefined)}
+                    onSaved={(updated) => {
+                        const update = (work: WorkPublication) =>
+                            work.id === updated.id ? { ...work, viewCount: updated.viewCount, likeCount: updated.likeCount, displayViewOffset: updated.displayViewOffset, displayLikeOffset: updated.displayLikeOffset, updatedAt: updated.updatedAt } : work;
+                        setItems((current) => current.map(update));
+                        setViewingWork((current) => (current ? update(current) : current));
+                        void load();
+                    }}
+                />
+            ) : null}
             <Modal title="作品详情" open={Boolean(viewingWork)} width={760} footer={null} destroyOnHidden onCancel={() => setViewingWork(undefined)}>
                 {viewingWork ? <AdminWorkDetail work={viewingWork} busy={actionId === viewingWork.id} onTogglePullFilm={() => void togglePullFilm(viewingWork)} /> : null}
             </Modal>
@@ -773,7 +839,7 @@ function isPublishableOfficialDraft(work: WorkPublication) {
     return work.publicationOrigin === "official" && work.lifecycleStatus === "active" && !work.publishedVersionId && work.currentVersion?.moderationStatus === "draft";
 }
 
-function AdminWorkIdentity({ work }: { work: WorkPublication }) {
+function AdminWorkIdentity({ work, showMetrics = false }: { work: WorkPublication; showMetrics?: boolean }) {
     const version = work.currentVersion;
     if (!version) return <span className="text-xs text-zinc-500">版本不可用</span>;
     return (
@@ -783,6 +849,7 @@ function AdminWorkIdentity({ work }: { work: WorkPublication }) {
                 <Tooltip title={version.title} placement="topLeft">
                     <div className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">{version.title}</div>
                 </Tooltip>
+                {showMetrics ? <AdminWorkMetrics work={work} className="max-xl:flex-col max-xl:items-start" /> : null}
                 <div className="mt-0.5 line-clamp-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">{version.description || "未填写作品说明"}</div>
                 <div className="mt-0.5 truncate text-[11px] text-zinc-400 dark:text-zinc-500" title={work.slug}>
                     {work.slug}
@@ -804,6 +871,7 @@ function AdminWorkStatus({ work }: { work: WorkPublication }) {
     return (
         <div className="flex flex-col items-start gap-1">
             {moderationSignal ? <Tooltip title={moderationSignal}>{tag}</Tooltip> : tag}
+            {work.pinnedAt ? <Tag color="blue">已置顶</Tag> : null}
             {work.isFeatured ? <Tag color="gold">精选</Tag> : null}
             {work.publishedVersion?.pullFilmEnabled ? <Tag color="cyan">拉片项目</Tag> : null}
             {work.publishedVersion && work.publishedVersion.id !== version.id ? <span className="text-[11px] text-zinc-500 dark:text-zinc-400">线上 v{work.publishedVersion.versionNumber}</span> : null}
@@ -826,6 +894,24 @@ function AdminWorkThumbnail({ work }: { work: WorkPublication }) {
     );
 }
 
+function hasAdjustedDisplayCounts(work: WorkPublication) {
+    return displayWorkCount(work.viewCount, work.displayViewOffset) !== work.viewCount || displayWorkCount(work.likeCount, work.displayLikeOffset) !== work.likeCount;
+}
+
+function AdminWorkMetrics({ work, className }: { work: WorkPublication; className?: string }) {
+    return (
+        <div role="group" aria-label="作品互动数据" className={cn("flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-[var(--gm-text-3)]", className)}>
+            <span className="break-all">观看 {displayWorkCount(work.viewCount, work.displayViewOffset)}</span>
+            <span className="break-all">点赞 {displayWorkCount(work.likeCount, work.displayLikeOffset)}</span>
+            {hasAdjustedDisplayCounts(work) ? (
+                <Tag className="m-0" color="blue">
+                    展示已调整
+                </Tag>
+            ) : null}
+        </div>
+    );
+}
+
 function AdminWorkMobileCard({ work, actions }: { work: WorkPublication; actions: ReactNode }) {
     return (
         <article className="min-w-0 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -842,6 +928,9 @@ function AdminWorkMobileCard({ work, actions }: { work: WorkPublication; actions
                 </span>
                 <span>{sourceTypeLabel(work.sourceType)}</span>
                 <span>{formatAdminTime(work.updatedAt)}</span>
+            </div>
+            <div className="mt-2">
+                <AdminWorkMetrics work={work} />
             </div>
             <div className="mt-2 flex flex-wrap justify-end gap-0.5 border-t border-zinc-200 pt-2 dark:border-zinc-800">{actions}</div>
         </article>
@@ -892,6 +981,7 @@ function AdminWorkDetail({ work, busy, onTogglePullFilm }: { work: WorkPublicati
                         <DetailValue label="更新时间" value={formatAdminTime(work.updatedAt)} />
                         <DetailValue label="作品链接" value={work.slug} />
                     </div>
+                    <AdminWorkMetrics work={work} />
                     <div className="flex flex-wrap gap-1.5">
                         <AdminWorkStatus work={work} />
                         {version.tags.map((tag) => (

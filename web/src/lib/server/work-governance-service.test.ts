@@ -41,6 +41,14 @@ describe("work governance service", () => {
         mocks.createPostgresRepositories.mockReturnValue({ workPublications: mocks.workPublications, workGovernance: mocks.workGovernance });
     });
 
+    it("rejects invalid presentation targets before writing", async () => {
+        const { updateWorkPresentation } = await import("./work-governance-service");
+        for (const target of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, "10"]) {
+            await expect(updateWorkPresentation("work-one", { action: "counts", viewCount: target, likeCount: 2, reason: "运营调整" })).rejects.toMatchObject({ status: 400 });
+        }
+        expect(mocks.withPostgresTransaction).not.toHaveBeenCalled();
+    });
+
     it("forwards owner appeal pagination without widening the work scope", async () => {
         mocks.workGovernance.listCasesForOwner.mockResolvedValue({ items: [], total: 51, page: 3, pageSize: 20 });
 

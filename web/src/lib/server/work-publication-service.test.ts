@@ -376,6 +376,11 @@ describe("work publication service", () => {
         expect(workPublications.listWorks).toHaveBeenLastCalledWith(expect.objectContaining({ moderationStatus: undefined, lifecycleStatus: "revoked", userStatus: "taken_down" }));
     });
 
+    it("applies both presentation filters and the selected origin before pagination", async () => {
+        await listWorkPublicationsForAdmin({ origin: "official", pinnedOnly: true, adjustedOnly: true, page: 2, pageSize: 12 });
+        expect(workPublications.listWorks).toHaveBeenCalledWith(expect.objectContaining({ publicationOrigin: "official", pinnedOnly: true, adjustedOnly: true, page: 2, pageSize: 12 }));
+    });
+
     it("returns the registered generation url for an admin work preview", async () => {
         const generationImage = { ...ownedImage, scope: "generation" as const };
         workPublications.listWorks.mockResolvedValueOnce({

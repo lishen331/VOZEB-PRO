@@ -118,7 +118,7 @@ test("从独立弹窗跨页多选媒体，并恢复作品封面与顺序", async
     await expect(editing).toBeHidden();
 
     const lookup = page.waitForResponse((response) => new URL(response.url()).searchParams.get("keyword") === title && response.ok());
-    await page.getByPlaceholder("搜索作品标题、用户、用户 ID 或作品链接").fill(title);
+    await page.getByRole("textbox", { name: "搜索作品标题、用户、用户 ID 或作品链接" }).fill(title);
     await lookup;
     const edit = page.getByRole("button", { name: "编辑", exact: true });
     await page.route(`**/api/admin/works/${work.id}`, (route) => route.fulfill({ status: 500, json: { msg: "测试读取失败" } }), { times: 1 });
@@ -296,11 +296,12 @@ test("按作品状态批量下架和永久删除，并处理并发上架", async
     await publish(online);
     await publish(changed);
     await page.goto("/admin?section=works");
+    await expect(page.locator("[data-hydrated='true']")).toBeVisible();
     const filtered = page.waitForResponse((response) => {
         const url = new URL(response.url());
         return url.pathname === api && url.searchParams.get("keyword") === prefix && response.ok();
     });
-    await page.getByPlaceholder("搜索作品标题、用户、用户 ID 或作品链接").fill(prefix);
+    await page.getByRole("textbox", { name: "搜索作品标题、用户、用户 ID 或作品链接" }).fill(prefix);
     await filtered;
     const selectPage = page.getByRole("checkbox", { name: "全选本页可操作作品", exact: true });
     await expect(page.getByText(`${prefix}-草稿`, { exact: true }).filter({ visible: true })).toBeVisible();
@@ -328,4 +329,227 @@ test("按作品状态批量下架和永久删除，并处理并发上架", async
     await expect(page.getByRole("alert").filter({ hasText: `${prefix}-发布冲突` })).toContainText("下架");
     await expect(page.getByText(`${prefix}-线上`, { exact: true }).filter({ visible: true })).toHaveCount(0);
     expect((await request.get(`/api/public/works/${changed.slug}`)).status()).toBe(200);
+});
+
+test("置顶只影响默认排序，展示数与真实互动分开", async ({ page, request, browser, baseURL }) => {
+    const prefix = `作品展示-${randomUUID().slice(0, 8)}`;
+    const api = "/api/admin/works";
+    const image = await sharp({ create: { width: 24, height: 24, channels: 3, background: "#6b80ca" } })
+        .png()
+        .toBuffer();
+    const uploaded = await request.post(`${api}/media`, { multipart: { file: { name: `${prefix}.png`, mimeType: "image/png", buffer: image } } });
+    expect(uploaded.ok(), await uploaded.text()).toBe(true);
+    const { data: media } = await uploaded.json();
+    const create = async (suffix: string) => {
+        const response = await request.post(api, { data: { title: `${prefix}-${suffix}`, category: "视觉设计", authorDisplay: "hidden", coverStorageKey: media.storageKey, assetStorageKeys: [media.storageKey] } });
+        expect(response.ok(), await response.text()).toBe(true);
+        return (await response.json()).data.work;
+    };
+    const work = await create("置顶");
+    const featured = await create("精选");
+    const show = async (item: typeof work) => {
+        const response = await request.post(`${api}/${item.id}/publish`, { data: { versionId: item.currentVersion.id } });
+        expect(response.ok(), await response.text()).toBe(true);
+    };
+    const presentation = `${api}/${work.id}/presentation`;
+    const anonymous = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+    try {
+        expect((await anonymous.request.patch(presentation, { data: { action: "pin", pinned: true } })).status()).toBe(401);
+    } finally {
+        await anonymous.close();
+    }
+    expect((await request.patch(presentation, { data: { action: "pin", pinned: true } })).status()).toBe(409);
+    await show(work);
+    await show(featured);
+    expect((await request.post(`${api}/${featured.id}/feature`, { data: { featured: true } })).ok()).toBe(true);
+    const publicWork = `/api/public/works/${work.slug}`;
+    const requestData = async (url: string) => {
+        const response = await request.get(url);
+        expect(response.ok(), await response.text()).toBe(true);
+        return (await response.json()).data;
+    };
+    const gallery = `/api/public/gallery?keyword=${encodeURIComponent(prefix)}&limit=1`;
+    await page.goto("/admin?section=works");
+    await expect(page.locator("[data-hydrated='true']")).toBeVisible();
+    const results = page.waitForResponse((response) => new URL(response.url()).pathname === api && new URL(response.url()).searchParams.get("keyword") === `${prefix}-置顶` && response.ok());
+    await page.getByRole("textbox", { name: "搜索作品标题、用户、用户 ID 或作品链接" }).fill(`${prefix}-置顶`);
+    await results;
+    await expect(page.getByText(`${prefix}-精选`, { exact: true }).filter({ visible: true })).toHaveCount(0);
+    await expect(page.getByText(`${prefix}-置顶`, { exact: true }).filter({ visible: true })).toBeVisible();
+    const pinnedFilter = page.getByRole("switch", { name: "已置顶" });
+    const adjustedFilter = page.getByRole("switch", { name: "展示已调整" });
+    const selectAll = page.getByRole("checkbox", { name: "全选本页可操作作品" });
+    const clearFilters = page.getByRole("button", { name: "清除筛选", exact: true });
+    const displayFilters = page.getByRole("group", { name: "作品展示筛选" });
+    await expect(pinnedFilter).toBeVisible();
+    await expect(adjustedFilter).toBeVisible();
+    await expect(selectAll).toBeVisible();
+    await expect(clearFilters).toBeVisible();
+    const [pinnedBounds, adjustedBounds, clearBounds, selectBounds] = await Promise.all([
+        displayFilters.getByText("已置顶", { exact: true }).boundingBox(),
+        displayFilters.getByText("展示已调整", { exact: true }).boundingBox(),
+        clearFilters.boundingBox(),
+        selectAll.boundingBox(),
+    ]);
+    expect(pinnedBounds!.x).toBeGreaterThan(selectBounds!.x);
+    expect(adjustedBounds!.x).toBeGreaterThanOrEqual(pinnedBounds!.x + pinnedBounds!.width);
+    expect(Math.abs(pinnedBounds!.y - adjustedBounds!.y)).toBeLessThanOrEqual(1);
+    expect(adjustedBounds!.y).toBeGreaterThanOrEqual(clearBounds!.y + clearBounds!.height - 1);
+    expect(Math.abs(adjustedBounds!.x + adjustedBounds!.width - clearBounds!.x - clearBounds!.width)).toBeLessThanOrEqual(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole("button", { name: "置顶作品", exact: true }).click();
+    await expect(page.getByRole("button", { name: "取消置顶", exact: true })).toBeVisible();
+    await pinnedFilter.click();
+    await expect(pinnedFilter).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByText(`${prefix}-置顶`, { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByText(`${prefix}-精选`, { exact: true }).filter({ visible: true })).toHaveCount(0);
+    await pinnedFilter.click();
+    await expect(pinnedFilter).toHaveAttribute("aria-checked", "false");
+    const first = await requestData(gallery);
+    expect(first.items[0].slug).toBe(work.slug);
+    expect((await requestData(`${gallery}&cursor=${encodeURIComponent(first.nextCursor)}`)).items[0].slug).toBe(featured.slug);
+    expect((await requestData(`${gallery}&sort=latest`)).items[0].slug).toBe(featured.slug);
+    const secondPresentation = `${api}/${featured.id}/presentation`;
+    expect((await request.patch(secondPresentation, { data: { action: "pin", pinned: true } })).ok()).toBe(true);
+    const newestPin = await requestData(gallery);
+    expect(newestPin.items[0].slug).toBe(featured.slug);
+    expect((await requestData(`${gallery}&cursor=${encodeURIComponent(newestPin.nextCursor)}`)).items[0].slug).toBe(work.slug);
+    expect((await request.patch(secondPresentation, { data: { action: "pin", pinned: false } })).ok()).toBe(true);
+    expect((await requestData(`${gallery}&category=${encodeURIComponent("摄影")}`)).items).toHaveLength(0);
+    await page.getByRole("button", { name: "取消置顶", exact: true }).click();
+    await expect(page.getByRole("button", { name: "置顶作品", exact: true })).toBeVisible();
+    expect((await requestData(gallery)).items[0].slug).toBe(featured.slug);
+
+    const workRow = page.locator("tr, article").filter({ has: page.getByText(`${prefix}-置顶`, { exact: true }) });
+    const counts = workRow.getByRole("group", { name: "作品互动数据" });
+    const adjustedMarker = counts.getByText("展示已调整", { exact: true });
+    await expect(adjustedMarker).toHaveCount(0);
+    await workRow.getByRole("button", { name: "调整展示数据", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "调整展示数据" });
+    await expect(dialog).toContainText("当前状态：未调整");
+    await dialog.getByLabel(/观看展示数量/).fill("100");
+    await dialog.getByLabel(/点赞展示数量/).fill("20");
+    await expect(dialog.getByRole("button", { name: "保存展示数据" })).toBeDisabled();
+    await dialog.getByLabel("调整原因").fill("验证展示数据");
+    await dialog.getByRole("button", { name: "保存展示数据" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(adjustedMarker).toBeVisible();
+    await expect(counts).toContainText("观看 100");
+    await expect(counts).toContainText("点赞 20");
+    await selectAll.check();
+    await adjustedFilter.click();
+    await expect(selectAll).not.toBeChecked();
+    await expect(adjustedFilter).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByText(`${prefix}-置顶`, { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByText(`${prefix}-精选`, { exact: true }).filter({ visible: true })).toHaveCount(0);
+    const desktopTable = page.locator(".admin-work-table .gm-table-content");
+    if (await desktopTable.isVisible()) {
+        const viewport = page.viewportSize()!;
+        const expand = page.getByRole("button", { name: "展开后台侧边栏", exact: true });
+        if (await expand.isVisible()) await expand.click();
+        for (const width of [768, 1024, 1280, 1440, 1920]) {
+            await page.setViewportSize({ width, height: viewport.height });
+            await desktopTable.evaluate((container) => {
+                container.scrollLeft = 0;
+            });
+            await expect
+                .poll(
+                    () =>
+                        counts.evaluate((group) => {
+                            const scroll = group.closest(".gm-table-content")!;
+                            const actions = group.closest("tr")!.querySelector(".gm-table-cell-fix-right")!;
+                            const visibleRight = Math.min(scroll.getBoundingClientRect().right, actions.getBoundingClientRect().left, innerWidth);
+                            const visibleLeft = Math.max(scroll.getBoundingClientRect().left, 0);
+                            return Array.from(group.children, (child) => {
+                                const rect = child.getBoundingClientRect();
+                                return rect.width > 0 && rect.left >= visibleLeft && rect.right <= visibleRight + 1;
+                            });
+                        }),
+                    { message: `观看、点赞和调整标识在 ${width}px 时必须完整露出` },
+                )
+                .toEqual([true, true, true]);
+        }
+        await page.setViewportSize({ width: 1280, height: viewport.height });
+        const scrollState = await desktopTable.evaluate((container) => {
+            const actions = container.querySelector("tbody .gm-table-cell-fix-right")!;
+            const before = actions.getBoundingClientRect().left;
+            container.scrollLeft = container.scrollWidth;
+            const scrolled = container.scrollLeft;
+            const after = actions.getBoundingClientRect().left;
+            container.scrollLeft = 0;
+            return { scrolled, movement: Math.abs(before - after) };
+        });
+        expect(scrollState.scrolled).toBeGreaterThan(0);
+        expect(scrollState.movement).toBeLessThanOrEqual(1);
+        await page.setViewportSize(viewport);
+    }
+    await page.reload();
+    await expect(page.locator("[data-hydrated='true']")).toBeVisible();
+    await page.getByRole("textbox", { name: "搜索作品标题、用户、用户 ID 或作品链接" }).fill(`${prefix}-置顶`);
+    await expect(counts.filter({ hasText: "展示已调整" })).toContainText("观看 100");
+    expect((await requestData(publicWork)).work).toMatchObject({ viewCount: 100, likeCount: 20 });
+    const watched = await request.post(`${publicWork}/view`);
+    expect(await watched.json()).toMatchObject({ data: { viewCount: 101 } });
+    for (const active of [true, false]) {
+        const liked = await request.post(`${publicWork}/community/like`, { data: { active } });
+        expect(liked.ok(), await liked.text()).toBe(true);
+        expect(await liked.json()).toMatchObject({ data: { likeCount: active ? 21 : 20, active } });
+    }
+    expect((await requestData(gallery.replace("limit=1", "limit=2"))).items.find((item: { slug: string }) => item.slug === work.slug)).toMatchObject({ viewCount: 101, likeCount: 20 });
+    expect((await requestData(`${api}?keyword=${encodeURIComponent(`${prefix}-置顶`)}`)).items[0]).toMatchObject({ viewCount: 1, likeCount: 0 });
+    const boosted = await request.patch(`${api}/${featured.id}/presentation`, { data: { action: "counts", viewCount: 1000, likeCount: 0, reason: "验证人气排序" } });
+    expect(boosted.ok(), await boosted.text()).toBe(true);
+    expect((await requestData(`${gallery}&sort=popular`)).items[0].slug).toBe(work.slug);
+    const search = page.getByRole("textbox", { name: "搜索作品标题、用户、用户 ID 或作品链接" });
+    const adminSearch = `${api}?keyword=${encodeURIComponent(prefix)}&origin=official`;
+    const pageOne = await requestData(`${adminSearch}&adjustedOnly=true&page=1&pageSize=1`);
+    const pageTwo = await requestData(`${adminSearch}&adjustedOnly=true&page=2&pageSize=1`);
+    expect(pageOne.total).toBe(2);
+    expect(pageTwo.total).toBe(2);
+    expect(new Set([pageOne.items[0].id, pageTwo.items[0].id])).toEqual(new Set([work.id, featured.id]));
+    expect((await requestData(`${adminSearch}&pinnedOnly=true`)).items).toEqual([]);
+    expect((await requestData(`${api}?keyword=${encodeURIComponent(prefix)}&origin=user_submission&adjustedOnly=true`)).items).toEqual([]);
+    await adjustedFilter.click();
+    await pinnedFilter.click();
+    await expect(page.getByText("共 0 条", { exact: true })).toBeVisible();
+    const allWorks = await requestData(api);
+    await page.getByRole("button", { name: "清除筛选", exact: true }).click();
+    await expect(page.getByText(`共 ${allWorks.total} 条`, { exact: true })).toBeVisible();
+    await expect(adjustedFilter).toHaveAttribute("aria-checked", "false");
+    await expect(pinnedFilter).toHaveAttribute("aria-checked", "false");
+    await expect(search).toHaveValue("");
+    const filteredAgain = page.waitForResponse((response) => new URL(response.url()).pathname === api && new URL(response.url()).searchParams.get("keyword") === `${prefix}-置顶` && response.ok());
+    await search.fill(`${prefix}-置顶`);
+    await filteredAgain;
+    await adjustedFilter.click();
+    await expect(workRow.getByRole("button", { name: "置顶作品", exact: true })).toBeVisible();
+    await workRow.getByRole("button", { name: "置顶作品", exact: true }).click();
+    await expect(workRow.getByRole("button", { name: "取消置顶", exact: true })).toBeVisible();
+    await pinnedFilter.click();
+    const combined = await requestData(`${adminSearch}&pinnedOnly=true&adjustedOnly=true`);
+    expect(combined.items.map((item: { id: string }) => item.id)).toEqual([work.id]);
+    await expect(counts.filter({ hasText: "展示已调整" })).toContainText("观看 101");
+    await page.getByRole("button", { name: "刷新", exact: true }).click();
+    await expect(counts.filter({ hasText: "展示已调整" })).toContainText("观看 101");
+    await workRow.getByRole("button", { name: "查看展示调整", exact: true }).click();
+    await expect(dialog).toContainText("当前状态：已调整");
+    await expect(dialog).toContainText("真实 1 · 当前展示 101 · 偏移 +100");
+    await expect(dialog).toContainText("真实 0 · 当前展示 20 · 偏移 +20");
+    await dialog.getByLabel("调整原因").fill("恢复实际计数");
+    await dialog.getByRole("button", { name: "恢复真实数据" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(workRow.filter({ visible: true })).toHaveCount(0);
+    await adjustedFilter.click();
+    await expect(adjustedMarker).toHaveCount(0);
+    await expect(counts).toContainText("观看 1");
+    await expect(counts).toContainText("点赞 0");
+    await expect(workRow.getByRole("button", { name: "调整展示数据", exact: true })).toBeVisible();
+    expect((await requestData(publicWork)).work).toMatchObject({ viewCount: 1, likeCount: 0 });
+
+    await workRow.getByRole("button", { name: "取消置顶", exact: true }).click();
+    await expect(workRow.filter({ visible: true })).toHaveCount(0);
+    expect((await request.patch(presentation, { data: { action: "pin", pinned: true } })).ok()).toBe(true);
+    expect((await request.post(`${api}/${work.id}/take-down`, { data: { reason: "测试取消置顶" } })).ok()).toBe(true);
+    expect((await request.post(`${api}/${work.id}/relist`)).ok()).toBe(true);
+    expect((await requestData(gallery)).items[0].slug).toBe(featured.slug);
 });
