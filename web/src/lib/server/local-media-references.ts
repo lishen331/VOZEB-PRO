@@ -13,6 +13,11 @@ export async function countLocalMediaReferences(storageKeys: string[]) {
             ), reference_counts AS (
                 SELECT r.storage_key, count(*)::int AS total
                 FROM requested r
+                JOIN practice_reverse_prompt_history h ON h.source_key = r.storage_key OR h.success_asset_key = r.storage_key
+                GROUP BY r.storage_key
+                UNION ALL
+                SELECT r.storage_key, count(*)::int AS total
+                FROM requested r
                 JOIN creative_assets a ON a.status <> 'deleted'
                     AND (a.storage_key = r.storage_key OR position(r.storage_key in COALESCE(a.server_url, '')) > 0)
                 GROUP BY r.storage_key

@@ -9,8 +9,10 @@ import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 import { createLibraryAsset } from "@/services/api/library-assets";
 import { parsePracticeReversePrompt } from "@/lib/practice-reverse-prompt";
+import type { ReversePromptHistoryRecord } from "@/lib/practice-reverse-prompt-history";
 import { pollPracticeImageToolTask, PracticeImageToolTaskFailed, type PracticeImageToolResult, type PracticeImageToolTask } from "./practice-image-tool-task";
 import { PracticeReversePromptStudyDeck } from "./practice-reverse-prompt-study-deck";
+import { PracticeReversePromptHistoryDrawer, REVERSE_PROMPT_MODES, restoreReversePromptHistoryView } from "./practice-reverse-prompt-history-drawer";
 import { PracticeReversePromptTrial } from "./practice-reverse-prompt-trial";
 import { PracticeAssetPicker } from "./practice-asset-picker";
 import { getPracticeImageToolConfig, LOCAL_EDIT_HISTORY_LIMIT, type LocalEditPracticeRecord, type PracticeImageToolId } from "@/lib/practice-image-tools";
@@ -22,12 +24,6 @@ import { expressionLesson, EXPRESSION_HISTORY_LIMIT, readExpressionSelection, ty
 import type { CanvasEmotionSelection } from "@/app/(user)/canvas/utils/canvas-emotion-prompt";
 import { CanvasNodeEmotionDialog } from "@/app/(user)/canvas/components/canvas-node-emotion-dialog";
 import { MAX_UPSCALE_LONG_EDGE, upscaleDataUrl, type ImageUpscaleAlgorithm } from "@/app/(user)/canvas/utils/canvas-image-data";
-
-const REVERSE_PROMPT_MODES = [
-    { id: "general", label: "完整描述", instruction: "请分析主体、构图、环境、光线、色彩和整体风格" },
-    { id: "style", label: "风格分析", instruction: "重点分析视觉风格、媒介质感、配色、光影和氛围" },
-    { id: "detail", label: "细节拆解", instruction: "详细描述主体特征、服饰/材质、背景、镜头构图和细节" },
-] as const;
 
 type ToolDiagnostic = { requestId: string; taskId?: string; taskType?: "text" | "image"; model?: string };
 
@@ -41,6 +37,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const drawingRef = useRef(false);
     const expressionReadRef = useRef(0);
     const restoredSelection = useRef<ImageData | null>(null);
+    const reverse = toolId === "reverse-prompt";
     const localEdit = toolId === "local-edit";
     const expressionTool = toolId === "expression-reference";
     const [expressionSelection, setExpressionSelection] = useState<CanvasEmotionSelection | null>(null);
@@ -70,6 +67,14 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const [historyError, setHistoryError] = useState(false);
     const [historyRevision, setHistoryRevision] = useState(0);
     const [restoring, setRestoring] = useState(false);
+    const [reverseSavedInputs, setReverseSavedInputs] = useState<{ sourceUrl?: string; mode: typeof mode; extraRequirement: string }>();
+    const [reverseRestored, setReverseRestored] = useState<ReversePromptHistoryRecord>();
+    const [reverseAnalysisId, setReverseAnalysisId] = useState<string>();
+    const [reverseRestoreRevision, setReverseRestoreRevision] = useState(0);
+    const [reverseSourcePreview, setReverseSourcePreview] = useState<"loading" | "missing" | null>(null);
+    const [trialDraftDirty, setTrialDraftDirty] = useState(false);
+    const reverseRestoreRequest = useRef<AbortController | null>(null);
+    useEffect(() => () => reverseRestoreRequest.current?.abort(), []);
 
     const reloadHistory = useCallback(() => {
         setHistoryLoading(true);
@@ -173,7 +178,47 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
         }
     };
 
+    const restoreReverseHistory = async (id: string) => {
+        if (busy || uploading || trialBusy || restoring || reverseRestoreRequest.current) return false;
+        const controller = new AbortController();
+        reverseRestoreRequest.current = controller;
+        setRestoring(true);
+        try {
+            const response = await fetch(`/api/practice/reverse-prompt/history/${encodeURIComponent(id)}`, { cache: "no-store", signal: controller.signal });
+            if (!response.ok) throw new Error(response.status === 404 ? "这条历史记录已不可用。" : "暂时无法恢复历史记录，请重试。");
+            const { record } = (await response.json()) as { record: ReversePromptHistoryRecord };
+            if (controller.signal.aborted) return false;
+            const restored = restoreReversePromptHistoryView(record);
+            setSource(restored.source);
+            setMode(restored.mode);
+            setPrompt(restored.extraRequirement);
+            setResult(restored.result);
+            setReverseRestored(record);
+            setReverseAnalysisId(record.id);
+            setReverseSavedInputs({ sourceUrl: restored.source?.url, mode: restored.mode, extraRequirement: restored.extraRequirement });
+            setReverseSourcePreview(restored.source ? "loading" : "missing");
+            setReverseRestoreRevision((value) => value + 1);
+            setTrialDraftDirty(false);
+            setError("");
+            setRetryPrompt("");
+            setDiagnostic(null);
+            return true;
+        } catch (cause) {
+            if (!controller.signal.aborted) message.error(cause instanceof Error ? cause.message : "暂时无法恢复历史记录，请重试。");
+            return false;
+        } finally {
+            reverseRestoreRequest.current = null;
+            if (!controller.signal.aborted) setRestoring(false);
+        }
+    };
+
     const replaceSource = (image: UploadedImage) => {
+        if (reverse) {
+            setReverseSourcePreview(null);
+            setReverseRestored(undefined);
+            setReverseAnalysisId(undefined);
+            setTrialDraftDirty(false);
+        }
         expressionReadRef.current += 1;
         setSource(image);
         // Local-edit lessons keep the previous result until the next successful run.
@@ -307,7 +352,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     };
 
     const run = async (promptOverride?: string) => {
-        if (!source || busy || trialBusy || uploading || restoring || expressionSubmitting.current) return;
+        if (!source || busy || trialBusy || uploading || restoring || reverseSourcePreview === "loading" || expressionSubmitting.current) return;
         if (expressionTool && (!expressionSelection || saving)) return;
         if (expressionTool) expressionSubmitting.current = true;
         setBusy(true);
@@ -345,9 +390,17 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
             const response = await fetch("/api/practice/image-tools", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ toolId, sourceUrl: source.url, ...(mask ? { maskUrl: mask.url } : {}), prompt: finalPrompt, clientRequestId: requestId, ...(attempt ? { expression: attempt.selection } : {}) }),
+                body: JSON.stringify({
+                    toolId,
+                    sourceUrl: source.url,
+                    ...(mask ? { maskUrl: mask.url } : {}),
+                    prompt: finalPrompt,
+                    clientRequestId: requestId,
+                    ...(reverse ? { reverseHistory: { mode, extraRequirement: prompt.trim() } } : {}),
+                    ...(attempt ? { expression: attempt.selection } : {}),
+                }),
             });
-            const payload = (await response.json().catch(() => ({}))) as { task?: PracticeImageToolTask; record?: ExpressionPracticeRecord; error?: string };
+            const payload = (await response.json().catch(() => ({}))) as { task?: PracticeImageToolTask; record?: ExpressionPracticeRecord; error?: string; historyWarning?: string };
             if (!response.ok || !payload.task) {
                 if (attempt && payload.record) {
                     updateExpression(payload.record, true);
@@ -360,9 +413,16 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 attempt = { ...attempt, id: payload.task.id, model: payload.task.model, status: "running" };
                 updateExpression(attempt, true);
             }
+            if (payload.historyWarning) message.warning(payload.historyWarning);
             setDiagnostic({ requestId, taskId: payload.task.id, taskType: payload.task.type, model: payload.task.model });
             const completed = await pollPracticeImageToolTask(payload.task);
             setResult(completed);
+            if (reverse) {
+                setReverseSavedInputs({ sourceUrl: source.url, mode, extraRequirement: prompt.trim() });
+                setReverseRestored(undefined);
+                setReverseAnalysisId(payload.historyWarning ? undefined : payload.task.id);
+                setTrialDraftDirty(false);
+            }
             if (attempt) {
                 updateExpression({ ...attempt, status: "success", image: completed.image, model: completed.model }, true);
                 reloadHistory();
@@ -423,9 +483,10 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const resultImageUrl = result?.image?.serverUrl || result?.image?.remoteUrl || result?.image?.url || expressionRecord?.image?.url;
     const resultDiagnostic = localEdit && diagnostic?.taskId !== result?.taskId ? null : diagnostic;
 
-    const reverse = toolId === "reverse-prompt";
     const selectionLesson = expressionSelection ? expressionLesson(expressionSelection) : null;
     const analysis = reverse && result?.text !== undefined ? parsePracticeReversePrompt(result.text) : null;
+    const reverseBlocked = busy || trialBusy || uploading || restoring;
+    const reverseDirty = trialDraftDirty || (reverseSourcePreview !== "missing" && source?.url !== reverseSavedInputs?.sourceUrl) || mode !== (reverseSavedInputs?.mode || "general") || prompt.trim() !== (reverseSavedInputs?.extraRequirement || "").trim();
 
     return (
         <section className={`mx-auto flex h-full min-h-0 w-full flex-col overflow-y-auto px-4 py-5 text-[var(--gm-text)] sm:px-6 lg:px-8 ${reverse || localEdit || expressionTool ? "max-w-[1660px]" : "max-w-6xl"}`}>
@@ -459,11 +520,18 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     {source ? (
                         <div className="relative overflow-hidden rounded-xl border border-[var(--gm-border)] bg-black/5">
                             <img
+                                key={reverse ? reverseRestoreRevision : undefined}
                                 src={source.url}
+                                onError={() => {
+                                    if (reverseSourcePreview !== "loading") return;
+                                    setSource(null);
+                                    setReverseSourcePreview("missing");
+                                }}
                                 alt="练习源图"
                                 className="mx-auto max-h-[38vh] max-w-full object-contain"
                                 onLoad={(event) => {
                                     const canvas = maskRef.current;
+                                    if (reverseSourcePreview === "loading") setReverseSourcePreview(null);
                                     const { naturalWidth, naturalHeight } = event.currentTarget;
                                     if (!canvas || !naturalWidth || !naturalHeight) return;
                                     if (canvas.width !== naturalWidth) canvas.width = naturalWidth;
@@ -514,6 +582,11 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                             </span>
                         </button>
                     )}
+                    {reverse && reverseSourcePreview === "missing" ? (
+                        <p role="status" className="text-sm text-[var(--gm-text-3)]">
+                            历史原图已无法显示，仍可查看拆解和提示词。如需重新分析，请选择图片。
+                        </p>
+                    ) : null}
                     {!source ? (
                         <div className="mt-2 flex justify-center">
                             <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={replaceSource} label="或从个人素材库选择" />
@@ -549,7 +622,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     {toolId === "reverse-prompt" ? (
                         <label className="block space-y-2 text-sm">
                             <span>分析重点</span>
-                            <select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)} className="w-full rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2">
+                            <select value={mode} disabled={reverseBlocked} onChange={(event) => setMode(event.target.value as typeof mode)} className="w-full rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface)] px-3 py-2">
                                 {REVERSE_PROMPT_MODES.map((item) => (
                                     <option key={item.id} value={item.id}>
                                         {item.label}
@@ -586,7 +659,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     {toolId === "reverse-prompt" ? (
                         <label className="block space-y-2 text-sm">
                             <span>额外分析要求（可选）</span>
-                            <Input.TextArea rows={2} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="例如：更关注服装和材质" />
+                            <Input.TextArea rows={2} value={prompt} onChange={(event) => setPrompt(event.target.value)} disabled={reverse && reverseBlocked} placeholder="例如：更关注服装和材质" />
                         </label>
                     ) : null}
                     {toolId === "super-resolution" ? (
@@ -612,7 +685,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         </>
                     ) : null}
                     <GammaButton
-                        disabled={!source || busy || uploading || trialBusy || restoring || (expressionTool && (!expressionSelection || saving))}
+                        disabled={!source || busy || uploading || trialBusy || restoring || reverseSourcePreview === "loading" || (expressionTool && (!expressionSelection || saving))}
                         loading={busy}
                         onClick={() => void run()}
                         className="w-full"
@@ -621,10 +694,11 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         {busy ? "正在处理…" : toolId === "reverse-prompt" ? "分析并生成提示词" : toolId === "super-resolution" ? "开始本地放大" : expressionTool ? "生成表情参考" : "生成编辑结果"}
                     </GammaButton>
                     {config.kind !== "local-image" ? <p className="text-xs leading-5 text-[var(--gm-text-3)]">提交后按无限练习当前模型池与计费配置执行；失败不会切换到生产模型。</p> : null}
+                    {reverse ? <PracticeReversePromptHistoryDrawer activeId={reverseAnalysisId} blocked={reverseBlocked} dirty={reverseDirty} restoring={restoring} onRestore={restoreReverseHistory} /> : null}
                     {error && !expressionTool ? (
                         <div role="alert" className="rounded-lg border border-red-300/50 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-300">
                             {error}
-                            <button className="ml-2 underline" onClick={() => void run(retryPrompt || undefined)}>
+                            <button className="ml-2 underline" onClick={() => (reverse ? void run() : void run(retryPrompt || undefined))}>
                                 重试
                             </button>
                             {diagnostic?.requestId ? (
@@ -636,7 +710,14 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     ) : null}
                 </div>
                 {reverse ? (
-                    <PracticeReversePromptStudyDeck key={`study:${result?.taskId || "empty"}`} analysis={analysis} busy={busy} blocked={busy || trialBusy || uploading} onCopy={(value) => void copyPracticePrompt(value)} onAnalyze={() => void run()} />
+                    <PracticeReversePromptStudyDeck
+                        key={`study:${result?.taskId || "empty"}:${reverseRestoreRevision}`}
+                        analysis={analysis}
+                        busy={busy}
+                        blocked={reverseBlocked || reverseSourcePreview === "loading"}
+                        onCopy={(value) => void copyPracticePrompt(value)}
+                        onAnalyze={() => void run()}
+                    />
                 ) : (
                     <div className={`min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5 ${expressionTool ? "xl:min-h-0 xl:overflow-y-auto" : ""}`}>
                         <div className="mb-4 flex items-center gap-2">
@@ -733,7 +814,18 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     <ExpressionHistory records={expressionHistory} activeId={expressionRecord?.id} loading={historyLoading} error={historyError} blocked={busy || uploading || restoring || saving} onReload={reloadHistory} onRestore={restoreExpression} />
                 ) : null}
                 {localEdit ? <LocalEditHistory records={history} activeId={localRecord?.id} loading={historyLoading} error={historyError} onOpen={openHistory} onReload={reloadHistory} /> : null}
-                {reverse ? <PracticeReversePromptTrial key={`trial:${result?.taskId || "empty"}`} initialPrompt={analysis?.fullPrompt || ""} blocked={busy || uploading} onBusyChange={setTrialBusy} /> : null}
+                {reverse ? (
+                    <PracticeReversePromptTrial
+                        key={`trial:${result?.taskId || "empty"}:${reverseRestoreRevision}`}
+                        initialPrompt={analysis?.fullPrompt || ""}
+                        historyId={reverseAnalysisId}
+                        restoredTrial={reverseRestored?.trial}
+                        restoredStatus={reverseRestored?.trialStatus}
+                        blocked={busy || uploading || restoring}
+                        onBusyChange={setTrialBusy}
+                        onDraftDirtyChange={setTrialDraftDirty}
+                    />
+                ) : null}
             </div>
             {toolId === "expression-reference" && emotionDialogData ? (
                 <CanvasNodeEmotionDialog

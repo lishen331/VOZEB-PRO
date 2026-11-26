@@ -191,6 +191,9 @@ function Read-RouteSource($route) {
     if ($route.path -eq "/api/video-generation-tasks") {
         $source += "`n" + (Get-Content -Raw -LiteralPath (Join-Path $repoRoot "web/src/app/api/video-generation-tasks/video-generation-route.ts"))
     }
+    if ($route.path -in @("/api/practice/reverse-prompt/history", "/api/practice/reverse-prompt/history/[id]")) {
+        $source += "`n" + (Get-Content -Raw -LiteralPath (Join-Path $repoRoot "web/src/app/api/practice/reverse-prompt/history/history-response.ts"))
+    }
     return $source
 }
 

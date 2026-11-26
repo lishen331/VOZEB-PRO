@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
     mediaRegistration: vi.fn(),
     queryTasks: vi.fn(),
     createTask: vi.fn(),
+    attachHistory: vi.fn(),
+    getHistory: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
@@ -23,6 +25,8 @@ vi.mock("@/lib/server/reference-asset-access", () => ({ createSignedReferenceAss
 vi.mock("@/lib/server/public-request-origin", () => ({ resolvePublicRequestOrigin: () => "https://app.example" }));
 
 vi.mock("@/lib/server/generation-task-store", () => ({ queryStoredGenerationTasks: mocks.queryTasks, createStoredGenerationTask: mocks.createTask }));
+
+vi.mock("@/lib/server/practice-reverse-prompt-history-store", () => ({ reversePromptHistoryEnabled: () => true, attachReversePromptHistory: mocks.attachHistory, getReversePromptHistory: mocks.getHistory }));
 
 import * as route from "./route";
 const { POST } = route;
@@ -88,6 +92,21 @@ describe("POST /api/practice/image-tools", () => {
         expect(payload.messages[0].content[0].text).toContain('"fullPrompt"');
         expect(payload.messages[0].content[0].text).toContain("重点观察配色");
         expect(payload.messages[0].content[1].image_url.url).toContain("permanent/source.png");
+    });
+
+    it("links reverse analysis to its durable source and settings without reading client-provided results", async () => {
+        const payload = { toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, clientRequestId: "analysis-req", reverseHistory: { mode: "detail", extraRequirement: "more detail" } };
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(payload) }));
+        expect(response.status).toBe(200);
+        expect(mocks.attachHistory).toHaveBeenCalledWith({ userId: "student-one", schoolId: "school-one" }, "task-one", { mode: "detail", extraRequirement: "more detail", sourceKey: "permanent/source.png" });
+    });
+
+    it("rejects trial submission pointing at someone else's record before generation", async () => {
+        mocks.getHistory.mockResolvedValue(null);
+        const payload = { toolId: "reverse-prompt", action: "try-generate", prompt: "a test photo", clientRequestId: "analysis-req", reverseHistoryId: "other-school-task" };
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(payload) }));
+        expect(response.status).toBe(404);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 
     it("uses an allowed image-capable practice binding when the staging analysis defaults are empty", async () => {
