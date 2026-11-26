@@ -636,17 +636,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     ) : null}
                 </div>
                 {reverse ? (
-                    <PracticeReversePromptStudyDeck
-                        key={`study:${result?.taskId || "empty"}`}
-                        analysis={analysis}
-                        busy={busy}
-                        model={result?.model}
-                        taskId={resultDiagnostic?.taskId || result?.taskId}
-                        diagnostic={resultDiagnostic ? { toolId, ...resultDiagnostic, error: error || undefined } : undefined}
-                        blocked={busy || trialBusy || uploading}
-                        onCopy={(value) => void copyPracticePrompt(value)}
-                        onAnalyze={() => void run()}
-                    />
+                    <PracticeReversePromptStudyDeck key={`study:${result?.taskId || "empty"}`} analysis={analysis} busy={busy} blocked={busy || trialBusy || uploading} onCopy={(value) => void copyPracticePrompt(value)} onAnalyze={() => void run()} />
                 ) : (
                     <div className="min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
                         <div className="mb-4 flex items-center gap-2">
