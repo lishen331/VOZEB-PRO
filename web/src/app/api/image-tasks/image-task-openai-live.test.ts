@@ -827,3 +827,53 @@ function liveImageTask(origin: string, patch: Partial<ImageTask>): ImageTask {
         ...patch,
     };
 }
+
+it("sends the exact AI outpainting canvas size, prompt and PNG mask over multipart TCP", async () => {
+    const fixture = createProtocolFixtureServer();
+    await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
+    const address = fixture.server.address();
+    if (!address || typeof address === "string") throw new Error("Fixture did not bind a TCP port");
+    const origin = `http://127.0.0.1:${address.port}`;
+    const prompt = "扩图目标：扩展画幅\n补全区域：右侧\n画面延续：延续背景\n禁止事项：原图不动";
+    try {
+        await runOpenAiImageTask(
+            {
+                id: "outpainting-fixture",
+                userId: "student",
+                username: "student",
+                displayName: "Student",
+                status: "running",
+                createdAt: 1,
+                updatedAt: 1,
+                source: "practice",
+                kind: "edit",
+                prompt,
+                config: {
+                    baseUrl: origin,
+                    apiFormat: "openai",
+                    apiKey: "fixture-key",
+                    model: "fixture-image",
+                    size: "1024x341",
+                    advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai", editPath: "/images/edits", imageResponseFormat: "b64_json" },
+                },
+                references: [{ dataUrl: PNG_DATA_URL, type: "image/png" }],
+                mask: { dataUrl: PNG_DATA_URL, type: "image/png" },
+                practiceOutpainting: { width: 120, height: 80, sourceUrl: "/api/reference-assets/permanent/source.png", selection: { ratio: "free", resolution: "1k", padding: { top: 0, right: 120, bottom: 0, left: 0 } } },
+            },
+            origin,
+            origin,
+            "",
+            true,
+        );
+        expect(fixture.requests).toHaveLength(1);
+        const request = fixture.requests[0];
+        expect(request.path).toBe("/v1/images/edits");
+        const form = await new Response(new Uint8Array(request.body), { headers: { "Content-Type": String(request.headers["content-type"]) } }).formData();
+        expect(form.get("size")).toBe("1024x341");
+        expect(form.get("prompt")).toBe(prompt.replaceAll("\n", "\r\n"));
+        expect(form.get("image")).toBeInstanceOf(File);
+        expect(form.get("mask")).toBeInstanceOf(File);
+    } finally {
+        await new Promise<void>((resolve, reject) => fixture.server.close((error?: Error) => (error ? reject(error) : resolve())));
+    }
+});

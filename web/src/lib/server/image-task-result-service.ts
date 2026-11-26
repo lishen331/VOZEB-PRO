@@ -1,3 +1,5 @@
+import { outpaintingGeometry } from "@/lib/practice-outpainting";
+import { composeOutpainting } from "./practice-outpainting-service";
 import { readImageResultMedia } from "./image-result-media-reader";
 import { recordMediaTaskEvent } from "./media-task-trace";
 import type { ImageTaskMediaResult, ImageTaskResult } from "@/app/api/image-tasks/image-task-types";
@@ -23,6 +25,14 @@ export async function prepareImageTaskResults(task: ImageTask, result: ImageTask
         if (rejected) throw new Error(`上游分层验收失败：${errorMessage(rejected, "上游分层图片无法读取")}，请为该模型配置真实分层接口`);
     }
     if (!safeResults.length) throw firstRejected(settled) || new Error("上游返回的图片文件无效或保存失败");
+
+    if (task.practiceOutpainting) {
+        const { sourceUrl, width, height, selection } = task.practiceOutpainting;
+        const geometry = outpaintingGeometry(width, height, selection);
+        if (!geometry) throw new Error("扩图范围无效");
+        const original = await imageReferenceToDataUrl({ url: sourceUrl, dataUrl: "", type: "image" }, "original.png", origin, authContext);
+        safeResults = [{ dataUrl: await composeOutpainting(original, safeResults[0].dataUrl, geometry) }];
+    }
 
     if (task.config.outputBackground === "transparent") {
         const validated = await Promise.allSettled(safeResults.map(async (item) => (await assertTransparentImageOutput(item.dataUrl), item)));

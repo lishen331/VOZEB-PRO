@@ -30,10 +30,12 @@ function buildCanvasReferenceRoleText(references: readonly { id?: string }[], re
 export function buildImageTaskPrompt(task: {
     prompt: string;
     source?: string;
+    practiceOutpainting?: unknown;
     config: { systemPrompt?: string; outputBackground?: string; outputMode?: string };
     references: readonly { id?: string }[];
     referenceRoles?: Record<string, ImageReferenceRole | ImageReferenceRole[]>;
 }) {
+    if (task.practiceOutpainting) return task.prompt.trim();
     const base = task.source === "canvas" ? task.prompt.trim() : buildImageReferencePromptText(task.prompt, task.references);
     const roleText = task.source === "canvas" ? buildCanvasReferenceRoleText(task.references, task.referenceRoles || {}) : "";
     const withRoles = roleText ? `${base}\n\n用户明确指定的参考图用途：\n${roleText}` : base;
