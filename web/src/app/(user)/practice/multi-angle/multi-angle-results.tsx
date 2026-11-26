@@ -110,7 +110,7 @@ export default function MultiAngleResults({
                     )}
                     <section className={s.promptCard} aria-labelledby="ma-result-prompt">
                         <div className={s.resultsHead}>
-                            <h3 id="ma-result-prompt">结构化提示词</h3>
+                            <h3 id="ma-result-prompt">提示词</h3>
                             {fullPrompt && (
                                 <button type="button" className={cn(s.btn, s.btnGhost)} onClick={() => void copy(fullPrompt)}>
                                     复制完整提示词
