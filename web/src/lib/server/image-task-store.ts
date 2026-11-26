@@ -1,3 +1,4 @@
+import type { CanvasEmotionSelection } from "@/app/(user)/canvas/utils/canvas-emotion-prompt";
 import { randomUUID } from "crypto";
 
 import type { LogicalModelCapabilityProfile, SystemChannelAdvancedConfig } from "@/lib/auth/store";
@@ -71,6 +72,7 @@ export type ImageTask = GenerationTaskContext & {
     config: ImageTaskConfig;
     prompt: string;
     upstreamPrompt?: string;
+    practiceExpression?: CanvasEmotionSelection;
     /** 无限练习工作流参数（width/height 等），提交 RunningHub 时并入 businessInput。 */
     workflowInput?: Record<string, unknown>;
     references: ImageTaskReference[];
