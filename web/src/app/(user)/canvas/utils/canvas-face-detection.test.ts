@@ -171,7 +171,7 @@ describe("Canvas 人脸框", () => {
     });
 
     it("为表情编辑生成不暴露内部数据的目标描述", async () => {
-        const { faceBoxPrompt } = await import("./canvas-face-detection");
+        const { faceBoxPrompt } = await import("./canvas-emotion-prompt");
         expect(faceBoxPrompt({ x: 0.2, y: 0.1, width: 0.2, height: 0.2 })).toContain("约 30% 横向、20% 纵向");
     });
 });

@@ -361,7 +361,7 @@
         },
         {
             "path": "utils/canvas-emotion-prompt.ts",
-            "sha256": "575e5d03c778caccc5396139d6a3a9e86a7999afbb44ab498363be36cad3c87c"
+            "sha256": "3e7ca439580bcec6f567e5d2b0a3fa31c9f6a732bcf69ae87bf3f5b055ad3b9f"
         },
         {
             "path": "utils/canvas-export.ts",
@@ -369,7 +369,7 @@
         },
         {
             "path": "utils/canvas-face-detection.ts",
-            "sha256": "f7c832ad4279a79b20bc1092f5c2651f5e7c4179898b731a8433aabd8d07a447"
+            "sha256": "0f9e8b36f7b061f6b26778baef98a07f743b11fb5c52b8944f0fbdd0bd22fa81"
         },
         {
             "path": "utils/canvas-generating-copy.ts",

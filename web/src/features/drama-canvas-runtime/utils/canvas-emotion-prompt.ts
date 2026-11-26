@@ -1,4 +1,4 @@
-import { faceBoxPrompt, type CanvasFaceBox } from "./canvas-face-detection";
+import type { CanvasFaceBox } from "./canvas-face-detection";
 
 type CanvasExpressionPreset = { id: string; label: string; prompt: string; excitement: number; affinity: number };
 
@@ -31,6 +31,12 @@ export const CANVAS_EXPRESSION_INTENSITIES: ReadonlyArray<{ id: CanvasExpression
 ];
 
 export type CanvasEmotionSelection = { face: CanvasFaceBox; expressionId: CanvasExpressionPresetId; intensity: CanvasExpressionIntensity; excitement: number; affinity: number };
+
+export function faceBoxPrompt(box: CanvasFaceBox) {
+    const x = Math.round((box.x + box.width / 2) * 100);
+    const y = Math.round((box.y + box.height / 2) * 100);
+    return `画面中位于约 ${x}% 横向、${y}% 纵向的人物脸部`;
+}
 
 export function buildCanvasEmotionPrompt(input: CanvasEmotionSelection) {
     return canvasEmotionPromptParts(input).values.join("，") + "。";
