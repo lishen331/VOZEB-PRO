@@ -31,4 +31,12 @@ describe("standalone practice image tools", () => {
         expect(source).toContain("JSON.stringify({ toolId, ...diagnostic");
         expect(source).toContain("run(retryPrompt || undefined)");
     });
+
+    it("validates expression instructions instead of the hidden local edit field", async () => {
+        const source = await readFile(sourcePath, "utf8");
+        expect(source).toContain('toolId === "expression-reference" && !promptOverride?.trim()');
+        expect(source).toContain('toolId === "local-edit" && !prompt.trim()');
+        expect(source).toContain("void run(payload.prompt)");
+        expect(source).not.toContain('toolId !== "reverse-prompt" && !prompt.trim()');
+    });
 });
