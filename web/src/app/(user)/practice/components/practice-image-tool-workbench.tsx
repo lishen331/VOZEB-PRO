@@ -323,7 +323,9 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     <h1 className="text-2xl font-semibold">{config.title}</h1>
                 </div>
             </header>
-            <div className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)]" : localEdit ? "lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,.67fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}>
+            <div
+                className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)]" : localEdit ? "lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,.67fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}
+            >
                 <div className="space-y-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
                     <div className="flex items-center justify-between">
                         <h2 className="font-semibold">输入与设置</h2>
