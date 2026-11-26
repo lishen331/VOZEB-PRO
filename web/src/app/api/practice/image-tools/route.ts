@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getAuthSettings } from "@/lib/auth/store";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
-import { practiceCanvasVirtualModel, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
+import { practiceCanvasVirtualModel, practicePoolIncludes, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
 import { getPracticeImageToolConfig } from "@/lib/practice-image-tools";
@@ -54,12 +54,20 @@ export async function POST(request: Request) {
 
     const capability = !trial && tool.kind === "ai-text" ? "text" : "image";
     const settings = await getAuthSettings();
-    const configuredModel = trial ? practiceCanvasVirtualModel("image") : capability === "text" ? settings.practiceDefaultModels.textModel : settings.practiceDefaultModels.imageModel;
-    if (!configuredModel) return errorResponse(`无限练习尚未配置${capability === "text" ? "文本" : "图片"}模型`, 503);
-    const candidates = resolvePracticeGenerationCandidates(settings, capability, configuredModel, {
-        executionProfile: "open-source-practice",
-        ...(capability === "text" ? { requiresImageInput: true } : {}),
-    });
+    const routingContext = { executionProfile: "open-source-practice" as const, ...(capability === "text" ? { requiresImageInput: true } : {}) };
+    let configuredModel = trial ? practiceCanvasVirtualModel("image") : capability === "text" ? settings.practiceDefaultModels.visionModel || settings.practiceDefaultModels.textModel : settings.practiceDefaultModels.imageModel;
+    let candidates = configuredModel ? resolvePracticeGenerationCandidates(settings, capability, configuredModel, routingContext) : [];
+    if (!configuredModel && capability === "text") {
+        // When a standalone analysis default has not been set, only use active practice bindings that support images and are not disabled in the vision pool.
+        for (const model of settings.logicalModels || []) {
+            if (!model.enabled || model.capability !== "text") continue;
+            const routes = resolvePracticeGenerationCandidates(settings, "text", model.id, routingContext);
+            if (!routes.length || !routes.every((route) => route.capabilityProfile?.supportsImageInput === true && practicePoolIncludes(settings.practiceModelPool, "vision", route.upstreamModel.toLowerCase()))) continue;
+            configuredModel = model.id;
+            candidates = routes;
+            break;
+        }
+    }
     if (!candidates.length) return errorResponse("当前无限练习模型池没有可用的对应能力模型，请检查练习模型配置", 503);
 
     const taskContext = {
