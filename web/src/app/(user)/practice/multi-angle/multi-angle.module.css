@@ -126,22 +126,14 @@
 
 /* ─── 上传 ─── */
 
-.uploadCard {
-    background: var(--gm-surface);
-    border: 1px solid var(--gm-border);
-    border-radius: var(--gm-radius-xl);
-    padding: 18px;
-    box-shadow: var(--gm-shadow);
-}
-
 .dropzone {
-    position: relative;
-    border-radius: var(--gm-radius-lg);
-    overflow: hidden;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: auto;
     border: 1.5px dashed var(--gm-border-strong);
-    min-height: 300px;
     display: grid;
-    place-items: center;
+    place-items: safe center;
     cursor: pointer;
     transition:
         border-color 0.2s,
@@ -157,20 +149,19 @@
 
 .dzInner {
     text-align: center;
-    padding: 40px;
+    padding: 8px;
     pointer-events: none;
 }
 
 .dzIcon {
-    width: 64px;
-    height: 64px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    margin: 0 auto 16px;
+    margin: 0 auto 5px;
     display: grid;
     place-items: center;
     color: var(--gm-blue-text);
     background: var(--gm-accent-soft);
-    animation: bob 4s var(--gm-ease) infinite;
 }
 
 .dzInner b {
@@ -181,14 +172,14 @@
 
 .dzInner span {
     display: block;
-    margin-top: 7px;
+    margin-top: 3px;
     font-size: 12.5px;
     color: var(--gm-text-3);
     line-height: 1.6;
 }
 
 .dzActions {
-    margin-top: 16px;
+    margin-top: 5px;
     display: flex;
     gap: 10px;
     justify-content: center;
@@ -199,16 +190,6 @@
     height: 34px;
     font-size: 12.5px;
     padding: 0 15px;
-}
-
-@keyframes bob {
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-6px);
-    }
 }
 
 /* ─── 工作区 ─── */
@@ -301,7 +282,7 @@
     grid-template: minmax(0, 1fr) / minmax(0, 1fr);
     place-items: center;
     perspective: 1200px;
-    min-height: 220px;
+    height: 300px;
     cursor: grab;
     touch-action: none;
 }
@@ -1223,10 +1204,6 @@
     .historyRail .histThumbs img {
         height: 36px;
     }
-    .uploadCard {
-        grid-column: span 2;
-        align-self: start;
-    }
     .workCard {
         display: flex;
         flex-direction: column;
@@ -1437,6 +1414,9 @@
     .cubeBottom {
         transform: none;
         display: none;
+    }
+    .viewport {
+        height: 240px;
     }
     .sceneCenter {
         width: 240px;

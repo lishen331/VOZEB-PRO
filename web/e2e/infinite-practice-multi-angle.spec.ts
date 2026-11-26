@@ -8,7 +8,7 @@ const sourceKey = "permanent/practice-multi-angle-fixture.png";
 const media = `/api/reference-assets/${sourceKey}`;
 const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9Z0AAAAASUVORK5CYII=", "base64");
 
-test("restores an exact multi-angle batch from the initial upload screen without generating", async ({ page, browser, baseURL }, testInfo) => {
+test("keeps the workbench mounted while selecting and restoring subjects", async ({ page, browser, baseURL }, testInfo) => {
     test.setTimeout(180_000);
     const username = `angle_${randomUUID().slice(0, 8)}`;
     const school = await page.request.post("/api/admin/schools", {
@@ -61,11 +61,22 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await openHistory();
         await expect(practice.getByRole("region", { name: "历史记录" }).getByText("暂无生成记录")).toBeVisible();
         await closeHistory();
-        await practice.getByRole("button", { name: "用示例图试试" }).click();
         const controls = practice.getByRole("region", { name: "操作台" });
         const finder = controls.getByLabel("当前机位的实时取景示意");
         const results = practice.getByRole("region", { name: "生成结果" });
         const history = practice.getByRole("region", { name: "历史记录" });
+        const upload = controls.getByRole("button", { name: "选择图片", exact: true });
+        const generate = controls.getByRole("button", { name: "生成多角度画面" });
+        await expect(upload).toBeVisible();
+        await expect(generate).toBeDisabled();
+        await expect(results.getByText("生成的图片将在这里显示")).toBeVisible();
+        await expect(finder).toHaveCount(0);
+        const emptyStage = await controls.locator('[class*="_viewport__"]').boundingBox();
+        await controls.getByRole("button", { name: "用示例图试试" }).click();
+        await expect(upload).toHaveCount(0);
+        const filledStage = await controls.locator('[class*="_viewport__"]').boundingBox();
+        expect(Math.abs(filledStage!.height - emptyStage!.height)).toBeLessThan(1);
+        expect(submissions).toBe(0);
         await expect(finder).toBeVisible();
         await expect(practice.getByRole("heading", { name: "预览台", exact: true })).toHaveCount(0);
         await expect(results.getByText("生成的图片将在这里显示")).toBeVisible();
@@ -165,6 +176,28 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await expect(card.getByRole("button", { name: "下一张" })).toHaveCount(0);
         expect((sessions.at(-1)?.input.multiAngle as { batchId: string }).batchId).not.toBe(firstBatchId);
         await practice.getByRole("button", { name: "重新选择图片" }).click();
+        await expect(upload).toBeVisible();
+        await expect(generate).toBeDisabled();
+        await expect(results.getByText("生成的图片将在这里显示")).toBeVisible();
+        await practice.locator('input[type="file"]').setInputFiles({ name: "subject.png", mimeType: "image/png", buffer: pixel });
+        await expect(finder).toBeVisible();
+        await expect(generate).toBeEnabled();
+        for (const type of ["drop", "paste"]) {
+            await practice.getByRole("button", { name: "重新选择图片" }).click();
+            await expect(upload).toBeVisible();
+            await upload.evaluate(
+                (target, { type, bytes }) => {
+                    const data = new DataTransfer();
+                    data.items.add(new File([new Uint8Array(bytes)], "subject.png", { type: "image/png" }));
+                    const event = type === "drop" ? new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: data }) : new ClipboardEvent(type, { bubbles: true, cancelable: true, clipboardData: data });
+                    target.dispatchEvent(event);
+                },
+                { type, bytes: Array.from(pixel) },
+            );
+            await expect(finder).toBeVisible();
+            await expect(generate).toBeEnabled();
+        }
+        expect(submissions).toBe(5);
         await openHistory();
         await expect(history.getByRole("button", { name: /4 张.*3\/4 张已生成/ })).toBeVisible();
         await closeHistory();
