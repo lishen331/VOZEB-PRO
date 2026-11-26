@@ -415,3 +415,4 @@ flowchart LR
 - `/practice/local-edit` 通过 `GET /api/practice/image-tools` 获取当前学校内本人最近 5 条成功的局部编辑，沿用生成任务保留周期；查询在截取前筛选练习档案、工具、学校、所有者、状态和过期时间。
 - `/practice/expression-reference` 通过 `GET /api/practice/image-tools?history=expression-reference` 读取当前学校内本人的表情练习快照，复用生成任务保留周期；提交由服务端根据已验证的框选和情绪设置组装业务提示词。
 - `practice-local-edit-learning.tsx` 展示历史、选区与教学提示词；工作台按任务绑定原图、蒙版和成品。查看历史、填回提示词或恢复设置都不会自动发起生成或写入素材库。
+- 局部编辑宽屏按输入、结果、历史三栏排列；窄屏历史移到结果下方，始终独立于输入草稿。
