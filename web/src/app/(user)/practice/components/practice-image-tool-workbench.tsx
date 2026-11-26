@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, Eraser, ImagePlus, LoaderCircle, RotateCcw, Save, Sparkles, WandSparkles } from "lucide-react";
+import { ArrowLeft, Download, Eraser, ImagePlus, LoaderCircle, Save, Sparkles, WandSparkles } from "lucide-react";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
@@ -521,7 +521,13 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     ) : null}
                     {source ? (
                         <div className="flex flex-wrap gap-2">
-                            <GammaButton size="sm" variant="outline" disabled={restoring || ((reverse || localEdit || toolId === "expression-reference") && (busy || trialBusy || uploading))} onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
+                            <GammaButton
+                                size="sm"
+                                variant="outline"
+                                disabled={restoring || ((reverse || localEdit || toolId === "expression-reference") && (busy || trialBusy || uploading))}
+                                onClick={() => fileRef.current?.click()}
+                                icon={<ImagePlus className="size-4" />}
+                            >
                                 更换图片
                             </GammaButton>
                             <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={replaceSource} label="从个人素材库选择" />

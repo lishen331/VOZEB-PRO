@@ -2,7 +2,7 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "d65a140af4acb1764fb9a50e0c7aa312b9264446",
+    "sourceCommit": "d22ac7a30012c6393b4e18339ee731ba89ac1b9f",
     "syncedAt": "2026-11-26T10:12:11.714Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
@@ -37,7 +37,7 @@
         },
         {
             "path": "[id]/canvas-page-utils.ts",
-            "sha256": "0bcbf3d2dce253b422f1f2df0484f6756190e4b0746fb204721803d2304f971b"
+            "sha256": "ea811fd42230f6f7ea1c6f705f8e9368a81075bd4152656e0033f3e2262a77cc"
         },
         {
             "path": "[id]/canvas-video-task-recovery.ts",
@@ -173,7 +173,7 @@
         },
         {
             "path": "components/canvas-config-node-panel.tsx",
-            "sha256": "8f4dc0ea7f812604bf98164bceb3450aec6d27bf7e8847d9b443d9e1e8db4f04"
+            "sha256": "160199900c1f05c211af95bb92a671f20eb9d0441204ced36844a1023cde4c9c"
         },
         {
             "path": "components/canvas-context-menu.tsx",
@@ -229,7 +229,7 @@
         },
         {
             "path": "components/canvas-node-prompt-panel.tsx",
-            "sha256": "168aedd0ed7ed0b5b83b5c3f06212b2f7cac40fe9bb4e896c6e325b24f7127e7"
+            "sha256": "bd0bd81c889bc2f2b67a211c03cd9061110c0d1d5f3765bef85a194738f54f48"
         },
         {
             "path": "components/canvas-node-split-dialog.tsx",
@@ -289,7 +289,7 @@
         },
         {
             "path": "components/canvas-video-settings-popover.tsx",
-            "sha256": "2b4f1fa69802076fd07e78dc9b30f98a3a4a77339b0411c31dd1ad5446f34d5b"
+            "sha256": "c74484a09a5daf84777be4d36459b46e09d0e89888ca681906e3b2a8cb1042d3"
         },
         {
             "path": "components/canvas-zoom-controls.tsx",
@@ -437,7 +437,7 @@
         },
         {
             "path": "utils/practice-canvas-models.ts",
-            "sha256": "df3d43d7f738befe8799825dbefd3763c363a35a5505b3c6e5c75d051f4cd703"
+            "sha256": "7d0eb775f292035be8e501c6d66c212e9fb3a4db0e5cf877e06f3c5cb520497a"
         }
     ]
 }

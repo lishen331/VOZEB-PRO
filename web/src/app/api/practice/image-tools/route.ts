@@ -133,11 +133,13 @@ export async function POST(request: Request) {
     const settings = await getAuthSettings();
     const configuredModel = trial ? practiceCanvasVirtualModel("image") : capability === "text" ? settings.practiceDefaultModels.visionModel : settings.practiceDefaultModels.imageModel;
     if (!configuredModel && !expression) return errorResponse(`无限练习尚未配置${capability === "text" ? "视觉理解" : "图片"}模型`, 503);
-    const candidates = configuredModel ? resolvePracticeGenerationCandidates(settings, capability, configuredModel, {
-        executionProfile: "open-source-practice",
-        ...(!trial ? { practiceImageTool: tool.id } : {}),
-        ...(capability === "text" ? { requiresImageInput: true } : {}),
-    }) : [];
+    const candidates = configuredModel
+        ? resolvePracticeGenerationCandidates(settings, capability, configuredModel, {
+              executionProfile: "open-source-practice",
+              ...(!trial ? { practiceImageTool: tool.id } : {}),
+              ...(capability === "text" ? { requiresImageInput: true } : {}),
+          })
+        : [];
     const taskContext = {
         surface: "canvas" as const,
         executionProfile: "open-source-practice" as const,
