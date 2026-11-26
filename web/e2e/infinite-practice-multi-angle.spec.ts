@@ -90,6 +90,21 @@ test("restores an exact multi-angle batch from the initial upload screen without
             await assertDesktopFit(1440, 900);
             await practice.setViewportSize({ width: 1280, height: 720 });
         }
+        await controls.getByRole("button", { name: "正面视角", exact: true }).click();
+        await controls.getByRole("slider", { name: "景别缩放" }).focus();
+        await practice.keyboard.press("Home");
+        const stage = controls.locator('[class*="_viewport__"]');
+        const subject = stage.locator('[class*="_subjectPlane__"]');
+        await expect
+            .poll(async () => {
+                const [frame, plane] = await Promise.all([stage.boundingBox(), subject.boundingBox()]);
+                if (!frame || !plane) return false;
+                const dx = plane.x + plane.width / 2 - (frame.x + frame.width / 2);
+                const dy = plane.y + plane.height / 2 - (frame.y + frame.height / 2);
+                return Math.abs(dx) <= 2 && Math.abs(dy) <= 2;
+            })
+            .toBe(true);
+        await controls.getByRole("button", { name: "重置参数" }).click();
         await controls.getByRole("tab", { name: "主体", exact: true }).click();
         await controls.getByRole("button", { name: "左侧 45°" }).click();
         await controls.getByRole("switch", { name: "提示词开关" }).click();
@@ -100,7 +115,7 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await expect(history.getByRole("button", { name: /4 张.*3\/4 张已生成/ })).toBeVisible();
         await closeHistory();
         const card = results.getByRole("group", { name: "结果卡片" });
-        const prompt = results.getByRole("region", { name: "结构化提示词" });
+        const prompt = results.getByRole("region", { name: "提示词", exact: true });
         await expect(card.getByRole("img")).toHaveAttribute("alt", "正面");
         const [cardBox, prevBox, nextBox, promptBox] = await Promise.all([card.boundingBox(), card.getByRole("button", { name: "上一张" }).boundingBox(), card.getByRole("button", { name: "下一张" }).boundingBox(), prompt.boundingBox()]);
         expect(prevBox!.x).toBeGreaterThan(cardBox!.x);
