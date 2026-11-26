@@ -8,15 +8,12 @@ import { PRACTICE_REVERSE_PROMPT_SECTIONS, type parsePracticeReversePrompt } fro
 type Props = {
     analysis: ReturnType<typeof parsePracticeReversePrompt> | null;
     busy: boolean;
-    model?: string;
-    taskId?: string;
-    diagnostic?: Record<string, unknown>;
     blocked: boolean;
     onCopy: (value: string) => void;
     onAnalyze: () => void;
 };
 
-export function PracticeReversePromptStudyDeck({ analysis, busy, model, taskId, diagnostic, blocked, onCopy, onAnalyze }: Props) {
+export function PracticeReversePromptStudyDeck({ analysis, busy, blocked, onCopy, onAnalyze }: Props) {
     const [index, setIndex] = useState(0);
     const [showFull, setShowFull] = useState(false);
     const cards = PRACTICE_REVERSE_PROMPT_SECTIONS.filter(({ id }) => analysis?.sections.some((section) => section.id === id));
@@ -81,18 +78,6 @@ export function PracticeReversePromptStudyDeck({ analysis, busy, model, taskId, 
                         ) : (
                             <p className="text-[var(--gm-text-3)]">模型未返回可用的拆解或提示词，请重新分析。</p>
                         )}
-                        {taskId || model || diagnostic ? (
-                            <details className="text-xs text-[var(--gm-text-3)]">
-                                <summary className="cursor-pointer">诊断信息</summary>
-                                {taskId ? (
-                                    <p>
-                                        任务 ID：<code>{taskId}</code>
-                                    </p>
-                                ) : null}
-                                {model ? <p>执行：{model}</p> : null}
-                                {diagnostic ? <pre className="whitespace-pre-wrap">{JSON.stringify(diagnostic, null, 2)}</pre> : null}
-                            </details>
-                        ) : null}
                     </div>
                     {cards.length > 1 && !showFull ? (
                         <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
