@@ -5,7 +5,10 @@ import { createAuthenticatedE2EContext, E2E_PRACTICE_PASSWORD, e2eProjectContext
 
 const sourceUrl = "/api/reference-assets/permanent/expression-fixture.png";
 const imageUrl = "/api/generation-log-assets/permanent/expression-fixture.png";
-const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9Z0AAAAASUVORK5CYII=", "base64");
+const pixel = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAeklEQVR4nO3PUQkAIBTAQE39wlnOEH4cwmABbmvP+brFBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQwHjEy8AFsJsxHi18OaAAAAAASUVORK5CYII=",
+    "base64",
+);
 const selection = { face: { x: 0.1, y: 0.2, width: 0.2, height: 0.2 }, expressionId: "smile", intensity: "strong", excitement: 0.8, affinity: 0.2 } as const;
 const prompt = "画面中位于约 20% 横向、30% 纵向的人物脸部，强烈地呈现“微笑”表情（柔和微笑），整体情绪更激动、更疏离，保留身份、发型、构图和光线。";
 
@@ -17,7 +20,7 @@ test("restores expression settings and teaching results without submitting or ch
     try {
         const practice = await context.newPage();
         const records: ExpressionPracticeRecord[] = [
-            { id: "previous", createdAt: Date.now() - 1000, sourceUrl, selection, prompt, status: "success", image: { url: imageUrl, storageKey: "", width: 1, height: 1, bytes: pixel.length, mimeType: "image/png" } },
+            { id: "previous", createdAt: Date.now() - 1000, sourceUrl, selection, prompt, status: "success", image: { url: imageUrl, storageKey: "", width: 64, height: 64, bytes: pixel.length, mimeType: "image/png" } },
         ];
         const submissions: Array<{ expression: ExpressionPracticeRecord["selection"]; prompt: string }> = [];
         await practice.route("**/api/reference-assets/**", (route) => route.fulfill({ contentType: "image/png", body: pixel }));
@@ -58,11 +61,11 @@ test("restores expression settings and teaching results without submitting or ch
         await practice.getByRole("button", { name: "惊讶", exact: true }).click();
         await practice.getByRole("button", { name: "确认设置" }).click();
         await expect(lesson.getByText(/左侧设置尚未生成/)).toBeVisible();
-        await expect(lesson.getByText("强烈地呈现“微笑”表情（柔和微笑）")).toBeVisible();
+        await expect(lesson.getByText("强烈地呈现“微笑”表情（柔和微笑）", { exact: true })).toBeVisible();
         expect(submissions).toHaveLength(0);
         await practice.getByRole("button", { name: "生成表情参考" }).click();
         await expect(practice.getByRole("status").filter({ hasText: "未生成图片：练习模型池无可用模型" })).toBeVisible();
-        await expect(lesson.getByText(/强烈地呈现“惊讶”/)).toBeVisible();
+        await expect(lesson.locator("dd").filter({ hasText: /强烈地呈现“惊讶”/ })).toBeVisible();
         expect(submissions).toHaveLength(1);
         expect(submissions[0].expression).toMatchObject({ face: selection.face, expressionId: "surprised", intensity: "strong" });
         expect(submissions[0].prompt).toContain("惊讶");
@@ -70,7 +73,7 @@ test("restores expression settings and teaching results without submitting or ch
         await openHistory();
         await history.getByRole("button", { name: /惊讶 · 未生成图片/ }).click();
         await expect(practice.getByLabel("当前表情设置")).toContainText("惊讶 · 强烈");
-        await expect(lesson.getByText(/强烈地呈现“惊讶”/)).toBeVisible();
+        await expect(lesson.locator("dd").filter({ hasText: /强烈地呈现“惊讶”/ })).toBeVisible();
         expect(submissions).toHaveLength(1);
         expect(await practice.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await practice.evaluate(() => innerWidth));
     } finally {
