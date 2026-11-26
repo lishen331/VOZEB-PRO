@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     fetchInternalApi: vi.fn(),
     trustedHeaders: vi.fn(() => ({ "x-practice": "signed" })),
     mediaRegistration: vi.fn(),
+    queryTasks: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
@@ -20,7 +21,10 @@ vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration:
 vi.mock("@/lib/server/reference-asset-access", () => ({ createSignedReferenceAssetUrl: (key: string, origin: string, user: string) => `${origin}/api/reference-assets/${key}?owner=${user}` }));
 vi.mock("@/lib/server/public-request-origin", () => ({ resolvePublicRequestOrigin: () => "https://app.example" }));
 
-import { POST } from "./route";
+vi.mock("@/lib/server/generation-task-store", () => ({ queryStoredGenerationTasks: mocks.queryTasks }));
+
+import * as route from "./route";
+const { POST } = route;
 
 const baseBody = { toolId: "local-edit", sourceUrl: "/api/reference-assets/permanent/source.png", maskUrl: "/api/reference-assets/permanent/mask.png", prompt: "把天空改成黄昏", clientRequestId: "req-image-tool" };
 
@@ -141,6 +145,53 @@ describe("POST /api/practice/image-tools", () => {
         mocks.practiceAccess.mockRejectedValue(new Error("没有练习权限"));
         const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(trialBody) }));
         expect(response.status).toBe(403);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+});
+
+describe("practice local-edit history", () => {
+    const request = new Request("http://localhost/api/practice/image-tools?toolId=local-edit&userId=other-student");
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.currentUser.mockResolvedValue({ id: "student-one" });
+        mocks.practiceAccess.mockResolvedValue({ schoolId: "school-one" });
+        mocks.queryTasks.mockResolvedValue([]);
+    });
+
+    it("requires login and active practice access", async () => {
+        mocks.currentUser.mockResolvedValueOnce(null);
+        expect((await route.GET(request)).status).toBe(401);
+        mocks.practiceAccess.mockRejectedValueOnce(Object.assign(new Error("no access"), { status: 403 }));
+        expect((await route.GET(request)).status).toBe(403);
+        expect(mocks.queryTasks).not.toHaveBeenCalled();
+    });
+
+    it("uses the current student's recent local edits and returns only unsigned managed assets and their original instruction", async () => {
+        const row = {
+            id: "edit-one",
+            createdAt: 123,
+            prompt: "只修改蒙版标示区域，其余区域尽量保持原样。换成蓝色",
+            config: { model: "practice-image", apiKey: "not-public" },
+            upstreamPrompt: "not-public",
+            references: [{ url: "https://other-host.example/api/reference-assets/permanent/source.png?signature=not-public" }],
+            mask: { url: "/api/reference-assets/permanent/mask.png?signature=not-public" },
+            result: { serverUrl: "/api/generation-log-assets/permanent/result.png", width: 100, height: 80 },
+        };
+        mocks.queryTasks.mockResolvedValue([row, { ...row, id: "unsafe", result: { serverUrl: "https://example.test/private-image.png" } }]);
+        const response = await route.GET(request);
+        expect(response.status).toBe(200);
+        expect(mocks.queryTasks).toHaveBeenCalledWith("image", { userId: "student-one", statuses: ["success"], localEditSchoolId: "school-one", limit: 5 });
+        const body = await response.json();
+        expect(body.records).toEqual([
+            expect.objectContaining({
+                id: "edit-one",
+                prompt: "换成蓝色",
+                sourceUrl: "/api/reference-assets/permanent/source.png",
+                maskUrl: "/api/reference-assets/permanent/mask.png",
+                image: expect.objectContaining({ url: "/api/generation-log-assets/permanent/result.png" }),
+            }),
+        ]);
+        expect(JSON.stringify(body)).not.toContain("not-public");
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 });

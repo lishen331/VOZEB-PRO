@@ -28,7 +28,7 @@ describe("standalone practice image tools", () => {
         const source = await readFile(sourcePath, "utf8");
         expect(source).toContain("setError(messageText)");
         expect(source).toContain("setResult(completed)");
-        expect(source).toContain("JSON.stringify({ toolId, ...diagnostic");
+        expect(source).toContain("JSON.stringify({ toolId, ...resultDiagnostic");
         expect(source).toContain("run(retryPrompt || undefined)");
     });
 
