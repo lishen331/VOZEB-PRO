@@ -1,8 +1,8 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Images, RefreshCw } from "lucide-react";
+import { useId, useState } from "react";
+import { ChevronLeft, ChevronRight, Download, Images, RefreshCw, X } from "lucide-react";
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { cn } from "@/lib/utils";
@@ -165,6 +165,7 @@ export function MultiAngleHistory({
     onRestore,
     onRefresh,
     onLoadMore,
+    onClose,
 }: {
     runs: MultiAngleRun[];
     selectedId: string | null;
@@ -175,53 +176,64 @@ export function MultiAngleHistory({
     onRestore: (run: MultiAngleRun) => void;
     onRefresh: () => void;
     onLoadMore: () => void;
+    onClose?: () => void;
 }) {
+    const headingId = useId();
     return (
-        <section className={s.history} aria-labelledby="ma-history-heading" aria-busy={loading}>
+        <section className={s.history} aria-labelledby={headingId} aria-busy={loading}>
             <div className={s.resultsHead}>
-                <h2 id="ma-history-heading">历史记录</h2>
-                <button type="button" className={cn(s.btn, s.btnGhost)} disabled={loading} onClick={onRefresh}>
-                    <RefreshCw size={14} /> 刷新历史
-                </button>
-            </div>
-            {runs.length > 0 && (
-                <div className={s.historyGrid}>
-                    {runs.map((run) => {
-                        const { batch, mode, fisheye, d } = run.snapshot;
-                        const thumbs = run.shots.flatMap((shot) => (shot.url ? [shot.url] : []));
-                        return (
-                            <button key={run.id} type="button" className={s.histItem} disabled={disabled} aria-pressed={selectedId === run.id} onClick={() => onRestore(run)}>
-                                <div className={s.histThumbs}>
-                                    {(thumbs.length ? thumbs : [run.source.url]).slice(0, 4).map((thumb, index) => (
-                                        <img key={index} src={thumb} alt="" loading="lazy" />
-                                    ))}
-                                </div>
-                                <b>多角度练习 · {batch} 张</b>
-                                <small>
-                                    {mode === "camera" ? "摄像头视角" : "主体视角"} · {fisheye ? "鱼眼" : shotLabel(d)} · {thumbs.length}/{batch} 张已生成
-                                </small>
-                                <small>{historyDate.format(new Date(run.createdAt))} · 恢复机位与参数</small>
-                            </button>
-                        );
-                    })}
+                <h2 id={headingId}>历史记录</h2>
+                <div className={s.historyActions}>
+                    <button type="button" className={cn(s.btn, s.btnGhost)} disabled={loading} onClick={onRefresh} aria-label="刷新历史" title="刷新历史">
+                        <RefreshCw size={14} />
+                    </button>
+                    {onClose && (
+                        <button type="button" className={cn(s.btn, s.btnGhost)} onClick={onClose} aria-label="关闭历史记录" title="关闭历史记录">
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
-            )}
-            {loading ? (
-                <p className={s.historyStatus} role="status">
-                    正在加载历史记录…
-                </p>
-            ) : error ? (
-                <p className={s.historyStatus} role="alert">
-                    历史记录加载失败，请刷新重试
-                </p>
-            ) : !runs.length ? (
-                <p className={s.historyStatus}>暂无生成记录</p>
-            ) : null}
-            {hasMore && (
-                <button type="button" className={cn(s.btn, s.btnGhost, s.historyMore)} disabled={loading} onClick={onLoadMore}>
-                    查看更多
-                </button>
-            )}
+            </div>
+            <div className={s.historyContent}>
+                {runs.length > 0 && (
+                    <div className={s.historyGrid}>
+                        {runs.map((run) => {
+                            const { batch, mode, fisheye, d } = run.snapshot;
+                            const thumbs = run.shots.flatMap((shot) => (shot.url ? [shot.url] : []));
+                            return (
+                                <button key={run.id} type="button" className={s.histItem} disabled={disabled} aria-pressed={selectedId === run.id} onClick={() => onRestore(run)}>
+                                    <div className={s.histThumbs}>
+                                        {(thumbs.length ? thumbs : [run.source.url]).slice(0, 4).map((thumb, index) => (
+                                            <img key={index} src={thumb} alt="" loading="lazy" />
+                                        ))}
+                                    </div>
+                                    <b>多角度练习 · {batch} 张</b>
+                                    <small>
+                                        {mode === "camera" ? "摄像头视角" : "主体视角"} · {fisheye ? "鱼眼" : shotLabel(d)} · {thumbs.length}/{batch} 张已生成
+                                    </small>
+                                    <small>{historyDate.format(new Date(run.createdAt))} · 恢复机位与参数</small>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+                {loading ? (
+                    <p className={s.historyStatus} role="status">
+                        正在加载历史记录…
+                    </p>
+                ) : error ? (
+                    <p className={s.historyStatus} role="alert">
+                        历史记录加载失败，请刷新重试
+                    </p>
+                ) : !runs.length ? (
+                    <p className={s.historyStatus}>暂无生成记录</p>
+                ) : null}
+                {hasMore && (
+                    <button type="button" className={cn(s.btn, s.btnGhost, s.historyMore)} disabled={loading} onClick={onLoadMore}>
+                        查看更多
+                    </button>
+                )}
+            </div>
         </section>
     );
 }

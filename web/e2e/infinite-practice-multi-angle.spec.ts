@@ -18,6 +18,14 @@ test("restores an exact multi-angle batch from the initial upload screen without
     const context = await createAuthenticatedE2EContext(browser, baseURL!, { username, password: E2E_PRACTICE_PASSWORD }, e2eProjectContextOptions(testInfo.project.name));
     try {
         const practice = await context.newPage();
+        const mobile = testInfo.project.name.startsWith("mobile");
+        if (!mobile) await practice.setViewportSize({ width: 1280, height: 720 });
+        const openHistory = async () => {
+            if (mobile) await practice.getByRole("button", { name: "打开历史记录" }).click();
+        };
+        const closeHistory = async () => {
+            if (mobile) await practice.getByRole("button", { name: "关闭历史记录" }).click();
+        };
         const sessions: PracticeSession[] = [];
         let submissions = 0;
         await practice.route("**/api/reference-assets/**", (route) => route.fulfill({ contentType: "image/png", body: pixel }));
@@ -50,7 +58,9 @@ test("restores an exact multi-angle batch from the initial upload screen without
             return json({ session: sessions.find((session) => url.pathname.endsWith(`/${session.id}`)) });
         });
         await practice.goto("/practice/multi-angle");
-        await expect(practice.getByText("暂无生成记录")).toBeVisible();
+        await openHistory();
+        await expect(practice.getByRole("region", { name: "历史记录" }).getByText("暂无生成记录")).toBeVisible();
+        await closeHistory();
         await practice.getByRole("button", { name: "用示例图试试" }).click();
         const controls = practice.getByRole("region", { name: "操作台" });
         const finder = controls.getByLabel("当前机位的实时取景示意");
@@ -62,11 +72,23 @@ test("restores an exact multi-angle batch from the initial upload screen without
         const [left, right, finderBox] = await Promise.all([controls.boundingBox(), results.boundingBox(), finder.boundingBox()]);
         expect(finderBox!.x).toBeGreaterThan(left!.x + left!.width / 2);
         expect(finderBox!.y).toBeLessThan(left!.y + left!.height / 2);
-        if (testInfo.project.name.startsWith("mobile")) {
+        if (mobile) {
             expect(left!.y).toBeLessThan(right!.y);
         } else {
             expect(left!.x).toBeLessThan(right!.x);
             expect(left!.y).toBe(right!.y);
+            const assertDesktopFit = async (width: number, height: number) => {
+                await practice.setViewportSize({ width, height });
+                await expect
+                    .poll(async () => {
+                        const [a, b, h, send] = await Promise.all([controls.boundingBox(), results.boundingBox(), history.boundingBox(), controls.getByRole("button", { name: "生成多角度画面" }).boundingBox()]);
+                        return Boolean(a && b && h && send && Math.abs(a.width - b.width) <= 1 && Math.abs(a.height - b.height) <= 1 && a.y === b.y && h.x >= b.x + b.width && a.y + a.height <= height && send.y + send.height <= height);
+                    })
+                    .toBe(true);
+            };
+            await assertDesktopFit(1280, 720);
+            await assertDesktopFit(1440, 900);
+            await practice.setViewportSize({ width: 1280, height: 720 });
         }
         await controls.getByRole("tab", { name: "主体", exact: true }).click();
         await controls.getByRole("button", { name: "左侧 45°" }).click();
@@ -74,7 +96,9 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await controls.getByRole("textbox", { name: "提示词" }).fill("  恢复原始提示词  ");
         await controls.getByRole("button", { name: /4 张/ }).click();
         await controls.getByRole("button", { name: "生成多角度画面" }).click();
+        await openHistory();
         await expect(history.getByRole("button", { name: /4 张.*3\/4 张已生成/ })).toBeVisible();
+        await closeHistory();
         const card = results.getByRole("group", { name: "结果卡片" });
         const prompt = results.getByRole("region", { name: "结构化提示词" });
         await expect(card.getByRole("img")).toHaveAttribute("alt", "正面");
@@ -98,7 +122,9 @@ test("restores an exact multi-angle batch from the initial upload screen without
 
         await practice.reload();
         await expect(practice.getByRole("button", { name: "选择图片", exact: true })).toBeVisible();
+        await openHistory();
         await history.getByRole("button", { name: /4 张.*3\/4 张已生成/ }).click();
+        if (mobile) await expect(practice.getByRole("dialog")).toHaveCount(0);
         await expect(controls.getByRole("tab", { name: "主体", exact: true })).toHaveAttribute("aria-selected", "true");
         await expect(controls.getByRole("textbox", { name: "提示词" })).toHaveValue("  恢复原始提示词  ");
         await expect(controls.getByRole("button", { name: /4 张/ })).toHaveAttribute("aria-pressed", "true");
@@ -107,7 +133,9 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await card.getByRole("button", { name: "上一张" }).click();
         await expect(card.getByRole("img")).toHaveAttribute("alt", "左环 90°");
         await expect(prompt.getByText("向左旋转 90°", { exact: true })).toBeVisible();
+        await openHistory();
         await history.getByRole("button", { name: /4 张.*3\/4 张已生成/ }).click();
+        if (mobile) await expect(practice.getByRole("dialog")).toHaveCount(0);
         await expect(card.getByRole("img")).toHaveAttribute("alt", "正面");
         expect(submissions).toBe(4);
         const overflow = await practice.evaluate(() => document.documentElement.scrollWidth - innerWidth);
@@ -115,12 +143,35 @@ test("restores an exact multi-angle batch from the initial upload screen without
 
         await controls.getByRole("button", { name: /1 张/ }).click();
         await controls.getByRole("button", { name: "生成多角度画面" }).click();
+        await openHistory();
         await expect(history.getByRole("button", { name: /1 张.*1\/1 张已生成/ })).toBeVisible();
+        await closeHistory();
         await expect(card.getByRole("button", { name: "上一张" })).toHaveCount(0);
         await expect(card.getByRole("button", { name: "下一张" })).toHaveCount(0);
         expect((sessions.at(-1)?.input.multiAngle as { batchId: string }).batchId).not.toBe(firstBatchId);
         await practice.getByRole("button", { name: "重新选择图片" }).click();
+        await openHistory();
         await expect(history.getByRole("button", { name: /4 张.*3\/4 张已生成/ })).toBeVisible();
+        await closeHistory();
+        if (!mobile) {
+            const initial = sessions[0];
+            for (let i = 0; i < 12; i += 1) {
+                sessions.push({ ...initial, id: `fixture-${i}`, input: { ...initial.input, multiAngle: { ...(initial.input.multiAngle as Record<string, unknown>), batchId: randomUUID(), batch: 1 } } });
+            }
+            await history.getByRole("button", { name: "刷新历史" }).click();
+            await expect(history.getByRole("button", { name: /恢复机位与参数/ })).toHaveCount(14);
+            const historyScroller = history
+                .getByRole("button", { name: /恢复机位与参数/ })
+                .first()
+                .locator("../..");
+            const scroll = await historyScroller.evaluate((element) => {
+                const before = element.getBoundingClientRect().top;
+                element.scrollTop = element.scrollHeight;
+                return { top: element.scrollTop, overflow: getComputedStyle(element).overflowY, stayed: before === element.getBoundingClientRect().top };
+            });
+            expect(scroll).toMatchObject({ overflow: "auto", stayed: true });
+            expect(scroll.top).toBeGreaterThan(0);
+        }
     } finally {
         await context.close();
     }
