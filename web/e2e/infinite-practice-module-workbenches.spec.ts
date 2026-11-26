@@ -390,9 +390,25 @@ test("局部编辑历史可回看、恢复和学习，不会自动重复生成",
             return route.continue();
         });
         await tab.goto("/practice/local-edit");
-        const list = tab.getByRole("region", { name: "最近练习" });
+        const list = tab.getByRole("region", { name: "历史记录", exact: true });
         const draft = tab.getByPlaceholder("例如：把选中区域改为金属材质，保持原图光影");
+        const inputPanel = tab.getByRole("heading", { name: "输入与设置", exact: true }).locator("../..");
+        const resultPanel = tab.getByRole("heading", { name: "生成结果与诊断", exact: true }).locator("../..");
         await expect(list.getByRole("button")).toHaveCount(2);
+        await expect(inputPanel.getByRole("region", { name: "历史记录" })).toHaveCount(0);
+        await expect(resultPanel.getByRole("region", { name: "历史记录" })).toHaveCount(0);
+        const inputBox = (await inputPanel.boundingBox())!;
+        const resultBox = (await resultPanel.boundingBox())!;
+        const historyBox = (await list.boundingBox())!;
+        if (testInfo.project.name === "chromium") {
+            expect(resultBox.x).toBeGreaterThan(inputBox.x + inputBox.width);
+            expect(historyBox.x).toBeGreaterThan(resultBox.x + resultBox.width);
+            expect(historyBox.y).toBe(resultBox.y);
+            expect(resultBox.width).toBeGreaterThan(Math.max(inputBox.width, historyBox.width));
+        } else {
+            expect(resultBox.y).toBeGreaterThan(inputBox.y + inputBox.height);
+            expect(historyBox.y).toBeGreaterThan(resultBox.y + resultBox.height);
+        }
         await draft.fill("不要覆盖的草稿");
         await list.getByRole("button", { name: /换成蓝色/ }).click();
         await expect(draft).toHaveValue("不要覆盖的草稿");
@@ -431,6 +447,10 @@ test("局部编辑历史可回看、恢复和学习，不会自动重复生成",
         const geometry = await tab.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth }));
         expect(geometry.width).toBeLessThanOrEqual(geometry.viewport);
         await tab.screenshot({ path: testInfo.outputPath(`local-edit-learning-${testInfo.project.name}.png`), fullPage: true });
+        await tab.route("**/api/practice/image-tools", (route) => route.fulfill({ json: { records: [] } }));
+        await tab.reload();
+        await expect(list.getByText("完成局部编辑后，可在这里回看最近的结果。")).toBeVisible();
+        await expect(inputPanel.getByText("完成局部编辑后，可在这里回看最近的结果。")).toHaveCount(0);
         expect({ generates, saves }).toEqual({ generates: 0, saves: 0 });
     } finally {
         await student.close();
