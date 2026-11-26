@@ -3,16 +3,17 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getAuthSettings } from "@/lib/auth/store";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
-import { resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
+import { practiceCanvasVirtualModel, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
 import { getPracticeImageToolConfig } from "@/lib/practice-image-tools";
+import { buildPracticeReversePromptInstruction } from "@/lib/practice-reverse-prompt";
 import { getLocalMediaRegistration, isLocalMediaRegistrationExpired } from "@/lib/server/local-media-registry";
 import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-access";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 
-type ToolRequest = { toolId?: unknown; sourceUrl?: unknown; maskUrl?: unknown; prompt?: unknown; clientRequestId?: unknown; options?: unknown };
+type ToolRequest = { action?: unknown; toolId?: unknown; sourceUrl?: unknown; maskUrl?: unknown; prompt?: unknown; clientRequestId?: unknown; options?: unknown };
 
 export async function POST(request: Request) {
     const user = await getCurrentUser(request);
@@ -27,17 +28,19 @@ export async function POST(request: Request) {
 
     const tool = getPracticeImageToolConfig(typeof body.toolId === "string" ? body.toolId : "");
     if (!tool || tool.kind === "local-image") return errorResponse("练习工具类型无效", 400);
-    const source = await ownReferenceUrl(body.sourceUrl, request.url, user.id);
-    if (!source) return errorResponse("请上传有效的练习图片", 400);
+    const trial = body.action === "try-generate";
+    if (body.action !== undefined && (!trial || tool.id !== "reverse-prompt" || Object.keys(body).some((key) => !["action", "toolId", "prompt", "clientRequestId"].includes(key)))) return errorResponse("试生成只支持输入文本提示词", 400);
+    const source = trial ? null : await ownReferenceUrl(body.sourceUrl, request.url, user.id);
+    if (!trial && !source) return errorResponse("请上传有效的练习图片", 400);
     const mask = body.maskUrl === undefined ? undefined : await ownReferenceUrl(body.maskUrl, request.url, user.id);
     if (body.maskUrl !== undefined && !mask) return errorResponse("编辑蒙版无效，请重新绘制", 400);
     if (tool.id === "local-edit" && !mask) return errorResponse("请先绘制需要修改的蒙版区域", 400);
     const publicOrigin = resolvePublicRequestOrigin(request);
-    const sourceUrl = createSignedReferenceAssetUrl(source.storageKey, publicOrigin, user.id);
+    const sourceUrl = source ? createSignedReferenceAssetUrl(source.storageKey, publicOrigin, user.id) : undefined;
     const maskUrl = mask ? createSignedReferenceAssetUrl(mask.storageKey, publicOrigin, user.id) : undefined;
-    if (!sourceUrl || (mask && !maskUrl)) return errorResponse("无法为练习图片创建安全读取凭证，请重新上传", 503);
+    if ((!trial && !sourceUrl) || (mask && !maskUrl)) return errorResponse("无法为练习图片创建安全读取凭证，请重新上传", 503);
     const prompt = typeof body.prompt === "string" ? body.prompt.trim().slice(0, 20_000) : "";
-    if (tool.id !== "reverse-prompt" && !prompt) return errorResponse("请填写本次编辑说明", 400);
+    if ((trial || tool.id !== "reverse-prompt") && !prompt) return errorResponse(trial ? "请输入生图提示词" : "请填写本次编辑说明", 400);
     const clientRequestId = typeof body.clientRequestId === "string" && /^[\w-]{8,160}$/.test(body.clientRequestId) ? body.clientRequestId : "";
     if (!clientRequestId) return errorResponse("练习请求标识无效，请重试", 400);
 
@@ -49,13 +52,13 @@ export async function POST(request: Request) {
         return errorResponse(error instanceof Error ? error.message : "当前账号没有无限练习权限", status);
     }
 
-    const capability = tool.kind === "ai-text" ? "text" : "image";
+    const capability = !trial && tool.kind === "ai-text" ? "text" : "image";
     const settings = await getAuthSettings();
-    const configuredModel = tool.kind === "ai-text" ? settings.practiceDefaultModels.textModel : settings.practiceDefaultModels.imageModel;
+    const configuredModel = trial ? practiceCanvasVirtualModel("image") : capability === "text" ? settings.practiceDefaultModels.textModel : settings.practiceDefaultModels.imageModel;
     if (!configuredModel) return errorResponse(`无限练习尚未配置${capability === "text" ? "文本" : "图片"}模型`, 503);
     const candidates = resolvePracticeGenerationCandidates(settings, capability, configuredModel, {
         executionProfile: "open-source-practice",
-        ...(tool.kind === "ai-text" ? { requiresImageInput: true } : {}),
+        ...(capability === "text" ? { requiresImageInput: true } : {}),
     });
     if (!candidates.length) return errorResponse("当前无限练习模型池没有可用的对应能力模型，请检查练习模型配置", 503);
 
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
                       {
                           role: "user",
                           content: [
-                              { type: "text", text: prompt || "请分析这张图片并反推出可用于生成相似图片的详细提示词，包含主体、构图、风格、光线、色彩和背景。只输出提示词，不要加解释。" },
+                              { type: "text", text: buildPracticeReversePromptInstruction(prompt) },
                               { type: "image_url", image_url: { url: sourceUrl } },
                           ],
                       },
@@ -82,13 +85,13 @@ export async function POST(request: Request) {
                   context: taskContext,
               }
             : {
-                  kind: "edit",
+                  kind: trial ? "generation" : "edit",
                   config: { model: configuredModel, size: "auto", quality: "auto" },
                   prompt: tool.id === "local-edit" ? `只修改蒙版标示区域，其余区域尽量保持原样。${prompt}` : prompt,
-                  references: [{ type: "image", url: sourceUrl }],
+                  references: trial ? [] : [{ type: "image", url: sourceUrl }],
                   ...(maskUrl ? { mask: { type: "image", url: maskUrl } } : {}),
                   source: "practice",
-                  title: tool.title,
+                  title: trial ? "反推提示词 · 试生成" : tool.title,
                   context: taskContext,
               };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(user.id, practiceAccess.schoolId, clientRequestId) });
