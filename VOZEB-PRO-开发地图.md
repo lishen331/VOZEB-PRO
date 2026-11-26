@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-11-26，`feat/practice-reverse-prompt-lab` 分支。当前源码包含 78 个 `page.tsx` 页面入口、447 个 API Route 文件和 147 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-11-26，`feat/multi-angle-workbench-history-20261126` 分支。当前源码包含 78 个 `page.tsx` 页面入口、447 个 API Route 文件和 147 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -367,6 +367,11 @@ flowchart LR
 - [配置说明](docs/content/docs/overview/configuration.mdx)：环境变量和后台配置。
 - [Docker 部署](docs/content/docs/overview/docker.mdx)：官方 Compose 部署说明。
 
+
+### 多角度练习工作台与历史（2026-11-26）
+
+- `/practice/multi-angle`：桌面侧重操作、实时取景和出图三栏；无论是否有主体图，历史都在下方。
+- `/api/practice/sessions?history=multi-angle`：按学校和用户查询完整批次，使用 `practice_sessions.input_json.multiAngle` 存储界面快照，不进入生成请求。查看历史不会发起生成。
 
 ### 无限练习工作台（2026-09-08）
 

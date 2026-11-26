@@ -16,7 +16,6 @@ interface MultiAngleStageProps {
     image: string | null;
     dragging: boolean;
     viewportRef: RefObject<HTMLDivElement | null>;
-    captureCanvasRef: RefObject<HTMLCanvasElement | null>;
     onPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
     onPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
     onPointerUp: (event: PointerEvent<HTMLDivElement>) => void;
@@ -28,9 +27,8 @@ interface MultiAngleStageProps {
  * 主舞台：
  *   - 外层 zoom-wrap 只做等比 scale（景别），内层只做 3D 旋转，两者互不拉扯；
  *   - 摄像头模式下是一张随镜头转的卡片，主体模式下换成立方盒；
- *   - 右上圆形取景窗实时重绘当前机位画面（canvas 在 workbench 的 effect 里画）。
  */
-export default function MultiAngleStage({ mode, h, p, d, fisheye, image, dragging, viewportRef, captureCanvasRef, onPointerDown, onPointerMove, onPointerUp, children }: MultiAngleStageProps) {
+export default function MultiAngleStage({ mode, h, p, d, fisheye, image, dragging, viewportRef, onPointerDown, onPointerMove, onPointerUp, children }: MultiAngleStageProps) {
     const cameraMode = mode === "camera";
     const imgStyle = image ? { backgroundImage: `url(${image})` } : undefined;
 
@@ -67,15 +65,10 @@ export default function MultiAngleStage({ mode, h, p, d, fisheye, image, draggin
                     )}
                 </div>
 
-                <div className={s.capturePreview}>
-                    <canvas ref={captureCanvasRef} width={192} height={192} />
-                </div>
-                <span className={s.captureLabel}>当前取景</span>
-
                 {children}
             </div>
 
-            <p className={s.hintLine}>镜头决定视角，景别决定远近。取景窗里就是该机位会拍到的画面。</p>
+            <p className={s.hintLine}>拖动镜头调整机位，滚轮推近或拉远。</p>
         </div>
     );
 }
