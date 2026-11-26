@@ -20,7 +20,7 @@ export function LocalEditHistory({
     onReload: () => void;
 }) {
     return (
-        <section aria-label="历史记录" className="min-w-0 space-y-2 self-start rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5 lg:col-span-2 xl:col-span-1">
+        <section aria-label="历史记录" className="min-w-0 space-y-2 self-start rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5 lg:col-span-2 xl:col-span-1 xl:self-stretch">
             <h2 className="mb-4 font-semibold">历史记录</h2>
             {loading && !records.length ? <p className="text-xs text-[var(--gm-text-3)]">正在加载练习历史…</p> : null}
             {error ? (

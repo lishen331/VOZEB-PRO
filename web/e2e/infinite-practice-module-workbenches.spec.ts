@@ -403,7 +403,8 @@ test("局部编辑历史可回看、恢复和学习，不会自动重复生成",
         if (testInfo.project.name === "chromium") {
             expect(resultBox.x).toBeGreaterThan(inputBox.x + inputBox.width);
             expect(historyBox.x).toBeGreaterThan(resultBox.x + resultBox.width);
-            expect(historyBox.y).toBe(resultBox.y);
+            expect(historyBox.y).toBe(inputBox.y);
+            expect(historyBox.y + historyBox.height).toBe(inputBox.y + inputBox.height);
             expect(resultBox.width).toBeGreaterThan(Math.max(inputBox.width, historyBox.width));
         } else {
             expect(resultBox.y).toBeGreaterThan(inputBox.y + inputBox.height);
@@ -451,6 +452,14 @@ test("局部编辑历史可回看、恢复和学习，不会自动重复生成",
         await tab.reload();
         await expect(list.getByText("完成局部编辑后，可在这里回看最近的结果。")).toBeVisible();
         await expect(inputPanel.getByText("完成局部编辑后，可在这里回看最近的结果。")).toHaveCount(0);
+        const emptyInput = (await inputPanel.boundingBox())!;
+        const emptyHistory = (await list.boundingBox())!;
+        if (testInfo.project.name === "chromium") {
+            expect(emptyHistory.y).toBe(emptyInput.y);
+            expect(emptyHistory.y + emptyHistory.height).toBe(emptyInput.y + emptyInput.height);
+        } else {
+            expect(emptyHistory.height).toBeLessThan(emptyInput.height);
+        }
         expect({ generates, saves }).toEqual({ generates: 0, saves: 0 });
     } finally {
         await student.close();
