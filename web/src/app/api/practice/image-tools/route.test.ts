@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
 vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.practiceAccess }));
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.settings }));
-vi.mock("@/lib/server/runninghub-workflow-runtime", () => ({ resolvePracticeGenerationCandidates: mocks.candidates }));
+vi.mock("@/lib/server/runninghub-workflow-runtime", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/server/runninghub-workflow-runtime")>()), resolvePracticeGenerationCandidates: mocks.candidates }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: () => "http://internal.test" }));
 vi.mock("@/lib/server/generation-execution-policy", () => ({ trustedPracticeTaskHeaders: mocks.trustedHeaders }));
 vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration: mocks.mediaRegistration, isLocalMediaRegistrationExpired: () => false }));
@@ -103,11 +103,11 @@ describe("POST /api/practice/image-tools", () => {
         expect(response.status).toBe(200);
         expect(mocks.mediaRegistration).not.toHaveBeenCalled();
         expect(mocks.trustedHeaders).toHaveBeenCalledWith("student-one", "school-one", "trial-req");
-        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "image", "practice-canvas-image", { executionProfile: "open-source-practice" });
+        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "image", "gamaimage", { executionProfile: "open-source-practice" });
         const [url, init] = mocks.fetchInternalApi.mock.calls[0];
         expect(String(url)).toContain("/api/image-tasks");
         const payload = JSON.parse(init.body);
-        expect(payload).toMatchObject({ kind: "generation", prompt: trialBody.prompt, references: [], source: "practice", config: { model: "practice-canvas-image" }, context: { executionProfile: "open-source-practice" } });
+        expect(payload).toMatchObject({ kind: "generation", prompt: trialBody.prompt, references: [], source: "practice", config: { model: "gamaimage" }, context: { executionProfile: "open-source-practice" } });
         expect(payload).not.toHaveProperty("mask");
         expect(payload.context).not.toHaveProperty("practiceImageTool");
     });

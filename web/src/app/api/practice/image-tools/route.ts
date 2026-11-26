@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getAuthSettings } from "@/lib/auth/store";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
-import { resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
+import { practiceCanvasVirtualModel, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
 import { getPracticeImageToolConfig } from "@/lib/practice-image-tools";
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     const capability = !trial && tool.kind === "ai-text" ? "text" : "image";
     const settings = await getAuthSettings();
-    const configuredModel = capability === "text" ? settings.practiceDefaultModels.visionModel : settings.practiceDefaultModels.imageModel;
+    const configuredModel = trial ? practiceCanvasVirtualModel("image") : capability === "text" ? settings.practiceDefaultModels.visionModel : settings.practiceDefaultModels.imageModel;
     if (!configuredModel) return errorResponse(`无限练习尚未配置${capability === "text" ? "视觉理解" : "图片"}模型`, 503);
     const candidates = resolvePracticeGenerationCandidates(settings, capability, configuredModel, {
         executionProfile: "open-source-practice",
