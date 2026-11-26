@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
+import sharp from "sharp";
 
-import { createAuthenticatedE2EContext, E2E_PRACTICE_PASSWORD } from "./support";
+import { createAuthenticatedE2EContext, e2eProjectContextOptions, E2E_PRACTICE_PASSWORD } from "./support";
 
 const BASE_URL = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_E2E_PORT || 3100)}`;
 const ONE_PIXEL_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64");
@@ -341,3 +342,126 @@ function moduleFixtureCapabilities() {
         { module: "dubbing", mode: "workflow", available: true, models: [{ id: "voice-one", label: "配音模型" }], inputSchema: [{ key: "text", label: "配音文本", type: "textarea", required: true }], outputType: "audio" },
     ] as const;
 }
+
+test("局部编辑历史可回看、恢复和学习，不会自动重复生成", async ({ browser, page }, testInfo) => {
+    const suffix = randomUUID().slice(0, 8);
+    const managerUsername = `edit_mgr_${suffix}`;
+    const studentUsername = `edit_student_${suffix}`;
+    const createSchool = await page.request.post("/api/admin/schools", { data: { name: `局部编辑 ${suffix}`, administrator: { username: managerUsername, displayName: managerUsername, password: E2E_PRACTICE_PASSWORD } } });
+    expect(createSchool.ok(), await createSchool.text()).toBe(true);
+    const manager = await createAuthenticatedE2EContext(browser, BASE_URL, { username: managerUsername, password: E2E_PRACTICE_PASSWORD });
+    try {
+        const response = await manager.request.post("/api/school/members", { data: { rows: [{ username: studentUsername, displayName: studentUsername, password: E2E_PRACTICE_PASSWORD, role: "student" }] } });
+        expect(response.ok(), await response.text()).toBe(true);
+    } finally {
+        await manager.close();
+    }
+    const student = await createAuthenticatedE2EContext(browser, BASE_URL, { username: studentUsername, password: E2E_PRACTICE_PASSWORD }, e2eProjectContextOptions(testInfo.project.name));
+    try {
+        const tab = await student.newPage();
+        const path = "/api/reference-assets/permanent/fixtures/";
+        const resultsPath = "/api/generation-log-assets/permanent/fixtures/";
+        const source = await sharp({ create: { width: 96, height: 64, channels: 4, background: "#f6a700" } })
+            .png()
+            .toBuffer();
+        const maskPixels = Buffer.alloc(96 * 64 * 4, 255);
+        maskPixels[(32 * 96 + 48) * 4 + 3] = 0;
+        const mask = await sharp(maskPixels, { raw: { width: 96, height: 64, channels: 4 } })
+            .png()
+            .toBuffer();
+        await tab.route(/\/api\/(?:reference-assets|generation-log-assets)\/permanent\/fixtures\//, (route) => route.fulfill({ contentType: "image/png", body: route.request().url().includes("mask.png") ? mask : source }));
+        const records = ["换成绿色", "换成蓝色"].map((prompt, i) => ({
+            id: `fixture-edit-${i}`,
+            prompt,
+            createdAt: Date.UTC(2026, 10, 26, 3, 5 - i),
+            model: "fixture-image",
+            sourceUrl: `${path}source-${i}.png`,
+            maskUrl: `${path}mask.png`,
+            image: { url: `${resultsPath}result-${i}.png`, width: 96, height: 64, storageKey: "", bytes: source.length, mimeType: "image/png" },
+        }));
+        let generates = 0;
+        let saves = 0;
+        await tab.route("**/api/practice/image-tools", (route) => {
+            if (route.request().method() !== "GET") generates++;
+            return route.fulfill({ json: { records } });
+        });
+        await tab.route("**/api/library-assets", (route) => {
+            if (route.request().method() === "POST") saves++;
+            return route.continue();
+        });
+        await tab.goto("/practice/local-edit");
+        const list = tab.getByRole("region", { name: "历史记录", exact: true });
+        const draft = tab.getByPlaceholder("例如：把选中区域改为金属材质，保持原图光影");
+        const inputPanel = tab.getByRole("heading", { name: "输入与设置", exact: true }).locator("../..");
+        const resultPanel = tab.getByRole("heading", { name: "生成结果与诊断", exact: true }).locator("../..");
+        await expect(list.getByRole("button")).toHaveCount(2);
+        await expect(inputPanel.getByRole("region", { name: "历史记录" })).toHaveCount(0);
+        await expect(resultPanel.getByRole("region", { name: "历史记录" })).toHaveCount(0);
+        const inputBox = (await inputPanel.boundingBox())!;
+        const resultBox = (await resultPanel.boundingBox())!;
+        const historyBox = (await list.boundingBox())!;
+        if (testInfo.project.name === "chromium") {
+            expect(resultBox.x).toBeGreaterThan(inputBox.x + inputBox.width);
+            expect(historyBox.x).toBeGreaterThan(resultBox.x + resultBox.width);
+            expect(historyBox.y).toBe(inputBox.y);
+            expect(historyBox.y + historyBox.height).toBe(inputBox.y + inputBox.height);
+            expect(resultBox.width).toBeGreaterThan(Math.max(inputBox.width, historyBox.width));
+        } else {
+            expect(resultBox.y).toBeGreaterThan(inputBox.y + inputBox.height);
+            expect(historyBox.y).toBeGreaterThan(resultBox.y + resultBox.height);
+        }
+        await draft.fill("不要覆盖的草稿");
+        await list.getByRole("button", { name: /换成蓝色/ }).click();
+        await expect(draft).toHaveValue("不要覆盖的草稿");
+        await expect(tab.getByAltText("原图", { exact: true })).toHaveAttribute("src", records[1].sourceUrl);
+        await expect(tab.getByAltText("局部编辑结果")).toHaveAttribute("src", records[1].image.url);
+        const lesson = tab.getByRole("region", { name: "提示词拆解" });
+        await expect(lesson.getByText("换成蓝色", { exact: true })).toBeVisible();
+        for (const title of ["改什么", "改成什么", "什么不变"]) await expect(lesson.getByText(title, { exact: true })).toBeVisible();
+        await lesson.getByText("查看本次选区", { exact: true }).click();
+        await expect(lesson.getByAltText("本次编辑选区")).toBeVisible();
+        await lesson.getByRole("button", { name: "填回修改说明" }).click();
+        await expect(draft).toHaveValue(/修改要求：换成蓝色/);
+        await expect(tab.getByAltText("练习源图")).toHaveCount(0);
+        await lesson.getByRole("button", { name: "用这次设置继续" }).click();
+        await expect(draft).toHaveValue("换成蓝色");
+        await expect(tab.getByAltText("练习源图")).toHaveAttribute("src", records[1].sourceUrl);
+        await expect
+            .poll(() =>
+                tab.locator("canvas[aria-label='编辑选区画布']").evaluate((element) => {
+                    const canvas = element as HTMLCanvasElement;
+                    const ctx = canvas.getContext("2d")!;
+                    return [canvas.width, canvas.height, ctx.getImageData(48, 32, 1, 1).data[3], ctx.getImageData(0, 0, 1, 1).data[3]];
+                }),
+            )
+            .toEqual([96, 64, 148, 0]);
+        await list.getByRole("button", { name: /换成绿色/ }).click();
+        await expect(lesson.getByText("换成绿色", { exact: true })).toBeVisible();
+        await expect(draft).toHaveValue("换成蓝色");
+        await expect(tab.getByRole("link", { name: "下载结果" })).toHaveAttribute("href", records[0].image.url);
+        await tab.evaluate(() => localStorage.setItem("vozeb-pro:theme_store", JSON.stringify({ state: { theme: "dark" }, version: 0 })));
+        await tab.reload();
+        await expect(tab.locator("html")).toHaveClass(/dark/);
+        await expect(list.getByRole("button")).toHaveCount(2);
+        await list.getByRole("button", { name: /换成绿色/ }).click();
+        await expect(lesson.getByText("换成绿色", { exact: true })).toBeVisible();
+        const geometry = await tab.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth }));
+        expect(geometry.width).toBeLessThanOrEqual(geometry.viewport);
+        await tab.screenshot({ path: testInfo.outputPath(`local-edit-learning-${testInfo.project.name}.png`), fullPage: true });
+        await tab.route("**/api/practice/image-tools", (route) => route.fulfill({ json: { records: [] } }));
+        await tab.reload();
+        await expect(list.getByText("完成局部编辑后，可在这里回看最近的结果。")).toBeVisible();
+        await expect(inputPanel.getByText("完成局部编辑后，可在这里回看最近的结果。")).toHaveCount(0);
+        const emptyInput = (await inputPanel.boundingBox())!;
+        const emptyHistory = (await list.boundingBox())!;
+        if (testInfo.project.name === "chromium") {
+            expect(emptyHistory.y).toBe(emptyInput.y);
+            expect(emptyHistory.y + emptyHistory.height).toBe(emptyInput.y + emptyInput.height);
+        } else {
+            expect(emptyHistory.height).toBeLessThan(emptyInput.height);
+        }
+        expect({ generates, saves }).toEqual({ generates: 0, saves: 0 });
+    } finally {
+        await student.close();
+    }
+});
