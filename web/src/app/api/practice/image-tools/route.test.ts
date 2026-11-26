@@ -85,6 +85,30 @@ describe("POST /api/practice/image-tools", () => {
         expect(payload.messages[0].content[1].image_url.url).toContain("permanent/source.png");
     });
 
+    it("uses an allowed image-capable practice binding when the staging analysis defaults are empty", async () => {
+        mocks.settings.mockResolvedValue({
+            practiceDefaultModels: {},
+            logicalModels: [
+                { id: "ordinary-text", enabled: true, capability: "text" },
+                { id: "visually-disabled", enabled: true, capability: "text" },
+                { id: "practice-vision", enabled: true, capability: "text" },
+            ],
+            practiceModelPool: { pools: { vision: { "disabled-vision": false } } },
+        });
+        mocks.candidates.mockImplementation((_settings, _capability, id) => [{ upstreamModel: id === "visually-disabled" ? "disabled-vision" : id, capabilityProfile: { supportsImageInput: id !== "ordinary-text" } }]);
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, clientRequestId: "analysis-req" }) }));
+        expect(response.status).toBe(200);
+        expect(JSON.parse(mocks.fetchInternalApi.mock.calls[0][1].body).config.model).toBe("practice-vision");
+    });
+
+    it("does not submit analysis if the only practice binding lacks image input", async () => {
+        mocks.settings.mockResolvedValue({ practiceDefaultModels: {}, logicalModels: [{ id: "ordinary-text", enabled: true, capability: "text" }] });
+        mocks.candidates.mockReturnValue([{ upstreamModel: "ordinary-text", capabilityProfile: { supportsImageInput: false } }]);
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, clientRequestId: "analysis-req" }) }));
+        expect(response.status).toBe(503);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
     const trialBody = { toolId: "reverse-prompt", action: "try-generate", prompt: "学生编辑后的猫咪三视图", clientRequestId: "trial-req" };
 
     it("dispatches one practice text-to-image task with no reference or mask", async () => {
