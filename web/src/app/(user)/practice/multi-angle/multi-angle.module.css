@@ -213,11 +213,17 @@
 
 /* ─── 工作区 ─── */
 
+.page {
+    width: 100%;
+    padding: 16px clamp(12px, 2vw, 30px);
+}
+
 .workspace {
     display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    align-items: start;
-    gap: 16px;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    scroll-margin-top: 114px;
     animation: rise 0.5s var(--gm-ease);
 }
 
@@ -561,6 +567,16 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.panelSettings {
+    display: grid;
+    align-content: start;
+    gap: inherit;
+}
+
+.batchTitle {
+    margin-bottom: 10px;
 }
 
 .panel h3 {
@@ -1096,8 +1112,223 @@
     }
 }
 
+.historyRail,
+.root .openHistory {
+    display: none;
+}
+
 .history {
-    margin-top: 24px;
+    min-width: 0;
+    min-height: 0;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--gm-border);
+    border-radius: var(--gm-radius-lg);
+    background: var(--gm-surface);
+    box-shadow: var(--gm-shadow);
+}
+
+.historyActions {
+    display: flex;
+    gap: 4px;
+}
+.root .historyActions button {
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+}
+.historyContent {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 2px;
+}
+.historyDialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    max-width: min(calc(100% - 24px), 440px);
+    width: 100%;
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    border: 0;
+    border-radius: var(--gm-radius-lg);
+    color: var(--gm-text);
+    background: var(--gm-surface);
+}
+.historyDialog::backdrop {
+    background: rgb(10 22 43 / 55%);
+}
+.historyDialog .history {
+    max-height: calc(100dvh - 32px);
+}
+
+@media (width < 1100px) {
+    .root .openHistory {
+        display: inline-flex;
+    }
+    .pageHead {
+        position: sticky;
+        z-index: 5;
+        top: 0;
+        background: var(--gm-bg);
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+    }
+}
+
+@media (width >= 1100px) {
+    .page {
+        height: 100%;
+        min-height: 470px;
+        display: flex;
+        flex-direction: column;
+    }
+    .pageHead {
+        flex: none;
+        margin-bottom: 12px;
+    }
+    .workspace {
+        flex: 1;
+        min-height: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(184px, 0.5fr);
+        grid-template-rows: minmax(0, 1fr);
+    }
+    .workCard,
+    .results,
+    .historyRail {
+        min-height: 0;
+    }
+    .historyRail {
+        display: flex;
+        min-width: 0;
+    }
+    .historyRail .history {
+        width: 100%;
+    }
+    .historyRail .historyGrid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+    .historyRail .histItem {
+        padding: 8px;
+    }
+    .historyRail .histThumbs {
+        min-height: 36px;
+    }
+    .historyRail .histThumbs img {
+        height: 36px;
+    }
+    .uploadCard {
+        grid-column: span 2;
+        align-self: start;
+    }
+    .workCard {
+        display: flex;
+        flex-direction: column;
+        padding: 12px;
+        overflow: hidden;
+    }
+    .workCard > h2 {
+        margin-bottom: 6px;
+    }
+    .stageCard {
+        flex: none;
+        margin-bottom: 8px;
+    }
+    .stageTop {
+        margin-bottom: 6px;
+        gap: 4px;
+    }
+    .viewport {
+        height: clamp(112px, 26dvh, 224px);
+        min-height: 0;
+    }
+    .sceneCenter {
+        width: 190px;
+        height: 100px;
+    }
+    .subjectPlane {
+        width: clamp(112px, 20dvh, 168px);
+        height: auto;
+        aspect-ratio: 4 / 3;
+    }
+    .cube {
+        scale: 0.52;
+        height: 100px;
+    }
+    .orbitWidget {
+        left: 6px;
+        bottom: 5px;
+        transform: scale(0.58);
+        transform-origin: left bottom;
+    }
+    .capturePreview {
+        width: clamp(46px, 8dvh, 70px);
+    }
+    .hintLine {
+        margin-top: 5px;
+    }
+    .panel {
+        flex: 1;
+        min-height: 0;
+        padding: 8px;
+        gap: 7px;
+        box-shadow: none;
+    }
+    .panelSettings {
+        overflow: auto;
+        min-height: 0;
+        flex: 1;
+        padding: 2px;
+        overscroll-behavior: contain;
+    }
+    .panelActions {
+        flex: none;
+        padding: 5px 2px 0;
+        border-top: 1px solid var(--gm-border);
+    }
+    .modeSeg button {
+        height: 27px;
+    }
+    .presetTabs {
+        margin-top: 4px;
+        gap: 4px;
+    }
+    .root .ptab {
+        padding: 3px 7px;
+    }
+    .sliders {
+        gap: 5px;
+    }
+    .batchTitle {
+        margin-bottom: 4px;
+    }
+    .root .batch {
+        padding: 4px 3px;
+    }
+    .promptBox textarea {
+        min-height: 52px;
+        padding: 6px 8px;
+    }
+    .results {
+        padding: 12px;
+        overflow: auto;
+        overscroll-behavior: contain;
+        display: flex;
+        flex-direction: column;
+    }
+    .results > * {
+        flex-shrink: 0;
+    }
+    .resultsEmpty {
+        flex: 1;
+    }
+    .shot {
+        max-height: clamp(132px, 35dvh, 316px);
+    }
 }
 
 .historyGrid {
@@ -1177,12 +1408,6 @@
 }
 
 /* ─── 响应式 ─── */
-
-@media (max-width: 900px) {
-    .workspace {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
 
 @media (max-width: 700px) {
     .orbitWidget {
