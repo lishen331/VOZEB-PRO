@@ -114,8 +114,11 @@ test("练习视觉与蒙版工具通过独立模型发到本地夹具", async ({
             };
             const sourceUrl = await upload("source.png");
             const maskUrl = await upload("mask.png");
+            const expression = { face: { x: 0.1, y: 0.2, width: 0.2, height: 0.2 }, expressionId: "smile", intensity: "strong", excitement: 0.8, affinity: 0.2 };
             for (const toolId of ["reverse-prompt", "expression-reference", "local-edit"] as const) {
-                const response = await context.request.post("/api/practice/image-tools", { data: { toolId, sourceUrl, ...(toolId === "local-edit" ? { maskUrl } : {}), clientRequestId: randomUUID(), prompt: "fixture only" } });
+                const response = await context.request.post("/api/practice/image-tools", {
+                    data: { toolId, sourceUrl, ...(toolId === "local-edit" ? { maskUrl } : {}), ...(toolId === "expression-reference" ? { expression } : {}), clientRequestId: randomUUID(), prompt: "fixture only" },
+                });
                 expect(response.ok(), await response.text()).toBe(true);
                 const { task } = (await response.json()) as { task: { id: string; type: string } };
                 expect(task.type).toBe(toolId === "reverse-prompt" ? "text" : "image");

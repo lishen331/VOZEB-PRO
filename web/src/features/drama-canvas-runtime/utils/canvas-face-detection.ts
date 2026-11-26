@@ -44,12 +44,6 @@ export function normalizeFaceBox(box: { x: number; y: number; width: number; hei
     return width > 0.01 && height > 0.01 ? { x, y, width, height, score } : null;
 }
 
-export function faceBoxPrompt(box: CanvasFaceBox) {
-    const x = Math.round((box.x + box.width / 2) * 100);
-    const y = Math.round((box.y + box.height / 2) * 100);
-    return `画面中位于约 ${x}% 横向、${y}% 纵向的人物脸部`;
-}
-
 async function detectWithNativeFaceDetector(dataUrl: string, Detector: NativeFaceDetectorConstructor, signal?: AbortSignal) {
     const image = await loadImage(dataUrl, signal);
     const detections = await new Detector({ maxDetectedFaces: 20, fastMode: true }).detect(image);
