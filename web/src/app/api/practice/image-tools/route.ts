@@ -6,7 +6,9 @@ import { requirePracticeAccess } from "@/lib/server/practice-access-service";
 import { practiceCanvasVirtualModel, practicePoolIncludes, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
-import { getPracticeImageToolConfig } from "@/lib/practice-image-tools";
+import { getPracticeImageToolConfig, LOCAL_EDIT_HISTORY_LIMIT, LOCAL_EDIT_PROMPT_PREFIX, type LocalEditPracticeRecord } from "@/lib/practice-image-tools";
+import { queryStoredGenerationTasks } from "@/lib/server/generation-task-store";
+import type { ImageTask } from "@/lib/server/image-task-store";
 import { buildPracticeReversePromptInstruction } from "@/lib/practice-reverse-prompt";
 import { getLocalMediaRegistration, isLocalMediaRegistrationExpired } from "@/lib/server/local-media-registry";
 import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-access";
@@ -14,6 +16,54 @@ import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 
 type ToolRequest = { action?: unknown; toolId?: unknown; sourceUrl?: unknown; maskUrl?: unknown; prompt?: unknown; clientRequestId?: unknown; options?: unknown };
+
+export async function GET(request: Request) {
+    const user = await getCurrentUser(request);
+    if (!user) return errorResponse("请先登录", 401);
+    let access: Awaited<ReturnType<typeof requirePracticeAccess>>;
+    try {
+        access = await requirePracticeAccess(user);
+    } catch (cause) {
+        return practiceAccessErrorResponse(cause);
+    }
+    try {
+        const tasks = await queryStoredGenerationTasks<ImageTask>("image", { userId: user.id, statuses: ["success"], localEditSchoolId: access.schoolId, limit: LOCAL_EDIT_HISTORY_LIMIT });
+        const records = tasks.flatMap((task) => {
+            const sourceUrl = managedPracticeAssetPath(task.references?.[0]?.url, "reference-assets");
+            const maskUrl = managedPracticeAssetPath(task.mask?.url, "reference-assets");
+            const media = task.result?.results?.[0] || task.result;
+            const resultUrl = managedPracticeAssetPath(media?.serverUrl || media?.dataUrl, "generation-log-assets");
+            if (!sourceUrl || !maskUrl || !resultUrl || !media) return [];
+            const record: LocalEditPracticeRecord = {
+                id: task.id,
+                createdAt: task.createdAt,
+                model: task.config.logicalModel || task.config.model,
+                prompt: task.prompt.startsWith(LOCAL_EDIT_PROMPT_PREFIX) ? task.prompt.slice(LOCAL_EDIT_PROMPT_PREFIX.length) : task.prompt,
+                sourceUrl,
+                maskUrl,
+                image: { url: resultUrl, storageKey: "", width: media.width || 0, height: media.height || 0, bytes: media.bytes || 0, mimeType: media.mimeType || "image/png" },
+            };
+            return [record];
+        });
+        return NextResponse.json({ records }, { headers: { "Cache-Control": "private, no-store" } });
+    } catch {
+        return errorResponse("练习历史读取失败，请稍后重试", 503);
+    }
+}
+
+function managedPracticeAssetPath(value: string | undefined, route: "reference-assets" | "generation-log-assets") {
+    if (!value) return "";
+    try {
+        const url = new URL(value, "https://local.invalid");
+        const prefix = `/api/${route}/`;
+        if (!/^https?:$/.test(url.protocol) || !url.pathname.startsWith(prefix)) return "";
+        const parts = url.pathname.slice(prefix.length).split("/").map(decodeURIComponent);
+        if (parts.length < 2 || !/^(permanent|temporary)$/.test(parts[0]) || parts.some((part) => !part || part === "." || part === ".." || /[/\\\u0000-\u001f]/.test(part))) return "";
+        return prefix + parts.map(encodeURIComponent).join("/");
+    } catch {
+        return "";
+    }
+}
 
 export async function POST(request: Request) {
     const user = await getCurrentUser(request);
@@ -48,8 +98,7 @@ export async function POST(request: Request) {
     try {
         practiceAccess = await requirePracticeAccess(user);
     } catch (error) {
-        const status = error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 403;
-        return errorResponse(error instanceof Error ? error.message : "当前账号没有无限练习权限", status);
+        return practiceAccessErrorResponse(error);
     }
 
     const capability = !trial && tool.kind === "ai-text" ? "text" : "image";
@@ -95,7 +144,7 @@ export async function POST(request: Request) {
             : {
                   kind: trial ? "generation" : "edit",
                   config: { model: configuredModel, size: "auto", quality: "auto" },
-                  prompt: tool.id === "local-edit" ? `只修改蒙版标示区域，其余区域尽量保持原样。${prompt}` : prompt,
+                  prompt: tool.id === "local-edit" ? `${LOCAL_EDIT_PROMPT_PREFIX}${prompt}` : prompt,
                   references: trial ? [] : [{ type: "image", url: sourceUrl }],
                   ...(maskUrl ? { mask: { type: "image", url: maskUrl } } : {}),
                   source: "practice",
@@ -130,6 +179,11 @@ async function ownReferenceUrl(value: unknown, requestUrl: string, ownerUserId: 
     } catch {
         return null;
     }
+}
+
+function practiceAccessErrorResponse(error: unknown) {
+    const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : 403;
+    return errorResponse(error instanceof Error ? error.message : "当前账号没有无限练习权限", status);
 }
 
 function errorResponse(error: string, status: number) {

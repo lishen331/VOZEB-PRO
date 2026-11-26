@@ -21,3 +21,20 @@ export const PRACTICE_IMAGE_TOOL_ENTRIES: readonly PracticeImageToolConfig[] = [
 export function getPracticeImageToolConfig(value: string): PracticeImageToolConfig | null {
     return PRACTICE_IMAGE_TOOL_ENTRIES.find((item) => item.id === value) || null;
 }
+
+export const LOCAL_EDIT_PROMPT_PREFIX = "只修改蒙版标示区域，其余区域尽量保持原样。";
+export const LOCAL_EDIT_HISTORY_LIMIT = 5;
+
+export type LocalEditPracticeRecord = {
+    id: string;
+    createdAt: number;
+    model: string;
+    prompt: string;
+    sourceUrl: string;
+    maskUrl: string;
+    image: { url: string; storageKey: string; width: number; height: number; bytes: number; mimeType: string };
+};
+
+export function localEditPromptExample(prompt: string) {
+    return `只修改涂抹区域内原有的目标对象。修改要求：${prompt}\n保留不需要修改的形状、细节和背景，不把涂抹轮廓画进成品。`;
+}

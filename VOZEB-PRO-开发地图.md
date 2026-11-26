@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-11-26，`feat/multi-angle-workbench-history-20261126` 分支。当前源码包含 78 个 `page.tsx` 页面入口、447 个 API Route 文件和 147 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-11-26，`feat/practice-local-edit-learning` 分支。当前源码包含 78 个 `page.tsx` 页面入口、447 个 API Route 文件和 147 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -409,3 +409,8 @@ flowchart LR
 ## 2026-09-12 练习字段传递修复
 
 练习 Session 创建及重试向生成任务传递服务端 schoolId；项目 Identity / 列表查询支持 schoolId，保留旧 owner 项目。Schema 仅幂等新增 canvas_projects、drama_projects 的可空学校字段。详细边界见 `docs/incidents/2026-09-12-staging-ci-repair.md`。
+
+### 局部编辑练习回看（2026-11-26）
+
+- `/practice/local-edit` 通过 `GET /api/practice/image-tools` 获取当前学校内本人最近 5 条成功的局部编辑，沿用生成任务保留周期；查询在截取前筛选练习档案、工具、学校、所有者、状态和过期时间。
+- `practice-local-edit-learning.tsx` 展示历史、选区与教学提示词；工作台按任务绑定原图、蒙版和成品。查看历史、填回提示词或恢复设置都不会自动发起生成或写入素材库。
