@@ -13,6 +13,7 @@ export type CanvasEmotionPayload = { face: CanvasFaceBox; excitement: number; af
 type EmotionDialogProps = {
     dataUrl: string;
     open: boolean;
+    preserveConfirmedSelection?: boolean;
     onClose: () => void;
     onConfirm: (payload: CanvasEmotionPayload) => void;
 };
@@ -23,7 +24,7 @@ function intensityLabel(value?: number) {
     return CANVAS_EXPRESSION_INTENSITIES[value ?? 1]?.label || CANVAS_EXPRESSION_INTENSITIES[1].label;
 }
 
-export function CanvasNodeEmotionDialog({ dataUrl, open, onClose, onConfirm }: EmotionDialogProps) {
+export function CanvasNodeEmotionDialog({ dataUrl, open, preserveConfirmedSelection = false, onClose, onConfirm }: EmotionDialogProps) {
     const [faces, setFaces] = useState<CanvasFaceBox[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [manualMode, setManualMode] = useState(false);
@@ -37,6 +38,7 @@ export function CanvasNodeEmotionDialog({ dataUrl, open, onClose, onConfirm }: E
     const manualStartRef = useRef<{ x: number; y: number } | null>(null);
     const detectionRequestRef = useRef(0);
     const detectionAbortRef = useRef<AbortController | null>(null);
+    const confirmedSourceRef = useRef<string | null>(null);
     const selectedFace = manualMode ? manualBox : faces[selectedIndex];
 
     const runFaceDetection = useCallback(async () => {
@@ -80,6 +82,8 @@ export function CanvasNodeEmotionDialog({ dataUrl, open, onClose, onConfirm }: E
             stopFaceDetection();
             return;
         }
+        if (preserveConfirmedSelection && confirmedSourceRef.current === dataUrl) return;
+        confirmedSourceRef.current = null;
         setFaces([]);
         setManualMode(false);
         setManualBox(null);
@@ -93,7 +97,7 @@ export function CanvasNodeEmotionDialog({ dataUrl, open, onClose, onConfirm }: E
         return () => {
             stopFaceDetection();
         };
-    }, [open, runFaceDetection, stopFaceDetection]);
+    }, [dataUrl, open, preserveConfirmedSelection, runFaceDetection, stopFaceDetection]);
 
     const readPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
         const rect = event.currentTarget.getBoundingClientRect();
@@ -138,7 +142,8 @@ export function CanvasNodeEmotionDialog({ dataUrl, open, onClose, onConfirm }: E
     };
 
     const submit = () => {
-        if (!selectedFace) return;
+        if (!selectedFace || detecting) return;
+        if (preserveConfirmedSelection) confirmedSourceRef.current = dataUrl;
         onConfirm({
             face: selectedFace,
             excitement,
@@ -293,11 +298,12 @@ export function CanvasNodeEmotionDialog({ dataUrl, open, onClose, onConfirm }: E
                             setAffinity(y);
                         }}
                     />
+                    {!selectedFace && !detecting ? <p className="text-xs opacity-70">请先框选要修改的脸部</p> : null}
                     <div className="mt-auto flex justify-end gap-2">
                         <Button aria-label="取消" onClick={onClose}>
                             取消
                         </Button>
-                        <Button type="primary" icon={<Sparkles className="size-4" />} disabled={!selectedFace} onClick={submit}>
+                        <Button type="primary" icon={<Sparkles className="size-4" />} disabled={!selectedFace || detecting} onClick={submit}>
                             生成表情参考
                         </Button>
                     </div>
