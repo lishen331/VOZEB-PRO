@@ -53,19 +53,20 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await expect(practice.getByText("暂无生成记录")).toBeVisible();
         await practice.getByRole("button", { name: "用示例图试试" }).click();
         const controls = practice.getByRole("region", { name: "操作台" });
-        const preview = practice.getByRole("region", { name: "预览台" });
+        const finder = controls.getByLabel("当前机位的实时取景示意");
         const results = practice.getByRole("region", { name: "生成结果" });
         const history = practice.getByRole("region", { name: "历史记录" });
-        await expect(preview.getByLabel("当前机位的实时取景示意")).toBeVisible();
+        await expect(finder).toBeVisible();
+        await expect(practice.getByRole("heading", { name: "预览台", exact: true })).toHaveCount(0);
         await expect(results.getByText("生成的图片将在这里显示")).toBeVisible();
-        const [left, center, right] = await Promise.all([controls.boundingBox(), preview.boundingBox(), results.boundingBox()]);
+        const [left, right, finderBox] = await Promise.all([controls.boundingBox(), results.boundingBox(), finder.boundingBox()]);
+        expect(finderBox!.x).toBeGreaterThan(left!.x + left!.width / 2);
+        expect(finderBox!.y).toBeLessThan(left!.y + left!.height / 2);
         if (testInfo.project.name.startsWith("mobile")) {
-            expect(left!.y).toBeLessThan(center!.y);
-            expect(center!.y).toBeLessThan(right!.y);
+            expect(left!.y).toBeLessThan(right!.y);
         } else {
-            expect(left!.x).toBeLessThan(center!.x);
-            expect(center!.x).toBeLessThan(right!.x);
-            expect(left!.y).toBe(center!.y);
+            expect(left!.x).toBeLessThan(right!.x);
+            expect(left!.y).toBe(right!.y);
         }
         await controls.getByRole("tab", { name: "主体", exact: true }).click();
         await controls.getByRole("button", { name: "左侧 45°" }).click();
@@ -74,7 +75,24 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await controls.getByRole("button", { name: /4 张/ }).click();
         await controls.getByRole("button", { name: "生成多角度画面" }).click();
         await expect(history.getByRole("button", { name: /4 张.*3\/4 张已生成/ })).toBeVisible();
-        await expect(results.getByText("生成失败", { exact: true })).toBeVisible();
+        const card = results.getByRole("group", { name: "结果卡片" });
+        const prompt = results.getByRole("region", { name: "结构化提示词" });
+        await expect(card.getByRole("img")).toHaveAttribute("alt", "正面");
+        const [cardBox, prevBox, nextBox, promptBox] = await Promise.all([card.boundingBox(), card.getByRole("button", { name: "上一张" }).boundingBox(), card.getByRole("button", { name: "下一张" }).boundingBox(), prompt.boundingBox()]);
+        expect(prevBox!.x).toBeGreaterThan(cardBox!.x);
+        expect(nextBox!.x + nextBox!.width).toBeLessThan(cardBox!.x + cardBox!.width);
+        expect(promptBox!.y).toBeGreaterThan(cardBox!.y + cardBox!.height);
+        await expect(results.getByRole("button", { name: "抽一张" })).toHaveCount(0);
+        await card.getByRole("button", { name: "下一张" }).click();
+        await expect(card.getByText("生成失败", { exact: true })).toBeVisible();
+        await expect(prompt.getByText("向右旋转 90°", { exact: true })).toBeVisible();
+        await prompt.getByText("查看完整提示词", { exact: true }).click();
+        await expect(prompt.locator("details p")).toHaveText(sessions[1].input.prompt as string);
+        await card.getByRole("button", { name: "下一张" }).click();
+        await expect(card.getByRole("img")).toHaveAttribute("alt", "背面");
+        await expect(prompt.getByText("背面 180°", { exact: true })).toBeVisible();
+        await controls.getByRole("button", { name: "正面视角", exact: true }).click();
+        await expect(prompt.getByText("背面 180°", { exact: true })).toBeVisible();
         const firstBatchId = (sessions[0].input.multiAngle as { batchId: string }).batchId;
         expect(submissions).toBe(4);
 
@@ -85,7 +103,12 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await expect(controls.getByRole("textbox", { name: "提示词" })).toHaveValue("  恢复原始提示词  ");
         await expect(controls.getByRole("button", { name: /4 张/ })).toHaveAttribute("aria-pressed", "true");
         await expect(results.getByText(/历史结果/)).toBeVisible();
-        await expect(results.getByRole("img")).toHaveCount(3);
+        await expect(card.getByRole("img")).toHaveAttribute("alt", "正面");
+        await card.getByRole("button", { name: "上一张" }).click();
+        await expect(card.getByRole("img")).toHaveAttribute("alt", "左环 90°");
+        await expect(prompt.getByText("向左旋转 90°", { exact: true })).toBeVisible();
+        await history.getByRole("button", { name: /4 张.*3\/4 张已生成/ }).click();
+        await expect(card.getByRole("img")).toHaveAttribute("alt", "正面");
         expect(submissions).toBe(4);
         const overflow = await practice.evaluate(() => document.documentElement.scrollWidth - innerWidth);
         expect(overflow).toBeLessThanOrEqual(0);
@@ -93,6 +116,8 @@ test("restores an exact multi-angle batch from the initial upload screen without
         await controls.getByRole("button", { name: /1 张/ }).click();
         await controls.getByRole("button", { name: "生成多角度画面" }).click();
         await expect(history.getByRole("button", { name: /1 张.*1\/1 张已生成/ })).toBeVisible();
+        await expect(card.getByRole("button", { name: "上一张" })).toHaveCount(0);
+        await expect(card.getByRole("button", { name: "下一张" })).toHaveCount(0);
         expect((sessions.at(-1)?.input.multiAngle as { batchId: string }).batchId).not.toBe(firstBatchId);
         await practice.getByRole("button", { name: "重新选择图片" }).click();
         await expect(history.getByRole("button", { name: /4 张.*3\/4 张已生成/ })).toBeVisible();

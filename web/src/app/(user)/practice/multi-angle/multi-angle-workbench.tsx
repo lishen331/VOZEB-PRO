@@ -6,7 +6,6 @@ import { Aperture, ImagePlus } from "lucide-react";
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { cn } from "@/lib/utils";
-import { buildAnglePrompt } from "@/lib/angle/angle-presets";
 import { practiceApi, type PracticeSession } from "@/services/api/practice";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 
@@ -24,14 +23,13 @@ import {
     createSampleImage,
     paintCapture,
     shotLabel,
-    toCanvasAngleParams,
     toSubjectAngle,
     wrapCameraAngle,
     type AngleMode,
     type BatchSize,
     type PresetKey,
 } from "./lib/angle-model";
-import { angleJobs, groupMultiAngleSessions, type MultiAngleRun, type MultiAngleShot } from "./lib/angle-history";
+import { createAngleShots, groupMultiAngleSessions, type MultiAngleRun, type MultiAngleShot } from "./lib/angle-history";
 import MultiAngleResults, { MultiAngleHistory } from "./multi-angle-results";
 import MultiAngleStage from "./multi-angle-stage";
 import OrbitWidget from "./orbit-widget";
@@ -103,6 +101,7 @@ export default function MultiAngleWorkbench() {
     const [dropActive, setDropActive] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [shots, setShots] = useState<MultiAngleShot[]>([]);
+    const [resultRevision, setResultRevision] = useState(0);
     // 结果说明按「生成那一刻」的机位快照写，之后继续拖镜头不会改动已有结果的标注
     const [runMeta, setRunMeta] = useState<{ total: number; distance: number; wideAngle: boolean; cameraMode: boolean } | null>(null);
     const [runs, setRuns] = useState<MultiAngleRun[]>([]);
@@ -188,7 +187,7 @@ export default function MultiAngleWorkbench() {
         };
     }, [image]);
 
-    // 中间预览台的实时取景。
+    // 操作台右上角的实时取景。
     useEffect(() => {
         const canvas = captureCanvasRef.current;
         if (!canvas) return;
@@ -397,10 +396,11 @@ export default function MultiAngleWorkbench() {
         setGenerating(true);
 
         const snap = { ...live.current, batch, preset, prompt, promptOn, batchId: crypto.randomUUID() };
-        const jobs = angleJobs(snap);
+        const jobs = createAngleShots(snap);
         const { d: distance, fisheye: wideAngle, mode: cameraMode } = snap;
 
-        setShots(jobs.map((job) => ({ name: job.name, url: null, status: "queued" as const })));
+        setResultRevision((revision) => revision + 1);
+        setShots(jobs);
         setRunMeta({ total: jobs.length, distance, wideAngle, cameraMode: cameraMode === "camera" });
 
         const urls: string[] = [];
@@ -408,14 +408,12 @@ export default function MultiAngleWorkbench() {
             if (ac.signal.aborted || !aliveRef.current) break;
             setShots((prev) => prev.map((shot, i) => (i === index ? { ...shot, status: "running" as const } : shot)));
             try {
-                const angleParams = toCanvasAngleParams(job.h, job.p, distance, wideAngle, promptOn);
-                const anglePrompt = buildAnglePrompt({ ...angleParams, usePrompt: promptOn });
                 const { session } = await practiceApi.createSession({
                     module: "storyboard-image",
                     mode: "workflow",
                     title: `多角度练习 · ${job.name}`,
                     input: {
-                        prompt: [prompt.trim(), anglePrompt].filter(Boolean).join("，"),
+                        prompt: job.prompt.full,
                         workflowCode: "gamaimage",
                         multiAngle: { ...snap, shotIndex: index },
                     },
@@ -461,6 +459,7 @@ export default function MultiAngleWorkbench() {
             setBatch(snap.batch);
             setPromptOn(snap.promptOn);
             setPrompt(snap.prompt);
+            setResultRevision((revision) => revision + 1);
             setShots(run.shots);
             setRunMeta({ total: snap.batch, distance: snap.d, wideAngle: snap.fisheye, cameraMode: snap.mode === "camera" });
             setRestoredId(run.id);
@@ -582,7 +581,16 @@ export default function MultiAngleWorkbench() {
                                     onPointerMove={handlePointerMove}
                                     onPointerUp={handlePointerUp}
                                 />
+                                <div className={s.capturePreview}>
+                                    <canvas ref={captureCanvasRef} width={192} height={192} role="img" aria-label="当前机位的实时取景示意" />
+                                    <span>当前取景</span>
+                                </div>
                             </MultiAngleStage>
+                            {imageError && (
+                                <p className={s.hintLine} role="alert">
+                                    原主体图已不可用，请重新选择图片。
+                                </p>
+                            )}
 
                             <AngleParamsPanel
                                 mode={mode}
@@ -608,14 +616,7 @@ export default function MultiAngleWorkbench() {
                                 onGenerate={() => void generate()}
                             />
                         </section>
-                        <section className={s.workCard} aria-labelledby="ma-preview-heading">
-                            <h2 id="ma-preview-heading">预览台</h2>
-                            <div className={s.capturePreview}>
-                                <canvas ref={captureCanvasRef} width={384} height={384} aria-label="当前机位的实时取景示意" />
-                            </div>
-                            <p className={s.hintLine}>{imageError ? "原主体图已不可用，请重新选择图片。" : "当前取景 · 实时构图示意，不是 AI 生成结果"}</p>
-                        </section>
-                        <MultiAngleResults shots={shots} summary={summaryText} historical={!!restoredId} generating={generating} onDownload={download} onDownloadAll={downloadAll} />
+                        <MultiAngleResults key={resultRevision} shots={shots} summary={summaryText} historical={!!restoredId} generating={generating} onDownload={download} onDownloadAll={downloadAll} />
                     </div>
                 )}
                 <MultiAngleHistory
