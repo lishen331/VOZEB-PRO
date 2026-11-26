@@ -112,7 +112,7 @@ export default function AngleParamsPanel({
             </div>
             {promptOn ? (
                 <div className={s.promptBox}>
-                    <textarea value={prompt} placeholder="可选：补充主体描述，例如「一位穿蓝色西装的男性，摄影棚光」" onChange={(event) => onPromptChange(event.target.value)} />
+                    <textarea aria-label="提示词" value={prompt} placeholder="可选：补充主体描述，例如「一位穿蓝色西装的男性，摄影棚光」" onChange={(event) => onPromptChange(event.target.value)} />
                 </div>
             ) : null}
 
@@ -120,7 +120,7 @@ export default function AngleParamsPanel({
                 <h3 style={{ marginBottom: 10 }}>生成数量</h3>
                 <div className={s.batchRow}>
                     {BATCH_OPTIONS.map((option) => (
-                        <button key={option.value} type="button" className={cn(s.batch, batch === option.value && s.batchActive)} onClick={() => onBatchChange(option.value)}>
+                        <button key={option.value} type="button" aria-pressed={batch === option.value} className={cn(s.batch, batch === option.value && s.batchActive)} onClick={() => onBatchChange(option.value)}>
                             {option.label}
                             <small>{option.hint}</small>
                         </button>

@@ -8,6 +8,9 @@ import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 import { createLibraryAsset } from "@/services/api/library-assets";
+import { PRACTICE_REVERSE_PROMPT_SECTIONS, parsePracticeReversePrompt } from "@/lib/practice-reverse-prompt";
+import { pollPracticeImageToolTask, type PracticeImageToolResult, type PracticeImageToolTask } from "./practice-image-tool-task";
+import { PracticeReversePromptTrial } from "./practice-reverse-prompt-trial";
 import { PracticeAssetPicker } from "./practice-asset-picker";
 import { getPracticeImageToolConfig, type PracticeImageToolId } from "@/lib/practice-image-tools";
 import { CanvasNodeEmotionDialog, type CanvasEmotionPayload } from "@/app/(user)/canvas/components/canvas-node-emotion-dialog";
@@ -19,9 +22,7 @@ const REVERSE_PROMPT_MODES = [
     { id: "detail", label: "细节拆解", instruction: "详细描述主体特征、服饰/材质、背景、镜头构图和细节" },
 ] as const;
 
-type ToolResult = { taskId?: string; model?: string; text?: string; image?: UploadedImage; saved?: boolean };
 type ToolDiagnostic = { requestId: string; taskId?: string; taskType?: "text" | "image"; model?: string };
-type TaskCreated = { task: { id: string; type: "text" | "image"; model: string } };
 
 type Props = { toolId: PracticeImageToolId };
 
@@ -38,8 +39,9 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const [emotionDialogOpen, setEmotionDialogOpen] = useState(false);
     const [upscaleTarget, setUpscaleTarget] = useState(2048);
     const [upscaleAlgorithm, setUpscaleAlgorithm] = useState<ImageUpscaleAlgorithm>("high");
-    const [result, setResult] = useState<ToolResult | null>(null);
+    const [result, setResult] = useState<PracticeImageToolResult | null>(null);
     const [busy, setBusy] = useState(false);
+    const [trialBusy, setTrialBusy] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
@@ -48,7 +50,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const [brushSize, setBrushSize] = useState(36);
 
     const chooseFile = async (file?: File) => {
-        if (!file) return;
+        if (!file || (toolId === "reverse-prompt" && (busy || trialBusy))) return;
         if (!file.type.startsWith("image/")) return message.error("请选择图片文件");
         setUploading(true);
         setError("");
@@ -117,38 +119,6 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
         return uploadImage(mask.toDataURL("image/png"));
     };
 
-    const pollTask = async (task: TaskCreated["task"]): Promise<ToolResult> => {
-        const startedAt = Date.now();
-        while (Date.now() - startedAt < 20 * 60_000) {
-            const response = await fetch(`/api/${task.type}-tasks/${encodeURIComponent(task.id)}`, { cache: "no-store" });
-            const payload = (await response.json().catch(() => ({}))) as { task?: { status?: string; result?: Record<string, unknown>; error?: string; model?: string }; error?: string };
-            if (!response.ok || !payload.task) throw new Error(payload.error || "查询生成任务失败");
-            if (payload.task.status === "error" || payload.task.status === "cancelled") throw new Error(payload.task.error || "生成失败");
-            if (payload.task.status === "success") {
-                const taskResult = payload.task.result || {};
-                if (task.type === "text") return { taskId: task.id, model: payload.task.model || task.model, text: String(taskResult.content || "") };
-                const url = String(taskResult.serverUrl || taskResult.remoteUrl || taskResult.dataUrl || taskResult.url || "");
-                if (!url) throw new Error("生成任务成功，但没有返回图片地址");
-                return {
-                    taskId: task.id,
-                    model: payload.task.model || task.model,
-                    image: {
-                        url,
-                        serverUrl: String(taskResult.serverUrl || "") || undefined,
-                        remoteUrl: String(taskResult.remoteUrl || "") || undefined,
-                        storageKey: String(taskResult.storageKey || ""),
-                        width: Number(taskResult.width) || 0,
-                        height: Number(taskResult.height) || 0,
-                        bytes: Number(taskResult.bytes) || 0,
-                        mimeType: String(taskResult.mimeType || "image/png"),
-                    },
-                };
-            }
-            await new Promise((resolve) => setTimeout(resolve, 1800));
-        }
-        throw new Error("任务仍在后台运行，请稍后查看；任务编号：" + task.id);
-    };
-
     const openExpressionEditor = async () => {
         if (!source || busy) return;
         try {
@@ -163,7 +133,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     };
 
     const run = async (promptOverride?: string) => {
-        if (!source || busy) return;
+        if (!source || busy || trialBusy || uploading) return;
         setBusy(true);
         setError("");
         try {
@@ -182,7 +152,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
             const finalPrompt =
                 promptOverride ||
                 (toolId === "reverse-prompt"
-                    ? `${REVERSE_PROMPT_MODES.find((item) => item.id === mode)?.instruction || "请描述图片"}，只输出可用于图片生成的提示词，不要补充解释。${prompt.trim() ? `补充要求：${prompt.trim()}` : ""}`
+                    ? `${REVERSE_PROMPT_MODES.find((item) => item.id === mode)?.instruction || "请描述图片"}${prompt.trim() ? `。补充要求：${prompt.trim()}` : ""}`
                     : toolId === "expression-reference"
                       ? "基于参考图片，仅调整选定人物的表情，保持身份、发型、服饰、构图、背景和光照不变。"
                       : prompt.trim());
@@ -194,10 +164,10 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ toolId, sourceUrl: source.url, ...(mask ? { maskUrl: mask.url } : {}), prompt: finalPrompt, clientRequestId: requestId }),
             });
-            const payload = (await response.json().catch(() => ({}))) as TaskCreated & { error?: string };
+            const payload = (await response.json().catch(() => ({}))) as { task?: PracticeImageToolTask; error?: string };
             if (!response.ok || !payload.task) throw new Error(payload.error || "任务提交失败");
             setDiagnostic({ requestId, taskId: payload.task.id, taskType: payload.task.type, model: payload.task.model });
-            const completed = await pollTask(payload.task);
+            const completed = await pollPracticeImageToolTask(payload.task);
             setResult(completed);
         } catch (cause) {
             const messageText = cause instanceof Error ? cause.message : "本次练习失败，请重试";
@@ -233,8 +203,11 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
 
     const resultImageUrl = result?.image?.serverUrl || result?.image?.remoteUrl || result?.image?.url;
 
+    const reverse = toolId === "reverse-prompt";
+    const analysis = reverse && result?.text !== undefined ? parsePracticeReversePrompt(result.text) : null;
+
     return (
-        <section className="mx-auto flex h-full min-h-0 max-w-6xl flex-col overflow-y-auto px-4 py-5 text-[var(--gm-text)] sm:px-6 lg:px-8">
+        <section className={`mx-auto flex h-full min-h-0 w-full flex-col overflow-y-auto px-4 py-5 text-[var(--gm-text)] sm:px-6 lg:px-8 ${reverse ? "max-w-[1660px]" : "max-w-6xl"}`}>
             <header className="mb-5 flex items-center gap-3">
                 <Link href="/practice" className="grid size-10 place-items-center rounded-full border border-[var(--gm-border)] text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)]" aria-label="返回无限练习">
                     <ArrowLeft className="size-4" />
@@ -244,7 +217,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     <h1 className="text-2xl font-semibold">{config.title}</h1>
                 </div>
             </header>
-            <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]">
+            <div className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}>
                 <div className="space-y-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
                     <div className="flex items-center justify-between">
                         <h2 className="font-semibold">输入与设置</h2>
@@ -315,16 +288,16 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     )}
                     {!source ? (
                         <div className="mt-2 flex justify-center">
-                            <PracticeAssetPicker disabled={uploading || busy} onSelect={(image) => setSource(image)} label="或从个人素材库选择" />
+                            <PracticeAssetPicker disabled={uploading || busy || trialBusy} onSelect={(image) => setSource(image)} label="或从个人素材库选择" />
                         </div>
                     ) : null}
                     {source ? (
                         <div className="flex flex-wrap gap-2">
-                            <GammaButton size="sm" variant="outline" onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
+                            <GammaButton size="sm" variant="outline" disabled={reverse && (busy || trialBusy || uploading)} onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
                                 更换图片
                             </GammaButton>
                             <PracticeAssetPicker
-                                disabled={uploading || busy}
+                                disabled={uploading || busy || trialBusy}
                                 onSelect={(image) => {
                                     setSource(image);
                                     setResult(null);
@@ -409,7 +382,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         </>
                     ) : null}
                     <GammaButton
-                        disabled={!source || busy || uploading}
+                        disabled={!source || busy || uploading || trialBusy}
                         loading={busy}
                         onClick={() => void (toolId === "expression-reference" ? openExpressionEditor() : run())}
                         className="w-full"
@@ -432,10 +405,10 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         </div>
                     ) : null}
                 </div>
-                <div className="min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
+                <div className="min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
                     <div className="mb-4 flex items-center gap-2">
                         <WandSparkles className="size-4 text-[var(--gm-accent)]" />
-                        <h2 className="font-semibold">生成结果与诊断</h2>
+                        <h2 className="font-semibold">{reverse ? "提示词拆解" : "生成结果与诊断"}</h2>
                     </div>
                     {!result ? (
                         <div className="grid min-h-72 place-items-center text-center text-sm text-[var(--gm-text-3)]">
@@ -458,13 +431,38 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                                 ) : null}
                                 <span>执行：{result.model || "本地处理"}</span>
                             </div>
-                            {result.text !== undefined ? (
-                                <textarea
-                                    aria-label="反推提示词结果"
-                                    className="min-h-48 w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm leading-6"
-                                    value={result.text}
-                                    onChange={(event) => setResult((current) => (current ? { ...current, text: event.target.value } : current))}
-                                />
+                            {analysis ? (
+                                <div className="space-y-3">
+                                    <p className="text-xs text-[var(--gm-text-3)]">这是根据画面推断的写法，不是原始提示词。</p>
+                                    {PRACTICE_REVERSE_PROMPT_SECTIONS.map(({ id, label }) => {
+                                        const section = analysis.sections.find((item) => item.id === id);
+                                        if (!section) return null;
+                                        return (
+                                            <div key={id} className="space-y-2 rounded-xl border border-[var(--gm-border)] p-3">
+                                                <h3 className="text-sm font-semibold">{label}</h3>
+                                                <dl className="space-y-2 break-words text-sm">
+                                                    <div>
+                                                        <dt className="text-xs text-[var(--gm-text-3)]">图里看到了什么</dt>
+                                                        <dd>{section.observation || "未能确定"}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-xs text-[var(--gm-text-3)]">提示词可以怎么写</dt>
+                                                        <dd>{section.phrase || "暂无建议"}</dd>
+                                                    </div>
+                                                </dl>
+                                            </div>
+                                        );
+                                    })}
+                                    {!analysis.sections.length ? <p className="text-sm text-[var(--gm-text-3)]">模型未返回分项拆解，可重新分析。</p> : null}
+                                    {analysis.fullPrompt ? (
+                                        <div className="space-y-2">
+                                            <h3 className="text-sm font-semibold">完整生图提示词</h3>
+                                            <p className="whitespace-pre-wrap break-words rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm leading-6">{analysis.fullPrompt}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-[var(--gm-text-3)]">未收到可用的生图提示词，请重新分析。</p>
+                                    )}
+                                </div>
                             ) : null}
                             {resultImageUrl ? (
                                 <div className="space-y-3">
@@ -489,12 +487,12 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                                     </div>
                                 </div>
                             ) : null}
-                            {result.text !== undefined ? (
+                            {analysis ? (
                                 <div className="flex flex-wrap gap-2">
-                                    <GammaButton variant="outline" onClick={() => void navigator.clipboard?.writeText(result.text || "")}>
+                                    <GammaButton variant="outline" disabled={!analysis.fullPrompt} onClick={() => void navigator.clipboard?.writeText(analysis.fullPrompt)}>
                                         复制提示词
                                     </GammaButton>
-                                    <GammaButton variant="outline" disabled={busy} onClick={() => void run()} icon={<RotateCcw className="size-4" />}>
+                                    <GammaButton variant="outline" disabled={busy || trialBusy || uploading} onClick={() => void run()} icon={<RotateCcw className="size-4" />}>
                                         修改要求后重新分析
                                     </GammaButton>
                                 </div>
@@ -511,6 +509,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         </div>
                     )}
                 </div>
+                {reverse ? <PracticeReversePromptTrial key={result?.taskId || "empty"} initialPrompt={analysis?.fullPrompt || ""} blocked={busy || uploading} onBusyChange={setTrialBusy} /> : null}
             </div>
             {toolId === "expression-reference" ? (
                 <CanvasNodeEmotionDialog

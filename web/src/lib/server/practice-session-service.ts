@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 
+import { parseMultiAngleHistoryShot } from "@/lib/practice-multi-angle-history";
 import type { PracticeModuleKind, PracticeProjectKind, PracticeSessionMode } from "@/lib/practice-domain";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModel } from "@/lib/server/logical-model-router";
@@ -144,6 +145,7 @@ export async function createPracticeSessionForUser(
     const resolveModel = deps.resolveModel || defaultResolveModel;
     const model = mode === "workflow" ? (requestedWorkflowCode ? await resolveModel(moduleKind, input.logicalModelId, requestedWorkflowCode) : await resolveModel(moduleKind, input.logicalModelId)) : undefined;
     const normalizedWorkflow = mode === "workflow" ? normalizePracticeModuleInput(moduleKind, sourcePayload, references, model?.workflow) : undefined;
+    const multiAngle = moduleKind === "storyboard-image" && mode === "workflow" && references.some((reference) => reference.type === "asset" && reference.inputKey === "referenceImage") ? parseMultiAngleHistoryShot(sourcePayload.multiAngle) : null;
     const payload =
         mode === "manual"
             ? {
@@ -152,7 +154,7 @@ export async function createPracticeSessionForUser(
                   ...(text(sourcePayload.notes) ? { notes: text(sourcePayload.notes) } : {}),
                   ...(references.length ? { references } : {}),
               }
-            : { ...(normalizedWorkflow?.input || baseNormalized?.input || {}), ...(references.length ? { references } : {}) };
+            : { ...(normalizedWorkflow?.input || baseNormalized?.input || {}), ...(references.length ? { references } : {}), ...(multiAngle ? { multiAngle } : {}) };
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
         userId: scopeValues(scope).ownerUserId,
@@ -226,7 +228,7 @@ async function dispatchQueuedSession(
             userId: scopeValues(scope).ownerUserId,
             schoolId: scopeValues(scope).schoolId,
             module: claimed.module,
-            input: Object.fromEntries(Object.entries(storedInput).filter(([key]) => key !== "references")),
+            input: Object.fromEntries(Object.entries(storedInput).filter(([key]) => key !== "references" && key !== "multiAngle")),
             references,
             executionProfile: "open-source-practice",
             capability: model.capability,
@@ -265,12 +267,12 @@ export async function getPracticeSessionForUser(actor: PracticeActor, id: string
     return publicSession(session);
 }
 
-export async function listPracticeSessionsForUser(actor: PracticeActor, input: { page?: unknown; pageSize?: unknown; module?: PracticeModuleKind } = {}, deps: { store?: PracticeSessionStore } = {}) {
+export async function listPracticeSessionsForUser(actor: PracticeActor, input: { page?: unknown; pageSize?: unknown; module?: PracticeModuleKind; multiAngle?: boolean } = {}, deps: { store?: PracticeSessionStore } = {}) {
     const scope = await requirePracticeTenant(actor);
     const page = positive(input.page, 1);
     const pageSize = Math.min(100, positive(input.pageSize, 12));
     const store = (deps.store as PracticeSessionListStore | undefined) || defaultPracticeSessionStore();
-    const records = await store.list(scope, { page, pageSize, module: input.module });
+    const records = await store.list(scope, { page, pageSize, module: input.module, ...(input.multiAngle ? { multiAngle: true } : {}) });
     const results = await Promise.allSettled(records.items.map(async (item) => publicSession(await synchronizePracticeSessionLifecycle(store, item))));
     const sessions = results.flatMap((r) => {
         if (r.status === "fulfilled") return [r.value];
@@ -339,7 +341,7 @@ export class PracticeServiceError extends Error {
     }
 }
 
-type PracticeSessionListStore = PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> };
+type PracticeSessionListStore = PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind; multiAngle?: boolean }): Promise<{ items: PracticeSessionRecord[]; total: number }> };
 
 export async function publicPracticeSession(session: PracticeSessionRecord) {
     const reconciled = await reconcileUnknownSubmission(session);
@@ -572,12 +574,12 @@ function normalizeDialogueLines(value: unknown) {
         .slice(0, 10);
 }
 
-function defaultPracticeSessionStore(): PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
+function defaultPracticeSessionStore(): PracticeSessionListStore {
     if (getDatabaseProvider() === "postgres") return postgresSessionStore();
     return fileSessionStore();
 }
 
-function postgresSessionStore(): PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
+function postgresSessionStore(): PracticeSessionListStore {
     const repository = createPostgresRepositories().practice;
     return {
         getByRequest: (scope, clientRequestId) => repository.getPracticeSessionByClientRequest(scopeValues(scope), clientRequestId),
@@ -596,7 +598,7 @@ function postgresSessionStore(): PracticeSessionStore & { list(scope: PracticeSe
 type FileDatabase = { version: 1; sessions: PracticeSessionRecord[] };
 const FILE_NAME = "practice-sessions.json";
 
-function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
+function fileSessionStore(): PracticeSessionListStore {
     const read = () => readJsonDataFile<FileDatabase>(FILE_NAME, { version: 1, sessions: [] });
     return {
         async getByRequest(scope, clientRequestId) {
@@ -680,6 +682,24 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeSessio
                 .map(normalizeFileSession)
                 .filter((item) => (!scopeValues(scope).schoolId || item.schoolId === scopeValues(scope).schoolId) && item.userId === scopeValues(scope).ownerUserId && (!input.module || item.module === input.module))
                 .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+            if (input.multiAngle) {
+                const batches = new Map<string, PracticeSessionRecord[]>();
+                for (const item of all.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))) {
+                    const shot = item.module === "storyboard-image" ? parseMultiAngleHistoryShot(object(item.input).multiAngle) : null;
+                    if (shot) {
+                        const batch = batches.get(shot.batchId);
+                        if (batch) batch.push(item);
+                        else batches.set(shot.batchId, [item]);
+                    }
+                }
+                return {
+                    items: [...batches.values()]
+                        .reverse()
+                        .slice((input.page - 1) * input.pageSize, input.page * input.pageSize)
+                        .flat(),
+                    total: batches.size,
+                };
+            }
             return { items: all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize), total: all.length };
         },
     };
