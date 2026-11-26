@@ -94,13 +94,13 @@ export function ExpressionHistory({
         </GammaButton>
     );
     return (
-        <div className="min-w-0">
-            <aside aria-label="练习历史" className="hidden rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 xl:block">
-                <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 xl:flex xl:min-h-0">
+            <aside aria-label="练习历史" className="hidden min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 xl:flex">
+                <header className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
                     <h2 className="font-semibold">练习历史</h2>
                     {reload}
                 </header>
-                {list(false)}
+                <div className="min-h-0 overflow-y-auto">{list(false)}</div>
             </aside>
             <div className="xl:hidden">
                 <GammaButton variant="outline" onClick={() => setOpen(true)} icon={<History className="size-4" />}>

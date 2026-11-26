@@ -429,7 +429,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
 
     return (
         <section className={`mx-auto flex h-full min-h-0 w-full flex-col overflow-y-auto px-4 py-5 text-[var(--gm-text)] sm:px-6 lg:px-8 ${reverse || localEdit || expressionTool ? "max-w-[1660px]" : "max-w-6xl"}`}>
-            <header className="mb-5 flex items-center gap-3">
+            <header className={`mb-5 flex items-center gap-3 ${expressionTool ? "xl:shrink-0" : ""}`}>
                 <Link href="/practice" className="grid size-10 place-items-center rounded-full border border-[var(--gm-border)] text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)]" aria-label="返回无限练习">
                     <ArrowLeft className="size-4" />
                 </Link>
@@ -439,9 +439,9 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 </div>
             </header>
             <div
-                className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:min-h-[26rem] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] xl:[&>*]:min-h-0 xl:[&>:first-child]:overflow-y-auto xl:[&>:last-child]:overflow-y-auto" : expressionTool ? "items-start lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,.9fr)_minmax(0,1.2fr)_minmax(0,.75fr)]" : localEdit ? "lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,.67fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}
+                className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:min-h-[26rem] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] xl:[&>*]:min-h-0 xl:[&>:first-child]:overflow-y-auto xl:[&>:last-child]:overflow-y-auto" : expressionTool ? "items-start lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:min-h-[26rem] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,.5fr)] xl:grid-rows-[minmax(0,1fr)] xl:items-stretch" : localEdit ? "lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,.67fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}
             >
-                <div className="space-y-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
+                <div className={`space-y-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5 ${expressionTool ? "xl:min-h-0 xl:overflow-y-auto" : ""}`}>
                     <div className="flex items-center justify-between">
                         <h2 className="font-semibold">输入与设置</h2>
                         <span className="rounded-full bg-[var(--gm-wash)] px-2.5 py-1 text-xs text-[var(--gm-text-2)]">{config.kind === "local-image" ? "本地处理 · 不扣 AI 积分" : "使用无限练习模型池"}</span>
@@ -638,7 +638,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 {reverse ? (
                     <PracticeReversePromptStudyDeck key={`study:${result?.taskId || "empty"}`} analysis={analysis} busy={busy} blocked={busy || trialBusy || uploading} onCopy={(value) => void copyPracticePrompt(value)} onAnalyze={() => void run()} />
                 ) : (
-                    <div className="min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
+                    <div className={`min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5 ${expressionTool ? "xl:min-h-0 xl:overflow-y-auto" : ""}`}>
                         <div className="mb-4 flex items-center gap-2">
                             <WandSparkles className="size-4 text-[var(--gm-accent)]" />
                             <h2 className="font-semibold">生成结果与诊断</h2>
