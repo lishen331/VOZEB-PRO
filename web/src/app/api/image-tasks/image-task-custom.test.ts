@@ -247,6 +247,51 @@ describe("declarative image request size", () => {
         });
     });
 
+    it.each([
+        { label: "omits automatic size for DashScope Qwen 2.1 Pro", model: "qwen-image-2.1-pro", size: "auto" },
+        { label: "omits automatic size for DashScope Qwen 2.1 Turbo", model: "qwen-image-2.1-turbo", size: "auto", apiPrefix: "/api/v1" },
+        { label: "keeps the explicit horizontal size", model: "qwen-image-2.1-pro", size: "1280x720", expectedSize: "1280*720" },
+        { label: "keeps the explicit vertical size", model: "qwen-image-2.1-turbo", size: "720x1280", expectedSize: "720*1280" },
+        { label: "keeps an administrator's literal size", model: "qwen-image-2.1-pro", size: "auto", templateSize: "1024*1536", expectedSize: "1024*1536" },
+        { label: "does not rewrite an explicitly empty template literal", model: "qwen-image-2.1-pro", size: "auto", templateSize: "", expectedSize: "" },
+        { label: "does not alter another model's template", model: "other-image", size: "auto", expectedSize: "" },
+        { label: "does not alter another API path", model: "qwen-image-2.1-pro", size: "auto", createPath: "/images/generations", expectedSize: "" },
+    ])("$label", async ({ model, size, apiPrefix = "", templateSize = "{{size_star}}", createPath = "/services/aigc/multimodal-generation/generation", expectedSize }) => {
+        const resultUrl = "https://fixture.invalid/generated.png";
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ output: { choices: [{ message: { content: [{ image: resultUrl }] } }] } }));
+        const task = {
+            id: "qwen-practice-trial",
+            userId: "fixture-user",
+            kind: "generation",
+            source: "practice",
+            prompt: "a red apple",
+            references: [],
+            config: {
+                baseUrl: "/api/ai/system/opaque-channel-id",
+                apiKey: "system",
+                model,
+                apiFormat: "openai",
+                quality: "auto",
+                size,
+                advancedConfig: {
+                    ...emptyAdvancedConfig(),
+                    protocol: "custom",
+                    createPath: `${apiPrefix}${createPath}`,
+                    resultField: "output.choices[0].message.content[0].image",
+                    requestTemplate: JSON.stringify({ model: "{{model}}", input: { messages: [{ role: "user", content: "{{image_content}}" }] }, parameters: { n: 1, size: templateSize } }),
+                },
+            },
+        } as unknown as ImageTask;
+
+        await expect(runCustomImageTask(task, "http://fixture", "https://app.fixture", "", true)).resolves.toMatchObject({ remoteUrl: resultUrl });
+        const [, init] = mocks.fetchInternalApi.mock.calls[0] as [string, RequestInit];
+        expect(JSON.parse(String(init.body))).toEqual({
+            model,
+            input: { messages: [{ role: "user", content: [{ text: "a red apple" }] }] },
+            parameters: expectedSize === undefined ? { n: 1 } : { n: 1, size: expectedSize },
+        });
+    });
+
     it("keeps the generation template for generation tasks that configure an edit template", async () => {
         mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ data: [{ url: "https://fixture.invalid/generated.png" }] }));
         const task = {
