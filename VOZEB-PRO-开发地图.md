@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-11-26，`feat/practice-local-edit-history-sidebar` 分支。当前源码包含 78 个 `page.tsx` 页面入口、447 个 API Route 文件和 147 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-11-26，`codex/practice-expression-learning` 分支。当前源码包含 78 个 `page.tsx` 页面入口、447 个 API Route 文件和 147 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -413,5 +413,6 @@ flowchart LR
 ### 局部编辑练习回看（2026-11-26）
 
 - `/practice/local-edit` 通过 `GET /api/practice/image-tools` 获取当前学校内本人最近 5 条成功的局部编辑，沿用生成任务保留周期；查询在截取前筛选练习档案、工具、学校、所有者、状态和过期时间。
+- `/practice/expression-reference` 通过 `GET /api/practice/image-tools?history=expression-reference` 读取当前学校内本人的表情练习快照，复用生成任务保留周期；提交由服务端根据已验证的框选和情绪设置组装业务提示词。
 - `practice-local-edit-learning.tsx` 展示历史、选区与教学提示词；工作台按任务绑定原图、蒙版和成品。查看历史、填回提示词或恢复设置都不会自动发起生成或写入素材库。
 - 局部编辑宽屏按输入、结果、历史三栏排列；窄屏历史移到结果下方，始终独立于输入草稿。
