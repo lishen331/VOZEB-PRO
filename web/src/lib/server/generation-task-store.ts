@@ -157,13 +157,18 @@ export async function listStoredGenerationTasks<T>(type: GenerationTaskType, use
     return queryStoredGenerationTasks<T>(type, { userId, limit });
 }
 
-export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, options: { userId: string; conversationId?: string; projectId?: string; surface?: string; statuses?: string[]; limit?: number; localEditSchoolId?: string }): Promise<T[]> {
+export async function queryStoredGenerationTasks<T>(
+    type: GenerationTaskType,
+    options: { userId: string; conversationId?: string; projectId?: string; surface?: string; statuses?: string[]; limit?: number; localEditSchoolId?: string; expressionSchoolId?: string },
+): Promise<T[]> {
     const userId = options.userId.trim();
     const conversationId = cleanContextText(options.conversationId);
     const projectId = cleanContextText(options.projectId);
     const surface = cleanContextText(options.surface);
     const statuses = [...new Set((options.statuses || []).map(normalizeGenerationTaskStatus))];
     const localEditSchoolId = cleanContextText(options.localEditSchoolId);
+    const expressionSchoolId = cleanContextText(options.expressionSchoolId);
+    const byCreation = localEditSchoolId || expressionSchoolId;
     const limit = Math.max(1, Math.min(100, Math.floor(Number(options.limit) || 20)));
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
@@ -181,12 +186,16 @@ export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, op
             addFilter("school_id", localEditSchoolId);
             filters.push("execution_profile = 'open-source-practice'", "payload->>'source' = 'practice'", "payload->>'kind' = 'edit'", "payload->>'title' = '局部编辑'", "jsonb_typeof(payload->'mask') = 'object'");
         }
+        if (expressionSchoolId) {
+            addFilter("school_id", expressionSchoolId);
+            filters.push("execution_profile = 'open-source-practice'", "payload->>'source' = 'practice'", "payload->>'kind' = 'edit'", "payload->>'title' = '表情参考'", "jsonb_typeof(payload->'practiceExpression') = 'object'");
+        }
         if (statuses.length) {
             values.push(statuses);
             filters.push(`status = ANY($${values.length}::text[])`);
         }
         values.push(limit);
-        const result = await postgresQuery<{ payload: T }>(`SELECT payload FROM generation_tasks WHERE ${filters.join(" AND ")} ORDER BY ${localEditSchoolId ? "created_at" : "updated_at"} DESC, id DESC LIMIT $${values.length}`, values);
+        const result = await postgresQuery<{ payload: T }>(`SELECT payload FROM generation_tasks WHERE ${filters.join(" AND ")} ORDER BY ${byCreation ? "created_at" : "updated_at"} DESC, id DESC LIMIT $${values.length}`, values);
         return result.rows.map((row) => row.payload);
     }
     const tasks = await readFileTasks();
@@ -208,9 +217,18 @@ export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, op
                         task.payload.mask !== null &&
                         typeof task.payload.mask === "object" &&
                         !Array.isArray(task.payload.mask))) &&
+                (!expressionSchoolId ||
+                    (task.schoolId === expressionSchoolId &&
+                        task.executionProfile === "open-source-practice" &&
+                        task.payload.source === "practice" &&
+                        task.payload.kind === "edit" &&
+                        task.payload.title === "表情参考" &&
+                        task.payload.practiceExpression !== null &&
+                        typeof task.payload.practiceExpression === "object" &&
+                        !Array.isArray(task.payload.practiceExpression))) &&
                 (!statuses.length || statuses.includes(task.status)),
         )
-        .sort((a, b) => (localEditSchoolId ? b.createdAt - a.createdAt : b.updatedAt - a.updatedAt) || b.id.localeCompare(a.id))
+        .sort((a, b) => (byCreation ? b.createdAt - a.createdAt : b.updatedAt - a.updatedAt) || b.id.localeCompare(a.id))
         .slice(0, limit)
         .map((task) => task.payload as T);
 }

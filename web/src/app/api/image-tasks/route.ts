@@ -1,3 +1,4 @@
+import { readExpressionSelection } from "@/lib/practice-expression-learning";
 import { requestPublicOrigin } from "./image-task-reference-urls";
 import { after, NextResponse } from "next/server";
 
@@ -256,7 +257,9 @@ export async function POST(request: Request) {
         if (config.outputMode === "layers" && (kind !== "edit" || references.length !== 1)) {
             return NextResponse.json({ error: "电商分层需要且只能使用一张源图" }, { status: 400 });
         }
+        const practiceExpression = trustedPractice && kind === "edit" && resolvedBody.source === "practice" && resolvedBody.title === "表情参考" ? readExpressionSelection(resolvedBody.practiceExpression) : null;
         const task = await createImageTask({
+            ...(practiceExpression ? { practiceExpression } : {}),
             ...trustedContext,
             userId: currentUser.id,
             username: currentUser.username,

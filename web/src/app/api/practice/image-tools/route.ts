@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { expressionLesson, EXPRESSION_HISTORY_LIMIT, readExpressionSelection, type ExpressionPracticeRecord } from "@/lib/practice-expression-learning";
+import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
@@ -7,7 +10,7 @@ import { practiceCanvasVirtualModel, resolvePracticeGenerationCandidates } from 
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
 import { getPracticeImageToolConfig, LOCAL_EDIT_HISTORY_LIMIT, LOCAL_EDIT_PROMPT_PREFIX, type LocalEditPracticeRecord } from "@/lib/practice-image-tools";
-import { queryStoredGenerationTasks } from "@/lib/server/generation-task-store";
+import { createStoredGenerationTask, queryStoredGenerationTasks } from "@/lib/server/generation-task-store";
 import type { ImageTask } from "@/lib/server/image-task-store";
 import { buildPracticeReversePromptInstruction } from "@/lib/practice-reverse-prompt";
 import { getLocalMediaRegistration, isLocalMediaRegistrationExpired } from "@/lib/server/local-media-registry";
@@ -15,7 +18,7 @@ import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-acce
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 
-type ToolRequest = { action?: unknown; toolId?: unknown; sourceUrl?: unknown; maskUrl?: unknown; prompt?: unknown; clientRequestId?: unknown; options?: unknown };
+type ToolRequest = { action?: unknown; toolId?: unknown; sourceUrl?: unknown; maskUrl?: unknown; prompt?: unknown; clientRequestId?: unknown; options?: unknown; expression?: unknown };
 
 export async function GET(request: Request) {
     const user = await getCurrentUser(request);
@@ -27,6 +30,10 @@ export async function GET(request: Request) {
         return practiceAccessErrorResponse(cause);
     }
     try {
+        if (new URL(request.url).searchParams.get("history") === "expression-reference") {
+            const tasks = await queryStoredGenerationTasks<ImageTask>("image", { userId: user.id, expressionSchoolId: access.schoolId, limit: EXPRESSION_HISTORY_LIMIT });
+            return NextResponse.json({ records: tasks.map(publicExpressionRecord).filter(Boolean) }, { headers: { "Cache-Control": "private, no-store" } });
+        }
         const tasks = await queryStoredGenerationTasks<ImageTask>("image", { userId: user.id, statuses: ["success"], localEditSchoolId: access.schoolId, limit: LOCAL_EDIT_HISTORY_LIMIT });
         const records = tasks.flatMap((task) => {
             const sourceUrl = managedPracticeAssetPath(task.references?.[0]?.url, "reference-assets");
@@ -49,6 +56,25 @@ export async function GET(request: Request) {
     } catch {
         return errorResponse("练习历史读取失败，请稍后重试", 503);
     }
+}
+
+function publicExpressionRecord(task: ImageTask): ExpressionPracticeRecord | null {
+    const selection = readExpressionSelection(task.practiceExpression);
+    const sourceUrl = managedPracticeAssetPath(task.references?.[0]?.url, "reference-assets");
+    if (!selection || !sourceUrl || !task.prompt) return null;
+    const media = task.result?.results?.[0] || task.result;
+    const url = managedPracticeAssetPath(media?.serverUrl || media?.dataUrl, "generation-log-assets");
+    return {
+        id: task.id,
+        createdAt: task.createdAt,
+        selection,
+        sourceUrl,
+        prompt: task.prompt,
+        status: task.status,
+        model: task.config.logicalModel || task.config.model || undefined,
+        ...(task.status === "success" && url && media ? { image: { url, storageKey: "", width: media.width || 0, height: media.height || 0, bytes: media.bytes || 0, mimeType: media.mimeType || "image/png" } } : {}),
+        ...(task.error ? { error: toSafeGenerationErrorMessage(task.error, "本次练习未生成图片") } : {}),
+    };
 }
 
 function managedPracticeAssetPath(value: string | undefined, route: "reference-assets" | "generation-log-assets") {
@@ -89,7 +115,9 @@ export async function POST(request: Request) {
     const sourceUrl = source ? createSignedReferenceAssetUrl(source.storageKey, publicOrigin, user.id) : undefined;
     const maskUrl = mask ? createSignedReferenceAssetUrl(mask.storageKey, publicOrigin, user.id) : undefined;
     if ((!trial && !sourceUrl) || (mask && !maskUrl)) return errorResponse("无法为练习图片创建安全读取凭证，请重新上传", 503);
-    const prompt = typeof body.prompt === "string" ? body.prompt.trim().slice(0, 20_000) : "";
+    const expression = tool.id === "expression-reference" ? readExpressionSelection(body.expression) : null;
+    if (tool.id === "expression-reference" && (!expression || mask)) return errorResponse("请先选择要修改的人物脸部和表情", 400);
+    const prompt = expression ? expressionLesson(expression).prompt : typeof body.prompt === "string" ? body.prompt.trim().slice(0, 20_000) : "";
     if ((trial || tool.id !== "reverse-prompt") && !prompt) return errorResponse(trial ? "请输入生图提示词" : "请填写本次编辑说明", 400);
     const clientRequestId = typeof body.clientRequestId === "string" && /^[\w-]{8,160}$/.test(body.clientRequestId) ? body.clientRequestId : "";
     if (!clientRequestId) return errorResponse("练习请求标识无效，请重试", 400);
@@ -104,14 +132,12 @@ export async function POST(request: Request) {
     const capability = !trial && tool.kind === "ai-text" ? "text" : "image";
     const settings = await getAuthSettings();
     const configuredModel = trial ? practiceCanvasVirtualModel("image") : capability === "text" ? settings.practiceDefaultModels.visionModel : settings.practiceDefaultModels.imageModel;
-    if (!configuredModel) return errorResponse(`无限练习尚未配置${capability === "text" ? "视觉理解" : "图片"}模型`, 503);
-    const candidates = resolvePracticeGenerationCandidates(settings, capability, configuredModel, {
+    if (!configuredModel && !expression) return errorResponse(`无限练习尚未配置${capability === "text" ? "视觉理解" : "图片"}模型`, 503);
+    const candidates = configuredModel ? resolvePracticeGenerationCandidates(settings, capability, configuredModel, {
         executionProfile: "open-source-practice",
         ...(!trial ? { practiceImageTool: tool.id } : {}),
         ...(capability === "text" ? { requiresImageInput: true } : {}),
-    });
-    if (!candidates.length) return errorResponse("当前无限练习模型池没有可用的对应能力模型，请检查练习模型配置", 503);
-
+    }) : [];
     const taskContext = {
         surface: "canvas" as const,
         executionProfile: "open-source-practice" as const,
@@ -119,6 +145,38 @@ export async function POST(request: Request) {
         ...(!trial ? { practiceImageTool: tool.id } : {}),
         clientRequestId,
     };
+    if (!candidates.length) {
+        const error = "当前无限练习模型池没有可用的对应能力模型，请检查练习模型配置";
+        if (!expression || !sourceUrl) return errorResponse(error, 503);
+        try {
+            const now = Date.now();
+            const task = await createStoredGenerationTask<ImageTask>(
+                "image",
+                {
+                    ...taskContext,
+                    id: randomUUID(),
+                    userId: user.id,
+                    username: user.username,
+                    displayName: user.displayName,
+                    createdAt: now,
+                    updatedAt: now,
+                    kind: "edit",
+                    source: "practice",
+                    title: tool.title,
+                    status: "error",
+                    error,
+                    config: { baseUrl: "", apiKey: "", apiFormat: "openai", model: "" },
+                    prompt,
+                    practiceExpression: expression,
+                    references: [{ type: "image", dataUrl: "", url: sourceUrl }],
+                },
+                GENERATION_TASK_RETENTION_MS,
+            );
+            return NextResponse.json({ error, record: publicExpressionRecord(task) }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
+        } catch {
+            return errorResponse(error, 503);
+        }
+    }
     const endpoint = capability === "text" ? "/api/text-tasks" : "/api/image-tasks";
     const payload =
         capability === "text"
@@ -137,6 +195,7 @@ export async function POST(request: Request) {
               }
             : {
                   kind: trial ? "generation" : "edit",
+                  ...(expression ? { practiceExpression: expression } : {}),
                   config: { model: configuredModel, size: "auto", quality: "auto" },
                   prompt: tool.id === "local-edit" ? `${LOCAL_EDIT_PROMPT_PREFIX}${prompt}` : prompt,
                   references: trial ? [] : [{ type: "image", url: sourceUrl }],
