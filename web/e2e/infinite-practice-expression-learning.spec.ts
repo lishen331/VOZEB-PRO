@@ -36,13 +36,47 @@ test("restores expression settings and teaching results without submitting or ch
             records.unshift(failed);
             return route.fulfill({ status: 503, json: { error: failed.error, record: failed } });
         });
-        await practice.goto("/practice/expression-reference");
         const mobile = testInfo.project.name.startsWith("mobile");
+        if (!mobile) {
+            await practice.setViewportSize({ width: 1440, height: 900 });
+            for (let index = 1; index < 20; index++) {
+                records.push({ ...records[0], id: `extra-${index}`, createdAt: records[0].createdAt - index * 1000, status: "error", image: undefined });
+            }
+        }
+        await practice.goto("/practice/expression-reference");
         const history = mobile ? practice.getByRole("dialog", { name: "练习历史" }) : practice.getByRole("complementary", { name: "练习历史" });
         const openHistory = async () => {
             if (mobile) await practice.getByRole("button", { name: "历史记录" }).click();
         };
+        const inputPanel = practice.getByRole("heading", { name: "输入与设置" }).locator("../..");
+        const resultPanel = practice.getByRole("heading", { name: "生成结果与诊断" }).locator("../..");
+        const expectDesktopLayout = async () => {
+            const [left, middle, right] = await Promise.all([inputPanel.boundingBox(), resultPanel.boundingBox(), history.boundingBox()]);
+            expect(left!.x + left!.width).toBeLessThan(middle!.x);
+            expect(middle!.x + middle!.width).toBeLessThan(right!.x);
+            expect(Math.abs(left!.width - middle!.width)).toBeLessThan(2);
+            expect(Math.abs(left!.width - 2 * right!.width)).toBeLessThan(2);
+            for (const panel of [middle!, right!]) {
+                expect(Math.abs(left!.y - panel.y)).toBeLessThan(2);
+                expect(Math.abs(left!.height - panel.height)).toBeLessThan(2);
+            }
+            const bottomGap = practice.viewportSize()!.height - (left!.y + left!.height);
+            expect(bottomGap).toBeGreaterThanOrEqual(0);
+            expect(bottomGap).toBeLessThan(48);
+        };
         await openHistory();
+        if (!mobile) {
+            await expectDesktopLayout();
+            const heading = history.getByRole("heading", { name: "练习历史" });
+            const headerBefore = await heading.boundingBox();
+            await history
+                .getByRole("button", { name: /微笑 · 未生成图片/ })
+                .last()
+                .scrollIntoViewIfNeeded();
+            await expect(heading).toBeInViewport();
+            expect((await heading.boundingBox())!.y).toBe(headerBefore!.y);
+            await expectDesktopLayout();
+        }
         await history.getByRole("button", { name: /微笑 · 已完成/ }).click();
         const lesson = practice.getByRole("region", { name: "本次提示词拆解" });
         await expect(practice.getByRole("img", { name: "表情参考结果" })).toBeVisible();
@@ -51,9 +85,13 @@ test("restores expression settings and teaching results without submitting or ch
         await expect(lesson.getByText(prompt, { exact: true })).toBeVisible();
         expect(submissions).toHaveLength(0);
         if (!mobile) {
-            const [left, middle, right] = await Promise.all([practice.getByRole("heading", { name: "输入与设置" }).boundingBox(), lesson.boundingBox(), history.boundingBox()]);
-            expect(left!.x).toBeLessThan(middle!.x);
-            expect(middle!.x).toBeLessThan(right!.x);
+            const image = practice.getByRole("img", { name: "表情参考结果" });
+            await expect(image).toHaveCSS("object-fit", "contain");
+            await practice.setViewportSize({ width: 1440, height: 720 });
+            await expectDesktopLayout();
+            await expect(resultPanel).toHaveCSS("overflow-y", "auto");
+            await lesson.getByRole("button", { name: "复制提示词" }).scrollIntoViewIfNeeded();
+            await expectDesktopLayout();
         }
         await practice.getByRole("button", { name: "编辑人物与表情" }).click();
         await expect(practice.getByText("已恢复历史人物框选")).toBeVisible();
