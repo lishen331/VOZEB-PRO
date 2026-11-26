@@ -49,8 +49,8 @@ export const practiceApi = {
     createProject(input: PracticeProjectInput) {
         return request<{ kind: PracticeProjectKind; project: PracticeProject }>("/api/practice/projects", { method: "POST", body: JSON.stringify(input) });
     },
-    listSessions(input: { page?: number; pageSize?: number; module?: PracticeModuleKind } = {}) {
-        const query = new URLSearchParams({ page: String(input.page || 1), pageSize: String(input.pageSize || 12), ...(input.module ? { module: input.module } : {}) });
+    listSessions(input: { page?: number; pageSize?: number; module?: PracticeModuleKind; history?: "multi-angle" } = {}) {
+        const query = new URLSearchParams({ page: String(input.page || 1), pageSize: String(input.pageSize || 12), ...(input.module ? { module: input.module } : {}), ...(input.history ? { history: input.history } : {}) });
         return request<{ sessions: PracticeSession[]; total: number; page: number; pageSize: number }>(`/api/practice/sessions?${query}`);
     },
     createSession(input: PracticeSessionInput) {
