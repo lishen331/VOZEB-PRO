@@ -1,8 +1,10 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { Download, Images, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, Download, Images, RefreshCw } from "lucide-react";
 
+import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { cn } from "@/lib/utils";
 
 import type { MultiAngleRun, MultiAngleShot } from "./lib/angle-history";
@@ -24,6 +26,27 @@ export default function MultiAngleResults({
     onDownload: (url: string, name: string) => void;
     onDownloadAll: () => void;
 }) {
+    const { message } = App.useApp();
+    const [index, setIndex] = useState(0);
+    const [direction, setDirection] = useState(1);
+    const shot = shots[index];
+    const url = shot?.url;
+    const fullPrompt = shot?.prompt.full;
+    const multiple = shots.length > 1;
+    const select = (next: number, travel = Math.sign(next - index)) => {
+        if (next === index) return;
+        setDirection(travel);
+        setIndex(next);
+    };
+    const copy = async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            message.success("已复制提示词");
+        } catch {
+            message.error("复制失败，请展开完整提示词后手动复制");
+        }
+    };
+
     return (
         <section className={s.results} aria-labelledby="ma-results-heading" aria-busy={generating}>
             <div className={s.resultsHead}>
@@ -41,27 +64,85 @@ export default function MultiAngleResults({
                     </button>
                 )}
             </div>
-            {shots.length ? (
-                <div className={cn(s.film, shots.length === 1 && s.filmSingle)}>
-                    {shots.map(({ name, url, status }, index) => (
-                        <div key={`${name}-${index}`} className={s.shot}>
-                            <span className={s.shotLabel}>{name}</span>
+            {shot ? (
+                <>
+                    <div className={cn(s.deck, multiple && s.deckStack)} role="group" aria-label="结果卡片">
+                        <div key={index} className={cn(s.shot, direction < 0 ? s.cardFromLeft : s.cardFromRight)}>
+                            <span className={s.shotCounter}>
+                                {String(index + 1).padStart(2, "0")} / {String(shots.length).padStart(2, "0")}
+                            </span>
+                            <span className={s.shotLabel} aria-live="polite">
+                                {shot.name}
+                            </span>
                             {url ? (
                                 <>
-                                    <img src={url} alt={name} />
-                                    <button type="button" className={s.shotDownload} aria-label={`下载 ${name}`} onClick={() => onDownload(url, name)}>
+                                    <img src={url} alt={shot.name} />
+                                    <button type="button" className={s.shotDownload} aria-label={`下载 ${shot.name}`} onClick={() => onDownload(url, shot.name)}>
                                         <Download size={14} />
                                     </button>
                                 </>
                             ) : (
                                 <div className={s.shotSpin}>
-                                    {status === "running" && <i />}
-                                    <span>{status === "failed" ? "生成失败" : status === "missing" ? "无提交记录" : status === "running" ? "正在生成" : "等待生成"}</span>
+                                    {shot.status === "running" && <i />}
+                                    <span>{shot.status === "failed" ? "生成失败" : shot.status === "missing" ? "无提交记录" : shot.status === "running" ? "正在生成" : "等待生成"}</span>
                                 </div>
                             )}
                         </div>
-                    ))}
-                </div>
+                        {multiple && (
+                            <>
+                                <button type="button" className={cn(s.cardArrow, s.cardPrev)} aria-label="上一张" onClick={() => select((index + shots.length - 1) % shots.length, -1)}>
+                                    <ChevronLeft size={22} />
+                                </button>
+                                <button type="button" className={cn(s.cardArrow, s.cardNext)} aria-label="下一张" onClick={() => select((index + 1) % shots.length, 1)}>
+                                    <ChevronRight size={22} />
+                                </button>
+                            </>
+                        )}
+                    </div>
+                    {multiple && (
+                        <div className={s.cardChoices} role="group" aria-label="选择机位">
+                            {shots.map(({ name }, i) => (
+                                <button type="button" key={i} aria-pressed={index === i} onClick={() => select(i)}>
+                                    {name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <section className={s.promptCard} aria-labelledby="ma-result-prompt">
+                        <div className={s.resultsHead}>
+                            <h3 id="ma-result-prompt">结构化提示词</h3>
+                            {fullPrompt && (
+                                <button type="button" className={cn(s.btn, s.btnGhost)} onClick={() => void copy(fullPrompt)}>
+                                    复制完整提示词
+                                </button>
+                            )}
+                        </div>
+                        <dl>
+                            <div>
+                                <dt>水平机位</dt>
+                                <dd>{shot.prompt.horizontal}</dd>
+                            </div>
+                            <div>
+                                <dt>垂直机位</dt>
+                                <dd>{shot.prompt.vertical}</dd>
+                            </div>
+                            <div>
+                                <dt>景别</dt>
+                                <dd>{shot.prompt.distance}</dd>
+                            </div>
+                        </dl>
+                        <p>镜头：{shot.prompt.lens}</p>
+                        <p>补充描述：{shot.prompt.description || "无"}</p>
+                        {shot.prompt.full ? (
+                            <details>
+                                <summary>查看完整提示词</summary>
+                                <p>{shot.prompt.full}</p>
+                            </details>
+                        ) : (
+                            <p>没有保存该机位的完整提交提示词。</p>
+                        )}
+                    </section>
+                </>
             ) : (
                 <div className={s.resultsEmpty}>
                     <Images size={23} aria-hidden="true" />

@@ -215,7 +215,8 @@
 
 .workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
     gap: 16px;
     animation: rise 0.5s var(--gm-ease);
 }
@@ -407,18 +408,26 @@
 
 /* 取景窗：模拟当前机位拍到的画面 */
 .capturePreview {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: var(--gm-radius);
-    overflow: hidden;
-    border: 1px solid var(--gm-border);
-    background: var(--ma-stage-bg);
+    position: absolute;
+    inset: 10px 10px auto auto;
+    z-index: 4;
+    width: clamp(58px, 8vw, 88px);
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+    color: var(--gm-text-3);
+    font-size: 11px;
+    pointer-events: none;
 }
 
 .capturePreview canvas {
     width: 100%;
-    height: 100%;
+    aspect-ratio: 1;
     display: block;
+    border-radius: 50%;
+    border: 2px solid var(--gm-surface);
+    background: var(--ma-stage-bg);
+    box-shadow: var(--gm-shadow);
 }
 
 .hintLine {
@@ -858,14 +867,139 @@
     margin-top: 3px;
 }
 
-.film {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+.deck {
+    position: relative;
+    isolation: isolate;
+    margin: 0 0 12px;
 }
 
-.filmSingle {
-    grid-template-columns: minmax(0, 1fr);
+.deckStack {
+    margin: 6px 13px 17px 2px;
+}
+
+.deckStack::before,
+.deckStack::after {
+    content: "";
+    position: absolute;
+    inset: 2px 0;
+    z-index: -1;
+    background: var(--gm-surface-2);
+    border: 1px solid var(--gm-border);
+    border-radius: var(--gm-radius-lg);
+    transform: translateX(6px) rotate(1.4deg);
+}
+
+.deckStack::after {
+    z-index: -2;
+    transform: translateX(10px) rotate(2.5deg);
+}
+
+.root .cardArrow {
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--gm-border);
+    background: var(--gm-surface);
+    color: var(--gm-text);
+    box-shadow: var(--gm-shadow);
+}
+
+.root .cardArrow:hover {
+    color: var(--gm-blue);
+}
+.cardPrev {
+    left: 10px;
+}
+.cardNext {
+    right: 10px;
+}
+.cardFromLeft {
+    --ma-card-offset: -12px;
+}
+.cardFromRight {
+    --ma-card-offset: 12px;
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0.45;
+        transform: translateX(var(--ma-card-offset));
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.cardChoices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.root .cardChoices button {
+    padding: 5px 9px;
+    border: 1px solid var(--gm-border);
+    border-radius: 9px;
+    font-size: 12px;
+}
+.root .cardChoices button[aria-pressed="true"] {
+    color: var(--gm-blue);
+    background: var(--gm-accent-soft);
+}
+.root .cardArrow:focus-visible,
+.root .cardChoices button:focus-visible {
+    outline: 2px solid var(--gm-blue);
+    outline-offset: 2px;
+}
+
+.promptCard {
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--gm-surface-2);
+    border: 1px solid var(--gm-border);
+    border-radius: var(--gm-radius);
+    overflow-wrap: anywhere;
+}
+.promptCard h3 {
+    font-size: 14px;
+    font-weight: 700;
+}
+.promptCard dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0 0 10px;
+}
+.promptCard dl div {
+    padding: 7px;
+    border: 1px solid var(--gm-border);
+    border-radius: 8px;
+    background: var(--gm-surface);
+}
+.promptCard dt {
+    color: var(--gm-text-3);
+    font-size: 11px;
+}
+.promptCard dd {
+    margin: 4px 0 0;
+    font-size: 12px;
+    font-weight: 650;
+}
+.promptCard p,
+.promptCard details {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+.promptCard summary {
+    cursor: pointer;
+    color: var(--gm-blue);
 }
 
 .resultsEmpty {
@@ -889,14 +1023,8 @@
     aspect-ratio: 4 / 3;
     background: var(--gm-surface-2);
     border: 1px solid var(--gm-border);
-    transition:
-        transform 0.25s var(--gm-ease),
-        box-shadow 0.25s var(--gm-ease);
-}
-
-.shot:hover {
-    transform: translateY(-3px);
     box-shadow: var(--gm-shadow);
+    animation: cardIn 0.22s var(--gm-ease);
 }
 
 .shot img {
@@ -905,10 +1033,12 @@
     object-fit: contain;
 }
 
-.shotLabel {
+.shotLabel,
+.shotCounter {
     position: absolute;
+    z-index: 1;
     left: 10px;
-    top: 10px;
+    bottom: 10px;
     font-size: 10.5px;
     font-weight: 650;
     color: #fff;
@@ -920,7 +1050,13 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.shotDownload {
+.shotCounter {
+    top: 10px;
+    bottom: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.root .shotDownload {
     position: absolute;
     inset: auto 8px 8px auto;
     display: grid;
@@ -1042,13 +1178,9 @@
 
 /* ─── 响应式 ─── */
 
-@media (max-width: 1150px) {
+@media (max-width: 900px) {
     .workspace {
         grid-template-columns: minmax(0, 1fr);
-    }
-    .capturePreview {
-        max-width: 480px;
-        margin-inline: auto;
     }
 }
 
