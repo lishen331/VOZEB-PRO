@@ -36,6 +36,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const fileRef = useRef<HTMLInputElement>(null);
     const maskRef = useRef<HTMLCanvasElement>(null);
     const drawingRef = useRef(false);
+    const expressionReadRef = useRef(0);
     const restoredSelection = useRef<ImageData | null>(null);
     const localEdit = toolId === "local-edit";
     const [source, setSource] = useState<UploadedImage | null>(null);
@@ -141,16 +142,27 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
         }
     };
 
+    const replaceSource = (image: UploadedImage) => {
+        expressionReadRef.current += 1;
+        setSource(image);
+        if (!localEdit) setResult(null);
+        setError("");
+        setRetryPrompt("");
+        setDiagnostic(null);
+        setEmotionDialogOpen(false);
+        setEmotionDialogData("");
+        const mask = maskRef.current;
+        if (mask) mask.getContext("2d")?.clearRect(0, 0, mask.width, mask.height);
+    };
+
     const chooseFile = async (file?: File) => {
-        if (!file || restoring || (toolId === "reverse-prompt" && (busy || trialBusy))) return;
+        if (!file || restoring || ((toolId === "reverse-prompt" || toolId === "expression-reference") && (busy || trialBusy || uploading))) return;
         if (!file.type.startsWith("image/")) return message.error("请选择图片文件");
         setUploading(true);
         setError("");
         try {
             const uploaded = await uploadImage(file);
-            setSource(uploaded);
-            if (!localEdit) setResult(null);
-            if (maskRef.current) maskRef.current.getContext("2d")?.clearRect(0, 0, maskRef.current.width, maskRef.current.height);
+            replaceSource(uploaded);
         } catch (cause) {
             message.error(cause instanceof Error ? cause.message : "图片上传失败");
         } finally {
@@ -212,15 +224,21 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     };
 
     const openExpressionEditor = async () => {
-        if (!source || busy) return;
+        if (!source || busy || uploading) return;
+        if (emotionDialogData) {
+            setEmotionDialogOpen(true);
+            return;
+        }
+        const readId = ++expressionReadRef.current;
         try {
             const { imageToDataUrl } = await import("@/services/image-storage");
             const dataUrl = await imageToDataUrl(source);
+            if (expressionReadRef.current !== readId) return;
             if (!dataUrl) throw new Error("无法读取源图片");
             setEmotionDialogData(dataUrl);
             setEmotionDialogOpen(true);
         } catch (cause) {
-            message.error(cause instanceof Error ? cause.message : "读取图片失败");
+            if (expressionReadRef.current === readId) message.error(cause instanceof Error ? cause.message : "读取图片失败");
         }
     };
 
@@ -239,15 +257,10 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 setResult({ image: uploaded, model: "本地超分处理" });
                 return;
             }
-            if (toolId !== "reverse-prompt" && !prompt.trim()) throw new Error("请填写本次修改说明");
+            if (toolId === "local-edit" && !prompt.trim()) throw new Error("请填写本次修改说明");
+            if (toolId === "expression-reference" && !promptOverride?.trim()) throw new Error("请先选择要修改的人物脸部和表情");
             const mask = toolId === "local-edit" ? await makeMaskUrl() : undefined;
-            const finalPrompt =
-                promptOverride ||
-                (toolId === "reverse-prompt"
-                    ? `${REVERSE_PROMPT_MODES.find((item) => item.id === mode)?.instruction || "请描述图片"}${prompt.trim() ? `。补充要求：${prompt.trim()}` : ""}`
-                    : toolId === "expression-reference"
-                      ? "基于参考图片，仅调整选定人物的表情，保持身份、发型、服饰、构图、背景和光照不变。"
-                      : prompt.trim());
+            const finalPrompt = promptOverride?.trim() || (toolId === "reverse-prompt" ? `${REVERSE_PROMPT_MODES.find((item) => item.id === mode)?.instruction || "请描述图片"}${prompt.trim() ? `。补充要求：${prompt.trim()}` : ""}` : prompt.trim());
             const requestId = crypto.randomUUID();
             setDiagnostic({ requestId });
             setRetryPrompt(finalPrompt);
@@ -402,24 +415,15 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     )}
                     {!source ? (
                         <div className="mt-2 flex justify-center">
-                            <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={(image) => setSource(image)} label="或从个人素材库选择" />
+                            <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={replaceSource} label="或从个人素材库选择" />
                         </div>
                     ) : null}
                     {source ? (
                         <div className="flex flex-wrap gap-2">
-                            <GammaButton size="sm" variant="outline" disabled={restoring || ((reverse || localEdit) && (busy || trialBusy || uploading))} onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
+                            <GammaButton size="sm" variant="outline" disabled={restoring || ((reverse || localEdit || toolId === "expression-reference") && (busy || trialBusy || uploading))} onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
                                 更换图片
                             </GammaButton>
-                            <PracticeAssetPicker
-                                disabled={uploading || busy || trialBusy || restoring}
-                                onSelect={(image) => {
-                                    setSource(image);
-                                    if (!localEdit) setResult(null);
-                                    setError("");
-                                    if (maskRef.current) maskRef.current.getContext("2d")?.clearRect(0, 0, maskRef.current.width, maskRef.current.height);
-                                }}
-                                label="从个人素材库选择"
-                            />
+                            <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={replaceSource} label="从个人素材库选择" />
                             {toolId === "local-edit" ? (
                                 <GammaButton
                                     size="sm"
@@ -462,7 +466,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     {toolId === "expression-reference" ? (
                         <div className="space-y-2">
                             <p className="text-sm">沿用画布的人脸识别、手动框选、表情预设及强度/情绪调节。</p>
-                            <GammaButton size="sm" variant="outline" disabled={!source || busy} onClick={() => void openExpressionEditor()} icon={<Sparkles className="size-4" />}>
+                            <GammaButton size="sm" variant="outline" disabled={!source || busy || uploading} onClick={() => void openExpressionEditor()} icon={<Sparkles className="size-4" />}>
                                 选择人物与表情
                             </GammaButton>
                         </div>
@@ -597,10 +601,11 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 {localEdit ? <LocalEditHistory records={history} activeId={localRecord?.id} loading={historyLoading} error={historyError} onOpen={openHistory} onReload={reloadHistory} /> : null}
                 {reverse ? <PracticeReversePromptTrial key={`trial:${result?.taskId || "empty"}`} initialPrompt={analysis?.fullPrompt || ""} blocked={busy || uploading} onBusyChange={setTrialBusy} /> : null}
             </div>
-            {toolId === "expression-reference" ? (
+            {toolId === "expression-reference" && emotionDialogData ? (
                 <CanvasNodeEmotionDialog
                     dataUrl={emotionDialogData}
                     open={emotionDialogOpen}
+                    preserveConfirmedSelection
                     onClose={() => setEmotionDialogOpen(false)}
                     onConfirm={(payload: CanvasEmotionPayload) => {
                         setEmotionDialogOpen(false);
