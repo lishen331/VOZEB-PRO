@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
 vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.practiceAccess }));
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.settings }));
-vi.mock("@/lib/server/runninghub-workflow-runtime", () => ({ resolvePracticeGenerationCandidates: mocks.candidates }));
+vi.mock("@/lib/server/runninghub-workflow-runtime", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/server/runninghub-workflow-runtime")>()), resolvePracticeGenerationCandidates: mocks.candidates }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: () => "http://internal.test" }));
 vi.mock("@/lib/server/generation-execution-policy", () => ({ trustedPracticeTaskHeaders: mocks.trustedHeaders }));
 vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration: mocks.mediaRegistration, isLocalMediaRegistrationExpired: () => false }));
@@ -72,6 +72,75 @@ describe("POST /api/practice/image-tools", () => {
         mocks.candidates.mockReturnValue([]);
         const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(baseBody) }));
         expect(response.status).toBe(503);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+    it("requests fixed teaching structure for image analysis without losing user focus", async () => {
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, prompt: "重点观察配色", clientRequestId: "analysis-req" }) }));
+        expect(response.status).toBe(200);
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(String(url)).toContain("/api/text-tasks");
+        const payload = JSON.parse(init.body);
+        expect(payload.messages[0].content[0].text).toContain('"fullPrompt"');
+        expect(payload.messages[0].content[0].text).toContain("重点观察配色");
+        expect(payload.messages[0].content[1].image_url.url).toContain("permanent/source.png");
+    });
+
+    it("uses an allowed image-capable practice binding when the staging analysis defaults are empty", async () => {
+        mocks.settings.mockResolvedValue({
+            practiceDefaultModels: {},
+            logicalModels: [
+                { id: "ordinary-text", enabled: true, capability: "text" },
+                { id: "visually-disabled", enabled: true, capability: "text" },
+                { id: "practice-vision", enabled: true, capability: "text" },
+            ],
+            practiceModelPool: { pools: { vision: { "disabled-vision": false } } },
+        });
+        mocks.candidates.mockImplementation((_settings, _capability, id) => [{ upstreamModel: id === "visually-disabled" ? "disabled-vision" : id, capabilityProfile: { supportsImageInput: id !== "ordinary-text" } }]);
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, clientRequestId: "analysis-req" }) }));
+        expect(response.status).toBe(200);
+        expect(JSON.parse(mocks.fetchInternalApi.mock.calls[0][1].body).config.model).toBe("practice-vision");
+    });
+
+    it("does not submit analysis if the only practice binding lacks image input", async () => {
+        mocks.settings.mockResolvedValue({ practiceDefaultModels: {}, logicalModels: [{ id: "ordinary-text", enabled: true, capability: "text" }] });
+        mocks.candidates.mockReturnValue([{ upstreamModel: "ordinary-text", capabilityProfile: { supportsImageInput: false } }]);
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, clientRequestId: "analysis-req" }) }));
+        expect(response.status).toBe(503);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    const trialBody = { toolId: "reverse-prompt", action: "try-generate", prompt: "学生编辑后的猫咪三视图", clientRequestId: "trial-req" };
+
+    it("dispatches one practice text-to-image task with no reference or mask", async () => {
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(trialBody) }));
+        expect(response.status).toBe(200);
+        expect(mocks.mediaRegistration).not.toHaveBeenCalled();
+        expect(mocks.trustedHeaders).toHaveBeenCalledWith("student-one", "school-one", "trial-req");
+        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "image", "gamaimage", { executionProfile: "open-source-practice" });
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(String(url)).toContain("/api/image-tasks");
+        const payload = JSON.parse(init.body);
+        expect(payload).toMatchObject({ kind: "generation", prompt: trialBody.prompt, references: [], source: "practice", config: { model: "gamaimage" }, context: { executionProfile: "open-source-practice" } });
+        expect(payload).not.toHaveProperty("mask");
+    });
+
+    it.each([{ sourceUrl: baseBody.sourceUrl }, { references: [] }, { maskUrl: baseBody.maskUrl }, { config: {} }, { model: "x" }, { toolId: "local-edit" }, { prompt: " " }])("rejects invalid trial overrides %j", async (override) => {
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ ...trialBody, ...override }) }));
+        expect(response.status).toBe(400);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("does not use production when the practice image pool is unavailable", async () => {
+        mocks.candidates.mockReturnValue([]);
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(trialBody) }));
+        expect(response.status).toBe(503);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("requires practice access for a trial", async () => {
+        mocks.practiceAccess.mockRejectedValue(new Error("没有练习权限"));
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(trialBody) }));
+        expect(response.status).toBe(403);
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 });
