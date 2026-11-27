@@ -157,7 +157,7 @@ describe("practice sessions", () => {
         );
 
         expect(session.input).toMatchObject({ multiAngle, references: [reference] });
-        expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ prompt: "保留空格，正面" }), references: [reference] }));
+        expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ prompt: "保留空格，正面" }), references: [reference], practiceImageTool: "multi-angle", logicalModelId: "gamaimage" }));
         expect(vi.mocked(dispatch).mock.calls[0]).toEqual([expect.objectContaining({ input: expect.not.objectContaining({ multiAngle: expect.anything() }) })]);
     });
 
@@ -709,6 +709,7 @@ describe("practice sessions", () => {
         const second = structuredClone(settings);
         second.practiceWorkflowModels = { "storyboard-image": ["practice-image", "practice-image-b"] };
         second.logicalModels.push({ id: "practice-image-b", name: "练习图片 B", capability: "image", enabled: true, bindings: [{ id: "binding-b", channelId: "rh", upstreamModel: "rh-image", enabled: true, priority: 1 }] });
+        expect(resolvePracticeModelFromSettings(second, "storyboard-image", "gamaimage", "gamaimage")).toEqual({ logicalModelId: "gamaimage", capability: "image" });
         expect(resolvePracticeModelFromSettings(second, "storyboard-image", "practice-image-b")).toMatchObject({ logicalModelId: "practice-image-b", capability: "image" });
         expect(resolvePracticeModelFromSettings(second, "storyboard-image", "production-image")).toMatchObject({ logicalModelId: "production-image", capability: "image" });
         expect(() => resolvePracticeModelFromSettings(second, "storyboard-image", undefined, "scene_main_view")).toThrow("当前练习模块没有可用工作流");

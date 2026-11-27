@@ -1,12 +1,12 @@
-import type { AuthSettings, LogicalModel, LogicalModelCapabilityProfile, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { PracticeImageTool } from "./generation-task-types";
+import { supportsPracticeMaskEdit } from "./practice-image-capabilities";
+import type { AuthSettings, LogicalModel, LogicalModelBinding, LogicalModelCapabilityProfile, PracticeModelPoolConfig, PracticePoolKind, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
 import { channelEnabledForSurface, channelModelCapability, channelUsableForSurface, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
-import { channelSupportsModel, rawModelName } from "./generation-channel";
+import { channelSupportsModel, rawModelName, toSystemGenerationChannel } from "./generation-channel";
 import { channelConnectionReady } from "@/lib/channel-protocol-registry";
-import type { PracticeImageToolId } from "@/lib/practice-image-tools";
-import { resolveModelAdvancedConfig } from "./generation-channel";
 
 import { prepareRunningHubWorkflowExecution } from "./runninghub-workflow-adapter";
 import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
@@ -31,7 +31,7 @@ export type PracticeWorkflowContext = {
      * 为真时，练习画布允许请求练习池里的真实上游模型，而不是只能用虚拟模型名。
      */
     practiceModelTest?: boolean;
-    practiceImageTool?: PracticeImageToolId;
+    practiceImageTool?: PracticeImageTool;
     /**
      * 本次请求是否携带了图片/视频参考。由服务端从已净化的消息内容判定，
      * 与正式生产一致：带图的文本请求走 vision 池（文本模型里支持图片输入的那部分）。
@@ -68,7 +68,10 @@ export function practiceCanvasVirtualCapability(model: string): LogicalModelCapa
  * 返回全部候选而不是只返回一个，让调用方沿用现有的健康检查与故障转移。
  */
 export function resolvePracticeCanvasPoolCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, requestedModel = "", requiresImageInput = false): ResolvedLogicalModel[] {
-    const candidates = practiceCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput);
+    return shufflePracticeCandidates(practiceCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput));
+}
+
+function shufflePracticeCandidates(candidates: ResolvedLogicalModel[]) {
     for (let index = candidates.length - 1; index > 0; index -= 1) {
         const swap = Math.floor(Math.random() * (index + 1));
         [candidates[index], candidates[swap]] = [candidates[swap], candidates[index]];
@@ -111,24 +114,27 @@ function mergePracticeCapabilityProfiles(profiles: Array<LogicalModelCapabilityP
  * 不满足时代理返回 403「未绑定可用逻辑模型」，所以池子展示和练习路由都要提前排除。
  */
 export function channelModelBoundForPractice(logicalModels: LogicalModel[] | undefined, channelId: string, upstreamModel: string) {
+    return Boolean(findPracticeLogicalModelBinding(logicalModels, channelId, upstreamModel));
+}
+
+function findPracticeLogicalModelBinding(logicalModels: LogicalModel[] | undefined, channelId: string, upstreamModel: string, capability?: LogicalModelCapability): { logicalModelId: string; binding: LogicalModelBinding } | undefined {
     const normalized = upstreamModel
         .trim()
         .replace(/^models\//i, "")
         .toLowerCase();
-    if (!normalized) return false;
-    return (logicalModels || []).some(
-        (logical) =>
-            logical.enabled &&
-            logical.bindings.some(
-                (binding) =>
-                    binding.enabled &&
-                    binding.channelId === channelId &&
-                    binding.upstreamModel
-                        .trim()
-                        .replace(/^models\//i, "")
-                        .toLowerCase() === normalized,
-            ),
-    );
+    if (!normalized) return undefined;
+    return (logicalModels || [])
+        .filter((logical) => logical.enabled && (!capability || logical.capability === capability))
+        .flatMap((logical) => logical.bindings.map((binding) => ({ logicalModelId: logical.id, binding })))
+        .find(
+            ({ binding }) =>
+                binding.enabled &&
+                binding.channelId === channelId &&
+                binding.upstreamModel
+                    .trim()
+                    .replace(/^models\//i, "")
+                    .toLowerCase() === normalized,
+        );
 }
 
 /** 池子里某个模型是否被勾选：优先查该能力的池，没有配置该池则回退旧的平面表，最后默认包含。 */
@@ -140,42 +146,36 @@ export function practicePoolIncludes(pool: PracticeModelPoolConfig | undefined, 
 }
 
 /** 按池收集候选；kind 与模型能力必须匹配，vision 额外要求声明了图片输入。 */
-function collectPracticePoolCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">, capability: LogicalModelCapability, kind: PracticePoolKind, requestedModel: string): ResolvedLogicalModel[] {
+function collectPracticePoolCandidates(
+    settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">,
+    capability: LogicalModelCapability,
+    kind: PracticePoolKind,
+    requestedModel: string,
+    useBoundLogicalId = false,
+): ResolvedLogicalModel[] {
     return settings.systemChannels
         .filter((channel) => channelUsableForSurface(channel, "open-source-practice"))
         .flatMap((channel) =>
             channel.models
-                .filter((model) => {
+                .flatMap((model) => {
                     const modelName = rawModelName(model).toLowerCase();
-                    if (kind === "vision" ? channelModelCapability(channel, model) !== "text" : channelModelCapability(channel, model) !== capability) return false;
-                    if (kind === "vision" && resolveLogicalModelCapabilityProfile({}, "text", channel, rawModelName(model))?.supportsImageInput !== true) return false;
-                    if (!practicePoolIncludes(settings.practiceModelPool, kind, modelName)) return false;
-                    // 与系统代理同规则：逻辑模型停用、或该渠道的绑定没开，代理会 403，不能放进池子。
-                    if (!channelModelBoundForPractice(settings.logicalModels, channel.id, rawModelName(model))) return false;
-                    return !requestedModel || channelSupportsModel([model], requestedModel);
-                })
-                .map((model) => {
+                    if (kind === "vision" ? channelModelCapability(channel, model) !== "text" : channelModelCapability(channel, model) !== capability) return [];
+                    if (!practicePoolIncludes(settings.practiceModelPool, kind, modelName) || (requestedModel && !channelSupportsModel([model], requestedModel))) return [];
                     const upstreamModel = rawModelName(model);
-                    const bindings = (settings.logicalModels || [])
-                        .filter((logical) => logical.enabled)
-                        .flatMap((logical) => logical.bindings)
-                        .filter(
-                            (binding) =>
-                                binding.enabled &&
-                                binding.channelId === channel.id &&
-                                binding.upstreamModel
-                                    .trim()
-                                    .replace(/^models\//i, "")
-                                    .toLowerCase() === upstreamModel.toLowerCase(),
-                        );
-                    return {
-                        logicalModelId: upstreamModel,
-                        upstreamModel,
-                        channelId: channel.id,
-                        channel,
-                        capabilityProfile: resolveLogicalModelCapabilityProfile(bindings[0] || {}, capability, channel, upstreamModel),
-                    };
-                }),
+                    // The proxy accepts only an enabled logical model bound to this channel and provider model.
+                    const matched = findPracticeLogicalModelBinding(settings.logicalModels, channel.id, upstreamModel, useBoundLogicalId ? capability : undefined);
+                    if (!matched) return [];
+                    return [
+                        {
+                            logicalModelId: useBoundLogicalId ? matched.logicalModelId : upstreamModel,
+                            upstreamModel,
+                            channelId: channel.id,
+                            channel,
+                            capabilityProfile: resolveLogicalModelCapabilityProfile(matched.binding, capability, channel, upstreamModel),
+                        },
+                    ];
+                })
+                .filter((candidate) => kind !== "vision" || candidate.capabilityProfile?.supportsImageInput === true),
         );
 }
 
@@ -322,21 +322,12 @@ export function resolvePracticeGenerationCandidates(
 ): ResolvedLogicalModel[] {
     const executionProfile: PracticeExecutionProfile = context?.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
     if (executionProfile !== "open-source-practice") return resolveLogicalModelCandidates(settings, capability, requestedModel, "", executionProfile);
-    // Only signed image-tool requests can reach this branch. Use the configured exact binding, never other models or a RunningHub workflow.
     if (context?.practiceImageTool) {
         const tool = context.practiceImageTool;
         const vision = tool === "reverse-prompt";
-        if ((!vision && tool !== "local-edit" && tool !== "expression-reference") || capability !== (vision ? "text" : "image")) return [];
-        const expectedModel = vision ? settings.practiceDefaultModels?.visionModel : settings.practiceDefaultModels?.imageModel;
-        if (!expectedModel || expectedModel !== requestedModel) return [];
-        return resolveLogicalModelCandidates(settings, capability, expectedModel, "", executionProfile).filter((candidate) => {
-            if (candidate.overflow || candidate.logicalModelId !== expectedModel) return false;
-            if (vision) return candidate.capabilityProfile?.supportsImageInput === true;
-            const advanced = resolveModelAdvancedConfig(candidate.channel.advancedConfig, candidate.upstreamModel);
-            if (advanced?.supportsReferenceImage !== true) return false;
-            if (tool === "expression-reference") return true;
-            return (advanced.protocol === "openai" || advanced.protocol === "newapi") && /\/images\/edits\/?$/i.test(advanced.editPath || "");
-        });
+        if (capability !== (vision ? "text" : "image") || requestedModel !== practiceCanvasVirtualModel(capability)) return [];
+        const candidates = collectPracticePoolCandidates(settings, capability, vision ? "vision" : "image", "", true).filter((candidate) => supportsPracticeImageOperation(candidate, tool));
+        return shufflePracticeCandidates(candidates);
     }
     const requiresImageInput = context?.requiresImageInput === true;
     const virtualCapability = practiceCanvasVirtualCapability(requestedModel);
@@ -348,6 +339,19 @@ export function resolvePracticeGenerationCandidates(
     }
     if (capability === "text" && !context?.workflowKey && !context?.workflowCode) return resolveLogicalModelCandidates(settings, capability, requestedModel, "", executionProfile);
     return resolvePracticeWorkflowCandidates(settings, capability, context?.businessCode || "", context?.workflowCode);
+}
+
+function supportsPracticeImageOperation(candidate: ResolvedLogicalModel, tool: PracticeImageTool) {
+    if (candidate.overflow || candidate.channel.advancedConfig?.protocol === "runninghub") return false;
+    const config = toSystemGenerationChannel(candidate);
+    const advanced = config.advancedConfig;
+    if (advanced?.protocol === "runninghub") return false;
+    if (tool === "reverse-prompt") return candidate.capabilityProfile?.supportsImageInput === true;
+    if (tool === "reverse-prompt-trial") return !/(?:^|\/)images\/edits\/?$/i.test(advanced?.createPath || "");
+    if (advanced?.supportsReferenceImage !== true || candidate.capabilityProfile?.supportsReferenceImage === false) return false;
+    if (tool === "multi-angle" || tool === "expression-reference") return true;
+    if (tool === "ai-outpainting" || tool === "local-edit") return supportsPracticeMaskEdit(config);
+    return false;
 }
 
 export function attachPracticeWorkflowToChannel<T extends { channelId?: string; logicalModel?: string; advancedConfig?: import("@/lib/auth/store").SystemChannelAdvancedConfig }>(

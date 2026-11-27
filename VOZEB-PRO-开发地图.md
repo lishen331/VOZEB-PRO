@@ -412,6 +412,7 @@ flowchart LR
 ### 局部编辑练习回看（2026-11-26）
 
 - `/practice/reverse-prompt` 在三栏工作台左栏提供历史抽屉入口。历史通过 `GET /api/practice/reverse-prompt/history` 和 `GET /api/practice/reverse-prompt/history/[id]` 按学校/账号只读查询；`practice_reverse_prompt_history` 和 `generation_tasks` 终态触发器保存分析与最近成功试生成快照，媒体保留与删除纳入既有素材引用流程。试生成请求仍只发文字。
+- 五项独立 AI 练习由服务端标记用途，按视觉输入、文生图、参考图编辑或原生蒙版能力从无限练习池随机路由，AI 扩图另校验比例与分辨率。多角度首次生成和会话重试共用该规则，短剧工作流保持独立。
 - `/practice/local-edit` 通过 `GET /api/practice/image-tools` 获取当前学校内本人最近 5 条成功的局部编辑，沿用生成任务保留周期；查询在截取前筛选练习档案、工具、学校、所有者、状态和过期时间。
 - `/practice/ai-outpainting` 替换练习首页超分卡片（保留旧超分页面），用 `/api/practice/image-tools` 提交蒙版扩图与查阅本人当前学校的历史；结构化提示词与任务使用同一份指令，扩图成品在图片任务落盘前恢复原图区域。
 - `practice-local-edit-learning.tsx` 展示历史、选区与教学提示词；工作台按任务绑定原图、蒙版和成品。查看历史、填回提示词或恢复设置都不会自动发起生成或写入素材库。

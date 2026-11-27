@@ -143,10 +143,12 @@ async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publi
     const url = taskUrl(config, path, origin);
     const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
     const responseFormat = await preferredImageResponseFormat(config);
-    const allowProtocolFallback = allowsImageProtocolFallback(config);
-    const allowFormatFallback = allowsImageResponseFormatFallback(config);
+    // Do not substitute a JSON or Responses request for a native practice mask.
+    const nativePracticeMask = task.mask && (task.practiceOutpainting || task.practiceImageTool === "local-edit");
+    const allowProtocolFallback = !nativePracticeMask && allowsImageProtocolFallback(config);
+    const allowFormatFallback = !nativePracticeMask && allowsImageResponseFormatFallback(config);
     const sendResponseFormat = allowProtocolFallback || Boolean(explicitImageResponseFormat(config)) || responseFormat !== "url";
-    const useJsonImageEdit = task.kind === "edit" && (await shouldUseJsonImageEdit(config));
+    const useJsonImageEdit = task.kind === "edit" && !nativePracticeMask && (await shouldUseJsonImageEdit(config));
     if (useJsonImageEdit) return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, responseFormat, singleStep);
     let response: Response;
 

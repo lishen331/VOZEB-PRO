@@ -66,23 +66,23 @@ describe("POST /api/practice/image-tools", () => {
     it("dispatches edit only through a server-resolved practice model with signed practice context", async () => {
         const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(baseBody) }));
         expect(response.status).toBe(200);
-        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "image", "practice-canvas-image", expect.objectContaining({ executionProfile: "open-source-practice" }));
+        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "image", "gamaimage", expect.objectContaining({ executionProfile: "open-source-practice", practiceImageTool: "local-edit" }));
         expect(mocks.trustedHeaders).toHaveBeenCalledWith("student-one", "school-one", "req-image-tool");
         const [, requestInit] = mocks.fetchInternalApi.mock.calls[0];
         const payload = JSON.parse(requestInit.body);
         expect(payload.context).toMatchObject({ executionProfile: "open-source-practice", schoolId: "school-one", surface: "canvas", practiceImageTool: "local-edit" });
-        expect(payload.config.model).toBe("practice-canvas-image");
+        expect(payload.config.model).toBe("gamaimage");
         expect(payload.references[0].url).toBe("https://app.example/api/reference-assets/permanent/source.png?owner=student-one");
         expect(payload.mask.url).toContain("permanent/mask.png");
     });
 
-    it("uses the dedicated vision default for reverse prompt, not the writing model", async () => {
+    it("sends the image to the visual pool rather than the default writing model", async () => {
         mocks.settings.mockResolvedValue({ practiceDefaultModels: { visionModel: "practice-vision", textModel: "practice-writer" } });
         const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ ...baseBody, toolId: "reverse-prompt", maskUrl: undefined }) }));
         expect(response.status).toBe(200);
-        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "text", "practice-vision", expect.objectContaining({ practiceImageTool: "reverse-prompt", requiresImageInput: true }));
+        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "text", "gamatext", expect.objectContaining({ practiceImageTool: "reverse-prompt", requiresImageInput: true }));
         const body = JSON.parse(mocks.fetchInternalApi.mock.calls[0][1].body);
-        expect(body.config.model).toBe("practice-vision");
+        expect(body.config.model).toBe("gamatext");
         expect(body.context.practiceImageTool).toBe("reverse-prompt");
         expect(body.messages[0].content[1]).toMatchObject({ type: "image_url" });
     });
@@ -126,6 +126,20 @@ describe("POST /api/practice/image-tools", () => {
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 
+    it("uses the strict visual pool even when fixed default models are configured", async () => {
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, clientRequestId: "analysis-req" }) }));
+        expect(response.status).toBe(200);
+        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "text", "gamatext", expect.objectContaining({ practiceImageTool: "reverse-prompt", requiresImageInput: true }));
+        expect(JSON.parse(mocks.fetchInternalApi.mock.calls[0][1].body)).toMatchObject({ config: { model: "gamatext" }, context: { practiceImageTool: "reverse-prompt" } });
+    });
+
+    it("does not submit analysis without suitable visual pool candidates", async () => {
+        mocks.candidates.mockReturnValue([]);
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify({ toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, clientRequestId: "analysis-req" }) }));
+        expect(response.status).toBe(503);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
     const trialBody = { toolId: "reverse-prompt", action: "try-generate", prompt: "学生编辑后的猫咪三视图", clientRequestId: "trial-req" };
 
     it("dispatches one practice text-to-image task with no reference or mask", async () => {
@@ -133,13 +147,13 @@ describe("POST /api/practice/image-tools", () => {
         expect(response.status).toBe(200);
         expect(mocks.mediaRegistration).not.toHaveBeenCalled();
         expect(mocks.trustedHeaders).toHaveBeenCalledWith("student-one", "school-one", "trial-req");
-        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "image", "gamaimage", { executionProfile: "open-source-practice" });
+        expect(mocks.candidates).toHaveBeenCalledWith(expect.anything(), "image", "gamaimage", expect.objectContaining({ executionProfile: "open-source-practice", practiceImageTool: "reverse-prompt-trial" }));
         const [url, init] = mocks.fetchInternalApi.mock.calls[0];
         expect(String(url)).toContain("/api/image-tasks");
         const payload = JSON.parse(init.body);
         expect(payload).toMatchObject({ kind: "generation", prompt: trialBody.prompt, references: [], source: "practice", config: { model: "gamaimage" }, context: { executionProfile: "open-source-practice" } });
         expect(payload).not.toHaveProperty("mask");
-        expect(payload.context).not.toHaveProperty("practiceImageTool");
+        expect(payload.context.practiceImageTool).toBe("reverse-prompt-trial");
     });
 
     it.each([{ sourceUrl: baseBody.sourceUrl }, { references: [] }, { maskUrl: baseBody.maskUrl }, { config: {} }, { model: "x" }, { toolId: "local-edit" }, { prompt: " " }])("rejects invalid trial overrides %j", async (override) => {
@@ -230,8 +244,9 @@ describe("expression history", () => {
     it("sends only the prompt compiled from the selected expression", async () => {
         expect((await POST(expressionRequest())).status).toBe(200);
         const input = JSON.parse(mocks.fetchInternalApi.mock.calls[0][1].body);
-        expect(input).toMatchObject({ practiceExpression: expression, prompt: expect.stringContaining("强烈地呈现“微笑”") });
+        expect(input).toMatchObject({ config: { model: "gamaimage" }, context: { practiceImageTool: "expression-reference" }, practiceExpression: expression, prompt: expect.stringContaining("强烈地呈现“微笑”") });
         expect(input.prompt).not.toContain("client text");
+        expect(input).not.toHaveProperty("mask");
     });
 
     it("persists an unsuccessful submission with its prompt, without contacting generation", async () => {
@@ -293,7 +308,8 @@ describe("AI outpainting integration", () => {
         expect(payload).toMatchObject({
             kind: "edit",
             source: "practice",
-            config: { size: "1024x341", model: "practice-image" },
+            config: { size: "1024x341", model: "gamaimage" },
+            context: { practiceImageTool: "ai-outpainting" },
             prompt: outpaintingLesson(outpainting, 120, 80).prompt,
             practiceOutpainting: { width: 120, height: 80, selection: outpainting },
         });
@@ -311,6 +327,40 @@ describe("AI outpainting integration", () => {
         expect(await (await send()).json()).toMatchObject({ task: { id: "existing" } });
         expect((await send({ ...body, outpainting: { ...outpainting, padding: { ...outpainting.padding, right: 130 } } })).status).toBe(409);
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+    it("uses the actual pool router and rejects unsupported 4K before saving mask or dispatching", async () => {
+        const { resolvePracticeGenerationCandidates } = await vi.importActual<typeof import("@/lib/server/runninghub-workflow-runtime")>("@/lib/server/runninghub-workflow-runtime");
+        const channel = {
+            id: "fixture",
+            name: "Fixture",
+            baseUrl: "http://127.0.0.1:1/v1",
+            apiKey: "fixture",
+            apiFormat: "openai",
+            purpose: "open-source-practice",
+            enabled: true,
+            models: ["gpt-image-2"],
+            advancedConfig: { protocol: "openai", editPath: "/images/edits", supportsReferenceImage: true },
+        };
+        mocks.settings.mockResolvedValue({
+            systemChannels: [channel],
+            logicalModels: [
+                {
+                    id: "not-the-default",
+                    name: "Fixture",
+                    capability: "image",
+                    enabled: true,
+                    bindings: [{ id: "fixture-binding", channelId: "fixture", upstreamModel: "gpt-image-2", enabled: true, priority: 1, capabilityProfile: { resolutions: ["1k", "2k"] } }],
+                },
+            ],
+            practiceDefaultModels: { imageModel: "unrelated" },
+        });
+        mocks.candidates.mockImplementationOnce(resolvePracticeGenerationCandidates);
+        const response = await send({ ...body, outpainting: { ...outpainting, resolution: "4k" } });
+        expect(response.status, await response.clone().text()).toBe(503);
+        expect(mocks.writeImage).not.toHaveBeenCalled();
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+        mocks.candidates.mockImplementationOnce(resolvePracticeGenerationCandidates);
+        expect((await send()).status).toBe(200);
     });
     it("returns scoped history, retaining the original prompt without exposing config or signed URLs", async () => {
         mocks.queryTasks.mockResolvedValue([
