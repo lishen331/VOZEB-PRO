@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { persistMediaDiagnostic, type MediaDiagnosticContext } from "./media-task-diagnostic-store";
+import { upstreamRequestSnapshot } from "./upstream-diagnostic-snapshot";
 import { redactDiagnosticText } from "./media-task-diagnostics";
 
 const scopes = new AsyncLocalStorage<MediaDiagnosticContext>();
@@ -152,20 +153,25 @@ function requestSummary(body: RequestInit["body"], type: MediaDiagnosticContext[
     return JSON.stringify(summary);
 }
 
+export type UpstreamTraceCall = { operation: "create" | "query" | "cancel"; upstreamCallId: string; upstreamTaskId?: string; model: string };
+
 /** Passes the original Response through; error sampling only uses a clone. */
-export async function observeMediaFetch(url: string, init: RequestInit | undefined, fetcher: () => Promise<Response>, explicit?: MediaDiagnosticContext): Promise<Response> {
+export async function observeMediaFetch(url: string, init: RequestInit | undefined, fetcher: () => Promise<Response>, explicit?: MediaDiagnosticContext, call?: UpstreamTraceCall, secrets: string[] = []): Promise<Response> {
     const context = explicit || scopes.getStore();
     if (!context || process.env.CANVAS_MEDIA_DIAGNOSTICS === "0") return fetcher();
     const stage = explicit ? "upstream" : "transport";
     const start = Date.now();
-    if ((init?.method || "GET").toUpperCase() !== "GET") await persistMediaDiagnostic(context, { phase: `${stage}_request`, url, method: init?.method || "GET", parameters: requestSummary(init?.body, context.type) });
+    const method = (init?.method || "GET").toUpperCase();
+    if (call || method !== "GET")
+        await persistMediaDiagnostic(context, { ...call, phase: `${stage}_request`, url, method, parameters: requestSummary(init?.body, context.type), requestBody: call ? upstreamRequestSnapshot(init?.body, secrets) : undefined });
     try {
         const response = await fetcher();
         const authorization = new Headers(init?.headers).get("authorization")?.replace(/^Bearer\s+/i, "");
         let errorMessage: string | undefined;
-        if (!response.ok && /json|text/i.test(response.headers.get("content-type") || "")) errorMessage = await boundedErrorMessage(response, authorization ? [authorization] : []);
-        if ((init?.method || "GET").toUpperCase() !== "GET" || !response.ok)
+        if (!response.ok && /json|text/i.test(response.headers.get("content-type") || "")) errorMessage = await boundedErrorMessage(response, authorization ? [...secrets, authorization] : secrets);
+        if (call || method !== "GET" || !response.ok)
             await persistMediaDiagnostic(context, {
+                ...call,
                 phase: `${stage}_response`,
                 url,
                 status: response.status,
@@ -178,7 +184,7 @@ export async function observeMediaFetch(url: string, init: RequestInit | undefin
     } catch (error) {
         const value = error instanceof Error ? error : new Error(String(error));
         const cause = value.cause as { code?: string; message?: string } | undefined;
-        await persistMediaDiagnostic(context, { phase: `${stage}_exception`, url, durationMs: Date.now() - start, errorName: value.name, errorMessage: value.message, cause: cause ? `${cause.code || ""} ${cause.message || ""}` : undefined });
+        await persistMediaDiagnostic(context, { ...call, phase: `${stage}_exception`, url, durationMs: Date.now() - start, errorName: value.name, errorMessage: value.message, cause: cause ? `${cause.code || ""} ${cause.message || ""}` : undefined });
         throw error;
     }
 }
