@@ -2,8 +2,8 @@
     "schemaVersion": 1,
     "source": "src/app/(user)/canvas",
     "target": "src/features/drama-canvas-runtime",
-    "sourceCommit": "d1ec8bcc84a1f8e33709f0d2ebc801d441d425d4",
-    "syncedAt": "2026-11-17T08:26:13.650Z",
+    "sourceCommit": "d22ac7a30012c6393b4e18339ee731ba89ac1b9f",
+    "syncedAt": "2026-11-26T10:12:11.714Z",
     "exclusions": ["tests", "ordinary canvas project list", "ordinary canvas project list components"],
     "adapterPatches": ["dedicated Drama Lab persistence API", "episode shot deep-link focus", "disable ordinary Canvas project navigation", "return workbench navigation to Drama Lab"],
     "files": [
@@ -213,7 +213,7 @@
         },
         {
             "path": "components/canvas-node-emotion-dialog.tsx",
-            "sha256": "e65219d764abbe5d41b2ab68f534512df0d55d30332404ad673e6ccded53a300"
+            "sha256": "c842891de07cd8935b0dc056aede36b99e14ca93472739ce9724a4372ae713dc"
         },
         {
             "path": "components/canvas-node-generation.ts",
@@ -361,7 +361,7 @@
         },
         {
             "path": "utils/canvas-emotion-prompt.ts",
-            "sha256": "229d4d3714b533b0b4693ab9f26c130e74df0bdb9fa090a0329744c24ac4a0e6"
+            "sha256": "3e7ca439580bcec6f567e5d2b0a3fa31c9f6a732bcf69ae87bf3f5b055ad3b9f"
         },
         {
             "path": "utils/canvas-export.ts",
@@ -369,7 +369,7 @@
         },
         {
             "path": "utils/canvas-face-detection.ts",
-            "sha256": "7d8c8442bc29cd7e838cb61e33a18b74008cdda1c367980cd60c78c53abbb315"
+            "sha256": "0f9e8b36f7b061f6b26778baef98a07f743b11fb5c52b8944f0fbdd0bd22fa81"
         },
         {
             "path": "utils/canvas-generating-copy.ts",

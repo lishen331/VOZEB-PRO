@@ -44,12 +44,6 @@ export function normalizeFaceBox(box: { x: number; y: number; width: number; hei
     return width > 0.01 && height > 0.01 ? { x, y, width, height, score } : null;
 }
 
-export function faceBoxPrompt(box: CanvasFaceBox) {
-    const x = Math.round((box.x + box.width / 2) * 100);
-    const y = Math.round((box.y + box.height / 2) * 100);
-    return `画面中位于约 ${x}% 横向、${y}% 纵向的人物脸部`;
-}
-
 async function detectWithNativeFaceDetector(dataUrl: string, Detector: NativeFaceDetectorConstructor, signal?: AbortSignal) {
     const image = await loadImage(dataUrl, signal);
     const detections = await new Detector({ maxDetectedFaces: 20, fastMode: true }).detect(image);
@@ -61,9 +55,10 @@ async function detectWithNativeFaceDetector(dataUrl: string, Detector: NativeFac
 
 async function detectWithLocalWorker(dataUrl: string, signal?: AbortSignal) {
     if (typeof createImageBitmap !== "function") throw new Error("当前浏览器无法初始化本地人脸识别，请手动框选");
-    const response = await fetch(dataUrl, { signal });
-    if (!response.ok) throw new Error("无法读取源图片，请重新上传后再试");
-    const image = await createImageBitmap(await response.blob());
+    // Preview URLs can use data: or blob:, which img-src permits without widening connect-src.
+    const decoded = await loadImage(dataUrl, signal);
+    throwIfAborted(signal);
+    const image = await createImageBitmap(decoded);
     throwIfAborted(signal, () => image.close());
     const worker = getFaceDetectionWorker();
     const id = ++faceDetectionSequence;

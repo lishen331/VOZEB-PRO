@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, Eraser, ImagePlus, LoaderCircle, RotateCcw, Save, Sparkles, WandSparkles } from "lucide-react";
+import { ArrowLeft, Download, Eraser, ImagePlus, LoaderCircle, Save, Sparkles, WandSparkles } from "lucide-react";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { Input } from "@/components/gamma-ui/gamma-ant-input";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 import { createLibraryAsset } from "@/services/api/library-assets";
 import { parsePracticeReversePrompt } from "@/lib/practice-reverse-prompt";
-import { pollPracticeImageToolTask, type PracticeImageToolResult, type PracticeImageToolTask } from "./practice-image-tool-task";
+import { pollPracticeImageToolTask, PracticeImageToolTaskFailed, type PracticeImageToolResult, type PracticeImageToolTask } from "./practice-image-tool-task";
 import { PracticeReversePromptStudyDeck } from "./practice-reverse-prompt-study-deck";
 import { PracticeReversePromptTrial } from "./practice-reverse-prompt-trial";
 import { PracticeAssetPicker } from "./practice-asset-picker";
@@ -17,7 +17,10 @@ import { getPracticeImageToolConfig, LOCAL_EDIT_HISTORY_LIMIT, type LocalEditPra
 import { canvasReadableImageUrl } from "@/lib/browser-media-url";
 import { parseServerMediaUrl } from "@/services/server-media-storage";
 import { LocalEditHistory, LocalEditPromptLesson, readLocalEditSelection } from "./practice-local-edit-learning";
-import { CanvasNodeEmotionDialog, type CanvasEmotionPayload } from "@/app/(user)/canvas/components/canvas-node-emotion-dialog";
+import { ExpressionHistory, ExpressionPromptLesson } from "./practice-expression-learning";
+import { expressionLesson, EXPRESSION_HISTORY_LIMIT, readExpressionSelection, type ExpressionPracticeRecord } from "@/lib/practice-expression-learning";
+import type { CanvasEmotionSelection } from "@/app/(user)/canvas/utils/canvas-emotion-prompt";
+import { CanvasNodeEmotionDialog } from "@/app/(user)/canvas/components/canvas-node-emotion-dialog";
 import { MAX_UPSCALE_LONG_EDGE, upscaleDataUrl, type ImageUpscaleAlgorithm } from "@/app/(user)/canvas/utils/canvas-image-data";
 
 const REVERSE_PROMPT_MODES = [
@@ -36,8 +39,15 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const fileRef = useRef<HTMLInputElement>(null);
     const maskRef = useRef<HTMLCanvasElement>(null);
     const drawingRef = useRef(false);
+    const expressionReadRef = useRef(0);
     const restoredSelection = useRef<ImageData | null>(null);
     const localEdit = toolId === "local-edit";
+    const expressionTool = toolId === "expression-reference";
+    const [expressionSelection, setExpressionSelection] = useState<CanvasEmotionSelection | null>(null);
+    const [expressionRecord, setExpressionRecord] = useState<ExpressionPracticeRecord | null>(null);
+    const [expressionHistory, setExpressionHistory] = useState<ExpressionPracticeRecord[]>([]);
+    const [expressionDirty, setExpressionDirty] = useState(false);
+    const expressionSubmitting = useRef(false);
     const [source, setSource] = useState<UploadedImage | null>(null);
     const [prompt, setPrompt] = useState("");
     const [mode, setMode] = useState<(typeof REVERSE_PROMPT_MODES)[number]["id"]>("general");
@@ -56,7 +66,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const [brushSize, setBrushSize] = useState(36);
     const [localRecord, setLocalRecord] = useState<LocalEditPracticeRecord | null>(null);
     const [history, setHistory] = useState<LocalEditPracticeRecord[]>([]);
-    const [historyLoading, setHistoryLoading] = useState(localEdit);
+    const [historyLoading, setHistoryLoading] = useState(localEdit || expressionTool);
     const [historyError, setHistoryError] = useState(false);
     const [historyRevision, setHistoryRevision] = useState(0);
     const [restoring, setRestoring] = useState(false);
@@ -91,6 +101,28 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
             controller.abort();
         };
     }, [localEdit, historyRevision]);
+
+    useEffect(() => {
+        if (!expressionTool) return;
+        const controller = new AbortController();
+        async function load() {
+            try {
+                const response = await fetch("/api/practice/image-tools?history=expression-reference", { cache: "no-store", signal: controller.signal });
+                if (!response.ok) throw new Error("history unavailable");
+                const { records } = (await response.json()) as { records: ExpressionPracticeRecord[] };
+                if (!controller.signal.aborted) {
+                    setExpressionHistory(records);
+                    setExpressionRecord((current) => (current?.status === "running" ? records.find((record) => record.id === current.id) || current : current));
+                }
+            } catch {
+                if (!controller.signal.aborted) setHistoryError(true);
+            } finally {
+                if (!controller.signal.aborted) setHistoryLoading(false);
+            }
+        }
+        void load();
+        return () => controller.abort();
+    }, [expressionTool, historyRevision]);
 
     useLayoutEffect(() => {
         const canvas = maskRef.current;
@@ -141,16 +173,32 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
         }
     };
 
+    const replaceSource = (image: UploadedImage) => {
+        expressionReadRef.current += 1;
+        setSource(image);
+        // Local-edit lessons keep the previous result until the next successful run.
+        if (!localEdit && !expressionTool) setResult(null);
+        if (expressionTool) {
+            setExpressionSelection(null);
+            setExpressionDirty(true);
+        }
+        setError("");
+        setRetryPrompt("");
+        setDiagnostic(null);
+        setEmotionDialogOpen(false);
+        setEmotionDialogData("");
+        const mask = maskRef.current;
+        if (mask) mask.getContext("2d")?.clearRect(0, 0, mask.width, mask.height);
+    };
+
     const chooseFile = async (file?: File) => {
-        if (!file || restoring || (toolId === "reverse-prompt" && (busy || trialBusy))) return;
+        if (!file || restoring || ((toolId === "reverse-prompt" || toolId === "expression-reference") && (busy || trialBusy || uploading))) return;
         if (!file.type.startsWith("image/")) return message.error("请选择图片文件");
         setUploading(true);
         setError("");
         try {
             const uploaded = await uploadImage(file);
-            setSource(uploaded);
-            if (!localEdit) setResult(null);
-            if (maskRef.current) maskRef.current.getContext("2d")?.clearRect(0, 0, maskRef.current.width, maskRef.current.height);
+            replaceSource(uploaded);
         } catch (cause) {
             message.error(cause instanceof Error ? cause.message : "图片上传失败");
         } finally {
@@ -212,22 +260,63 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     };
 
     const openExpressionEditor = async () => {
-        if (!source || busy) return;
+        if (!source || busy || uploading || restoring) return;
+        if (emotionDialogData) {
+            setEmotionDialogOpen(true);
+            return;
+        }
+        const readId = ++expressionReadRef.current;
         try {
             const { imageToDataUrl } = await import("@/services/image-storage");
             const dataUrl = await imageToDataUrl(source);
+            if (expressionReadRef.current !== readId) return;
             if (!dataUrl) throw new Error("无法读取源图片");
             setEmotionDialogData(dataUrl);
             setEmotionDialogOpen(true);
         } catch (cause) {
-            message.error(cause instanceof Error ? cause.message : "读取图片失败");
+            if (expressionReadRef.current === readId) message.error(cause instanceof Error ? cause.message : "读取图片失败");
+        }
+    };
+
+    const restoreExpression = async (record: ExpressionPracticeRecord) => {
+        if (busy || uploading || restoring || saving) return false;
+        setRestoring(true);
+        // Invalidate an older read started by the editor, before awaiting the historical image.
+        expressionReadRef.current += 1;
+        try {
+            const reference = parseServerMediaUrl(record.sourceUrl);
+            if (!reference) throw new Error("历史原图已无法恢复，请重新上传");
+            const response = await fetch(canvasReadableImageUrl(reference.url), { cache: "no-store" });
+            if (!response.ok) throw new Error("历史原图已无法恢复，请重新上传");
+            const blob = await response.blob();
+            const bitmap = await createImageBitmap(blob);
+            const { width, height } = bitmap;
+            bitmap.close();
+            replaceSource({ ...reference, width, height, bytes: blob.size, mimeType: blob.type || "image/png" });
+            setExpressionSelection(record.selection);
+            setExpressionRecord(record);
+            setExpressionDirty(false);
+            setResult(record.image ? { taskId: record.id, model: record.model, image: record.image } : null);
+            return true;
+        } catch (cause) {
+            message.error(cause instanceof Error ? cause.message : "无法恢复历史练习");
+            return false;
+        } finally {
+            setRestoring(false);
         }
     };
 
     const run = async (promptOverride?: string) => {
-        if (!source || busy || trialBusy || uploading || restoring) return;
+        if (!source || busy || trialBusy || uploading || restoring || expressionSubmitting.current) return;
+        if (expressionTool && (!expressionSelection || saving)) return;
+        if (expressionTool) expressionSubmitting.current = true;
         setBusy(true);
         setError("");
+        let attempt: ExpressionPracticeRecord | null = null;
+        const updateExpression = (record: ExpressionPracticeRecord, saveToList: boolean) => {
+            setExpressionRecord(record);
+            if (saveToList) setExpressionHistory((records) => [record, ...records.filter((existing) => existing.id !== record.id)].slice(0, EXPRESSION_HISTORY_LIMIT));
+        };
         try {
             if (toolId === "super-resolution") {
                 setDiagnostic({ requestId: crypto.randomUUID(), model: "本地超分处理" });
@@ -239,28 +328,45 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 setResult({ image: uploaded, model: "本地超分处理" });
                 return;
             }
-            if (toolId !== "reverse-prompt" && !prompt.trim()) throw new Error("请填写本次修改说明");
+            if (toolId === "local-edit" && !prompt.trim()) throw new Error("请填写本次修改说明");
             const mask = toolId === "local-edit" ? await makeMaskUrl() : undefined;
             const finalPrompt =
-                promptOverride ||
-                (toolId === "reverse-prompt"
-                    ? `${REVERSE_PROMPT_MODES.find((item) => item.id === mode)?.instruction || "请描述图片"}${prompt.trim() ? `。补充要求：${prompt.trim()}` : ""}`
-                    : toolId === "expression-reference"
-                      ? "基于参考图片，仅调整选定人物的表情，保持身份、发型、服饰、构图、背景和光照不变。"
-                      : prompt.trim());
+                (expressionTool && expressionSelection ? expressionLesson(expressionSelection).prompt : promptOverride?.trim()) ||
+                (toolId === "reverse-prompt" ? `${REVERSE_PROMPT_MODES.find((item) => item.id === mode)?.instruction || "请描述图片"}${prompt.trim() ? `。补充要求：${prompt.trim()}` : ""}` : prompt.trim());
             const requestId = crypto.randomUUID();
             setDiagnostic({ requestId });
             setRetryPrompt(finalPrompt);
+            if (expressionTool && expressionSelection) {
+                attempt = { id: requestId, sourceUrl: source.url, selection: expressionSelection, prompt: finalPrompt, createdAt: Date.now(), status: "pending" };
+                setExpressionRecord(attempt);
+                setExpressionDirty(false);
+                setResult(null);
+            }
             const response = await fetch("/api/practice/image-tools", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ toolId, sourceUrl: source.url, ...(mask ? { maskUrl: mask.url } : {}), prompt: finalPrompt, clientRequestId: requestId }),
+                body: JSON.stringify({ toolId, sourceUrl: source.url, ...(mask ? { maskUrl: mask.url } : {}), prompt: finalPrompt, clientRequestId: requestId, ...(attempt ? { expression: attempt.selection } : {}) }),
             });
-            const payload = (await response.json().catch(() => ({}))) as { task?: PracticeImageToolTask; error?: string };
-            if (!response.ok || !payload.task) throw new Error(payload.error || "任务提交失败");
+            const payload = (await response.json().catch(() => ({}))) as { task?: PracticeImageToolTask; record?: ExpressionPracticeRecord; error?: string };
+            if (!response.ok || !payload.task) {
+                if (attempt && payload.record) {
+                    updateExpression(payload.record, true);
+                    attempt = null;
+                    reloadHistory();
+                }
+                throw new Error(payload.error || "任务提交失败");
+            }
+            if (attempt) {
+                attempt = { ...attempt, id: payload.task.id, model: payload.task.model, status: "running" };
+                updateExpression(attempt, true);
+            }
             setDiagnostic({ requestId, taskId: payload.task.id, taskType: payload.task.type, model: payload.task.model });
             const completed = await pollPracticeImageToolTask(payload.task);
             setResult(completed);
+            if (attempt) {
+                updateExpression({ ...attempt, status: "success", image: completed.image, model: completed.model }, true);
+                reloadHistory();
+            }
             if (mask && completed.taskId && completed.image) {
                 const record: LocalEditPracticeRecord = {
                     id: completed.taskId,
@@ -278,17 +384,24 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
         } catch (cause) {
             const messageText = cause instanceof Error ? cause.message : "本次练习失败，请重试";
             setError(messageText);
+            if (attempt) {
+                const accepted = attempt.status === "running";
+                updateExpression({ ...attempt, status: accepted && !(cause instanceof PracticeImageToolTaskFailed) ? "running" : "error", error: messageText }, accepted);
+                if (accepted) reloadHistory();
+            }
             message.error(messageText);
         } finally {
+            expressionSubmitting.current = false;
             setBusy(false);
         }
     };
 
     const saveResult = async () => {
-        if (!result?.image || saving || result.saved) return;
+        const target = result || (expressionRecord?.image ? { taskId: expressionRecord.id, image: expressionRecord.image, saved: false } : null);
+        if (!target?.image || saving || target.saved) return;
         setSaving(true);
         try {
-            const image = result.image.storageKey ? result.image : await uploadImage(result.image.serverUrl || result.image.remoteUrl || result.image.url);
+            const image = target.image.storageKey ? target.image : await uploadImage(target.image.serverUrl || target.image.remoteUrl || target.image.url);
             const url = image.serverUrl || image.url;
             await createLibraryAsset({
                 kind: "image",
@@ -298,7 +411,7 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 source: "practice",
                 data: { dataUrl: url, serverUrl: url, storageKey: image.storageKey, width: image.width, height: image.height, bytes: image.bytes, mimeType: image.mimeType },
             });
-            setResult((current) => (current && current.taskId === result.taskId && current.image === result.image ? { ...current, image, saved: true } : current));
+            setResult((current) => (current && (current.taskId !== target.taskId || current.image !== target.image) ? current : { ...target, image, saved: true }));
             message.success("已保存到个人素材库");
         } catch (cause) {
             message.error(cause instanceof Error ? cause.message : "保存失败，请重试");
@@ -307,15 +420,16 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
         }
     };
 
-    const resultImageUrl = result?.image?.serverUrl || result?.image?.remoteUrl || result?.image?.url;
+    const resultImageUrl = result?.image?.serverUrl || result?.image?.remoteUrl || result?.image?.url || expressionRecord?.image?.url;
     const resultDiagnostic = localEdit && diagnostic?.taskId !== result?.taskId ? null : diagnostic;
 
     const reverse = toolId === "reverse-prompt";
+    const selectionLesson = expressionSelection ? expressionLesson(expressionSelection) : null;
     const analysis = reverse && result?.text !== undefined ? parsePracticeReversePrompt(result.text) : null;
 
     return (
-        <section className={`mx-auto flex h-full min-h-0 w-full flex-col overflow-y-auto px-4 py-5 text-[var(--gm-text)] sm:px-6 lg:px-8 ${reverse || localEdit ? "max-w-[1660px]" : "max-w-6xl"}`}>
-            <header className="mb-5 flex items-center gap-3">
+        <section className={`mx-auto flex h-full min-h-0 w-full flex-col overflow-y-auto px-4 py-5 text-[var(--gm-text)] sm:px-6 lg:px-8 ${reverse || localEdit || expressionTool ? "max-w-[1660px]" : "max-w-6xl"}`}>
+            <header className={`mb-5 flex items-center gap-3 ${expressionTool ? "xl:shrink-0" : ""}`}>
                 <Link href="/practice" className="grid size-10 place-items-center rounded-full border border-[var(--gm-border)] text-[var(--gm-text-2)] hover:bg-[var(--gm-wash)]" aria-label="返回无限练习">
                     <ArrowLeft className="size-4" />
                 </Link>
@@ -325,9 +439,9 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                 </div>
             </header>
             <div
-                className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:min-h-[26rem] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] xl:[&>*]:min-h-0 xl:[&>:first-child]:overflow-y-auto xl:[&>:last-child]:overflow-y-auto" : localEdit ? "lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,.67fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}
+                className={`grid min-h-0 flex-1 gap-5 ${reverse ? "xl:min-h-[26rem] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] xl:[&>*]:min-h-0 xl:[&>:first-child]:overflow-y-auto xl:[&>:last-child]:overflow-y-auto" : expressionTool ? "items-start lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:min-h-[26rem] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,.5fr)] xl:grid-rows-[minmax(0,1fr)] xl:items-stretch" : localEdit ? "lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,.67fr)]" : "lg:grid-cols-[minmax(330px,.86fr)_minmax(0,1.14fr)]"}`}
             >
-                <div className="space-y-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
+                <div className={`space-y-4 rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5 ${expressionTool ? "xl:min-h-0 xl:overflow-y-auto" : ""}`}>
                     <div className="flex items-center justify-between">
                         <h2 className="font-semibold">输入与设置</h2>
                         <span className="rounded-full bg-[var(--gm-wash)] px-2.5 py-1 text-xs text-[var(--gm-text-2)]">{config.kind === "local-image" ? "本地处理 · 不扣 AI 积分" : "使用无限练习模型池"}</span>
@@ -402,24 +516,21 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     )}
                     {!source ? (
                         <div className="mt-2 flex justify-center">
-                            <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={(image) => setSource(image)} label="或从个人素材库选择" />
+                            <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={replaceSource} label="或从个人素材库选择" />
                         </div>
                     ) : null}
                     {source ? (
                         <div className="flex flex-wrap gap-2">
-                            <GammaButton size="sm" variant="outline" disabled={restoring || ((reverse || localEdit) && (busy || trialBusy || uploading))} onClick={() => fileRef.current?.click()} icon={<ImagePlus className="size-4" />}>
+                            <GammaButton
+                                size="sm"
+                                variant="outline"
+                                disabled={restoring || ((reverse || localEdit || toolId === "expression-reference") && (busy || trialBusy || uploading))}
+                                onClick={() => fileRef.current?.click()}
+                                icon={<ImagePlus className="size-4" />}
+                            >
                                 更换图片
                             </GammaButton>
-                            <PracticeAssetPicker
-                                disabled={uploading || busy || trialBusy || restoring}
-                                onSelect={(image) => {
-                                    setSource(image);
-                                    if (!localEdit) setResult(null);
-                                    setError("");
-                                    if (maskRef.current) maskRef.current.getContext("2d")?.clearRect(0, 0, maskRef.current.width, maskRef.current.height);
-                                }}
-                                label="从个人素材库选择"
-                            />
+                            <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={replaceSource} label="从个人素材库选择" />
                             {toolId === "local-edit" ? (
                                 <GammaButton
                                     size="sm"
@@ -462,9 +573,14 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                     {toolId === "expression-reference" ? (
                         <div className="space-y-2">
                             <p className="text-sm">沿用画布的人脸识别、手动框选、表情预设及强度/情绪调节。</p>
-                            <GammaButton size="sm" variant="outline" disabled={!source || busy} onClick={() => void openExpressionEditor()} icon={<Sparkles className="size-4" />}>
-                                选择人物与表情
+                            <GammaButton size="sm" variant="outline" disabled={!source || busy || uploading || restoring} onClick={() => void openExpressionEditor()} icon={<Sparkles className="size-4" />}>
+                                {expressionSelection ? "编辑人物与表情" : "选择人物与表情"}
                             </GammaButton>
+                            {selectionLesson ? (
+                                <p className="text-sm" aria-label="当前表情设置">
+                                    {selectionLesson.expression} · {selectionLesson.intensity} · {selectionLesson.rows[0].value}
+                                </p>
+                            ) : null}
                         </div>
                     ) : null}
                     {toolId === "reverse-prompt" ? (
@@ -496,16 +612,16 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         </>
                     ) : null}
                     <GammaButton
-                        disabled={!source || busy || uploading || trialBusy || restoring}
+                        disabled={!source || busy || uploading || trialBusy || restoring || (expressionTool && (!expressionSelection || saving))}
                         loading={busy}
-                        onClick={() => void (toolId === "expression-reference" ? openExpressionEditor() : run())}
+                        onClick={() => void run()}
                         className="w-full"
                         icon={busy ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                     >
-                        {busy ? "正在处理…" : toolId === "reverse-prompt" ? "分析并生成提示词" : toolId === "super-resolution" ? "开始本地放大" : toolId === "expression-reference" ? "选择人物与表情" : "生成编辑结果"}
+                        {busy ? "正在处理…" : toolId === "reverse-prompt" ? "分析并生成提示词" : toolId === "super-resolution" ? "开始本地放大" : expressionTool ? "生成表情参考" : "生成编辑结果"}
                     </GammaButton>
                     {config.kind !== "local-image" ? <p className="text-xs leading-5 text-[var(--gm-text-3)]">提交后按无限练习当前模型池与计费配置执行；失败不会切换到生产模型。</p> : null}
-                    {error ? (
+                    {error && !expressionTool ? (
                         <div role="alert" className="rounded-lg border border-red-300/50 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-300">
                             {error}
                             <button className="ml-2 underline" onClick={() => void run(retryPrompt || undefined)}>
@@ -529,12 +645,38 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         onAnalyze={() => void run()}
                     />
                 ) : (
-                    <div className="min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5">
+                    <div className={`min-w-0 min-h-[360px] rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 sm:p-5 ${expressionTool ? "xl:min-h-0 xl:overflow-y-auto" : ""}`}>
                         <div className="mb-4 flex items-center gap-2">
                             <WandSparkles className="size-4 text-[var(--gm-accent)]" />
                             <h2 className="font-semibold">生成结果与诊断</h2>
                         </div>
-                        {!result ? (
+                        {expressionTool ? (
+                            expressionRecord ? (
+                                <>
+                                    {resultImageUrl ? (
+                                        <>
+                                            <img src={resultImageUrl} alt="表情参考结果" className="max-h-[55vh] w-full rounded-lg object-contain" />
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <a href={resultImageUrl} download className="rounded-lg border border-[var(--gm-border)] px-3 py-2 text-sm">
+                                                    下载结果
+                                                </a>
+                                                <GammaButton variant="outline" disabled={saving || result?.saved} loading={saving} onClick={() => void saveResult()}>
+                                                    {result?.saved ? "已保存到个人素材库" : "保存到个人素材库"}
+                                                </GammaButton>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <p className="rounded-lg bg-[var(--gm-wash)] p-3 text-sm" role="status">
+                                            {expressionRecord.status === "error" || expressionRecord.status === "cancelled" ? "未生成图片" : expressionRecord.status === "success" ? "历史结果图暂不可用" : "任务执行中，可刷新历史查看进度"}
+                                            {expressionRecord.error ? `：${expressionRecord.error}` : ""}
+                                        </p>
+                                    )}
+                                    <ExpressionPromptLesson record={expressionRecord} dirty={expressionDirty} onCopy={(value) => void copyPracticePrompt(value)} />
+                                </>
+                            ) : (
+                                <p className="py-12 text-center text-sm text-[var(--gm-text-3)]">完成左侧设置后开始练习</p>
+                            )
+                        ) : !result ? (
                             <div className="grid min-h-72 place-items-center text-center text-sm text-[var(--gm-text-3)]">
                                 {busy ? (
                                     <span className="flex items-center gap-2">
@@ -594,17 +736,24 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                         )}
                     </div>
                 )}
+                {expressionTool ? (
+                    <ExpressionHistory records={expressionHistory} activeId={expressionRecord?.id} loading={historyLoading} error={historyError} blocked={busy || uploading || restoring || saving} onReload={reloadHistory} onRestore={restoreExpression} />
+                ) : null}
                 {localEdit ? <LocalEditHistory records={history} activeId={localRecord?.id} loading={historyLoading} error={historyError} onOpen={openHistory} onReload={reloadHistory} /> : null}
                 {reverse ? <PracticeReversePromptTrial key={`trial:${result?.taskId || "empty"}`} initialPrompt={analysis?.fullPrompt || ""} blocked={busy || uploading} onBusyChange={setTrialBusy} /> : null}
             </div>
-            {toolId === "expression-reference" ? (
+            {toolId === "expression-reference" && emotionDialogData ? (
                 <CanvasNodeEmotionDialog
                     dataUrl={emotionDialogData}
                     open={emotionDialogOpen}
+                    preserveConfirmedSelection
+                    restoredSelection={expressionSelection}
+                    confirmLabel="确认设置"
                     onClose={() => setEmotionDialogOpen(false)}
-                    onConfirm={(payload: CanvasEmotionPayload) => {
+                    onConfirm={(payload) => {
                         setEmotionDialogOpen(false);
-                        void run(payload.prompt);
+                        setExpressionSelection(readExpressionSelection(payload));
+                        setExpressionDirty(true);
                     }}
                 />
             ) : null}

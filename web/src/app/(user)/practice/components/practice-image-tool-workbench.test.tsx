@@ -31,4 +31,13 @@ describe("standalone practice image tools", () => {
         expect(source).toContain("JSON.stringify({ toolId, ...resultDiagnostic");
         expect(source).toContain("run(retryPrompt || undefined)");
     });
+
+    it("validates expression instructions instead of the hidden local edit field", async () => {
+        const source = await readFile(sourcePath, "utf8");
+        expect(source).toContain("if (expressionTool && (!expressionSelection || saving)) return;");
+        expect(source).toContain('toolId === "local-edit" && !prompt.trim()');
+        expect(source).toContain("setExpressionSelection(readExpressionSelection(payload))");
+        expect(source).toContain("expression: attempt.selection");
+        expect(source).not.toContain('toolId !== "reverse-prompt" && !prompt.trim()');
+    });
 });
