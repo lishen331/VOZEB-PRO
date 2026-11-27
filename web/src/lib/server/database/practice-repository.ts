@@ -3,7 +3,7 @@ import type { PracticeTenantScope } from "@/lib/server/practice-tenant-scope";
 import type { PageInput, PageResult, PracticeCopyRequestInput, PracticeCopyRequestRecord, PracticeSessionCreateInput, PracticeSessionRecord, PracticeSessionStatus, PullFilmVersionRecord } from "./repository-types";
 import { isoValue, jsonParam, jsonValue, normalizePage, normalizePageSize, optionalIso, optionalString, stringValue } from "./repository-utils";
 
-export type PracticeSessionListInput = PageInput & { projectId?: string; projectKind?: "canvas" | "drama"; module?: PracticeSessionRecord["module"] };
+export type PracticeSessionListInput = PageInput & { projectId?: string; projectKind?: "canvas" | "drama"; module?: PracticeSessionRecord["module"]; multiAngle?: boolean };
 
 export class PracticeRepository {
     constructor(private readonly db: QueryExecutor) {}
@@ -103,6 +103,26 @@ export class PracticeRepository {
     async listPracticeSessionsForUser(scope: PracticeTenantScope, input: PracticeSessionListInput = {}): Promise<PageResult<PracticeSessionRecord>> {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
+        if (input.multiAngle) {
+            const result = await this.db.query(
+                `WITH shots AS (
+                    SELECT *, input_json->'multiAngle'->>'batchId' AS batch_id FROM practice_sessions
+                    WHERE school_id = $1 AND user_id = $2 AND module = 'storyboard-image'
+                      AND input_json->'multiAngle'->>'batchId' IS NOT NULL
+                ), batches AS (
+                    SELECT batch_id, min(created_at) AS batch_started_at FROM shots GROUP BY batch_id
+                ), page_batches AS (
+                    SELECT * FROM batches ORDER BY batch_started_at DESC, batch_id DESC LIMIT $3 OFFSET $4
+                )
+                SELECT shots.*, totals.total_count
+                FROM (SELECT count(*)::integer AS total_count FROM batches) totals
+                LEFT JOIN page_batches ON TRUE
+                LEFT JOIN shots ON shots.batch_id = page_batches.batch_id
+                ORDER BY page_batches.batch_started_at DESC, page_batches.batch_id DESC, shots.created_at ASC, shots.id ASC`,
+                [scope.schoolId, scope.ownerUserId, pageSize, (page - 1) * pageSize],
+            );
+            return { items: result.rows.filter((row) => row.id).map(mapPracticeSession), total: Number(result.rows[0]?.total_count) || 0, page, pageSize };
+        }
         const result = await this.db.query(
             `WITH filtered AS (
                 SELECT * FROM practice_sessions
