@@ -97,7 +97,10 @@ export default function OutpaintingWorkbench() {
             return;
         }
         setSource(image);
-        setSelection(initialSelection());
+        setSelection((current) => {
+            const nextRatio = current.ratio === "free" ? "original" : current.ratio;
+            return { ...current, ratio: nextRatio, padding: centeredOutpainting(image.width, image.height, nextRatio) };
+        });
         setResult(undefined);
         setError("");
         setShowOriginal(false);
@@ -120,8 +123,7 @@ export default function OutpaintingWorkbench() {
         setError("");
     }
     function changeRatio(next: OutpaintingRatio) {
-        if (!source) return;
-        updateSelection({ ...selection, ratio: next, padding: next === "free" ? padding : centeredOutpainting(source.width, source.height, next) });
+        updateSelection({ ...selection, ratio: next, padding: next === "free" ? padding : source ? centeredOutpainting(source.width, source.height, next) : emptyOutpaintingPadding() });
     }
     function grow(horizontal: Drag["horizontal"], vertical: Drag["vertical"], dx: number, dy: number, base: OutpaintingPadding) {
         if (!source) return;
@@ -306,7 +308,7 @@ export default function OutpaintingWorkbench() {
                         </div>
                         <label className="block space-y-1 text-sm">
                             <span>扩图比例</span>
-                            <select className={selectClass} disabled={!source || busy || uploading} value={ratio} onChange={(event) => changeRatio(event.target.value as OutpaintingRatio)}>
+                            <select className={selectClass} disabled={busy || uploading} value={ratio} onChange={(event) => changeRatio(event.target.value as OutpaintingRatio)}>
                                 {OUTPAINTING_RATIOS.filter((item) => item !== "free" || ratio === "free").map((item) => (
                                     <option key={item} value={item}>
                                         {ratioLabel(item)}
@@ -316,7 +318,7 @@ export default function OutpaintingWorkbench() {
                         </label>
                         <label className="block space-y-1 text-sm">
                             <span>输出分辨率</span>
-                            <select className={selectClass} disabled={!source || busy || uploading} value={resolution} onChange={(event) => updateSelection({ ...selection, resolution: event.target.value as OutpaintingSelection["resolution"] })}>
+                            <select className={selectClass} disabled={busy || uploading} value={resolution} onChange={(event) => updateSelection({ ...selection, resolution: event.target.value as OutpaintingSelection["resolution"] })}>
                                 {OUTPAINTING_RESOLUTIONS.map((item) => (
                                     <option key={item} value={item}>
                                         {item.toUpperCase()} · {OUTPAINTING_LONG_EDGES[item]}px
@@ -325,7 +327,9 @@ export default function OutpaintingWorkbench() {
                             </select>
                         </label>
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--gm-text-3)]">
-                            <span role="status">{geometry ? `原图 ${source?.width} × ${source?.height} → 输出 ${geometry.width} × ${geometry.height}` : source ? "向外拖动边框或选择比例，需保留有效扩展区域" : "请先选择一张图片"}</span>
+                            <span role="status">
+                                {geometry ? `原图 ${source?.width} × ${source?.height} → 输出 ${geometry.width} × ${geometry.height}` : source ? "向外拖动边框或选择比例，需保留有效扩展区域" : "可先选择比例和分辨率，选图后查看扩图范围"}
+                            </span>
                             <GammaButton variant="outline" disabled={!source || busy || uploading} onClick={() => changeRatio("original")}>
                                 重置边框
                             </GammaButton>
