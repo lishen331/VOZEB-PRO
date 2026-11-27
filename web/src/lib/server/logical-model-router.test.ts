@@ -62,9 +62,17 @@ describe("resolveLogicalModel", () => {
             ],
         };
 
-        const candidates = resolveLogicalModelCandidates(settings, "video", "video");
-        expect(candidates.map((item) => item.channelId)).toEqual(["high", "low"]);
-        expect(candidates[0].capabilityProfile).toMatchObject({ supportsReferenceImage: true, maxReferenceImages: 2, maxDurationSeconds: 10, timeoutMs: 12 * 60_000 });
+        const draw = vi.spyOn(Math, "random");
+        try {
+            draw.mockReturnValue(0.5);
+            const candidates = resolveLogicalModelCandidates(settings, "video", "video");
+            expect(candidates.map((item) => item.channelId)).toEqual(["high", "low"]);
+            expect(candidates[0].capabilityProfile).toMatchObject({ supportsReferenceImage: true, maxReferenceImages: 2, maxDurationSeconds: 10, timeoutMs: 12 * 60_000 });
+            draw.mockReturnValue(0.95);
+            expect(resolveLogicalModelCandidates(settings, "video", "video").map((item) => item.channelId)).toEqual(["low", "high"]);
+        } finally {
+            draw.mockRestore();
+        }
     });
 
     it("does not route a logical model through a binding missing from the channel model list", () => {
