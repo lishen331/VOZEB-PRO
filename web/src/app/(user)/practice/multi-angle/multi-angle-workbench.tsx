@@ -2,11 +2,10 @@
 
 import type { PointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Aperture, ImagePlus } from "lucide-react";
+import { Aperture, History, ImagePlus } from "lucide-react";
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { cn } from "@/lib/utils";
-import { buildAnglePrompt } from "@/lib/angle/angle-presets";
 import { practiceApi, type PracticeSession } from "@/services/api/practice";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 
@@ -24,15 +23,14 @@ import {
     createSampleImage,
     paintCapture,
     shotLabel,
-    singleShotName,
-    toCanvasAngleParams,
     toSubjectAngle,
     wrapCameraAngle,
     type AngleMode,
     type BatchSize,
     type PresetKey,
 } from "./lib/angle-model";
-import MultiAngleResults, { type MultiAngleRun, type MultiAngleShot } from "./multi-angle-results";
+import { createAngleShots, groupMultiAngleSessions, type MultiAngleRun, type MultiAngleShot } from "./lib/angle-history";
+import MultiAngleResults, { MultiAngleHistory } from "./multi-angle-results";
 import MultiAngleStage from "./multi-angle-stage";
 import OrbitWidget from "./orbit-widget";
 import s from "./multi-angle.module.css";
@@ -86,8 +84,9 @@ export default function MultiAngleWorkbench() {
 
     const [image, setImage] = useState<string | null>(null);
     const [imageEl, setImageEl] = useState<HTMLImageElement | null>(null);
-    const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
+    const [uploadedImage, setUploadedImage] = useState<Pick<UploadedImage, "storageKey"> | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [imageError, setImageError] = useState(false);
     const [thumb, setThumb] = useState(DEFAULT_THUMB);
     const [mode, setMode] = useState<AngleMode>("camera");
     const [h, setH] = useState(0);
@@ -102,19 +101,29 @@ export default function MultiAngleWorkbench() {
     const [dropActive, setDropActive] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [shots, setShots] = useState<MultiAngleShot[]>([]);
+    const [resultRevision, setResultRevision] = useState(0);
     // 结果说明按「生成那一刻」的机位快照写，之后继续拖镜头不会改动已有结果的标注
     const [runMeta, setRunMeta] = useState<{ total: number; distance: number; wideAngle: boolean; cameraMode: boolean } | null>(null);
     const [runs, setRuns] = useState<MultiAngleRun[]>([]);
+    const [restoredId, setRestoredId] = useState<string | null>(null);
+    const [historyLoading, setHistoryLoading] = useState(true);
+    const [historyError, setHistoryError] = useState(false);
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyHasMore, setHistoryHasMore] = useState(false);
 
     const viewportRef = useRef<HTMLDivElement | null>(null);
     const widgetRef = useRef<HTMLDivElement | null>(null);
     const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
-    const resultsRef = useRef<HTMLElement | null>(null);
+    const historyDialogRef = useRef<HTMLDialogElement>(null);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const workspaceRef = useRef<HTMLDivElement | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const dragRef = useRef<DragStart | null>(null);
     const live = useRef({ h, p, d, fisheye, mode });
     const aliveRef = useRef(true);
-    const runSeq = useRef(0);
+    const historyRequest = useRef(0);
+    const imageRequest = useRef(0);
+    const generationActive = useRef(false);
     const abortRef = useRef<AbortController | null>(null);
 
     live.current = { h, p, d, fisheye, mode };
@@ -123,10 +132,34 @@ export default function MultiAngleWorkbench() {
         aliveRef.current = true;
         return () => {
             aliveRef.current = false;
+            historyRequest.current += 1;
+            imageRequest.current += 1;
             dragRef.current = null;
             abortRef.current?.abort();
         };
     }, []);
+
+    const loadHistory = useCallback(async (page: number) => {
+        const request = ++historyRequest.current;
+        setHistoryLoading(true);
+        setHistoryError(false);
+        try {
+            const response = await practiceApi.listSessions({ history: "multi-angle", page });
+            if (request !== historyRequest.current || !aliveRef.current) return;
+            const next = groupMultiAngleSessions(response.sessions);
+            setRuns((previous) => (page === 1 ? next : [...previous, ...next.filter((run) => !previous.some((item) => item.id === run.id))]));
+            setHistoryPage(response.page);
+            setHistoryHasMore(response.page * response.pageSize < response.total);
+        } catch {
+            if (request === historyRequest.current && aliveRef.current) setHistoryError(true);
+        } finally {
+            if (request === historyRequest.current && aliveRef.current) setHistoryLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadHistory(1);
+    }, [loadHistory]);
 
     // ─── 载入图片：量出宽高比，用来等比缩小中央缩略卡 ───
     useEffect(() => {
@@ -148,13 +181,15 @@ export default function MultiAngleWorkbench() {
             }
             setThumb({ width: Math.round(width), height: Math.round(height) });
         };
+        element.onerror = () => setImageError(true);
         element.src = image;
         return () => {
             element.onload = null;
+            element.onerror = null;
         };
     }, [image]);
 
-    // 右上取景窗与镜头里的取景屏
+    // 操作台右上角的实时取景。
     useEffect(() => {
         const canvas = captureCanvasRef.current;
         if (!canvas) return;
@@ -165,29 +200,48 @@ export default function MultiAngleWorkbench() {
         paintCapture(canvas, imageEl, { h, p, d, fisheye, aspect: 1 });
     }, [imageEl, h, p, d, fisheye]);
 
-    const acceptFile = useCallback(
-        (file: File | null | undefined) => {
-            if (!file || !file.type.startsWith("image/")) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-                if (typeof reader.result !== "string" || !aliveRef.current) return;
-                setImage(reader.result);
-                setUploadedImage(null);
-                setUploading(true);
-                uploadImage(file)
-                    .then((uploaded) => {
-                        if (aliveRef.current) setUploadedImage(uploaded);
-                    })
-                    .catch((error) => {
-                        if (aliveRef.current) message.error(error instanceof Error ? error.message : "上传失败");
-                    })
-                    .finally(() => {
-                        if (aliveRef.current) setUploading(false);
-                    });
-            };
-            reader.readAsDataURL(file);
+    const startUpload = useCallback(
+        (url: string, input: string | File, request: number) => {
+            if (request !== imageRequest.current || !aliveRef.current || generationActive.current) return;
+            setImage(url);
+            setImageError(false);
+            setUploadedImage(null);
+            setRestoredId(null);
+            setShots([]);
+            setRunMeta(null);
+            setUploading(true);
+            const isCurrent = () => aliveRef.current && request === imageRequest.current;
+            void uploadImage(input)
+                .then((uploaded) => {
+                    if (isCurrent()) setUploadedImage(uploaded);
+                })
+                .catch((error) => {
+                    if (isCurrent()) message.error(error instanceof Error ? error.message : "上传失败");
+                })
+                .finally(() => {
+                    if (isCurrent()) setUploading(false);
+                });
         },
         [message],
+    );
+
+    const acceptFile = useCallback(
+        (file: File | null | undefined) => {
+            if (!file || !file.type.startsWith("image/") || generationActive.current) return;
+            const request = ++imageRequest.current;
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === "string") startUpload(reader.result, file, request);
+            };
+            reader.onerror = () => {
+                if (request !== imageRequest.current || !aliveRef.current) return;
+                setUploading(false);
+                message.error("无法读取图片，请重新选择");
+            };
+            setUploading(true);
+            reader.readAsDataURL(file);
+        },
+        [message, startUpload],
     );
 
     // 拖到页面任意位置、Ctrl+V 粘贴图片都能载入（输入框内粘贴不拦截）
@@ -335,44 +389,44 @@ export default function MultiAngleWorkbench() {
 
     // ─── 生成：上传图片后调 AI 练习画布 gamaimage 池 ───
     const generate = useCallback(async () => {
-        if (!uploadedImage || generating || uploading) return;
+        if (!uploadedImage || !imageEl || imageError || generationActive.current || uploading) return;
+        generationActive.current = true;
+        setRestoredId(null);
         abortRef.current?.abort();
         const ac = new AbortController();
         abortRef.current = ac;
         setGenerating(true);
 
-        const snap = live.current;
-        const cameraMode = snap.mode === "camera";
-        const jobs: Array<{ h: number; p: number; name: string }> = batch === 1 ? [{ h: snap.h, p: snap.p, name: singleShotName(preset, snap.h, snap.p) }] : BATCH_ANGLES[batch].map((angle) => ({ ...angle }));
-        const distance = snap.d;
-        const wideAngle = snap.fisheye;
+        const snap = { ...live.current, batch, preset, prompt, promptOn, batchId: crypto.randomUUID() };
+        const jobs = createAngleShots(snap);
+        const { d: distance, fisheye: wideAngle, mode: cameraMode } = snap;
 
-        setShots(jobs.map((job) => ({ name: job.name, url: null, status: "queued" as const })));
-        setRunMeta({ total: jobs.length, distance, wideAngle, cameraMode });
+        setResultRevision((revision) => revision + 1);
+        setShots(jobs);
+        setRunMeta({ total: jobs.length, distance, wideAngle, cameraMode: cameraMode === "camera" });
 
         const urls: string[] = [];
         for (const [index, job] of jobs.entries()) {
             if (ac.signal.aborted || !aliveRef.current) break;
             setShots((prev) => prev.map((shot, i) => (i === index ? { ...shot, status: "running" as const } : shot)));
             try {
-                const angleParams = toCanvasAngleParams(job.h, job.p, distance, wideAngle, promptOn);
-                const anglePrompt = buildAnglePrompt({ ...angleParams, usePrompt: promptOn });
                 const { session } = await practiceApi.createSession({
                     module: "storyboard-image",
                     mode: "workflow",
                     title: `多角度练习 · ${job.name}`,
                     input: {
-                        prompt: [prompt.trim(), anglePrompt].filter(Boolean).join("，"),
+                        prompt: job.prompt.full,
                         workflowCode: "gamaimage",
+                        multiAngle: { ...snap, shotIndex: index },
                     },
                     references: [{ type: "asset", id: uploadedImage.storageKey, inputKey: "referenceImage" }],
                     logicalModelId: "gamaimage",
                     clientRequestId: crypto.randomUUID(),
                 });
                 const done = await pollSession(session.id, ac.signal);
-                const url = done.result?.media?.url ?? null;
+                const url = done.status === "success" ? (done.result?.media?.url ?? null) : null;
                 urls.push(url ?? "");
-                setShots((prev) => prev.map((shot, i) => (i === index ? { ...shot, url, status: done.status === "success" ? ("success" as const) : ("failed" as const) } : shot)));
+                setShots((prev) => prev.map((shot, i) => (i === index ? { ...shot, url, status: url ? ("success" as const) : ("failed" as const) } : shot)));
             } catch (error) {
                 if ((error as Error).message === "cancelled") break;
                 urls.push("");
@@ -381,31 +435,47 @@ export default function MultiAngleWorkbench() {
             }
         }
 
+        generationActive.current = false;
         if (!aliveRef.current || ac.signal.aborted) return;
         setGenerating(false);
         const successCount = urls.filter(Boolean).length;
-        if (successCount) {
-            runSeq.current += 1;
-            setRuns((prev) => [
-                {
-                    id: runSeq.current,
-                    name: `多角度练习 · ${jobs.length} 张`,
-                    sub: `${wideAngle ? "鱼眼" : shotLabel(distance)} · ${cameraMode ? "摄像头视角" : "主体视角"} · 刚刚`,
-                    thumbs: urls.filter(Boolean).slice(0, 4),
-                },
-                ...prev,
-            ]);
-            message.success(`已生成 ${successCount} 张多角度画面`);
-            window.requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-        }
-    }, [uploadedImage, generating, uploading, batch, preset, prompt, promptOn, message]);
+        if (successCount) message.success(`已生成 ${successCount} 张多角度画面`);
+        void loadHistory(1);
+    }, [uploadedImage, imageEl, imageError, uploading, batch, preset, prompt, promptOn, message, loadHistory]);
+
+    const restoreRun = useCallback(
+        (run: MultiAngleRun) => {
+            if (generationActive.current) return;
+            imageRequest.current += 1;
+            const snap = run.snapshot;
+            setImage(run.source.url);
+            if (image !== run.source.url) setImageError(false);
+            setUploadedImage(run.source);
+            setUploading(false);
+            setMode(snap.mode);
+            setH(snap.h);
+            setP(snap.p);
+            setD(snap.d);
+            setFisheye(snap.fisheye);
+            setPreset(snap.preset);
+            setBatch(snap.batch);
+            setPromptOn(snap.promptOn);
+            setPrompt(snap.prompt);
+            setResultRevision((revision) => revision + 1);
+            setShots(run.shots);
+            setRunMeta({ total: snap.batch, distance: snap.d, wideAngle: snap.fisheye, cameraMode: snap.mode === "camera" });
+            setRestoredId(run.id);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        },
+        [image],
+    );
 
     const download = useCallback((url: string, name: string) => {
         downloadDataUrl(url, name);
     }, []);
 
     const downloadAll = useCallback(() => {
-        const ready = shots.filter((shot): shot is { name: string; url: string } => Boolean(shot.url));
+        const ready = shots.filter((shot): shot is MultiAngleShot & { url: string } => Boolean(shot.url));
         // 浏览器会拦连续同步下载，间隔一点再触发，保证每个文件都落到下载目录
         ready.forEach((shot, index) => {
             window.setTimeout(() => downloadDataUrl(shot.url, shot.name), index * 220);
@@ -415,29 +485,19 @@ export default function MultiAngleWorkbench() {
 
     const chooseSample = useCallback(() => {
         const url = createSampleImage();
-        if (!url) return;
-        setImage(url);
-        setUploadedImage(null);
-        setUploading(true);
-        uploadImage(url)
-            .then((uploaded) => {
-                if (aliveRef.current) setUploadedImage(uploaded);
-            })
-            .catch((error) => {
-                if (aliveRef.current) message.error(error instanceof Error ? error.message : "上传失败");
-            })
-            .finally(() => {
-                if (aliveRef.current) setUploading(false);
-            });
-    }, [message]);
+        if (url) startUpload(url, url, ++imageRequest.current);
+    }, [startUpload]);
 
     const clearImage = useCallback(() => {
+        if (generationActive.current) return;
+        imageRequest.current += 1;
         setImage(null);
+        setImageError(false);
         setUploadedImage(null);
         setUploading(false);
         setShots([]);
         setRunMeta(null);
-        abortRef.current?.abort();
+        setRestoredId(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
     }, []);
 
@@ -445,7 +505,7 @@ export default function MultiAngleWorkbench() {
         <main className={cn(s.root, "h-full min-h-0 overflow-y-auto bg-[var(--gm-bg)]")}>
             <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={(event) => acceptFile(event.target.files?.[0])} />
 
-            <div className="gm-page px-4 py-6 sm:px-6 lg:px-8">
+            <div className={s.page}>
                 <header className={s.pageHead}>
                     <div>
                         <h1>
@@ -456,55 +516,31 @@ export default function MultiAngleWorkbench() {
                         </h1>
                         <p>上传一张主体图，拖动镜头环绕它。镜头移到哪个角度，取景窗就实时显示那个机位会拍到的画面。</p>
                     </div>
-                    {image ? (
-                        <div className={s.headActions}>
-                            <button type="button" className={cn(s.btn, s.btnGhost)} onClick={clearImage}>
+                    <div className={s.headActions}>
+                        {image && (
+                            <button type="button" className={cn(s.btn, s.btnGhost)} disabled={generating} onClick={clearImage}>
                                 重新选择图片
                             </button>
-                        </div>
-                    ) : null}
+                        )}
+                        <button
+                            type="button"
+                            className={cn(s.btn, s.btnGhost, s.openHistory)}
+                            aria-haspopup="dialog"
+                            aria-label="打开历史记录"
+                            onClick={() => {
+                                historyDialogRef.current?.showModal();
+                                setHistoryOpen(true);
+                            }}
+                        >
+                            <History size={15} />
+                            历史记录
+                        </button>
+                    </div>
                 </header>
 
-                {!image ? (
-                    <div className={s.uploadCard}>
-                        <div className={cn(s.dropzone, dropActive && s.dropzoneOver)} onClick={() => fileInputRef.current?.click()}>
-                            <div className={s.dzInner}>
-                                <div className={s.dzIcon}>
-                                    <ImagePlus size={26} />
-                                </div>
-                                <b>拖入或点击上传一张主体图片</b>
-                                <span>
-                                    支持 JPG / PNG / WebP · 也可以直接 Ctrl+V 粘贴截图
-                                    <br />
-                                    上传后在环形轨迹上拖动镜头选择视角
-                                </span>
-                                <div className={s.dzActions}>
-                                    <button
-                                        type="button"
-                                        className={cn(s.btn, s.btnPrimary)}
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            fileInputRef.current?.click();
-                                        }}
-                                    >
-                                        选择图片
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={cn(s.btn, s.btnGhost)}
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            chooseSample();
-                                        }}
-                                    >
-                                        用示例图试试
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className={s.workspace}>
+                <div className={s.workspace} ref={workspaceRef}>
+                    <section className={s.workCard} aria-labelledby="ma-controls-heading">
+                        <h2 id="ma-controls-heading">操作台</h2>
                         <MultiAngleStage
                             mode={mode}
                             h={h}
@@ -514,10 +550,42 @@ export default function MultiAngleWorkbench() {
                             image={image}
                             dragging={dragging}
                             viewportRef={viewportRef}
-                            captureCanvasRef={captureCanvasRef}
                             onPointerDown={handlePointerDown}
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
+                            emptyState={
+                                <div className={cn(s.dropzone, dropActive && s.dropzoneOver)} onClick={() => fileInputRef.current?.click()}>
+                                    <div className={s.dzInner}>
+                                        <div className={s.dzIcon}>
+                                            <ImagePlus size={26} />
+                                        </div>
+                                        <b>拖入或点击上传一张主体图片</b>
+                                        <span>支持 JPG / PNG / WebP · 也可以直接 Ctrl+V 粘贴截图</span>
+                                        <div className={s.dzActions}>
+                                            <button
+                                                type="button"
+                                                className={cn(s.btn, s.btnPrimary)}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    fileInputRef.current?.click();
+                                                }}
+                                            >
+                                                选择图片
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={cn(s.btn, s.btnGhost)}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    chooseSample();
+                                                }}
+                                            >
+                                                用示例图试试
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                         >
                             <OrbitWidget
                                 mode={mode}
@@ -533,7 +601,16 @@ export default function MultiAngleWorkbench() {
                                 onPointerMove={handlePointerMove}
                                 onPointerUp={handlePointerUp}
                             />
+                            <div className={s.capturePreview}>
+                                <canvas ref={captureCanvasRef} width={192} height={192} role="img" aria-label="当前机位的实时取景示意" />
+                                <span>当前取景</span>
+                            </div>
                         </MultiAngleStage>
+                        {imageError && (
+                            <p className={s.hintLine} role="alert">
+                                原主体图已不可用，请重新选择图片。
+                            </p>
+                        )}
 
                         <AngleParamsPanel
                             mode={mode}
@@ -545,7 +622,7 @@ export default function MultiAngleWorkbench() {
                             batch={batch}
                             promptOn={promptOn}
                             prompt={prompt}
-                            ready={!!uploadedImage && !uploading}
+                            ready={!!uploadedImage && !!imageEl && !imageError && !uploading}
                             uploading={uploading}
                             costLabel={batch === 1 ? "1 个机位" : `${BATCH_ANGLES[batch].length} 个机位`}
                             generating={generating}
@@ -558,10 +635,42 @@ export default function MultiAngleWorkbench() {
                             onReset={resetParams}
                             onGenerate={() => void generate()}
                         />
-                    </div>
-                )}
-
-                <MultiAngleResults shots={shots} summary={summaryText} runs={runs} resultsRef={resultsRef} onDownload={download} onDownloadAll={downloadAll} />
+                    </section>
+                    <MultiAngleResults key={resultRevision} shots={shots} summary={summaryText} historical={!!restoredId} generating={generating} onDownload={download} onDownloadAll={downloadAll} />
+                    <aside className={s.historyRail}>
+                        <MultiAngleHistory
+                            runs={runs}
+                            selectedId={restoredId}
+                            disabled={generating}
+                            loading={historyLoading}
+                            error={historyError}
+                            hasMore={historyHasMore}
+                            onRestore={restoreRun}
+                            onRefresh={() => void loadHistory(1)}
+                            onLoadMore={() => void loadHistory(historyPage + 1)}
+                        />
+                    </aside>
+                </div>
+                <dialog ref={historyDialogRef} className={s.historyDialog} aria-label="历史记录" onClose={() => setHistoryOpen(false)}>
+                    {historyOpen && (
+                        <MultiAngleHistory
+                            runs={runs}
+                            selectedId={restoredId}
+                            disabled={generating}
+                            loading={historyLoading}
+                            error={historyError}
+                            hasMore={historyHasMore}
+                            onClose={() => historyDialogRef.current?.close()}
+                            onRestore={(run) => {
+                                historyDialogRef.current?.close();
+                                restoreRun(run);
+                                window.requestAnimationFrame(() => workspaceRef.current?.scrollIntoView({ block: "start" }));
+                            }}
+                            onRefresh={() => void loadHistory(1)}
+                            onLoadMore={() => void loadHistory(historyPage + 1)}
+                        />
+                    )}
+                </dialog>
             </div>
         </main>
     );

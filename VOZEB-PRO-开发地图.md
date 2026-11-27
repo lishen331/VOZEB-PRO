@@ -367,6 +367,11 @@ flowchart LR
 - [Docker 部署](docs/content/docs/overview/docker.mdx)：官方 Compose 部署说明。
 
 
+### 多角度练习工作台
+
+- `/practice/multi-angle`：首屏直接显示工作台，选图、示例、拖放和粘贴在左侧主体画面内；中间结果卡绑定对应机位提示词，右侧历史支持恢复主体和参数。
+- `/api/practice/sessions?history=multi-angle`：按租户和用户查询完整批次，使用现有 `input_json.multiAngle` 保存快照，不传入生成请求；没有数据库迁移。
+
 ### 无限练习工作台（2026-09-08）
 
 - `web/src/app/(user)/practice/components/practice-module-workbench.tsx`：六模块共用桌面输入/结果双栏，窄屏上下排列，使用平台主题。
