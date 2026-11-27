@@ -5,7 +5,19 @@ import { ArrowLeft, History, ImagePlus, Sparkles, WandSparkles } from "lucide-re
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
-import { centeredOutpainting, emptyOutpaintingPadding, outpaintingGeometry, outpaintingLesson, OUTPAINTING_RATIOS, type OutpaintingPadding, type OutpaintingRatio, type OutpaintingRecord, type OutpaintingSelection } from "@/lib/practice-outpainting";
+import {
+    centeredOutpainting,
+    emptyOutpaintingPadding,
+    outpaintingGeometry,
+    outpaintingLesson,
+    OUTPAINTING_RATIOS,
+    OUTPAINTING_RESOLUTIONS,
+    OUTPAINTING_LONG_EDGES,
+    type OutpaintingPadding,
+    type OutpaintingRatio,
+    type OutpaintingRecord,
+    type OutpaintingSelection,
+} from "@/lib/practice-outpainting";
 import { createLibraryAsset } from "@/services/api/library-assets";
 import { listPracticeOutpainting, submitPracticeOutpainting } from "@/services/api/practice-outpainting";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
@@ -295,7 +307,7 @@ export default function OutpaintingWorkbench() {
                         <label className="block space-y-1 text-sm">
                             <span>扩图比例</span>
                             <select className={selectClass} disabled={!source || busy || uploading} value={ratio} onChange={(event) => changeRatio(event.target.value as OutpaintingRatio)}>
-                                {OUTPAINTING_RATIOS.map((item) => (
+                                {OUTPAINTING_RATIOS.filter((item) => item !== "free" || ratio === "free").map((item) => (
                                     <option key={item} value={item}>
                                         {ratioLabel(item)}
                                     </option>
@@ -304,9 +316,12 @@ export default function OutpaintingWorkbench() {
                         </label>
                         <label className="block space-y-1 text-sm">
                             <span>输出分辨率</span>
-                            <select className={selectClass} disabled={!source || busy || uploading} value={resolution} onChange={(event) => updateSelection({ ...selection, resolution: event.target.value === "1k" ? "1k" : "2k" })}>
-                                <option value="1k">1K · 1024px</option>
-                                <option value="2k">2K · 2048px</option>
+                            <select className={selectClass} disabled={!source || busy || uploading} value={resolution} onChange={(event) => updateSelection({ ...selection, resolution: event.target.value as OutpaintingSelection["resolution"] })}>
+                                {OUTPAINTING_RESOLUTIONS.map((item) => (
+                                    <option key={item} value={item}>
+                                        {item.toUpperCase()} · {OUTPAINTING_LONG_EDGES[item]}px
+                                    </option>
+                                ))}
                             </select>
                         </label>
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--gm-text-3)]">
