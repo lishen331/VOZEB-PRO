@@ -175,7 +175,8 @@ export async function POST(request: Request) {
 
     const capability = !trial && tool.kind === "ai-text" ? "text" : "image";
     const settings = await getAuthSettings();
-    const routingContext = { executionProfile: "open-source-practice" as const, ...(capability === "text" ? { requiresImageInput: true } : {}) };
+    const expressionContext = expression ? ({ practiceImageTool: "expression-reference" } as const) : {};
+    const routingContext = { executionProfile: "open-source-practice" as const, ...expressionContext, ...(capability === "text" ? { requiresImageInput: true } : {}) };
     let configuredModel = trial ? practiceCanvasVirtualModel("image") : capability === "text" ? settings.practiceDefaultModels.visionModel || settings.practiceDefaultModels.textModel : settings.practiceDefaultModels.imageModel;
     let candidates = configuredModel ? resolvePracticeGenerationCandidates(settings, capability, configuredModel, routingContext) : [];
     if (!configuredModel && capability === "text") {
@@ -193,6 +194,7 @@ export async function POST(request: Request) {
         surface: "canvas" as const,
         executionProfile: "open-source-practice" as const,
         schoolId: practiceAccess.schoolId,
+        ...expressionContext,
         clientRequestId,
     };
     if (!candidates.length) {
