@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Eraser, ImagePlus, LoaderCircle, Save, Sparkles, WandSparkles } from "lucide-react";
 import { App } from "@/components/gamma-ui/gamma-ant-app";
@@ -45,6 +45,8 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
     const [expressionHistory, setExpressionHistory] = useState<ExpressionPracticeRecord[]>([]);
     const [expressionDirty, setExpressionDirty] = useState(false);
     const expressionSubmitting = useRef(false);
+    const expressionUploading = useRef(false);
+    const [expressionDragging, setExpressionDragging] = useState(false);
     const [source, setSource] = useState<UploadedImage | null>(null);
     const [prompt, setPrompt] = useState("");
     const [mode, setMode] = useState<(typeof REVERSE_PROMPT_MODES)[number]["id"]>("general");
@@ -236,20 +238,37 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
         if (mask) mask.getContext("2d")?.clearRect(0, 0, mask.width, mask.height);
     };
 
-    const chooseFile = async (file?: File) => {
-        if (!file || restoring || ((toolId === "reverse-prompt" || toolId === "expression-reference") && (busy || trialBusy || uploading))) return;
-        if (!file.type.startsWith("image/")) return message.error("请选择图片文件");
+    const expressionSourceBlocked = busy || trialBusy || uploading || restoring || emotionDialogOpen;
+    const chooseFile = async (input?: File | string) => {
+        if (!input || restoring || (reverse && (busy || trialBusy || uploading)) || (expressionTool && (expressionSourceBlocked || expressionUploading.current))) return;
+        if (typeof input !== "string" && !input.type.startsWith("image/")) return message.error("请选择图片文件");
+        if (expressionTool) expressionUploading.current = true;
         setUploading(true);
         setError("");
         try {
-            const uploaded = await uploadImage(file);
-            replaceSource(uploaded);
+            replaceSource(await uploadImage(input));
         } catch (cause) {
             message.error(cause instanceof Error ? cause.message : "图片上传失败");
         } finally {
+            if (expressionTool) expressionUploading.current = false;
             setUploading(false);
         }
     };
+
+    const pasteExpressionSource = useEffectEvent((event: ClipboardEvent) => {
+        if (event.defaultPrevented || expressionSourceBlocked || expressionUploading.current) return;
+        if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.closest("input, textarea, select"))) return;
+        const image = Array.from(event.clipboardData?.files ?? []).find((file) => file.type.startsWith("image/"));
+        if (!image) return;
+        event.preventDefault();
+        void chooseFile(image);
+    });
+    useEffect(() => {
+        if (!expressionTool) return;
+        const onPaste = (event: ClipboardEvent) => pasteExpressionSource(event);
+        window.addEventListener("paste", onPaste);
+        return () => window.removeEventListener("paste", onPaste);
+    }, [expressionTool]);
 
     const readPointer = (event: ReactPointerEvent<HTMLCanvasElement>) => {
         const canvas = event.currentTarget;
@@ -517,71 +536,115 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                             event.currentTarget.value = "";
                         }}
                     />
-                    {source ? (
-                        <div className="relative overflow-hidden rounded-xl border border-[var(--gm-border)] bg-black/5">
-                            <img
-                                key={reverse ? reverseRestoreRevision : undefined}
-                                src={source.url}
-                                onError={() => {
-                                    if (reverseSourcePreview !== "loading") return;
-                                    setSource(null);
-                                    setReverseSourcePreview("missing");
-                                }}
-                                alt="练习源图"
-                                className="mx-auto max-h-[38vh] max-w-full object-contain"
-                                onLoad={(event) => {
-                                    const canvas = maskRef.current;
-                                    if (reverseSourcePreview === "loading") setReverseSourcePreview(null);
-                                    const { naturalWidth, naturalHeight } = event.currentTarget;
-                                    if (!canvas || !naturalWidth || !naturalHeight) return;
-                                    if (canvas.width !== naturalWidth) canvas.width = naturalWidth;
-                                    if (canvas.height !== naturalHeight) canvas.height = naturalHeight;
-                                }}
-                            />
-                            {toolId === "local-edit" ? (
-                                <canvas
-                                    ref={maskRef}
-                                    width={source.width}
-                                    height={source.height}
-                                    aria-label="编辑选区画布"
-                                    className="absolute inset-0 h-full w-full touch-none"
-                                    onPointerDown={(event) => {
-                                        if (restoring) return;
-                                        drawingRef.current = true;
-                                        event.currentTarget.setPointerCapture(event.pointerId);
-                                        const context = event.currentTarget.getContext("2d");
-                                        if (context) {
-                                            const point = readPointer(event);
-                                            context.beginPath();
-                                            context.moveTo(point.x, point.y);
-                                            drawMask(event);
-                                        }
+                    <div
+                        className={expressionDragging ? "rounded-xl ring-2 ring-[var(--gm-accent)]" : undefined}
+                        {...(expressionTool
+                            ? {
+                                  "data-expression-source-drop": true,
+                                  onDragOver: (event: React.DragEvent<HTMLDivElement>) => {
+                                      if (!event.dataTransfer.types.includes("Files")) return;
+                                      event.preventDefault();
+                                      event.dataTransfer.dropEffect = expressionSourceBlocked ? "none" : "copy";
+                                      if (!expressionSourceBlocked) setExpressionDragging(true);
+                                  },
+                                  onDragLeave: (event: React.DragEvent<HTMLDivElement>) => {
+                                      if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setExpressionDragging(false);
+                                  },
+                                  onDrop: (event: React.DragEvent<HTMLDivElement>) => {
+                                      if (!event.dataTransfer.files.length) return;
+                                      event.preventDefault();
+                                      setExpressionDragging(false);
+                                      if (expressionSourceBlocked || expressionUploading.current) return;
+                                      if (event.dataTransfer.files.length !== 1) return void message.error("请一次拖入一张图片");
+                                      void chooseFile(event.dataTransfer.files[0]);
+                                  },
+                              }
+                            : { className: "contents" })}
+                    >
+                        {source ? (
+                            <div className="relative overflow-hidden rounded-xl border border-[var(--gm-border)] bg-black/5">
+                                <img
+                                    key={reverse ? reverseRestoreRevision : undefined}
+                                    src={source.url}
+                                    onError={() => {
+                                        if (reverseSourcePreview !== "loading") return;
+                                        setSource(null);
+                                        setReverseSourcePreview("missing");
                                     }}
-                                    onPointerMove={drawMask}
-                                    onPointerUp={() => {
-                                        drawingRef.current = false;
-                                        maskRef.current?.getContext("2d")?.beginPath();
-                                    }}
-                                    onPointerCancel={() => {
-                                        drawingRef.current = false;
+                                    alt="练习源图"
+                                    className="mx-auto max-h-[38vh] max-w-full object-contain"
+                                    onLoad={(event) => {
+                                        const canvas = maskRef.current;
+                                        if (reverseSourcePreview === "loading") setReverseSourcePreview(null);
+                                        const { naturalWidth, naturalHeight } = event.currentTarget;
+                                        if (!canvas || !naturalWidth || !naturalHeight) return;
+                                        if (canvas.width !== naturalWidth) canvas.width = naturalWidth;
+                                        if (canvas.height !== naturalHeight) canvas.height = naturalHeight;
                                     }}
                                 />
-                            ) : null}
-                            {toolId === "local-edit" ? <span className="absolute left-2 top-2 rounded bg-black/60 px-2 py-1 text-xs text-white">涂抹要修改的区域</span> : null}
-                        </div>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => fileRef.current?.click()}
-                            className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--gm-border-strong)] bg-[var(--gm-wash)]/30 text-sm text-[var(--gm-text-2)] hover:border-[var(--gm-accent)]"
-                            disabled={uploading}
-                        >
-                            <span className="flex flex-col items-center gap-2">
-                                {uploading ? <LoaderCircle className="size-6 animate-spin" /> : <ImagePlus className="size-6" />}
-                                {uploading ? "图片上传中" : "点击上传一张图片"}
-                            </span>
-                        </button>
-                    )}
+                                {toolId === "local-edit" ? (
+                                    <canvas
+                                        ref={maskRef}
+                                        width={source.width}
+                                        height={source.height}
+                                        aria-label="编辑选区画布"
+                                        className="absolute inset-0 h-full w-full touch-none"
+                                        onPointerDown={(event) => {
+                                            if (restoring) return;
+                                            drawingRef.current = true;
+                                            event.currentTarget.setPointerCapture(event.pointerId);
+                                            const context = event.currentTarget.getContext("2d");
+                                            if (context) {
+                                                const point = readPointer(event);
+                                                context.beginPath();
+                                                context.moveTo(point.x, point.y);
+                                                drawMask(event);
+                                            }
+                                        }}
+                                        onPointerMove={drawMask}
+                                        onPointerUp={() => {
+                                            drawingRef.current = false;
+                                            maskRef.current?.getContext("2d")?.beginPath();
+                                        }}
+                                        onPointerCancel={() => {
+                                            drawingRef.current = false;
+                                        }}
+                                    />
+                                ) : null}
+                                {toolId === "local-edit" ? <span className="absolute left-2 top-2 rounded bg-black/60 px-2 py-1 text-xs text-white">涂抹要修改的区域</span> : null}
+                            </div>
+                        ) : expressionTool ? (
+                            <div className="flex min-h-56 flex-col justify-center gap-3 rounded-xl border border-dashed border-[var(--gm-border-strong)] bg-[var(--gm-wash)]/30 p-4 text-center text-sm text-[var(--gm-text-2)]">
+                                <button
+                                    type="button"
+                                    disabled={expressionSourceBlocked}
+                                    onClick={() => fileRef.current?.click()}
+                                    className="flex flex-col items-center gap-2 rounded-lg py-2 hover:text-[var(--gm-accent)] disabled:cursor-not-allowed"
+                                    aria-label="选择图片"
+                                >
+                                    {uploading ? <LoaderCircle className="size-6 animate-spin" /> : <ImagePlus className="size-6" />}
+                                    <strong>{uploading ? "图片上传中" : "拖入或点击上传一张图片"}</strong>
+                                    <span className="text-xs">支持 JPG / PNG / WebP · 也可以直接 Ctrl+V 粘贴截图</span>
+                                    <span className="rounded-lg border border-[var(--gm-border)] px-3 py-1">选择图片</span>
+                                </button>
+                                <GammaButton className="self-center" size="sm" variant="outline" disabled={expressionSourceBlocked} onClick={() => void chooseFile("/style-thumbs/realistic.jpg")}>
+                                    用示例图试试
+                                </GammaButton>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => fileRef.current?.click()}
+                                className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--gm-border-strong)] bg-[var(--gm-wash)]/30 text-sm text-[var(--gm-text-2)] hover:border-[var(--gm-accent)]"
+                                disabled={uploading}
+                            >
+                                <span className="flex flex-col items-center gap-2">
+                                    {uploading ? <LoaderCircle className="size-6 animate-spin" /> : <ImagePlus className="size-6" />}
+                                    {uploading ? "图片上传中" : "点击上传一张图片"}
+                                </span>
+                            </button>
+                        )}
+                    </div>
                     {reverse && reverseSourcePreview === "missing" ? (
                         <p role="status" className="text-sm text-[var(--gm-text-3)]">
                             历史原图已无法显示，仍可查看拆解和提示词。如需重新分析，请选择图片。
@@ -604,6 +667,11 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                                 更换图片
                             </GammaButton>
                             <PracticeAssetPicker disabled={uploading || busy || trialBusy || restoring} onSelect={replaceSource} label="从个人素材库选择" />
+                            {expressionTool ? (
+                                <GammaButton size="sm" variant="outline" disabled={expressionSourceBlocked} onClick={() => void chooseFile("/style-thumbs/realistic.jpg")}>
+                                    用示例图试试
+                                </GammaButton>
+                            ) : null}
                             {toolId === "local-edit" ? (
                                 <GammaButton
                                     size="sm"
