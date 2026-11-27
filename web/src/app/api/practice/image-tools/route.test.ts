@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
     trustedHeaders: vi.fn(() => ({ "x-practice": "signed" })),
     mediaRegistration: vi.fn(),
     queryTasks: vi.fn(),
+    attachHistory: vi.fn(),
+    getHistory: vi.fn(),
     createTask: vi.fn(),
     lookupTask: vi.fn(),
     readBytes: vi.fn(),
@@ -27,8 +29,9 @@ vi.mock("@/lib/server/public-request-origin", () => ({ resolvePublicRequestOrigi
 
 vi.mock("@/lib/server/generation-task-store", () => ({ queryStoredGenerationTasks: mocks.queryTasks, getStoredGenerationTaskByRequest: mocks.lookupTask, createStoredGenerationTask: mocks.createTask }));
 
+vi.mock("@/lib/server/practice-reverse-prompt-history-store", () => ({ reversePromptHistoryEnabled: () => true, attachReversePromptHistory: mocks.attachHistory, getReversePromptHistory: mocks.getHistory }));
 vi.mock("@/lib/server/object-storage-service", () => ({ readRegisteredMediaBytes: mocks.readBytes }));
-vi.mock("@/lib/server/reference-asset-store", () => ({ writeReferenceImageDataUrl: mocks.writeImage }));
+vi.mock("@/lib/server/reference-asset-store", () => ({ writeReferenceImageDataUrl: mocks.writeImage, writePersistentMediaDataUrl: mocks.writeImage }));
 import { outpaintingLesson, type OutpaintingSelection } from "@/lib/practice-outpainting";
 import sharp from "sharp";
 import * as route from "./route";
@@ -106,6 +109,21 @@ describe("POST /api/practice/image-tools", () => {
         expect(payload.messages[0].content[0].text).toContain('"fullPrompt"');
         expect(payload.messages[0].content[0].text).toContain("重点观察配色");
         expect(payload.messages[0].content[1].image_url.url).toContain("permanent/source.png");
+    });
+
+    it("links reverse analysis to its durable source and settings without reading client-provided results", async () => {
+        const payload = { toolId: "reverse-prompt", sourceUrl: baseBody.sourceUrl, clientRequestId: "analysis-req", reverseHistory: { mode: "detail", extraRequirement: "more detail" } };
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(payload) }));
+        expect(response.status).toBe(200);
+        expect(mocks.attachHistory).toHaveBeenCalledWith({ userId: "student-one", schoolId: "school-one" }, "task-one", { mode: "detail", extraRequirement: "more detail", sourceKey: "permanent/source.png" });
+    });
+
+    it("rejects trial submission pointing at someone else's record before generation", async () => {
+        mocks.getHistory.mockResolvedValue(null);
+        const payload = { toolId: "reverse-prompt", action: "try-generate", prompt: "a test photo", clientRequestId: "analysis-req", reverseHistoryId: "other-school-task" };
+        const response = await POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(payload) }));
+        expect(response.status).toBe(404);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 
     const trialBody = { toolId: "reverse-prompt", action: "try-generate", prompt: "学生编辑后的猫咪三视图", clientRequestId: "trial-req" };

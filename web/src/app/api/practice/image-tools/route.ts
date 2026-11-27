@@ -1,6 +1,6 @@
 import { OUTPAINTING_HISTORY_LIMIT, OUTPAINTING_TITLE, outpaintingGeometry, outpaintingLesson, readOutpaintingSelection, readOutpaintingSnapshot, type OutpaintingRecord } from "@/lib/practice-outpainting";
 import { outpaintingSourceSize, prepareOutpainting, supportsOutpainting } from "@/lib/server/practice-outpainting-service";
-import { writeReferenceImageDataUrl } from "@/lib/server/reference-asset-store";
+import { writePersistentMediaDataUrl, writeReferenceImageDataUrl } from "@/lib/server/reference-asset-store";
 import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
 import { creativeUploadMaxBytes } from "@/lib/creative-upload";
 import { toSystemGenerationChannel } from "@/lib/server/generation-channel";
@@ -24,7 +24,22 @@ import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-acce
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 
-type ToolRequest = { action?: unknown; toolId?: unknown; sourceUrl?: unknown; maskUrl?: unknown; prompt?: unknown; clientRequestId?: unknown; options?: unknown; expression?: unknown; outpainting?: unknown };
+import { readReversePromptHistoryInput } from "@/lib/practice-reverse-prompt-history";
+import { attachReversePromptHistory, getReversePromptHistory, reversePromptHistoryEnabled } from "@/lib/server/practice-reverse-prompt-history-store";
+
+type ToolRequest = {
+    action?: unknown;
+    toolId?: unknown;
+    sourceUrl?: unknown;
+    maskUrl?: unknown;
+    prompt?: unknown;
+    clientRequestId?: unknown;
+    options?: unknown;
+    expression?: unknown;
+    reverseHistory?: unknown;
+    reverseHistoryId?: unknown;
+    outpainting?: unknown;
+};
 
 export async function GET(request: Request) {
     const user = await getCurrentUser(request);
@@ -116,7 +131,8 @@ export async function POST(request: Request) {
     if (!tool || tool.kind === "local-image") return errorResponse("练习工具类型无效", 400);
     if (tool.id === "ai-outpainting") return submitOutpainting(request, body, user);
     const trial = body.action === "try-generate";
-    if (body.action !== undefined && (!trial || tool.id !== "reverse-prompt" || Object.keys(body).some((key) => !["action", "toolId", "prompt", "clientRequestId"].includes(key)))) return errorResponse("试生成只支持输入文本提示词", 400);
+    if (body.action !== undefined && (!trial || tool.id !== "reverse-prompt" || Object.keys(body).some((key) => !["action", "toolId", "prompt", "clientRequestId", "reverseHistoryId"].includes(key))))
+        return errorResponse("试生成只支持输入文本提示词", 400);
     const source = trial ? null : await ownReferenceUrl(body.sourceUrl, request.url, user.id);
     if (!trial && !source) return errorResponse("请上传有效的练习图片", 400);
     const mask = body.maskUrl === undefined ? undefined : await ownReferenceUrl(body.maskUrl, request.url, user.id);
@@ -138,6 +154,23 @@ export async function POST(request: Request) {
         practiceAccess = await requirePracticeAccess(user);
     } catch (error) {
         return practiceAccessErrorResponse(error);
+    }
+
+    const scope = { userId: user.id, schoolId: practiceAccess.schoolId };
+    const reverseHistory = body.reverseHistory === undefined ? null : readReversePromptHistoryInput(body.reverseHistory);
+    if (body.reverseHistory !== undefined && (!reverseHistory || tool.id !== "reverse-prompt" || trial)) return errorResponse("反推练习设置无效", 400);
+    const reverseHistoryId = typeof body.reverseHistoryId === "string" && /^[\w-]{1,160}$/.test(body.reverseHistoryId) ? body.reverseHistoryId : "";
+    if (body.reverseHistoryId !== undefined && (!trial || !reverseHistoryId)) return errorResponse("反推历史标识无效", 400);
+    let sourceKey = source?.storageKey;
+    try {
+        if (reverseHistoryId && reversePromptHistoryEnabled() && !(await getReversePromptHistory(scope, reverseHistoryId))) return errorResponse("找不到该反推练习", 404);
+        if (reverseHistory && source && reversePromptHistoryEnabled() && (!sourceKey?.startsWith("permanent/") || source.registration.scope !== "reference")) {
+            const bytes = await readRegisteredMediaBytes(source.registration, creativeUploadMaxBytes("image"));
+            const durable = await writePersistentMediaDataUrl(`data:${source.registration.mimeType};base64,${bytes.toString("base64")}`, "image", { ownerUserId: user.id, source: "practice-reverse-prompt" });
+            sourceKey = durable.token;
+        }
+    } catch {
+        return errorResponse("无法保存练习素材或检查历史，请稍后重试", 503);
     }
 
     const capability = !trial && tool.kind === "ai-text" ? "text" : "image";
@@ -224,7 +257,17 @@ export async function POST(request: Request) {
         const upstream = await fetchInternalApi(new URL(endpoint, resolveInternalOrigin(new URL(request.url).origin)), { method: "POST", headers, body: JSON.stringify(payload) });
         const result = (await upstream.json().catch(() => ({}))) as { task?: { id?: unknown; model?: unknown }; error?: unknown };
         if (!upstream.ok || typeof result.task?.id !== "string") return errorResponse(toSafeGenerationErrorMessage(typeof result.error === "string" ? result.error : "练习任务提交失败", "练习任务提交失败"), upstream.status || 502);
-        return NextResponse.json({ task: { id: result.task.id, type: capability, model: typeof result.task.model === "string" ? result.task.model : candidates[0]?.logicalModelId || configuredModel } });
+        const historyLink = reverseHistory && sourceKey ? { sourceKey, ...reverseHistory } : reverseHistoryId ? { historyId: reverseHistoryId } : null;
+        let historyWarning: string | undefined;
+        if (historyLink && reversePromptHistoryEnabled()) {
+            try {
+                await attachReversePromptHistory(scope, result.task.id, historyLink);
+            } catch (error) {
+                console.warn("Reverse prompt history attachment failed", { taskId: result.task.id, error: error instanceof Error ? error.name : "unknown" });
+                historyWarning = "任务已提交，但未能关联到历史记录";
+            }
+        }
+        return NextResponse.json({ task: { id: result.task.id, type: capability, model: typeof result.task.model === "string" ? result.task.model : candidates[0]?.logicalModelId || configuredModel }, historyWarning });
     } catch {
         return errorResponse("练习任务提交失败，请稍后重试", 502);
     }
@@ -327,7 +370,7 @@ async function submitOutpainting(request: Request, body: ToolRequest, user: NonN
     }
 }
 
-async function ownReferenceUrl(value: unknown, requestUrl: string, ownerUserId: string): Promise<{ storageKey: string } | null> {
+async function ownReferenceUrl(value: unknown, requestUrl: string, ownerUserId: string): Promise<{ storageKey: string; registration: NonNullable<Awaited<ReturnType<typeof getLocalMediaRegistration>>> } | null> {
     if (typeof value !== "string" || !value.trim()) return null;
     try {
         const base = new URL(requestUrl);
@@ -338,7 +381,7 @@ async function ownReferenceUrl(value: unknown, requestUrl: string, ownerUserId: 
         if (!/^(?:temporary|permanent)\//.test(storageKey)) return null;
         const registration = await getLocalMediaRegistration(storageKey);
         if (!registration || registration.ownerUserId !== ownerUserId || (registration.scope !== "reference" && registration.scope !== "generation") || registration.type !== "image" || isLocalMediaRegistrationExpired(registration)) return null;
-        return { storageKey };
+        return { storageKey, registration };
     } catch {
         return null;
     }

@@ -103,6 +103,7 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
     };
     // 编辑与生成报文不同的渠道（如 MiniMax 的 /images/edits）用 editRequestTemplate 覆盖。
     const requestTemplate = task.kind === "edit" ? advanced.editRequestTemplate || advanced.requestTemplate : advanced.requestTemplate;
+    const path = task.kind === "edit" ? advanced.editPath || advanced.createPath : advanced.createPath;
     const payload = workflow
         ? buildRunningHubWorkflowPayload({
               config: workflow,
@@ -114,7 +115,10 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         : advanced.protocol === "yumeng"
           ? buildYumengImageRequest({ model: config.model, prompt: values.prompt, images, aspectRatio: values.aspect_ratio, resolution: values.resolution, size })
           : buildProviderRequest(requestTemplate, values, values);
-    const url = taskUrl(config, task.kind === "edit" ? advanced.editPath || advanced.createPath : advanced.createPath, origin);
+    if (!workflow && advanced.protocol === "custom" && !size && /^qwen-image-2\.1-(?:pro|turbo)$/.test(config.model) && /^\/(?:api\/v1\/)?services\/aigc\/multimodal-generation\/generation$/.test(path)) {
+        omitDashScopeAutoSize(payload, requestTemplate);
+    }
+    const url = taskUrl(config, path, origin);
     const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
     headers.set("content-type", "application/json");
     const response = await imageSubmissionFetch(config, url, {
@@ -125,6 +129,14 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         signal: workflow ? AbortSignal.timeout(workflowTimeoutMs(workflow, imageTaskRequestTimeoutMs(config))) : undefined,
     });
     return parseDeclarativeSubmission(task, response, url, cookie, singleStep);
+}
+
+function omitDashScopeAutoSize(payload: Record<string, unknown>, requestTemplate: string | undefined) {
+    const parameters = payload.parameters as Record<string, unknown> | undefined;
+    if (parameters?.size !== "" || !requestTemplate) return;
+    // DashScope makes parameters.size optional; omit only the automatically rendered placeholder, not a configured literal.
+    const sizeTemplate: unknown = JSON.parse(requestTemplate).parameters?.size;
+    if (typeof sizeTemplate === "string" && /^\{\{\s*size_star\s*\}\}$/.test(sizeTemplate)) delete parameters.size;
 }
 
 async function runAsyncImageTask(task: ImageTask, protocol: AsyncImageTaskProtocol, size: string, origin: string, publicOrigin: string, cookie: string, singleStep: boolean) {

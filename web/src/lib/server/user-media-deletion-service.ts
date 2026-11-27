@@ -164,6 +164,14 @@ async function removePostgresReferences(client: QueryExecutor, userId: string, s
         );
         removed += hidden.rowCount || 0;
     }
+    const history = await client.query(
+        `UPDATE practice_reverse_prompt_history
+         SET source_key = CASE WHEN source_key = ANY($2::text[]) THEN NULL ELSE source_key END,
+             success_asset_key = CASE WHEN success_asset_key = ANY($2::text[]) THEN NULL ELSE success_asset_key END
+         WHERE user_id = $1 AND (source_key = ANY($2::text[]) OR success_asset_key = ANY($2::text[]))`,
+        [userId, storageKeys],
+    );
+    removed += history.rowCount || 0;
     const avatars = await client.query("UPDATE users SET avatar_storage_key = NULL, updated_at = now() WHERE id = $1 AND avatar_storage_key = ANY($2::text[])", [userId, storageKeys]);
     removed += avatars.rowCount || 0;
     return removed;
