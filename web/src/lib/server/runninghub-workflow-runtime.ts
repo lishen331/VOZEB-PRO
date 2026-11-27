@@ -3,7 +3,7 @@ import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
 import { channelEnabledForSurface, channelModelCapability, channelUsableForSurface, resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
-import { channelSupportsModel, rawModelName } from "./generation-channel";
+import { channelSupportsModel, rawModelName, resolveModelAdvancedConfig } from "./generation-channel";
 import { channelConnectionReady } from "@/lib/channel-protocol-registry";
 
 import { prepareRunningHubWorkflowExecution } from "./runninghub-workflow-adapter";
@@ -29,6 +29,7 @@ export type PracticeWorkflowContext = {
      * 为真时，练习画布允许请求练习池里的真实上游模型，而不是只能用虚拟模型名。
      */
     practiceModelTest?: boolean;
+    practiceImageTool?: "expression-reference";
     /**
      * 本次请求是否携带了图片/视频参考。由服务端从已净化的消息内容判定，
      * 与正式生产一致：带图的文本请求走 vision 池（文本模型里支持图片输入的那部分）。
@@ -304,7 +305,7 @@ export function resolvePracticeWorkflowCandidates(settings: Pick<AuthSettings, "
  *   其余请求保持原样，避免影响短剧练习的工作流路由。
  */
 export function resolvePracticeGenerationCandidates(
-    settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool">,
+    settings: Pick<AuthSettings, "logicalModels" | "systemChannels" | "practiceModelPool"> & Partial<Pick<AuthSettings, "practiceDefaultModels">>,
     capability: LogicalModelCapability,
     requestedModel: string,
     context: PracticeWorkflowContext | undefined,
@@ -316,6 +317,14 @@ export function resolvePracticeGenerationCandidates(
     // 练习画布先于工作流路由判断：画布请求可能带着 "canvas" 业务码，但它选的是练习池里的
     // 普通渠道，不是 RunningHub 工作流。短剧练习没有虚拟模型名，仍走下面的工作流分支。
     if (virtualCapability) return virtualCapability === capability ? resolvePracticeCanvasPoolCandidates(settings, capability, "", requiresImageInput) : [];
+    // Signed expression requests can use their configured practice-only image binding.
+    if (context?.practiceImageTool === "expression-reference") {
+        const expectedModel = settings.practiceDefaultModels?.imageModel;
+        if (capability !== "image" || !expectedModel || expectedModel !== requestedModel) return [];
+        return resolveLogicalModelCandidates(settings, capability, expectedModel, "", executionProfile).filter(
+            (candidate) => !candidate.overflow && candidate.logicalModelId === expectedModel && resolveModelAdvancedConfig(candidate.channel.advancedConfig, candidate.upstreamModel)?.supportsReferenceImage === true,
+        );
+    }
     if (context?.practiceModelTest && rawModelName(requestedModel)) {
         return resolvePracticeCanvasPoolCandidates(settings, capability, requestedModel, requiresImageInput);
     }
