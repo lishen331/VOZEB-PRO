@@ -11,10 +11,10 @@ const tools = [
     ["reverse-prompt", "反推提示词"],
     ["local-edit", "局部编辑"],
     ["expression-reference", "表情参考"],
-    ["super-resolution", "超分放大"],
+    ["ai-outpainting", "AI 扩图"],
 ] as const;
 
-test("学校账号可打开六个练习工具并完成本地超分", async ({ browser, page }, testInfo) => {
+test("学校账号可打开六个练习工具，旧超分直链仍可使用", async ({ browser, page }, testInfo) => {
     const suffix = randomUUID().replaceAll("-", "").slice(0, 10);
     const username = `newtools_${suffix}`;
     const response = await page.request.post("/api/admin/schools", {
@@ -24,6 +24,8 @@ test("学校账号可打开六个练习工具并完成本地超分", async ({ br
     const context = await createAuthenticatedE2EContext(browser, baseURL, { username, password: E2E_PRACTICE_PASSWORD }, { viewport: testInfo.project.use.viewport });
     try {
         const toolPage = await context.newPage();
+        await toolPage.goto("/practice");
+        await expect(toolPage.locator('[data-practice-tool="super-resolution"]')).toHaveCount(0);
         for (const [slug, heading] of tools) {
             await toolPage.goto("/practice");
             await toolPage.locator(`[data-practice-tool="${slug}"]`).click();
@@ -31,6 +33,8 @@ test("学校账号可打开六个练习工具并完成本地超分", async ({ br
             await expect(toolPage.getByRole("heading", { name: heading, exact: true })).toBeVisible();
             if (slug === "director-desk") await expect(toolPage.getByRole("button", { name: "新建导演台", exact: true })).toBeEnabled();
         }
+        await toolPage.goto("/practice/super-resolution");
+        await expect(toolPage.getByRole("heading", { name: "超分放大", exact: true })).toBeVisible();
         const generationRequests: string[] = [];
         toolPage.on("request", (request) => {
             const pathname = new URL(request.url()).pathname;
