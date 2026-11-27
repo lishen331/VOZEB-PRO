@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { composeOutpainting, prepareOutpainting, supportsOutpainting } from "./practice-outpainting-service";
+import { composeOutpainting, prepareOutpainting } from "./practice-outpainting-service";
+import { supportsPracticeMaskEdit, supportsOutpaintingOutput } from "./practice-image-capabilities";
 
 const geometry = { width: 5, height: 3, sourceWidth: 2, sourceHeight: 2, left: 1, top: 1 };
 const source = () =>
@@ -33,8 +34,14 @@ describe("practice outpainting pixels", () => {
     });
     it("only selects the native multipart edit contract", () => {
         const config = { apiFormat: "openai", model: "image-fixture", advancedConfig: { protocol: "openai", editPath: "/images/edits", supportsReferenceImage: true } } as const;
-        expect(supportsOutpainting(config)).toBe(true);
-        expect(supportsOutpainting({ ...config, advancedConfig: { ...config.advancedConfig, referenceRule: "JSON" } })).toBe(false);
-        expect(supportsOutpainting({ ...config, advancedConfig: { ...config.advancedConfig, editPath: "/images/generations" } })).toBe(false);
+        expect(supportsPracticeMaskEdit(config)).toBe(true);
+        expect(supportsPracticeMaskEdit({ ...config, advancedConfig: { ...config.advancedConfig, protocol: "newapi" } })).toBe(true);
+        const limited = { ...config, capabilityProfile: { aspectRatios: ["3:4"], resolutions: ["2k"] } };
+        expect(supportsOutpaintingOutput(limited, "1536x2048", "2k")).toBe(true);
+        expect(supportsOutpaintingOutput(limited, "3072x4096", "4k")).toBe(false);
+        expect(supportsOutpaintingOutput(limited, "2048x1536", "2k")).toBe(false);
+        expect(supportsOutpaintingOutput({ ...config, capabilityProfile: { aspectRatios: ["4:3"] } }, "1365x1024", "1k", "4:3")).toBe(true);
+        expect(supportsPracticeMaskEdit({ ...config, advancedConfig: { ...config.advancedConfig, referenceRule: "JSON" } })).toBe(false);
+        expect(supportsPracticeMaskEdit({ ...config, advancedConfig: { ...config.advancedConfig, editPath: "/images/generations" } })).toBe(false);
     });
 });

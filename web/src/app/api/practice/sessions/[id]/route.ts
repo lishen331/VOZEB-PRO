@@ -58,6 +58,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
         schoolId: input.schoolId,
         projectId: input.sessionId,
         clientRequestId: input.clientRequestId,
+        ...(input.practiceImageTool ? { practiceImageTool: input.practiceImageTool } : {}),
         ...(input.workflow
             ? {
                   ...recordWorkflowTaskContext(input.workflow),
@@ -81,7 +82,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
             ? { ...workflowInput, config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
             : input.capability === "audio"
               ? { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" }
-              : { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" };
+              : { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice", ...(input.practiceImageTool === "multi-angle" ? { kind: "edit" } : {}) };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.schoolId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);

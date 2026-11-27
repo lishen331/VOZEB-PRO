@@ -13,6 +13,8 @@ export type StoredTaskBilling = {
     refunded: boolean;
 };
 
+export type PracticeImageTool = "reverse-prompt" | "reverse-prompt-trial" | "multi-angle" | "local-edit" | "expression-reference" | "ai-outpainting";
+
 export type GenerationTaskContext = {
     conversationId?: string;
     runId?: string;
@@ -54,7 +56,7 @@ export type GenerationTaskContext = {
     taskOrigin?: "user" | "admin-workflow-test";
     /** 服务端按角色判定的练习模型测试权限，只用于练习画布的模型路由，不对外展示。 */
     practiceModelTest?: boolean;
-    practiceImageTool?: "expression-reference";
+    practiceImageTool?: PracticeImageTool;
 };
 
 export type StoredGenerationTaskRecord = {

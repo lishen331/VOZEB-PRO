@@ -61,6 +61,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
         projectId: input.sessionId,
         clientRequestId: input.clientRequestId,
         ipReferences,
+        ...(input.practiceImageTool ? { practiceImageTool: input.practiceImageTool } : {}),
         ...(input.workflow
             ? {
                   ...recordWorkflowTaskContext(input.workflow),

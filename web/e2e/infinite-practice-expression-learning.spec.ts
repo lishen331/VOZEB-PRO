@@ -146,9 +146,9 @@ test("表情参考通过服务端组装提示词并提交练习专用模型", as
     const settingsPatch = await admin.patch("/api/admin/settings", {
         data: {
             settingsRevision: before.settingsRevision,
-            systemChannels: [...before.settings.systemChannels, channel],
+            systemChannels: [...before.settings.systemChannels.map((existing) => ({ ...existing, practiceEnabled: false })), channel],
             logicalModels: [...before.settings.logicalModels, { id: edit, name: edit, capability: "image", enabled: true, bindings: [{ id: `${id}-image`, channelId: id, upstreamModel: imageUpstream, enabled: true, priority: 1 }] }],
-            practiceDefaultModels: { ...before.settings.practiceDefaultModels, imageModel: edit },
+            practiceDefaultModels: { ...before.settings.practiceDefaultModels, imageModel: "" },
         },
     });
     expect(settingsPatch.ok(), await settingsPatch.text()).toBe(true);
