@@ -73,6 +73,7 @@ const POSTGRES_TABLES = [
     "drama_projects",
     "drama_project_versions",
     "practice_sessions",
+    "practice_reverse_prompt_history",
     "practice_script_projects",
     "practice_script_versions",
     "practice_script_entities",
