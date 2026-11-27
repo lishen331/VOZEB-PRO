@@ -417,9 +417,32 @@ test("局部编辑历史可回看、恢复和学习，不会自动重复生成",
         await expect(tab.getByAltText("局部编辑结果")).toHaveAttribute("src", records[1].image.url);
         const lesson = tab.getByRole("region", { name: "提示词拆解" });
         await expect(lesson.getByText("换成蓝色", { exact: true })).toBeVisible();
-        for (const title of ["改什么", "改成什么", "什么不变"]) await expect(lesson.getByText(title, { exact: true })).toBeVisible();
+        const card = lesson.getByRole("group", { name: "拆解卡正文" });
+        const previous = lesson.getByRole("button", { name: "上一张" });
+        const next = lesson.getByRole("button", { name: "下一张" });
+        await expect(previous).toBeDisabled();
+        const titles = ["改什么", "改成什么", "什么不变", "可参考的写法"];
+        for (const [index, title] of titles.entries()) {
+            if (index > 0) await next.click();
+            await expect(card.getByRole("heading", { name: title, exact: true })).toBeVisible();
+            await expect(card.getByRole("heading")).toHaveCount(1);
+        }
+        await expect(next).toBeDisabled();
+        await previous.click();
+        await expect(card.getByRole("heading", { name: "什么不变", exact: true })).toBeVisible();
         await lesson.getByText("查看本次选区", { exact: true }).click();
         await expect(lesson.getByAltText("本次编辑选区")).toBeVisible();
+        if (testInfo.project.name === "chromium") {
+            const input = (await inputPanel.boundingBox())!;
+            const result = (await resultPanel.boundingBox())!;
+            const history = (await list.boundingBox())!;
+            expect(result.y).toBe(input.y);
+            expect(result.y + result.height).toBe(input.y + input.height);
+            expect(history.y + history.height).toBe(result.y + result.height);
+            await expect(resultPanel).toHaveCSS("overflow-y", "auto");
+            await resultPanel.getByText("结果未自动写入个人素材库。", { exact: false }).scrollIntoViewIfNeeded();
+            await expect(resultPanel.getByText("结果未自动写入个人素材库。", { exact: false })).toBeInViewport();
+        }
         await lesson.getByRole("button", { name: "填回修改说明" }).click();
         await expect(draft).toHaveValue(/修改要求：换成蓝色/);
         await expect(tab.getByAltText("练习源图")).toHaveCount(0);
@@ -437,6 +460,8 @@ test("局部编辑历史可回看、恢复和学习，不会自动重复生成",
             .toEqual([96, 64, 148, 0]);
         await list.getByRole("button", { name: /换成绿色/ }).click();
         await expect(lesson.getByText("换成绿色", { exact: true })).toBeVisible();
+        await expect(card.getByRole("heading", { name: "改什么", exact: true })).toBeVisible();
+        await expect(previous).toBeDisabled();
         await expect(draft).toHaveValue("换成蓝色");
         await expect(tab.getByRole("link", { name: "下载结果" })).toHaveAttribute("href", records[0].image.url);
         await tab.evaluate(() => localStorage.setItem("vozeb-pro:theme_store", JSON.stringify({ state: { theme: "dark" }, version: 0 })));
