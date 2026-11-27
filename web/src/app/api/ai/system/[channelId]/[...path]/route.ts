@@ -3,6 +3,7 @@ import { authorizeBindingVerificationProxy, assertBindingVerificationSubmission 
 import { readGenerationMediaClaim } from "@/lib/server/generation-media-authorization";
 import { getStoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
 import { bindingUsesHttp1 } from "@/lib/server/binding-http-transport";
+import { upstreamResponseSnapshot } from "@/lib/server/upstream-diagnostic-snapshot";
 import { readObservedResponseBody, observeMediaResponseStream } from "@/lib/server/media-response-body";
 import { persistMediaDiagnostic, type MediaDiagnosticContext } from "@/lib/server/media-task-diagnostic-store";
 import { observeMediaFetch, MEDIA_TRACE_HEADER } from "@/lib/server/media-task-trace";
@@ -293,6 +294,8 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     request.signal.addEventListener("abort", () => void refundConsumedPoints(), { once: true });
 
     const diagnosticContext = await resolveMediaDiagnosticContext(request.headers.get(MEDIA_TRACE_HEADER) || "", userId, channelId);
+    const traceCall = diagnosticContext ? { operation: access.operation, upstreamCallId: randomUUID(), upstreamTaskId: access.operation === "create" ? undefined : access.upstreamTaskId, model: upstreamModel } : undefined;
+    const diagnosticSecrets = [channel.apiKey];
     const http1Compatibility =
         bindingUsesHttp1(settings.logicalModels || [], access.logicalModelId, channelId, upstreamModel) || (verifiedRouteLogicalModel ? bindingUsesHttp1(settings.logicalModels || [], verifiedRouteLogicalModel, channelId, upstreamModel) : false);
     if (diagnosticContext) await persistMediaDiagnostic(diagnosticContext, { phase: "transport_policy", transportPolicy: http1Compatibility ? "http/1.1" : "default", model: upstreamModel });
@@ -304,7 +307,7 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
             injectRunningHubWorkflowApiKey(globalAdaptation?.body || requestBody.body, globalAdaptation?.path || path, modelConfig?.protocol || channel.advancedConfig?.protocol, channel.apiKey),
         );
         const outboundInit: RequestInit = { method: request.method, headers, body: outboundBody, cache: "no-store", redirect: "manual", signal: request.signal };
-        upstream = await observeMediaFetch(target, outboundInit, () => fetchSafeOutbound(target, outboundInit, { http1Compatibility }), diagnosticContext);
+        upstream = await observeMediaFetch(target, outboundInit, () => fetchSafeOutbound(target, outboundInit, { http1Compatibility }), diagnosticContext, traceCall, diagnosticSecrets);
         if (verification)
             await recordBindingVerificationDiagnostic(
                 verification.run.id,
@@ -344,7 +347,22 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     }
     if (isJsonResponse(upstream)) {
         try {
-            const body = diagnosticContext ? await readObservedResponseBody(upstream, (event) => persistMediaDiagnostic(diagnosticContext, { ...event, url: target }), request.signal) : await upstream.arrayBuffer();
+            const body = diagnosticContext ? await readObservedResponseBody(upstream, (event) => persistMediaDiagnostic(diagnosticContext, { ...traceCall, ...event, url: target }), request.signal) : await upstream.arrayBuffer();
+            if (diagnosticContext && traceCall) {
+                try {
+                    const snapshot = upstreamResponseSnapshot(body, {
+                        secrets: diagnosticSecrets,
+                        httpOk: upstream.ok,
+                        taskIdField: modelConfig?.taskIdField || channel.advancedConfig?.taskIdField,
+                        statusField: modelConfig?.statusField || channel.advancedConfig?.statusField,
+                        resultField: modelConfig?.resultField || channel.advancedConfig?.resultField,
+                        successCodes: modelConfig?.successCodes || channel.advancedConfig?.successCodes,
+                    });
+                    await persistMediaDiagnostic(diagnosticContext, { ...traceCall, ...snapshot, upstreamTaskId: snapshot.upstreamTaskId || traceCall.upstreamTaskId, phase: "upstream_payload", url: target, status: upstream.status });
+                } catch {
+                    // Snapshot failures cannot interrupt generation response delivery.
+                }
+            }
             if (verification && !upstream.ok) {
                 try {
                     const failure = JSON.parse(Buffer.from(body).toString("utf8"));

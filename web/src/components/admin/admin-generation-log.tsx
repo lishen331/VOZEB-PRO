@@ -137,11 +137,22 @@ function GenerationLogTraceSection({ log }: { log: StoredGenerationLog }) {
     }, [log.id, log.taskId]);
 
     if (!log.taskId) return null;
+    const steps = withUpstreamResponseBodies(trace?.steps ?? []);
+    const storedUrls = Array.from(
+        new Set(log.assets.map((asset) => [asset.serverUrl, asset.url].find((url): url is string => Boolean(url && /^\/api\/(?:reference-assets|generation-log-assets)\//.test(url)))).filter((url): url is string => Boolean(url))),
+    );
     return (
         <div className="rounded-lg border border-[var(--gm-border)] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="text-sm font-semibold text-[var(--gm-text)]">调用链路</div>
                 {trace?.diagnosticsExpired ? <span className="text-xs text-[var(--gm-text-3)]">诊断已过期</span> : null}
+            </div>
+            <div className="mb-2 space-y-1 text-xs text-[var(--gm-text-2)]">
+                <TraceCopyValue label="平台任务 ID" value={log.taskId} />
+                {storedUrls.map((url, index) => (
+                    <TraceCopyValue key={url} label={`平台结果链接 ${index + 1}`} value={url} />
+                ))}
+                {log.error ? <div className="whitespace-pre-wrap break-all text-[var(--gm-danger)]">任务错误：{log.error}</div> : null}
             </div>
             {loading ? <div className="text-sm text-[var(--gm-text-3)]">正在读取调用链路…</div> : null}
             {failed ? <div className="text-sm text-[var(--gm-danger)]">调用链路读取失败</div> : null}
@@ -150,14 +161,17 @@ function GenerationLogTraceSection({ log }: { log: StoredGenerationLog }) {
                 <>
                     <GenerationLogFlow steps={trace.steps} />
                     <details className="mt-3">
-                        <summary className="cursor-pointer text-xs text-[var(--gm-text-3)]">查看原始事件（{trace.steps.length}）</summary>
+                        <summary className="cursor-pointer text-xs text-[var(--gm-text-3)]">查看原始事件（{steps.length}）</summary>
                         <ol className="mt-2 space-y-2">
-                            {trace.steps.map((step, index) => (
+                            {steps.map((step, index) => (
                                 <li key={`${step.at}-${step.phase}-${index}`} className="rounded-md border border-[var(--gm-border)] bg-[var(--gm-wash)] px-3 py-2">
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--gm-text-3)]">
-                                        <span className="font-medium text-[var(--gm-text)]">{generationTracePhaseLabel(step.phase)}</span>
+                                        <span className="font-medium text-[var(--gm-text)]">
+                                            {generationTracePhaseLabel(step.phase)}
+                                            {step.operation ? ` · ${step.operation === "create" ? "提交生成" : step.operation === "query" ? "查询任务" : "取消任务"}` : ""}
+                                        </span>
                                         <span className="tabular-nums">{formatTraceTime(step.at)}</span>
-                                        {typeof step.status === "number" ? <span className={step.status >= 400 ? "font-medium text-[var(--gm-danger)]" : ""}>状态 {step.status}</span> : null}
+                                        {typeof step.status === "number" ? <span className={step.status >= 400 ? "font-medium text-[var(--gm-danger)]" : ""}>HTTP {step.status}</span> : null}
                                         {typeof step.durationMs === "number" ? <span className="tabular-nums">{formatAdminLogDuration(step.durationMs)}</span> : null}
                                     </div>
                                     <GenerationLogTraceStepDetail step={step} />
@@ -222,19 +236,104 @@ function GenerationLogFlowConnector({ label }: { label?: string }) {
     );
 }
 
+function withUpstreamResponseBodies(steps: GenerationLogTraceStep[]) {
+    const bodies = new Map(steps.flatMap((step) => (step.phase === "upstream_payload" && step.upstreamCallId ? [[step.upstreamCallId, step] as const] : [])));
+    const headers = new Set(steps.filter((step) => step.phase === "upstream_response").map((step) => step.upstreamCallId));
+    return steps.flatMap((step) => {
+        if (step.phase === "upstream_payload" && step.upstreamCallId && headers.has(step.upstreamCallId)) return [];
+        const body = step.phase === "upstream_response" && step.upstreamCallId ? bodies.get(step.upstreamCallId) : undefined;
+        return [
+            body
+                ? {
+                      ...step,
+                      responseBody: body.responseBody,
+                      upstreamResultUrls: body.upstreamResultUrls,
+                      upstreamTaskId: body.upstreamTaskId ?? step.upstreamTaskId,
+                      state: body.state ?? step.state,
+                      errorCode: body.errorCode ?? step.errorCode,
+                      errorMessage: body.errorMessage ?? step.errorMessage,
+                  }
+                : step,
+        ];
+    });
+}
+
+function TraceCopyButton({ label, value }: { label: string; value: string }) {
+    const [status, setStatus] = useState("");
+    return (
+        <>
+            <button
+                type="button"
+                className="underline"
+                aria-label={`复制${label}`}
+                onClick={async () => {
+                    try {
+                        await navigator.clipboard.writeText(value);
+                        setStatus("已复制");
+                    } catch {
+                        setStatus("复制失败");
+                    }
+                }}
+            >
+                复制
+            </button>
+            {status ? (
+                <span className="ml-1" role="status">
+                    {status}
+                </span>
+            ) : null}
+        </>
+    );
+}
+
+function TraceCopyValue({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="min-w-0 break-all">
+            {label}：{value} <TraceCopyButton label={label} value={value} />
+        </div>
+    );
+}
+
+function TracePayload({ label, body }: { label: string; body?: string }) {
+    if (!body) return <div>{label}：未记录</div>;
+    const content = JSON.stringify(JSON.parse(body), null, 2);
+    return (
+        <details>
+            <summary className="cursor-pointer">{label}（已脱敏）</summary>
+            <TraceCopyButton label={label} value={content} />
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--gm-border)] p-2">{content}</pre>
+        </details>
+    );
+}
+
 function GenerationLogTraceStepDetail({ step }: { step: GenerationLogTraceStep }) {
     const parts = [
         step.model ? `模型 ${step.model}` : "",
         step.channelName || step.channelId ? `渠道 ${step.channelName || step.channelId}` : "",
-        step.state ? `状态 ${step.state}` : "",
+        step.state ? `业务状态 ${step.state}` : "",
+        step.errorCode ? `错误码 ${step.errorCode}` : "",
+        step.requestId ? `请求追踪 ID ${step.requestId}` : "",
         typeof step.attemptNo === "number" ? `第 ${step.attemptNo} 次` : "",
     ].filter(Boolean);
-    if (!parts.length && !step.errorMessage && !step.url) return null;
+    const urls: unknown = step.upstreamResultUrls ? JSON.parse(step.upstreamResultUrls) : [];
+    const resultUrls = Array.isArray(urls) ? urls.filter((url): url is string => typeof url === "string" && /^https?:\/\//.test(url)) : [];
+    const isRequest = step.phase === "upstream_request";
+    const isResponse = step.phase === "upstream_response" || step.phase === "upstream_payload";
+    if (!parts.length && !step.errorMessage && !step.url && !step.upstreamTaskId && !isRequest && !isResponse) return null;
     return (
         <div className="mt-1 space-y-1 text-xs leading-5 text-[var(--gm-text-2)]">
             {parts.length ? <div>{parts.join(" · ")}</div> : null}
-            {step.url ? <div className="break-all text-[var(--gm-text-3)]">{step.url}</div> : null}
+            {step.url ? (
+                <div className="break-all text-[var(--gm-text-3)]">
+                    {step.method ? `${step.method} ` : ""}
+                    {step.url}
+                </div>
+            ) : null}
+            {step.upstreamTaskId && (isRequest || isResponse) ? <TraceCopyValue label="上游任务 ID" value={step.upstreamTaskId} /> : isResponse && step.operation === "create" ? <div>上游任务 ID：{step.responseBody ? "未返回" : "未记录"}</div> : null}
             {step.errorMessage ? <div className="whitespace-pre-wrap break-all text-[var(--gm-danger)]">{step.errorMessage}</div> : null}
+            {isRequest ? <TracePayload label="实际请求正文" body={step.requestBody} /> : null}
+            {isResponse ? resultUrls.map((url, index) => <TraceCopyValue key={url} label={`上游结果地址（已脱敏）${index + 1}`} value={url} />) : null}
+            {isResponse ? <TracePayload label="上游响应正文" body={step.responseBody} /> : null}
         </div>
     );
 }
@@ -251,6 +350,9 @@ function generationTracePhaseLabel(phase: string) {
         upstream_error: "上游错误",
         upstream_request: "上游请求",
         upstream_response: "上游响应",
+        upstream_payload: "上游响应",
+        upstream_exception: "上游请求异常",
+        upstream_body_exception: "上游响应读取失败",
         upstream_body_first_byte: "首字节",
         upstream_body_complete: "响应完成",
         transport_policy: "传输策略",
