@@ -1,5 +1,8 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
+
 import { GammaButton } from "@/components/gamma-ui/gamma-button";
 import { canvasReadableImageUrl } from "@/lib/browser-media-url";
 import { localEditPromptExample, type LocalEditPracticeRecord } from "@/lib/practice-image-tools";
@@ -57,32 +60,37 @@ export function LocalEditHistory({
 }
 
 export function LocalEditPromptLesson({ record, disabled, onApply, onRestore, onCopy }: { record: LocalEditPracticeRecord; disabled: boolean; onApply: (value: string) => void; onRestore: () => void; onCopy: (value: string) => void }) {
+    const [index, setIndex] = useState(0);
     const example = localEditPromptExample(record.prompt);
+    const cards = [
+        { title: "改什么", text: "明确涂抹范围内要修改的对象，例如「原来的黄色弧线」。" },
+        { title: "改成什么", text: `在「${record.prompt}」的基础上，补上目标颜色、材质或状态。` },
+        { title: "什么不变", text: "明确要保留的形状、细节和背景；不要把涂抹轮廓画进成品。" },
+        { title: "可参考的写法", text: example },
+    ];
+    const card = cards[index];
     return (
-        <section aria-label="提示词拆解" className="space-y-3 rounded-xl border border-[var(--gm-border)] p-3 sm:p-4">
+        <section aria-label="提示词拆解" className="space-y-3 rounded-xl border border-[var(--gm-border)] p-3 [overflow-wrap:anywhere] sm:p-4">
             <h3 className="text-sm font-semibold">提示词拆解</h3>
             <div className="text-sm">
                 <h4 className="font-medium">本次原始输入</h4>
                 <p className="mt-1 whitespace-pre-wrap break-words text-[var(--gm-text-2)]">{record.prompt}</p>
             </div>
             <p className="text-xs text-[var(--gm-text-3)]">下面是教学建议，不是本次已经发送的提示词。</p>
-            <dl className="grid gap-2 text-sm">
-                <div>
-                    <dt className="font-medium">改什么</dt>
-                    <dd className="text-[var(--gm-text-2)]">明确涂抹范围内要修改的对象，例如「原来的黄色弧线」。</dd>
-                </div>
-                <div>
-                    <dt className="font-medium">改成什么</dt>
-                    <dd className="break-words text-[var(--gm-text-2)]">在「{record.prompt}」的基础上，补上目标颜色、材质或状态。</dd>
-                </div>
-                <div>
-                    <dt className="font-medium">什么不变</dt>
-                    <dd className="text-[var(--gm-text-2)]">明确要保留的形状、细节和背景；不要把涂抹轮廓画进成品。</dd>
-                </div>
-            </dl>
-            <div className="rounded-lg bg-[var(--gm-wash)] p-2 text-sm">
-                <h4 className="font-medium">可参考的写法</h4>
-                <p className="mt-1 whitespace-pre-wrap break-words">{example}</p>
+            <div role="group" aria-label="拆解卡正文" className="space-y-2 rounded-xl border border-[var(--gm-border)] bg-[var(--gm-wash)]/30 p-3 text-sm">
+                <h4 className="font-semibold">{card.title}</h4>
+                <p className="whitespace-pre-wrap leading-6 text-[var(--gm-text-2)]">{card.text}</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <GammaButton size="sm" variant="outline" disabled={index === 0} onClick={() => setIndex(index - 1)} icon={<ChevronLeft className="size-4" />}>
+                    上一张
+                </GammaButton>
+                <span aria-live="polite" className="text-xs tabular-nums text-[var(--gm-text-3)]">
+                    {index + 1} / {cards.length}
+                </span>
+                <GammaButton size="sm" variant="outline" disabled={index === cards.length - 1} onClick={() => setIndex(index + 1)} trailingIcon={<ChevronRight className="size-4" />}>
+                    下一张
+                </GammaButton>
             </div>
             <details className="text-sm">
                 <summary className="cursor-pointer">查看本次选区</summary>
