@@ -1,4 +1,4 @@
-import { faceBoxPrompt, type CanvasFaceBox } from "./canvas-face-detection";
+import type { CanvasFaceBox } from "./canvas-face-detection";
 
 type CanvasExpressionPreset = { id: string; label: string; prompt: string; excitement: number; affinity: number };
 
@@ -30,10 +30,22 @@ export const CANVAS_EXPRESSION_INTENSITIES: ReadonlyArray<{ id: CanvasExpression
     { id: "strong", label: "强烈", prompt: "强烈地" },
 ];
 
-export function buildCanvasEmotionPrompt(input: { face: CanvasFaceBox; expressionId: CanvasExpressionPresetId; intensity: CanvasExpressionIntensity; excitement: number; affinity: number }) {
+export type CanvasEmotionSelection = { face: CanvasFaceBox; expressionId: CanvasExpressionPresetId; intensity: CanvasExpressionIntensity; excitement: number; affinity: number };
+
+export function faceBoxPrompt(box: CanvasFaceBox) {
+    const x = Math.round((box.x + box.width / 2) * 100);
+    const y = Math.round((box.y + box.height / 2) * 100);
+    return `画面中位于约 ${x}% 横向、${y}% 纵向的人物脸部`;
+}
+
+export function buildCanvasEmotionPrompt(input: CanvasEmotionSelection) {
+    return canvasEmotionPromptParts(input).values.join("，") + "。";
+}
+
+export function canvasEmotionPromptParts(input: CanvasEmotionSelection) {
     const expression = CANVAS_EXPRESSION_PRESETS.find((item) => item.id === input.expressionId) || CANVAS_EXPRESSION_PRESETS[0];
     const intensity = CANVAS_EXPRESSION_INTENSITIES.find((item) => item.id === input.intensity) || CANVAS_EXPRESSION_INTENSITIES[1];
     const excitement = input.excitement > 0.66 ? "更激动" : input.excitement < 0.34 ? "更平静" : "保持自然";
     const affinity = input.affinity > 0.66 ? "更亲近" : input.affinity < 0.34 ? "更疏离" : "保持自然";
-    return `${faceBoxPrompt(input.face)}，${intensity.prompt}呈现“${expression.label}”表情（${expression.prompt}），整体情绪${excitement}、${affinity}，保留身份、发型、构图和光线。`;
+    return { expression, intensity, values: [faceBoxPrompt(input.face), `${intensity.prompt}呈现“${expression.label}”表情（${expression.prompt}）`, `整体情绪${excitement}、${affinity}`, "保留身份、发型、构图和光线"] as const };
 }

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     queryTasks: vi.fn(),
     attachHistory: vi.fn(),
     getHistory: vi.fn(),
+    createTask: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
@@ -23,7 +24,7 @@ vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration:
 vi.mock("@/lib/server/reference-asset-access", () => ({ createSignedReferenceAssetUrl: (key: string, origin: string, user: string) => `${origin}/api/reference-assets/${key}?owner=${user}` }));
 vi.mock("@/lib/server/public-request-origin", () => ({ resolvePublicRequestOrigin: () => "https://app.example" }));
 
-vi.mock("@/lib/server/generation-task-store", () => ({ queryStoredGenerationTasks: mocks.queryTasks }));
+vi.mock("@/lib/server/generation-task-store", () => ({ queryStoredGenerationTasks: mocks.queryTasks, createStoredGenerationTask: mocks.createTask }));
 
 vi.mock("@/lib/server/practice-reverse-prompt-history-store", () => ({ reversePromptHistoryEnabled: () => true, attachReversePromptHistory: mocks.attachHistory, getReversePromptHistory: mocks.getHistory }));
 
@@ -200,5 +201,51 @@ describe("practice local-edit history", () => {
         ]);
         expect(JSON.stringify(body)).not.toContain("not-public");
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+});
+
+const expression = { face: { x: 0.1, y: 0.2, width: 0.2, height: 0.2 }, expressionId: "smile", intensity: "strong", excitement: 0.8, affinity: 0.2 };
+const expressionUrl = "http://localhost/api/practice/image-tools";
+const expressionRequest = () =>
+    new Request(expressionUrl, { method: "POST", body: JSON.stringify({ toolId: "expression-reference", sourceUrl: baseBody.sourceUrl, clientRequestId: "expression-request", expression, prompt: "client text is not the source of truth" }) });
+
+describe("expression history", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.currentUser.mockResolvedValue({ id: "student-one", username: "student", displayName: "学生" });
+        mocks.practiceAccess.mockResolvedValue({ schoolId: "school-one" });
+        mocks.mediaRegistration.mockResolvedValue({ ownerUserId: "student-one", scope: "reference", type: "image" });
+        mocks.settings.mockResolvedValue({ practiceDefaultModels: { imageModel: "practice-image" } });
+        mocks.candidates.mockReturnValue([{ logicalModelId: "practice-image" }]);
+        mocks.fetchInternalApi.mockResolvedValue(new Response(JSON.stringify({ task: { id: "expression-task" } })));
+        mocks.createTask.mockImplementation(async (_type, task) => task);
+    });
+
+    it("sends only the prompt compiled from the selected expression", async () => {
+        expect((await POST(expressionRequest())).status).toBe(200);
+        const input = JSON.parse(mocks.fetchInternalApi.mock.calls[0][1].body);
+        expect(input).toMatchObject({ practiceExpression: expression, prompt: expect.stringContaining("强烈地呈现“微笑”") });
+        expect(input.prompt).not.toContain("client text");
+    });
+
+    it("persists an unsuccessful submission with its prompt, without contacting generation", async () => {
+        mocks.candidates.mockReturnValue([]);
+        const response = await POST(expressionRequest());
+        expect(response.status).toBe(503);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+        expect(mocks.createTask).toHaveBeenCalledWith("image", expect.objectContaining({ status: "error", userId: "student-one", schoolId: "school-one", practiceExpression: expression }), expect.any(Number));
+        expect((await response.json()).record).toMatchObject({ status: "error", selection: expression, sourceUrl: baseBody.sourceUrl });
+    });
+
+    it("returns scoped historical settings without signed URLs or task configuration", async () => {
+        mocks.queryTasks.mockResolvedValue([
+            { id: "expression-task", createdAt: 42, status: "error", practiceExpression: expression, config: { model: "practice-image", apiKey: "not-for-browser" }, prompt: "原始提示词", references: [{ url: baseBody.sourceUrl + "?secret=true" }] },
+        ]);
+        const response = await route.GET(new Request(expressionUrl + "?history=expression-reference"));
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(mocks.queryTasks).toHaveBeenCalledWith("image", { userId: "student-one", expressionSchoolId: "school-one", limit: 20 });
+        const text = await response.text();
+        expect(JSON.parse(text).records).toEqual([expect.objectContaining({ id: "expression-task", status: "error", sourceUrl: baseBody.sourceUrl, prompt: "原始提示词", selection: expression })]);
+        expect(text).not.toMatch(/secret|not-for-browser/);
     });
 });
