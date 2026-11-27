@@ -50,6 +50,7 @@ export default function MultiAngleStage({ mode, h, p, d, fisheye, image, draggin
 
             <div
                 ref={viewportRef}
+                data-testid="multi-angle-viewport"
                 className={cn(s.viewport, dragging && s.viewportDragging)}
                 onPointerDown={image ? onPointerDown : undefined}
                 onPointerMove={image ? onPointerMove : undefined}
@@ -61,7 +62,7 @@ export default function MultiAngleStage({ mode, h, p, d, fisheye, image, draggin
                         <div className={s.zoomWrap} style={{ transform: `scale(${shotZoom(d)})` }}>
                             {cameraMode ? (
                                 <div className={s.sceneCenter}>
-                                    <div className={cn(s.subjectPlane, fisheye && s.subjectPlaneFisheye)} style={{ ...imgStyle, transform: `rotateY(${h}deg) rotateX(${-p}deg)` }} />
+                                    <div data-testid="multi-angle-subject-plane" className={cn(s.subjectPlane, fisheye && s.subjectPlaneFisheye)} style={{ ...imgStyle, transform: `rotateY(${h}deg) rotateX(${-p}deg)` }} />
                                 </div>
                             ) : (
                                 <div className={s.cube} style={{ transform: `rotateX(${-p}deg) rotateY(${-h}deg)` }}>

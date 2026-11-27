@@ -67,7 +67,7 @@ export default function MultiAngleResults({
             {shot ? (
                 <>
                     <div className={cn(s.deck, multiple && s.deckStack)} role="group" aria-label="结果卡片">
-                        <div key={index} className={cn(s.shot, direction < 0 ? s.cardFromLeft : s.cardFromRight)}>
+                        <div key={index} data-testid="multi-angle-result-card" className={cn(s.shot, direction < 0 ? s.cardFromLeft : s.cardFromRight)}>
                             <span className={s.shotCounter}>
                                 {String(index + 1).padStart(2, "0")} / {String(shots.length).padStart(2, "0")}
                             </span>
