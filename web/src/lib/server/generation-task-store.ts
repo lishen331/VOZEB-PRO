@@ -159,7 +159,7 @@ export async function listStoredGenerationTasks<T>(type: GenerationTaskType, use
 
 export async function queryStoredGenerationTasks<T>(
     type: GenerationTaskType,
-    options: { userId: string; conversationId?: string; projectId?: string; surface?: string; statuses?: string[]; limit?: number; localEditSchoolId?: string; expressionSchoolId?: string },
+    options: { userId: string; conversationId?: string; projectId?: string; surface?: string; statuses?: string[]; limit?: number; localEditSchoolId?: string; expressionSchoolId?: string; outpaintingSchoolId?: string },
 ): Promise<T[]> {
     const userId = options.userId.trim();
     const conversationId = cleanContextText(options.conversationId);
@@ -168,7 +168,8 @@ export async function queryStoredGenerationTasks<T>(
     const statuses = [...new Set((options.statuses || []).map(normalizeGenerationTaskStatus))];
     const localEditSchoolId = cleanContextText(options.localEditSchoolId);
     const expressionSchoolId = cleanContextText(options.expressionSchoolId);
-    const byCreation = localEditSchoolId || expressionSchoolId;
+    const outpaintingSchoolId = cleanContextText(options.outpaintingSchoolId);
+    const byCreation = localEditSchoolId || expressionSchoolId || outpaintingSchoolId;
     const limit = Math.max(1, Math.min(100, Math.floor(Number(options.limit) || 20)));
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
@@ -189,6 +190,10 @@ export async function queryStoredGenerationTasks<T>(
         if (expressionSchoolId) {
             addFilter("school_id", expressionSchoolId);
             filters.push("execution_profile = 'open-source-practice'", "payload->>'source' = 'practice'", "payload->>'kind' = 'edit'", "payload->>'title' = '表情参考'", "jsonb_typeof(payload->'practiceExpression') = 'object'");
+        }
+        if (outpaintingSchoolId) {
+            addFilter("school_id", outpaintingSchoolId);
+            filters.push("execution_profile = 'open-source-practice'", "payload->>'source' = 'practice'", "payload->>'kind' = 'edit'", "jsonb_typeof(payload->'practiceOutpainting') = 'object'");
         }
         if (statuses.length) {
             values.push(statuses);
@@ -226,6 +231,14 @@ export async function queryStoredGenerationTasks<T>(
                         task.payload.practiceExpression !== null &&
                         typeof task.payload.practiceExpression === "object" &&
                         !Array.isArray(task.payload.practiceExpression))) &&
+                (!outpaintingSchoolId ||
+                    (task.schoolId === outpaintingSchoolId &&
+                        task.executionProfile === "open-source-practice" &&
+                        task.payload.source === "practice" &&
+                        task.payload.kind === "edit" &&
+                        !!task.payload.practiceOutpainting &&
+                        typeof task.payload.practiceOutpainting === "object" &&
+                        !Array.isArray(task.payload.practiceOutpainting))) &&
                 (!statuses.length || statuses.includes(task.status)),
         )
         .sort((a, b) => (byCreation ? b.createdAt - a.createdAt : b.updatedAt - a.updatedAt) || b.id.localeCompare(a.id))

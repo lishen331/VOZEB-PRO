@@ -1,3 +1,5 @@
+import { OUTPAINTING_TITLE, readOutpaintingSnapshot } from "@/lib/practice-outpainting";
+import { supportsOutpainting } from "@/lib/server/practice-outpainting-service";
 import { readExpressionSelection } from "@/lib/practice-expression-learning";
 import { requestPublicOrigin } from "./image-task-reference-urls";
 import { after, NextResponse } from "next/server";
@@ -166,7 +168,13 @@ export async function POST(request: Request) {
     const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, resolvedBody.context);
     const requestId = headerRequestId || resolvedBody.context?.clientRequestId?.trim();
     if (!headerRequestId && requestId) {
-        const existing = await getStoredGenerationTaskByRequest<ImageTask>("image", currentUser.id, requestId, resolvedBody.context?.attemptNo);
+        const existing = await getStoredGenerationTaskByRequest<ImageTask>(
+            "image",
+            currentUser.id,
+            requestId,
+            resolvedBody.context?.attemptNo,
+            trustedPractice && resolvedBody.practiceOutpainting !== undefined ? resolvedBody.context?.schoolId : undefined,
+        );
         if (existing) return NextResponse.json({ task: publicTask(existing) });
     }
     const layerGrant = resolveCanvasLayerGrant(resolvedBody, currentUser.id);
@@ -229,13 +237,19 @@ export async function POST(request: Request) {
         }
 
         const references = Array.isArray(resolvedBody.references) ? resolvedBody.references.filter((item) => Boolean(item?.dataUrl || item?.url || item?.remoteUrl || item?.serverUrl)) : [];
+        const snapshot = trustedPractice && kind === "edit" && resolvedBody.source === "practice" && resolvedBody.title === OUTPAINTING_TITLE ? readOutpaintingSnapshot(resolvedBody.practiceOutpainting) : null;
+        const originalUrl = snapshot && (resolvedBody.practiceOutpainting as { sourceUrl?: unknown }).sourceUrl;
+        const practiceOutpainting =
+            snapshot && typeof originalUrl === "string" && /^\/api\/(?:reference-assets|generation-log-assets)\/permanent\//.test(originalUrl) && references.length === 1 && resolvedBody.mask ? { ...snapshot, sourceUrl: originalUrl } : null;
+        if (resolvedBody.practiceOutpainting !== undefined && !practiceOutpainting) return NextResponse.json({ error: "扩图任务参数无效" }, { status: 400 });
         const constrainedConfigs = configs.filter((config) => {
+            if (practiceOutpainting && (config.overflow || !supportsOutpainting(config))) return false;
             try {
                 assertCapabilityConstraints(config.capabilityProfile, {
                     capability: "image",
                     referenceCount: references.length,
                     aspectRatio: config.size,
-                    resolution: config.quality,
+                    resolution: practiceOutpainting?.selection.resolution ?? config.quality,
                 });
                 return true;
             } catch {
@@ -251,7 +265,7 @@ export async function POST(request: Request) {
             }
         });
         // 用户所选模型自己的渠道都不支持本次参数时直接报错，不借其它模型兜底。
-        if (!compatibleConfigs.some((item) => !item.overflow)) return NextResponse.json({ error: GENERATION_UNAVAILABLE_MESSAGE }, { status: 400 });
+        if (!compatibleConfigs.some((item) => !item.overflow)) return NextResponse.json({ error: practiceOutpainting ? "当前练习模型未配置兼容的扩图蒙版编辑渠道" : GENERATION_UNAVAILABLE_MESSAGE }, { status: practiceOutpainting ? 503 : 400 });
         const config = compatibleConfigs[0];
         if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(config, trustedContext.businessCode, trustedContext) };
         if (config.outputMode === "layers" && (kind !== "edit" || references.length !== 1)) {
@@ -260,6 +274,7 @@ export async function POST(request: Request) {
         const practiceExpression = trustedPractice && kind === "edit" && resolvedBody.source === "practice" && resolvedBody.title === "表情参考" ? readExpressionSelection(resolvedBody.practiceExpression) : null;
         const task = await createImageTask({
             ...(practiceExpression ? { practiceExpression } : {}),
+            ...(practiceOutpainting ? { practiceOutpainting } : {}),
             ...trustedContext,
             userId: currentUser.id,
             username: currentUser.username,

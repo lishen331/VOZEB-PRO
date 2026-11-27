@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
     mediaRegistration: vi.fn(),
     queryTasks: vi.fn(),
     createTask: vi.fn(),
+    lookupTask: vi.fn(),
+    readBytes: vi.fn(),
+    writeImage: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
@@ -22,8 +25,12 @@ vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration:
 vi.mock("@/lib/server/reference-asset-access", () => ({ createSignedReferenceAssetUrl: (key: string, origin: string, user: string) => `${origin}/api/reference-assets/${key}?owner=${user}` }));
 vi.mock("@/lib/server/public-request-origin", () => ({ resolvePublicRequestOrigin: () => "https://app.example" }));
 
-vi.mock("@/lib/server/generation-task-store", () => ({ queryStoredGenerationTasks: mocks.queryTasks, createStoredGenerationTask: mocks.createTask }));
+vi.mock("@/lib/server/generation-task-store", () => ({ queryStoredGenerationTasks: mocks.queryTasks, getStoredGenerationTaskByRequest: mocks.lookupTask, createStoredGenerationTask: mocks.createTask }));
 
+vi.mock("@/lib/server/object-storage-service", () => ({ readRegisteredMediaBytes: mocks.readBytes }));
+vi.mock("@/lib/server/reference-asset-store", () => ({ writeReferenceImageDataUrl: mocks.writeImage }));
+import { outpaintingLesson, type OutpaintingSelection } from "@/lib/practice-outpainting";
+import sharp from "sharp";
 import * as route from "./route";
 const { POST } = route;
 
@@ -228,5 +235,80 @@ describe("expression history", () => {
         const text = await response.text();
         expect(JSON.parse(text).records).toEqual([expect.objectContaining({ id: "expression-task", status: "error", sourceUrl: baseBody.sourceUrl, prompt: "原始提示词", selection: expression })]);
         expect(text).not.toMatch(/secret|not-for-browser/);
+    });
+});
+
+it("declares outpainting as an independent AI tool while keeping the old super-resolution route", async () => {
+    const { getPracticeImageToolConfig } = await import("@/lib/practice-image-tools");
+    expect(getPracticeImageToolConfig("ai-outpainting")).toMatchObject({ kind: "ai-image-edit", path: "/practice/ai-outpainting" });
+    expect(getPracticeImageToolConfig("super-resolution")?.kind).toBe("local-image");
+});
+
+describe("AI outpainting integration", () => {
+    const outpainting: OutpaintingSelection = { padding: { left: 0, right: 120, top: 0, bottom: 0 }, ratio: "free", resolution: "1k" };
+    const body = { toolId: "ai-outpainting", sourceUrl: baseBody.sourceUrl, clientRequestId: "test-outpaint", outpainting };
+    const send = (input = body) => POST(new Request("http://localhost/api/practice/image-tools", { method: "POST", body: JSON.stringify(input) }));
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        mocks.currentUser.mockResolvedValue({ id: "student-one", role: "user" });
+        mocks.practiceAccess.mockResolvedValue({ schoolId: "school-one" });
+        mocks.mediaRegistration.mockResolvedValue({ ownerUserId: "student-one", scope: "reference", type: "image", mimeType: "image/png" });
+        mocks.lookupTask.mockResolvedValue(null);
+        mocks.settings.mockResolvedValue({ practiceDefaultModels: { imageModel: "practice-image" } });
+        mocks.candidates.mockReturnValue([
+            { logicalModelId: "practice-image", channelId: "fixture", upstreamModel: "fixture", channel: { apiFormat: "openai", advancedConfig: { protocol: "openai", editPath: "/images/edits", supportsReferenceImage: true } } },
+        ]);
+        mocks.readBytes.mockResolvedValue(
+            await sharp({ create: { width: 120, height: 80, channels: 4, background: "red" } })
+                .png()
+                .toBuffer(),
+        );
+        mocks.writeImage.mockResolvedValue({ token: "temporary/input.png" });
+        mocks.fetchInternalApi.mockResolvedValue(new Response(JSON.stringify({ task: { id: "test-task" } })));
+    });
+    it("validates dimensions on the server and submits only prepared image, mask and teaching prompt", async () => {
+        const response = await send();
+        expect(response.status, await response.clone().text()).toBe(200);
+        expect(mocks.writeImage).toHaveBeenCalledTimes(2);
+        const [, init] = mocks.fetchInternalApi.mock.calls[0];
+        const payload = JSON.parse(init.body);
+        expect(payload).toMatchObject({
+            kind: "edit",
+            source: "practice",
+            config: { size: "1024x341", model: "practice-image" },
+            prompt: outpaintingLesson(outpainting, 120, 80).prompt,
+            practiceOutpainting: { width: 120, height: 80, selection: outpainting },
+        });
+        expect(payload.mask.url).toBe("/api/reference-assets/temporary/input.png");
+    });
+    it("passes the 4K tier and exact output dimensions to the image task", async () => {
+        const selection: OutpaintingSelection = { ...outpainting, resolution: "4k" };
+        const response = await send({ ...body, outpainting: selection });
+        expect(response.status, await response.clone().text()).toBe(200);
+        const [, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(JSON.parse(init.body)).toMatchObject({ config: { size: "4096x1365", resolution: "4k" }, practiceOutpainting: { selection }, prompt: expect.stringContaining("4096 × 1365") });
+    });
+    it("checks duplicate snapshots and never regenerates on matching retry", async () => {
+        mocks.lookupTask.mockResolvedValue({ id: "existing", config: { model: "fixture" }, practiceOutpainting: { selection: outpainting, sourceUrl: body.sourceUrl } });
+        expect(await (await send()).json()).toMatchObject({ task: { id: "existing" } });
+        expect((await send({ ...body, outpainting: { ...outpainting, padding: { ...outpainting.padding, right: 130 } } })).status).toBe(409);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+    it("returns scoped history, retaining the original prompt without exposing config or signed URLs", async () => {
+        mocks.queryTasks.mockResolvedValue([
+            {
+                id: "previous",
+                createdAt: 42,
+                practiceOutpainting: { width: 120, height: 80, selection: outpainting, sourceUrl: body.sourceUrl },
+                config: { model: "practice-image", apiKey: "secret-example" },
+                prompt: "历史原文",
+                result: { serverUrl: "/api/generation-log-assets/permanent/result.png?signature=secret" },
+            },
+        ]);
+        const response = await route.GET(new Request("http://localhost/api/practice/image-tools?history=ai-outpainting"));
+        const text = await response.text();
+        expect(mocks.queryTasks).toHaveBeenCalledWith("image", { userId: "student-one", outpaintingSchoolId: "school-one", statuses: ["success"], limit: 20 });
+        expect(JSON.parse(text).records).toEqual([expect.objectContaining({ id: "previous", prompt: "历史原文", sourceUrl: body.sourceUrl, selection: outpainting })]);
+        expect(text).not.toMatch(/secret/);
     });
 });
