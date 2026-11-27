@@ -69,6 +69,23 @@ describe("readGenerationLogTrace", () => {
         expect(trace?.steps[0]?.errorMessage).toContain("[redacted]");
     });
 
+    it("returns only sanitized payload JSON and suppresses expired traces", async () => {
+        const row = {
+            executionProfile: "production",
+            channelId: "channel-one",
+            diagnosticsExpired: false,
+            events: [
+                { at: 1, phase: "upstream_request", operation: "create", method: "POST", requestBody: JSON.stringify({ model: "example", api_key: "private-value" }) },
+                { at: 2, phase: "upstream_payload", operation: "create", upstreamTaskId: "task-1", responseBody: '{"data":{"taskId":"task-1"}}' },
+            ],
+        };
+        mocks.getTaskTrace.mockResolvedValueOnce(row).mockResolvedValueOnce({ ...row, diagnosticsExpired: true });
+        const active = await readGenerationLogTrace("log-one");
+        expect(active?.steps[0]).toMatchObject({ operation: "create", method: "POST", requestBody: '{"model":"example","api_key":"[redacted]"}' });
+        expect(active?.steps[1]).toMatchObject({ upstreamTaskId: "task-1", responseBody: '{"data":{"taskId":"task-1"}}' });
+        expect(await readGenerationLogTrace("log-one")).toMatchObject({ diagnosticsExpired: true, steps: [] });
+    });
+
     it("returns nothing when the log has no linked task", async () => {
         mocks.getById.mockResolvedValueOnce({ id: "log-one" });
 

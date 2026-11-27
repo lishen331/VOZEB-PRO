@@ -16,6 +16,13 @@ export type GenerationLogTraceStep = {
     url?: string;
     state?: string;
     attemptNo?: number;
+    operation?: string;
+    method?: string;
+    upstreamCallId?: string;
+    upstreamTaskId?: string;
+    requestBody?: string;
+    responseBody?: string;
+    upstreamResultUrls?: string;
 };
 
 export type GenerationLogTrace = {
@@ -26,7 +33,7 @@ export type GenerationLogTrace = {
     steps: GenerationLogTraceStep[];
 };
 
-const TRACE_FIELDS = ["model", "channelId", "errorMessage", "errorName", "errorCode", "requestId", "url", "state"] as const;
+const TRACE_FIELDS = ["model", "channelId", "errorMessage", "errorName", "errorCode", "requestId", "url", "state", "operation", "method", "upstreamCallId", "upstreamTaskId", "requestBody", "responseBody", "upstreamResultUrls"] as const;
 
 /** Admin-only read of one log's diagnostic timeline. The route id is the log id, never the task id. Sanitizes on the way out; never reaches user-facing APIs. */
 export async function readGenerationLogTrace(logId: string): Promise<GenerationLogTrace | null> {
@@ -38,7 +45,7 @@ export async function readGenerationLogTrace(logId: string): Promise<GenerationL
     if (!taskId) return null;
     const trace = await repository.generationLogs.getTaskTrace(taskId);
     if (!trace) return null;
-    const events = trace.events.flatMap((event) => {
+    const events = (trace.diagnosticsExpired ? [] : trace.events).flatMap((event) => {
         if (!event || typeof event !== "object") return [];
         const record = event as Record<string, unknown>;
         const at = typeof record.at === "number" && Number.isFinite(record.at) ? record.at : undefined;
