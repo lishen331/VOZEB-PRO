@@ -51,6 +51,18 @@ describe("PracticeRepository", () => {
         expect(String(query.mock.calls[0]?.[0])).toContain("ON CONFLICT (user_id, client_request_id)");
     });
 
+    it("pages whole multi-angle batches inside the active school and user scope", async () => {
+        const { executor, query } = mockExecutor([[{ total_count: 3 }]]);
+        const repository = new PracticeRepository(executor);
+        const scope = { schoolId: "school-one", ownerUserId: "user-one" };
+
+        await expect(repository.listPracticeSessionsForUser(scope, { multiAngle: true, page: 2, pageSize: 1 })).resolves.toMatchObject({ total: 3, page: 2, pageSize: 1 });
+        expect(query.mock.calls[0]?.[1]).toEqual(["school-one", "user-one", 1, 1]);
+        expect(String(query.mock.calls[0]?.[0])).toContain("WHERE school_id = $1 AND user_id = $2");
+        expect(String(query.mock.calls[0]?.[0])).toContain("GROUP BY batch_id");
+        expect(String(query.mock.calls[0]?.[0])).toContain("LEFT JOIN shots ON shots.batch_id = page_batches.batch_id");
+    });
+
     it("stores practice sessions with mode, model and public error fields", async () => {
         const row = {
             id: "session-one",
