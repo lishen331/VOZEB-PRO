@@ -188,3 +188,55 @@ test("表情参考通过服务端组装提示词并提交练习专用模型", as
         expect(restored.ok(), await restored.text()).toBe(true);
     }
 });
+
+test("表情参考可以点击、拖入、粘贴和载入示例图且不触发生成", async ({ page, browser, baseURL }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith("mobile"), "桌面输入实测；移动端布局由同文件的独立用例覆盖");
+    const username = `source_${randomUUID().slice(0, 8)}`;
+    const school = await page.request.post("/api/admin/schools", { data: { name: username, administrator: { username, displayName: username, password: E2E_PRACTICE_PASSWORD } } });
+    expect(school.ok(), await school.text()).toBe(true);
+    const context = await createAuthenticatedE2EContext(browser, baseURL!, { username, password: E2E_PRACTICE_PASSWORD });
+    try {
+        const practice = await context.newPage();
+        let generations = 0;
+        await practice.route("**/api/practice/image-tools**", (route) => {
+            if (route.request().method() === "POST") generations++;
+            return route.fulfill({ json: { records: [] } });
+        });
+        await practice.goto("/practice/expression-reference");
+        const chooser = practice.waitForEvent("filechooser");
+        await practice.getByRole("button", { name: "选择图片", exact: true }).click({ timeout: 5000 });
+        const receive = () => practice.waitForResponse((r) => r.url().endsWith("/api/reference-assets") && r.request().method() === "POST");
+        let uploaded = receive();
+        await (await chooser).setFiles({ name: "clicked.png", mimeType: "image/png", buffer: pixel });
+        const preview = practice.getByRole("img", { name: "练习源图", exact: true });
+        const seen = async (response: typeof uploaded) => {
+            const saved = await response;
+            expect(saved.ok(), await saved.text()).toBe(true);
+            await expect(preview).toHaveAttribute("src", (await saved.json()).url);
+            await expect.poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+        };
+        await seen(uploaded);
+        for (const type of ["drop", "paste"] as const) {
+            uploaded = receive();
+            await practice.evaluate(
+                ({ type, bytes }) => {
+                    const transfer = new DataTransfer();
+                    transfer.items.add(new File([Uint8Array.from(bytes)], `${type}.png`, { type: "image/png" }));
+                    if (type === "drop") document.querySelector("[data-expression-source-drop]")!.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }));
+                    else document.body.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: transfer }));
+                },
+                { type, bytes: [...pixel] },
+            );
+            await seen(uploaded);
+        }
+        uploaded = receive();
+        await practice.getByRole("button", { name: "用示例图试试", exact: true }).click();
+        await seen(uploaded);
+        await expect(practice.getByRole("button", { name: "从个人素材库选择", exact: true })).toBeVisible();
+        await expect(practice.getByRole("button", { name: "选择人物与表情", exact: true })).toBeEnabled();
+        await expect(practice.getByRole("button", { name: "生成表情参考", exact: true })).toBeDisabled();
+        expect(generations).toBe(0);
+    } finally {
+        await context.close();
+    }
+});
