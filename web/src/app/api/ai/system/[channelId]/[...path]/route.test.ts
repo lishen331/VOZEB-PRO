@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
     mediaClaim: vi.fn(),
     mediaRecord: vi.fn(),
     mediaDiagnostic: vi.fn(),
+    resolveMediaDiagnosticContext: vi.fn(),
     taskAccess: vi.fn(),
 }));
 
@@ -46,7 +47,7 @@ vi.mock("@/lib/server/generation-media-access", () => ({ authorizeGenerationMedi
 vi.mock("@/lib/server/generation-task-authorization", () => ({ userOwnsGenerationUpstreamTask: mocks.taskAccess }));
 vi.mock("@/lib/server/generation-media-authorization", () => ({ readGenerationMediaClaim: mocks.mediaClaim }));
 vi.mock("@/lib/server/generation-task-store", async (original) => ({ ...(await original<typeof import("@/lib/server/generation-task-store")>()), getStoredGenerationTaskRecord: mocks.mediaRecord }));
-vi.mock("@/lib/server/media-task-diagnostic-store", () => ({ persistMediaDiagnostic: mocks.mediaDiagnostic, resolveMediaDiagnosticContext: vi.fn() }));
+vi.mock("@/lib/server/media-task-diagnostic-store", () => ({ persistMediaDiagnostic: mocks.mediaDiagnostic, resolveMediaDiagnosticContext: mocks.resolveMediaDiagnosticContext }));
 vi.mock("@/lib/server/security", () => ({
     checkMediaProxyRateLimit: mocks.checkMediaProxyRateLimit,
     isSafeOutboundUrl: mocks.safeUrl,
@@ -65,6 +66,7 @@ beforeEach(() => {
     mocks.mediaClaim.mockReset().mockReturnValue(null);
     mocks.mediaRecord.mockReset().mockResolvedValue(null);
     mocks.mediaDiagnostic.mockReset().mockResolvedValue(undefined);
+    mocks.resolveMediaDiagnosticContext.mockReset().mockResolvedValue(undefined);
     mocks.chargeGeneration.mockClear();
     mocks.refundGenerationCharge.mockClear();
 });
@@ -970,6 +972,41 @@ describe("async image task protocols", () => {
         mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
+    });
+
+    it("records separate create/query payloads with correlation while returning unmodified upstream bytes", async () => {
+        mocks.resolveMediaDiagnosticContext.mockResolvedValue({ type: "image", userId: "user-one", taskId: "platform-task", surface: "canvas", channelId: "channel-one" });
+        mocks.taskAccess.mockResolvedValue(true);
+        const model = "gpt-image-2-text-to-image";
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("modelbay-image", "image", model)],
+            systemChannels: [channel("channel-one", "https://api.modelbay.io", model, "modelbay-image-task", "/image/submit", "/image/fetch/:task_id")],
+        });
+        const submitted = { code: "success", data: { task_id: "task_mb" } };
+        const completed = { code: "success", data: { task_id: "task_mb", status: "completed", images: [{ url: "https://media.example/result.png?signature=private-signature" }] } };
+        vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(submitted)).mockResolvedValueOnce(Response.json(completed));
+        const headers = { "content-type": "application/json", ...systemModelHeaders("modelbay-image", model) };
+        const body = { model, input: { prompt: "最终发送给上游的提示词", number_of_images: 1 } };
+        const create = await POST(new Request("http://localhost/api/ai/system/channel-one/image/submit", { method: "POST", headers, body: JSON.stringify(body) }), {
+            params: Promise.resolve({ channelId: "channel-one", path: ["image", "submit"] }),
+        });
+        const query = await GET(new Request("http://localhost/api/ai/system/channel-one/image/fetch/task_mb", { headers }), {
+            params: Promise.resolve({ channelId: "channel-one", path: ["image", "fetch", "task_mb"] }),
+        });
+        expect(await create.json()).toEqual(submitted);
+        expect(await query.json()).toEqual(completed);
+        const events = mocks.mediaDiagnostic.mock.calls.map(([, event]) => event);
+        const submitRequest = events.find((event) => event.phase === "upstream_request" && event.operation === "create");
+        const submitResponse = events.find((event) => event.phase === "upstream_payload" && event.operation === "create");
+        const queryRequest = events.find((event) => event.phase === "upstream_request" && event.operation === "query");
+        const queryResponse = events.find((event) => event.phase === "upstream_payload" && event.operation === "query");
+        expect(JSON.parse(submitRequest.requestBody)).toEqual(body);
+        expect(submitResponse).toMatchObject({ upstreamCallId: submitRequest.upstreamCallId, upstreamTaskId: "task_mb" });
+        expect(queryRequest).toMatchObject({ method: "GET", upstreamTaskId: "task_mb" });
+        expect(queryResponse).toMatchObject({ upstreamCallId: queryRequest.upstreamCallId, state: "completed", upstreamResultUrls: '["https://media.example/result.png"]' });
+        expect(queryRequest.upstreamCallId).not.toBe(submitRequest.upstreamCallId);
+        expect(JSON.stringify(events)).not.toContain("private-signature");
     });
 
     it("bills Tuzi /v1/videos async images as image usage", async () => {
