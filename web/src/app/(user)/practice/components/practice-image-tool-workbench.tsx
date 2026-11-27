@@ -721,7 +721,14 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
                                     </div>
                                 ) : null}
                                 {localRecord ? (
-                                    <LocalEditPromptLesson key={localRecord.id} record={localRecord} disabled={busy || uploading || restoring} onCopy={(value) => void copyPracticePrompt(value)} onApply={setPrompt} onRestore={() => void restoreHistory(localRecord)} />
+                                    <LocalEditPromptLesson
+                                        key={localRecord.id}
+                                        record={localRecord}
+                                        disabled={busy || uploading || restoring}
+                                        onCopy={(value) => void copyPracticePrompt(value)}
+                                        onApply={setPrompt}
+                                        onRestore={() => void restoreHistory(localRecord)}
+                                    />
                                 ) : null}
                                 <div className="rounded-lg bg-[var(--gm-wash)]/40 p-3 text-xs text-[var(--gm-text-3)]">
                                     <p>结果未自动写入个人素材库。图片结果可按需点击保存；本地超分结果可下载或主动保存。</p>
