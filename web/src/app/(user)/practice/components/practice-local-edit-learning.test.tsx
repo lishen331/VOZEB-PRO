@@ -6,7 +6,10 @@ it("starts with a single prompt lesson card and preserves the actual prompt and 
     const html = renderToStaticMarkup(
         <LocalEditPromptLesson
             record={{ id: "edit-1", createdAt: 0, model: "fixture", prompt: "换成蓝色", sourceUrl: "/source.png", maskUrl: "/mask.png", image: { url: "/result.png", storageKey: "", width: 96, height: 64, bytes: 100, mimeType: "image/png" } }}
-            disabled={false} onApply={() => {}} onRestore={() => {}} onCopy={() => {}}
+            disabled={false}
+            onApply={() => {}}
+            onRestore={() => {}}
+            onCopy={() => {}}
         />,
     );
     expect(html).toContain('aria-label="拆解卡正文"');
