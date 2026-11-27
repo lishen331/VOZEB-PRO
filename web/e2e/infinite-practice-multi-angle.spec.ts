@@ -71,10 +71,10 @@ test("keeps the workbench mounted while selecting and restoring subjects", async
         await expect(generate).toBeDisabled();
         await expect(results.getByText("生成的图片将在这里显示")).toBeVisible();
         await expect(finder).toHaveCount(0);
-        const emptyStage = await controls.locator('[class*="_viewport__"]').boundingBox();
+        const emptyStage = await controls.getByTestId("multi-angle-viewport").boundingBox();
         await controls.getByRole("button", { name: "用示例图试试" }).click();
         await expect(upload).toHaveCount(0);
-        const filledStage = await controls.locator('[class*="_viewport__"]').boundingBox();
+        const filledStage = await controls.getByTestId("multi-angle-viewport").boundingBox();
         expect(Math.abs(filledStage!.height - emptyStage!.height)).toBeLessThan(1);
         expect(submissions).toBe(0);
         await expect(finder).toBeVisible();
@@ -104,8 +104,8 @@ test("keeps the workbench mounted while selecting and restoring subjects", async
         await controls.getByRole("button", { name: "正面视角", exact: true }).click();
         await controls.getByRole("slider", { name: "景别缩放" }).focus();
         await practice.keyboard.press("Home");
-        const stage = controls.locator('[class*="_viewport__"]');
-        const subject = stage.locator('[class*="_subjectPlane__"]');
+        const stage = controls.getByTestId("multi-angle-viewport");
+        const subject = stage.getByTestId("multi-angle-subject-plane");
         await expect
             .poll(async () => {
                 const [frame, plane] = await Promise.all([stage.boundingBox(), subject.boundingBox()]);
