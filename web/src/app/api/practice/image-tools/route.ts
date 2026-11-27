@@ -1,5 +1,6 @@
 import { OUTPAINTING_HISTORY_LIMIT, OUTPAINTING_TITLE, outpaintingGeometry, outpaintingLesson, readOutpaintingSelection, readOutpaintingSnapshot, type OutpaintingRecord } from "@/lib/practice-outpainting";
-import { outpaintingSourceSize, prepareOutpainting, supportsOutpainting } from "@/lib/server/practice-outpainting-service";
+import { supportsOutpaintingOutput } from "@/lib/server/practice-image-capabilities";
+import { outpaintingSourceSize, prepareOutpainting } from "@/lib/server/practice-outpainting-service";
 import { writePersistentMediaDataUrl, writeReferenceImageDataUrl } from "@/lib/server/reference-asset-store";
 import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
 import { creativeUploadMaxBytes } from "@/lib/creative-upload";
@@ -12,7 +13,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getAuthSettings } from "@/lib/auth/store";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
-import { practiceCanvasVirtualModel, practicePoolIncludes, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
+import { practiceCanvasVirtualModel, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
 import { getPracticeImageToolConfig, LOCAL_EDIT_HISTORY_LIMIT, LOCAL_EDIT_PROMPT_PREFIX, type LocalEditPracticeRecord } from "@/lib/practice-image-tools";
@@ -175,28 +176,17 @@ export async function POST(request: Request) {
 
     const capability = !trial && tool.kind === "ai-text" ? "text" : "image";
     const settings = await getAuthSettings();
-    const expressionContext = expression ? ({ practiceImageTool: "expression-reference" } as const) : {};
-    const routingContext = { executionProfile: "open-source-practice" as const, ...expressionContext, ...(capability === "text" ? { requiresImageInput: true } : {}) };
-    let configuredModel = trial ? practiceCanvasVirtualModel("image") : capability === "text" ? settings.practiceDefaultModels.visionModel || settings.practiceDefaultModels.textModel : settings.practiceDefaultModels.imageModel;
-    let candidates = configuredModel ? resolvePracticeGenerationCandidates(settings, capability, configuredModel, routingContext) : [];
-    if (!configuredModel && capability === "text") {
-        // When a standalone analysis default has not been set, only use active practice bindings that support images and are not disabled in the vision pool.
-        for (const model of settings.logicalModels || []) {
-            if (!model.enabled || model.capability !== "text") continue;
-            const routes = resolvePracticeGenerationCandidates(settings, "text", model.id, routingContext);
-            if (!routes.length || !routes.every((route) => route.capabilityProfile?.supportsImageInput === true && practicePoolIncludes(settings.practiceModelPool, "vision", route.upstreamModel.toLowerCase()))) continue;
-            configuredModel = model.id;
-            candidates = routes;
-            break;
-        }
-    }
+    const practiceImageTool = trial ? "reverse-prompt-trial" : capability === "text" ? "reverse-prompt" : expression ? "expression-reference" : "local-edit";
+    const configuredModel = practiceCanvasVirtualModel(capability);
     const taskContext = {
         surface: "canvas" as const,
         executionProfile: "open-source-practice" as const,
         schoolId: practiceAccess.schoolId,
-        ...expressionContext,
+        practiceImageTool,
+        ...(capability === "text" ? { requiresImageInput: true } : {}),
         clientRequestId,
-    };
+    } as const;
+    const candidates = resolvePracticeGenerationCandidates(settings, capability, configuredModel, taskContext);
     if (!candidates.length) {
         const error = "当前无限练习模型池没有可用的对应能力模型，请检查练习模型配置";
         if (!expression || !sourceUrl) return errorResponse(error, 503);
@@ -334,23 +324,25 @@ async function submitOutpainting(request: Request, body: ToolRequest, user: NonN
         return NextResponse.json({ task: { id: existing.id, type: "image", model: existing.config.logicalModel || existing.config.model } });
     }
     const settings = await getAuthSettings();
-    const model = settings.practiceDefaultModels.imageModel;
-    const context = { surface: "canvas" as const, executionProfile: "open-source-practice" as const, schoolId: access.schoolId, clientRequestId };
-    const candidates = model ? resolvePracticeGenerationCandidates(settings, "image", model, context) : [];
-    if (!candidates.some((candidate) => !candidate.overflow && supportsOutpainting(toSystemGenerationChannel(candidate)))) return errorResponse("当前练习模型未配置兼容的扩图蒙版编辑渠道", 503);
-    let width: number, height: number, prepared: Awaited<ReturnType<typeof prepareOutpainting>>;
+    const model = practiceCanvasVirtualModel("image");
+    const context = { surface: "canvas", executionProfile: "open-source-practice", schoolId: access.schoolId, clientRequestId, practiceImageTool: "ai-outpainting" } as const;
+    const candidates = resolvePracticeGenerationCandidates(settings, "image", model, context);
+    let width: number, height: number, dataUrl: string;
     try {
         const bytes = await readRegisteredMediaBytes(registration, creativeUploadMaxBytes("image"));
-        const dataUrl = `data:${registration.mimeType};base64,${bytes.toString("base64")}`;
+        dataUrl = `data:${registration.mimeType};base64,${bytes.toString("base64")}`;
         ({ width, height } = await outpaintingSourceSize(dataUrl));
-        const geometry = outpaintingGeometry(width, height, selection);
-        if (!geometry) return errorResponse("扩图框在当前分辨率下无效，请调整边距", 400);
-        prepared = await prepareOutpainting(dataUrl, geometry);
     } catch {
         return errorResponse("无法读取或处理练习原图，请使用有效的静态图片", 400);
     }
-    const geometry = outpaintingGeometry(width, height, selection)!;
+    const geometry = outpaintingGeometry(width, height, selection);
+    if (!geometry) return errorResponse("扩图框在当前分辨率下无效，请调整边距", 400);
+    const size = `${geometry.width}x${geometry.height}`;
+    if (!candidates.some((candidate) => !candidate.overflow && supportsOutpaintingOutput(toSystemGenerationChannel(candidate), size, selection.resolution, selection.ratio))) {
+        return errorResponse("无限练习图片池没有支持蒙版和所选比例、分辨率的扩图模型", 503);
+    }
     try {
+        const prepared = await prepareOutpainting(dataUrl, geometry);
         const media = await Promise.all([prepared.image, prepared.mask].map((dataUrl) => writeReferenceImageDataUrl(dataUrl, { ownerUserId: user.id, source: "practice" })));
         const managed = (token: string) => `/api/reference-assets/${token.split("/").map(encodeURIComponent).join("/")}`;
         const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(user.id, access.schoolId, clientRequestId) });
@@ -361,7 +353,7 @@ async function submitOutpainting(request: Request, body: ToolRequest, user: NonN
             source: "practice",
             title: OUTPAINTING_TITLE,
             context,
-            config: { model, size: `${geometry.width}x${geometry.height}`, resolution: selection.resolution, quality: "auto" },
+            config: { model, size, resolution: selection.resolution, quality: "auto" },
             prompt: outpaintingLesson(selection, width, height).prompt,
             references: [{ type: "image/png", url: managed(media[0].token) }],
             mask: { type: "image/png", url: managed(media[1].token) },

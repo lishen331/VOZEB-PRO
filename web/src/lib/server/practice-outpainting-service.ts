@@ -2,7 +2,6 @@ import sharp from "sharp";
 import { parseBase64DataUrl } from "@/lib/data-url";
 import type { outpaintingGeometry } from "@/lib/practice-outpainting";
 import { MAX_INPUT_PIXELS } from "./generated-image-normalizer";
-import type { ImageTaskConfig } from "./image-task-store";
 
 type Geometry = NonNullable<ReturnType<typeof outpaintingGeometry>>;
 const pngUrl = (bytes: Buffer) => `data:image/png;base64,${bytes.toString("base64")}`;
@@ -53,18 +52,5 @@ export async function composeOutpainting(source: string, generated: string, geom
         await sharp(decoded.data, { raw: { width, height, channels: 4 } })
             .png()
             .toBuffer(),
-    );
-}
-
-export function supportsOutpainting(config: Pick<ImageTaskConfig, "apiFormat" | "model"> & { advancedConfig?: Partial<NonNullable<ImageTaskConfig["advancedConfig"]>> }) {
-    const advanced = config.advancedConfig;
-    return (
-        config.apiFormat === "openai" &&
-        advanced?.protocol === "openai" &&
-        !advanced.globalAiOpcPreset &&
-        !advanced.globalAiOpcPresets?.length &&
-        advanced.supportsReferenceImage === true &&
-        /^\/?(?:v1\/)?images\/edits\/?$/i.test(advanced.editPath || "") &&
-        !/json|public|\burl\b|公网|链接|base64/i.test(advanced.referenceRule || "")
     );
 }

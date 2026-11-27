@@ -205,8 +205,9 @@ describe("/api/practice/sessions", () => {
                 references: [{ type: "asset", id: "permanent/images/cat.png", inputKey: "referenceImage" }],
                 executionProfile: "open-source-practice",
                 capability: "image",
-                logicalModelId: "practice-image",
+                logicalModelId: "gamaimage",
                 clientRequestId: "request-angle",
+                practiceImageTool: "multi-angle",
                 projectKind: "canvas",
             });
             await deps.dispatch({
@@ -244,7 +245,7 @@ describe("/api/practice/sessions", () => {
         );
         expect(response.status).toBe(200);
         const bodies = mocks.fetchInternalApi.mock.calls.map(([, init]) => JSON.parse(String(init.body)));
-        expect(bodies[0]).toMatchObject({ kind: "edit", references: [{ type: "image", url: "/api/reference-assets/permanent/images/cat.png", inputKey: "referenceImage" }] });
+        expect(bodies[0]).toMatchObject({ kind: "edit", config: { model: "gamaimage" }, context: { practiceImageTool: "multi-angle" }, references: [{ type: "image", url: "/api/reference-assets/permanent/images/cat.png", inputKey: "referenceImage" }] });
         expect(bodies[1].kind).toBeUndefined();
         expect(bodies[2].kind).toBeUndefined();
         expect(bodies[2].references).toHaveLength(1);

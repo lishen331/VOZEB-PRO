@@ -52,6 +52,7 @@ export type PracticeTaskDispatchInput = {
     clientRequestId: string;
     projectKind: PracticeProjectKind;
     workflow?: RunningHubWorkflowConfig;
+    practiceImageTool?: "multi-angle";
 };
 
 export type PracticeTaskDispatchResult = { taskId: string; taskType: "text" | "image" | "video" | "audio"; queued?: boolean };
@@ -212,11 +213,19 @@ async function dispatchQueuedSession(
         throw error;
     }
     const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
+    const multiAngle =
+        claimed.projectKind === "canvas" &&
+        claimed.module === "storyboard-image" &&
+        !claimed.workflowCode &&
+        storedInput.workflowCode === "gamaimage" &&
+        references.some((reference) => reference.type === "asset" && reference.inputKey === "referenceImage");
     let model: PracticeModelResolution;
     try {
         await validateIpReferences(scopeValues(scope).ownerUserId, ipReferences);
         if (ipReferences.length) await recordIpReferenceUsage(scopeValues(scope).ownerUserId, { targetType: "practice", targetId: claimed.id, references: ipReferences });
-        model = preflightModel || (claimed.workflowCode ? await resolveModel(claimed.module, claimed.selectedLogicalModelId, claimed.workflowCode) : await resolveModel(claimed.module, claimed.selectedLogicalModelId));
+        model = multiAngle
+            ? { logicalModelId: "gamaimage", capability: "image" }
+            : preflightModel || (claimed.workflowCode ? await resolveModel(claimed.module, claimed.selectedLogicalModelId, claimed.workflowCode) : await resolveModel(claimed.module, claimed.selectedLogicalModelId));
     } catch (error) {
         await store.update(scope, claimed.id, { status: "failed", errorCode: publicErrorCode(error, "PRACTICE_MODEL_UNAVAILABLE"), errorMessage: publicErrorMessage(error, "PRACTICE_MODEL_UNAVAILABLE") });
         throw error;
@@ -235,6 +244,7 @@ async function dispatchQueuedSession(
             logicalModelId: model.logicalModelId,
             clientRequestId,
             projectKind: claimed.projectKind,
+            ...(multiAngle ? { practiceImageTool: "multi-angle" as const } : {}),
             ...(model.workflow ? { workflow: model.workflow } : {}),
         });
     } catch (error) {
@@ -464,8 +474,10 @@ async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalM
 }
 
 export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind, requestedLogicalModelId?: string, requestedWorkflowCode?: string): PracticeModelResolution {
-    // 多角度练习走画布 image 池：随机命中任一 open-source-practice image 渠道，
-    // 不走 RunningHub workflow 匹配路径，行为与画布 gamaimage 一致。
+    // Do not pin a concrete model before checking the reference-edit capability in the task router.
+    if (module === "storyboard-image" && requestedWorkflowCode === "gamaimage" && requestedLogicalModelId?.trim().toLowerCase() === "gamaimage") {
+        return { logicalModelId: "gamaimage", capability: "image" };
+    }
     if ((requestedLogicalModelId || "").trim().toLowerCase() === "gamaimage") {
         const candidates = resolvePracticeCanvasPoolCandidates(settings, "image");
         const selected = candidates[0];

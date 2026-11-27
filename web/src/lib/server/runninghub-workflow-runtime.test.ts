@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { RunningHubWorkflowConfig } from "@/lib/auth/store";
 
@@ -431,6 +431,59 @@ describe("practice canvas model pool", () => {
         expect(candidates.map((candidate) => candidate.channelId).sort()).toEqual(["practice-a", "practice-b"]);
         expect(resolvePracticeGenerationCandidates(settings, "video", "gamaimage", { executionProfile: "open-source-practice" })).toEqual([]);
         expect(resolvePracticeGenerationCandidates(settings, "image", "gamaimage", { executionProfile: "production" })).toEqual([]);
+    });
+
+    it("filters standalone practice pool candidates by operation and never borrows a workflow channel", () => {
+        const channel = (id: string, protocol: string, supportsReferenceImage: boolean, createPath = "/images/generations", editPath = "") => {
+            const value = poolChannel({ id, models: [id] });
+            return { ...value, advancedConfig: { ...value.advancedConfig, protocol, supportsReferenceImage, createPath, editPath } } as typeof value;
+        };
+        const channels = [
+            channel("text-to-image", "openai", false),
+            channel("reference-edit", "openai", true),
+            channel("mask-a", "openai", true, "/images/edits", "/images/edits"),
+            channel("mask-b", "openai", true, "/images/edits", "/images/edits"),
+            channel("storyboard", "runninghub", true),
+        ];
+        const settings = { logicalModels: practicePoolLogicalModels(channels), systemChannels: channels };
+        const ids = (practiceImageTool: "reverse-prompt-trial" | "multi-angle" | "expression-reference" | "local-edit" | "ai-outpainting") =>
+            resolvePracticeGenerationCandidates(settings, "image", "gamaimage", { executionProfile: "open-source-practice", practiceImageTool }).map((candidate) => candidate.channelId);
+        expect(ids("reverse-prompt-trial").sort()).toEqual(["reference-edit", "text-to-image"]);
+        expect(ids("multi-angle").sort()).toEqual(["mask-a", "mask-b", "reference-edit"]);
+        expect(ids("expression-reference").sort()).toEqual(["mask-a", "mask-b", "reference-edit"]);
+        expect(ids("local-edit").sort()).toEqual(["mask-a", "mask-b"]);
+        expect(ids("ai-outpainting").sort()).toEqual(["mask-a", "mask-b"]);
+        const random = vi.spyOn(Math, "random");
+        try {
+            random.mockReturnValue(0);
+            const left = ids("ai-outpainting");
+            random.mockReturnValue(0.999);
+            expect(ids("ai-outpainting")).toEqual([...left].reverse());
+        } finally {
+            random.mockRestore();
+        }
+    });
+
+    it("passes the bound logical ID, not the provider model name, for standalone tools", () => {
+        const image = poolChannel({ id: "practice-image", models: ["gpt-image-1"] });
+        image.advancedConfig = { ...image.advancedConfig!, supportsReferenceImage: true };
+        const [model] = practicePoolLogicalModels([image]);
+        const settings = { logicalModels: [{ ...model, id: "school-image-edit" }], systemChannels: [image] };
+        expect(resolvePracticeGenerationCandidates(settings, "image", "gamaimage", { executionProfile: "open-source-practice", practiceImageTool: "expression-reference" })).toMatchObject([
+            { logicalModelId: "school-image-edit", upstreamModel: "gpt-image-1", channelId: "practice-image" },
+        ]);
+    });
+    it("only uses enabled image-capable bindings in the vision pool, without text fallback", () => {
+        const channels = ["picture-reader", "plain-text", "disabled-vision"].map((id) => poolChannel({ id, models: [id], capability: "text" }));
+        const logicalModels = practicePoolLogicalModels(channels).map((model) => ({
+            ...model,
+            capability: "text" as const,
+            bindings: model.bindings.map((binding) => ({ ...binding, capabilityProfile: { supportsImageInput: model.id !== "plain-text" } })),
+        }));
+        const settings = { logicalModels, systemChannels: channels, practiceModelPool: { pools: { vision: { "disabled-vision": false } } } };
+        const context = { executionProfile: "open-source-practice", practiceImageTool: "reverse-prompt" } as const;
+        expect(resolvePracticeGenerationCandidates(settings, "text", "gamatext", context).map((candidate) => candidate.channelId)).toEqual(["picture-reader"]);
+        expect(resolvePracticeGenerationCandidates({ ...settings, systemChannels: channels.slice(1) }, "text", "gamatext", context)).toEqual([]);
     });
 
     it("routes an authorized explicit model only to the matching practice channels and fails closed otherwise", () => {

@@ -1,5 +1,5 @@
 import { OUTPAINTING_TITLE, readOutpaintingSnapshot } from "@/lib/practice-outpainting";
-import { supportsOutpainting } from "@/lib/server/practice-outpainting-service";
+import { supportsOutpaintingOutput } from "@/lib/server/practice-image-capabilities";
 import { readExpressionSelection } from "@/lib/practice-expression-learning";
 import { requestPublicOrigin } from "./image-task-reference-urls";
 import { after, NextResponse } from "next/server";
@@ -14,7 +14,7 @@ import { resolveGeneratedMediaUrl } from "@/lib/media-url";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
-import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
+import { hasHealthyRuntimeCandidate, isChannelRuntimeCooling } from "@/lib/server/channel-runtime-health";
 import { assertReferenceCapabilities } from "@/lib/server/provider-task-config";
 import { createImageTask, getImageTask, touchImageTask, transitionImageTask, type ImageTask, type ImageTaskConfig, type ImageTaskReference, updateImageTask } from "@/lib/server/image-task-store";
 import { isGenerationSource, recordGenerationLog } from "@/lib/server/generation-log-store";
@@ -213,7 +213,7 @@ export async function POST(request: Request) {
         let trustedContext: GenerationTaskContext;
         try {
             const clientContext = sanitizeGenerationContext(resolvedBody.context, trustedPractice);
-            if (executionProfile === "open-source-practice" && !clientContext.businessCode)
+            if (executionProfile === "open-source-practice" && !clientContext.practiceImageTool && !clientContext.businessCode)
                 clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "image", resolvedBody.config?.model || settings.defaultModels.imageModel || "");
             const billingContext = await resolveSchoolComputeBillingContext(currentUser.id, { ...clientContext, executionProfile });
             const practiceModelTest = await resolvePracticeModelTestAccess(currentUser, { ...clientContext, executionProfile });
@@ -225,15 +225,18 @@ export async function POST(request: Request) {
         const configs = sanitizeConfigs(resolvedBody.config, settings, executionProfile, trustedContext);
         const prompt = (resolvedBody.prompt || "").trim();
         const kind = resolvedBody.kind === "edit" ? "edit" : "generation";
-        if (!configs.length || !prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
+        if (!prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
+        if (!configs.length) return NextResponse.json({ error: trustedContext.practiceImageTool ? "无限练习图片池没有支持本次操作的模型" : "任务参数不完整" }, { status: trustedContext.practiceImageTool ? 503 : 400 });
 
-        // 检查是否有健康的模型候选；无限练习只看已解析的工作流候选，不再回查逻辑模型
-        const requestedModel = resolvedBody.config?.model || settings.defaultModels.imageModel;
-        const allCandidates = resolvePracticeGenerationCandidates(settings, "image", requestedModel, trustedContext).filter((candidate): candidate is typeof candidate & { channelId: string } => typeof candidate.channelId === "string");
-        const hasHealthyModel = hasHealthyRuntimeCandidate(allCandidates, "image");
+        if (!trustedContext.practiceImageTool) {
+            // 检查是否有健康的模型候选；无限练习只看已解析的工作流候选，不再回查逻辑模型
+            const requestedModel = resolvedBody.config?.model || settings.defaultModels.imageModel;
+            const allCandidates = resolvePracticeGenerationCandidates(settings, "image", requestedModel, trustedContext).filter((candidate): candidate is typeof candidate & { channelId: string } => typeof candidate.channelId === "string");
+            const hasHealthyModel = hasHealthyRuntimeCandidate(allCandidates, "image");
 
-        if (!hasHealthyModel && allCandidates.length > 0) {
-            return NextResponse.json({ error: "当前模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
+            if (!hasHealthyModel && allCandidates.length > 0) {
+                return NextResponse.json({ error: "当前模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
+            }
         }
 
         const references = Array.isArray(resolvedBody.references) ? resolvedBody.references.filter((item) => Boolean(item?.dataUrl || item?.url || item?.remoteUrl || item?.serverUrl)) : [];
@@ -243,13 +246,13 @@ export async function POST(request: Request) {
             snapshot && typeof originalUrl === "string" && /^\/api\/(?:reference-assets|generation-log-assets)\/permanent\//.test(originalUrl) && references.length === 1 && resolvedBody.mask ? { ...snapshot, sourceUrl: originalUrl } : null;
         if (resolvedBody.practiceOutpainting !== undefined && !practiceOutpainting) return NextResponse.json({ error: "扩图任务参数无效" }, { status: 400 });
         const constrainedConfigs = configs.filter((config) => {
-            if (practiceOutpainting && (config.overflow || !supportsOutpainting(config))) return false;
+            if (practiceOutpainting) return !config.overflow && supportsOutpaintingOutput(config, config.size, practiceOutpainting.selection.resolution, practiceOutpainting.selection.ratio);
             try {
                 assertCapabilityConstraints(config.capabilityProfile, {
                     capability: "image",
                     referenceCount: references.length,
                     aspectRatio: config.size,
-                    resolution: practiceOutpainting?.selection.resolution ?? config.quality,
+                    resolution: config.quality,
                 });
                 return true;
             } catch {
@@ -265,9 +268,12 @@ export async function POST(request: Request) {
             }
         });
         // 用户所选模型自己的渠道都不支持本次参数时直接报错，不借其它模型兜底。
-        if (!compatibleConfigs.some((item) => !item.overflow)) return NextResponse.json({ error: practiceOutpainting ? "当前练习模型未配置兼容的扩图蒙版编辑渠道" : GENERATION_UNAVAILABLE_MESSAGE }, { status: practiceOutpainting ? 503 : 400 });
-        const config = compatibleConfigs[0];
-        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(config, trustedContext.businessCode, trustedContext) };
+        if (!compatibleConfigs.some((item) => !item.overflow))
+            return NextResponse.json({ error: practiceOutpainting ? "无限练习图片池没有支持蒙版和所选比例、分辨率的扩图模型" : GENERATION_UNAVAILABLE_MESSAGE }, { status: practiceOutpainting ? 503 : 400 });
+        const attemptConfigs = trustedContext.practiceImageTool ? compatibleConfigs.filter((item) => !isChannelRuntimeCooling(item.channelId, "image")) : compatibleConfigs;
+        if (trustedContext.practiceImageTool && !attemptConfigs.length) return NextResponse.json({ error: "符合条件的练习渠道暂不可用，请稍后重试" }, { status: 503 });
+        const config = attemptConfigs[0];
+        if (executionProfile === "open-source-practice" && !trustedContext.practiceImageTool) trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(config, trustedContext.businessCode, trustedContext) };
         if (config.outputMode === "layers" && (kind !== "edit" || references.length !== 1)) {
             return NextResponse.json({ error: "电商分层需要且只能使用一张源图" }, { status: 400 });
         }
@@ -283,7 +289,7 @@ export async function POST(request: Request) {
             source: isGenerationSource(resolvedBody.source) ? resolvedBody.source : "image-workbench",
             title: typeof resolvedBody.title === "string" ? resolvedBody.title : "",
             config,
-            candidateConfigs: compatibleConfigs.slice(1),
+            candidateConfigs: attemptConfigs.slice(1),
             prompt,
             references,
             ...(executionProfile === "open-source-practice" && trustedPractice && resolvedBody.input && typeof resolvedBody.input === "object" && !Array.isArray(resolvedBody.input) ? { workflowInput: resolvedBody.input } : {}),
