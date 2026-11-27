@@ -126,22 +126,14 @@
 
 /* ─── 上传 ─── */
 
-.uploadCard {
-    background: var(--gm-surface);
-    border: 1px solid var(--gm-border);
-    border-radius: var(--gm-radius-xl);
-    padding: 18px;
-    box-shadow: var(--gm-shadow);
-}
-
 .dropzone {
-    position: relative;
-    border-radius: var(--gm-radius-lg);
-    overflow: hidden;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: auto;
     border: 1.5px dashed var(--gm-border-strong);
-    min-height: 300px;
     display: grid;
-    place-items: center;
+    place-items: safe center;
     cursor: pointer;
     transition:
         border-color 0.2s,
@@ -157,20 +149,19 @@
 
 .dzInner {
     text-align: center;
-    padding: 40px;
+    padding: 8px;
     pointer-events: none;
 }
 
 .dzIcon {
-    width: 64px;
-    height: 64px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    margin: 0 auto 16px;
+    margin: 0 auto 5px;
     display: grid;
     place-items: center;
     color: var(--gm-blue-text);
     background: var(--gm-accent-soft);
-    animation: bob 4s var(--gm-ease) infinite;
 }
 
 .dzInner b {
@@ -181,14 +172,14 @@
 
 .dzInner span {
     display: block;
-    margin-top: 7px;
+    margin-top: 3px;
     font-size: 12.5px;
     color: var(--gm-text-3);
     line-height: 1.6;
 }
 
 .dzActions {
-    margin-top: 16px;
+    margin-top: 5px;
     display: flex;
     gap: 10px;
     justify-content: center;
@@ -201,22 +192,19 @@
     padding: 0 15px;
 }
 
-@keyframes bob {
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-6px);
-    }
-}
-
 /* ─── 工作区 ─── */
+
+.page {
+    width: 100%;
+    padding: 16px clamp(12px, 2vw, 30px);
+}
 
 .workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 430px;
-    gap: 16px;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    scroll-margin-top: 114px;
     animation: rise 0.5s var(--gm-ease);
 }
 
@@ -231,15 +219,25 @@
     }
 }
 
-.stageCard {
+.workCard,
+.results {
+    min-width: 0;
+    padding: 16px;
     background: var(--gm-surface);
     border: 1px solid var(--gm-border);
     border-radius: var(--gm-radius-lg);
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
     box-shadow: var(--gm-shadow);
-    min-height: 520px;
+}
+
+.workCard > h2 {
+    margin: 0 0 14px;
+    color: var(--gm-text);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.stageCard {
+    margin-bottom: 12px;
 }
 
 .stageTop {
@@ -281,9 +279,10 @@
     position: relative;
     background: var(--ma-stage-bg);
     display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
     place-items: center;
     perspective: 1200px;
-    min-height: 400px;
+    height: 300px;
     cursor: grab;
     touch-action: none;
 }
@@ -370,6 +369,7 @@
     width: 300px;
     height: 300px;
     display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
     place-items: center;
     z-index: 1;
     transform-style: preserve-3d;
@@ -398,48 +398,25 @@
 /* 取景窗：模拟当前机位拍到的画面 */
 .capturePreview {
     position: absolute;
-    right: 18px;
-    top: 18px;
-    z-index: 3;
-    width: 96px;
-    height: 96px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 2px solid var(--gm-surface);
-    /* 取景窗只是画面显示，不能吞掉舞台上的拖拽手势 */
+    inset: 10px 10px auto auto;
+    z-index: 4;
+    width: clamp(58px, 8vw, 88px);
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+    color: var(--gm-text-3);
+    font-size: 11px;
     pointer-events: none;
-    box-shadow:
-        var(--gm-shadow),
-        inset 0 0 0 1px var(--gm-border);
-    background: #000;
 }
 
 .capturePreview canvas {
     width: 100%;
-    height: 100%;
+    aspect-ratio: 1;
     display: block;
-}
-
-.capturePreview::after {
-    content: "";
-    position: absolute;
-    inset: 0;
     border-radius: 50%;
-    pointer-events: none;
-    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.14), transparent 45%);
-    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.25);
-}
-
-.captureLabel {
-    position: absolute;
-    right: 18px;
-    top: 120px;
-    width: 96px;
-    text-align: center;
-    font-size: 9.5px;
-    letter-spacing: 1px;
-    color: var(--gm-text-3);
-    pointer-events: none;
+    border: 2px solid var(--gm-surface);
+    background: var(--ma-stage-bg);
+    box-shadow: var(--gm-shadow);
 }
 
 .hintLine {
@@ -573,6 +550,16 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.panelSettings {
+    display: grid;
+    align-content: start;
+    gap: inherit;
+}
+
+.batchTitle {
+    margin-bottom: 10px;
 }
 
 .panel h3 {
@@ -858,11 +845,6 @@
 
 /* ─── 结果与历史 ─── */
 
-.results {
-    margin-top: 22px;
-    animation: rise 0.5s var(--gm-ease);
-}
-
 .resultsHead {
     display: flex;
     align-items: center;
@@ -884,10 +866,153 @@
     margin-top: 3px;
 }
 
-.film {
+.deck {
+    position: relative;
+    isolation: isolate;
+    margin: 0 0 12px;
+}
+
+.deckStack {
+    margin: 6px 13px 17px 2px;
+}
+
+.deckStack::before,
+.deckStack::after {
+    content: "";
+    position: absolute;
+    inset: 2px 0;
+    z-index: -1;
+    background: var(--gm-surface-2);
+    border: 1px solid var(--gm-border);
+    border-radius: var(--gm-radius-lg);
+    transform: translateX(6px) rotate(1.4deg);
+}
+
+.deckStack::after {
+    z-index: -2;
+    transform: translateX(10px) rotate(2.5deg);
+}
+
+.root .cardArrow {
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--gm-border);
+    background: var(--gm-surface);
+    color: var(--gm-text);
+    box-shadow: var(--gm-shadow);
+}
+
+.root .cardArrow:hover {
+    color: var(--gm-blue);
+}
+.cardPrev {
+    left: 10px;
+}
+.cardNext {
+    right: 10px;
+}
+.cardFromLeft {
+    --ma-card-offset: -12px;
+}
+.cardFromRight {
+    --ma-card-offset: 12px;
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0.45;
+        transform: translateX(var(--ma-card-offset));
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.cardChoices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.root .cardChoices button {
+    padding: 5px 9px;
+    border: 1px solid var(--gm-border);
+    border-radius: 9px;
+    font-size: 12px;
+}
+.root .cardChoices button[aria-pressed="true"] {
+    color: var(--gm-blue);
+    background: var(--gm-accent-soft);
+}
+.root .cardArrow:focus-visible,
+.root .cardChoices button:focus-visible {
+    outline: 2px solid var(--gm-blue);
+    outline-offset: 2px;
+}
+
+.promptCard {
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--gm-surface-2);
+    border: 1px solid var(--gm-border);
+    border-radius: var(--gm-radius);
+    overflow-wrap: anywhere;
+}
+.promptCard h3 {
+    font-size: 14px;
+    font-weight: 700;
+}
+.promptCard dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0 0 10px;
+}
+.promptCard dl div {
+    padding: 7px;
+    border: 1px solid var(--gm-border);
+    border-radius: 8px;
+    background: var(--gm-surface);
+}
+.promptCard dt {
+    color: var(--gm-text-3);
+    font-size: 11px;
+}
+.promptCard dd {
+    margin: 4px 0 0;
+    font-size: 12px;
+    font-weight: 650;
+}
+.promptCard p,
+.promptCard details {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+.promptCard summary {
+    cursor: pointer;
+    color: var(--gm-blue);
+}
+
+.resultsEmpty {
+    min-height: 160px;
+    text-align: center;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 8px;
+    background: var(--gm-surface-2);
+    border-radius: var(--gm-radius);
+    border: 1px dashed var(--gm-border);
+    font-size: 13px;
+    color: var(--gm-text-3);
 }
 
 .shot {
@@ -897,26 +1022,22 @@
     aspect-ratio: 4 / 3;
     background: var(--gm-surface-2);
     border: 1px solid var(--gm-border);
-    transition:
-        transform 0.25s var(--gm-ease),
-        box-shadow 0.25s var(--gm-ease);
-}
-
-.shot:hover {
-    transform: translateY(-3px);
     box-shadow: var(--gm-shadow);
+    animation: cardIn 0.22s var(--gm-ease);
 }
 
 .shot img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
-.shotLabel {
+.shotLabel,
+.shotCounter {
     position: absolute;
+    z-index: 1;
     left: 10px;
-    top: 10px;
+    bottom: 10px;
     font-size: 10.5px;
     font-weight: 650;
     color: #fff;
@@ -928,28 +1049,35 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.shotSkeleton::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
-    animation: shimmer 1.2s infinite;
+.shotCounter {
+    top: 10px;
+    bottom: auto;
+    font-variant-numeric: tabular-nums;
 }
 
-@keyframes shimmer {
-    from {
-        transform: translateX(-100%);
-    }
-    to {
-        transform: translateX(100%);
-    }
+.root .shotDownload {
+    position: absolute;
+    inset: auto 8px 8px auto;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    color: #fff;
+    background: rgba(5, 10, 25, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .shotSpin {
     position: absolute;
-    inset: 0;
+    inset: 26px 0 0;
     display: grid;
-    place-items: center;
+    place-content: center;
+    justify-items: center;
+    text-align: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--gm-text-3);
 }
 
 .shotSpin i {
@@ -967,54 +1095,282 @@
     }
 }
 
-.history {
-    margin-top: 26px;
+.historyRail,
+.root .openHistory {
+    display: none;
 }
 
-.history h2 {
-    font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 12px;
+.history {
+    min-width: 0;
+    min-height: 0;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--gm-border);
+    border-radius: var(--gm-radius-lg);
+    background: var(--gm-surface);
+    box-shadow: var(--gm-shadow);
+}
+
+.historyActions {
+    display: flex;
+    gap: 4px;
+}
+.root .historyActions button {
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+}
+.historyContent {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 2px;
+}
+.historyDialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    max-width: min(calc(100% - 24px), 440px);
+    width: 100%;
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    border: 0;
+    border-radius: var(--gm-radius-lg);
     color: var(--gm-text);
+    background: var(--gm-surface);
+}
+.historyDialog::backdrop {
+    background: rgb(10 22 43 / 55%);
+}
+.historyDialog .history {
+    max-height: calc(100dvh - 32px);
+}
+
+@media (width < 1100px) {
+    .root .openHistory {
+        display: inline-flex;
+    }
+    .pageHead {
+        position: sticky;
+        z-index: 5;
+        top: 0;
+        background: var(--gm-bg);
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+    }
+}
+
+@media (width >= 1100px) {
+    .page {
+        height: 100%;
+        min-height: 470px;
+        display: flex;
+        flex-direction: column;
+    }
+    .pageHead {
+        flex: none;
+        margin-bottom: 12px;
+    }
+    .workspace {
+        flex: 1;
+        min-height: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(184px, 0.5fr);
+        grid-template-rows: minmax(0, 1fr);
+    }
+    .workCard,
+    .results,
+    .historyRail {
+        min-height: 0;
+    }
+    .historyRail {
+        display: flex;
+        min-width: 0;
+    }
+    .historyRail .history {
+        width: 100%;
+    }
+    .historyRail .historyGrid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+    .historyRail .histItem {
+        padding: 8px;
+    }
+    .historyRail .histThumbs {
+        min-height: 36px;
+    }
+    .historyRail .histThumbs img {
+        height: 36px;
+    }
+    .workCard {
+        display: flex;
+        flex-direction: column;
+        padding: 12px;
+        overflow: hidden;
+    }
+    .workCard > h2 {
+        margin-bottom: 6px;
+    }
+    .stageCard {
+        flex: none;
+        margin-bottom: 8px;
+    }
+    .stageTop {
+        margin-bottom: 6px;
+        gap: 4px;
+    }
+    .viewport {
+        height: clamp(112px, 26dvh, 224px);
+        min-height: 0;
+    }
+    .sceneCenter {
+        width: 190px;
+        height: 100px;
+    }
+    .subjectPlane {
+        width: clamp(112px, 20dvh, 168px);
+        height: auto;
+        aspect-ratio: 4 / 3;
+    }
+    .cube {
+        scale: 0.52;
+        height: 100px;
+    }
+    .orbitWidget {
+        left: 6px;
+        bottom: 5px;
+        transform: scale(0.58);
+        transform-origin: left bottom;
+    }
+    .capturePreview {
+        width: clamp(46px, 8dvh, 70px);
+    }
+    .hintLine {
+        margin-top: 5px;
+    }
+    .panel {
+        flex: 1;
+        min-height: 0;
+        padding: 8px;
+        gap: 7px;
+        box-shadow: none;
+    }
+    .panelSettings {
+        overflow: auto;
+        min-height: 0;
+        flex: 1;
+        padding: 2px;
+        overscroll-behavior: contain;
+    }
+    .panelActions {
+        flex: none;
+        padding: 5px 2px 0;
+        border-top: 1px solid var(--gm-border);
+    }
+    .modeSeg button {
+        height: 27px;
+    }
+    .presetTabs {
+        margin-top: 4px;
+        gap: 4px;
+    }
+    .root .ptab {
+        padding: 3px 7px;
+    }
+    .sliders {
+        gap: 5px;
+    }
+    .batchTitle {
+        margin-bottom: 4px;
+    }
+    .root .batch {
+        padding: 4px 3px;
+    }
+    .promptBox textarea {
+        min-height: 52px;
+        padding: 6px 8px;
+    }
+    .results {
+        padding: 12px;
+        overflow: auto;
+        overscroll-behavior: contain;
+        display: flex;
+        flex-direction: column;
+    }
+    .results > * {
+        flex-shrink: 0;
+    }
+    .resultsEmpty {
+        flex: 1;
+    }
+    .shot {
+        max-height: clamp(132px, 35dvh, 316px);
+    }
+}
+
+.historyGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+    gap: 12px;
 }
 
 .histItem {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 16px;
-    border-radius: var(--gm-radius-lg);
+    display: grid;
+    min-width: 0;
+    text-align: left;
+    gap: 6px;
+    padding: 12px;
+    border-radius: var(--gm-radius);
     background: var(--gm-surface);
     border: 1px solid var(--gm-border);
-    margin-bottom: 8px;
+}
+
+.histItem:hover:not(:disabled),
+.histItem[aria-pressed="true"] {
+    border-color: var(--gm-blue);
+}
+
+.histItem:focus-visible {
+    outline: 2px solid var(--gm-blue);
+    outline-offset: 2px;
 }
 
 .histThumbs {
     display: flex;
+    min-height: 48px;
+    gap: 3px;
 }
 
 .histThumbs img {
-    width: 40px;
-    height: 32px;
+    min-width: 0;
+    width: 52px;
+    height: 48px;
     border-radius: 6px;
-    object-fit: cover;
-    border: 2px solid var(--gm-surface);
-    margin-left: -10px;
-}
-
-.histThumbs img:first-child {
-    margin-left: 0;
+    object-fit: contain;
+    background: var(--gm-surface-2);
 }
 
 .histItem b {
     font-size: 13px;
-    display: block;
     color: var(--gm-text);
 }
 
-.histItem small {
-    font-size: 11.5px;
+.histItem small,
+.historyStatus {
+    font-size: 12px;
     color: var(--gm-text-3);
+}
+
+.historyStatus {
+    padding: 16px;
+    border-radius: var(--gm-radius);
+    border: 1px dashed var(--gm-border);
+}
+
+.historyMore {
+    margin-top: 12px;
 }
 
 .demoNotice {
@@ -1032,30 +1388,14 @@
 
 /* ─── 响应式 ─── */
 
-@media (max-width: 1100px) {
-    .workspace {
-        grid-template-columns: minmax(0, 1fr);
-    }
-    .stageCard {
-        min-height: 460px;
-    }
-}
-
 @media (max-width: 700px) {
-    .capturePreview,
-    .captureLabel {
-        display: none;
-    }
     .orbitWidget {
         transform: scale(0.86);
         transform-origin: left bottom;
     }
-    .stageCard {
-        min-height: 400px;
+    .workCard,
+    .results {
         padding: 12px;
-    }
-    .viewport {
-        min-height: 320px;
     }
     .cube {
         width: 180px;
@@ -1074,6 +1414,9 @@
     .cubeBottom {
         transform: none;
         display: none;
+    }
+    .viewport {
+        height: 240px;
     }
     .sceneCenter {
         width: 240px;

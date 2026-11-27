@@ -81,50 +81,52 @@ export default function AngleParamsPanel({
 
     return (
         <div className={s.panel}>
-            <div className={s.modeSeg} role="tablist" aria-label="旋转对象">
-                {(["camera", "subject"] as AngleMode[]).map((item) => (
-                    <button key={item} type="button" role="tab" aria-selected={mode === item} className={cn(mode === item && s.modeSegActive)} onClick={() => onModeChange(item)}>
-                        {item === "camera" ? "摄像头" : "主体"}
-                    </button>
-                ))}
-            </div>
-
-            <div>
-                <h3>预设视角</h3>
-                <div className={s.presetTabs}>
-                    {PRESET_TABS.map((tab) => (
-                        <button key={tab.key} type="button" className={cn(s.ptab, preset === tab.key && s.ptabActive)} onClick={() => onPresetChange(tab.key)}>
-                            {tab.label}
+            <div className={s.panelSettings}>
+                <div className={s.modeSeg} role="tablist" aria-label="旋转对象">
+                    {(["camera", "subject"] as AngleMode[]).map((item) => (
+                        <button key={item} type="button" role="tab" aria-selected={mode === item} className={cn(mode === item && s.modeSegActive)} onClick={() => onModeChange(item)}>
+                            {item === "camera" ? "摄像头" : "主体"}
                         </button>
                     ))}
                 </div>
-            </div>
 
-            <div className={s.sliders}>
-                <SliderRow label={copy.hLabel} value={h} min={cameraMode ? 0 : -180} max={cameraMode ? 360 : 180} step={1} display={`${h}°`} onChange={(value) => onAngleChange({ h: value })} />
-                <SliderRow label={copy.pLabel} value={p} min={-90} max={90} step={1} display={`${p}°`} onChange={(value) => onAngleChange({ p: value })} />
-                <SliderRow label={copy.dLabel} value={d} min={MIN_SHOT_DISTANCE} max={MAX_SHOT_DISTANCE} step={0.5} display={fisheye ? "特写" : shotLabel(d)} onChange={(value) => onAngleChange({ d: value })} />
-            </div>
-
-            <div className={s.toggleRow}>
-                <span>提示词</span>
-                <button type="button" role="switch" aria-checked={promptOn} aria-label="提示词开关" className={cn(s.promptToggle, promptOn && s.promptToggleOn)} onClick={onPromptToggle} />
-            </div>
-            {promptOn ? (
-                <div className={s.promptBox}>
-                    <textarea value={prompt} placeholder="可选：补充主体描述，例如「一位穿蓝色西装的男性，摄影棚光」" onChange={(event) => onPromptChange(event.target.value)} />
+                <div>
+                    <h3>预设视角</h3>
+                    <div className={s.presetTabs}>
+                        {PRESET_TABS.map((tab) => (
+                            <button key={tab.key} type="button" className={cn(s.ptab, preset === tab.key && s.ptabActive)} onClick={() => onPresetChange(tab.key)}>
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            ) : null}
 
-            <div>
-                <h3 style={{ marginBottom: 10 }}>生成数量</h3>
-                <div className={s.batchRow}>
-                    {BATCH_OPTIONS.map((option) => (
-                        <button key={option.value} type="button" className={cn(s.batch, batch === option.value && s.batchActive)} onClick={() => onBatchChange(option.value)}>
-                            {option.label}
-                            <small>{option.hint}</small>
-                        </button>
-                    ))}
+                <div className={s.sliders}>
+                    <SliderRow label={copy.hLabel} value={h} min={cameraMode ? 0 : -180} max={cameraMode ? 360 : 180} step={1} display={`${h}°`} onChange={(value) => onAngleChange({ h: value })} />
+                    <SliderRow label={copy.pLabel} value={p} min={-90} max={90} step={1} display={`${p}°`} onChange={(value) => onAngleChange({ p: value })} />
+                    <SliderRow label={copy.dLabel} value={d} min={MIN_SHOT_DISTANCE} max={MAX_SHOT_DISTANCE} step={0.5} display={fisheye ? "特写" : shotLabel(d)} onChange={(value) => onAngleChange({ d: value })} />
+                </div>
+
+                <div className={s.toggleRow}>
+                    <span>提示词</span>
+                    <button type="button" role="switch" aria-checked={promptOn} aria-label="提示词开关" className={cn(s.promptToggle, promptOn && s.promptToggleOn)} onClick={onPromptToggle} />
+                </div>
+                {promptOn ? (
+                    <div className={s.promptBox}>
+                        <textarea aria-label="提示词" value={prompt} placeholder="可选：补充主体描述，例如「一位穿蓝色西装的男性，摄影棚光」" onChange={(event) => onPromptChange(event.target.value)} />
+                    </div>
+                ) : null}
+
+                <div>
+                    <h3 className={s.batchTitle}>生成数量</h3>
+                    <div className={s.batchRow}>
+                        {BATCH_OPTIONS.map((option) => (
+                            <button key={option.value} type="button" aria-pressed={batch === option.value} className={cn(s.batch, batch === option.value && s.batchActive)} onClick={() => onBatchChange(option.value)}>
+                                {option.label}
+                                <small>{option.hint}</small>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
