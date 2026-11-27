@@ -1,4 +1,6 @@
-export const PRACTICE_IMAGE_TOOL_IDS = ["reverse-prompt", "local-edit", "expression-reference", "super-resolution"] as const;
+import { OUTPAINTING_TITLE } from "./practice-outpainting";
+
+export const PRACTICE_IMAGE_TOOL_IDS = ["reverse-prompt", "local-edit", "expression-reference", "super-resolution", "ai-outpainting"] as const;
 
 export type PracticeImageToolId = (typeof PRACTICE_IMAGE_TOOL_IDS)[number];
 
@@ -16,6 +18,7 @@ export const PRACTICE_IMAGE_TOOL_ENTRIES: readonly PracticeImageToolConfig[] = [
     { id: "local-edit", title: "局部编辑", description: "涂抹需要修改的区域，描述调整内容并生成新图。", path: "/practice/local-edit", tag: "蒙版编辑", kind: "ai-image-edit" },
     { id: "expression-reference", title: "表情参考", description: "选择目标表情与强度，基于参考图片生成表情变化。", path: "/practice/expression-reference", tag: "表情编辑", kind: "ai-image-edit" },
     { id: "super-resolution", title: "超分放大", description: "本地提升图片尺寸与细节，不调用 AI 生成模型。", path: "/practice/super-resolution", tag: "本地处理", kind: "local-image" },
+    { id: "ai-outpainting", title: OUTPAINTING_TITLE, description: "扩展原图边界，让 AI 补全新增画面。", path: "/practice/ai-outpainting", tag: "AI 图像编辑", kind: "ai-image-edit" },
 ];
 
 export function getPracticeImageToolConfig(value: string): PracticeImageToolConfig | null {

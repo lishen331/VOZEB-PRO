@@ -17,8 +17,8 @@ describe("practice home contract", () => {
         expect(PRACTICE_SINGLE_ENTRY.description).toContain("角色");
     });
     it("lists the local tools next to the single-item entry, 3D desk first", () => {
-        expect(PRACTICE_TOOL_ENTRIES.map((tool) => tool.id)).toEqual(["director-desk", "multi-angle", "reverse-prompt", "local-edit", "expression-reference", "super-resolution"]);
-        expect(PRACTICE_TOOL_ENTRIES.slice(2).map((tool) => tool.path)).toEqual(["/practice/reverse-prompt", "/practice/local-edit", "/practice/expression-reference", "/practice/super-resolution"]);
+        expect(PRACTICE_TOOL_ENTRIES.map((tool) => tool.id)).toEqual(["director-desk", "multi-angle", "reverse-prompt", "local-edit", "expression-reference", "ai-outpainting"]);
+        expect(PRACTICE_TOOL_ENTRIES.slice(2).map((tool) => tool.path)).toEqual(["/practice/reverse-prompt", "/practice/local-edit", "/practice/expression-reference", "/practice/ai-outpainting"]);
         const multiAngle = PRACTICE_TOOL_ENTRIES.find((tool) => tool.id === "multi-angle");
         expect(multiAngle?.path).toBe("/practice/multi-angle");
         expect(multiAngle?.title).toBe("多角度练习");

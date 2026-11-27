@@ -41,10 +41,10 @@ export const PRACTICE_SINGLE_ENTRY = { title: "单项练习", description: "角�
 
 /**
  * 与 AI 单项练习并列展示的独立工具入口。每个入口有自己的工作台；图像 AI 工具走练习模型池，
- * 本地工具（3D 导演台、多角度和超分）不会调用 AI 任务。
+ * 本地和 AI 工具各沿用自己的执行链路。
  */
 export const PRACTICE_TOOL_ENTRIES: Array<{
-    id: "director-desk" | "multi-angle" | "reverse-prompt" | "local-edit" | "expression-reference" | "super-resolution";
+    id: "director-desk" | "multi-angle" | "reverse-prompt" | "local-edit" | "expression-reference" | "super-resolution" | "ai-outpainting";
     title: string;
     description: string;
     icon: LucideIcon;
@@ -70,7 +70,7 @@ export const PRACTICE_TOOL_ENTRIES: Array<{
         path: "/practice/multi-angle",
         tag: "多视角 · 本地工具",
     },
-    ...PRACTICE_IMAGE_TOOL_ENTRIES.map((tool) => ({
+    ...PRACTICE_IMAGE_TOOL_ENTRIES.filter((tool) => tool.id !== "super-resolution").map((tool) => ({
         ...tool,
         icon: tool.id === "reverse-prompt" ? WandSparkles : tool.id === "local-edit" ? Brush : tool.id === "expression-reference" ? ScanFace : Maximize2,
         accent: tool.id === "reverse-prompt" ? ("blue" as const) : tool.id === "local-edit" ? ("cyan" as const) : tool.id === "expression-reference" ? ("violet" as const) : ("teal" as const),

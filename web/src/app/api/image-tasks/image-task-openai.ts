@@ -136,7 +136,7 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
 async function runObservedOpenAiImageTask(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false): Promise<ImageTaskRunResult> {
     const config = task.config;
     const quality = upstreamImageQuality(config);
-    const requestSize = resolveRequestSize(imagePixelTier(config), config.size || "auto");
+    const requestSize = task.practiceOutpainting ? config.size : resolveRequestSize(imagePixelTier(config), config.size || "auto");
     const globalPreset = globalAiOpcImagePreset(config);
     if (globalPreset) return runGlobalAiOpcImageTask(task, origin, publicOrigin, cookie, quality, requestSize, singleStep);
     const path = await openAiImageTaskPath(config, task.kind);
