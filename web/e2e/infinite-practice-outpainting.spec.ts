@@ -34,10 +34,10 @@ test("AI 扩图：恢复历史与教学提示词不重复提交，修改后可�
                 return route.fulfill({ json: { records: [history] } });
             }
             submitted++;
-            expect(route.request().postDataJSON()).toMatchObject({ toolId: "ai-outpainting", sourceUrl, outpainting: { ...selection, resolution: "1k" } });
+            expect(route.request().postDataJSON()).toMatchObject({ toolId: "ai-outpainting", sourceUrl, outpainting: { ...selection, resolution: "4k" } });
             return route.fulfill({ json: { task: { id: "new-outpainting", type: "image", model: "fixture" } } });
         });
-        await practice.route("**/api/image-tasks/new-outpainting", (route) => route.fulfill({ json: { task: { status: "success", result: { serverUrl: resultUrl, width: 1024, height: 576 } } } }));
+        await practice.route("**/api/image-tasks/new-outpainting", (route) => route.fulfill({ json: { task: { status: "success", result: { serverUrl: resultUrl, width: 4096, height: 2304 } } } }));
         await practice.goto("/practice/ai-outpainting");
         const records = practice.getByRole("region", { name: "历史记录" });
         const lesson = practice.getByRole("region", { name: "结构化提示词" });
@@ -54,9 +54,16 @@ test("AI 扩图：恢复历史与教学提示词不重复提交，修改后可�
             expect(input!.x).toBeLessThan(middle!.x);
             expect(middle!.x).toBeLessThan(right!.x);
         }
-        await practice.getByLabel("输出分辨率").selectOption("1k");
+        await expect(practice.getByLabel("扩图比例").locator("option")).toHaveText(["原图比例", "1:1", "4:3", "3:4", "16:9", "9:16"]);
+        await expect(practice.getByLabel("输出分辨率").locator("option")).toHaveText(["1K · 1024px", "2K · 2048px", "4K · 4096px"]);
+        await practice.getByLabel("输出分辨率").selectOption("4k");
+        await expect(lesson.getByText(/4096 × 2304/)).toBeVisible();
         await practice.getByRole("button", { name: "开始 AI 扩图" }).click();
-        await expect(records.getByRole("button", { name: /16:9 · 1K/ })).toBeVisible();
+        const newRecord = records.getByRole("button", { name: /16:9 · 4K/ });
+        await expect(newRecord).toBeVisible();
+        await records.getByRole("button", { name: /16:9 · 2K/ }).click();
+        await newRecord.click();
+        await expect(practice.getByLabel("输出分辨率")).toHaveValue("4k");
         await expect(lesson.getByText("本次生成使用的提示词")).toBeVisible();
         expect(submitted).toBe(1);
         expect(await practice.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await practice.evaluate(() => innerWidth));

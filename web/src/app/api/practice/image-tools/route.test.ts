@@ -281,6 +281,13 @@ describe("AI outpainting integration", () => {
         });
         expect(payload.mask.url).toBe("/api/reference-assets/temporary/input.png");
     });
+    it("passes the 4K tier and exact output dimensions to the image task", async () => {
+        const selection: OutpaintingSelection = { ...outpainting, resolution: "4k" };
+        const response = await send({ ...body, outpainting: selection });
+        expect(response.status, await response.clone().text()).toBe(200);
+        const [, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(JSON.parse(init.body)).toMatchObject({ config: { size: "4096x1365", resolution: "4k" }, practiceOutpainting: { selection }, prompt: expect.stringContaining("4096 × 1365") });
+    });
     it("checks duplicate snapshots and never regenerates on matching retry", async () => {
         mocks.lookupTask.mockResolvedValue({ id: "existing", config: { model: "fixture" }, practiceOutpainting: { selection: outpainting, sourceUrl: body.sourceUrl } });
         expect(await (await send()).json()).toMatchObject({ task: { id: "existing" } });

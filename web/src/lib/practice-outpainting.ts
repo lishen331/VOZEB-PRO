@@ -1,9 +1,14 @@
+import { IMAGE_RESOLUTIONS, normalizeImageResolution, type ImageResolution } from "./image-generation-params";
+
+export const OUTPAINTING_RESOLUTIONS = IMAGE_RESOLUTIONS;
+export const OUTPAINTING_LONG_EDGES: Record<ImageResolution, number> = { "1k": 1024, "2k": 2048, "4k": 4096 };
+
 export const OUTPAINTING_TITLE = "AI 扩图";
 export const OUTPAINTING_HISTORY_LIMIT = 20;
 export const OUTPAINTING_RATIOS = ["original", "free", "1:1", "4:3", "3:4", "16:9", "9:16"] as const;
 export type OutpaintingRatio = (typeof OUTPAINTING_RATIOS)[number];
 export type OutpaintingPadding = Record<"left" | "right" | "top" | "bottom", number>;
-export type OutpaintingSelection = { padding: OutpaintingPadding; ratio: OutpaintingRatio; resolution: "1k" | "2k" };
+export type OutpaintingSelection = { padding: OutpaintingPadding; ratio: OutpaintingRatio; resolution: ImageResolution };
 export type OutpaintingSnapshot = { selection: OutpaintingSelection; width: number; height: number };
 export type OutpaintingRecord = OutpaintingSnapshot & { id: string; createdAt: number; sourceUrl: string; prompt: string; model?: string; image: { url: string; width: number; height: number; bytes: number; mimeType: string } };
 export const emptyOutpaintingPadding = () => ({ left: 0, right: 0, top: 0, bottom: 0 });
@@ -14,7 +19,8 @@ const pixel = (n: unknown): n is number => typeof n === "number" && Number.isSaf
 export function readOutpaintingSelection(value: unknown): OutpaintingSelection | null {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const { padding, ratio, resolution } = value as Partial<OutpaintingSelection>;
-    if (!padding || !edges.every((edge) => pixel(padding[edge])) || !edges.some((edge) => padding[edge] > 0) || !ratio || ratio === "original" || !OUTPAINTING_RATIOS.includes(ratio) || (resolution !== "1k" && resolution !== "2k")) return null;
+    if (!padding || !edges.every((edge) => pixel(padding[edge])) || !edges.some((edge) => padding[edge] > 0) || !ratio || ratio === "original" || !OUTPAINTING_RATIOS.includes(ratio) || !resolution || normalizeImageResolution(resolution) !== resolution)
+        return null;
     return { padding: { left: padding.left, right: padding.right, top: padding.top, bottom: padding.bottom }, ratio, resolution };
 }
 
@@ -47,7 +53,7 @@ export function outpaintingGeometry(sourceW: number, sourceH: number, selection:
     const w = sourceW + p.left + p.right,
         h = sourceH + p.top + p.bottom;
     if (!pixel(w) || !pixel(h)) return null;
-    const long = selection.resolution === "2k" ? 2048 : 1024;
+    const long = OUTPAINTING_LONG_EDGES[selection.resolution];
     const scale = long / Math.max(w, h);
     const width = Math.round(w * scale),
         height = Math.round(h * scale);
