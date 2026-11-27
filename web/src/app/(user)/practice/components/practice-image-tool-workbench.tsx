@@ -390,7 +390,15 @@ export default function PracticeImageToolWorkbench({ toolId }: Props) {
             const response = await fetch("/api/practice/image-tools", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ toolId, sourceUrl: source.url, ...(mask ? { maskUrl: mask.url } : {}), prompt: finalPrompt, clientRequestId: requestId, ...(reverse ? { reverseHistory: { mode, extraRequirement: prompt.trim() } } : {}), ...(attempt ? { expression: attempt.selection } : {}) }),
+                body: JSON.stringify({
+                    toolId,
+                    sourceUrl: source.url,
+                    ...(mask ? { maskUrl: mask.url } : {}),
+                    prompt: finalPrompt,
+                    clientRequestId: requestId,
+                    ...(reverse ? { reverseHistory: { mode, extraRequirement: prompt.trim() } } : {}),
+                    ...(attempt ? { expression: attempt.selection } : {}),
+                }),
             });
             const payload = (await response.json().catch(() => ({}))) as { task?: PracticeImageToolTask; record?: ExpressionPracticeRecord; error?: string; historyWarning?: string };
             if (!response.ok || !payload.task) {
