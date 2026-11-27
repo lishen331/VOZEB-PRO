@@ -6,6 +6,7 @@ import { createAuthenticatedE2EContext, E2E_PRACTICE_PASSWORD, e2eProjectContext
 
 const sourceKey = "permanent/practice-multi-angle-fixture.png";
 const media = `/api/reference-assets/${sourceKey}`;
+const portrait = "/api/reference-assets/permanent/practice-angle-portrait.svg";
 const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9Z0AAAAASUVORK5CYII=", "base64");
 
 test("keeps the workbench mounted while selecting and restoring subjects", async ({ page, browser, baseURL }, testInfo) => {
@@ -29,6 +30,7 @@ test("keeps the workbench mounted while selecting and restoring subjects", async
         const sessions: PracticeSession[] = [];
         let submissions = 0;
         await practice.route("**/api/reference-assets/**", (route) => route.fulfill({ contentType: "image/png", body: pixel }));
+        await practice.route(`**${portrait}`, (route) => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="240"><rect width="120" height="240" fill="royalblue"/></svg>' }));
         await practice.route("**/api/reference-assets", (route) => route.fulfill({ json: { token: sourceKey, url: media, mimeType: "image/png" } }));
         await practice.route("**/api/practice/sessions**", (route) => {
             const json = (data: unknown) => route.fulfill({ json: { code: 0, data } });
@@ -46,7 +48,7 @@ test("keeps the workbench mounted while selecting and restoring subjects", async
                     updatedAt: time,
                     input: { ...request.input, references: request.references },
                     status: shotIndex === 1 ? "failed" : "success",
-                    result: shotIndex === 1 ? { status: "error" } : { status: "success", media: { kind: "image", url: media } },
+                    result: shotIndex === 1 ? { status: "error" } : { status: "success", media: { kind: "image", url: shotIndex === 2 ? portrait : media } },
                 };
                 sessions.push(session);
                 return json({ session });
@@ -58,6 +60,9 @@ test("keeps the workbench mounted while selecting and restoring subjects", async
             return json({ session: sessions.find((session) => url.pathname.endsWith(`/${session.id}`)) });
         });
         await practice.goto("/practice/multi-angle");
+        const back = practice.getByRole("link", { name: "返回无限练习" });
+        await expect(back).toBeVisible();
+        await expect(back).toHaveAttribute("href", "/practice");
         await openHistory();
         await expect(practice.getByRole("region", { name: "历史记录" }).getByText("暂无生成记录")).toBeVisible();
         await closeHistory();
@@ -128,6 +133,38 @@ test("keeps the workbench mounted while selecting and restoring subjects", async
         const card = results.getByRole("group", { name: "结果卡片" });
         const prompt = results.getByRole("region", { name: "提示词", exact: true });
         await expect(card.getByRole("img")).toHaveAttribute("alt", "正面");
+        await expect(card.getByRole("img")).toBeVisible();
+        const front = card.getByTestId("multi-angle-result-card");
+        const verifyCard = async (naturalSize: number[]) => {
+            const measure = () =>
+                front.evaluate((element) => {
+                    const deck = element.parentElement!;
+                    const cardBox = element.getBoundingClientRect();
+                    const deckBox = deck.getBoundingClientRect();
+                    const image = element.querySelector("img")!;
+                    const imageBox = image.getBoundingClientRect();
+                    const style = getComputedStyle(image);
+                    const backCards = ["::before", "::after"].map((side) => getComputedStyle(deck, side));
+                    const frame = [cardBox.width, cardBox.height].map(Math.round);
+                    return {
+                        frame,
+                        aligned: Math.abs(deckBox.left - cardBox.left) < 1 && Math.abs(deckBox.top - cardBox.top) < 1,
+                        sameDeckSize: Math.abs(deckBox.width - cardBox.width) < 1 && Math.abs(deckBox.height - cardBox.height) < 1,
+                        backCardsMatch: backCards.every((back) => Math.abs(parseFloat(back.width) - cardBox.width) < 1 && Math.abs(parseFloat(back.height) - cardBox.height) < 1),
+                        imageMatches:
+                            Math.abs(imageBox.width - element.clientWidth) < 1 &&
+                            Math.abs(imageBox.height - element.clientHeight) < 1 &&
+                            Math.abs(imageBox.x + imageBox.width / 2 - cardBox.x - cardBox.width / 2) < 1 &&
+                            Math.abs(imageBox.y + imageBox.height / 2 - cardBox.y - cardBox.height / 2) < 1,
+                        fit: style.objectFit,
+                        position: style.objectPosition,
+                        naturalSize: [image.naturalWidth, image.naturalHeight],
+                    };
+                });
+            await expect.poll(measure).toMatchObject({ aligned: true, sameDeckSize: true, backCardsMatch: true, imageMatches: true, fit: "contain", position: "50% 50%", naturalSize });
+            return (await measure()).frame;
+        };
+        const firstFrame = await verifyCard([1, 1]);
         const [cardBox, prevBox, nextBox, promptBox] = await Promise.all([card.boundingBox(), card.getByRole("button", { name: "上一张" }).boundingBox(), card.getByRole("button", { name: "下一张" }).boundingBox(), prompt.boundingBox()]);
         expect(prevBox!.x).toBeGreaterThan(cardBox!.x);
         expect(nextBox!.x + nextBox!.width).toBeLessThan(cardBox!.x + cardBox!.width);
@@ -140,6 +177,7 @@ test("keeps the workbench mounted while selecting and restoring subjects", async
         await expect(prompt.locator("details p")).toHaveText(sessions[1].input.prompt as string);
         await card.getByRole("button", { name: "下一张" }).click();
         await expect(card.getByRole("img")).toHaveAttribute("alt", "背面");
+        expect(await verifyCard([120, 240])).toEqual(firstFrame);
         await expect(prompt.getByText("背面 180°", { exact: true })).toBeVisible();
         await controls.getByRole("button", { name: "正面视角", exact: true }).click();
         await expect(prompt.getByText("背面 180°", { exact: true })).toBeVisible();
@@ -220,6 +258,8 @@ test("keeps the workbench mounted while selecting and restoring subjects", async
             expect(scroll).toMatchObject({ overflow: "auto", stayed: true });
             expect(scroll.top).toBeGreaterThan(0);
         }
+        await back.click();
+        await expect(practice).toHaveURL(/\/practice\/?$/);
     } finally {
         await context.close();
     }

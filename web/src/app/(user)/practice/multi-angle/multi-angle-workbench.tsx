@@ -2,7 +2,8 @@
 
 import type { PointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Aperture, History, ImagePlus } from "lucide-react";
+import { Aperture, ArrowLeft, History, ImagePlus } from "lucide-react";
+import Link from "next/link";
 
 import { App } from "@/components/gamma-ui/gamma-ant-app";
 import { cn } from "@/lib/utils";
@@ -508,12 +509,17 @@ export default function MultiAngleWorkbench() {
             <div className={s.page}>
                 <header className={s.pageHead}>
                     <div>
-                        <h1>
-                            <span className={s.pageHeadIcon}>
-                                <Aperture size={20} />
-                            </span>
-                            多角度练习
-                        </h1>
+                        <div className={s.titleRow}>
+                            <h1>
+                                <span className={s.pageHeadIcon}>
+                                    <Aperture size={20} />
+                                </span>
+                                多角度练习
+                            </h1>
+                            <Link href="/practice" className={cn(s.btn, s.btnGhost, s.backLink)}>
+                                <ArrowLeft size={15} aria-hidden="true" /> 返回无限练习
+                            </Link>
+                        </div>
                         <p>上传一张主体图，拖动镜头环绕它。镜头移到哪个角度，取景窗就实时显示那个机位会拍到的画面。</p>
                     </div>
                     <div className={s.headActions}>
