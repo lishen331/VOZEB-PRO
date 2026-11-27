@@ -31,20 +31,22 @@ export default defineConfig({
         {
             name: "chromium",
             testMatch: [
-                /(?:course-cover-cards|admin-practice-model-pool|admin-official-work-publishing|admin-runninghub-workflow(?:-test|-discovery)?|admin-school-member-points|all-pages|canvas|commerce|core|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|infinite-practice-runninghub-workflow|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+                /(?:course-cover-cards|admin-practice-model-pool|admin-official-work-publishing|admin-runninghub-workflow(?:-test|-discovery)?|admin-school-member-points|all-pages|canvas|commerce|core|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-expression-learning|infinite-practice-module-workbenches|infinite-practice-runninghub-workflow|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             ],
             dependencies: ["setup"],
             use: { ...devices["Desktop Chrome"], storageState },
         },
         {
             name: "mobile-390",
-            testMatch: /(?:admin-school-member-points|all-pages|commerce|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+            testMatch:
+                /(?:admin-school-member-points|all-pages|commerce|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-expression-learning|infinite-practice-module-workbenches|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             dependencies: ["setup"],
             use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 390, height: 844 }, storageState },
         },
         {
             name: "mobile-430",
-            testMatch: /(?:admin-school-member-points|all-pages|commerce|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+            testMatch:
+                /(?:admin-school-member-points|all-pages|commerce|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-expression-learning|infinite-practice-module-workbenches|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             dependencies: ["setup"],
             use: { ...devices["iPhone 14 Pro Max"], browserName: "chromium", viewport: { width: 430, height: 932 }, storageState },
         },
