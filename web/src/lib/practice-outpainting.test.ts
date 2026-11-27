@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { centeredOutpainting, outpaintingGeometry, outpaintingLesson, readOutpaintingSelection } from "./practice-outpainting";
+import { centeredOutpainting, outpaintingGeometry, outpaintingLesson, readOutpaintingSelection, readOutpaintingSnapshot } from "./practice-outpainting";
 
 describe("practice outpainting", () => {
+    it("accepts 4K, preserves the aspect ratio and reads a saved 4K snapshot", () => {
+        const selection = { padding: centeredOutpainting(1080, 1080, "16:9"), ratio: "16:9", resolution: "4k" } as const;
+        const snapshot = { width: 1080, height: 1080, selection };
+        expect(readOutpaintingSelection(selection)).toEqual(selection);
+        expect(readOutpaintingSnapshot(snapshot)).toEqual(snapshot);
+        expect(outpaintingGeometry(1080, 1080, selection)).toEqual({ width: 4096, height: 2304, left: 896, top: 0, sourceWidth: 2304, sourceHeight: 2304 });
+        expect(outpaintingLesson(selection, 1080, 1080).prompt).toContain("4096 × 2304");
+    });
     it("keeps exact preset ratio, maps both edges and rejects a rounded-away margin", () => {
         const padding = centeredOutpainting(1080, 1080, "16:9");
         expect(padding).toEqual({ left: 420, right: 420, top: 0, bottom: 0 });
